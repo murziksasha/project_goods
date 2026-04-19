@@ -63,11 +63,22 @@ export const ProductList = ({
                 </span>
               </div>
               <p>{product.article}</p>
+              <p>Serial: {product.serialNumber}</p>
             </div>
             <strong>{formatCurrency(product.price)}</strong>
           </div>
 
           <dl className="product-meta">
+            <div>
+              <dt>Sale prices</dt>
+              <dd>
+                {product.salePriceOptions.length > 0
+                  ? product.salePriceOptions
+                      .map((value) => formatCurrency(value))
+                      .join(', ')
+                  : formatCurrency(product.price)}
+              </dd>
+            </div>
             <div>
               <dt>Total stock</dt>
               <dd>{product.quantity}</dd>
@@ -91,6 +102,10 @@ export const ProductList = ({
             <div>
               <dt>Warranty</dt>
               <dd>{product.warrantyPeriod} months</dd>
+            </div>
+            <div>
+              <dt>Default note</dt>
+              <dd>{product.note || 'No note'}</dd>
             </div>
           </dl>
 
