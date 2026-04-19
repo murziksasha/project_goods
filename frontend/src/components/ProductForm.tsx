@@ -15,6 +15,7 @@ type ProductFormProps = {
 const hasEmptyRequiredFields = (form: ProductFormValues) =>
   !form.name.trim() ||
   !form.article.trim() ||
+  !form.serialNumber.trim() ||
   !form.price.trim() ||
   !form.quantity.trim();
 
@@ -59,6 +60,15 @@ export const ProductForm = ({
       </label>
 
       <label className="field">
+        <span>Serial number</span>
+        <input
+          value={form.serialNumber}
+          placeholder="LOG-M185-0001"
+          onChange={(event) => onChange('serialNumber', event.target.value)}
+        />
+      </label>
+
+      <label className="field">
         <span>Price</span>
         <input
           type="number"
@@ -67,6 +77,15 @@ export const ProductForm = ({
           value={form.price}
           placeholder="1200"
           onChange={(event) => onChange('price', event.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        <span>Sale prices</span>
+        <input
+          value={form.salePriceOptions}
+          placeholder="649, 699, 749"
+          onChange={(event) => onChange('salePriceOptions', event.target.value)}
         />
       </label>
 
@@ -88,6 +107,16 @@ export const ProductForm = ({
           value={form.purchasePlace}
           placeholder="Rozetka"
           onChange={(event) => onChange('purchasePlace', event.target.value)}
+        />
+      </label>
+
+      <label className="field field-wide">
+        <span>Default note</span>
+        <textarea
+          rows={3}
+          value={form.note}
+          placeholder="This note will auto-fill in the sale card."
+          onChange={(event) => onChange('note', event.target.value)}
         />
       </label>
 
