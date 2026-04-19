@@ -12,11 +12,13 @@ import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
+import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
 
 export const useDashboardPage = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [productForm, setProductForm] = useState<ProductFormValues>(initialProductForm);
@@ -101,6 +103,7 @@ export const useDashboardPage = () => {
       allProducts,
       allClients,
       sales,
+      statsPeriod,
       products,
       clients,
       clientHistory,
@@ -129,6 +132,9 @@ export const useDashboardPage = () => {
       error,
       successMessage,
     },
-    actions,
+    actions: {
+      ...actions,
+      setStatsPeriod,
+    },
   };
 };

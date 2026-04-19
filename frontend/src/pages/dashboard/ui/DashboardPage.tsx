@@ -3,8 +3,8 @@ import { ProductForm } from '../../../features/manage-product/ui/ProductForm';
 import { SaleForm } from '../../../features/manage-sale/ui/SaleForm';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { ClientHistoryPanel } from '../../../widgets/dashboard/ui/ClientHistoryPanel';
+import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/AnalyticsHeroSection';
 import { ClientPanel } from '../../../widgets/dashboard/ui/ClientPanel';
-import { HeroSection } from '../../../widgets/dashboard/ui/HeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/Notifications';
 import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
 import { SalesPanel } from '../../../widgets/dashboard/ui/SalesPanel';
@@ -14,14 +14,17 @@ export const DashboardPage = () => {
 
   return (
     <main className="page-shell">
-      <HeroSection
+      <AnalyticsHeroSection
+        sales={state.sales}
         productCount={state.allProducts.length}
         clientCount={state.allClients.length}
-        saleCount={state.sales.length}
         totalFreeStock={state.totalFreeStock}
+        isSalesLoading={state.isSalesLoading}
         isSeeding={state.isSeeding}
         isExporting={state.isExporting}
         hasProducts={state.products.length > 0}
+        statsPeriod={state.statsPeriod}
+        onStatsPeriodChange={actions.setStatsPeriod}
         onSeed={actions.seedDemoData}
         onExport={actions.exportProducts}
       />

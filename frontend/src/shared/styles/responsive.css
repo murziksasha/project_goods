@@ -7,6 +7,15 @@
   .hero-copy h1 {
     max-width: none;
   }
+
+  .hero-chart-header,
+  .chart-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-chart-header {
+    display: grid;
+  }
 }
 
 @media (max-width: 640px) {
@@ -21,17 +30,29 @@
     border-radius: 22px;
   }
 
+  .hero-stat-grid,
+  .hero-inline-metrics,
   .form-grid,
   .product-meta,
-  .sale-meta,
+  .sale-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-legend,
   .history-stats {
     grid-template-columns: 1fr;
   }
 
   .panel-header,
   .panel-header-row,
+  .hero-chart-header,
   .product-card-header,
   .list-card-row {
     flex-direction: column;
+  }
+
+  .bar-chart {
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
 }
