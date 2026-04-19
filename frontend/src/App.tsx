@@ -38,8 +38,11 @@ import type {
 const initialProductForm: ProductFormValues = {
   name: '',
   article: '',
+  serialNumber: '',
   price: '',
+  salePriceOptions: '',
   quantity: '',
+  note: '',
   purchasePlace: '',
   purchaseDate: '',
   warrantyPeriod: '',
@@ -73,8 +76,11 @@ const clientStatusFilters: Array<ClientStatus | 'all'> = [
 const toProductForm = (product: Product): ProductFormValues => ({
   name: product.name,
   article: product.article,
+  serialNumber: product.serialNumber,
   price: String(product.price),
+  salePriceOptions: product.salePriceOptions.join(', '),
   quantity: String(product.quantity),
+  note: product.note,
   purchasePlace: product.purchasePlace,
   purchaseDate: product.purchaseDate ? product.purchaseDate.slice(0, 10) : '',
   warrantyPeriod: String(product.warrantyPeriod),
@@ -97,8 +103,8 @@ const toSaleForm = (sale: Sale): SaleFormValues => ({
 });
 
 function App() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
@@ -114,9 +120,11 @@ function App() {
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [clientStatusFilter, setClientStatusFilter] =
     useState<ClientStatus | 'all'>('all');
   const deferredSearchQuery = useDeferredValue(searchQuery.trim());
+  const deferredClientSearchQuery = useDeferredValue(clientSearchQuery.trim());
 
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
@@ -133,50 +141,22 @@ function App() {
   useEffect(() => {
     let isActive = true;
 
-    const fetchProducts = async () => {
+    const fetchWorkspaceData = async () => {
       setIsProductsLoading(true);
-
-      try {
-        const data = await getProducts(deferredSearchQuery);
-        if (!isActive) {
-          return;
-        }
-        setProducts(data);
-      } catch (requestError) {
-        if (!isActive) {
-          return;
-        }
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : 'Failed to load products.',
-        );
-      } finally {
-        if (isActive) {
-          setIsProductsLoading(false);
-        }
-      }
-    };
-
-    void fetchProducts();
-
-    return () => {
-      isActive = false;
-    };
-  }, [deferredSearchQuery]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    const fetchClients = async () => {
       setIsClientsLoading(true);
 
       try {
-        const data = await getClients('', clientStatusFilter);
+        const [productsData, clientsData] = await Promise.all([
+          getProducts(),
+          getClients(),
+        ]);
+
         if (!isActive) {
           return;
         }
-        setClients(data);
+
+        setAllProducts(productsData);
+        setAllClients(clientsData);
       } catch (requestError) {
         if (!isActive) {
           return;
@@ -188,17 +168,18 @@ function App() {
         );
       } finally {
         if (isActive) {
+          setIsProductsLoading(false);
           setIsClientsLoading(false);
         }
       }
     };
 
-    void fetchClients();
+    void fetchWorkspaceData();
 
     return () => {
       isActive = false;
     };
-  }, [clientStatusFilter]);
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -280,9 +261,17 @@ function App() {
   };
 
   const replaceProduct = (nextProduct: Product) => {
-    setProducts((currentProducts) =>
+    setAllProducts((currentProducts) =>
       currentProducts.map((product) =>
         product.id === nextProduct.id ? nextProduct : product,
+      ),
+    );
+  };
+
+  const replaceClient = (nextClient: Client) => {
+    setAllClients((currentClients) =>
+      currentClients.map((client) =>
+        client.id === nextClient.id ? nextClient : client,
       ),
     );
   };
@@ -332,6 +321,42 @@ function App() {
     setSaleForm(initialSaleForm);
   };
 
+  const products = allProducts.filter((product) => {
+    if (!deferredSearchQuery) {
+      return true;
+    }
+
+    return [
+      product.name,
+      product.article,
+      product.serialNumber,
+      product.note,
+      product.purchasePlace,
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(deferredSearchQuery.toLowerCase());
+  });
+
+  const clients = allClients.filter((client) =>
+    clientStatusFilter === 'all' ? true : client.status === clientStatusFilter,
+  );
+
+  const filteredClients = clients.filter((client) => {
+    if (!deferredClientSearchQuery) {
+      return true;
+    }
+
+    const normalizedDigits = deferredClientSearchQuery.replace(/\D/g, '');
+    const clientDigits = client.phone.replace(/\D/g, '');
+
+    return (
+      client.name.toLowerCase().includes(deferredClientSearchQuery.toLowerCase()) ||
+      client.phone.toLowerCase().includes(deferredClientSearchQuery.toLowerCase()) ||
+      (normalizedDigits.length > 0 && clientDigits.includes(normalizedDigits))
+    );
+  });
+
   const handleSaveProduct = async () => {
     setIsProductSaving(true);
     clearNotifications();
@@ -343,15 +368,7 @@ function App() {
         setSuccessMessage('Product updated.');
       } else {
         const createdProduct = await createProduct(productForm);
-        const matchesSearch =
-          deferredSearchQuery.length === 0 ||
-          `${createdProduct.name} ${createdProduct.article} ${createdProduct.purchasePlace}`
-            .toLowerCase()
-            .includes(deferredSearchQuery.toLowerCase());
-
-        setProducts((currentProducts) =>
-          matchesSearch ? [createdProduct, ...currentProducts] : currentProducts,
-        );
+        setAllProducts((currentProducts) => [createdProduct, ...currentProducts]);
         setSuccessMessage('Product saved to MongoDB.');
       }
 
@@ -374,23 +391,14 @@ function App() {
     try {
       if (editingClientId) {
         const updatedClient = await updateClient(editingClientId, clientForm);
-        setClients((currentClients) =>
-          currentClients.map((client) =>
-            client.id === updatedClient.id ? updatedClient : client,
-          ),
-        );
+        replaceClient(updatedClient);
         if (selectedClientId === updatedClient.id) {
           setSelectedClientId(updatedClient.id);
         }
         setSuccessMessage('Client updated.');
       } else {
         const createdClient = await createClient(clientForm);
-        if (
-          clientStatusFilter === 'all' ||
-          clientStatusFilter === createdClient.status
-        ) {
-          setClients((currentClients) => [createdClient, ...currentClients]);
-        }
+        setAllClients((currentClients) => [createdClient, ...currentClients]);
         setSuccessMessage('Client card created.');
       }
 
@@ -418,7 +426,8 @@ function App() {
             sale.id === result.sale.id ? result.sale : sale,
           ),
         );
-        replaceProduct(result.product);
+        const refreshedProducts = await getProducts();
+        setAllProducts(refreshedProducts);
         setSuccessMessage('Sale updated and stock recalculated.');
       } else {
         const result = await createSale(saleForm);
@@ -429,7 +438,8 @@ function App() {
 
       resetSaleEditor();
       if (selectedClientId) {
-        setSelectedClientId(selectedClientId);
+        const history = await getClientHistory(selectedClientId);
+        setClientHistory(history);
       }
     } catch (requestError) {
       setError(
@@ -451,7 +461,7 @@ function App() {
 
     try {
       await deleteProduct(product.id);
-      setProducts((currentProducts) =>
+      setAllProducts((currentProducts) =>
         currentProducts.filter((item) => item.id !== product.id),
       );
       if (editingProductId === product.id) {
@@ -476,7 +486,7 @@ function App() {
 
     try {
       await deleteClient(client.id);
-      setClients((currentClients) =>
+      setAllClients((currentClients) =>
         currentClients.filter((item) => item.id !== client.id),
       );
       if (selectedClientId === client.id) {
@@ -506,8 +516,8 @@ function App() {
     try {
       await deleteSale(sale.id);
       setSales((currentSales) => currentSales.filter((item) => item.id !== sale.id));
-      const refreshedProducts = await getProducts(deferredSearchQuery);
-      setProducts(refreshedProducts);
+      const refreshedProducts = await getProducts();
+      setAllProducts(refreshedProducts);
       if (editingSaleId === sale.id) {
         resetSaleEditor();
       }
@@ -549,8 +559,8 @@ function App() {
 
     try {
       const result = await seedDemoData();
-      setProducts(result.products);
-      setClients(result.clients);
+      setAllProducts(result.products);
+      setAllClients(result.clients);
       setSales(result.sales);
       setSelectedClientId(null);
       setClientHistory(null);
@@ -558,6 +568,7 @@ function App() {
       resetClientEditor();
       resetSaleEditor();
       setSearchQuery('');
+      setClientSearchQuery('');
       setClientStatusFilter('all');
       setSuccessMessage(result.message);
     } catch (requestError) {
@@ -571,7 +582,7 @@ function App() {
     }
   };
 
-  const totalFreeStock = products.reduce(
+  const totalFreeStock = allProducts.reduce(
     (total, product) => total + product.freeQuantity,
     0,
   );
@@ -610,11 +621,11 @@ function App() {
         <div className="hero-metrics">
           <div className="metric-card">
             <span className="metric-label">Products</span>
-            <strong>{products.length}</strong>
+            <strong>{allProducts.length}</strong>
           </div>
           <div className="metric-card">
             <span className="metric-label">Clients</span>
-            <strong>{clients.length}</strong>
+            <strong>{allClients.length}</strong>
           </div>
           <div className="metric-card">
             <span className="metric-label">Sales</span>
@@ -642,12 +653,18 @@ function App() {
           />
 
           <ClientForm
+            clients={allClients}
             form={clientForm}
             isSaving={isClientSaving}
             isEditing={Boolean(editingClientId)}
             onChange={handleClientFormChange}
             onSubmit={handleSaveClient}
             onCancelEdit={resetClientEditor}
+            onPickExisting={(client) => {
+              clearNotifications();
+              setEditingClientId(client.id);
+              setClientForm(toClientForm(client));
+            }}
           />
         </div>
 
@@ -662,10 +679,10 @@ function App() {
               </div>
 
               <label className="search-field">
-                <span>Search by article, name, or keyword</span>
+                <span>Search by article, serial, name, or keyword</span>
                 <input
                   value={searchQuery}
-                  placeholder="WM-001, mouse, Rozetka"
+                  placeholder="WM-001, LOG-M185-0001, mouse"
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
               </label>
@@ -706,8 +723,8 @@ function App() {
 
         <div className="column-stack">
           <SaleForm
-            clients={clients}
-            products={products}
+            clients={allClients}
+            products={allProducts}
             form={saleForm}
             isSaving={isSaleSaving}
             isEditing={Boolean(editingSaleId)}
@@ -724,6 +741,15 @@ function App() {
                   <h2>Client list</h2>
                 </div>
               </div>
+
+              <label className="search-field">
+                <span>Search by name or phone</span>
+                <input
+                  value={clientSearchQuery}
+                  placeholder="Ivan, +38067..."
+                  onChange={(event) => setClientSearchQuery(event.target.value)}
+                />
+              </label>
 
               <label className="search-field">
                 <span>Filter by status</span>
@@ -745,8 +771,9 @@ function App() {
             </div>
 
             <ClientList
-              clients={clients}
+              clients={filteredClients}
               isLoading={isClientsLoading}
+              searchQuery={deferredClientSearchQuery}
               selectedClientId={selectedClientId}
               onSelect={(client) => {
                 clearNotifications();

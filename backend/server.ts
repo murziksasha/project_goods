@@ -40,10 +40,34 @@ const productSchema = new mongoose.Schema(
       maxlength: [50, 'Article must contain no more than 50 characters'],
       unique: true,
     },
+    serialNumber: {
+      type: String,
+      required: [true, 'Serial number is required'],
+      trim: true,
+      uppercase: true,
+      maxlength: [80, 'Serial number must contain no more than 80 characters'],
+      unique: true,
+    },
     price: {
       type: Number,
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
+    },
+    salePriceOptions: {
+      type: [Number],
+      default: [],
+      validate: {
+        validator: (values: number[]) =>
+          Array.isArray(values) &&
+          values.every((value) => Number.isFinite(value) && value >= 0),
+        message: 'Sale price options must contain only valid non-negative numbers.',
+      },
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Product note must contain no more than 500 characters'],
+      default: '',
     },
     quantity: {
       type: Number,
@@ -83,7 +107,13 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.pre('validate', function updateSearchText() {
-  this.searchText = [this.name, this.article, this.purchasePlace]
+  this.searchText = [
+    this.name,
+    this.article,
+    this.serialNumber,
+    this.note,
+    this.purchasePlace,
+  ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -171,6 +201,7 @@ const saleSchema = new mongoose.Schema(
     productSnapshot: {
       article: { type: String, required: true },
       name: { type: String, required: true },
+      serialNumber: { type: String, required: true },
     },
     clientSnapshot: {
       name: { type: String, required: true },
@@ -205,8 +236,11 @@ type SaleDocument = mongoose.InferSchemaType<typeof saleSchema> & {
 type ProductPayload = {
   name?: unknown;
   article?: unknown;
+  serialNumber?: unknown;
   price?: unknown;
+  salePriceOptions?: unknown;
   quantity?: unknown;
+  note?: unknown;
   purchasePlace?: unknown;
   purchaseDate?: unknown;
   warrantyPeriod?: unknown;
@@ -268,8 +302,18 @@ const escapeRegExp = (value: string) =>
 const normalizeProductPayload = (payload: ProductPayload) => ({
   name: toNonEmptyString(payload.name),
   article: toNonEmptyString(payload.article).toUpperCase(),
+  serialNumber: toNonEmptyString(payload.serialNumber).toUpperCase(),
   price: toNumber(payload.price),
+  salePriceOptions: Array.isArray(payload.salePriceOptions)
+    ? payload.salePriceOptions
+        .map((value) => toNumber(value))
+        .filter((value) => Number.isFinite(value) && value >= 0)
+    : String(payload.salePriceOptions ?? '')
+        .split(',')
+        .map((value) => toNumber(value.trim()))
+        .filter((value) => Number.isFinite(value) && value >= 0),
   quantity: toNumber(payload.quantity),
+  note: toNonEmptyString(payload.note),
   reservedQuantity:
     payload.reservedQuantity === '' || payload.reservedQuantity === undefined
       ? 0
@@ -307,7 +351,10 @@ const formatProduct = (product: ProductDocument) => {
     id: product._id.toString(),
     name: product.name,
     article: product.article,
+    serialNumber: product.serialNumber ?? '',
     price: product.price,
+    salePriceOptions: product.salePriceOptions ?? [],
+    note: product.note ?? '',
     quantity: product.quantity,
     reservedQuantity: product.reservedQuantity,
     freeQuantity,
@@ -343,6 +390,7 @@ const formatSale = (sale: SaleDocument) => ({
   product: {
     id: sale.product.toString(),
     ...sale.productSnapshot,
+    serialNumber: sale.productSnapshot?.serialNumber ?? '',
   },
   createdAt: sale.createdAt.toISOString(),
   updatedAt: sale.updatedAt.toISOString(),
@@ -365,8 +413,11 @@ const createDemoProducts = () => [
   {
     name: 'Wireless Mouse Logitech M185',
     article: 'MOU-001',
+    serialNumber: 'LOG-M185-0001',
     price: 649,
-    quantity: 18,
+    salePriceOptions: [649, 699],
+    note: 'Compact office mouse with USB receiver.',
+    quantity: 28,
     reservedQuantity: 2,
     purchasePlace: 'Rozetka',
     purchaseDate: new Date('2026-03-02'),
@@ -375,8 +426,11 @@ const createDemoProducts = () => [
   {
     name: 'Mechanical Keyboard Ajazz AK820',
     article: 'KEY-002',
+    serialNumber: 'AJZ-AK820-0002',
     price: 2499,
-    quantity: 9,
+    salePriceOptions: [2499, 2599, 2799],
+    note: 'Mechanical keyboard with hot-swap switches.',
+    quantity: 17,
     reservedQuantity: 1,
     purchasePlace: 'Brain',
     purchaseDate: new Date('2026-02-11'),
@@ -385,11 +439,131 @@ const createDemoProducts = () => [
   {
     name: 'USB-C Hub Baseus 6-in-1',
     article: 'HUB-003',
+    serialNumber: 'BAS-HUB6-0003',
     price: 1299,
-    quantity: 14,
+    salePriceOptions: [1299, 1399],
+    note: '6-in-1 hub with HDMI and Power Delivery.',
+    quantity: 22,
     reservedQuantity: 0,
     purchasePlace: 'Allo',
     purchaseDate: new Date('2026-01-17'),
+    warrantyPeriod: 12,
+  },
+  {
+    name: 'Portable SSD Samsung T7 1TB',
+    article: 'SSD-004',
+    serialNumber: 'SAM-T7-1TB-0004',
+    price: 3899,
+    salePriceOptions: [3899, 3999, 4199],
+    note: 'Fast external SSD, often bundled with laptops.',
+    quantity: 16,
+    reservedQuantity: 1,
+    purchasePlace: 'Comfy',
+    purchaseDate: new Date('2026-01-25'),
+    warrantyPeriod: 36,
+  },
+  {
+    name: '27-inch Monitor LG UltraGear',
+    article: 'MON-005',
+    serialNumber: 'LG-27UG-0005',
+    price: 8999,
+    salePriceOptions: [8999, 9299],
+    note: 'Popular gaming monitor with IPS panel.',
+    quantity: 13,
+    reservedQuantity: 2,
+    purchasePlace: 'Foxtrot',
+    purchaseDate: new Date('2026-02-04'),
+    warrantyPeriod: 24,
+  },
+  {
+    name: 'Webcam Logitech C920',
+    article: 'CAM-006',
+    serialNumber: 'LOG-C920-0006',
+    price: 2799,
+    salePriceOptions: [2799, 2899, 2999],
+    note: 'Full HD webcam for meetings and streaming.',
+    quantity: 19,
+    reservedQuantity: 0,
+    purchasePlace: 'Rozetka',
+    purchaseDate: new Date('2026-03-09'),
+    warrantyPeriod: 24,
+  },
+  {
+    name: 'Bluetooth Speaker JBL Flip 6',
+    article: 'SPK-007',
+    serialNumber: 'JBL-FLIP6-0007',
+    price: 4299,
+    salePriceOptions: [4299, 4499],
+    note: 'Portable speaker with strong demand before holidays.',
+    quantity: 21,
+    reservedQuantity: 1,
+    purchasePlace: 'Allo',
+    purchaseDate: new Date('2026-04-12'),
+    warrantyPeriod: 12,
+  },
+  {
+    name: 'Wi-Fi Router TP-Link Archer AX55',
+    article: 'RTR-008',
+    serialNumber: 'TPL-AX55-0008',
+    price: 3199,
+    salePriceOptions: [3199, 3299, 3499],
+    note: 'Wi-Fi 6 router for home and office setups.',
+    quantity: 18,
+    reservedQuantity: 1,
+    purchasePlace: 'Brain',
+    purchaseDate: new Date('2026-05-07'),
+    warrantyPeriod: 24,
+  },
+  {
+    name: 'Gaming Headset HyperX Cloud Stinger 2',
+    article: 'HDP-009',
+    serialNumber: 'HPX-ST2-0009',
+    price: 2299,
+    salePriceOptions: [2299, 2399],
+    note: 'Entry gaming headset with good microphone clarity.',
+    quantity: 24,
+    reservedQuantity: 2,
+    purchasePlace: 'Rozetka',
+    purchaseDate: new Date('2026-06-18'),
+    warrantyPeriod: 12,
+  },
+  {
+    name: 'Power Bank Xiaomi 20000mAh',
+    article: 'PWB-010',
+    serialNumber: 'XMI-PB20-0010',
+    price: 1599,
+    salePriceOptions: [1599, 1699],
+    note: 'Frequently purchased in pairs for travel.',
+    quantity: 35,
+    reservedQuantity: 3,
+    purchasePlace: 'Comfy',
+    purchaseDate: new Date('2026-07-02'),
+    warrantyPeriod: 12,
+  },
+  {
+    name: 'Laptop Stand Ugreen Foldable',
+    article: 'STD-011',
+    serialNumber: 'UGR-STD-0011',
+    price: 999,
+    salePriceOptions: [999, 1099],
+    note: 'Accessory item with steady office demand.',
+    quantity: 27,
+    reservedQuantity: 0,
+    purchasePlace: 'Epicentr',
+    purchaseDate: new Date('2026-08-21'),
+    warrantyPeriod: 6,
+  },
+  {
+    name: 'Wireless Charger Anker PowerWave',
+    article: 'CHG-012',
+    serialNumber: 'ANK-PW-0012',
+    price: 1199,
+    salePriceOptions: [1199, 1299],
+    note: 'Good add-on item near the checkout.',
+    quantity: 20,
+    reservedQuantity: 0,
+    purchasePlace: 'Allo',
+    purchaseDate: new Date('2026-09-14'),
     warrantyPeriod: 12,
   },
 ];
@@ -412,6 +586,24 @@ const createDemoClients = () => [
     name: 'Maxim Bondar',
     note: 'VIP customer, fast response requested.',
     status: 'vip' as ClientStatus,
+  },
+  {
+    phone: '+380661234890',
+    name: 'Svitlana Marchenko',
+    note: 'Buys accessories for the design team.',
+    status: 'ok' as ClientStatus,
+  },
+  {
+    phone: '+380971234321',
+    name: 'Taras Melnyk',
+    note: 'Often compares several monitors before purchase.',
+    status: 'new' as ClientStatus,
+  },
+  {
+    phone: '+380631117700',
+    name: 'Andriy Shevchuk',
+    note: 'Wholesale client for coworking space upgrades.',
+    status: 'opt' as ClientStatus,
   },
 ];
 
@@ -492,6 +684,10 @@ const getErrorMessage = (error: unknown) => {
   if (isDuplicateKeyError(error)) {
     if (error.keyPattern?.article) {
       return 'Product article must be unique.';
+    }
+
+    if (error.keyPattern?.serialNumber) {
+      return 'Product serial number must be unique.';
     }
 
     if (error.keyPattern?.phone) {
@@ -609,7 +805,10 @@ app.get('/api/products/export', async (_req, res, next) => {
       return {
         Name: product.name,
         Article: product.article,
+        'Serial Number': product.serialNumber,
         Price: product.price,
+        'Sale Price Options': (product.salePriceOptions ?? []).join(', '),
+        Note: product.note ?? '',
         Quantity: product.quantity,
         'Reserved Quantity': product.reservedQuantity,
         'Free Quantity': freeQuantity,
@@ -810,6 +1009,7 @@ app.post('/api/sales', async (req, res, next) => {
         productSnapshot: {
           article: product.article,
           name: product.name,
+          serialNumber: product.serialNumber,
         },
         clientSnapshot: {
           name: client.name,
@@ -914,6 +1114,7 @@ app.put('/api/sales/:saleId', async (req, res, next) => {
           productSnapshot: {
             article: product.article,
             name: product.name,
+            serialNumber: product.serialNumber,
           },
           clientSnapshot: {
             name: client.name,
@@ -979,29 +1180,252 @@ app.post('/api/demo/seed', async (_req, res, next) => {
       ordered: true,
     });
 
-    const [mouseProduct, keyboardProduct] = [products[0], products[1]];
-    const [regularClient, , vipClient] = [clients[0], clients[1], clients[2]];
+    const [
+      mouseProduct,
+      keyboardProduct,
+      hubProduct,
+      ssdProduct,
+      monitorProduct,
+      webcamProduct,
+      speakerProduct,
+      routerProduct,
+      headsetProduct,
+      powerBankProduct,
+      standProduct,
+      chargerProduct,
+    ] = products;
+    const [
+      regularClient,
+      wholesaleClient,
+      vipClient,
+      designClient,
+      newClient,
+      coworkingClient,
+    ] = clients;
 
-    if (!mouseProduct || !keyboardProduct || !regularClient || !vipClient) {
+    if (
+      !mouseProduct ||
+      !keyboardProduct ||
+      !hubProduct ||
+      !ssdProduct ||
+      !monitorProduct ||
+      !webcamProduct ||
+      !speakerProduct ||
+      !routerProduct ||
+      !headsetProduct ||
+      !powerBankProduct ||
+      !standProduct ||
+      !chargerProduct ||
+      !regularClient ||
+      !wholesaleClient ||
+      !vipClient ||
+      !designClient ||
+      !newClient ||
+      !coworkingClient
+    ) {
       throw new Error('Failed to build demo fixtures.');
     }
 
     const seededSalesPayload = [
       {
-        saleDate: new Date('2026-04-18T10:30:00.000Z'),
+        saleDate: new Date('2026-01-08T09:12:00.000Z'),
         client: regularClient,
         product: mouseProduct,
         quantity: 2,
         salePrice: 649,
-        note: 'Pickup from store.',
+        note: 'Pickup from store before office opening.',
       },
       {
-        saleDate: new Date('2026-04-19T08:15:00.000Z'),
+        saleDate: new Date('2026-01-21T16:45:00.000Z'),
+        client: wholesaleClient,
+        product: hubProduct,
+        quantity: 4,
+        salePrice: 1299,
+        note: 'Batch order for accounting department laptops.',
+      },
+      {
+        saleDate: new Date('2026-02-03T11:25:00.000Z'),
         client: vipClient,
         product: keyboardProduct,
         quantity: 1,
         salePrice: 2399,
         note: 'Discount approved for loyal client.',
+      },
+      {
+        saleDate: new Date('2026-02-14T13:05:00.000Z'),
+        client: designClient,
+        product: webcamProduct,
+        quantity: 2,
+        salePrice: 2899,
+        note: 'Needed for remote interviews and client calls.',
+      },
+      {
+        saleDate: new Date('2026-03-11T18:20:00.000Z'),
+        client: newClient,
+        product: powerBankProduct,
+        quantity: 3,
+        salePrice: 1599,
+        note: 'Evening walk-in purchase for travel.',
+      },
+      {
+        saleDate: new Date('2026-03-28T10:40:00.000Z'),
+        client: coworkingClient,
+        product: routerProduct,
+        quantity: 2,
+        salePrice: 3299,
+        note: 'Upgrade of Wi-Fi zone on the second floor.',
+      },
+      {
+        saleDate: new Date('2026-04-05T12:30:00.000Z'),
+        client: regularClient,
+        product: standProduct,
+        quantity: 2,
+        salePrice: 999,
+        note: 'Added ergonomic accessories to previous order.',
+      },
+      {
+        saleDate: new Date('2026-04-18T10:30:00.000Z'),
+        client: regularClient,
+        product: chargerProduct,
+        quantity: 1,
+        salePrice: 1199,
+        note: 'Added wireless charger during pickup.',
+      },
+      {
+        saleDate: new Date('2026-05-07T15:00:00.000Z'),
+        client: vipClient,
+        product: ssdProduct,
+        quantity: 1,
+        salePrice: 3999,
+        note: 'Urgent same-day replacement for backup drive.',
+      },
+      {
+        saleDate: new Date('2026-05-24T17:35:00.000Z'),
+        client: wholesaleClient,
+        product: monitorProduct,
+        quantity: 3,
+        salePrice: 8999,
+        note: 'Monitors for newly hired office staff.',
+      },
+      {
+        saleDate: new Date('2026-06-09T08:50:00.000Z'),
+        client: designClient,
+        product: speakerProduct,
+        quantity: 1,
+        salePrice: 4299,
+        note: 'Requested before a team event.',
+      },
+      {
+        saleDate: new Date('2026-06-30T14:10:00.000Z'),
+        client: coworkingClient,
+        product: headsetProduct,
+        quantity: 5,
+        salePrice: 2299,
+        note: 'Headsets for new call booths.',
+      },
+      {
+        saleDate: new Date('2026-07-12T19:05:00.000Z'),
+        client: newClient,
+        product: mouseProduct,
+        quantity: 1,
+        salePrice: 699,
+        note: 'Late purchase right before closing.',
+      },
+      {
+        saleDate: new Date('2026-07-26T11:18:00.000Z'),
+        client: regularClient,
+        product: powerBankProduct,
+        quantity: 2,
+        salePrice: 1699,
+        note: 'Bought extra units for family travel.',
+      },
+      {
+        saleDate: new Date('2026-08-04T09:40:00.000Z'),
+        client: coworkingClient,
+        product: standProduct,
+        quantity: 6,
+        salePrice: 999,
+        note: 'Workplace refresh for hot-desk area.',
+      },
+      {
+        saleDate: new Date('2026-08-19T16:55:00.000Z'),
+        client: wholesaleClient,
+        product: webcamProduct,
+        quantity: 3,
+        salePrice: 2799,
+        note: 'Bulk procurement for training room.',
+      },
+      {
+        saleDate: new Date('2026-09-03T10:15:00.000Z'),
+        client: vipClient,
+        product: monitorProduct,
+        quantity: 1,
+        salePrice: 9299,
+        note: 'Premium unit reserved for a loyal client.',
+      },
+      {
+        saleDate: new Date('2026-09-18T12:05:00.000Z'),
+        client: designClient,
+        product: ssdProduct,
+        quantity: 2,
+        salePrice: 3899,
+        note: 'Portable drives for project archive transfer.',
+      },
+      {
+        saleDate: new Date('2026-10-07T13:48:00.000Z'),
+        client: regularClient,
+        product: hubProduct,
+        quantity: 1,
+        salePrice: 1399,
+        note: 'Needed HDMI and SD card support for a laptop.',
+      },
+      {
+        saleDate: new Date('2026-10-29T18:42:00.000Z'),
+        client: newClient,
+        product: speakerProduct,
+        quantity: 1,
+        salePrice: 4499,
+        note: 'Gift purchase in the evening.',
+      },
+      {
+        saleDate: new Date('2026-11-15T11:11:00.000Z'),
+        client: coworkingClient,
+        product: routerProduct,
+        quantity: 2,
+        salePrice: 3199,
+        note: 'Expanded network coverage before winter season.',
+      },
+      {
+        saleDate: new Date('2026-11-27T09:30:00.000Z'),
+        client: wholesaleClient,
+        product: chargerProduct,
+        quantity: 5,
+        salePrice: 1199,
+        note: 'Black Friday accessory batch.',
+      },
+      {
+        saleDate: new Date('2026-12-06T14:22:00.000Z'),
+        client: vipClient,
+        product: keyboardProduct,
+        quantity: 2,
+        salePrice: 2499,
+        note: 'Holiday gifts approved at standard price.',
+      },
+      {
+        saleDate: new Date('2026-12-19T17:08:00.000Z'),
+        client: designClient,
+        product: headsetProduct,
+        quantity: 2,
+        salePrice: 2399,
+        note: 'Year-end studio equipment refresh.',
+      },
+      {
+        saleDate: new Date('2026-12-28T15:40:00.000Z'),
+        client: regularClient,
+        product: powerBankProduct,
+        quantity: 4,
+        salePrice: 1599,
+        note: 'Pre-trip bundle at the end of the year.',
       },
     ];
 
@@ -1023,6 +1447,7 @@ app.post('/api/demo/seed', async (_req, res, next) => {
           productSnapshot: {
             article: entry.product.article,
             name: entry.product.name,
+            serialNumber: entry.product.serialNumber,
           },
           clientSnapshot: {
             name: entry.client.name,
