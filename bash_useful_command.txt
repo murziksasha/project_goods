@@ -1,0 +1,4 @@
+START mongo or check if it is working: 
+    net start mongodb
+
+    
