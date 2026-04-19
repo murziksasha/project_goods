@@ -2,7 +2,10 @@ export type Product = {
   id: string;
   name: string;
   article: string;
+  serialNumber: string;
   price: number;
+  salePriceOptions: number[];
+  note: string;
   quantity: number;
   reservedQuantity: number;
   freeQuantity: number;
@@ -19,8 +22,11 @@ export type EntityId = string;
 export type ProductFormValues = {
   name: string;
   article: string;
+  serialNumber: string;
   price: string;
+  salePriceOptions: string;
   quantity: string;
+  note: string;
   purchasePlace: string;
   purchaseDate: string;
   warrantyPeriod: string;
@@ -61,6 +67,7 @@ export type Sale = {
     id: string;
     article: string;
     name: string;
+    serialNumber: string;
   };
   createdAt: string;
   updatedAt: string;
