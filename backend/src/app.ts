@@ -4,9 +4,11 @@ import mongoose from 'mongoose';
 import { env } from './config/env';
 import { clientRouter } from './routes/client.routes';
 import { demoRouter } from './routes/demo.routes';
+import { employeeRouter } from './routes/employee.routes';
 import { healthRouter } from './routes/health.routes';
 import { productRouter } from './routes/product.routes';
 import { saleRouter } from './routes/sale.routes';
+import { settingsRouter } from './routes/settings.routes';
 import { getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
 export const app = express();
@@ -25,6 +27,8 @@ app.use('/api', productRouter);
 app.use('/api', clientRouter);
 app.use('/api', saleRouter);
 app.use('/api', demoRouter);
+app.use('/api', employeeRouter);
+app.use('/api', settingsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });

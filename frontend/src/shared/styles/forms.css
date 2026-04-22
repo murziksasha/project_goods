@@ -9,7 +9,7 @@
   display: grid;
   gap: 8px;
   font-weight: 600;
-  color: #22304d;
+  color: #43566e;
 }
 
 .field span {
@@ -22,11 +22,11 @@
 .field input[list],
 .search-field input,
 .search-field select {
-  border: 1px solid rgba(20, 33, 61, 0.12);
-  border-radius: 14px;
-  padding: 12px 14px;
+  border: 1px solid #c8d2df;
+  border-radius: 8px;
+  padding: 10px 12px;
   font: inherit;
-  background: rgba(255, 255, 255, 0.9);
+  background: #f8fafd;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -41,8 +41,8 @@
 .search-field input:focus,
 .search-field select:focus {
   outline: none;
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+  border-color: #2d8ae3;
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.16);
 }
 
 .field-wide {
@@ -63,31 +63,31 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #64748b;
+  color: #8294a9;
 }
 
 .search-field input,
 .search-field select {
-  border-radius: 16px;
-  padding: 13px 15px;
-  background: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
 }
 
 .suggestions-panel {
   margin-top: 10px;
   display: grid;
   gap: 8px;
-  border: 1px solid rgba(20, 33, 61, 0.12);
-  border-radius: 18px;
+  border: 1px solid #d2dce7;
+  border-radius: 10px;
   padding: 10px;
-  background: rgba(248, 250, 252, 0.96);
+  background: #f4f7fb;
 }
 
 .suggestion-item {
   border: 0;
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.94);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
   text-align: left;
   cursor: pointer;
   display: grid;
@@ -96,17 +96,17 @@
 }
 
 .suggestion-item strong {
-  color: #14213d;
+  color: #485c73;
 }
 
 .suggestion-item span,
 .suggestion-empty {
-  color: #52607f;
+  color: #71869e;
   margin: 0;
 }
 
 .suggestion-item:hover {
-  background: rgba(255, 237, 213, 0.9);
+  background: #edf5ff;
   transform: translateY(-1px);
 }
 
@@ -115,7 +115,7 @@
 .ghost-button,
 .danger-button {
   border: 0;
-  border-radius: 999px;
+  border-radius: 7px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -128,14 +128,14 @@
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  background: #2d8ae3;
   color: #fff;
-  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.2);
+  box-shadow: none;
 }
 
 .secondary-button {
-  background: rgba(20, 33, 61, 0.08);
-  color: #14213d;
+  background: #e5edf8;
+  color: #41566d;
 }
 
 .ghost-button,
@@ -144,8 +144,8 @@
 }
 
 .ghost-button {
-  background: rgba(20, 33, 61, 0.08);
-  color: #14213d;
+  background: #eaf0f7;
+  color: #4f6279;
 }
 
 .danger-button {
@@ -164,4 +164,11 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.employee-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin-bottom: 16px;
 }

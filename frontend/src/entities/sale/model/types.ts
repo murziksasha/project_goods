@@ -19,6 +19,16 @@ export type Sale = {
     name: string;
     serialNumber: string;
   };
+  manager: {
+    id: string;
+    name: string;
+    role: string;
+  } | null;
+  master: {
+    id: string;
+    name: string;
+    role: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +40,8 @@ export type SaleFormValues = {
   quantity: string;
   salePrice: string;
   note: string;
+  managerId?: string;
+  masterId?: string;
 };
 
 export type SeedResponse = {

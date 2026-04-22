@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Client, type ClientDocument } from '../client/model';
+import { Employee, type EmployeeDocument } from '../employee/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from './model';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
@@ -51,6 +52,35 @@ const assertSalePayload = (quantity: number, salePrice: number) => {
   }
 };
 
+const hasPermission = (
+  employee: EmployeeDocument,
+  requiredRoles: string[],
+  requiredPermission: string,
+) =>
+  requiredRoles.includes(employee.role) ||
+  employee.permissions.includes(requiredPermission as never);
+
+const resolveEmployee = async (
+  employeeId: string,
+  field: 'managerId' | 'masterId',
+  requiredRoles: string[],
+  requiredPermission: string,
+) => {
+  if (!employeeId) {
+    return null;
+  }
+
+  isValidObjectIdOrThrow(employeeId, field);
+  const employee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
+  if (!employee || !employee.isActive) {
+    throw new Error(`${field} employee not found or inactive.`);
+  }
+  if (!hasPermission(employee, requiredRoles, requiredPermission)) {
+    throw new Error(`${field} employee does not have required permissions.`);
+  }
+  return employee;
+};
+
 export const listSales = async () => {
   const sales = await Sale.find().sort({ saleDate: -1 }).lean<SaleDocument[]>();
   return sales.map(formatSale);
@@ -62,9 +92,11 @@ export const createSale = async (payloadInput: SalePayload) => {
   isValidObjectIdOrThrow(payload.productId, 'productId');
   assertSalePayload(payload.quantity, payload.salePrice);
 
-  const [client, product] = await Promise.all([
+  const [client, product, manager, master] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
     ensureFreeStock(payload.productId, payload.quantity),
+    resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
+    resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
   ]);
 
   if (!client) {
@@ -81,6 +113,8 @@ export const createSale = async (payloadInput: SalePayload) => {
       saleDate: payload.saleDate,
       client: client._id,
       product: product._id,
+      manager: manager?._id ?? null,
+      master: master?._id ?? null,
       quantity: payload.quantity,
       salePrice: payload.salePrice,
       note: payload.note,
@@ -94,6 +128,12 @@ export const createSale = async (payloadInput: SalePayload) => {
         phone: client.phone,
         status: client.status,
       },
+      managerSnapshot: manager
+        ? { name: manager.name, role: manager.role }
+        : undefined,
+      masterSnapshot: master
+        ? { name: master.name, role: master.role }
+        : undefined,
     });
 
     await sale.validate();
@@ -122,9 +162,11 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     throw new Error('Sale not found.');
   }
 
-  const [client, product] = await Promise.all([
+  const [client, product, manager, master] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
     Product.findById(payload.productId).lean<ProductDocument | null>(),
+    resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
+    resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
   ]);
 
   if (!client) {
@@ -158,6 +200,8 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         saleDate: payload.saleDate,
         client: client._id,
         product: product._id,
+        manager: manager?._id ?? null,
+        master: master?._id ?? null,
         quantity: payload.quantity,
         salePrice: payload.salePrice,
         note: payload.note,
@@ -171,6 +215,12 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           phone: client.phone,
           status: client.status,
         },
+        managerSnapshot: manager
+          ? { name: manager.name, role: manager.role }
+          : undefined,
+        masterSnapshot: master
+          ? { name: master.name, role: master.role }
+          : undefined,
       },
       { new: true, runValidators: true },
     ).lean<SaleDocument | null>();

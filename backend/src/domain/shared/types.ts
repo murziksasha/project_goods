@@ -26,4 +26,19 @@ export type SalePayload = {
   quantity?: unknown;
   salePrice?: unknown;
   note?: unknown;
+  managerId?: unknown;
+  masterId?: unknown;
+};
+
+export type EmployeePayload = {
+  name?: unknown;
+  phone?: unknown;
+  role?: unknown;
+  permissions?: unknown;
+  isActive?: unknown;
+  note?: unknown;
+};
+
+export type SettingsPayload = {
+  serviceName?: unknown;
 };

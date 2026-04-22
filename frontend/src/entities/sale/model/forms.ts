@@ -7,6 +7,8 @@ export const initialSaleForm: SaleFormValues = {
   quantity: '1',
   salePrice: '',
   note: '',
+  managerId: '',
+  masterId: '',
 };
 
 export const toSaleForm = (sale: Sale): SaleFormValues => ({
@@ -16,4 +18,6 @@ export const toSaleForm = (sale: Sale): SaleFormValues => ({
   quantity: String(sale.quantity),
   salePrice: String(sale.salePrice),
   note: sale.note,
+  managerId: sale.manager?.id ?? '',
+  masterId: sale.master?.id ?? '',
 });

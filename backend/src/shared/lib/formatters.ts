@@ -1,4 +1,5 @@
 import type { ClientDocument } from '../../domain/client/model';
+import type { EmployeeDocument } from '../../domain/employee/model';
 import type { ProductDocument } from '../../domain/product/model';
 import type { SaleDocument } from '../../domain/sale/model';
 
@@ -35,6 +36,18 @@ export const formatClient = (client: ClientDocument) => ({
   updatedAt: client.updatedAt.toISOString(),
 });
 
+export const formatEmployee = (employee: EmployeeDocument) => ({
+  id: employee._id.toString(),
+  name: employee.name,
+  phone: employee.phone,
+  role: employee.role,
+  permissions: employee.permissions,
+  isActive: employee.isActive,
+  note: employee.note,
+  createdAt: employee.createdAt.toISOString(),
+  updatedAt: employee.updatedAt.toISOString(),
+});
+
 export const formatSale = (sale: SaleDocument) => ({
   id: sale._id.toString(),
   saleDate: sale.saleDate.toISOString(),
@@ -50,6 +63,18 @@ export const formatSale = (sale: SaleDocument) => ({
     ...sale.productSnapshot,
     serialNumber: sale.productSnapshot?.serialNumber ?? '',
   },
+  manager: sale.manager
+    ? {
+        id: sale.manager.toString(),
+        ...(sale.managerSnapshot ?? { name: '', role: '' }),
+      }
+    : null,
+  master: sale.master
+    ? {
+        id: sale.master.toString(),
+        ...(sale.masterSnapshot ?? { name: '', role: '' }),
+      }
+    : null,
   createdAt: sale.createdAt.toISOString(),
   updatedAt: sale.updatedAt.toISOString(),
 });
