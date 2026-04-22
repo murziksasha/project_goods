@@ -1,8 +1,16 @@
 import { clientStatuses, type ClientStatus } from '../../domain/client/constants';
+import {
+  employeePermissions,
+  employeeRoles,
+  type EmployeePermission,
+  type EmployeeRole,
+} from '../../domain/employee/constants';
 import type {
   ClientPayload,
+  EmployeePayload,
   ProductPayload,
   SalePayload,
+  SettingsPayload,
 } from '../../domain/shared/types';
 
 export const toNonEmptyString = (value: unknown) =>
@@ -77,4 +85,54 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   quantity: toNumber(payload.quantity),
   salePrice: toNumber(payload.salePrice),
   note: toNonEmptyString(payload.note),
+  managerId: toNonEmptyString(payload.managerId),
+  masterId: toNonEmptyString(payload.masterId),
+});
+
+export const normalizeEmployeePayload = (payload: EmployeePayload) => {
+  const roleRaw = String(payload.role ?? '');
+  const role = employeeRoles.includes(roleRaw as EmployeeRole)
+    ? (roleRaw as EmployeeRole)
+    : 'manager';
+  const parsedPermissions = Array.isArray(payload.permissions)
+    ? payload.permissions
+        .map((value) => String(value))
+        .filter((value): value is EmployeePermission =>
+          employeePermissions.includes(value as EmployeePermission),
+        )
+    : String(payload.permissions ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value): value is EmployeePermission =>
+          employeePermissions.includes(value as EmployeePermission),
+        );
+
+  const defaultRolePermissions: Record<EmployeeRole, EmployeePermission[]> = {
+    owner: [...employeePermissions],
+    manager: ['orders.view', 'orders.manage', 'clients.manage'],
+    master: ['orders.view', 'repairs.execute'],
+    accountant: ['orders.view', 'sales.manage'],
+    warehouse: ['orders.view', 'inventory.manage'],
+    sales: ['orders.view', 'sales.manage', 'clients.manage'],
+    support: ['orders.view'],
+  };
+
+  return {
+    name: toNonEmptyString(payload.name),
+    phone: normalizePhone(payload.phone),
+    role,
+    permissions:
+      parsedPermissions.length > 0
+        ? Array.from(new Set(parsedPermissions))
+        : defaultRolePermissions[role],
+    isActive:
+      payload.isActive === undefined
+        ? true
+        : payload.isActive === true || String(payload.isActive).toLowerCase() === 'true',
+    note: toNonEmptyString(payload.note),
+  };
+};
+
+export const normalizeSettingsPayload = (payload: SettingsPayload) => ({
+  serviceName: toNonEmptyString(payload.serviceName) || 'Service CRM',
 });

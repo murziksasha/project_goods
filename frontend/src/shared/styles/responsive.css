@@ -1,58 +1,132 @@
-@media (max-width: 940px) {
-  .hero-card,
+@media (max-width: 1260px) {
+  .workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    grid-template-rows: auto;
+    padding: 12px;
+  }
+
+  .sidebar-profile {
+    border-bottom: 0;
+    padding: 0;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    padding: 8px 0 0;
+  }
+
+  .hero-chart-layout,
   .workspace-grid {
     grid-template-columns: 1fr;
   }
 
-  .hero-copy h1 {
-    max-width: none;
-  }
-
-  .hero-chart-header,
-  .chart-legend {
+  .create-order-grid {
     grid-template-columns: 1fr;
   }
 
-  .hero-chart-header {
-    display: grid;
+  .create-order-right {
+    border-left: 0;
+    border-top: 1px solid #d5dde7;
+    padding-left: 0;
+    padding-top: 12px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .topbar-title {
+    font-size: 1.1rem;
+  }
+
   .page-shell {
-    width: min(100% - 20px, 1180px);
-    padding-top: 20px;
+    width: min(100% - 16px, 1540px);
+    padding-top: 12px;
   }
 
   .hero-card,
-  .panel {
-    padding: 20px;
-    border-radius: 22px;
+  .panel,
+  .hero-chart-card {
+    padding: 12px;
   }
 
-  .hero-stat-grid,
-  .hero-inline-metrics,
-  .form-grid,
-  .product-meta,
-  .sale-meta {
-    grid-template-columns: 1fr;
-  }
-
-  .chart-legend,
-  .history-stats {
-    grid-template-columns: 1fr;
-  }
-
+  .hero-header,
+  .hero-controls,
   .panel-header,
   .panel-header-row,
   .hero-chart-header,
   .product-card-header,
   .list-card-row {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-inline-metrics,
+  .form-grid,
+  .product-meta,
+  .sale-meta,
+  .history-stats,
+  .employee-permissions {
+    grid-template-columns: 1fr;
   }
 
   .bar-chart {
     grid-template-columns: 1fr;
     justify-items: center;
+  }
+
+  .orders-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orders-toolbar-left {
+    width: 100%;
+  }
+
+  .orders-search-group {
+    grid-template-columns: 1fr 100px;
+    width: 100%;
+  }
+
+  .orders-create-button {
+    width: 100%;
+  }
+
+  .create-order-tabs {
+    overflow-x: auto;
+  }
+
+  .create-order-tab {
+    white-space: nowrap;
+  }
+
+  .create-row-2,
+  .create-row-3,
+  .create-device-search,
+  .create-cost-row,
+  .create-prepay-row,
+  .create-checks-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-order-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .create-order-actions button {
+    width: 100%;
   }
 }

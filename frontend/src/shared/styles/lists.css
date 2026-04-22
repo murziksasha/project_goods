@@ -5,8 +5,8 @@
 }
 
 .product-card {
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .product-card-header,
@@ -24,7 +24,7 @@
 .product-card h3,
 .list-card h3 {
   margin: 0 0 4px;
-  color: #14213d;
+  color: #475b72;
 }
 
 .product-card h3 {
@@ -55,11 +55,11 @@
 
 .product-card p,
 .list-card p {
-  color: #667085;
+  color: #73869e;
 }
 
 .product-card strong {
-  color: #b45309;
+  color: #2d8ae3;
   font-size: 1rem;
 }
 
@@ -86,8 +86,8 @@
 
 .stock-badge-success,
 .status-ok {
-  color: #166534;
-  background: rgba(34, 197, 94, 0.16);
+  color: #0f766e;
+  background: rgba(8, 145, 130, 0.14);
 }
 
 .stock-badge-danger,
@@ -97,18 +97,18 @@
 }
 
 .status-new {
-  background: rgba(59, 130, 246, 0.14);
-  color: #1d4ed8;
+  background: rgba(45, 138, 227, 0.16);
+  color: #226db5;
 }
 
 .status-vip {
-  background: rgba(217, 119, 6, 0.16);
-  color: #b45309;
+  background: rgba(24, 184, 176, 0.16);
+  color: #168881;
 }
 
 .status-opt {
-  background: rgba(6, 182, 212, 0.16);
-  color: #0f766e;
+  background: rgba(115, 134, 158, 0.15);
+  color: #576e86;
 }
 
 .product-meta,
@@ -128,13 +128,13 @@
 
 .product-meta div,
 .sale-meta div {
-  border-radius: 16px;
-  padding: 12px 14px;
-  background: rgba(248, 250, 252, 0.92);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f3f6fa;
 }
 
 .sale-meta div {
-  background: rgba(255, 255, 255, 0.78);
+  background: #f8fafd;
 }
 
 .product-meta dt,
@@ -143,13 +143,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #94a3b8;
+  color: #93a5b9;
   margin-bottom: 6px;
 }
 
 .product-meta dd,
 .sale-meta dd {
-  color: #1f2937;
+  color: #4a5f76;
   font-weight: 600;
 }
 
@@ -161,28 +161,28 @@
 }
 
 .list-card {
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  border: 1px solid #d8e1ec;
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .list-card-selected {
-  border-color: rgba(14, 165, 233, 0.48);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
+  border-color: rgba(45, 138, 227, 0.55);
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.12);
 }
 
 .list-card:hover {
   transform: translateY(-1px);
-  border-color: rgba(14, 165, 233, 0.28);
+  border-color: rgba(45, 138, 227, 0.35);
 }
 
 .list-card:focus-visible {
   outline: none;
-  border-color: rgba(14, 165, 233, 0.48);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
+  border-color: rgba(45, 138, 227, 0.52);
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.12);
 }
 
 .card-link {
@@ -200,7 +200,7 @@
 
 .muted-copy,
 .empty-state {
-  color: #52607f;
+  color: #74889f;
 }
 
 .empty-state {

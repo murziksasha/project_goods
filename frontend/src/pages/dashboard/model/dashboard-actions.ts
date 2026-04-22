@@ -1,43 +1,87 @@
-import { createClient, deleteClient, getClientHistory, updateClient } from '../../../entities/client/api/clientApi';
+import {
+  createClient,
+  deleteClient,
+  getClientHistory,
+  updateClient,
+} from '../../../entities/client/api/clientApi';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
-import type { Client, ClientFormValues, ClientHistory, ClientStatus } from '../../../entities/client/model/types';
-import { createProduct, deleteProduct, exportProducts, getProducts, updateProduct } from '../../../entities/product/api/productApi';
+import type {
+  Client,
+  ClientFormValues,
+  ClientHistory,
+  ClientStatus,
+} from '../../../entities/client/model/types';
+import {
+  createEmployee,
+  deleteEmployee,
+  updateEmployee,
+} from '../../../entities/employee/api/employeeApi';
+import { initialEmployeeForm, toEmployeeForm } from '../../../entities/employee/model/forms';
+import type {
+  Employee,
+  EmployeeFormValues,
+} from '../../../entities/employee/model/types';
+import {
+  createProduct,
+  deleteProduct,
+  exportProducts,
+  getProducts,
+  updateProduct,
+} from '../../../entities/product/api/productApi';
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import { createSale, deleteSale, updateSale } from '../../../entities/sale/api/saleApi';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
+import { updateSettings } from '../../../entities/settings/api/settingsApi';
+import type {
+  AppSettings,
+  AppSettingsFormValues,
+} from '../../../entities/settings/model/types';
 import { seedDemoData } from '../../../features/demo-data/api/demoApi';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
+import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardActionParams = {
   allProducts: Product[];
+  allClients: Client[];
+  allEmployees: Employee[];
   productForm: ProductFormValues;
   clientForm: ClientFormValues;
   saleForm: SaleFormValues;
+  employeeForm: EmployeeFormValues;
+  settingsForm: AppSettingsFormValues;
   editingProductId: string | null;
   editingClientId: string | null;
   editingSaleId: string | null;
+  editingEmployeeId: string | null;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
   setAllClients: Setter<Client[]>;
+  setAllEmployees: Setter<Employee[]>;
   setSales: Setter<Sale[]>;
+  setSettings: Setter<AppSettings | null>;
   setSelectedClientId: Setter<string | null>;
   setClientHistory: Setter<ClientHistory | null>;
   setProductForm: Setter<ProductFormValues>;
   setClientForm: Setter<ClientFormValues>;
   setSaleForm: Setter<SaleFormValues>;
+  setEmployeeForm: Setter<EmployeeFormValues>;
+  setSettingsForm: Setter<AppSettingsFormValues>;
   setEditingProductId: Setter<string | null>;
   setEditingClientId: Setter<string | null>;
   setEditingSaleId: Setter<string | null>;
+  setEditingEmployeeId: Setter<string | null>;
   setProductSearchQuery: Setter<string>;
   setClientSearchQuery: Setter<string>;
   setClientStatusFilter: Setter<ClientStatus | 'all'>;
   setIsProductSaving: Setter<boolean>;
   setIsClientSaving: Setter<boolean>;
   setIsSaleSaving: Setter<boolean>;
+  setIsEmployeeSaving: Setter<boolean>;
+  setIsSettingsSaving: Setter<boolean>;
   setIsExporting: Setter<boolean>;
   setIsSeeding: Setter<boolean>;
   setError: Setter<string>;
@@ -46,30 +90,42 @@ type DashboardActionParams = {
 
 export const createDashboardActions = ({
   allProducts,
+  allClients,
+  allEmployees,
   productForm,
   clientForm,
   saleForm,
+  employeeForm,
+  settingsForm,
   editingProductId,
   editingClientId,
   editingSaleId,
+  editingEmployeeId,
   selectedClientId,
   setAllProducts,
   setAllClients,
+  setAllEmployees,
   setSales,
+  setSettings,
   setSelectedClientId,
   setClientHistory,
   setProductForm,
   setClientForm,
   setSaleForm,
+  setEmployeeForm,
+  setSettingsForm,
   setEditingProductId,
   setEditingClientId,
   setEditingSaleId,
+  setEditingEmployeeId,
   setProductSearchQuery,
   setClientSearchQuery,
   setClientStatusFilter,
   setIsProductSaving,
   setIsClientSaving,
   setIsSaleSaving,
+  setIsEmployeeSaving,
+  setIsSettingsSaving,
   setIsExporting,
   setIsSeeding,
   setError,
@@ -80,12 +136,58 @@ export const createDashboardActions = ({
     setSuccessMessage('');
   };
 
-  const resetProductEditor = () => { setEditingProductId(null); setProductForm(initialProductForm); };
-  const resetClientEditor = () => { setEditingClientId(null); setClientForm(initialClientForm); };
-  const resetSaleEditor = () => { setEditingSaleId(null); setSaleForm(initialSaleForm); };
+  const resetProductEditor = () => {
+    setEditingProductId(null);
+    setProductForm(initialProductForm);
+  };
+  const resetClientEditor = () => {
+    setEditingClientId(null);
+    setClientForm(initialClientForm);
+  };
+  const resetSaleEditor = () => {
+    setEditingSaleId(null);
+    setSaleForm(initialSaleForm);
+  };
+  const resetEmployeeEditor = () => {
+    setEditingEmployeeId(null);
+    setEmployeeForm(initialEmployeeForm);
+  };
 
   const refreshClientHistory = async (clientId: string) => {
     setClientHistory(await getClientHistory(clientId));
+  };
+
+  const normalizePhone = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.startsWith('380')) {
+      return `+${digits}`;
+    }
+    return `+380${digits}`;
+  };
+
+  const formatOrderDateTime = (dateValue: string, timeValue: string) => {
+    if (!dateValue) {
+      return new Date().toISOString().slice(0, 10);
+    }
+    if (!timeValue) {
+      return dateValue;
+    }
+    return `${dateValue}T${timeValue}`;
+  };
+
+  const buildProductIdentity = (payload: CreateOrderRequestPayload) => {
+    const uniqueSuffix = `${Date.now().toString(36)}${Math.floor(
+      Math.random() * 1000,
+    )
+      .toString(36)
+      .padStart(2, '0')}`.toUpperCase();
+    const serialFallback = `SRV-${uniqueSuffix}`;
+    const articleFallback = `ORD-${uniqueSuffix}`;
+
+    return {
+      serialNumber: (payload.deviceSerialNumber || serialFallback).trim().toUpperCase(),
+      article: articleFallback,
+    };
   };
 
   return {
@@ -99,12 +201,24 @@ export const createDashboardActions = ({
         setClientHistory(null);
       }
     },
-    onProductChange: <K extends keyof ProductFormValues>(field: K, value: ProductFormValues[K]) =>
-      setProductForm((currentForm) => ({ ...currentForm, [field]: value })),
-    onClientChange: <K extends keyof ClientFormValues>(field: K, value: ClientFormValues[K]) =>
-      setClientForm((currentForm) => ({ ...currentForm, [field]: value })),
+    onProductChange: <K extends keyof ProductFormValues>(
+      field: K,
+      value: ProductFormValues[K],
+    ) => setProductForm((currentForm) => ({ ...currentForm, [field]: value })),
+    onClientChange: <K extends keyof ClientFormValues>(
+      field: K,
+      value: ClientFormValues[K],
+    ) => setClientForm((currentForm) => ({ ...currentForm, [field]: value })),
     onSaleChange: <K extends keyof SaleFormValues>(field: K, value: SaleFormValues[K]) =>
       setSaleForm((currentForm) => ({ ...currentForm, [field]: value })),
+    onEmployeeChange: <K extends keyof EmployeeFormValues>(
+      field: K,
+      value: EmployeeFormValues[K],
+    ) => setEmployeeForm((currentForm) => ({ ...currentForm, [field]: value })),
+    onSettingsChange: <K extends keyof AppSettingsFormValues>(
+      field: K,
+      value: AppSettingsFormValues[K],
+    ) => setSettingsForm((currentForm) => ({ ...currentForm, [field]: value })),
     editProduct: (product: Product) => {
       clearNotifications();
       setEditingProductId(product.id);
@@ -120,6 +234,11 @@ export const createDashboardActions = ({
       setEditingSaleId(sale.id);
       setSaleForm(toSaleForm(sale));
     },
+    editEmployee: (employee: Employee) => {
+      clearNotifications();
+      setEditingEmployeeId(employee.id);
+      setEmployeeForm(toEmployeeForm(employee));
+    },
     pickExistingClient: (client: Client) => {
       clearNotifications();
       setEditingClientId(client.id);
@@ -128,6 +247,7 @@ export const createDashboardActions = ({
     resetProductEditor,
     resetClientEditor,
     resetSaleEditor,
+    resetEmployeeEditor,
     saveProduct: async () => {
       setIsProductSaving(true);
       clearNotifications();
@@ -186,7 +306,9 @@ export const createDashboardActions = ({
       try {
         if (editingSaleId) {
           const result = await updateSale(editingSaleId, saleForm);
-          setSales((current) => current.map((sale) => (sale.id === result.sale.id ? result.sale : sale)));
+          setSales((current) =>
+            current.map((sale) => (sale.id === result.sale.id ? result.sale : sale)),
+          );
           setAllProducts(await getProducts());
           setSuccessMessage('Sale updated and stock recalculated.');
         } else {
@@ -206,6 +328,44 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to save sale.'));
       } finally {
         setIsSaleSaving(false);
+      }
+    },
+    saveEmployee: async () => {
+      setIsEmployeeSaving(true);
+      clearNotifications();
+      try {
+        if (editingEmployeeId) {
+          const updatedEmployee = await updateEmployee(editingEmployeeId, employeeForm);
+          setAllEmployees((current) =>
+            current.map((item) =>
+              item.id === updatedEmployee.id ? updatedEmployee : item,
+            ),
+          );
+          setSuccessMessage('Employee updated.');
+        } else {
+          const createdEmployee = await createEmployee(employeeForm);
+          setAllEmployees((current) => [createdEmployee, ...current]);
+          setSuccessMessage('Employee created.');
+        }
+        resetEmployeeEditor();
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to save employee.'));
+      } finally {
+        setIsEmployeeSaving(false);
+      }
+    },
+    saveSettings: async () => {
+      setIsSettingsSaving(true);
+      clearNotifications();
+      try {
+        const updated = await updateSettings(settingsForm);
+        setSettings(updated);
+        setSettingsForm({ serviceName: updated.serviceName });
+        setSuccessMessage('Settings saved.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to save settings.'));
+      } finally {
+        setIsSettingsSaving(false);
       }
     },
     deleteProduct: async (product: Product) => {
@@ -253,6 +413,19 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to delete sale.'));
       }
     },
+    deleteEmployee: async (employee: Employee) => {
+      clearNotifications();
+      if (!window.confirm(`Delete employee "${employee.name}"?`)) return;
+
+      try {
+        await deleteEmployee(employee.id);
+        setAllEmployees((current) => current.filter((item) => item.id !== employee.id));
+        if (editingEmployeeId === employee.id) resetEmployeeEditor();
+        setSuccessMessage('Employee deleted.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to delete employee.'));
+      }
+    },
     exportProducts: async () => {
       setIsExporting(true);
       clearNotifications();
@@ -286,6 +459,112 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to seed demo data.'));
       } finally {
         setIsSeeding(false);
+      }
+    },
+    saveOrderRequest: async (payload: CreateOrderRequestPayload) => {
+      setIsSaleSaving(true);
+      clearNotifications();
+
+      try {
+        const normalizedPhone = normalizePhone(payload.clientPhone);
+        const clientName = payload.clientName.trim();
+        const deviceName = payload.deviceName.trim();
+        const estimatedCost = Number.parseFloat(payload.estimatedCost || '0');
+
+        if (normalizedPhone.replace(/\D/g, '').length < 12) {
+          throw new Error('Client phone must include full +380 number.');
+        }
+        if (clientName.length < 2) {
+          throw new Error('Client name must contain at least 2 characters.');
+        }
+        if (deviceName.length < 2) {
+          throw new Error('Device name must contain at least 2 characters.');
+        }
+        if (!Number.isFinite(estimatedCost) || estimatedCost < 0) {
+          throw new Error('Estimated cost must be a non-negative number.');
+        }
+
+        const existingClient = allClients.find(
+          (client) =>
+            client.phone.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, ''),
+        );
+        const client =
+          existingClient ??
+          (await createClient({
+            phone: normalizedPhone,
+            name: clientName,
+            note: payload.discountCode ? `Discount code: ${payload.discountCode.trim()}` : '',
+            status: 'new',
+          }));
+
+        if (!existingClient) {
+          setAllClients((current) => [client, ...current]);
+        }
+
+        const { serialNumber, article } = buildProductIdentity(payload);
+        const existingProduct = allProducts.find(
+          (product) => product.serialNumber.toUpperCase() === serialNumber,
+        );
+
+        let product = existingProduct;
+        if (!product) {
+          product = await createProduct({
+            name: deviceName,
+            article,
+            serialNumber,
+            price: String(estimatedCost),
+            salePriceOptions: String(estimatedCost),
+            quantity: '1',
+            note: [payload.deviceColor, payload.deviceKit, payload.repairType]
+              .filter(Boolean)
+              .join(' | '),
+            purchasePlace: '',
+            purchaseDate: '',
+            warrantyPeriod: '0',
+          });
+          setAllProducts((current) => [product!, ...current]);
+        }
+
+        const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
+        const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
+
+        const noteParts = [
+          payload.issueFromClient.trim(),
+          payload.externalView.trim(),
+          payload.prepayment ? `Prepayment: ${payload.prepayment}` : '',
+          payload.prepaymentComment.trim(),
+          payload.extraFlags.length > 0 ? `Flags: ${payload.extraFlags.join(', ')}` : '',
+          managerName ? `Manager: ${managerName}` : '',
+          masterName ? `Master: ${masterName}` : '',
+          payload.sourceTab ? `Type: ${payload.sourceTab}` : '',
+        ].filter(Boolean);
+
+        const saleResult = await createSale({
+          saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
+          clientId: client.id,
+          productId: product.id,
+          quantity: '1',
+          salePrice: String(estimatedCost),
+          note: noteParts.join('\n'),
+          managerId: payload.managerId,
+          masterId: payload.masterId,
+        });
+
+        setSales((current) => [saleResult.sale, ...current]);
+        setAllProducts((current) =>
+          current.some((item) => item.id === saleResult.product.id)
+            ? current.map((item) =>
+                item.id === saleResult.product.id ? saleResult.product : item,
+              )
+            : [saleResult.product, ...current],
+        );
+        setSuccessMessage('Order saved successfully.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to save order.'));
+        return false;
+      } finally {
+        setIsSaleSaving(false);
       }
     },
   };

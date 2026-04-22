@@ -1,0 +1,21 @@
+export type CreateOrderRequestPayload = {
+  clientPhone: string;
+  clientName: string;
+  discountCode: string;
+  deviceName: string;
+  deviceSerialNumber: string;
+  deviceColor: string;
+  deviceKit: string;
+  repairType: string;
+  issueFromClient: string;
+  externalView: string;
+  estimatedCost: string;
+  prepayment: string;
+  prepaymentComment: string;
+  readyDate: string;
+  readyTime: string;
+  managerId: string;
+  masterId: string;
+  extraFlags: string[];
+  sourceTab: 'repair' | 'sale';
+};

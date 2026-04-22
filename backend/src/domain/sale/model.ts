@@ -18,6 +18,20 @@ export const saleSchema = new mongoose.Schema(
       required: [true, 'Product is required'],
       index: true,
     },
+    manager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: false,
+      index: true,
+      default: null,
+    },
+    master: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: false,
+      index: true,
+      default: null,
+    },
     quantity: {
       type: Number,
       required: [true, 'Sale quantity is required'],
@@ -43,6 +57,14 @@ export const saleSchema = new mongoose.Schema(
       name: { type: String, required: true },
       phone: { type: String, required: true },
       status: { type: String, required: true },
+    },
+    managerSnapshot: {
+      name: { type: String, required: false },
+      role: { type: String, required: false },
+    },
+    masterSnapshot: {
+      name: { type: String, required: false },
+      role: { type: String, required: false },
     },
   },
   {
