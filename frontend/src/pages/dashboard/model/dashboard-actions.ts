@@ -86,6 +86,7 @@ type DashboardActionParams = {
   setIsSeeding: Setter<boolean>;
   setError: Setter<string>;
   setSuccessMessage: Setter<string>;
+  currentEmployee: Employee | null;
 };
 
 export const createDashboardActions = ({
@@ -130,6 +131,7 @@ export const createDashboardActions = ({
   setIsSeeding,
   setError,
   setSuccessMessage,
+  currentEmployee,
 }: DashboardActionParams) => {
   const clearNotifications = () => {
     setError('');
@@ -420,7 +422,11 @@ export const createDashboardActions = ({
     },
     deleteEmployee: async (employee: Employee) => {
       clearNotifications();
-      if (!window.confirm(`Delete employee "${employee.name}"?`)) return;
+
+      if (currentEmployee?.id === employee.id) {
+        setError('You cannot delete your own account.');
+        return;
+      }
 
       try {
         await deleteEmployee(employee.id);

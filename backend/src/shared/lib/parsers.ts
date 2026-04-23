@@ -42,6 +42,8 @@ export const normalizePhone = (value: unknown) =>
     .replace(/[^\d+]/g, '')
     .trim();
 
+export const normalizeEmail = (value: unknown) => toNonEmptyString(value).toLowerCase();
+
 export const normalizeProductPayload = (payload: ProductPayload) => ({
   name: toNonEmptyString(payload.name),
   article: toNonEmptyString(payload.article).toUpperCase(),
@@ -178,6 +180,7 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
   return {
     name: toNonEmptyString(payload.name),
     phone: normalizePhone(payload.phone),
+    email: normalizeEmail(payload.email),
     username: toNonEmptyString(payload.username).toLowerCase(),
     password: toNonEmptyString(payload.password),
     role,

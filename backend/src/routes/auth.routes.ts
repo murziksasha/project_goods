@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { getCurrentEmployee, loginEmployee, logoutEmployee } from '../domain/auth/service';
+import {
+  acceptInvitation,
+  getCurrentEmployee,
+  getInvitationDetails,
+  loginEmployee,
+  logoutEmployee,
+} from '../domain/auth/service';
 
 const getBearerToken = (authorizationHeader: unknown) => {
   const headerValue = typeof authorizationHeader === 'string' ? authorizationHeader : '';
@@ -27,6 +33,22 @@ authRouter.get('/auth/me', async (req, res, next) => {
 authRouter.post('/auth/logout', async (req, res, next) => {
   try {
     res.json(await logoutEmployee(getBearerToken(req.headers.authorization)));
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.get('/auth/invitations/:token', async (req, res, next) => {
+  try {
+    res.json(await getInvitationDetails(req.params.token));
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post('/auth/invitations/:token/register', async (req, res, next) => {
+  try {
+    res.json(await acceptInvitation(req.params.token, req.body?.username, req.body?.password));
   } catch (error) {
     next(error);
   }

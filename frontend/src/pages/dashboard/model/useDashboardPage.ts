@@ -17,7 +17,7 @@ import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
 
-export const useDashboardPage = (enabled = true) => {
+export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -137,6 +137,7 @@ export const useDashboardPage = (enabled = true) => {
     setIsSeeding,
     setError,
     setSuccessMessage,
+    currentEmployee,
   });
 
   return {

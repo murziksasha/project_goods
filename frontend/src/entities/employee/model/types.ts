@@ -26,10 +26,12 @@ export type Employee = {
   id: string;
   name: string;
   phone: string;
+  email: string;
   username: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
   isActive: boolean;
+  isRegistered: boolean;
   note: string;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +40,7 @@ export type Employee = {
 export type EmployeeFormValues = {
   name: string;
   phone: string;
+  email: string;
   username: string;
   password: string;
   role: EmployeeRole;
