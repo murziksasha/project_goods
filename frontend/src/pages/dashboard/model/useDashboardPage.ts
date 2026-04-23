@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { initialClientForm } from '../../../entities/client/model/forms';
 import type { Client, ClientFormValues, ClientHistory, ClientStatus } from '../../../entities/client/model/types';
 import { initialEmployeeForm } from '../../../entities/employee/model/forms';
@@ -73,6 +73,17 @@ export const useDashboardPage = () => {
     setIsClientHistoryLoading,
     setError,
   });
+
+  useEffect(() => {
+    if (!error && !successMessage) return;
+
+    const notificationTimeout = window.setTimeout(() => {
+      setError('');
+      setSuccessMessage('');
+    }, 4000);
+
+    return () => window.clearTimeout(notificationTimeout);
+  }, [error, successMessage]);
 
   const products = filterProducts(allProducts, deferredProductSearchQuery);
   const clients = filterClientsByQuery(

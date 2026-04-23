@@ -25,6 +25,7 @@
   }
 
   .hero-chart-layout,
+  .analytics-report-layout,
   .workspace-grid {
     grid-template-columns: 1fr;
   }
@@ -73,6 +74,7 @@
   }
 
   .hero-inline-metrics,
+  .analytics-summary-grid,
   .form-grid,
   .product-meta,
   .sale-meta,
@@ -104,8 +106,25 @@
     width: 100%;
   }
 
+  .orders-toolbar-actions {
+    width: 100%;
+  }
+
+  .orders-toolbar-actions button {
+    flex: 1;
+  }
+
+  .analytics-period-row,
+  .analytics-panel-header {
+    flex-direction: column;
+  }
+
   .create-order-tabs {
     overflow-x: auto;
+  }
+
+  .create-order-test-actions button {
+    flex: 1;
   }
 
   .create-order-tab {

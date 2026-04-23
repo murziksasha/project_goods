@@ -3,6 +3,7 @@ import type { Product } from '../../product/model/types';
 
 export type Sale = {
   id: string;
+  recordNumber: string | null;
   saleDate: string;
   quantity: number;
   salePrice: number;

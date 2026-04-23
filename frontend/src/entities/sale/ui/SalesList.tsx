@@ -31,7 +31,7 @@ export const SalesList = ({
           <div className="list-card-row">
             <div>
               <h3>{sale.product.name}</h3>
-              <p>{sale.product.article}</p>
+              <p>{sale.recordNumber ?? 'r------'} · {sale.product.article}</p>
             </div>
             <strong>{formatCurrency(sale.salePrice)}</strong>
           </div>
