@@ -183,6 +183,8 @@ export const useDashboardPage = () => {
     actions: {
       ...actions,
       setStatsPeriod,
+      showError: setError,
+      showSuccessMessage: setSuccessMessage,
     },
   };
 };

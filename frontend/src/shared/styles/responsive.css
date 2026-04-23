@@ -75,6 +75,8 @@
 
   .hero-inline-metrics,
   .analytics-summary-grid,
+  .finance-operation-grid,
+  .finance-report-grid,
   .form-grid,
   .product-meta,
   .sale-meta,
@@ -112,6 +114,20 @@
 
   .orders-toolbar-actions button {
     flex: 1;
+  }
+
+  .finance-toolbar {
+    align-items: stretch;
+  }
+
+  .finance-add-cashbox,
+  .finance-add-cashbox input,
+  .finance-add-cashbox button {
+    width: 100%;
+  }
+
+  .finance-wide-report {
+    grid-column: auto;
   }
 
   .analytics-period-row,

@@ -6,9 +6,10 @@ import { OrdersWorkspace } from '../../../widgets/dashboard/ui/OrdersWorkspace';
 import { CreateOrderCard } from '../../../widgets/dashboard/ui/CreateOrderCard';
 import { EmployeeManagementPanel } from '../../../widgets/dashboard/ui/EmployeeManagementPanel';
 import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
+import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 
-type PageKey = 'home' | 'orders' | 'employees' | 'settings';
+type PageKey = 'home' | 'orders' | 'employees' | 'settings' | 'accounting';
 
 const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
@@ -16,7 +17,7 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'employees', label: 'Employees' },
   { key: 'settings', label: 'Settings' },
   { key: 'other', label: 'Clients' },
-  { key: 'other', label: 'Accounting' },
+  { key: 'accounting', label: 'Accounting' },
   { key: 'other', label: 'Warehouses' },
   { key: 'other', label: 'Products & Services' },
   { key: 'other', label: 'Sales' },
@@ -77,6 +78,11 @@ export const DashboardPage = () => {
 
                   if (item.key === 'settings') {
                     setActivePage('settings');
+                    setIsCreateOrderOpen(false);
+                  }
+
+                  if (item.key === 'accounting') {
+                    setActivePage('accounting');
                     setIsCreateOrderOpen(false);
                   }
                 }}
@@ -142,6 +148,11 @@ export const DashboardPage = () => {
               isSaving={state.isSettingsSaving}
               onChange={actions.onSettingsChange}
               onSubmit={actions.saveSettings}
+            />
+          ) : activePage === 'accounting' ? (
+            <AccountingPanel
+              onError={actions.showError}
+              onSuccess={actions.showSuccessMessage}
             />
           ) : (
             <AnalyticsHeroSection
