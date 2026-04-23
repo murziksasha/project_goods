@@ -6,6 +6,14 @@ export const saleSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    recordNumber: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+      index: true,
+      match: [/^r\d{6}$/, 'Record number must match r000001 format'],
+    },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Client',

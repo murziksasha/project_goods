@@ -1,21 +1,28 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Sale } from '../../../entities/sale/model/types';
+import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
   isLoading: boolean;
   searchValue: string;
+  isSeeding: boolean;
   onSearchChange: (value: string) => void;
   onCreateOrder: () => void;
+  onSeedDemoData: () => void;
 };
 
-const orderTabs = ['Repairs', 'Sales', 'Supplier Orders'];
+type OrdersTab = 'orders' | 'sales';
+
+const orderTabs: Array<{ key: OrdersTab; label: string }> = [
+  { key: 'orders', label: 'Orders' },
+  { key: 'sales', label: 'Sales' },
+];
 
 const orderStatuses = ['New repair', 'In other service', 'Ready', 'Waiting parts'] as const;
 
 const buildOrderNumber = (sale: Sale, index: number) => {
-  const numeric = Number.parseInt(sale.id.replace(/\D/g, ''), 10);
-  return Number.isNaN(numeric) ? 23000 + index : numeric;
+  return sale.recordNumber ?? `r${String(index + 1).padStart(6, '0')}`;
 };
 
 const pickStatus = (sale: Sale, index: number) => {
@@ -33,16 +40,23 @@ export const OrdersWorkspace = ({
   sales,
   isLoading,
   searchValue,
+  isSeeding,
   onSearchChange,
   onCreateOrder,
+  onSeedDemoData,
 }: OrdersWorkspaceProps) => {
+  const [activeTab, setActiveTab] = useState<OrdersTab>('orders');
+
   const filteredOrders = useMemo(() => {
+    const tabSales = sales.filter((sale) =>
+      activeTab === 'orders' ? isRepairOrder(sale) : !isRepairOrder(sale),
+    );
     const query = searchValue.trim().toLowerCase();
     if (!query) {
-      return sales;
+      return tabSales;
     }
 
-    return sales.filter((sale, index) => {
+    return tabSales.filter((sale, index) => {
       const orderNumber = buildOrderNumber(sale, index);
       return (
         String(orderNumber).includes(query) ||
@@ -51,18 +65,19 @@ export const OrdersWorkspace = ({
         sale.client.phone.toLowerCase().includes(query)
       );
     });
-  }, [sales, searchValue]);
+  }, [activeTab, sales, searchValue]);
 
   return (
     <section className="orders-page">
       <div className="orders-tabs" role="tablist" aria-label="Order categories">
-        {orderTabs.map((tab, index) => (
+        {orderTabs.map((tab) => (
           <button
-            key={tab}
+            key={tab.key}
             type="button"
-            className={index === 0 ? 'orders-tab orders-tab-active' : 'orders-tab'}
+            className={tab.key === activeTab ? 'orders-tab orders-tab-active' : 'orders-tab'}
+            onClick={() => setActiveTab(tab.key)}
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -85,9 +100,19 @@ export const OrdersWorkspace = ({
             <button type="button">Find</button>
           </div>
         </div>
-        <button type="button" className="orders-create-button" onClick={onCreateOrder}>
-          Create order
-        </button>
+        <div className="orders-toolbar-actions">
+          <button
+            type="button"
+            className="toolbar-filter-button"
+            onClick={onSeedDemoData}
+            disabled={isSeeding}
+          >
+            {isSeeding ? 'Loading...' : 'Demo data'}
+          </button>
+          <button type="button" className="orders-create-button" onClick={onCreateOrder}>
+            Create order
+          </button>
+        </div>
       </div>
 
       <div className="orders-table-wrap">
@@ -118,7 +143,7 @@ export const OrdersWorkspace = ({
             ) : filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={12} className="orders-empty">
-                  Orders not found.
+                  {activeTab === 'orders' ? 'Orders not found.' : 'Sales not found.'}
                 </td>
               </tr>
             ) : (

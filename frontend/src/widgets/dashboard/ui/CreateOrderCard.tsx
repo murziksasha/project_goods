@@ -89,6 +89,48 @@ export const CreateOrderCard = ({
     );
   };
 
+  const fillRepairDemo = () => {
+    const suffix = Date.now().toString().slice(-6);
+    setActiveTab('repair');
+    setClientPhone('+380 67 111 22 33');
+    setClientName('Ivan Petrenko');
+    setDiscountCode('');
+    setDeviceName('Laptop Lenovo IdeaPad 5');
+    setDeviceSerialNumber(`RPR-${suffix}`);
+    setDeviceColor('Silver');
+    setDeviceKit('Laptop, charger');
+    setRepairType('Paid');
+    setIssueFromClient('Does not charge and shuts down after a few minutes.');
+    setExternalView('Small scratches on the top cover, no liquid marks.');
+    setEstimatedCost('1800');
+    setPrepayment('300');
+    setPrepaymentComment('Cash prepayment');
+    setReadyDate(new Date().toISOString().slice(0, 10));
+    setReadyTime('17:30');
+    setSelectedFlags(['Urgent repair', 'Start work without confirmation']);
+  };
+
+  const fillSaleDemo = () => {
+    const suffix = Date.now().toString().slice(-6);
+    setActiveTab('sale');
+    setClientPhone('+380 50 101 01 01');
+    setClientName('Maxim Bondar');
+    setDiscountCode('VIP');
+    setDeviceName('Portable SSD Samsung T7 1TB');
+    setDeviceSerialNumber(`SAL-${suffix}`);
+    setDeviceColor('Blue');
+    setDeviceKit('Box, cable, warranty card');
+    setRepairType('Paid');
+    setIssueFromClient('Client buys a new device from stock.');
+    setExternalView('New sealed package.');
+    setEstimatedCost('3899');
+    setPrepayment('3899');
+    setPrepaymentComment('Full payment');
+    setReadyDate(new Date().toISOString().slice(0, 10));
+    setReadyTime('15:00');
+    setSelectedFlags(['Device stays with client']);
+  };
+
   const handleSave = async () => {
     const success = await onSave({
       clientPhone,
@@ -140,11 +182,20 @@ export const CreateOrderCard = ({
           ))}
         </div>
 
+        <div className="create-order-test-actions">
+          <button type="button" className="toolbar-filter-button" onClick={fillRepairDemo}>
+            Autofill repair
+          </button>
+          <button type="button" className="toolbar-filter-button" onClick={fillSaleDemo}>
+            Autofill sale
+          </button>
+        </div>
+
         <div className="create-order-grid">
           <div className="create-order-left">
             <label className="field">
               <span>Order number</span>
-              <input placeholder="Automatic" readOnly />
+              <input placeholder="Automatic r000001" readOnly />
             </label>
 
             <h3 className="create-section-title">Client</h3>

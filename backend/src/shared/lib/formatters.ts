@@ -50,6 +50,7 @@ export const formatEmployee = (employee: EmployeeDocument) => ({
 
 export const formatSale = (sale: SaleDocument) => ({
   id: sale._id.toString(),
+  recordNumber: sale.recordNumber ?? null,
   saleDate: sale.saleDate.toISOString(),
   quantity: sale.quantity,
   salePrice: sale.salePrice,

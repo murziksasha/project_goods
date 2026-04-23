@@ -1,8 +1,14 @@
 import type { Sale } from '../../../entities/sale/model/types';
-import { buildLinePath, buildSalesAnalytics, formatCompactMetric, formatMetric, type StatsPeriod } from '../model/sales-analytics';
+import {
+  buildDashboardAnalytics,
+  buildLinePath,
+  formatMetric,
+  type StatsPeriod,
+} from '../model/sales-analytics';
 
 type AnalyticsHeroSectionProps = {
   sales: Sale[];
+  orders: Sale[];
   productCount: number;
   clientCount: number;
   totalFreeStock: number;
@@ -16,12 +22,137 @@ type AnalyticsHeroSectionProps = {
   onExport: () => void;
 };
 
-const chartWidth = 520;
+const chartWidth = 720;
 const chartHeight = 260;
-const chartPadding = { top: 18, right: 18, bottom: 34, left: 18 };
+const chartPadding = { top: 18, right: 20, bottom: 32, left: 42 };
+
+type ChartPanelProps = {
+  title: string;
+  valueLabel: string;
+  emptyText: string;
+  isLoading: boolean;
+  hasData: boolean;
+  snapshots: Array<{ label: string; values: number[]; total: number; color: string }>;
+  maxValue: number;
+  axisLabels: string[];
+};
+
+const ChartPanel = ({
+  title,
+  valueLabel,
+  emptyText,
+  isLoading,
+  hasData,
+  snapshots,
+  maxValue,
+  axisLabels,
+}: ChartPanelProps) => (
+  <section className="analytics-chart-panel">
+    <div className="analytics-panel-header">
+      <div>
+        <p className="section-label">{valueLabel}</p>
+        <h2>{title}</h2>
+      </div>
+      <div className="chart-legend">
+        {snapshots.map((snapshot) => (
+          <div key={snapshot.label} className="chart-legend-item">
+            <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
+            <div>
+              <strong>{snapshot.label}</strong>
+              <p>{formatMetric(snapshot.total)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {isLoading ? (
+      <p className="empty-state">Loading analytics...</p>
+    ) : !hasData ? (
+      <p className="empty-state">{emptyText}</p>
+    ) : (
+      <>
+        <svg className="hero-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img">
+          {[0, 0.25, 0.5, 0.75, 1].map((step) => {
+            const y =
+              chartPadding.top +
+              (chartHeight - chartPadding.top - chartPadding.bottom) * (1 - step);
+            const value = Math.round(maxValue * step);
+
+            return (
+              <g key={step}>
+                <line
+                  x1={chartPadding.left}
+                  x2={chartWidth - chartPadding.right}
+                  y1={y}
+                  y2={y}
+                  className="hero-chart-gridline"
+                />
+                <text x="8" y={y + 4} className="chart-y-label">
+                  {formatMetric(value)}
+                </text>
+              </g>
+            );
+          })}
+
+          {snapshots.map((snapshot) => (
+            <path
+              key={snapshot.label}
+              d={buildLinePath(
+                snapshot.values,
+                maxValue,
+                chartWidth,
+                chartHeight,
+                chartPadding,
+              )}
+              fill="none"
+              stroke={snapshot.color}
+              strokeWidth={snapshot.label === snapshots[0].label ? '4' : '2.5'}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+
+          {snapshots.map((snapshot) =>
+            snapshot.values.map((value, index) => {
+              const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
+              const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+              const x =
+                chartPadding.left +
+                (snapshot.values.length === 1
+                  ? innerWidth / 2
+                  : (index / (snapshot.values.length - 1)) * innerWidth);
+              const y =
+                chartPadding.top +
+                innerHeight -
+                (value / Math.max(maxValue, 1)) * innerHeight;
+
+              return value > 0 ? (
+                <circle
+                  key={`${snapshot.label}-${index}`}
+                  cx={x}
+                  cy={y}
+                  r={snapshot.label === snapshots[0].label ? '4' : '3'}
+                  fill={snapshot.color}
+                />
+              ) : null;
+            }),
+          )}
+        </svg>
+
+        <div className="chart-axis-labels">
+          {axisLabels.map((label, index) => (
+            <span key={`${label}-${index}`}>{label}</span>
+          ))}
+        </div>
+      </>
+    )}
+  </section>
+);
 
 export const AnalyticsHeroSection = ({
   sales,
+  orders,
   productCount,
   clientCount,
   totalFreeStock,
@@ -34,32 +165,17 @@ export const AnalyticsHeroSection = ({
   onSeed,
   onExport,
 }: AnalyticsHeroSectionProps) => {
-  const analytics = buildSalesAnalytics(sales, statsPeriod);
-  const conversionMetrics = [
-    {
-      label: 'Відвідувачі / дзвінки',
-      value: analytics.currentSnapshot.salesCount
-        ? `${Math.round((analytics.currentSnapshot.itemsSold / analytics.currentSnapshot.salesCount) * 100)}%`
-        : '0%',
-    },
-    {
-      label: 'Дзвінки / замовлення',
-      value: analytics.currentSnapshot.salesCount
-        ? `${Math.min(100, Math.round((analytics.currentSnapshot.salesCount / Math.max(productCount, 1)) * 100))}%`
-        : '0%',
-    },
-    {
-      label: 'Відвідувачі / замовлення',
-      value: analytics.currentSnapshot.salesCount
-        ? `${Math.min(100, Math.round((analytics.currentSnapshot.revenue / Math.max(totalFreeStock, 1)) * 100))}%`
-        : '0%',
-    },
-  ];
+  const analytics = buildDashboardAnalytics(sales, orders, statsPeriod);
 
   return (
-    <section className="hero-card">
+    <section className="hero-card analytics-dashboard">
       <div className="hero-header">
-        <h1>Основні бізнес-показники компанії</h1>
+        <div>
+          <h1>Основні бізнес-показники компанії</h1>
+          <p className="hero-chart-note">
+            Порівняння продажів і ремонтних замовлень за {analytics.comparisonLabel}.
+          </p>
+        </div>
         <div className="hero-controls">
           <div className="period-toggle" role="tablist" aria-label="Statistics period">
             {analytics.statsPeriodOptions.map((option) => (
@@ -91,12 +207,21 @@ export const AnalyticsHeroSection = ({
         </div>
       </div>
 
+      <div className="analytics-summary-grid">
+        {analytics.summaryCards.map((card) => (
+          <article key={card.label} className="analytics-summary-card">
+            <span className="metric-label">{card.label}</span>
+            <strong style={{ color: card.accent }}>{card.value}</strong>
+          </article>
+        ))}
+      </div>
+
       <div className="hero-chart-card">
-        <div className="hero-chart-layout">
-          <div className="hero-conversion-column">
+        <div className="analytics-report-layout">
+          <aside className="hero-conversion-column">
             <p className="section-label">Конверсія за вибраний період</p>
             <div className="hero-conversion-grid">
-              {conversionMetrics.map((metric) => (
+              {analytics.conversionCards.map((metric) => (
                 <article key={metric.label} className="metric-card metric-card-hero">
                   <strong>{metric.value}</strong>
                   <p className="metric-hint">{metric.label}</p>
@@ -118,133 +243,40 @@ export const AnalyticsHeroSection = ({
                 <strong>{formatMetric(totalFreeStock)}</strong>
               </div>
             </div>
-          </div>
+          </aside>
 
-          <div className="hero-chart-panel">
-            <div className="hero-chart-header">
+          <div className="analytics-charts-stack">
+            <div className="analytics-period-row">
               <div>
                 <p className="section-label">Порівняльний аналіз</p>
-                <h2>{analytics.currentSnapshot.detailLabel}</h2>
+                <h2>{analytics.detailLabel}</h2>
               </div>
               <p className="hero-chart-note">
-                Порівняння за {analytics.currentSnapshot.label}, {analytics.lastYearSnapshot.label}{' '}
-                та {analytics.twoYearsAgoSnapshot.label}.
+                Поточний період завжди синій; попередні роки залишаються помаранчевим і зеленим.
               </p>
             </div>
 
-            <div className="chart-legend">
-              {analytics.snapshots.map((snapshot) => (
-                <div key={snapshot.label} className="chart-legend-item">
-                  <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
-                  <div>
-                    <strong>{snapshot.label}</strong>
-                    <p>{formatCompactMetric(snapshot.revenue)} revenue</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ChartPanel
+              title="Продажи"
+              valueLabel="Выручка"
+              emptyText="No sales found for the selected period."
+              isLoading={isSalesLoading}
+              hasData={analytics.hasRevenueData}
+              snapshots={analytics.revenueSnapshots}
+              maxValue={analytics.revenueChartMax}
+              axisLabels={analytics.axisLabels}
+            />
 
-            {isSalesLoading ? (
-              <p className="empty-state">Loading sales statistics...</p>
-            ) : !analytics.hasPeriodSales ? (
-              <p className="empty-state">
-                No sales found for the selected period in the current or previous years.
-              </p>
-            ) : statsPeriod === 'today' ? (
-              <div className="bar-chart" aria-label="Sales comparison by year">
-                {analytics.snapshots.map((snapshot) => (
-                  <div key={snapshot.label} className="bar-chart-item">
-                    <div className="bar-chart-track">
-                      <div
-                        className="bar-chart-bar"
-                        style={{
-                          height: `${(snapshot.revenue / analytics.chartMaxValue) * 100}%`,
-                          backgroundColor: snapshot.color,
-                        }}
-                      />
-                    </div>
-                    <strong>{snapshot.label}</strong>
-                    <span>{formatCompactMetric(snapshot.revenue)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                <svg
-                  className="hero-chart"
-                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                  role="img"
-                  aria-label="Sales comparison chart"
-                >
-                  {[0.25, 0.5, 0.75, 1].map((step) => {
-                    const y =
-                      chartPadding.top +
-                      (chartHeight - chartPadding.top - chartPadding.bottom) * (1 - step);
-
-                    return (
-                      <line
-                        key={step}
-                        x1={chartPadding.left}
-                        x2={chartWidth - chartPadding.right}
-                        y1={y}
-                        y2={y}
-                        className="hero-chart-gridline"
-                      />
-                    );
-                  })}
-
-                  {analytics.snapshots.map((snapshot) => (
-                    <path
-                      key={snapshot.label}
-                      d={buildLinePath(
-                        snapshot.values,
-                        analytics.chartMaxValue,
-                        chartWidth,
-                        chartHeight,
-                        chartPadding,
-                      )}
-                      fill="none"
-                      stroke={snapshot.color}
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ))}
-
-                  {analytics.snapshots.map((snapshot) =>
-                    snapshot.values.map((value, index) => {
-                      const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
-                      const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
-                      const x =
-                        chartPadding.left +
-                        (snapshot.values.length === 1
-                          ? innerWidth / 2
-                          : (index / (snapshot.values.length - 1)) * innerWidth);
-                      const y =
-                        chartPadding.top +
-                        innerHeight -
-                        (value / Math.max(analytics.chartMaxValue, 1)) * innerHeight;
-
-                      return (
-                        <circle
-                          key={`${snapshot.label}-${index}`}
-                          cx={x}
-                          cy={y}
-                          r="3.5"
-                          fill={snapshot.color}
-                        />
-                      );
-                    }),
-                  )}
-                </svg>
-
-                <div className="chart-axis-labels">
-                  {analytics.periodLabels.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
-              </>
-            )}
+            <ChartPanel
+              title="Заказы"
+              valueLabel="Ремонтные заказы"
+              emptyText="No repair orders found for the selected period."
+              isLoading={isSalesLoading}
+              hasData={analytics.hasOrdersData}
+              snapshots={analytics.orderSnapshots}
+              maxValue={analytics.ordersChartMax}
+              axisLabels={analytics.axisLabels}
+            />
           </div>
         </div>
       </div>

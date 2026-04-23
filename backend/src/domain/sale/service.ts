@@ -6,6 +6,7 @@ import { Sale, type SaleDocument } from './model';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
 import { normalizeSalePayload } from '../../shared/lib/parsers';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
+import { getNextRecordNumber } from '../sequence/service';
 import type { SalePayload } from '../shared/types';
 
 const ensureFreeStock = async (
@@ -137,6 +138,7 @@ export const createSale = async (payloadInput: SalePayload) => {
     });
 
     await sale.validate();
+    sale.recordNumber = await getNextRecordNumber();
     await sale.save();
 
     return {
