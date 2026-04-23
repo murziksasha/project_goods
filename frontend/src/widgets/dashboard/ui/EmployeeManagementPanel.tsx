@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import type {
   Employee,
   EmployeeFormValues,
@@ -14,6 +15,8 @@ type EmployeeManagementPanelProps = {
   isLoading: boolean;
   isSaving: boolean;
   isEditing: boolean;
+  canManageEmployees: boolean;
+  currentEmployeeId: string;
   onChange: <K extends keyof EmployeeFormValues>(
     field: K,
     value: EmployeeFormValues[K],
@@ -30,12 +33,17 @@ export const EmployeeManagementPanel = ({
   isLoading,
   isSaving,
   isEditing,
+  canManageEmployees,
+  currentEmployeeId,
   onChange,
   onSubmit,
   onCancelEdit,
   onEdit,
   onDelete,
 }: EmployeeManagementPanelProps) => {
+  const formTopRef = useRef<HTMLDivElement | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+
   const togglePermission = (permission: EmployeePermission) => {
     if (form.permissions.includes(permission)) {
       onChange(
@@ -47,8 +55,29 @@ export const EmployeeManagementPanel = ({
     onChange('permissions', [...form.permissions, permission]);
   };
 
+  const confirmDelete = () => {
+    if (!employeeToDelete) {
+      return;
+    }
+
+    onDelete(employeeToDelete);
+    setEmployeeToDelete(null);
+  };
+
+  const handleEdit = (employee: Employee) => {
+    onEdit(employee);
+    window.requestAnimationFrame(() => {
+      formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   return (
     <section className="panel">
+      <div ref={formTopRef} />
+      {!canManageEmployees ? (
+        <p className="empty-state">Only owners can create, edit, or delete employees.</p>
+      ) : null}
+
       <div className="panel-header">
         <div>
           <p className="section-label">Employees</p>
@@ -79,11 +108,20 @@ export const EmployeeManagementPanel = ({
           />
         </label>
         <label className="field">
+          <span>Email</span>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) => onChange('email', event.target.value)}
+            placeholder="employee@example.com"
+          />
+        </label>
+        <label className="field">
           <span>Login</span>
           <input
             value={form.username}
             onChange={(event) => onChange('username', event.target.value)}
-            placeholder="username"
+            placeholder="login"
           />
         </label>
         <label className="field">
@@ -146,11 +184,12 @@ export const EmployeeManagementPanel = ({
         type="button"
         onClick={onSubmit}
         disabled={
+          !canManageEmployees ||
           isSaving ||
           !form.name.trim() ||
           !form.username.trim() ||
           form.permissions.length === 0 ||
-          (!isEditing && form.password.trim().length < 4)
+          (!isEditing && form.password.trim().length < 3)
         }
       >
         {isSaving ? 'Saving...' : isEditing ? 'Update employee' : 'Save employee'}
@@ -169,27 +208,66 @@ export const EmployeeManagementPanel = ({
         <p className="empty-state">No employees yet.</p>
       ) : (
         <div className="stack-list">
-          {employees.map((employee) => (
-            <article key={employee.id} className="list-card">
-              <div className="list-card-row">
-                <div>
-                  <h3>{employee.name}</h3>
-                  <p>{employee.username} | {employee.phone || 'No phone'} | {employee.role}</p>
-                  <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
+          {employees.map((employee) => {
+            const isCurrentEmployee = employee.id === currentEmployeeId;
+
+            return (
+              <article key={employee.id} className="list-card">
+                <div className="list-card-row">
+                  <div>
+                    <h3>{employee.name}</h3>
+                    <p>{employee.email || 'No email'} | {employee.phone || 'No phone'} | {employee.role}</p>
+                    <p>{employee.username || 'No login'}{isCurrentEmployee ? ' | current user' : ''}</p>
+                    <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      onClick={() => handleEdit(employee)}
+                      disabled={!canManageEmployees}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="danger-button"
+                      type="button"
+                      onClick={() => setEmployeeToDelete(employee)}
+                      disabled={!canManageEmployees || isCurrentEmployee}
+                      title={isCurrentEmployee ? 'You cannot delete your own account.' : 'Delete employee'}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <div className="card-actions">
-                  <button className="ghost-button" type="button" onClick={() => onEdit(employee)}>
-                    Edit
-                  </button>
-                  <button className="danger-button" type="button" onClick={() => onDelete(employee)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
+
+      {employeeToDelete ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
+            <div className="payment-modal-summary">
+              <h3>Delete employee</h3>
+              <p>
+                Are you sure you want to delete user "{employeeToDelete.name}"?
+              </p>
+            </div>
+            <footer className="payment-modal-footer">
+              <div className="payment-modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setEmployeeToDelete(null)}>
+                  Cancel
+                </button>
+                <button type="button" className="danger-button" onClick={confirmDelete}>
+                  Delete
+                </button>
+              </div>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };

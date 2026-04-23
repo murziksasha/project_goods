@@ -39,6 +39,7 @@ export type SalePayload = {
 export type EmployeePayload = {
   name?: unknown;
   phone?: unknown;
+  email?: unknown;
   username?: unknown;
   password?: unknown;
   role?: unknown;

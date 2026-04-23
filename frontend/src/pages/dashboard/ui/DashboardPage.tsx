@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { getCurrentEmployee, login, logout, authTokenStorageKey } from '../../../entities/auth/api/authApi';
+import {
+  acceptInvitation,
+  getCurrentEmployee,
+  getInvitationDetails,
+  login,
+  logout,
+  authTokenStorageKey,
+} from '../../../entities/auth/api/authApi';
 import type { Employee } from '../../../entities/employee/model/types';
 import { setApiAuthToken } from '../../../shared/api/http';
 import { useDashboardPage } from '../model/useDashboardPage';
@@ -22,6 +29,9 @@ const getPageFromUrl = (): PageKey => {
 
   return pageKeys.includes(page as PageKey) ? (page as PageKey) : 'home';
 };
+
+const getInvitationTokenFromUrl = () =>
+  new URLSearchParams(window.location.search).get('inviteToken')?.trim() ?? '';
 
 const setPageInUrl = (page: PageKey) => {
   const url = new URL(window.location.href);
@@ -53,9 +63,22 @@ export const DashboardPage = () => {
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const { state, actions } = useDashboardPage(Boolean(currentEmployee));
+  const [inviteToken, setInviteToken] = useState(getInvitationTokenFromUrl);
+  const [inviteState, setInviteState] = useState<{
+    isLoading: boolean;
+    name: string;
+    email: string;
+    role: string;
+  }>({
+    isLoading: false,
+    name: '',
+    email: '',
+    role: '',
+  });
+  const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
   const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>('orders');
@@ -66,6 +89,7 @@ export const DashboardPage = () => {
     (currentEmployee.role === 'owner' ||
       currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
+  const canManageEmployees = currentEmployee?.role === 'owner';
 
   useEffect(() => {
     let isActive = true;
@@ -103,6 +127,46 @@ export const DashboardPage = () => {
   useEffect(() => {
     setPageInUrl(activePage);
   }, [activePage]);
+
+  useEffect(() => {
+    const syncInviteToken = () => {
+      setInviteToken(getInvitationTokenFromUrl());
+    };
+
+    window.addEventListener('popstate', syncInviteToken);
+    return () => window.removeEventListener('popstate', syncInviteToken);
+  }, []);
+
+  useEffect(() => {
+    if (!inviteToken || currentEmployee) {
+      setInviteState({ isLoading: false, name: '', email: '', role: '' });
+      return;
+    }
+
+    let isActive = true;
+    setInviteState((current) => ({ ...current, isLoading: true }));
+
+    void (async () => {
+      try {
+        const details = await getInvitationDetails(inviteToken);
+        if (!isActive) return;
+        setInviteState({
+          isLoading: false,
+          name: details.name,
+          email: details.email,
+          role: details.role,
+        });
+      } catch (error) {
+        if (!isActive) return;
+        setAuthError(error instanceof Error ? error.message : 'Failed to load invitation.');
+        setInviteState({ isLoading: false, name: '', email: '', role: '' });
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentEmployee, inviteToken]);
 
   useEffect(() => {
     if (isAuthLoading || currentEmployee) {
@@ -165,6 +229,35 @@ export const DashboardPage = () => {
     }
   };
 
+  const handleInvitationRegistration = async () => {
+    if (!inviteToken) {
+      return;
+    }
+
+    setIsRegistering(true);
+    setAuthError('');
+
+    try {
+      const session = await acceptInvitation(inviteToken, loginForm);
+      window.localStorage.setItem(authTokenStorageKey, session.token);
+      setApiAuthToken(session.token);
+      setCurrentEmployee(session.employee);
+      setLoginForm({ username: '', password: '' });
+      setInviteToken('');
+      setActivePage('home');
+      setActiveOrdersTab('orders');
+      setIsCreateOrderOpen(false);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('inviteToken');
+      window.history.replaceState(null, '', url);
+      setPageInUrl('home');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to complete registration.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -204,13 +297,34 @@ export const DashboardPage = () => {
               <div className="panel-header">
                 <div>
                   <p className="section-label">Auth</p>
-                  <h2>Login</h2>
+                  <h2>{inviteToken ? 'Complete registration' : 'Login'}</h2>
                 </div>
               </div>
 
+              {inviteToken ? (
+                inviteState.isLoading ? (
+                  <p className="empty-state">Loading invitation...</p>
+                ) : (
+                  <div className="form-grid">
+                    <label className="field field-wide">
+                      <span>Name</span>
+                      <input value={inviteState.name} disabled />
+                    </label>
+                    <label className="field field-wide">
+                      <span>Email</span>
+                      <input value={inviteState.email} disabled />
+                    </label>
+                    <label className="field field-wide">
+                      <span>Role</span>
+                      <input value={inviteState.role} disabled />
+                    </label>
+                  </div>
+                )
+              ) : null}
+
               <div className="form-grid">
                 <label className="field field-wide">
-                  <span>Login</span>
+                  <span>{inviteToken ? 'Create login' : 'Login'}</span>
                   <input
                     value={loginForm.username}
                     onChange={(event) =>
@@ -242,10 +356,20 @@ export const DashboardPage = () => {
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => void handleLogin()}
-                disabled={isLoggingIn || !loginForm.username.trim() || !loginForm.password.trim()}
+                onClick={() => void (inviteToken ? handleInvitationRegistration() : handleLogin())}
+                disabled={
+                  (inviteToken ? isRegistering : isLoggingIn) ||
+                  !loginForm.username.trim() ||
+                  !loginForm.password.trim()
+                }
               >
-                {isLoggingIn ? 'Signing in...' : 'Sign in'}
+                {inviteToken
+                  ? isRegistering
+                    ? 'Completing registration...'
+                    : 'Complete registration'
+                  : isLoggingIn
+                    ? 'Signing in...'
+                    : 'Sign in'}
               </button>
             </section>
           </div>
@@ -273,7 +397,9 @@ export const DashboardPage = () => {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main menu">
-          {sidebarItems.map((item) => {
+          {sidebarItems
+            .filter((item) => item.key !== 'employees' || canManageEmployees)
+            .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
               <button
@@ -367,6 +493,8 @@ export const DashboardPage = () => {
               isLoading={state.isEmployeesLoading}
               isSaving={state.isEmployeeSaving}
               isEditing={Boolean(state.editingEmployeeId)}
+              canManageEmployees={canManageEmployees}
+              currentEmployeeId={currentEmployee.id}
               onChange={actions.onEmployeeChange}
               onSubmit={actions.saveEmployee}
               onCancelEdit={actions.resetEmployeeEditor}

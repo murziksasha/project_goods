@@ -3,6 +3,7 @@ import type { Employee, EmployeeFormValues } from './types';
 export const initialEmployeeForm: EmployeeFormValues = {
   name: '',
   phone: '+380',
+  email: '',
   username: '',
   password: '',
   role: 'manager',
@@ -14,6 +15,7 @@ export const initialEmployeeForm: EmployeeFormValues = {
 export const toEmployeeForm = (employee: Employee): EmployeeFormValues => ({
   name: employee.name,
   phone: employee.phone || '+380',
+  email: employee.email,
   username: employee.username,
   password: '',
   role: employee.role,

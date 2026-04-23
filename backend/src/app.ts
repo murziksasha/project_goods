@@ -12,7 +12,7 @@ import { productRouter } from './routes/product.routes';
 import { saleRouter } from './routes/sale.routes';
 import { serviceCatalogRouter } from './routes/service-catalog.routes';
 import { settingsRouter } from './routes/settings.routes';
-import { getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
+import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
 export const app = express();
 
@@ -42,6 +42,9 @@ app.use((_req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const statusCode =
+    error instanceof HttpError
+      ? error.statusCode
+      : 
     error instanceof mongoose.Error.ValidationError || isDuplicateKeyError(error)
       ? 400
       : 500;

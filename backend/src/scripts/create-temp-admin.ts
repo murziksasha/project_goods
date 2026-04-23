@@ -13,9 +13,12 @@ const run = async () => {
     {
       name: 'Temporary Admin',
       phone: '+380000000000',
+      email: 'admin@local.test',
       username: 'admin',
       passwordHash,
       authToken: '',
+      inviteToken: '',
+      inviteExpiresAt: null,
       role: 'owner',
       permissions: [
         'orders.view',
