@@ -3,6 +3,7 @@ import {
   createSale,
   deleteSale,
   listSales,
+  updateSaleWorkspace,
   updateSale,
 } from '../domain/sale/service';
 import type { SalePayload } from '../domain/shared/types';
@@ -28,6 +29,14 @@ saleRouter.post('/sales', async (req, res, next) => {
 saleRouter.put('/sales/:saleId', async (req, res, next) => {
   try {
     res.json(await updateSale(req.params.saleId, req.body as SalePayload));
+  } catch (error) {
+    next(error);
+  }
+});
+
+saleRouter.patch('/sales/:saleId/workspace', async (req, res, next) => {
+  try {
+    res.json(await updateSaleWorkspace(req.params.saleId, req.body as SalePayload));
   } catch (error) {
     next(error);
   }

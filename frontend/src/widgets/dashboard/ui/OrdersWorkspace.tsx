@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import {
@@ -9,6 +10,7 @@ import {
   createFinanceTransaction,
   getCashboxes,
 } from '../../../entities/finance/api/financeApi';
+import { updateSaleWorkspace } from '../../../entities/sale/api/saleApi';
 import type { Cashbox } from '../../../entities/finance/model/types';
 
 type OrdersWorkspaceProps = {
@@ -17,10 +19,13 @@ type OrdersWorkspaceProps = {
   activeTab: OrdersTab;
   searchValue: string;
   isSeeding: boolean;
+  currentEmployee: Employee | null;
+  canCreateOrders: boolean;
   onActiveTabChange: (tab: OrdersTab) => void;
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
   onSeedDemoData: () => void;
+  onSaleUpdate: (sale: Sale) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 };
@@ -48,11 +53,37 @@ type PaymentAction =
   | 'deposit'
   | 'depositAndIssue'
   | 'issueWithoutPayment';
-type IssueStatus = 'issued' | 'issuedWithoutRepair';
+type PaymentTargetStatus =
+  | 'issued'
+  | 'issuedWithoutRepair'
+  | 'paid';
 type PrintForm = {
   id: string;
   title: string;
   content: string;
+};
+type TimelineEntry = {
+  id: string;
+  author: string;
+  message: string;
+  createdAt: string;
+};
+type PaymentEntry = {
+  id: string;
+  type: 'deposit' | 'refund';
+  amount: number;
+  cashboxId: string;
+  cashboxName: string;
+  createdAt: string;
+  author: string;
+};
+type OrderLineItemKind = 'product' | 'service';
+type OrderLineItem = {
+  id: string;
+  kind: OrderLineItemKind;
+  name: string;
+  price: number;
+  quantity: number;
 };
 
 const orderTabs: Array<{ key: OrdersTab; label: string }> = [
@@ -60,11 +91,7 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
   { key: 'sales', label: 'Sales' },
 ];
 
-const statusStorageKey = 'project-goods.order-statuses';
-const commentsStorageKey = 'project-goods.order-comments';
-const paymentsStorageKey = 'project-goods.order-payments';
 const printFormsStorageKey = 'project-goods.print-forms';
-
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
   { key: 'issued', label: 'Issued' },
@@ -131,36 +158,6 @@ const statusLabels = repairStatuses.reduce(
   ),
 );
 
-const readStoredStatuses = () => {
-  try {
-    return JSON.parse(
-      window.localStorage.getItem(statusStorageKey) ?? '{}',
-    ) as Record<string, OrderStatus>;
-  } catch {
-    return {};
-  }
-};
-
-const readStoredComments = () => {
-  try {
-    return JSON.parse(
-      window.localStorage.getItem(commentsStorageKey) ?? '{}',
-    ) as Record<string, string[]>;
-  } catch {
-    return {};
-  }
-};
-
-const readStoredPayments = () => {
-  try {
-    return JSON.parse(
-      window.localStorage.getItem(paymentsStorageKey) ?? '{}',
-    ) as Record<string, number>;
-  } catch {
-    return {};
-  }
-};
-
 const readPrintForms = () => {
   try {
     const forms = JSON.parse(
@@ -172,9 +169,43 @@ const readPrintForms = () => {
   }
 };
 
-const getSaleTotal = (sale: Sale) => sale.salePrice * sale.quantity;
-const getRemainingPayment = (sale: Sale, paidAmount: number) =>
-  Math.max(getSaleTotal(sale) - paidAmount, 0);
+const createOrderLineItem = (
+  sale: Sale,
+  kind: OrderLineItemKind,
+): OrderLineItem => ({
+  id: `${sale.id}-${kind}-default`,
+  kind,
+  name: kind === 'product' ? sale.product.name : 'Repair',
+  price: sale.salePrice,
+  quantity: sale.quantity,
+});
+
+const getDefaultLineItems = (sale: Sale) =>
+  isRepairOrder(sale)
+    ? [createOrderLineItem(sale, 'service')]
+    : [createOrderLineItem(sale, 'product')];
+
+const getOrderTotal = (
+  sale: Sale,
+  lineItems: OrderLineItem[] =
+    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale),
+) =>
+  lineItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0,
+  );
+
+const getRemainingPayment = (
+  sale: Sale,
+  paidAmount: number,
+  lineItems: OrderLineItem[] =
+    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale),
+) => Math.max(getOrderTotal(sale, lineItems) - paidAmount, 0);
+
+const isClosingStatus = (sale: Sale, status: OrderStatus) =>
+  isRepairOrder(sale)
+    ? status === 'issued' || status === 'issuedWithoutRepair'
+    : status === 'paid' || status === 'completed';
 const escapeHtml = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -189,7 +220,7 @@ const renderPrintTemplate = (
   paidAmount: number,
   orderNumber: string,
 ) => {
-  const total = getSaleTotal(sale);
+  const total = getOrderTotal(sale);
   const replacements: Record<string, string> = {
     orderNumber,
     clientName: sale.client.name,
@@ -223,37 +254,42 @@ export const OrdersWorkspace = ({
   activeTab,
   searchValue,
   isSeeding,
+  currentEmployee,
+  canCreateOrders,
   onActiveTabChange,
   onSearchChange,
   onCreateOrder,
   onSeedDemoData,
+  onSaleUpdate,
   onError,
   onSuccess,
 }: OrdersWorkspaceProps) => {
+  const currentEmployeeName = currentEmployee?.name ?? 'Unknown employee';
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
-  const [orderStatusesById, setOrderStatusesById] = useState<
-    Record<string, OrderStatus>
-  >(readStoredStatuses);
-  const [commentsBySaleId, setCommentsBySaleId] = useState<
-    Record<string, string[]>
-  >(readStoredComments);
-  const [paidBySaleId, setPaidBySaleId] = useState<
-    Record<string, number>
-  >(readStoredPayments);
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
     string | null
   >(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [paymentTargetStatus, setPaymentTargetStatus] =
-    useState<IssueStatus>('issued');
+    useState<PaymentTargetStatus>('issued');
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [selectedCashboxId, setSelectedCashboxId] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
+    useState('');
+  const [refundAmount, setRefundAmount] = useState('');
   const [isPaymentModalLoading, setIsPaymentModalLoading] =
     useState(false);
   const [isPaymentSaving, setIsPaymentSaving] = useState(false);
+  const [isRefundModalLoading, setIsRefundModalLoading] =
+    useState(false);
+  const [isRefundSaving, setIsRefundSaving] = useState(false);
+  const [warningMessage, setWarningMessage] = useState<string | null>(
+    null,
+  );
 
   const filteredOrders = useMemo(() => {
     const tabSales = sales.filter((sale) =>
@@ -281,74 +317,111 @@ export const OrdersWorkspace = ({
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
-  const effectiveOrderStatusesById = useMemo(() => {
-    const saleIds = new Set(sales.map((sale) => sale.id));
-    const nextStatuses: Record<string, OrderStatus> = {};
-
-    Object.entries(orderStatusesById).forEach(([saleId, status]) => {
-      if (saleIds.has(saleId)) {
-        nextStatuses[saleId] = status;
-      }
-    });
-
-    sales.forEach((sale) => {
-      if (!nextStatuses[sale.id]) {
-        nextStatuses[sale.id] = 'new';
-      }
-    });
-
-    return nextStatuses;
-  }, [orderStatusesById, sales]);
   const selectedSaleStatusOptions = selectedSale
     ? isRepairOrder(selectedSale)
       ? repairStatuses
       : saleStatuses
     : repairStatuses;
   const selectedSaleStatus = selectedSale
-    ? ((effectiveOrderStatusesById[selectedSale.id] ?? 'new') as OrderStatus)
+    ? ((selectedSale.status ?? 'new') as OrderStatus)
     : 'new';
 
-  useEffect(() => {
-    window.localStorage.setItem(
-      statusStorageKey,
-      JSON.stringify(effectiveOrderStatusesById),
-    );
-  }, [effectiveOrderStatusesById]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      commentsStorageKey,
-      JSON.stringify(commentsBySaleId),
-    );
-  }, [commentsBySaleId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      paymentsStorageKey,
-      JSON.stringify(paidBySaleId),
-    );
-  }, [paidBySaleId]);
-
   const getStatus = (sale: Sale): OrderStatus =>
-    effectiveOrderStatusesById[sale.id] ?? 'new';
+    (sale.status as OrderStatus) ?? 'new';
 
   const getStatusOptions = (sale: Sale) =>
     isRepairOrder(sale) ? repairStatuses : saleStatuses;
+
+  const getLineItems = (sale: Sale) =>
+    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale);
+
+  const getPaidAmount = (sale: Sale) => sale.paidAmount ?? 0;
+
+  const getOrderRemainingPayment = (sale: Sale) =>
+    getRemainingPayment(sale, getPaidAmount(sale), getLineItems(sale));
+
+  const hasAttachedProducts = (sale: Sale) =>
+    getLineItems(sale).some((item) => item.kind === 'product');
+
+  const appendTimelineEntry = (
+    message: string,
+    author: string = currentEmployeeName,
+  ): TimelineEntry => ({
+      id: crypto.randomUUID(),
+      author,
+      message,
+      createdAt: new Date().toISOString(),
+    });
+
+  const addPaymentHistoryEntry = (
+    entry: Omit<PaymentEntry, 'id' | 'createdAt' | 'author'>,
+  ): PaymentEntry => ({
+      ...entry,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      author: currentEmployeeName,
+    });
+
+  const persistSaleWorkspace = async (
+    sale: Sale,
+    payload: {
+      status?: OrderStatus;
+      paidAmount?: number;
+      timeline?: TimelineEntry[];
+      paymentHistory?: PaymentEntry[];
+      lineItems?: OrderLineItem[];
+    },
+  ) => {
+    const updatedSale = await updateSaleWorkspace(sale.id, {
+      kind: sale.kind,
+      status: payload.status ?? sale.status,
+      paidAmount: payload.paidAmount ?? sale.paidAmount,
+      timeline: payload.timeline ?? sale.timeline,
+      paymentHistory:
+        payload.paymentHistory ?? sale.paymentHistory,
+      lineItems: payload.lineItems ?? getLineItems(sale),
+    });
+    onSaleUpdate(updatedSale);
+    return updatedSale;
+  };
 
   const updateStatus = async (
     sale: Sale,
     status: OrderStatus,
   ) => {
-    if (isRepairOrder(sale) && status === 'issued') {
+    if (
+      isClosingStatus(sale, status) &&
+      hasAttachedProducts(sale) &&
+      getOrderRemainingPayment(sale) > 0
+    ) {
+      setWarningMessage(
+        'Product shipped but payment has not been received.',
+      );
       setOpenStatusSaleId(null);
-      await openPaymentModal(sale, status);
       return;
     }
 
-    setOrderStatusesById((current) => ({
-      ...current,
-      [sale.id]: status,
-    }));
+    if (
+      (isRepairOrder(sale) && status === 'issued') ||
+      (!isRepairOrder(sale) && status === 'paid')
+    ) {
+      setOpenStatusSaleId(null);
+      await openPaymentModal(
+        sale,
+        status as Extract<OrderStatus, PaymentTargetStatus>,
+      );
+      return;
+    }
+
+    await persistSaleWorkspace(sale, {
+      status,
+      timeline: [
+        appendTimelineEntry(
+          `${currentEmployeeName} changed status to "${statusLabels[status]}".`,
+        ),
+        ...sale.timeline,
+      ],
+    });
     setOpenStatusSaleId(null);
   };
 
@@ -360,21 +433,19 @@ export const OrdersWorkspace = ({
   const addComment = (sale: Sale, comment: string) => {
     const normalizedComment = comment.trim();
     if (!normalizedComment) return;
-
-    setCommentsBySaleId((current) => ({
-      ...current,
-      [sale.id]: [normalizedComment, ...(current[sale.id] ?? [])],
-    }));
+    void persistSaleWorkspace(sale, {
+      timeline: [
+        appendTimelineEntry(normalizedComment),
+        ...sale.timeline,
+      ],
+    });
   };
 
   const openPaymentModal = async (
     sale: Sale,
-    targetStatus: IssueStatus = 'issued',
+    targetStatus: PaymentTargetStatus = 'issued',
   ) => {
-    const remainingPayment = getRemainingPayment(
-      sale,
-      paidBySaleId[sale.id] ?? 0,
-    );
+    const remainingPayment = getOrderRemainingPayment(sale);
 
     setPaymentSale(sale);
     setPaymentTargetStatus(targetStatus);
@@ -401,15 +472,65 @@ export const OrdersWorkspace = ({
     }
   };
 
-  const setIssuedStatus = (
-    sale: Sale,
-    status: IssueStatus = 'issued',
-  ) => {
-    setOrderStatusesById((current) => ({
-      ...current,
-      [sale.id]: status,
-    }));
+  const openRefundModal = async (sale: Sale) => {
+    const paymentHistory = sale.paymentHistory ?? [];
+    const lastDepositCashboxId =
+      paymentHistory.find((entry) => entry.type === 'deposit')
+        ?.cashboxId ?? '';
+
+    setRefundSale(sale);
+    setRefundAmount(String(getPaidAmount(sale)));
+    setIsRefundModalLoading(true);
+
+    try {
+      const cashboxData = await getCashboxes();
+      setCashboxes(cashboxData);
+      setSelectedRefundCashboxId(
+        lastDepositCashboxId ||
+          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
+          cashboxData[0]?.id ||
+          '',
+      );
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load cashboxes.',
+      );
+      setRefundSale(null);
+    } finally {
+      setIsRefundModalLoading(false);
+    }
   };
+
+  const addLineItem = (
+    sale: Sale,
+    item: Omit<OrderLineItem, 'id'>,
+  ) => {
+    const nextItem = { ...item, id: crypto.randomUUID() };
+    void persistSaleWorkspace(sale, {
+      lineItems: [...getLineItems(sale), nextItem],
+      timeline: [
+        appendTimelineEntry(
+          `${currentEmployeeName} added ${item.kind} "${item.name}".`,
+        ),
+        ...sale.timeline,
+      ],
+    });
+  };
+
+  const removeLineItem = (sale: Sale, itemId: string) => {
+    const currentItems = getLineItems(sale);
+    const nextItems = currentItems.filter((item) => item.id !== itemId);
+    void persistSaleWorkspace(sale, {
+      lineItems:
+        nextItems.length > 0 ? nextItems : getDefaultLineItems(sale),
+    });
+  };
+
+  const setIssuedStatus = (
+    status: PaymentTargetStatus = 'issued',
+  ) => status;
 
   const acceptPayment = async (action: PaymentAction) => {
     if (
@@ -418,33 +539,85 @@ export const OrdersWorkspace = ({
     )
       return;
 
+    const currentPaidAmount = getPaidAmount(paymentSale);
+    const currentLineItems = getLineItems(paymentSale);
+    const currentPaymentRemaining = getRemainingPayment(
+      paymentSale,
+      currentPaidAmount,
+      currentLineItems,
+    );
+    const normalizedAmount =
+      Math.round(Number(paymentAmount) * 100) / 100;
+    const nextPaymentRemaining = Math.max(
+      currentPaymentRemaining -
+        (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
+      0,
+    );
+
+    if (
+      action !== 'issueWithoutPayment' &&
+      (!Number.isFinite(normalizedAmount) ||
+        normalizedAmount <= 0 ||
+        normalizedAmount > currentPaymentRemaining)
+    ) {
+      onError('Payment amount cannot exceed the remaining balance.');
+      return;
+    }
+
+    if (
+      (action === 'depositAndIssue' ||
+        action === 'issueWithoutPayment') &&
+      hasAttachedProducts(paymentSale) &&
+      nextPaymentRemaining > 0
+    ) {
+      setWarningMessage(
+        'Product shipped but payment has not been received.',
+      );
+      return;
+    }
+
     setIsPaymentSaving(true);
 
     try {
+      let nextPaidAmount = currentPaidAmount;
+      let nextPaymentHistory = [...(paymentSale.paymentHistory ?? [])];
+      let nextTimeline = [...(paymentSale.timeline ?? [])];
+      let nextStatus: OrderStatus | undefined;
+
       if (action !== 'issueWithoutPayment') {
+        const cashboxName =
+          cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
+            ?.name ?? 'Cashbox';
+        const acceptedAmount = normalizedAmount;
+        nextPaidAmount = Math.min(
+          currentPaidAmount + acceptedAmount,
+          getOrderTotal(paymentSale, currentLineItems),
+        );
+        nextPaymentHistory = [
+          addPaymentHistoryEntry({
+            type: 'deposit',
+            amount: acceptedAmount,
+            cashboxId: selectedCashboxId,
+            cashboxName,
+          }),
+          ...(paymentSale.paymentHistory ?? []),
+        ];
+        nextTimeline = [
+          appendTimelineEntry(
+            `${currentEmployeeName} accepted ${formatCurrency(acceptedAmount)} to ${cashboxName}.`,
+          ),
+          ...nextTimeline,
+        ];
         await createFinanceTransaction({
           type: 'deposit',
-          amount: paymentAmount,
+          amount: String(normalizedAmount),
           currency: 'UAH',
           toCashboxId: selectedCashboxId,
           note: `Payment for order ${paymentSale.recordNumber ?? paymentSale.id}`,
         });
-        const acceptedAmount =
-          Math.round(Number(paymentAmount) * 100) / 100;
-        setPaidBySaleId((current) => ({
-          ...current,
-          [paymentSale.id]: Math.min(
-            (current[paymentSale.id] ?? 0) + acceptedAmount,
-            getSaleTotal(paymentSale),
-          ),
-        }));
         setCashboxes(await getCashboxes());
         window.dispatchEvent(
           new CustomEvent('project-goods:finance-updated'),
-        );
-        addComment(
-          paymentSale,
-          `Payment accepted: ${formatCurrency(acceptedAmount)}`,
         );
       }
 
@@ -452,19 +625,28 @@ export const OrdersWorkspace = ({
         action === 'depositAndIssue' ||
         action === 'issueWithoutPayment'
       ) {
-        setIssuedStatus(paymentSale, paymentTargetStatus);
-        addComment(
-          paymentSale,
-          paymentTargetStatus === 'issuedWithoutRepair'
-            ? 'Order issued to client without repair.'
-            : 'Order issued to client.',
-        );
+        nextStatus = setIssuedStatus(paymentTargetStatus);
+        nextTimeline = [
+          appendTimelineEntry(
+            `${currentEmployeeName} changed status to "${statusLabels[nextStatus]}".`,
+          ),
+          ...nextTimeline,
+        ];
       }
+
+      await persistSaleWorkspace(paymentSale, {
+        status: nextStatus,
+        paidAmount: nextPaidAmount,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      });
 
       onSuccess(
         action === 'deposit'
           ? 'Payment accepted to cashbox.'
-          : paymentTargetStatus === 'issuedWithoutRepair'
+          : paymentTargetStatus === 'paid'
+            ? 'Sale marked as paid successfully.'
+            : paymentTargetStatus === 'issuedWithoutRepair'
             ? 'Order issued without repair successfully.'
             : 'Order issued successfully.',
       );
@@ -480,6 +662,76 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const refundPayment = async () => {
+    if (!refundSale || !selectedRefundCashboxId) return;
+
+    const currentPaidAmount = getPaidAmount(refundSale);
+    const normalizedAmount = Math.round(Number(refundAmount) * 100) / 100;
+
+    if (
+      !Number.isFinite(normalizedAmount) ||
+      normalizedAmount <= 0 ||
+      normalizedAmount > currentPaidAmount
+    ) {
+      onError('Refund amount cannot exceed the paid amount.');
+      return;
+    }
+
+    setIsRefundSaving(true);
+
+    try {
+      const cashboxName =
+        cashboxes.find(
+          (cashbox) => cashbox.id === selectedRefundCashboxId,
+        )?.name ?? 'Cashbox';
+      const nextPaidAmount = Math.max(
+        currentPaidAmount - normalizedAmount,
+        0,
+      );
+      const nextPaymentHistory = [
+        addPaymentHistoryEntry({
+          type: 'refund',
+          amount: normalizedAmount,
+          cashboxId: selectedRefundCashboxId,
+          cashboxName,
+        }),
+        ...(refundSale.paymentHistory ?? []),
+      ];
+      const nextTimeline = [
+        appendTimelineEntry(
+          `${currentEmployeeName} refunded ${formatCurrency(normalizedAmount)} from ${cashboxName}.`,
+        ),
+        ...(refundSale.timeline ?? []),
+      ];
+      await createFinanceTransaction({
+        type: 'withdraw',
+        amount: String(normalizedAmount),
+        currency: 'UAH',
+        fromCashboxId: selectedRefundCashboxId,
+        note: `Refund for order ${refundSale.recordNumber ?? refundSale.id}`,
+      });
+      await persistSaleWorkspace(refundSale, {
+        paidAmount: nextPaidAmount,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      });
+      setCashboxes(await getCashboxes());
+      window.dispatchEvent(
+        new CustomEvent('project-goods:finance-updated'),
+      );
+      onSuccess('Refund completed successfully.');
+      setRefundSale(null);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to refund payment.',
+      );
+    } finally {
+      setIsRefundSaving(false);
+    }
+  };
+
   return (
     <section className='orders-page'>
       {selectedSale ? (
@@ -487,8 +739,9 @@ export const OrdersWorkspace = ({
           sale={selectedSale}
           status={selectedSaleStatus}
           statusOptions={selectedSaleStatusOptions}
-          comments={commentsBySaleId[selectedSale.id] ?? []}
-          paidAmount={paidBySaleId[selectedSale.id] ?? 0}
+          comments={selectedSale.timeline ?? []}
+          lineItems={getLineItems(selectedSale)}
+          paidAmount={getPaidAmount(selectedSale)}
           onClose={() => setSelectedSaleId(null)}
           onStatusChange={(status) =>
             updateStatus(selectedSale, status)
@@ -496,7 +749,12 @@ export const OrdersWorkspace = ({
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
           }
+          onAddLineItem={(item) => addLineItem(selectedSale, item)}
+          onRemoveLineItem={(itemId) =>
+            removeLineItem(selectedSale, itemId)
+          }
           onAcceptPayment={() => openPaymentModal(selectedSale)}
+          onRefundPayment={() => openRefundModal(selectedSale)}
         />
       ) : null}
 
@@ -556,6 +814,12 @@ export const OrdersWorkspace = ({
             type='button'
             className='orders-create-button'
             onClick={() => onCreateOrder(activeTab)}
+            disabled={!canCreateOrders}
+            title={
+              canCreateOrders
+                ? 'Create order'
+                : 'Only employees with orders.manage permission can create orders.'
+            }
           >
             Create order
           </button>
@@ -663,8 +927,8 @@ export const OrdersWorkspace = ({
                         </small>
                       </button>
                     </td>
-                    <td>{sale.salePrice}</td>
-                    <td>{paidBySaleId[sale.id] ?? 0}</td>
+                    <td>{formatCurrency(getOrderTotal(sale, getLineItems(sale)))}</td>
+                    <td>{formatCurrency(getPaidAmount(sale))}</td>
                     <td>
                       <div className='orders-client-cell'>
                         <span>{sale.client.name}</span>
@@ -685,16 +949,43 @@ export const OrdersWorkspace = ({
       {paymentSale ? (
         <PaymentModal
           sale={paymentSale}
+          paymentTargetStatus={paymentTargetStatus}
+          lineItems={getLineItems(paymentSale)}
           cashboxes={cashboxes}
           selectedCashboxId={selectedCashboxId}
           amount={paymentAmount}
-          paidAmount={paidBySaleId[paymentSale.id] ?? 0}
+          paidAmount={getPaidAmount(paymentSale)}
           isLoading={isPaymentModalLoading}
           isSaving={isPaymentSaving}
           onCashboxChange={setSelectedCashboxId}
           onAmountChange={setPaymentAmount}
           onClose={() => setPaymentSale(null)}
           onSubmit={acceptPayment}
+        />
+      ) : null}
+
+      {refundSale ? (
+        <RefundModal
+          sale={refundSale}
+          lineItems={getLineItems(refundSale)}
+          cashboxes={cashboxes}
+          selectedCashboxId={selectedRefundCashboxId}
+          amount={refundAmount}
+          paidAmount={getPaidAmount(refundSale)}
+          isLoading={isRefundModalLoading}
+          isSaving={isRefundSaving}
+          onCashboxChange={setSelectedRefundCashboxId}
+          onAmountChange={setRefundAmount}
+          onClose={() => setRefundSale(null)}
+          onSubmit={refundPayment}
+        />
+      ) : null}
+
+      {warningMessage ? (
+        <MessageModal
+          title='Payment warning'
+          message={warningMessage}
+          onClose={() => setWarningMessage(null)}
         />
       ) : null}
     </section>
@@ -705,12 +996,16 @@ type OrderDetailCardProps = {
   sale: Sale;
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; label: string }>;
-  comments: string[];
+  comments: TimelineEntry[];
+  lineItems: OrderLineItem[];
   paidAmount: number;
   onClose: () => void;
   onStatusChange: (status: OrderStatus) => void;
   onAddComment: (comment: string) => void;
+  onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
+  onRemoveLineItem: (itemId: string) => void;
   onAcceptPayment: () => void;
+  onRefundPayment: () => void;
 };
 
 const OrderDetailCard = ({
@@ -718,15 +1013,29 @@ const OrderDetailCard = ({
   status,
   statusOptions,
   comments,
+  lineItems,
   paidAmount,
   onClose,
   onStatusChange,
   onAddComment,
+  onAddLineItem,
+  onRemoveLineItem,
   onAcceptPayment,
+  onRefundPayment,
 }: OrderDetailCardProps) => {
   const [comment, setComment] = useState('');
-  const total = getSaleTotal(sale);
-  const remainingPayment = getRemainingPayment(sale, paidAmount);
+  const total = getOrderTotal(sale, lineItems);
+  const remainingPayment = getRemainingPayment(
+    sale,
+    paidAmount,
+    lineItems,
+  );
+  const productItems = lineItems.filter(
+    (item) => item.kind === 'product',
+  );
+  const serviceItems = lineItems.filter(
+    (item) => item.kind === 'service',
+  );
 
   const submitComment = () => {
     onAddComment(comment);
@@ -825,13 +1134,18 @@ const OrderDetailCard = ({
             </div>
             {comments.map((item, index) => (
               <div
-                key={`${item}-${index}`}
+                key={`${item.id}-${index}`}
                 className='order-timeline-item'
               >
-                <span>now</span>
+                <span>
+                  {new Date(item.createdAt).toLocaleTimeString(
+                    'uk-UA',
+                    { hour: '2-digit', minute: '2-digit' },
+                  )}
+                </span>
                 <p>
-                  <strong>Comment</strong>
-                  <small>{item}</small>
+                  <strong>{item.author}</strong>
+                  <small>{item.message}</small>
                 </p>
               </div>
             ))}
@@ -853,15 +1167,25 @@ const OrderDetailCard = ({
         </section>
 
         <section className='order-detail-panel'>
+          <h3>Products</h3>
+          <LineItemsPanel
+            title='Products'
+            kind='product'
+            items={productItems}
+            onAddItem={onAddLineItem}
+            onRemoveItem={onRemoveLineItem}
+          />
+        </section>
+
+        <section className='order-detail-panel'>
           <h3>Services</h3>
-          <div className='order-detail-table'>
-            <div>Name</div>
-            <div>Price</div>
-            <div>Qty</div>
-            <div>{isRepairOrder(sale) ? 'Repair' : 'Sale'}</div>
-            <div>{formatCurrency(sale.salePrice)}</div>
-            <div>{sale.quantity}</div>
-          </div>
+          <LineItemsPanel
+            title='Services'
+            kind='service'
+            items={serviceItems}
+            onAddItem={onAddLineItem}
+            onRemoveItem={onRemoveLineItem}
+          />
         </section>
 
         <section className='order-detail-panel'>
@@ -888,6 +1212,15 @@ const OrderDetailCard = ({
           >
             {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
           </button>
+          {paidAmount > 0 ? (
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onRefundPayment}
+            >
+              Refund to client
+            </button>
+          ) : null}
         </section>
 
         <section className='order-detail-panel order-detail-note'>
@@ -899,8 +1232,119 @@ const OrderDetailCard = ({
   );
 };
 
+type LineItemsPanelProps = {
+  title: string;
+  kind: OrderLineItemKind;
+  items: OrderLineItem[];
+  onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
+  onRemoveItem: (itemId: string) => void;
+};
+
+const LineItemsPanel = ({
+  title,
+  kind,
+  items,
+  onAddItem,
+  onRemoveItem,
+}: LineItemsPanelProps) => {
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [quantity, setQuantity] = useState('1');
+
+  const submitItem = () => {
+    const normalizedName = name.trim();
+    const normalizedPrice = Number(price);
+    const normalizedQuantity = Number(quantity);
+
+    if (
+      !normalizedName ||
+      !Number.isFinite(normalizedPrice) ||
+      normalizedPrice < 0 ||
+      !Number.isFinite(normalizedQuantity) ||
+      normalizedQuantity <= 0
+    ) {
+      return;
+    }
+
+    onAddItem({
+      kind,
+      name: normalizedName,
+      price: normalizedPrice,
+      quantity: normalizedQuantity,
+    });
+    setName('');
+    setPrice('');
+    setQuantity('1');
+  };
+
+  return (
+    <div className='order-line-items'>
+      <div className='order-detail-table order-detail-table-wide'>
+        <div>Name</div>
+        <div>Price</div>
+        <div>Qty</div>
+        <div>Action</div>
+        {items.length === 0 ? (
+          <div className='order-line-items-empty'>{`No ${title.toLowerCase()} added.`}</div>
+        ) : (
+          items.map((item) => (
+            <div key={item.id} className='order-detail-table-row'>
+              <div key={`${item.id}-name`}>{item.name}</div>
+              <div key={`${item.id}-price`}>
+                {formatCurrency(item.price)}
+              </div>
+              <div key={`${item.id}-qty`}>{item.quantity}</div>
+              <div key={`${item.id}-action`}>
+                <button
+                  type='button'
+                  className='line-item-remove-button'
+                  onClick={() => onRemoveItem(item.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className='order-line-items-form'>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder={`Add ${kind}`}
+        />
+        <input
+          type='number'
+          min='0'
+          step='0.01'
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+          placeholder='Price'
+        />
+        <input
+          type='number'
+          min='1'
+          step='1'
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+          placeholder='Qty'
+        />
+        <button
+          type='button'
+          className='primary-button'
+          onClick={submitItem}
+        >
+          Add {kind}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 type PaymentModalProps = {
   sale: Sale;
+  paymentTargetStatus: PaymentTargetStatus;
+  lineItems: OrderLineItem[];
   cashboxes: Cashbox[];
   selectedCashboxId: string;
   amount: string;
@@ -915,6 +1359,8 @@ type PaymentModalProps = {
 
 const PaymentModal = ({
   sale,
+  paymentTargetStatus,
+  lineItems,
   cashboxes,
   selectedCashboxId,
   amount,
@@ -926,11 +1372,12 @@ const PaymentModal = ({
   onClose,
   onSubmit,
 }: PaymentModalProps) => {
-  const total = getSaleTotal(sale);
+  const total = getOrderTotal(sale, lineItems);
   const numericAmount = Number(amount);
   const currentPaymentRemaining = getRemainingPayment(
     sale,
     paidAmount,
+    lineItems,
   );
   const nextPaymentRemaining = Math.max(
     currentPaymentRemaining -
@@ -938,6 +1385,7 @@ const PaymentModal = ({
     0,
   );
   const orderNumber = sale.recordNumber ?? 'r------';
+  const isSalePaymentFlow = paymentTargetStatus === 'paid';
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
   const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
     [],
@@ -1088,6 +1536,7 @@ const PaymentModal = ({
             <input
               type='number'
               min='0'
+              max={String(currentPaymentRemaining)}
               step='0.01'
               value={amount}
               onChange={(event) => onAmountChange(event.target.value)}
@@ -1165,7 +1614,7 @@ const PaymentModal = ({
               onClick={() => onSubmit('depositAndIssue')}
               disabled={isSubmitDisabled}
             >
-              Accept and issue
+              {isSalePaymentFlow ? 'Accept and mark paid' : 'Accept and issue'}
             </button>
             <button
               type='button'
@@ -1173,7 +1622,7 @@ const PaymentModal = ({
               onClick={() => onSubmit('issueWithoutPayment')}
               disabled={isIssueDisabled}
             >
-              Issue without payment
+              {isSalePaymentFlow ? 'Mark paid without payment' : 'Issue without payment'}
             </button>
           </div>
         </footer>
@@ -1181,3 +1630,174 @@ const PaymentModal = ({
     </div>
   );
 };
+
+type RefundModalProps = {
+  sale: Sale;
+  lineItems: OrderLineItem[];
+  cashboxes: Cashbox[];
+  selectedCashboxId: string;
+  amount: string;
+  paidAmount: number;
+  isLoading: boolean;
+  isSaving: boolean;
+  onCashboxChange: (cashboxId: string) => void;
+  onAmountChange: (amount: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+};
+
+const RefundModal = ({
+  sale,
+  lineItems,
+  cashboxes,
+  selectedCashboxId,
+  amount,
+  paidAmount,
+  isLoading,
+  isSaving,
+  onCashboxChange,
+  onAmountChange,
+  onClose,
+  onSubmit,
+}: RefundModalProps) => {
+  const total = getOrderTotal(sale, lineItems);
+  const numericAmount = Number(amount);
+  const isSubmitDisabled =
+    isLoading ||
+    isSaving ||
+    !selectedCashboxId ||
+    !Number.isFinite(numericAmount) ||
+    numericAmount <= 0 ||
+    numericAmount > paidAmount;
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='payment-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Refund payment'
+      >
+        <button
+          type='button'
+          className='payment-modal-close'
+          onClick={onClose}
+          aria-label='Close refund modal'
+        >
+          &times;
+        </button>
+
+        <div className='payment-modal-summary'>
+          <dl>
+            <div>
+              <dt>Order total</dt>
+              <dd>{formatCurrency(total)}</dd>
+            </div>
+            <div>
+              <dt>Paid</dt>
+              <dd>{formatCurrency(paidAmount)}</dd>
+            </div>
+            <div>
+              <dt>Refund amount</dt>
+              <dd>{formatCurrency(Number.isFinite(numericAmount) ? numericAmount : 0)}</dd>
+            </div>
+          </dl>
+          <span className='payment-cash-badge'>Refund</span>
+        </div>
+
+        <div className='payment-modal-form'>
+          <label className='field payment-cashbox-field'>
+            <span>* Cashbox</span>
+            <select
+              value={selectedCashboxId}
+              onChange={(event) => onCashboxChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            >
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='field'>
+            <span>Amount</span>
+            <input
+              type='number'
+              min='0'
+              max={String(paidAmount)}
+              step='0.01'
+              value={amount}
+              onChange={(event) => onAmountChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+          <label className='field'>
+            <span>Available</span>
+            <input value={String(paidAmount)} disabled readOnly />
+          </label>
+        </div>
+
+        <footer className='payment-modal-footer'>
+          <div />
+          <div className='payment-modal-actions'>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              className='payment-issue-secondary-button'
+              onClick={onSubmit}
+              disabled={isSubmitDisabled}
+            >
+              {isSaving ? 'Saving...' : 'Refund to client'}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+type MessageModalProps = {
+  title: string;
+  message: string;
+  onClose: () => void;
+};
+
+const MessageModal = ({
+  title,
+  message,
+  onClose,
+}: MessageModalProps) => (
+  <div className='modal-backdrop' role='presentation'>
+    <section
+      className='payment-modal payment-modal-message'
+      role='dialog'
+      aria-modal='true'
+      aria-label={title}
+    >
+      <div className='payment-modal-summary'>
+        <h3>{title}</h3>
+        <p>{message}</p>
+      </div>
+      <footer className='payment-modal-footer'>
+        <div />
+        <div className='payment-modal-actions'>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={onClose}
+          >
+            OK
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+);

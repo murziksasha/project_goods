@@ -1,6 +1,6 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Product } from '../../product/model/types';
-import type { Sale, SaleFormValues } from '../model/types';
+import type { Sale, SaleFormValues, SaleWorkspacePayload } from '../model/types';
 
 export const getSales = async () => {
   try {
@@ -27,6 +27,21 @@ export const updateSale = async (saleId: string, payload: SaleFormValues) => {
   try {
     const response = await apiClient.put<{ sale: Sale; product: Product }>(
       `/sales/${saleId}`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateSaleWorkspace = async (
+  saleId: string,
+  payload: SaleWorkspacePayload,
+) => {
+  try {
+    const response = await apiClient.patch<Sale>(
+      `/sales/${saleId}/workspace`,
       payload,
     );
     return response.data;

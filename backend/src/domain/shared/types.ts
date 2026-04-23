@@ -28,11 +28,19 @@ export type SalePayload = {
   note?: unknown;
   managerId?: unknown;
   masterId?: unknown;
+  kind?: unknown;
+  status?: unknown;
+  paidAmount?: unknown;
+  timeline?: unknown;
+  paymentHistory?: unknown;
+  lineItems?: unknown;
 };
 
 export type EmployeePayload = {
   name?: unknown;
   phone?: unknown;
+  username?: unknown;
+  password?: unknown;
   role?: unknown;
   permissions?: unknown;
   isActive?: unknown;
@@ -41,4 +49,10 @@ export type EmployeePayload = {
 
 export type SettingsPayload = {
   serviceName?: unknown;
+};
+
+export type ServiceCatalogPayload = {
+  name?: unknown;
+  price?: unknown;
+  note?: unknown;
 };

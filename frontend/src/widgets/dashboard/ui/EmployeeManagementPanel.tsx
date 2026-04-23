@@ -79,6 +79,23 @@ export const EmployeeManagementPanel = ({
           />
         </label>
         <label className="field">
+          <span>Login</span>
+          <input
+            value={form.username}
+            onChange={(event) => onChange('username', event.target.value)}
+            placeholder="username"
+          />
+        </label>
+        <label className="field">
+          <span>{isEditing ? 'New password' : 'Password'}</span>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(event) => onChange('password', event.target.value)}
+            placeholder={isEditing ? 'Leave blank to keep current password' : 'Password'}
+          />
+        </label>
+        <label className="field">
           <span>Role</span>
           <select
             value={form.role}
@@ -128,7 +145,13 @@ export const EmployeeManagementPanel = ({
         className="primary-button"
         type="button"
         onClick={onSubmit}
-        disabled={isSaving || !form.name.trim() || form.permissions.length === 0}
+        disabled={
+          isSaving ||
+          !form.name.trim() ||
+          !form.username.trim() ||
+          form.permissions.length === 0 ||
+          (!isEditing && form.password.trim().length < 4)
+        }
       >
         {isSaving ? 'Saving...' : isEditing ? 'Update employee' : 'Save employee'}
       </button>
@@ -151,7 +174,7 @@ export const EmployeeManagementPanel = ({
               <div className="list-card-row">
                 <div>
                   <h3>{employee.name}</h3>
-                  <p>{employee.phone || 'No phone'} • {employee.role}</p>
+                  <p>{employee.username} | {employee.phone || 'No phone'} | {employee.role}</p>
                   <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
                 </div>
                 <div className="card-actions">

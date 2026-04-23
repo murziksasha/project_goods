@@ -16,6 +16,28 @@ export const employeeSchema = new mongoose.Schema(
       default: '',
       maxlength: [30, 'Employee phone must contain no more than 30 characters'],
     },
+    username: {
+      type: String,
+      required: [true, 'Username is required'],
+      trim: true,
+      lowercase: true,
+      minlength: [3, 'Username must contain at least 3 characters'],
+      maxlength: [60, 'Username must contain no more than 60 characters'],
+      unique: true,
+      index: true,
+    },
+    passwordHash: {
+      type: String,
+      required: [true, 'Password is required'],
+      default: '',
+      select: false,
+    },
+    authToken: {
+      type: String,
+      default: '',
+      select: false,
+      index: true,
+    },
     role: {
       type: String,
       required: [true, 'Employee role is required'],
@@ -52,7 +74,7 @@ export const employeeSchema = new mongoose.Schema(
 );
 
 employeeSchema.pre('validate', function updateSearchText() {
-  this.searchText = [this.name, this.phone, this.role, this.note]
+  this.searchText = [this.name, this.phone, this.username, this.role, this.note]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();

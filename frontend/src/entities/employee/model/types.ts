@@ -26,6 +26,7 @@ export type Employee = {
   id: string;
   name: string;
   phone: string;
+  username: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
   isActive: boolean;
@@ -37,6 +38,8 @@ export type Employee = {
 export type EmployeeFormValues = {
   name: string;
   phone: string;
+  username: string;
+  password: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
   isActive: boolean;

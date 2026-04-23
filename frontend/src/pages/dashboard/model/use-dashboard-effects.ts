@@ -14,6 +14,7 @@ import { getRequestErrorMessage } from '../../../shared/lib/request';
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardEffectsParams = {
+  enabled: boolean;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
   setAllClients: Setter<Client[]>;
@@ -31,6 +32,7 @@ type DashboardEffectsParams = {
 };
 
 export const useDashboardEffects = ({
+  enabled,
   selectedClientId,
   setAllProducts,
   setAllClients,
@@ -47,6 +49,18 @@ export const useDashboardEffects = ({
   setError,
 }: DashboardEffectsParams) => {
   useEffect(() => {
+    if (!enabled) {
+      setAllProducts([]);
+      setAllClients([]);
+      setAllEmployees([]);
+      setSettings(null);
+      setSettingsForm({ serviceName: 'Service CRM' });
+      setIsProductsLoading(false);
+      setIsClientsLoading(false);
+      setIsEmployeesLoading(false);
+      return;
+    }
+
     let isActive = true;
 
     const fetchWorkspaceData = async () => {
@@ -114,6 +128,7 @@ export const useDashboardEffects = ({
       isActive = false;
     };
   }, [
+    enabled,
     setAllClients,
     setAllEmployees,
     setAllProducts,
@@ -126,6 +141,12 @@ export const useDashboardEffects = ({
   ]);
 
   useEffect(() => {
+    if (!enabled) {
+      setSales([]);
+      setIsSalesLoading(false);
+      return;
+    }
+
     let isActive = true;
 
     const fetchSalesData = async () => {
@@ -144,10 +165,10 @@ export const useDashboardEffects = ({
     return () => {
       isActive = false;
     };
-  }, [setError, setIsSalesLoading, setSales]);
+  }, [enabled, setError, setIsSalesLoading, setSales]);
 
   useEffect(() => {
-    if (!selectedClientId) return;
+    if (!enabled || !selectedClientId) return;
 
     let isActive = true;
 
@@ -169,5 +190,5 @@ export const useDashboardEffects = ({
     return () => {
       isActive = false;
     };
-  }, [selectedClientId, setClientHistory, setError, setIsClientHistoryLoading]);
+  }, [enabled, selectedClientId, setClientHistory, setError, setIsClientHistoryLoading]);
 };

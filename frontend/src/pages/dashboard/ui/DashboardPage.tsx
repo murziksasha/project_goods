@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { getCurrentEmployee, login, logout, authTokenStorageKey } from '../../../entities/auth/api/authApi';
+import type { Employee } from '../../../entities/employee/model/types';
+import { setApiAuthToken } from '../../../shared/api/http';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/Notifications';
@@ -47,16 +50,69 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
 ];
 
 export const DashboardPage = () => {
-  const { state, actions } = useDashboardPage();
+  const [authError, setAuthError] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const { state, actions } = useDashboardPage(Boolean(currentEmployee));
   const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>('orders');
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
+  const canCreateOrders =
+    currentEmployee?.isActive === true &&
+    (currentEmployee.role === 'owner' ||
+      currentEmployee.role === 'manager' ||
+      currentEmployee.permissions.includes('orders.manage'));
+
+  useEffect(() => {
+    let isActive = true;
+    const token = window.localStorage.getItem(authTokenStorageKey);
+
+    if (!token) {
+      setApiAuthToken(null);
+      setIsAuthLoading(false);
+      return;
+    }
+
+    setApiAuthToken(token);
+    void (async () => {
+      try {
+        const employee = await getCurrentEmployee();
+        if (!isActive) return;
+        setCurrentEmployee(employee);
+      } catch {
+        if (!isActive) return;
+        window.localStorage.removeItem(authTokenStorageKey);
+        setApiAuthToken(null);
+        setCurrentEmployee(null);
+      } finally {
+        if (isActive) {
+          setIsAuthLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     setPageInUrl(activePage);
   }, [activePage]);
+
+  useEffect(() => {
+    if (isAuthLoading || currentEmployee) {
+      return;
+    }
+
+    setActivePage('home');
+    setIsCreateOrderOpen(false);
+    setPageInUrl('home');
+  }, [currentEmployee, isAuthLoading]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
@@ -75,19 +131,144 @@ export const DashboardPage = () => {
   };
 
   const openCreateOrder = (tab: OrdersTab) => {
+    if (!canCreateOrders) {
+      actions.showError('Current employee does not have permission to create orders.');
+      return;
+    }
+
     setActivePage('orders');
     setActiveOrdersTab(tab);
     setIsCreateOrderOpen(true);
   };
 
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    setAuthError('');
+
+    try {
+      const session = await login(loginForm);
+      window.localStorage.setItem(authTokenStorageKey, session.token);
+      setApiAuthToken(session.token);
+      setCurrentEmployee(session.employee);
+      setActivePage('home');
+      setActiveOrdersTab('orders');
+      setIsCreateOrderOpen(false);
+      setPageInUrl('home');
+      actions.showError('');
+      actions.showSuccessMessage('');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to login.');
+      setCurrentEmployee(null);
+      setApiAuthToken(null);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // ignore logout transport errors and clear local session anyway
+    } finally {
+      window.localStorage.removeItem(authTokenStorageKey);
+      setApiAuthToken(null);
+      setCurrentEmployee(null);
+      setIsCreateOrderOpen(false);
+      setActiveOrdersTab('orders');
+      setActivePage('home');
+      setPageInUrl('home');
+    }
+  };
+
+  if (isAuthLoading) {
+    return (
+      <main className="dashboard-shell">
+        <section className="dashboard-main">
+          <div className="page-shell">
+            <section className="panel">
+              <h2>Loading session...</h2>
+            </section>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!currentEmployee) {
+    return (
+      <main className="dashboard-shell">
+        <section className="dashboard-main">
+          <div className="page-shell">
+            <section className="panel" style={{ maxWidth: 480, margin: '40px auto' }}>
+              <div className="panel-header">
+                <div>
+                  <p className="section-label">Auth</p>
+                  <h2>Login</h2>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <label className="field field-wide">
+                  <span>Login</span>
+                  <input
+                    value={loginForm.username}
+                    onChange={(event) =>
+                      setLoginForm((current) => ({ ...current, username: event.target.value }))
+                    }
+                    placeholder="username"
+                  />
+                </label>
+                <label className="field field-wide">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    value={loginForm.password}
+                    onChange={(event) =>
+                      setLoginForm((current) => ({ ...current, password: event.target.value }))
+                    }
+                    placeholder="password"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        void handleLogin();
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+
+              {authError ? <p className="empty-state">{authError}</p> : null}
+
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void handleLogin()}
+                disabled={isLoggingIn || !loginForm.username.trim() || !loginForm.password.trim()}
+              >
+                {isLoggingIn ? 'Signing in...' : 'Sign in'}
+              </button>
+            </section>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="app-sidebar">
         <div className="sidebar-profile">
-          <div className="sidebar-avatar">AG</div>
+          <div className="sidebar-avatar">
+            {currentEmployee.name
+              .split(' ')
+              .map((part) => part[0] ?? '')
+              .join('')
+              .slice(0, 2)
+              .toUpperCase()}
+          </div>
           <div>
-            <p className="sidebar-user-name">Grigorev Aleksandr</p>
-            <p className="sidebar-user-role">Owner</p>
+            <p className="sidebar-user-name">{currentEmployee.name}</p>
+            <p className="sidebar-user-role">{currentEmployee.role}</p>
           </div>
         </div>
 
@@ -139,6 +320,9 @@ export const DashboardPage = () => {
           </button>
           <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
           <div className="topbar-actions">
+            <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
+              Logout
+            </button>
             <button type="button" className="topbar-icon-button" aria-label="Notifications">
               99+
             </button>
@@ -153,6 +337,7 @@ export const DashboardPage = () => {
               <CreateOrderCard
                 isSaving={state.isSaleSaving}
                 employees={state.allEmployees}
+                currentEmployee={currentEmployee}
                 onClose={openOrdersPage}
                 initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                 onSave={actions.saveOrderRequest}
@@ -167,7 +352,10 @@ export const DashboardPage = () => {
                 onActiveTabChange={setActiveOrdersTab}
                 onSearchChange={actions.setProductSearchQuery}
                 onCreateOrder={openCreateOrder}
+                currentEmployee={currentEmployee}
+                canCreateOrders={canCreateOrders}
                 onSeedDemoData={actions.seedDemoData}
+                onSaleUpdate={actions.replaceSaleInState}
                 onError={actions.showError}
                 onSuccess={actions.showSuccessMessage}
               />

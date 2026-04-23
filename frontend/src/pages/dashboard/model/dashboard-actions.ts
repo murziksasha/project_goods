@@ -191,6 +191,11 @@ export const createDashboardActions = ({
   };
 
   return {
+    replaceSaleInState: (sale: Sale) => {
+      setSales((current) =>
+        current.map((item) => (item.id === sale.id ? sale : item)),
+      );
+    },
     setProductSearchQuery,
     setClientSearchQuery,
     setClientStatusFilter,
@@ -480,6 +485,9 @@ export const createDashboardActions = ({
         if (deviceName.length < 2) {
           throw new Error('Device name must contain at least 2 characters.');
         }
+        if (!payload.managerId.trim()) {
+          throw new Error('Manager must be selected from the current logged in employee.');
+        }
         if (!Number.isFinite(estimatedCost) || estimatedCost < 0) {
           throw new Error('Estimated cost must be a non-negative number.');
         }
@@ -533,6 +541,9 @@ export const createDashboardActions = ({
           payload.externalView.trim(),
           payload.prepayment ? `Prepayment: ${payload.prepayment}` : '',
           payload.prepaymentComment.trim(),
+          payload.serviceName.trim()
+            ? `Service: ${payload.serviceName.trim()}`
+            : '',
           payload.extraFlags.length > 0 ? `Flags: ${payload.extraFlags.join(', ')}` : '',
           managerName ? `Manager: ${managerName}` : '',
           masterName ? `Master: ${masterName}` : '',
@@ -545,9 +556,23 @@ export const createDashboardActions = ({
           productId: product.id,
           quantity: '1',
           salePrice: String(estimatedCost),
+          kind: payload.sourceTab,
+          status: 'new',
           note: noteParts.join('\n'),
           managerId: payload.managerId,
           masterId: payload.masterId,
+          lineItems: [
+            {
+              id: crypto.randomUUID(),
+              kind: payload.sourceTab === 'sale' ? 'product' : 'service',
+              name:
+                payload.sourceTab === 'sale'
+                  ? deviceName
+                  : payload.serviceName.trim() || 'Repair',
+              price: estimatedCost,
+              quantity: 1,
+            },
+          ],
         });
 
         setSales((current) => [saleResult.sale, ...current]);
