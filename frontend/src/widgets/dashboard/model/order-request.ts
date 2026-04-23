@@ -6,6 +6,7 @@ export type CreateOrderRequestPayload = {
   deviceSerialNumber: string;
   deviceColor: string;
   deviceKit: string;
+  serviceName: string;
   repairType: string;
   issueFromClient: string;
   externalView: string;

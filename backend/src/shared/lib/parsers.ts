@@ -87,6 +87,64 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   note: toNonEmptyString(payload.note),
   managerId: toNonEmptyString(payload.managerId),
   masterId: toNonEmptyString(payload.masterId),
+  kind: toNonEmptyString(payload.kind) === 'sale' ? 'sale' : 'repair',
+  status: toNonEmptyString(payload.status) || 'new',
+  paidAmount:
+    payload.paidAmount === undefined ? 0 : toNumber(payload.paidAmount),
+  timeline: Array.isArray(payload.timeline)
+    ? payload.timeline
+        .map((entry) => ({
+          id: toNonEmptyString((entry as { id?: unknown })?.id),
+          author: toNonEmptyString((entry as { author?: unknown })?.author),
+          message: toNonEmptyString((entry as { message?: unknown })?.message),
+          createdAt:
+            toOptionalDate((entry as { createdAt?: unknown })?.createdAt) ?? new Date(),
+        }))
+        .filter((entry) => entry.id && entry.author && entry.message)
+    : [],
+  paymentHistory: Array.isArray(payload.paymentHistory)
+    ? payload.paymentHistory
+        .map((entry) => ({
+          id: toNonEmptyString((entry as { id?: unknown })?.id),
+          type: toNonEmptyString((entry as { type?: unknown })?.type),
+          amount: toNumber((entry as { amount?: unknown })?.amount),
+          cashboxId: toNonEmptyString((entry as { cashboxId?: unknown })?.cashboxId),
+          cashboxName: toNonEmptyString((entry as { cashboxName?: unknown })?.cashboxName),
+          author: toNonEmptyString((entry as { author?: unknown })?.author),
+          createdAt:
+            toOptionalDate((entry as { createdAt?: unknown })?.createdAt) ?? new Date(),
+        }))
+        .filter(
+          (entry) =>
+            entry.id &&
+            (entry.type === 'deposit' || entry.type === 'refund') &&
+            Number.isFinite(entry.amount) &&
+            entry.amount >= 0 &&
+            entry.cashboxId &&
+            entry.cashboxName &&
+            entry.author,
+        )
+    : [],
+  lineItems: Array.isArray(payload.lineItems)
+    ? payload.lineItems
+        .map((item) => ({
+          id: toNonEmptyString((item as { id?: unknown })?.id),
+          kind: toNonEmptyString((item as { kind?: unknown })?.kind),
+          name: toNonEmptyString((item as { name?: unknown })?.name),
+          price: toNumber((item as { price?: unknown })?.price),
+          quantity: toNumber((item as { quantity?: unknown })?.quantity),
+        }))
+        .filter(
+          (item) =>
+            item.id &&
+            (item.kind === 'product' || item.kind === 'service') &&
+            item.name &&
+            Number.isFinite(item.price) &&
+            item.price >= 0 &&
+            Number.isFinite(item.quantity) &&
+            item.quantity > 0,
+        )
+    : [],
 });
 
 export const normalizeEmployeePayload = (payload: EmployeePayload) => {
@@ -120,6 +178,8 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
   return {
     name: toNonEmptyString(payload.name),
     phone: normalizePhone(payload.phone),
+    username: toNonEmptyString(payload.username).toLowerCase(),
+    password: toNonEmptyString(payload.password),
     role,
     permissions:
       parsedPermissions.length > 0

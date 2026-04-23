@@ -706,6 +706,47 @@
   border-bottom: 0;
 }
 
+.order-detail-table-wide {
+  grid-template-columns: minmax(0, 1fr) 140px 90px 110px;
+}
+
+.order-detail-table-row {
+  display: contents;
+}
+
+.order-line-items {
+  display: grid;
+  gap: 12px;
+}
+
+.order-line-items-empty {
+  grid-column: 1 / -1;
+  color: #7a8794;
+}
+
+.order-line-items-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 90px 140px;
+  gap: 10px;
+}
+
+.line-item-remove-button {
+  border: 0;
+  background: transparent;
+  color: #c35a5a;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.payment-modal-message {
+  width: min(460px, 100%);
+}
+
+.payment-modal-message h3,
+.payment-modal-message p {
+  margin: 0;
+}
+
 .order-detail-note {
   grid-column: 1 / -1;
 }
@@ -1421,6 +1462,58 @@
 .create-device-search {
   grid-template-columns: minmax(0, 1fr) 138px;
   align-items: end;
+}
+
+.create-suggestions,
+.create-side-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.create-suggestions {
+  padding: 10px;
+  border: 1px solid #d6dee8;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.create-suggestions p,
+.create-side-list-item span {
+  margin: 0;
+  color: #71849a;
+}
+
+.create-suggestion-item,
+.create-side-list-button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #fff;
+  color: #3f5670;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.create-suggestion-item strong,
+.create-side-list-item strong,
+.create-side-list-button strong {
+  font-size: 0.96rem;
+}
+
+.create-suggestion-item span,
+.create-side-list-button span {
+  color: #6f8399;
+  font-size: 0.9rem;
+}
+
+.create-side-list-item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e1e8f0;
 }
 
 .create-cost-row {

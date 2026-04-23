@@ -53,6 +53,59 @@ const assertSalePayload = (quantity: number, salePrice: number) => {
   }
 };
 
+const calculateLineItemsTotal = (
+  lineItems: Array<{ price: number; quantity: number }>,
+) =>
+  Math.round(
+    lineItems.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0,
+    ) * 100,
+  ) / 100;
+
+const getDefaultLineItems = (
+  payload: {
+    kind: 'repair' | 'sale';
+    salePrice: number;
+    quantity: number;
+  },
+  product: { _id: mongoose.Types.ObjectId | string; name: string },
+) => [
+  {
+    id: `${product._id.toString()}-${payload.kind}-default`,
+    kind: payload.kind === 'sale' ? 'product' : 'service',
+    name: payload.kind === 'sale' ? product.name : 'Repair',
+    price: payload.salePrice,
+    quantity: payload.quantity,
+  },
+];
+
+const assertWorkspaceState = (
+  kind: 'repair' | 'sale',
+  status: string,
+  paidAmount: number,
+  lineItems: Array<{ kind: string; price: number; quantity: number }>,
+) => {
+  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+    throw new Error('Paid amount cannot be negative.');
+  }
+
+  const total = calculateLineItemsTotal(lineItems);
+  if (paidAmount > total) {
+    throw new Error('Paid amount cannot exceed order total.');
+  }
+
+  const hasAttachedProducts = lineItems.some((item) => item.kind === 'product');
+  const isClosingStatus =
+    kind === 'repair'
+      ? status === 'issued' || status === 'issuedWithoutRepair'
+      : status === 'paid' || status === 'completed';
+
+  if (hasAttachedProducts && isClosingStatus && paidAmount < total) {
+    throw new Error('Product shipped but payment has not been received.');
+  }
+};
+
 const hasPermission = (
   employee: EmployeeDocument,
   requiredRoles: string[],
@@ -89,6 +142,7 @@ export const listSales = async () => {
 
 export const createSale = async (payloadInput: SalePayload) => {
   const payload = normalizeSalePayload(payloadInput);
+  const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
   isValidObjectIdOrThrow(payload.productId, 'productId');
   assertSalePayload(payload.quantity, payload.salePrice);
@@ -118,7 +172,23 @@ export const createSale = async (payloadInput: SalePayload) => {
       master: master?._id ?? null,
       quantity: payload.quantity,
       salePrice: payload.salePrice,
+      kind: normalizedKind,
+      status: payload.status || 'new',
+      paidAmount: payload.paidAmount || 0,
       note: payload.note,
+      timeline: payload.timeline ?? [],
+      paymentHistory: payload.paymentHistory ?? [],
+      lineItems:
+        payload.lineItems.length > 0
+          ? payload.lineItems
+          : getDefaultLineItems(
+              {
+                kind: normalizedKind,
+                salePrice: payload.salePrice,
+                quantity: payload.quantity,
+              },
+              product,
+            ),
       productSnapshot: {
         article: product.article,
         name: product.name,
@@ -137,6 +207,12 @@ export const createSale = async (payloadInput: SalePayload) => {
         : undefined,
     });
 
+    assertWorkspaceState(
+      normalizedKind,
+      sale.status,
+      sale.paidAmount,
+      sale.lineItems,
+    );
     await sale.validate();
     sale.recordNumber = await getNextRecordNumber();
     await sale.save();
@@ -155,6 +231,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
   const payload = normalizeSalePayload(payloadInput);
+  const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
   isValidObjectIdOrThrow(payload.productId, 'productId');
   assertSalePayload(payload.quantity, payload.salePrice);
@@ -196,6 +273,23 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
 
   try {
     const updatedProduct = await applyProductQuantityDelta(payload.productId, -payload.quantity);
+    const nextLineItems =
+      payload.lineItems.length > 0
+        ? payload.lineItems
+        : getDefaultLineItems(
+            {
+              kind: normalizedKind,
+              salePrice: payload.salePrice,
+              quantity: payload.quantity,
+            },
+            product,
+          );
+    assertWorkspaceState(
+      normalizedKind,
+      payload.status || existingSale.status || 'new',
+      payload.paidAmount || 0,
+      nextLineItems,
+    );
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
@@ -206,7 +300,14 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         master: master?._id ?? null,
         quantity: payload.quantity,
         salePrice: payload.salePrice,
+        kind: normalizedKind,
+        status: payload.status || existingSale.status || 'new',
+        paidAmount: payload.paidAmount || 0,
         note: payload.note,
+        timeline: payload.timeline ?? existingSale.timeline ?? [],
+        paymentHistory:
+          payload.paymentHistory ?? existingSale.paymentHistory ?? [],
+        lineItems: nextLineItems,
         productSnapshot: {
           article: product.article,
           name: product.name,
@@ -239,6 +340,75 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     await applyProductQuantityDelta(existingSale.product, -existingSale.quantity);
     throw error;
   }
+};
+
+export const updateSaleWorkspace = async (
+  saleId: string,
+  payloadInput: SalePayload,
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+  const payload = normalizeSalePayload(payloadInput);
+  const existingSale = await Sale.findById(saleId).lean<SaleDocument | null>();
+
+  if (!existingSale) {
+    throw new Error('Sale not found.');
+  }
+
+  const nextKind =
+    payload.kind === 'sale' || existingSale.kind === 'sale'
+      ? 'sale'
+      : 'repair';
+  const nextStatus = payload.status || existingSale.status || 'new';
+  const nextPaidAmount =
+    payloadInput.paidAmount === undefined
+      ? existingSale.paidAmount ?? 0
+      : payload.paidAmount;
+  const nextTimeline =
+    Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
+      ? payload.timeline
+      : existingSale.timeline ?? [];
+  const nextPaymentHistory =
+    Array.isArray(payloadInput.paymentHistory) &&
+    payload.paymentHistory.length >= 0
+      ? payload.paymentHistory
+      : existingSale.paymentHistory ?? [];
+  const nextLineItems =
+    Array.isArray(payloadInput.lineItems) && payload.lineItems.length > 0
+      ? payload.lineItems
+      : (existingSale.lineItems?.length
+          ? existingSale.lineItems
+          : getDefaultLineItems(
+              {
+                kind: nextKind,
+                salePrice: existingSale.salePrice,
+                quantity: existingSale.quantity,
+              },
+              {
+              _id: existingSale.product,
+              name: existingSale.productSnapshot?.name ?? 'Item',
+              },
+            ));
+
+  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, nextLineItems);
+
+  const updatedSale = await Sale.findByIdAndUpdate(
+    saleId,
+    {
+      kind: nextKind,
+      status: nextStatus,
+      paidAmount: nextPaidAmount,
+      timeline: nextTimeline,
+      paymentHistory: nextPaymentHistory,
+      lineItems: nextLineItems,
+    },
+    { new: true, runValidators: true },
+  ).lean<SaleDocument | null>();
+
+  if (!updatedSale) {
+    throw new Error('Sale not found.');
+  }
+
+  return formatSale(updatedSale);
 };
 
 export const deleteSale = async (saleId: string) => {

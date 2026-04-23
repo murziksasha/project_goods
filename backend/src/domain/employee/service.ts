@@ -1,5 +1,6 @@
 import { employeeRoles, type EmployeeRole } from './constants';
 import { Employee, type EmployeeDocument } from './model';
+import { hashPassword } from '../../shared/lib/auth';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { normalizeEmployeePayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
@@ -20,7 +21,18 @@ export const listEmployees = async (queryValue: unknown, roleValue: unknown) => 
 };
 
 export const createEmployee = async (payload: EmployeePayload) => {
-  const employee = new Employee(normalizeEmployeePayload(payload));
+  const normalizedPayload = normalizeEmployeePayload(payload);
+  if (!normalizedPayload.username) {
+    throw new Error('Username is required.');
+  }
+  if (normalizedPayload.password.length < 4) {
+    throw new Error('Password must contain at least 4 characters.');
+  }
+
+  const employee = new Employee({
+    ...normalizedPayload,
+    passwordHash: hashPassword(normalizedPayload.password),
+  });
   await employee.validate();
   await employee.save();
   return formatEmployee(employee.toObject<EmployeeDocument>());
@@ -29,9 +41,31 @@ export const createEmployee = async (payload: EmployeePayload) => {
 export const updateEmployee = async (employeeId: string, payload: EmployeePayload) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
 
+  const normalizedPayload = normalizeEmployeePayload(payload);
+  if (!normalizedPayload.username) {
+    throw new Error('Username is required.');
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    name: normalizedPayload.name,
+    phone: normalizedPayload.phone,
+    username: normalizedPayload.username,
+    role: normalizedPayload.role,
+    permissions: normalizedPayload.permissions,
+    isActive: normalizedPayload.isActive,
+    note: normalizedPayload.note,
+  };
+
+  if (normalizedPayload.password) {
+    if (normalizedPayload.password.length < 4) {
+      throw new Error('Password must contain at least 4 characters.');
+    }
+    updatePayload.passwordHash = hashPassword(normalizedPayload.password);
+  }
+
   const employee = await Employee.findByIdAndUpdate(
     employeeId,
-    normalizeEmployeePayload(payload),
+    updatePayload,
     { new: true, runValidators: true },
   ).lean<EmployeeDocument | null>();
 

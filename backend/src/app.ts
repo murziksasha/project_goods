@@ -3,12 +3,14 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import mongoose from 'mongoose';
 import { env } from './config/env';
 import { clientRouter } from './routes/client.routes';
+import { authRouter } from './routes/auth.routes';
 import { demoRouter } from './routes/demo.routes';
 import { employeeRouter } from './routes/employee.routes';
 import { financeRouter } from './routes/finance.routes';
 import { healthRouter } from './routes/health.routes';
 import { productRouter } from './routes/product.routes';
 import { saleRouter } from './routes/sale.routes';
+import { serviceCatalogRouter } from './routes/service-catalog.routes';
 import { settingsRouter } from './routes/settings.routes';
 import { getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
@@ -24,9 +26,11 @@ app.use(
 app.use(express.json());
 
 app.use('/api', healthRouter);
+app.use('/api', authRouter);
 app.use('/api', productRouter);
 app.use('/api', clientRouter);
 app.use('/api', saleRouter);
+app.use('/api', serviceCatalogRouter);
 app.use('/api', demoRouter);
 app.use('/api', employeeRouter);
 app.use('/api', settingsRouter);

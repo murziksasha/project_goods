@@ -50,12 +50,69 @@ export const saleSchema = new mongoose.Schema(
       required: [true, 'Sale price is required'],
       min: [0, 'Sale price cannot be negative'],
     },
+    kind: {
+      type: String,
+      enum: ['repair', 'sale'],
+      default: 'repair',
+      required: true,
+    },
+    status: {
+      type: String,
+      trim: true,
+      default: 'new',
+      required: true,
+    },
+    paidAmount: {
+      type: Number,
+      min: [0, 'Paid amount cannot be negative'],
+      default: 0,
+      required: true,
+    },
     note: {
       type: String,
       trim: true,
       maxlength: [500, 'Sale note must contain no more than 500 characters'],
       default: '',
     },
+    timeline: [
+      {
+        _id: false,
+        id: { type: String, required: true },
+        author: { type: String, required: true },
+        message: { type: String, required: true },
+        createdAt: { type: Date, required: true },
+      },
+    ],
+    paymentHistory: [
+      {
+        _id: false,
+        id: { type: String, required: true },
+        type: {
+          type: String,
+          enum: ['deposit', 'refund'],
+          required: true,
+        },
+        amount: { type: Number, required: true, min: 0 },
+        cashboxId: { type: String, required: true },
+        cashboxName: { type: String, required: true },
+        author: { type: String, required: true },
+        createdAt: { type: Date, required: true },
+      },
+    ],
+    lineItems: [
+      {
+        _id: false,
+        id: { type: String, required: true },
+        kind: {
+          type: String,
+          enum: ['product', 'service'],
+          required: true,
+        },
+        name: { type: String, required: true },
+        price: { type: Number, required: true, min: 0 },
+        quantity: { type: Number, required: true, min: 1 },
+      },
+    ],
     productSnapshot: {
       article: { type: String, required: true },
       name: { type: String, required: true },

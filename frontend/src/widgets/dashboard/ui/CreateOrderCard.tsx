@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getClients, getClientHistory } from '../../../entities/client/api/clientApi';
+import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
+import { getProducts } from '../../../entities/product/api/productApi';
+import type { Product } from '../../../entities/product/model/types';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
+  currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
@@ -41,9 +46,31 @@ const formatPhone = (input: string) => {
   return result;
 };
 
+const extractDeviceKit = (note: string) =>
+  note
+    .split('|')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ');
+
+const getDeviceHistory = (history: ClientHistory | null) => {
+  if (!history) return [];
+
+  const seen = new Set<string>();
+  return history.sales.filter((sale) => {
+    if (seen.has(sale.product.id)) {
+      return false;
+    }
+    seen.add(sale.product.id);
+    return true;
+  });
+};
+
 export const CreateOrderCard = ({
   isSaving,
   employees,
+  currentEmployee,
   initialTab = 'repair',
   onClose,
   onSave,
@@ -56,17 +83,24 @@ export const CreateOrderCard = ({
   const [deviceSerialNumber, setDeviceSerialNumber] = useState('');
   const [deviceColor, setDeviceColor] = useState('');
   const [deviceKit, setDeviceKit] = useState('');
+  const [serviceName, setServiceName] = useState('');
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('');
   const [prepayment, setPrepayment] = useState('');
   const [prepaymentComment, setPrepaymentComment] = useState('');
-  const [readyDate, setReadyDate] = useState(new Date().toISOString().slice(0, 10));
+  const [readyDate, setReadyDate] = useState('');
   const [readyTime, setReadyTime] = useState('');
   const [managerId, setManagerId] = useState('');
   const [masterId, setMasterId] = useState('');
   const [selectedFlags, setSelectedFlags] = useState<string[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
+  const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
+  const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
+  const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
+  const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
 
   const managers = employees.filter(
     (employee) =>
@@ -82,6 +116,101 @@ export const CreateOrderCard = ({
         employee.role === 'master' ||
         employee.permissions.includes('repairs.execute')),
   );
+  const canCurrentEmployeeManageOrders =
+    currentEmployee?.isActive === true &&
+    (currentEmployee.role === 'owner' ||
+      currentEmployee.role === 'manager' ||
+      currentEmployee.permissions.includes('orders.manage'));
+
+  const clientLookupQuery = [clientPhone.replace(/\s/g, ''), clientName.trim()]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const deviceLookupQuery = [deviceName.trim(), deviceSerialNumber.trim()]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
+
+  useEffect(() => {
+    if (selectedClientId) return;
+    if (clientLookupQuery.replace(/\D/g, '').length < 5 && clientName.trim().length < 2) {
+      setClientSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsClientLookupLoading(true);
+      try {
+        const clients = await getClients(clientLookupQuery);
+        if (isActive) setClientSuggestions(clients.slice(0, 6));
+      } catch {
+        if (isActive) setClientSuggestions([]);
+      } finally {
+        if (isActive) setIsClientLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [clientLookupQuery, clientName, selectedClientId]);
+
+  useEffect(() => {
+    if (!selectedClientId) {
+      setClientHistory(null);
+      return;
+    }
+
+    let isActive = true;
+    void (async () => {
+      try {
+        const history = await getClientHistory(selectedClientId);
+        if (isActive) setClientHistory(history);
+      } catch {
+        if (isActive) setClientHistory(null);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    if (deviceLookupQuery.length < 2) {
+      setDeviceSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsDeviceLookupLoading(true);
+      try {
+        const products = await getProducts(deviceLookupQuery);
+        if (isActive) setDeviceSuggestions(products.slice(0, 8));
+      } catch {
+        if (isActive) setDeviceSuggestions([]);
+      } finally {
+        if (isActive) setIsDeviceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [deviceLookupQuery]);
+
+  useEffect(() => {
+    if (!canCurrentEmployeeManageOrders || !currentEmployee) {
+      return;
+    }
+
+    setManagerId(currentEmployee.id);
+  }, [canCurrentEmployeeManageOrders, currentEmployee]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -91,16 +220,42 @@ export const CreateOrderCard = ({
     );
   };
 
+  const applyClient = (client: Client) => {
+    setClientPhone(client.phone);
+    setClientName(client.name);
+    setSelectedClientId(client.id);
+    setClientSuggestions([]);
+  };
+
+  const applyProduct = (product: Product) => {
+    setDeviceName(product.name);
+    setDeviceSerialNumber(product.serialNumber);
+    setDeviceKit(extractDeviceKit(product.note));
+    setDeviceSuggestions([]);
+  };
+
+  const onClientPhoneChange = (value: string) => {
+    setClientPhone(formatPhone(value));
+    setSelectedClientId(null);
+  };
+
+  const onClientNameChange = (value: string) => {
+    setClientName(value);
+    setSelectedClientId(null);
+  };
+
   const fillRepairDemo = () => {
     const suffix = Date.now().toString().slice(-6);
     setActiveTab('repair');
     setClientPhone('+380 67 111 22 33');
     setClientName('Ivan Petrenko');
+    setSelectedClientId(null);
     setDiscountCode('');
     setDeviceName('Laptop Lenovo IdeaPad 5');
     setDeviceSerialNumber(`RPR-${suffix}`);
     setDeviceColor('Silver');
     setDeviceKit('Laptop, charger');
+    setServiceName('Diagnostics');
     setRepairType('Paid');
     setIssueFromClient('Does not charge and shuts down after a few minutes.');
     setExternalView('Small scratches on the top cover, no liquid marks.');
@@ -117,11 +272,13 @@ export const CreateOrderCard = ({
     setActiveTab('sale');
     setClientPhone('+380 50 101 01 01');
     setClientName('Maxim Bondar');
+    setSelectedClientId(null);
     setDiscountCode('VIP');
     setDeviceName('Portable SSD Samsung T7 1TB');
     setDeviceSerialNumber(`SAL-${suffix}`);
     setDeviceColor('Blue');
     setDeviceKit('Box, cable, warranty card');
+    setServiceName('Product sale');
     setRepairType('Paid');
     setIssueFromClient('Client buys a new device from stock.');
     setExternalView('New sealed package.');
@@ -142,6 +299,7 @@ export const CreateOrderCard = ({
       deviceSerialNumber,
       deviceColor,
       deviceKit,
+      serviceName,
       repairType,
       issueFromClient,
       externalView,
@@ -156,9 +314,9 @@ export const CreateOrderCard = ({
       sourceTab: activeTab,
     });
 
-    if (success) {
-      onClose();
-    }
+      if (success) {
+        onClose();
+      }
   };
 
   return (
@@ -195,18 +353,13 @@ export const CreateOrderCard = ({
 
         <div className="create-order-grid">
           <div className="create-order-left">
-            <label className="field">
-              <span>Order number</span>
-              <input placeholder="Automatic r000001" readOnly />
-            </label>
-
             <h3 className="create-section-title">Client</h3>
-            <div className="create-row-3">
+            <div className="create-row-2">
               <label className="field">
                 <span>Client data *</span>
                 <input
                   value={clientPhone}
-                  onChange={(event) => setClientPhone(formatPhone(event.target.value))}
+                  onChange={(event) => onClientPhoneChange(event.target.value)}
                   onFocus={() => setClientPhone((current) => current || '+380')}
                   placeholder="+380"
                 />
@@ -215,18 +368,27 @@ export const CreateOrderCard = ({
                 <span>&nbsp;</span>
                 <input
                   value={clientName}
-                  onChange={(event) => setClientName(event.target.value)}
+                  onChange={(event) => onClientNameChange(event.target.value)}
                   placeholder="Full name"
                 />
               </label>
-              <label className="field">
-                <span>&nbsp;</span>
-                <select defaultValue="Individual">
-                  <option>Individual</option>
-                  <option>Business</option>
-                </select>
-              </label>
             </div>
+            {(clientSuggestions.length > 0 || isClientLookupLoading) ? (
+              <div className="create-suggestions">
+                {isClientLookupLoading ? <p>Searching clients...</p> : null}
+                {clientSuggestions.map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    className="create-suggestion-item"
+                    onClick={() => applyClient(client)}
+                  >
+                    <strong>{client.name}</strong>
+                    <span>{client.phone}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <label className="field">
               <span>Discount code</span>
@@ -245,6 +407,22 @@ export const CreateOrderCard = ({
               </label>
               <button type="button" className="secondary-button">Create new</button>
             </div>
+            {(deviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
+              <div className="create-suggestions">
+                {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
+                {deviceSuggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="create-suggestion-item"
+                    onClick={() => applyProduct(product)}
+                  >
+                    <strong>{product.name}</strong>
+                    <span>{product.serialNumber}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="create-row-2">
               <label className="field">
@@ -386,7 +564,11 @@ export const CreateOrderCard = ({
             <div className="create-row-2">
               <label className="field">
                 <span>Manager</span>
-                <select value={managerId} onChange={(event) => setManagerId(event.target.value)}>
+                <select
+                  value={managerId}
+                  onChange={(event) => setManagerId(event.target.value)}
+                  disabled={canCurrentEmployeeManageOrders}
+                >
                   <option value="">Select manager</option>
                   {managers.map((employee) => (
                     <option key={employee.id} value={employee.id}>
@@ -420,13 +602,59 @@ export const CreateOrderCard = ({
 
           <aside className="create-order-right">
             <section className="create-side-box">
-              <h4>Client requests</h4>
-              <p>Select client or device to view previous requests.</p>
+              <h4>Client devices</h4>
+              {deviceHistory.length ? (
+                <div className="create-side-list">
+                  {deviceHistory.map((sale) => (
+                    <button
+                      key={sale.id}
+                      type="button"
+                      className="create-side-list-button"
+                      onClick={() =>
+                        applyProduct({
+                          id: sale.product.id,
+                          article: sale.product.article,
+                          name: sale.product.name,
+                          serialNumber: sale.product.serialNumber,
+                          price: sale.salePrice,
+                          salePriceOptions: [],
+                          note: '',
+                          quantity: sale.quantity,
+                          reservedQuantity: 0,
+                          freeQuantity: 0,
+                          isInStock: true,
+                          purchasePlace: '',
+                          purchaseDate: null,
+                          warrantyPeriod: 0,
+                          createdAt: sale.createdAt,
+                          updatedAt: sale.updatedAt,
+                        })
+                      }
+                    >
+                      <strong>{sale.product.name}</strong>
+                      <span>{sale.product.serialNumber}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p>Select client to view devices that were already in service.</p>
+              )}
             </section>
 
             <section className="create-side-box">
-              <h4>Client devices</h4>
-              <p>Select client to view devices that were already in service.</p>
+              <h4>Client requests</h4>
+              {clientHistory?.sales.length ? (
+                <div className="create-side-list">
+                  {clientHistory.sales.slice(0, 5).map((sale) => (
+                    <div key={sale.id} className="create-side-list-item">
+                      <strong>{sale.recordNumber ?? 'r------'}</strong>
+                      <span>{sale.product.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>Select client or device to view previous requests.</p>
+              )}
             </section>
 
             <section className="create-side-box">
