@@ -5,6 +5,7 @@ import { env } from './config/env';
 import { clientRouter } from './routes/client.routes';
 import { demoRouter } from './routes/demo.routes';
 import { employeeRouter } from './routes/employee.routes';
+import { financeRouter } from './routes/finance.routes';
 import { healthRouter } from './routes/health.routes';
 import { productRouter } from './routes/product.routes';
 import { saleRouter } from './routes/sale.routes';
@@ -29,6 +30,7 @@ app.use('/api', saleRouter);
 app.use('/api', demoRouter);
 app.use('/api', employeeRouter);
 app.use('/api', settingsRouter);
+app.use('/api', financeRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });
