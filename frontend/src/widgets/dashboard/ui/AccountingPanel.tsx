@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCashbox,
   createFinanceTransaction,
@@ -58,7 +58,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
 
-  const refreshFinance = async () => {
+  const refreshFinance = useCallback(async () => {
     setIsLoading(true);
     try {
       const [cashboxesData, transactionsData, reportData] = await Promise.all([
@@ -74,11 +74,23 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onError]);
 
   useEffect(() => {
     void refreshFinance();
-  }, []);
+  }, [refreshFinance]);
+
+  useEffect(() => {
+    const refreshOnOrderPayment = () => {
+      void refreshFinance();
+    };
+
+    window.addEventListener('project-goods:finance-updated', refreshOnOrderPayment);
+
+    return () => {
+      window.removeEventListener('project-goods:finance-updated', refreshOnOrderPayment);
+    };
+  }, [refreshFinance]);
 
   const totals = useMemo(
     () =>

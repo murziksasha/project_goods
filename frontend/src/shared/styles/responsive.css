@@ -164,4 +164,31 @@
   .create-order-actions button {
     width: 100%;
   }
+
+  .payment-modal-form {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payment-modal-actions {
+    justify-content: stretch;
+  }
+
+  .payment-modal-actions button,
+  .payment-print-menu,
+  .payment-print-menu button {
+    width: 100%;
+  }
+
+  .payment-print-options {
+    width: min(100vw - 56px, 280px);
+  }
+
+  .settings-print-grid {
+    grid-template-columns: 1fr;
+  }
 }

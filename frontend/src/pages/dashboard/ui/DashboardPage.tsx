@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/Notifications';
@@ -11,11 +11,30 @@ import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-ki
 
 type PageKey = 'home' | 'orders' | 'employees' | 'settings' | 'accounting';
 
+const pageKeys: PageKey[] = ['home', 'orders', 'employees', 'settings', 'accounting'];
+
+const getPageFromUrl = (): PageKey => {
+  const page = new URLSearchParams(window.location.search).get('page');
+
+  return pageKeys.includes(page as PageKey) ? (page as PageKey) : 'home';
+};
+
+const setPageInUrl = (page: PageKey) => {
+  const url = new URL(window.location.href);
+
+  if (page === 'home') {
+    url.searchParams.delete('page');
+  } else {
+    url.searchParams.set('page', page);
+  }
+
+  window.history.replaceState(null, '', url);
+};
+
 const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
   { key: 'employees', label: 'Employees' },
-  { key: 'settings', label: 'Settings' },
   { key: 'other', label: 'Clients' },
   { key: 'accounting', label: 'Accounting' },
   { key: 'other', label: 'Warehouses' },
@@ -23,14 +42,30 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'other', label: 'Sales' },
   { key: 'other', label: 'Chats' },
   { key: 'other', label: 'More' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 export const DashboardPage = () => {
   const { state, actions } = useDashboardPage();
-  const [activePage, setActivePage] = useState<PageKey>('home');
+  const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
+
+  useEffect(() => {
+    setPageInUrl(activePage);
+  }, [activePage]);
+
+  useEffect(() => {
+    const syncPageFromHistory = () => {
+      setActivePage(getPageFromUrl());
+      setIsCreateOrderOpen(false);
+    };
+
+    window.addEventListener('popstate', syncPageFromHistory);
+
+    return () => window.removeEventListener('popstate', syncPageFromHistory);
+  }, []);
 
   const openOrdersPage = () => {
     setActivePage('orders');
@@ -127,6 +162,8 @@ export const DashboardPage = () => {
                 onSearchChange={actions.setProductSearchQuery}
                 onCreateOrder={openCreateOrder}
                 onSeedDemoData={actions.seedDemoData}
+                onError={actions.showError}
+                onSuccess={actions.showSuccessMessage}
               />
             )
           ) : activePage === 'employees' ? (
