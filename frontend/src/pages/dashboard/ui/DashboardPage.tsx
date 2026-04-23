@@ -10,6 +10,7 @@ import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 
 type PageKey = 'home' | 'orders' | 'employees' | 'settings' | 'accounting';
+type OrdersTab = 'orders' | 'sales';
 
 const pageKeys: PageKey[] = ['home', 'orders', 'employees', 'settings', 'accounting'];
 
@@ -49,6 +50,7 @@ export const DashboardPage = () => {
   const { state, actions } = useDashboardPage();
   const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>('orders');
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
 
@@ -72,8 +74,9 @@ export const DashboardPage = () => {
     setIsCreateOrderOpen(false);
   };
 
-  const openCreateOrder = () => {
+  const openCreateOrder = (tab: OrdersTab) => {
     setActivePage('orders');
+    setActiveOrdersTab(tab);
     setIsCreateOrderOpen(true);
   };
 
@@ -151,14 +154,17 @@ export const DashboardPage = () => {
                 isSaving={state.isSaleSaving}
                 employees={state.allEmployees}
                 onClose={openOrdersPage}
+                initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                 onSave={actions.saveOrderRequest}
               />
             ) : (
               <OrdersWorkspace
                 sales={state.sales}
                 isLoading={state.isSalesLoading}
+                activeTab={activeOrdersTab}
                 searchValue={state.productSearchQuery}
                 isSeeding={state.isSeeding}
+                onActiveTabChange={setActiveOrdersTab}
                 onSearchChange={actions.setProductSearchQuery}
                 onCreateOrder={openCreateOrder}
                 onSeedDemoData={actions.seedDemoData}

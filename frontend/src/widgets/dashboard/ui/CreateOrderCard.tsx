@@ -5,6 +5,7 @@ import type { CreateOrderRequestPayload } from '../model/order-request';
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
+  initialTab?: CreateOrderRequestPayload['sourceTab'];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
 };
@@ -43,10 +44,11 @@ const formatPhone = (input: string) => {
 export const CreateOrderCard = ({
   isSaving,
   employees,
+  initialTab = 'repair',
   onClose,
   onSave,
 }: CreateOrderCardProps) => {
-  const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>('repair');
+  const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(initialTab);
   const [clientPhone, setClientPhone] = useState('+380');
   const [clientName, setClientName] = useState('');
   const [discountCode, setDiscountCode] = useState('');
