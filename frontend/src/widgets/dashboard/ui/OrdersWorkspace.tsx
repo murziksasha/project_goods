@@ -1,0 +1,1183 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Sale } from '../../../entities/sale/model/types';
+import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import {
+  formatCurrency,
+  formatDateTime,
+} from '../../../shared/lib/format';
+import {
+  createFinanceTransaction,
+  getCashboxes,
+} from '../../../entities/finance/api/financeApi';
+import type { Cashbox } from '../../../entities/finance/model/types';
+
+type OrdersWorkspaceProps = {
+  sales: Sale[];
+  isLoading: boolean;
+  activeTab: OrdersTab;
+  searchValue: string;
+  isSeeding: boolean;
+  onActiveTabChange: (tab: OrdersTab) => void;
+  onSearchChange: (value: string) => void;
+  onCreateOrder: (tab: OrdersTab) => void;
+  onSeedDemoData: () => void;
+  onError: (message: string) => void;
+  onSuccess: (message: string) => void;
+};
+
+type OrdersTab = 'orders' | 'sales';
+type RepairStatus =
+  | 'issued'
+  | 'ready'
+  | 'new'
+  | 'diagnostics'
+  | 'inRepair'
+  | 'waitingParts'
+  | 'clientApproved'
+  | 'clientRejected'
+  | 'issuedWithoutRepair'
+  | 'ready';
+type SaleStatus =
+  | 'new'
+  | 'reserved'
+  | 'paid'
+  | 'completed'
+  | 'returned';
+type OrderStatus = RepairStatus | SaleStatus;
+type PaymentAction =
+  | 'deposit'
+  | 'depositAndIssue'
+  | 'issueWithoutPayment';
+type IssueStatus = 'issued' | 'issuedWithoutRepair';
+type PrintForm = {
+  id: string;
+  title: string;
+  content: string;
+};
+
+const orderTabs: Array<{ key: OrdersTab; label: string }> = [
+  { key: 'orders', label: 'Orders' },
+  { key: 'sales', label: 'Sales' },
+];
+
+const statusStorageKey = 'project-goods.order-statuses';
+const commentsStorageKey = 'project-goods.order-comments';
+const paymentsStorageKey = 'project-goods.order-payments';
+const printFormsStorageKey = 'project-goods.print-forms';
+
+const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
+  { key: 'ready', label: 'Ready' },
+  { key: 'issued', label: 'Issued' },
+  { key: 'new', label: 'New repair' },
+  { key: 'diagnostics', label: 'Diagnostics' },
+  { key: 'inRepair', label: 'In repair' },
+  { key: 'waitingParts', label: 'Waiting parts' },
+  { key: 'clientApproved', label: 'Client approved' },
+  { key: 'clientRejected', label: 'Client rejected' },
+  { key: 'issuedWithoutRepair', label: 'Issued without repair' },
+];
+const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
+  { key: 'new', label: 'New sale' },
+  { key: 'reserved', label: 'Reserved' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'returned', label: 'Returned' },
+];
+
+const defaultPrintForms: PrintForm[] = [
+  {
+    id: 'receipt',
+    title: 'Receipt',
+    content:
+      'Receipt for order {{orderNumber}}\nClient: {{clientName}}\nDevice: {{deviceName}}\nAmount: {{total}}',
+  },
+  {
+    id: 'check',
+    title: 'Check',
+    content:
+      'Check\nOrder: {{orderNumber}}\nPaid: {{paid}}\nTo pay: {{toPay}}',
+  },
+  {
+    id: 'warranty',
+    title: 'Warranty',
+    content:
+      'Warranty document\nDevice: {{deviceName}}\nS/N: {{serialNumber}}\nClient: {{clientName}}',
+  },
+  {
+    id: 'completion-act',
+    title: 'Completion act',
+    content:
+      'Completion act\nOrder: {{orderNumber}}\nWork: {{note}}\nTotal: {{total}}',
+  },
+  {
+    id: 'invoice',
+    title: 'Invoice',
+    content:
+      'Invoice for payment\nOrder: {{orderNumber}}\nClient: {{clientName}}\nTotal: {{total}}',
+  },
+  {
+    id: 'barcode',
+    title: 'Barcode',
+    content:
+      'Barcode form\nOrder: {{orderNumber}}\nS/N: {{serialNumber}}',
+  },
+];
+
+const statusLabels = repairStatuses.reduce(
+  (acc, status) => ({ ...acc, [status.key]: status.label }),
+  saleStatuses.reduce(
+    (acc, status) => ({ ...acc, [status.key]: status.label }),
+    {} as Record<OrderStatus, string>,
+  ),
+);
+
+const readStoredStatuses = () => {
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(statusStorageKey) ?? '{}',
+    ) as Record<string, OrderStatus>;
+  } catch {
+    return {};
+  }
+};
+
+const readStoredComments = () => {
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(commentsStorageKey) ?? '{}',
+    ) as Record<string, string[]>;
+  } catch {
+    return {};
+  }
+};
+
+const readStoredPayments = () => {
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(paymentsStorageKey) ?? '{}',
+    ) as Record<string, number>;
+  } catch {
+    return {};
+  }
+};
+
+const readPrintForms = () => {
+  try {
+    const forms = JSON.parse(
+      window.localStorage.getItem(printFormsStorageKey) ?? '[]',
+    ) as PrintForm[];
+    return forms.length > 0 ? forms : defaultPrintForms;
+  } catch {
+    return defaultPrintForms;
+  }
+};
+
+const getSaleTotal = (sale: Sale) => sale.salePrice * sale.quantity;
+const getRemainingPayment = (sale: Sale, paidAmount: number) =>
+  Math.max(getSaleTotal(sale) - paidAmount, 0);
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+const renderPrintTemplate = (
+  template: string,
+  sale: Sale,
+  paidAmount: number,
+  orderNumber: string,
+) => {
+  const total = getSaleTotal(sale);
+  const replacements: Record<string, string> = {
+    orderNumber,
+    clientName: sale.client.name,
+    clientPhone: sale.client.phone,
+    deviceName: sale.product.name,
+    serialNumber: sale.product.serialNumber,
+    article: sale.product.article,
+    total: formatCurrency(total),
+    paid: formatCurrency(paidAmount),
+    toPay: formatCurrency(getRemainingPayment(sale, paidAmount)),
+    note: sale.note || '-',
+  };
+
+  return Object.entries(replacements).reduce(
+    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+const buildOrderNumber = (sale: Sale) => sale.recordNumber ?? 'r------';
+
+const formatReadyDate = (value: string) =>
+  new Intl.DateTimeFormat('uk-UA', {
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(value));
+
+export const OrdersWorkspace = ({
+  sales,
+  isLoading,
+  activeTab,
+  searchValue,
+  isSeeding,
+  onActiveTabChange,
+  onSearchChange,
+  onCreateOrder,
+  onSeedDemoData,
+  onError,
+  onSuccess,
+}: OrdersWorkspaceProps) => {
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
+    null,
+  );
+  const [orderStatusesById, setOrderStatusesById] = useState<
+    Record<string, OrderStatus>
+  >(readStoredStatuses);
+  const [commentsBySaleId, setCommentsBySaleId] = useState<
+    Record<string, string[]>
+  >(readStoredComments);
+  const [paidBySaleId, setPaidBySaleId] = useState<
+    Record<string, number>
+  >(readStoredPayments);
+  const [openStatusSaleId, setOpenStatusSaleId] = useState<
+    string | null
+  >(null);
+  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [paymentTargetStatus, setPaymentTargetStatus] =
+    useState<IssueStatus>('issued');
+  const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
+  const [selectedCashboxId, setSelectedCashboxId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [isPaymentModalLoading, setIsPaymentModalLoading] =
+    useState(false);
+  const [isPaymentSaving, setIsPaymentSaving] = useState(false);
+
+  const filteredOrders = useMemo(() => {
+    const tabSales = sales.filter((sale) =>
+      activeTab === 'orders'
+        ? isRepairOrder(sale)
+        : !isRepairOrder(sale),
+    );
+    const query = searchValue.trim().toLowerCase();
+    if (!query) {
+      return tabSales;
+    }
+
+    return tabSales.filter((sale) => {
+      const orderNumber = buildOrderNumber(sale);
+      return (
+        String(orderNumber).includes(query) ||
+        sale.product.name.toLowerCase().includes(query) ||
+        sale.client.name.toLowerCase().includes(query) ||
+        sale.client.phone.toLowerCase().includes(query)
+      );
+    });
+  }, [activeTab, sales, searchValue]);
+
+  const selectedSale = useMemo(
+    () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
+    [sales, selectedSaleId],
+  );
+  const effectiveOrderStatusesById = useMemo(() => {
+    const saleIds = new Set(sales.map((sale) => sale.id));
+    const nextStatuses: Record<string, OrderStatus> = {};
+
+    Object.entries(orderStatusesById).forEach(([saleId, status]) => {
+      if (saleIds.has(saleId)) {
+        nextStatuses[saleId] = status;
+      }
+    });
+
+    sales.forEach((sale) => {
+      if (!nextStatuses[sale.id]) {
+        nextStatuses[sale.id] = 'new';
+      }
+    });
+
+    return nextStatuses;
+  }, [orderStatusesById, sales]);
+  const selectedSaleStatusOptions = selectedSale
+    ? isRepairOrder(selectedSale)
+      ? repairStatuses
+      : saleStatuses
+    : repairStatuses;
+  const selectedSaleStatus = selectedSale
+    ? ((effectiveOrderStatusesById[selectedSale.id] ?? 'new') as OrderStatus)
+    : 'new';
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      statusStorageKey,
+      JSON.stringify(effectiveOrderStatusesById),
+    );
+  }, [effectiveOrderStatusesById]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      commentsStorageKey,
+      JSON.stringify(commentsBySaleId),
+    );
+  }, [commentsBySaleId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      paymentsStorageKey,
+      JSON.stringify(paidBySaleId),
+    );
+  }, [paidBySaleId]);
+
+  const getStatus = (sale: Sale): OrderStatus =>
+    effectiveOrderStatusesById[sale.id] ?? 'new';
+
+  const getStatusOptions = (sale: Sale) =>
+    isRepairOrder(sale) ? repairStatuses : saleStatuses;
+
+  const updateStatus = async (
+    sale: Sale,
+    status: OrderStatus,
+  ) => {
+    if (isRepairOrder(sale) && status === 'issued') {
+      setOpenStatusSaleId(null);
+      await openPaymentModal(sale, status);
+      return;
+    }
+
+    setOrderStatusesById((current) => ({
+      ...current,
+      [sale.id]: status,
+    }));
+    setOpenStatusSaleId(null);
+  };
+
+  const openSaleCard = (sale: Sale) => {
+    setSelectedSaleId(sale.id);
+    setOpenStatusSaleId(null);
+  };
+
+  const addComment = (sale: Sale, comment: string) => {
+    const normalizedComment = comment.trim();
+    if (!normalizedComment) return;
+
+    setCommentsBySaleId((current) => ({
+      ...current,
+      [sale.id]: [normalizedComment, ...(current[sale.id] ?? [])],
+    }));
+  };
+
+  const openPaymentModal = async (
+    sale: Sale,
+    targetStatus: IssueStatus = 'issued',
+  ) => {
+    const remainingPayment = getRemainingPayment(
+      sale,
+      paidBySaleId[sale.id] ?? 0,
+    );
+
+    setPaymentSale(sale);
+    setPaymentTargetStatus(targetStatus);
+    setPaymentAmount(String(remainingPayment));
+    setIsPaymentModalLoading(true);
+
+    try {
+      const cashboxData = await getCashboxes();
+      setCashboxes(cashboxData);
+      setSelectedCashboxId(
+        cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
+          cashboxData[0]?.id ??
+          '',
+      );
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load cashboxes.',
+      );
+      setPaymentSale(null);
+    } finally {
+      setIsPaymentModalLoading(false);
+    }
+  };
+
+  const setIssuedStatus = (
+    sale: Sale,
+    status: IssueStatus = 'issued',
+  ) => {
+    setOrderStatusesById((current) => ({
+      ...current,
+      [sale.id]: status,
+    }));
+  };
+
+  const acceptPayment = async (action: PaymentAction) => {
+    if (
+      !paymentSale ||
+      (action !== 'issueWithoutPayment' && !selectedCashboxId)
+    )
+      return;
+
+    setIsPaymentSaving(true);
+
+    try {
+      if (action !== 'issueWithoutPayment') {
+        await createFinanceTransaction({
+          type: 'deposit',
+          amount: paymentAmount,
+          currency: 'UAH',
+          toCashboxId: selectedCashboxId,
+          note: `Payment for order ${paymentSale.recordNumber ?? paymentSale.id}`,
+        });
+        const acceptedAmount =
+          Math.round(Number(paymentAmount) * 100) / 100;
+        setPaidBySaleId((current) => ({
+          ...current,
+          [paymentSale.id]: Math.min(
+            (current[paymentSale.id] ?? 0) + acceptedAmount,
+            getSaleTotal(paymentSale),
+          ),
+        }));
+        setCashboxes(await getCashboxes());
+        window.dispatchEvent(
+          new CustomEvent('project-goods:finance-updated'),
+        );
+        addComment(
+          paymentSale,
+          `Payment accepted: ${formatCurrency(acceptedAmount)}`,
+        );
+      }
+
+      if (
+        action === 'depositAndIssue' ||
+        action === 'issueWithoutPayment'
+      ) {
+        setIssuedStatus(paymentSale, paymentTargetStatus);
+        addComment(
+          paymentSale,
+          paymentTargetStatus === 'issuedWithoutRepair'
+            ? 'Order issued to client without repair.'
+            : 'Order issued to client.',
+        );
+      }
+
+      onSuccess(
+        action === 'deposit'
+          ? 'Payment accepted to cashbox.'
+          : paymentTargetStatus === 'issuedWithoutRepair'
+            ? 'Order issued without repair successfully.'
+            : 'Order issued successfully.',
+      );
+      setPaymentSale(null);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to accept payment.',
+      );
+    } finally {
+      setIsPaymentSaving(false);
+    }
+  };
+
+  return (
+    <section className='orders-page'>
+      {selectedSale ? (
+        <OrderDetailCard
+          sale={selectedSale}
+          status={selectedSaleStatus}
+          statusOptions={selectedSaleStatusOptions}
+          comments={commentsBySaleId[selectedSale.id] ?? []}
+          paidAmount={paidBySaleId[selectedSale.id] ?? 0}
+          onClose={() => setSelectedSaleId(null)}
+          onStatusChange={(status) =>
+            updateStatus(selectedSale, status)
+          }
+          onAddComment={(comment) =>
+            addComment(selectedSale, comment)
+          }
+          onAcceptPayment={() => openPaymentModal(selectedSale)}
+        />
+      ) : null}
+
+      <div
+        className='orders-tabs'
+        role='tablist'
+        aria-label='Order categories'
+      >
+        {orderTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type='button'
+            className={
+              tab.key === activeTab
+                ? 'orders-tab orders-tab-active'
+                : 'orders-tab'
+            }
+            onClick={() => onActiveTabChange(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className='orders-toolbar'>
+        <div className='orders-toolbar-left'>
+          <button
+            type='button'
+            className='toolbar-square-button'
+            aria-label='Filters'
+          >
+            ⚙
+          </button>
+          <button type='button' className='toolbar-filter-button'>
+            Filter
+          </button>
+          <div className='orders-search-group'>
+            <input
+              value={searchValue}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder='Search by order, client or device'
+              aria-label='Search orders'
+            />
+            <button type='button'>Find</button>
+          </div>
+        </div>
+        <div className='orders-toolbar-actions'>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={onSeedDemoData}
+            disabled={isSeeding}
+          >
+            {isSeeding ? 'Loading...' : 'Demo data'}
+          </button>
+          <button
+            type='button'
+            className='orders-create-button'
+            onClick={() => onCreateOrder(activeTab)}
+          >
+            Create order
+          </button>
+        </div>
+      </div>
+
+      <div className='orders-table-wrap'>
+        <table className='orders-table'>
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Receiver</th>
+              <th>Manager</th>
+              <th>Master</th>
+              <th>Status</th>
+              <th>Device</th>
+              <th>Price</th>
+              <th>Paid</th>
+              <th>Client</th>
+              <th>Term</th>
+              <th>Warehouse</th>
+              <th>Ready date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={12} className='orders-empty'>
+                  Loading orders...
+                </td>
+              </tr>
+            ) : filteredOrders.length === 0 ? (
+              <tr>
+                <td colSpan={12} className='orders-empty'>
+                  {activeTab === 'orders'
+                    ? 'Orders not found.'
+                    : 'Sales not found.'}
+                </td>
+              </tr>
+            ) : (
+              filteredOrders.map((sale) => {
+                const status = getStatus(sale);
+                const statusOptions = getStatusOptions(sale);
+                return (
+                  <tr key={sale.id}>
+                    <td>
+                      <button
+                        type='button'
+                        className='order-number-button'
+                        onClick={() => openSaleCard(sale)}
+                      >
+                        {buildOrderNumber(sale)}
+                      </button>
+                    </td>
+                    <td>{sale.client.name}</td>
+                    <td>{sale.manager?.name || '-'}</td>
+                    <td>{sale.master?.name || '-'}</td>
+                    <td>
+                      <div className='order-status-menu'>
+                        <button
+                          type='button'
+                          className={`order-status order-status-${status}`}
+                          onClick={() =>
+                            setOpenStatusSaleId((currentId) =>
+                              currentId === sale.id ? null : sale.id,
+                            )
+                          }
+                        >
+                          {statusLabels[status]}
+                        </button>
+                        {openStatusSaleId === sale.id ? (
+                          <div className='order-status-options'>
+                            {statusOptions.map((statusOption) => (
+                              <button
+                                key={statusOption.key}
+                                type='button'
+                                className={
+                                  statusOption.key === status
+                                    ? 'order-status-option order-status-option-active'
+                                    : 'order-status-option'
+                                }
+                                onClick={() => {
+                                  void updateStatus(
+                                    sale,
+                                    statusOption.key,
+                                  );
+                                }}
+                              >
+                                {statusOption.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        type='button'
+                        className='order-device-button'
+                        onClick={() => openSaleCard(sale)}
+                      >
+                        <span>{sale.product.name}</span>
+                        <small>
+                          S/N: {sale.product.serialNumber}
+                        </small>
+                      </button>
+                    </td>
+                    <td>{sale.salePrice}</td>
+                    <td>{paidBySaleId[sale.id] ?? 0}</td>
+                    <td>
+                      <div className='orders-client-cell'>
+                        <span>{sale.client.name}</span>
+                        <small>{sale.client.phone}</small>
+                      </div>
+                    </td>
+                    <td>Non-urgent</td>
+                    <td>Service center</td>
+                    <td>{formatReadyDate(sale.saleDate)}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {paymentSale ? (
+        <PaymentModal
+          sale={paymentSale}
+          cashboxes={cashboxes}
+          selectedCashboxId={selectedCashboxId}
+          amount={paymentAmount}
+          paidAmount={paidBySaleId[paymentSale.id] ?? 0}
+          isLoading={isPaymentModalLoading}
+          isSaving={isPaymentSaving}
+          onCashboxChange={setSelectedCashboxId}
+          onAmountChange={setPaymentAmount}
+          onClose={() => setPaymentSale(null)}
+          onSubmit={acceptPayment}
+        />
+      ) : null}
+    </section>
+  );
+};
+
+type OrderDetailCardProps = {
+  sale: Sale;
+  status: OrderStatus;
+  statusOptions: Array<{ key: OrderStatus; label: string }>;
+  comments: string[];
+  paidAmount: number;
+  onClose: () => void;
+  onStatusChange: (status: OrderStatus) => void;
+  onAddComment: (comment: string) => void;
+  onAcceptPayment: () => void;
+};
+
+const OrderDetailCard = ({
+  sale,
+  status,
+  statusOptions,
+  comments,
+  paidAmount,
+  onClose,
+  onStatusChange,
+  onAddComment,
+  onAcceptPayment,
+}: OrderDetailCardProps) => {
+  const [comment, setComment] = useState('');
+  const total = getSaleTotal(sale);
+  const remainingPayment = getRemainingPayment(sale, paidAmount);
+
+  const submitComment = () => {
+    onAddComment(comment);
+    setComment('');
+  };
+
+  return (
+    <article className='order-detail-card' aria-label='Order card'>
+      <header className='order-detail-header'>
+        <div>
+          <span className='section-label'>Order card</span>
+          <h2>{sale.recordNumber ?? 'r------'}</h2>
+        </div>
+        <div className='order-detail-actions'>
+          <select
+            value={status}
+            onChange={(event) => {
+              void onStatusChange(
+                event.target.value as OrderStatus,
+              );
+            }}
+            aria-label='Repair status'
+          >
+            {statusOptions.map((statusOption) => (
+              <option key={statusOption.key} value={statusOption.key}>
+                {statusOption.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label='Close order card'
+          >
+            &times;
+          </button>
+        </div>
+      </header>
+
+      <div className='order-detail-grid'>
+        <section className='order-detail-panel'>
+          <h3>Main information</h3>
+          <dl className='order-detail-list'>
+            <div>
+              <dt>Client</dt>
+              <dd>{sale.client.name}</dd>
+            </div>
+            <div>
+              <dt>Phone</dt>
+              <dd>{sale.client.phone}</dd>
+            </div>
+            <div>
+              <dt>Device</dt>
+              <dd>{sale.product.name}</dd>
+            </div>
+            <div>
+              <dt>S/N</dt>
+              <dd>{sale.product.serialNumber}</dd>
+            </div>
+            <div>
+              <dt>Article</dt>
+              <dd>{sale.product.article}</dd>
+            </div>
+            <div>
+              <dt>Received</dt>
+              <dd>{formatDateTime(sale.createdAt)}</dd>
+            </div>
+            <div>
+              <dt>Manager</dt>
+              <dd>{sale.manager?.name || '-'}</dd>
+            </div>
+            <div>
+              <dt>Master</dt>
+              <dd>{sale.master?.name || '-'}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className='order-detail-panel'>
+          <h3>Live feed</h3>
+          <div className='order-timeline'>
+            <div className='order-timeline-item'>
+              <span>
+                {new Date(sale.createdAt).toLocaleTimeString(
+                  'uk-UA',
+                  { hour: '2-digit', minute: '2-digit' },
+                )}
+              </span>
+              <p>
+                <strong>{sale.client.name}</strong>
+                <small>
+                  created order with status "{statusLabels[status]}"
+                </small>
+              </p>
+            </div>
+            {comments.map((item, index) => (
+              <div
+                key={`${item}-${index}`}
+                className='order-timeline-item'
+              >
+                <span>now</span>
+                <p>
+                  <strong>Comment</strong>
+                  <small>{item}</small>
+                </p>
+              </div>
+            ))}
+            <textarea
+              placeholder='Comment'
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+            />
+            <button
+              type='button'
+              className='primary-button'
+              onClick={submitComment}
+              disabled={!comment.trim()}
+            >
+              Add
+            </button>
+          </div>
+        </section>
+
+        <section className='order-detail-panel'>
+          <h3>Services</h3>
+          <div className='order-detail-table'>
+            <div>Name</div>
+            <div>Price</div>
+            <div>Qty</div>
+            <div>{isRepairOrder(sale) ? 'Repair' : 'Sale'}</div>
+            <div>{formatCurrency(sale.salePrice)}</div>
+            <div>{sale.quantity}</div>
+          </div>
+        </section>
+
+        <section className='order-detail-panel'>
+          <h3>Payment</h3>
+          <dl className='order-payment-list'>
+            <div>
+              <dt>Repair cost</dt>
+              <dd>{formatCurrency(total)}</dd>
+            </div>
+            <div>
+              <dt>Paid</dt>
+              <dd>{formatCurrency(paidAmount)}</dd>
+            </div>
+            <div>
+              <dt>To pay</dt>
+              <dd>{formatCurrency(remainingPayment)}</dd>
+            </div>
+          </dl>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={onAcceptPayment}
+            disabled={remainingPayment <= 0}
+          >
+            {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
+          </button>
+        </section>
+
+        <section className='order-detail-panel order-detail-note'>
+          <h3>Notes</h3>
+          <p>{sale.note || 'No notes for this order yet.'}</p>
+        </section>
+      </div>
+    </article>
+  );
+};
+
+type PaymentModalProps = {
+  sale: Sale;
+  cashboxes: Cashbox[];
+  selectedCashboxId: string;
+  amount: string;
+  paidAmount: number;
+  isLoading: boolean;
+  isSaving: boolean;
+  onCashboxChange: (cashboxId: string) => void;
+  onAmountChange: (amount: string) => void;
+  onClose: () => void;
+  onSubmit: (action: PaymentAction) => void;
+};
+
+const PaymentModal = ({
+  sale,
+  cashboxes,
+  selectedCashboxId,
+  amount,
+  paidAmount,
+  isLoading,
+  isSaving,
+  onCashboxChange,
+  onAmountChange,
+  onClose,
+  onSubmit,
+}: PaymentModalProps) => {
+  const total = getSaleTotal(sale);
+  const numericAmount = Number(amount);
+  const currentPaymentRemaining = getRemainingPayment(
+    sale,
+    paidAmount,
+  );
+  const nextPaymentRemaining = Math.max(
+    currentPaymentRemaining -
+      (Number.isFinite(numericAmount) ? numericAmount : 0),
+    0,
+  );
+  const orderNumber = sale.recordNumber ?? 'r------';
+  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
+    [],
+  );
+  const printMenuRef = useRef<HTMLDivElement | null>(null);
+  const printForms = readPrintForms();
+  const isSubmitDisabled =
+    isLoading ||
+    isSaving ||
+    !selectedCashboxId ||
+    !Number.isFinite(numericAmount) ||
+    numericAmount <= 0 ||
+    numericAmount > currentPaymentRemaining;
+  const isIssueDisabled = isLoading || isSaving;
+
+  useEffect(() => {
+    if (!isPrintMenuOpen) return;
+
+    const closePrintMenuOnOutsideClick = (event: MouseEvent) => {
+      if (!printMenuRef.current?.contains(event.target as Node)) {
+        setIsPrintMenuOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      'mousedown',
+      closePrintMenuOnOutsideClick,
+    );
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closePrintMenuOnOutsideClick,
+      );
+    };
+  }, [isPrintMenuOpen]);
+
+  const togglePrintForm = (formId: string) => {
+    setSelectedFormIds((current) =>
+      current.includes(formId)
+        ? current.filter((id) => id !== formId)
+        : [...current, formId],
+    );
+  };
+
+  const printSelectedForms = () => {
+    const formsToPrint = printForms.filter((form) =>
+      selectedFormIds.includes(form.id),
+    );
+    if (formsToPrint.length === 0) return;
+
+    const printWindow = window.open(
+      '',
+      '_blank',
+      'width=900,height=700',
+    );
+    if (!printWindow) return;
+
+    const body = formsToPrint
+      .map(
+        (form) => `
+          <section class="print-form">
+            <h1>${escapeHtml(form.title)}</h1>
+            <pre>${escapeHtml(renderPrintTemplate(form.content, sale, paidAmount, orderNumber))}</pre>
+          </section>
+        `,
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Print forms ${orderNumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #1f2937; }
+            .print-form { page-break-after: always; border: 1px solid #d1d5db; padding: 24px; margin-bottom: 24px; }
+            h1 { margin-top: 0; }
+            pre { white-space: pre-wrap; font: inherit; line-height: 1.5; }
+          </style>
+        </head>
+        <body>${body}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='payment-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Accept payment'
+      >
+        <button
+          type='button'
+          className='payment-modal-close'
+          onClick={onClose}
+          aria-label='Close payment modal'
+        >
+          &times;
+        </button>
+
+        <div className='payment-modal-summary'>
+          <dl>
+            <div>
+              <dt>Repair cost</dt>
+              <dd>{formatCurrency(total)}</dd>
+            </div>
+            <div>
+              <dt>Paid</dt>
+              <dd>{formatCurrency(paidAmount)}</dd>
+            </div>
+            <div>
+              <dt>Discount</dt>
+              <dd>0%</dd>
+            </div>
+            <div>
+              <dt>To pay</dt>
+              <dd>{formatCurrency(currentPaymentRemaining)}</dd>
+            </div>
+          </dl>
+          <span className='payment-cash-badge'>Cash</span>
+        </div>
+
+        <div className='payment-modal-form'>
+          <label className='field payment-cashbox-field'>
+            <span>* Cashbox</span>
+            <select
+              value={selectedCashboxId}
+              onChange={(event) =>
+                onCashboxChange(event.target.value)
+              }
+              disabled={isLoading || isSaving}
+            >
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='field'>
+            <span>Amount</span>
+            <input
+              type='number'
+              min='0'
+              step='0.01'
+              value={amount}
+              onChange={(event) => onAmountChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+          <label className='field'>
+            <span>To pay</span>
+            <input
+              value={String(nextPaymentRemaining)}
+              disabled
+              readOnly
+            />
+          </label>
+        </div>
+
+        <footer className='payment-modal-footer'>
+          <div className='payment-print-menu' ref={printMenuRef}>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={() =>
+                setIsPrintMenuOpen((current) => !current)
+              }
+              disabled={isSaving}
+            >
+              Print
+            </button>
+            {isPrintMenuOpen ? (
+              <div className='payment-print-options'>
+                {printForms.map((form) => (
+                  <label
+                    key={form.id}
+                    className='payment-print-option'
+                  >
+                    <input
+                      type='checkbox'
+                      checked={selectedFormIds.includes(form.id)}
+                      onChange={() => togglePrintForm(form.id)}
+                    />
+                    <span>{form.title}</span>
+                  </label>
+                ))}
+                <button
+                  type='button'
+                  className='primary-button'
+                  onClick={printSelectedForms}
+                  disabled={selectedFormIds.length === 0}
+                >
+                  Print selected
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className='payment-modal-actions'>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={() => onSubmit('deposit')}
+              disabled={isSubmitDisabled}
+            >
+              {isSaving ? 'Saving...' : 'Accept to cashbox'}
+            </button>
+            <button
+              type='button'
+              className='payment-issue-button'
+              onClick={() => onSubmit('depositAndIssue')}
+              disabled={isSubmitDisabled}
+            >
+              Accept and issue
+            </button>
+            <button
+              type='button'
+              className='payment-issue-secondary-button'
+              onClick={() => onSubmit('issueWithoutPayment')}
+              disabled={isIssueDisabled}
+            >
+              Issue without payment
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+};

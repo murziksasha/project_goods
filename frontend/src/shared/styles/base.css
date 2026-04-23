@@ -1,0 +1,56 @@
+:root {
+  --bg-app: #d7dde5;
+  --bg-panel: #f4f6f9;
+  --bg-card: #ffffff;
+  --bg-sidebar: #24364a;
+  --bg-sidebar-soft: #2e4359;
+  --text-main: #2b3b4f;
+  --text-soft: #667992;
+  --accent-blue: #2d8ae3;
+  --accent-cyan: #18b8b0;
+  --line-soft: #d4dbe5;
+  --shadow-soft: 0 14px 34px rgba(21, 39, 59, 0.12);
+  font-family: 'Bahnschrift', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-main);
+  background: var(--bg-app);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg-app);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Cambria', 'Palatino Linotype', serif;
+  color: #3f5268;
+}
+
+p {
+  margin: 0;
+}

@@ -1,0 +1,194 @@
+@media (max-width: 1260px) {
+  .workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    grid-template-rows: auto;
+    padding: 12px;
+  }
+
+  .sidebar-profile {
+    border-bottom: 0;
+    padding: 0;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    padding: 8px 0 0;
+  }
+
+  .hero-chart-layout,
+  .analytics-report-layout,
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-order-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-order-right {
+    border-left: 0;
+    border-top: 1px solid #d5dde7;
+    padding-left: 0;
+    padding-top: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .topbar-title {
+    font-size: 1.1rem;
+  }
+
+  .page-shell {
+    width: min(100% - 16px, 1540px);
+    padding-top: 12px;
+  }
+
+  .hero-card,
+  .panel,
+  .hero-chart-card {
+    padding: 12px;
+  }
+
+  .hero-header,
+  .hero-controls,
+  .panel-header,
+  .panel-header-row,
+  .hero-chart-header,
+  .product-card-header,
+  .list-card-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-inline-metrics,
+  .analytics-summary-grid,
+  .finance-operation-grid,
+  .finance-report-grid,
+  .form-grid,
+  .product-meta,
+  .sale-meta,
+  .history-stats,
+  .employee-permissions {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-chart {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .orders-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orders-toolbar-left {
+    width: 100%;
+  }
+
+  .orders-search-group {
+    grid-template-columns: 1fr 100px;
+    width: 100%;
+  }
+
+  .orders-create-button {
+    width: 100%;
+  }
+
+  .orders-toolbar-actions {
+    width: 100%;
+  }
+
+  .orders-toolbar-actions button {
+    flex: 1;
+  }
+
+  .finance-toolbar {
+    align-items: stretch;
+  }
+
+  .finance-add-cashbox,
+  .finance-add-cashbox input,
+  .finance-add-cashbox button {
+    width: 100%;
+  }
+
+  .finance-wide-report {
+    grid-column: auto;
+  }
+
+  .analytics-period-row,
+  .analytics-panel-header {
+    flex-direction: column;
+  }
+
+  .create-order-tabs {
+    overflow-x: auto;
+  }
+
+  .create-order-test-actions button {
+    flex: 1;
+  }
+
+  .create-order-tab {
+    white-space: nowrap;
+  }
+
+  .create-row-2,
+  .create-row-3,
+  .create-device-search,
+  .create-cost-row,
+  .create-prepay-row,
+  .create-checks-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-order-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .create-order-actions button {
+    width: 100%;
+  }
+
+  .payment-modal-form {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payment-modal-actions {
+    justify-content: stretch;
+  }
+
+  .payment-modal-actions button,
+  .payment-print-menu,
+  .payment-print-menu button {
+    width: 100%;
+  }
+
+  .payment-print-options {
+    width: min(100vw - 56px, 280px);
+  }
+
+  .settings-print-grid {
+    grid-template-columns: 1fr;
+  }
+}

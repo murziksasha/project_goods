@@ -1,0 +1,208 @@
+.product-list,
+.stack-list {
+  display: grid;
+  gap: 14px;
+}
+
+.product-card {
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.product-card-header,
+.list-card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.product-card-header {
+  margin-bottom: 16px;
+}
+
+.product-card h3,
+.list-card h3 {
+  margin: 0 0 4px;
+  color: #475b72;
+}
+
+.product-card h3 {
+  font-size: 1.1rem;
+}
+
+.list-card h3 {
+  font-size: 1rem;
+}
+
+.product-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-card p,
+.product-meta dt,
+.product-meta dd,
+.sale-meta dt,
+.sale-meta dd,
+.empty-state,
+.list-card p,
+.muted-copy {
+  margin: 0;
+}
+
+.product-card p,
+.list-card p {
+  color: #73869e;
+}
+
+.product-card strong {
+  color: #2d8ae3;
+  font-size: 1rem;
+}
+
+.stock-badge,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.stock-badge {
+  padding: 4px 10px;
+  font-size: 0.76rem;
+}
+
+.status-pill {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+}
+
+.stock-badge-success,
+.status-ok {
+  color: #0f766e;
+  background: rgba(8, 145, 130, 0.14);
+}
+
+.stock-badge-danger,
+.status-blacklist {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.status-new {
+  background: rgba(45, 138, 227, 0.16);
+  color: #226db5;
+}
+
+.status-vip {
+  background: rgba(24, 184, 176, 0.16);
+  color: #168881;
+}
+
+.status-opt {
+  background: rgba(115, 134, 158, 0.15);
+  color: #576e86;
+}
+
+.product-meta,
+.sale-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.product-meta {
+  gap: 14px;
+}
+
+.sale-meta {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.product-meta div,
+.sale-meta div {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f3f6fa;
+}
+
+.sale-meta div {
+  background: #f8fafd;
+}
+
+.product-meta dt,
+.sale-meta dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #93a5b9;
+  margin-bottom: 6px;
+}
+
+.product-meta dd,
+.sale-meta dd {
+  color: #4a5f76;
+  font-weight: 600;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.list-card {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  border: 1px solid #d8e1ec;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.list-card-selected {
+  border-color: rgba(45, 138, 227, 0.55);
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.12);
+}
+
+.list-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 138, 227, 0.35);
+}
+
+.list-card:focus-visible {
+  outline: none;
+  border-color: rgba(45, 138, 227, 0.52);
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.12);
+}
+
+.card-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card-link h3,
+.card-link p {
+  pointer-events: none;
+}
+
+.muted-copy,
+.empty-state {
+  color: #74889f;
+}
+
+.empty-state {
+  padding: 28px 12px 8px;
+}
