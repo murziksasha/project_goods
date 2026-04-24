@@ -131,13 +131,17 @@ export const CreateOrderCard = ({
     .join(' ')
     .trim();
   const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
+  const shouldShowClientSuggestions =
+    !selectedClientId &&
+    (clientLookupQuery.replace(/\D/g, '').length >= 5 || clientName.trim().length >= 2);
+  const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const visibleClientHistory = selectedClientId ? clientHistory : null;
+  const visibleDeviceSuggestions = deviceLookupQuery.length >= 2 ? deviceSuggestions : [];
+  const effectiveManagerId =
+    canCurrentEmployeeManageOrders && currentEmployee ? currentEmployee.id : managerId;
 
   useEffect(() => {
-    if (selectedClientId) return;
-    if (clientLookupQuery.replace(/\D/g, '').length < 5 && clientName.trim().length < 2) {
-      setClientSuggestions([]);
-      return;
-    }
+    if (!shouldShowClientSuggestions) return;
 
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
@@ -156,13 +160,10 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [clientLookupQuery, clientName, selectedClientId]);
+  }, [clientLookupQuery, shouldShowClientSuggestions]);
 
   useEffect(() => {
-    if (!selectedClientId) {
-      setClientHistory(null);
-      return;
-    }
+    if (!selectedClientId) return;
 
     let isActive = true;
     void (async () => {
@@ -180,10 +181,7 @@ export const CreateOrderCard = ({
   }, [selectedClientId]);
 
   useEffect(() => {
-    if (deviceLookupQuery.length < 2) {
-      setDeviceSuggestions([]);
-      return;
-    }
+    if (deviceLookupQuery.length < 2) return;
 
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
@@ -203,14 +201,6 @@ export const CreateOrderCard = ({
       window.clearTimeout(timeoutId);
     };
   }, [deviceLookupQuery]);
-
-  useEffect(() => {
-    if (!canCurrentEmployeeManageOrders || !currentEmployee) {
-      return;
-    }
-
-    setManagerId(currentEmployee.id);
-  }, [canCurrentEmployeeManageOrders, currentEmployee]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -308,7 +298,7 @@ export const CreateOrderCard = ({
       prepaymentComment,
       readyDate,
       readyTime,
-      managerId,
+      managerId: effectiveManagerId,
       masterId,
       extraFlags: selectedFlags,
       sourceTab: activeTab,
@@ -373,10 +363,10 @@ export const CreateOrderCard = ({
                 />
               </label>
             </div>
-            {(clientSuggestions.length > 0 || isClientLookupLoading) ? (
+            {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
                 {isClientLookupLoading ? <p>Searching clients...</p> : null}
-                {clientSuggestions.map((client) => (
+                {visibleClientSuggestions.map((client) => (
                   <button
                     key={client.id}
                     type="button"
@@ -407,10 +397,10 @@ export const CreateOrderCard = ({
               </label>
               <button type="button" className="secondary-button">Create new</button>
             </div>
-            {(deviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
+            {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
               <div className="create-suggestions">
                 {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
-                {deviceSuggestions.map((product) => (
+                {visibleDeviceSuggestions.map((product) => (
                   <button
                     key={product.id}
                     type="button"
@@ -563,9 +553,9 @@ export const CreateOrderCard = ({
             <h3 className="create-section-title">Responsible</h3>
             <div className="create-row-2">
               <label className="field">
-                <span>Manager</span>
+                  <span>Manager</span>
                 <select
-                  value={managerId}
+                  value={effectiveManagerId}
                   onChange={(event) => setManagerId(event.target.value)}
                   disabled={canCurrentEmployeeManageOrders}
                 >
@@ -643,9 +633,9 @@ export const CreateOrderCard = ({
 
             <section className="create-side-box">
               <h4>Client requests</h4>
-              {clientHistory?.sales.length ? (
+              {visibleClientHistory?.sales.length ? (
                 <div className="create-side-list">
-                  {clientHistory.sales.slice(0, 5).map((sale) => (
+                  {visibleClientHistory.sales.slice(0, 5).map((sale) => (
                     <div key={sale.id} className="create-side-list-item">
                       <strong>{sale.recordNumber ?? 'r------'}</strong>
                       <span>{sale.product.name}</span>

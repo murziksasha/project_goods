@@ -33,6 +33,18 @@ const getPageFromUrl = (): PageKey => {
 const getInvitationTokenFromUrl = () =>
   new URLSearchParams(window.location.search).get('inviteToken')?.trim() ?? '';
 
+const createEmptyInviteState = () => ({
+  isLoading: false,
+  name: '',
+  email: '',
+  role: '',
+});
+
+const createLoadingInviteState = () => ({
+  ...createEmptyInviteState(),
+  isLoading: true,
+});
+
 const setPageInUrl = (page: PageKey) => {
   const url = new URL(window.location.href);
 
@@ -61,7 +73,9 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
 
 export const DashboardPage = () => {
   const [authError, setAuthError] = useState('');
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(() =>
+    Boolean(window.localStorage.getItem(authTokenStorageKey)),
+  );
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
@@ -72,12 +86,7 @@ export const DashboardPage = () => {
     name: string;
     email: string;
     role: string;
-  }>({
-    isLoading: false,
-    name: '',
-    email: '',
-    role: '',
-  });
+  }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
   const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
@@ -90,6 +99,10 @@ export const DashboardPage = () => {
       currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
   const canManageEmployees = currentEmployee?.role === 'owner';
+  const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
+  const visibleInviteState = shouldShowInvitation
+    ? inviteState
+    : { isLoading: false, name: '', email: '', role: '' };
 
   useEffect(() => {
     let isActive = true;
@@ -97,7 +110,6 @@ export const DashboardPage = () => {
 
     if (!token) {
       setApiAuthToken(null);
-      setIsAuthLoading(false);
       return;
     }
 
@@ -130,7 +142,9 @@ export const DashboardPage = () => {
 
   useEffect(() => {
     const syncInviteToken = () => {
-      setInviteToken(getInvitationTokenFromUrl());
+      const nextInviteToken = getInvitationTokenFromUrl();
+      setInviteToken(nextInviteToken);
+      setInviteState(nextInviteToken ? createLoadingInviteState() : createEmptyInviteState());
     };
 
     window.addEventListener('popstate', syncInviteToken);
@@ -139,12 +153,10 @@ export const DashboardPage = () => {
 
   useEffect(() => {
     if (!inviteToken || currentEmployee) {
-      setInviteState({ isLoading: false, name: '', email: '', role: '' });
       return;
     }
 
     let isActive = true;
-    setInviteState((current) => ({ ...current, isLoading: true }));
 
     void (async () => {
       try {
@@ -159,7 +171,7 @@ export const DashboardPage = () => {
       } catch (error) {
         if (!isActive) return;
         setAuthError(error instanceof Error ? error.message : 'Failed to load invitation.');
-        setInviteState({ isLoading: false, name: '', email: '', role: '' });
+        setInviteState(createEmptyInviteState());
       }
     })();
 
@@ -173,8 +185,6 @@ export const DashboardPage = () => {
       return;
     }
 
-    setActivePage('home');
-    setIsCreateOrderOpen(false);
     setPageInUrl('home');
   }, [currentEmployee, isAuthLoading]);
 
@@ -244,6 +254,7 @@ export const DashboardPage = () => {
       setCurrentEmployee(session.employee);
       setLoginForm({ username: '', password: '' });
       setInviteToken('');
+      setInviteState(createEmptyInviteState());
       setActivePage('home');
       setActiveOrdersTab('orders');
       setIsCreateOrderOpen(false);
@@ -301,22 +312,22 @@ export const DashboardPage = () => {
                 </div>
               </div>
 
-              {inviteToken ? (
-                inviteState.isLoading ? (
+              {shouldShowInvitation ? (
+                visibleInviteState.isLoading ? (
                   <p className="empty-state">Loading invitation...</p>
                 ) : (
                   <div className="form-grid">
                     <label className="field field-wide">
                       <span>Name</span>
-                      <input value={inviteState.name} disabled />
+                      <input value={visibleInviteState.name} disabled />
                     </label>
                     <label className="field field-wide">
                       <span>Email</span>
-                      <input value={inviteState.email} disabled />
+                      <input value={visibleInviteState.email} disabled />
                     </label>
                     <label className="field field-wide">
                       <span>Role</span>
-                      <input value={inviteState.role} disabled />
+                      <input value={visibleInviteState.role} disabled />
                     </label>
                   </div>
                 )
