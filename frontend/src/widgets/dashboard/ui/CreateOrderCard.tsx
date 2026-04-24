@@ -34,6 +34,42 @@ const extraOptionsRight = [
   'Home master call',
 ];
 
+const saleExtraOptionsLeft = [
+  'New sale',
+  'Issued',
+  'At postal company',
+  'Waiting for supply',
+];
+
+const saleExtraOptionsRight = [
+  'Reserved for client',
+  'Needs invoice',
+  'Warranty card issued',
+  'Delivery required',
+];
+
+type SaleOrderItem = {
+  id: string;
+  query: string;
+  product: Product | null;
+  price: string;
+  quantity: string;
+};
+
+const createSaleOrderItem = (): SaleOrderItem => ({
+  id: crypto.randomUUID(),
+  query: '',
+  product: null,
+  price: '',
+  quantity: '1',
+});
+
+const getProductPrice = (product: Product) =>
+  product.salePriceOptions[0] ?? product.price ?? 0;
+
+const getProductWarehouse = (product: Product) =>
+  product.purchasePlace.trim() || 'Main warehouse';
+
 const formatPhone = (input: string) => {
   const digitsOnly = input.replace(/\D/g, '');
   const localDigits = (digitsOnly.startsWith('380') ? digitsOnly.slice(3) : digitsOnly).slice(0, 9);
@@ -88,6 +124,7 @@ export const CreateOrderCard = ({
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('');
+  const [syncTotalWithItems, setSyncTotalWithItems] = useState(true);
   const [prepayment, setPrepayment] = useState('');
   const [prepaymentComment, setPrepaymentComment] = useState('');
   const [readyDate, setReadyDate] = useState('');
@@ -99,8 +136,12 @@ export const CreateOrderCard = ({
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
   const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
+  const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
+  const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
+  const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
 
   const managers = employees.filter(
     (employee) =>
@@ -137,6 +178,26 @@ export const CreateOrderCard = ({
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
   const visibleClientHistory = selectedClientId ? clientHistory : null;
   const visibleDeviceSuggestions = deviceLookupQuery.length >= 2 ? deviceSuggestions : [];
+  const focusedSaleItem =
+    saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
+  const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
+  const visibleSaleProductSuggestions =
+    activeTab === 'sale' && saleProductLookupQuery.length >= 2
+      ? saleProductSuggestions
+      : [];
+  const saleItemsTotal = saleItems.reduce((total, item) => {
+    const price = Number.parseFloat(item.price || '0');
+    const quantity = Number.parseInt(item.quantity || '0', 10);
+    return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
+  }, 0);
+  const hasAvailableSaleSuggestion = visibleSaleProductSuggestions.some(
+    (product) => product.freeQuantity > 0,
+  );
+  const canOrderUnavailableProduct =
+    activeTab === 'sale' &&
+    saleProductLookupQuery.length >= 2 &&
+    !isSaleProductLookupLoading &&
+    !hasAvailableSaleSuggestion;
   const effectiveManagerId =
     canCurrentEmployeeManageOrders && currentEmployee ? currentEmployee.id : managerId;
 
@@ -202,6 +263,39 @@ export const CreateOrderCard = ({
     };
   }, [deviceLookupQuery]);
 
+  useEffect(() => {
+    if (activeTab !== 'sale' || saleProductLookupQuery.length < 2) {
+      setSaleProductSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsSaleProductLookupLoading(true);
+      try {
+        const products = await getProducts(saleProductLookupQuery);
+        if (isActive) {
+          setSaleProductSuggestions(products.filter((product) => product.freeQuantity > 0).slice(0, 8));
+        }
+      } catch {
+        if (isActive) setSaleProductSuggestions([]);
+      } finally {
+        if (isActive) setIsSaleProductLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeTab, saleProductLookupQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'sale' && syncTotalWithItems) {
+      setEstimatedCost(String(Math.round(saleItemsTotal * 100) / 100));
+    }
+  }, [activeTab, saleItemsTotal, syncTotalWithItems]);
+
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
       current.includes(flag)
@@ -222,6 +316,44 @@ export const CreateOrderCard = ({
     setDeviceSerialNumber(product.serialNumber);
     setDeviceKit(extractDeviceKit(product.note));
     setDeviceSuggestions([]);
+  };
+
+  const updateSaleItem = (itemId: string, patch: Partial<SaleOrderItem>) => {
+    setSaleItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const applySaleProduct = (itemId: string, product: Product) => {
+    updateSaleItem(itemId, {
+      query: `${product.name} / ${product.article} / ${product.serialNumber}`,
+      product,
+      price: String(getProductPrice(product)),
+      quantity: '1',
+    });
+    setSaleProductSuggestions([]);
+  };
+
+  const addSaleItem = () => {
+    const item = createSaleOrderItem();
+    setSaleItems((current) => [...current, item]);
+    setFocusedSaleItemId(item.id);
+  };
+
+  const removeSaleItem = (itemId: string) => {
+    setSaleItems((current) =>
+      current.length === 1 ? current : current.filter((item) => item.id !== itemId),
+    );
+  };
+
+  const orderUnavailableProduct = () => {
+    if (!focusedSaleItem || !canOrderUnavailableProduct) return;
+
+    updateSaleItem(focusedSaleItem.id, {
+      product: null,
+      query: saleProductLookupQuery,
+      price: focusedSaleItem.price,
+    });
   };
 
   const onClientPhoneChange = (value: string) => {
@@ -273,11 +405,21 @@ export const CreateOrderCard = ({
     setIssueFromClient('Client buys a new device from stock.');
     setExternalView('New sealed package.');
     setEstimatedCost('3899');
+    setSyncTotalWithItems(true);
     setPrepayment('3899');
     setPrepaymentComment('Full payment');
     setReadyDate(new Date().toISOString().slice(0, 10));
     setReadyTime('15:00');
-    setSelectedFlags(['Device stays with client']);
+    setSelectedFlags(['New sale', 'Issued']);
+    setSaleItems([
+      {
+        id: crypto.randomUUID(),
+        query: 'Portable SSD Samsung T7 1TB',
+        product: null,
+        price: '3899',
+        quantity: '1',
+      },
+    ]);
   };
 
   const handleSave = async () => {
@@ -302,6 +444,16 @@ export const CreateOrderCard = ({
       masterId,
       extraFlags: selectedFlags,
       sourceTab: activeTab,
+      saleItems: saleItems.map((item) => ({
+        id: item.id,
+        productId: item.product?.id ?? '',
+        name: item.product?.name ?? item.query.trim(),
+        article: item.product?.article ?? '',
+        serialNumber: item.product?.serialNumber ?? '',
+        price: item.price,
+        quantity: item.quantity,
+        warehouse: item.product ? getProductWarehouse(item.product) : '',
+      })),
     });
 
       if (success) {
@@ -385,89 +537,199 @@ export const CreateOrderCard = ({
               <input value={discountCode} onChange={(event) => setDiscountCode(event.target.value)} />
             </label>
 
-            <h3 className="create-section-title">Device</h3>
-            <div className="create-device-search">
-              <label className="field">
-                <span>Device #1 *</span>
-                <input
-                  value={deviceName}
-                  onChange={(event) => setDeviceName(event.target.value)}
-                  placeholder="Enter device name"
-                />
-              </label>
-              <button type="button" className="secondary-button">Create new</button>
-            </div>
-            {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
-              <div className="create-suggestions">
-                {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
-                {visibleDeviceSuggestions.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    onClick={() => applyProduct(product)}
-                  >
-                    <strong>{product.name}</strong>
-                    <span>{product.serialNumber}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            {activeTab === 'sale' ? (
+              <>
+                <h3 className="create-section-title">Products</h3>
+                <div className="sale-items-list">
+                  {saleItems.map((item, index) => {
+                    const availableQuantity = item.product?.freeQuantity ?? 0;
+                    return (
+                      <div key={item.id} className="sale-item-row">
+                        <label className="field sale-item-product">
+                          <span>{`Product ${index + 1} *`}</span>
+                          <input
+                            value={item.query}
+                            onFocus={() => setFocusedSaleItemId(item.id)}
+                            onChange={(event) => {
+                              setFocusedSaleItemId(item.id);
+                              updateSaleItem(item.id, {
+                                query: event.target.value,
+                                product: null,
+                              });
+                            }}
+                            placeholder="Name, serial or article"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Qty</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={availableQuantity || undefined}
+                            value={item.quantity}
+                            onChange={(event) =>
+                              updateSaleItem(item.id, { quantity: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Price</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(event) => {
+                              setSyncTotalWithItems(true);
+                              updateSaleItem(item.id, { price: event.target.value });
+                            }}
+                            placeholder="0"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="toolbar-square-button sale-item-add-button"
+                          onClick={index === saleItems.length - 1 ? addSaleItem : () => removeSaleItem(item.id)}
+                          aria-label={index === saleItems.length - 1 ? 'Add product position' : 'Remove product position'}
+                        >
+                          {index === saleItems.length - 1 ? '+' : '-'}
+                        </button>
+                        {item.product ? (
+                          <div className="sale-item-stock">
+                            <span>{getProductWarehouse(item.product)}</span>
+                            <span>{`${item.product.serialNumber} / available ${item.product.freeQuantity}`}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
 
-            <div className="create-row-2">
-              <label className="field">
-                <span>&nbsp;</span>
-                <input
-                  value={deviceColor}
-                  onChange={(event) => setDeviceColor(event.target.value)}
-                  placeholder="Device color"
-                />
-              </label>
-              <label className="field">
-                <span>&nbsp;</span>
-                <input
-                  value={deviceSerialNumber}
-                  onChange={(event) => setDeviceSerialNumber(event.target.value)}
-                  placeholder="Serial number"
-                />
-              </label>
-            </div>
+                {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading || canOrderUnavailableProduct) ? (
+                  <div className="create-suggestions">
+                    {isSaleProductLookupLoading ? <p>Searching products in stock...</p> : null}
+                    {visibleSaleProductSuggestions.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="create-suggestion-item"
+                        onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
+                      >
+                        <strong>{product.name}</strong>
+                        <span>{`${product.article} / ${product.serialNumber} / ${getProductWarehouse(product)} / available ${product.freeQuantity}`}</span>
+                      </button>
+                    ))}
+                    <div className="sale-order-unavailable">
+                      <span>{focusedSaleItem?.price ? `${focusedSaleItem.price} UAH` : 'Price'}</span>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={!canOrderUnavailableProduct}
+                        onClick={orderUnavailableProduct}
+                      >
+                        Order
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
-            <label className="field">
-              <span>Kit</span>
-              <input
-                value={deviceKit}
-                onChange={(event) => setDeviceKit(event.target.value)}
-                placeholder="Describe accessories"
-              />
-            </label>
+                <label className="field">
+                  <span>Notes</span>
+                  <textarea
+                    rows={3}
+                    value={issueFromClient}
+                    onChange={(event) => setIssueFromClient(event.target.value)}
+                    placeholder="Sale notes"
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                <h3 className="create-section-title">Device</h3>
+                <div className="create-device-search">
+                  <label className="field">
+                    <span>Device #1 *</span>
+                    <input
+                      value={deviceName}
+                      onChange={(event) => setDeviceName(event.target.value)}
+                      placeholder="Enter device name"
+                    />
+                  </label>
+                  <button type="button" className="secondary-button">Create new</button>
+                </div>
+                {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
+                  <div className="create-suggestions">
+                    {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
+                    {visibleDeviceSuggestions.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="create-suggestion-item"
+                        onClick={() => applyProduct(product)}
+                      >
+                        <strong>{product.name}</strong>
+                        <span>{product.serialNumber}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
-            <label className="field">
-              <span>Repair type</span>
-              <select value={repairType} onChange={(event) => setRepairType(event.target.value)}>
-                <option>Paid</option>
-                <option>Warranty</option>
-              </select>
-            </label>
+                <div className="create-row-2">
+                  <label className="field">
+                    <span>&nbsp;</span>
+                    <input
+                      value={deviceColor}
+                      onChange={(event) => setDeviceColor(event.target.value)}
+                      placeholder="Device color"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>&nbsp;</span>
+                    <input
+                      value={deviceSerialNumber}
+                      onChange={(event) => setDeviceSerialNumber(event.target.value)}
+                      placeholder="Serial number"
+                    />
+                  </label>
+                </div>
 
-            <label className="field">
-              <span>Issue from client</span>
-              <textarea
-                rows={3}
-                value={issueFromClient}
-                onChange={(event) => setIssueFromClient(event.target.value)}
-              />
-            </label>
+                <label className="field">
+                  <span>Kit</span>
+                  <input
+                    value={deviceKit}
+                    onChange={(event) => setDeviceKit(event.target.value)}
+                    placeholder="Describe accessories"
+                  />
+                </label>
 
-            <label className="field">
-              <span>External condition</span>
-              <textarea
-                rows={3}
-                value={externalView}
-                onChange={(event) => setExternalView(event.target.value)}
-                placeholder="Scratches, dents..."
-              />
-            </label>
+                <label className="field">
+                  <span>Repair type</span>
+                  <select value={repairType} onChange={(event) => setRepairType(event.target.value)}>
+                    <option>Paid</option>
+                    <option>Warranty</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>Issue from client</span>
+                  <textarea
+                    rows={3}
+                    value={issueFromClient}
+                    onChange={(event) => setIssueFromClient(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>External condition</span>
+                  <textarea
+                    rows={3}
+                    value={externalView}
+                    onChange={(event) => setExternalView(event.target.value)}
+                    placeholder="Scratches, dents..."
+                  />
+                </label>
+              </>
+            )}
 
             <h3 className="create-section-title">Cost</h3>
             <div className="create-cost-row">
@@ -485,8 +747,12 @@ export const CreateOrderCard = ({
             </div>
 
             <label className="create-inline-checkbox">
-              <input type="checkbox" defaultChecked />
-              <span>"Total" equals "Repair cost"</span>
+              <input
+                type="checkbox"
+                checked={syncTotalWithItems}
+                onChange={(event) => setSyncTotalWithItems(event.target.checked)}
+              />
+              <span>{activeTab === 'sale' ? 'Recalculate total from positions' : '"Total" equals "Repair cost"'}</span>
             </label>
 
             <div className="create-prepay-row">
@@ -525,7 +791,7 @@ export const CreateOrderCard = ({
             <h4 className="create-subtitle">Additional information</h4>
             <div className="create-checks-grid">
               <div className="create-checks-col">
-                {extraOptionsLeft.map((option) => (
+                {(activeTab === 'sale' ? saleExtraOptionsLeft : extraOptionsLeft).map((option) => (
                   <label key={option} className="create-inline-checkbox">
                     <input
                       type="checkbox"
@@ -537,7 +803,7 @@ export const CreateOrderCard = ({
                 ))}
               </div>
               <div className="create-checks-col">
-                {extraOptionsRight.map((option) => (
+                {(activeTab === 'sale' ? saleExtraOptionsRight : extraOptionsRight).map((option) => (
                   <label key={option} className="create-inline-checkbox">
                     <input
                       type="checkbox"
@@ -567,17 +833,19 @@ export const CreateOrderCard = ({
                   ))}
                 </select>
               </label>
-              <label className="field">
-                <span>Master</span>
-                <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
-                  <option value="">Select master</option>
-                  {masters.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {activeTab === 'repair' ? (
+                <label className="field">
+                  <span>Master</span>
+                  <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
+                    <option value="">Select master</option>
+                    {masters.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
 
             <div className="create-order-actions">

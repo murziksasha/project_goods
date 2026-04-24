@@ -49,7 +49,11 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
 export const deleteProduct = async (productId: string) => {
   isValidObjectIdOrThrow(productId, 'productId');
 
-  if (await Sale.exists({ product: productId })) {
+  if (
+    await Sale.exists({
+      $or: [{ product: productId }, { 'lineItems.productId': productId }],
+    })
+  ) {
     throw new Error('Cannot delete a product that has sales history.');
   }
 

@@ -79,6 +79,7 @@ export const formatSale = (sale: SaleDocument) => ({
   lineItems: (sale.lineItems ?? []).map((item) => ({
     id: item.id,
     kind: item.kind,
+    productId: item.productId ? item.productId.toString() : '',
     name: item.name,
     price: item.price,
     quantity: item.quantity,

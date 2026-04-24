@@ -81,6 +81,7 @@ type OrderLineItemKind = 'product' | 'service';
 type OrderLineItem = {
   id: string;
   kind: OrderLineItemKind;
+  productId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -175,6 +176,7 @@ const createOrderLineItem = (
 ): OrderLineItem => ({
   id: `${sale.id}-${kind}-default`,
   kind,
+  productId: kind === 'product' ? sale.product.id : undefined,
   name: kind === 'product' ? sale.product.name : 'Repair',
   price: sale.salePrice,
   quantity: sale.quantity,
@@ -248,6 +250,47 @@ const formatReadyDate = (value: string) =>
     month: 'short',
   }).format(new Date(value));
 
+const formatPhoneNumber = (value: string) => {
+  const groups = getPhoneNumberGroups(value);
+
+  return groups.length > 0 ? groups.join(' ') : value.replace(/^\+?38\s*/, '');
+};
+
+const getPhoneNumberGroups = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  const localDigits = digits.startsWith('38') ? digits.slice(2) : digits;
+  const tenDigitMatch = localDigits.match(/^(\d{3})(\d{3})(\d{2})(\d{2})$/);
+  const elevenDigitMatch = localDigits.match(/^(\d{3})(\d{4})(\d{2})(\d{2})$/);
+
+  if (tenDigitMatch) {
+    return tenDigitMatch.slice(1);
+  }
+
+  if (elevenDigitMatch) {
+    return elevenDigitMatch.slice(1);
+  }
+
+  return [];
+};
+
+const getCreatedTime = (sale: Sale) => new Date(sale.createdAt).getTime();
+
+const PhoneNumber = ({ value }: { value: string }) => {
+  const groups = getPhoneNumberGroups(value);
+
+  if (groups.length === 0) {
+    return <>{value.replace(/^\+?38\s*/, '')}</>;
+  }
+
+  return (
+    <span className='orders-client-phone'>
+      {groups.map((group, index) => (
+        <span key={`${group}-${index}`}>{group}</span>
+      ))}
+    </span>
+  );
+};
+
 export const OrdersWorkspace = ({
   sales,
   isLoading,
@@ -298,11 +341,16 @@ export const OrdersWorkspace = ({
         : !isRepairOrder(sale),
     );
     const query = searchValue.trim().toLowerCase();
+    const sortedTabSales = [...tabSales].sort(
+      (firstSale, secondSale) =>
+        getCreatedTime(secondSale) - getCreatedTime(firstSale),
+    );
+
     if (!query) {
-      return tabSales;
+      return sortedTabSales;
     }
 
-    return tabSales.filter((sale) => {
+    return sortedTabSales.filter((sale) => {
       const orderNumber = buildOrderNumber(sale);
       return (
         String(orderNumber).includes(query) ||
@@ -841,19 +889,20 @@ export const OrdersWorkspace = ({
               <th>Client</th>
               <th>Term</th>
               <th>Warehouse</th>
+              <th>Add</th>
               <th>Ready date</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={12} className='orders-empty'>
+                <td colSpan={13} className='orders-empty'>
                   Loading orders...
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={12} className='orders-empty'>
+                <td colSpan={13} className='orders-empty'>
                   {activeTab === 'orders'
                     ? 'Orders not found.'
                     : 'Sales not found.'}
@@ -932,11 +981,14 @@ export const OrdersWorkspace = ({
                     <td>
                       <div className='orders-client-cell'>
                         <span>{sale.client.name}</span>
-                        <small>{sale.client.phone}</small>
+                        <small>
+                          <PhoneNumber value={sale.client.phone} />
+                        </small>
                       </div>
                     </td>
                     <td>Non-urgent</td>
                     <td>Service center</td>
+                    <td>{formatReadyDate(sale.createdAt)}</td>
                     <td>{formatReadyDate(sale.saleDate)}</td>
                   </tr>
                 );
@@ -1086,7 +1138,7 @@ const OrderDetailCard = ({
             </div>
             <div>
               <dt>Phone</dt>
-              <dd>{sale.client.phone}</dd>
+              <dd>{formatPhoneNumber(sale.client.phone)}</dd>
             </div>
             <div>
               <dt>Device</dt>

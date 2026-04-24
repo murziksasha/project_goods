@@ -43,6 +43,109 @@ const applyProductQuantityDelta = async (
   return product;
 };
 
+type StockLine = {
+  productId: string;
+  quantity: number;
+};
+
+type SaleLineItem = {
+  id: string;
+  kind: string;
+  productId?: string | mongoose.Types.ObjectId | null;
+  name: string;
+  price: number;
+  quantity: number;
+};
+
+const addStockQuantity = (
+  stockMap: Map<string, number>,
+  productId: string,
+  quantity: number,
+) => {
+  stockMap.set(productId, (stockMap.get(productId) ?? 0) + quantity);
+};
+
+const getStockLines = (
+  kind: 'repair' | 'sale',
+  lineItems: SaleLineItem[],
+  fallbackProductId: mongoose.Types.ObjectId | string,
+  fallbackQuantity: number,
+): StockLine[] => {
+  const stockMap = new Map<string, number>();
+
+  if (kind === 'sale') {
+    lineItems.forEach((item) => {
+      const productId = item.productId?.toString();
+
+      if (item.kind === 'product' && productId) {
+        addStockQuantity(stockMap, productId, item.quantity);
+      }
+    });
+  }
+
+  if (stockMap.size === 0) {
+    addStockQuantity(stockMap, fallbackProductId.toString(), fallbackQuantity);
+  }
+
+  return Array.from(stockMap.entries()).map(([productId, quantity]) => ({
+    productId,
+    quantity,
+  }));
+};
+
+const getStockDeltas = (
+  currentLines: StockLine[],
+  nextLines: StockLine[],
+) => {
+  const deltaMap = new Map<string, number>();
+
+  currentLines.forEach((line) => {
+    addStockQuantity(deltaMap, line.productId, -line.quantity);
+  });
+  nextLines.forEach((line) => {
+    addStockQuantity(deltaMap, line.productId, line.quantity);
+  });
+
+  return Array.from(deltaMap.entries())
+    .map(([productId, quantity]) => ({ productId, quantity }))
+    .filter((line) => line.quantity !== 0);
+};
+
+const assertStockDeltasAvailable = async (deltas: StockLine[]) => {
+  await Promise.all(
+    deltas
+      .filter((delta) => delta.quantity > 0)
+      .map(async (delta) => {
+        isValidObjectIdOrThrow(delta.productId, 'lineItems.productId');
+        await ensureFreeStock(delta.productId, delta.quantity);
+      }),
+  );
+};
+
+const applyStockDeltas = async (deltas: StockLine[]) => {
+  await assertStockDeltasAvailable(deltas);
+
+  for (const delta of deltas) {
+    isValidObjectIdOrThrow(delta.productId, 'lineItems.productId');
+    await applyProductQuantityDelta(delta.productId, -delta.quantity);
+  }
+};
+
+const getFallbackLineItems = (
+  kind: 'repair' | 'sale',
+  salePrice: number,
+  quantity: number,
+  product: { _id: mongoose.Types.ObjectId | string; name: string },
+) =>
+  getDefaultLineItems(
+    {
+      kind,
+      salePrice,
+      quantity,
+    },
+    product,
+  );
+
 const assertSalePayload = (quantity: number, salePrice: number) => {
   if (!Number.isFinite(quantity) || quantity < 1) {
     throw new Error('Sale quantity must be at least 1.');
@@ -74,6 +177,7 @@ const getDefaultLineItems = (
   {
     id: `${product._id.toString()}-${payload.kind}-default`,
     kind: payload.kind === 'sale' ? 'product' : 'service',
+    productId: payload.kind === 'sale' ? product._id.toString() : undefined,
     name: payload.kind === 'sale' ? product.name : 'Repair',
     price: payload.salePrice,
     quantity: payload.quantity,
@@ -149,7 +253,7 @@ export const createSale = async (payloadInput: SalePayload) => {
 
   const [client, product, manager, master] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
-    ensureFreeStock(payload.productId, payload.quantity),
+    Product.findById(payload.productId).lean<ProductDocument | null>(),
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
   ]);
@@ -160,10 +264,33 @@ export const createSale = async (payloadInput: SalePayload) => {
   if (client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
+  if (!product) {
+    throw new Error('Product not found.');
+  }
 
-  const updatedProduct = await applyProductQuantityDelta(payload.productId, -payload.quantity);
+  const lineItems =
+    payload.lineItems.length > 0
+      ? payload.lineItems
+      : getFallbackLineItems(
+          normalizedKind,
+          payload.salePrice,
+          payload.quantity,
+          product,
+        );
+  const stockDeltas = getStockLines(
+    normalizedKind,
+    lineItems,
+    payload.productId,
+    payload.quantity,
+  );
+
+  let stockDeltasApplied = false;
 
   try {
+    await applyStockDeltas(stockDeltas);
+    stockDeltasApplied = true;
+    const updatedProduct = await Product.findById(payload.productId).lean<ProductDocument | null>();
+
     const sale = new Sale({
       saleDate: payload.saleDate,
       client: client._id,
@@ -178,17 +305,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       note: payload.note,
       timeline: payload.timeline ?? [],
       paymentHistory: payload.paymentHistory ?? [],
-      lineItems:
-        payload.lineItems.length > 0
-          ? payload.lineItems
-          : getDefaultLineItems(
-              {
-                kind: normalizedKind,
-                salePrice: payload.salePrice,
-                quantity: payload.quantity,
-              },
-              product,
-            ),
+      lineItems,
       productSnapshot: {
         article: product.article,
         name: product.name,
@@ -219,10 +336,17 @@ export const createSale = async (payloadInput: SalePayload) => {
 
     return {
       sale: formatSale(sale.toObject<SaleDocument>()),
-      product: formatProduct(updatedProduct),
+      product: formatProduct(updatedProduct ?? product),
     };
   } catch (error) {
-    await Product.findByIdAndUpdate(payload.productId, { $inc: { quantity: payload.quantity } });
+    if (stockDeltasApplied) {
+      await applyStockDeltas(
+        stockDeltas.map((delta) => ({
+          ...delta,
+          quantity: -delta.quantity,
+        })),
+      );
+    }
     throw error;
   }
 };
@@ -258,32 +382,47 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     throw new Error('Product not found.');
   }
 
-  if (existingSale.product.toString() === payload.productId) {
-    const availableQuantity =
-      Math.max(product.quantity - product.reservedQuantity, 0) + existingSale.quantity;
+  const currentLineItems =
+    existingSale.lineItems?.length
+      ? existingSale.lineItems
+      : getFallbackLineItems(
+          existingSale.kind === 'sale' ? 'sale' : 'repair',
+          existingSale.salePrice,
+          existingSale.quantity,
+          {
+            _id: existingSale.product,
+            name: existingSale.productSnapshot?.name ?? 'Item',
+          },
+        );
+  const nextLineItems =
+    payload.lineItems.length > 0
+      ? payload.lineItems
+      : getFallbackLineItems(
+          normalizedKind,
+          payload.salePrice,
+          payload.quantity,
+          product,
+        );
+  const stockDeltas = getStockDeltas(
+    getStockLines(
+      existingSale.kind === 'sale' ? 'sale' : 'repair',
+      currentLineItems,
+      existingSale.product,
+      existingSale.quantity,
+    ),
+    getStockLines(
+      normalizedKind,
+      nextLineItems,
+      payload.productId,
+      payload.quantity,
+    ),
+  );
 
-    if (availableQuantity < payload.quantity) {
-      throw new Error('Not enough free stock for this operation.');
-    }
-  } else {
-    await ensureFreeStock(payload.productId, payload.quantity);
-  }
-
-  await applyProductQuantityDelta(existingSale.product, existingSale.quantity);
+  let stockDeltasApplied = false;
 
   try {
-    const updatedProduct = await applyProductQuantityDelta(payload.productId, -payload.quantity);
-    const nextLineItems =
-      payload.lineItems.length > 0
-        ? payload.lineItems
-        : getDefaultLineItems(
-            {
-              kind: normalizedKind,
-              salePrice: payload.salePrice,
-              quantity: payload.quantity,
-            },
-            product,
-          );
+    await applyStockDeltas(stockDeltas);
+    stockDeltasApplied = true;
     assertWorkspaceState(
       normalizedKind,
       payload.status || existingSale.status || 'new',
@@ -331,13 +470,21 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     if (!updatedSale) {
       throw new Error('Sale not found.');
     }
+    const updatedProduct = await Product.findById(payload.productId).lean<ProductDocument | null>();
 
     return {
       sale: formatSale(updatedSale),
-      product: formatProduct(updatedProduct),
+      product: formatProduct(updatedProduct ?? product),
     };
   } catch (error) {
-    await applyProductQuantityDelta(existingSale.product, -existingSale.quantity);
+    if (stockDeltasApplied) {
+      await applyStockDeltas(
+        stockDeltas.map((delta) => ({
+          ...delta,
+          quantity: -delta.quantity,
+        })),
+      );
+    }
     throw error;
   }
 };
@@ -419,7 +566,29 @@ export const deleteSale = async (saleId: string) => {
     throw new Error('Sale not found.');
   }
 
-  await applyProductQuantityDelta(existingSale.product, existingSale.quantity);
+  const lineItems =
+    existingSale.lineItems?.length
+      ? existingSale.lineItems
+      : getFallbackLineItems(
+          existingSale.kind === 'sale' ? 'sale' : 'repair',
+          existingSale.salePrice,
+          existingSale.quantity,
+          {
+            _id: existingSale.product,
+            name: existingSale.productSnapshot?.name ?? 'Item',
+          },
+        );
+  const stockDeltas = getStockLines(
+    existingSale.kind === 'sale' ? 'sale' : 'repair',
+    lineItems,
+    existingSale.product,
+    existingSale.quantity,
+  ).map((line) => ({
+    ...line,
+    quantity: -line.quantity,
+  }));
+
+  await applyStockDeltas(stockDeltas);
   await Sale.findByIdAndDelete(saleId);
 
   return { id: saleId, restoredProductId: existingSale.product.toString() };

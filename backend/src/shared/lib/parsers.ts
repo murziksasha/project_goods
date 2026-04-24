@@ -132,6 +132,9 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
         .map((item) => ({
           id: toNonEmptyString((item as { id?: unknown })?.id),
           kind: toNonEmptyString((item as { kind?: unknown })?.kind),
+          productId:
+            toNonEmptyString((item as { productId?: unknown })?.productId) ||
+            undefined,
           name: toNonEmptyString((item as { name?: unknown })?.name),
           price: toNumber((item as { price?: unknown })?.price),
           quantity: toNumber((item as { quantity?: unknown })?.quantity),

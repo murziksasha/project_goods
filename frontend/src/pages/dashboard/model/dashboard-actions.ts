@@ -168,13 +168,16 @@ export const createDashboardActions = ({
   };
 
   const formatOrderDateTime = (dateValue: string, timeValue: string) => {
-    if (!dateValue) {
-      return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const normalizedDate = dateValue || now.toISOString().slice(0, 10);
+    const normalizedTime =
+      timeValue ||
+      `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    if (!normalizedTime) {
+      return normalizedDate;
     }
-    if (!timeValue) {
-      return dateValue;
-    }
-    return `${dateValue}T${timeValue}`;
+    return `${normalizedDate}T${normalizedTime}`;
   };
 
   const buildProductIdentity = (payload: CreateOrderRequestPayload) => {
@@ -479,8 +482,29 @@ export const createDashboardActions = ({
       try {
         const normalizedPhone = normalizePhone(payload.clientPhone);
         const clientName = payload.clientName.trim();
-        const deviceName = payload.deviceName.trim();
-        const estimatedCost = Number.parseFloat(payload.estimatedCost || '0');
+        const saleItems = (payload.saleItems ?? [])
+          .map((item) => {
+            const quantity = Number.parseInt(item.quantity || '1', 10);
+            const price = Number.parseFloat(item.price || '0');
+
+            return {
+              ...item,
+              name: item.name.trim(),
+              quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+              price: Number.isFinite(price) && price >= 0 ? price : 0,
+            };
+          })
+          .filter((item) => item.name.length >= 2);
+        const primarySaleItem = payload.sourceTab === 'sale' ? saleItems[0] : null;
+        const deviceName =
+          payload.sourceTab === 'sale'
+            ? primarySaleItem?.name ?? ''
+            : payload.deviceName.trim();
+        const estimatedCost =
+          payload.sourceTab === 'sale' && saleItems.length > 0
+            ? saleItems.reduce((total, item) => total + item.price * item.quantity, 0)
+            : Number.parseFloat(payload.estimatedCost || '0');
+        const prepaymentAmount = Number.parseFloat(payload.prepayment || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
           throw new Error('Client phone must include full +380 number.');
@@ -496,6 +520,15 @@ export const createDashboardActions = ({
         }
         if (!Number.isFinite(estimatedCost) || estimatedCost < 0) {
           throw new Error('Estimated cost must be a non-negative number.');
+        }
+        if (
+          payload.sourceTab === 'sale' &&
+          saleItems.some((item) => item.productId && item.quantity < 1)
+        ) {
+          throw new Error('Sale item quantity must be at least 1.');
+        }
+        if (Number.isFinite(prepaymentAmount) && prepaymentAmount > estimatedCost) {
+          throw new Error('Prepayment cannot exceed order total.');
         }
 
         const existingClient = allClients.find(
@@ -516,22 +549,36 @@ export const createDashboardActions = ({
         }
 
         const { serialNumber, article } = buildProductIdentity(payload);
-        const existingProduct = allProducts.find(
-          (product) => product.serialNumber.toUpperCase() === serialNumber,
-        );
+        const existingProduct =
+          payload.sourceTab === 'sale' && primarySaleItem?.productId
+            ? allProducts.find((product) => product.id === primarySaleItem.productId)
+            : allProducts.find(
+                (product) => product.serialNumber.toUpperCase() === serialNumber,
+              );
 
         let product = existingProduct;
         if (!product) {
+          const fallbackPrice =
+            payload.sourceTab === 'sale' && primarySaleItem
+              ? primarySaleItem.price
+              : estimatedCost;
+          const fallbackQuantity =
+            payload.sourceTab === 'sale' && primarySaleItem
+              ? String(primarySaleItem.quantity)
+              : '1';
           product = await createProduct({
             name: deviceName,
-            article,
-            serialNumber,
-            price: String(estimatedCost),
-            salePriceOptions: String(estimatedCost),
-            quantity: '1',
-            note: [payload.deviceColor, payload.deviceKit, payload.repairType]
-              .filter(Boolean)
-              .join(' | '),
+            article: primarySaleItem?.article || article,
+            serialNumber: primarySaleItem?.serialNumber || serialNumber,
+            price: String(fallbackPrice),
+            salePriceOptions: String(fallbackPrice),
+            quantity: fallbackQuantity,
+            note:
+              payload.sourceTab === 'sale'
+                ? 'Ordered from sale request'
+                : [payload.deviceColor, payload.deviceKit, payload.repairType]
+                    .filter(Boolean)
+                    .join(' | '),
             purchasePlace: '',
             purchaseDate: '',
             warrantyPeriod: '0',
@@ -541,54 +588,114 @@ export const createDashboardActions = ({
 
         const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
         const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
+        const createdAt = new Date().toISOString();
+        const author = currentEmployee?.name ?? managerName ?? 'System';
+        const normalizedPrepayment =
+          Number.isFinite(prepaymentAmount) && prepaymentAmount > 0
+            ? Math.round(prepaymentAmount * 100) / 100
+            : 0;
+        const prepaymentMessage =
+          normalizedPrepayment > 0
+            ? `кассы ОСНОВНАЯ : ${normalizedPrepayment} uah${
+                payload.prepaymentComment.trim()
+                  ? `, ${payload.prepaymentComment.trim()}`
+                  : ''
+              }`
+            : '';
 
         const noteParts = [
           payload.issueFromClient.trim(),
-          payload.externalView.trim(),
+          payload.sourceTab === 'repair' ? payload.externalView.trim() : '',
           payload.prepayment ? `Prepayment: ${payload.prepayment}` : '',
-          payload.prepaymentComment.trim(),
+          prepaymentMessage,
           payload.serviceName.trim()
             ? `Service: ${payload.serviceName.trim()}`
             : '',
           payload.extraFlags.length > 0 ? `Flags: ${payload.extraFlags.join(', ')}` : '',
           managerName ? `Manager: ${managerName}` : '',
-          masterName ? `Master: ${masterName}` : '',
+          payload.sourceTab === 'repair' && masterName ? `Master: ${masterName}` : '',
           payload.sourceTab ? `Type: ${payload.sourceTab}` : '',
         ].filter(Boolean);
+        const lineItems =
+          payload.sourceTab === 'sale' && saleItems.length > 0
+            ? saleItems.map((item, index) => ({
+                id: item.id || crypto.randomUUID(),
+                kind: 'product' as const,
+                productId: item.productId || (index === 0 ? product.id : ''),
+                name: item.warehouse
+                  ? `${item.name} (${item.warehouse})`
+                  : item.name,
+                price: item.price,
+                quantity: item.quantity,
+              }))
+            : [
+                {
+                  id: crypto.randomUUID(),
+                  kind: 'service' as const,
+                  productId: '',
+                  name: payload.serviceName.trim() || 'Repair',
+                  price: estimatedCost,
+                  quantity: 1,
+                },
+              ];
 
         const saleResult = await createSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
           productId: product.id,
-          quantity: '1',
+          quantity: String(
+            payload.sourceTab === 'sale' && primarySaleItem
+              ? primarySaleItem.quantity
+              : 1,
+          ),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
           status: 'new',
+          paidAmount: normalizedPrepayment,
           note: noteParts.join('\n'),
           managerId: payload.managerId,
-          masterId: payload.masterId,
-          lineItems: [
-            {
-              id: crypto.randomUUID(),
-              kind: payload.sourceTab === 'sale' ? 'product' : 'service',
-              name:
-                payload.sourceTab === 'sale'
-                  ? deviceName
-                  : payload.serviceName.trim() || 'Repair',
-              price: estimatedCost,
-              quantity: 1,
-            },
+          masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
+          timeline: [
+            ...(payload.issueFromClient.trim()
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    author,
+                    message: payload.issueFromClient.trim(),
+                    createdAt,
+                  },
+                ]
+              : []),
+            ...(prepaymentMessage
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    author,
+                    message: prepaymentMessage,
+                    createdAt,
+                  },
+                ]
+              : []),
           ],
+          paymentHistory:
+            normalizedPrepayment > 0
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    type: 'deposit',
+                    amount: normalizedPrepayment,
+                    cashboxId: 'main',
+                    cashboxName: 'ОСНОВНАЯ',
+                    author,
+                    createdAt,
+                  },
+                ]
+              : [],
+          lineItems,
         });
 
         setSales((current) => [saleResult.sale, ...current]);
-        setAllProducts((current) =>
-          current.some((item) => item.id === saleResult.product.id)
-            ? current.map((item) =>
-                item.id === saleResult.product.id ? saleResult.product : item,
-              )
-            : [saleResult.product, ...current],
-        );
+        setAllProducts(await getProducts());
         setSuccessMessage('Order saved successfully.');
         return true;
       } catch (requestError) {
