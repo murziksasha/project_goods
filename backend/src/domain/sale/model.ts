@@ -108,6 +108,12 @@ export const saleSchema = new mongoose.Schema(
           enum: ['product', 'service'],
           required: true,
         },
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Product',
+          required: false,
+          default: null,
+        },
         name: { type: String, required: true },
         price: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },

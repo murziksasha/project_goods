@@ -29,6 +29,7 @@ export type Sale = {
   lineItems: Array<{
     id: string;
     kind: 'product' | 'service';
+    productId?: string;
     name: string;
     price: number;
     quantity: number;

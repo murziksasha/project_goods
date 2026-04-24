@@ -162,7 +162,6 @@ export const SaleForm = ({
         </label>
 
         <ClientLookupFields
-          clientNameInput={clientNameInput}
           clientNameInput={displayedClientNameInput}
           clientPhoneInput={displayedClientPhoneInput}
           clientSuggestions={clientSuggestions}
@@ -183,7 +182,6 @@ export const SaleForm = ({
         />
 
         <ProductLookupField
-          productInput={productInput}
           productInput={displayedProductInput}
           productSuggestions={productSuggestions}
           showProductSuggestions={showProductSuggestions}

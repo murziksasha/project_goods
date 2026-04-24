@@ -1079,6 +1079,12 @@
   color: #7f91a7;
 }
 
+.orders-client-phone {
+  display: inline-flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 .order-number-button,
 .order-device-button {
   border: 0;
@@ -1524,6 +1530,50 @@
 .create-prepay-row {
   grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
   align-items: end;
+}
+
+.sale-items-list {
+  display: grid;
+  gap: 10px;
+}
+
+.sale-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 130px 42px;
+  gap: 10px;
+  align-items: end;
+}
+
+.sale-item-product {
+  min-width: 0;
+}
+
+.sale-item-add-button {
+  height: 38px;
+  align-self: end;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.sale-item-stock {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #6f8399;
+  font-size: 0.9rem;
+}
+
+.sale-order-unavailable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+}
+
+.sale-order-unavailable span {
+  color: #4f647b;
+  font-weight: 700;
 }
 
 .create-currency-tag {

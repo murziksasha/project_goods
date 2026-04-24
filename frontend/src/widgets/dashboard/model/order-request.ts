@@ -19,4 +19,14 @@ export type CreateOrderRequestPayload = {
   masterId: string;
   extraFlags: string[];
   sourceTab: 'repair' | 'sale';
+  saleItems?: Array<{
+    id: string;
+    productId: string;
+    name: string;
+    article: string;
+    serialNumber: string;
+    price: string;
+    quantity: string;
+    warehouse: string;
+  }>;
 };
