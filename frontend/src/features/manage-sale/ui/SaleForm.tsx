@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { Client } from '../../../entities/client/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { SaleFormValues } from '../../../entities/sale/model/types';
@@ -46,35 +46,20 @@ export const SaleForm = ({
   const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
-  const previousClientIdRef = useRef(form.clientId);
-  const previousProductIdRef = useRef(form.productId);
 
   const selectedClient = clients.find((client) => client.id === form.clientId) ?? null;
   const selectedProduct = products.find((product) => product.id === form.productId) ?? null;
-
-  useEffect(() => {
-    if (selectedClient) {
-      setClientNameInput(selectedClient.name);
-      setClientPhoneInput(selectedClient.phone);
-    }
-
-    previousClientIdRef.current = form.clientId;
-  }, [form.clientId, selectedClient]);
-
-  useEffect(() => {
-    if (selectedProduct) {
-      setProductInput(getProductLabel(selectedProduct));
-    } else if (previousProductIdRef.current && !form.productId) {
-      setProductInput('');
-    }
-
-    previousProductIdRef.current = form.productId;
-  }, [form.productId, selectedProduct]);
+  const displayedClientNameInput =
+    form.clientId && selectedClient ? selectedClient.name : clientNameInput;
+  const displayedClientPhoneInput =
+    form.clientId && selectedClient ? selectedClient.phone : clientPhoneInput;
+  const displayedProductInput =
+    form.productId && selectedProduct ? getProductLabel(selectedProduct) : productInput;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const normalizedName = normalizeText(clientNameInput);
-      const normalizedPhone = normalizeDigits(clientPhoneInput);
+      const normalizedName = normalizeText(displayedClientNameInput);
+      const normalizedPhone = normalizeDigits(displayedClientPhoneInput);
 
       setClientSuggestions(
         clients
@@ -92,11 +77,11 @@ export const SaleForm = ({
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [clientNameInput, clientPhoneInput, clients]);
+  }, [clients, displayedClientNameInput, displayedClientPhoneInput]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const normalizedQuery = normalizeText(productInput);
+      const normalizedQuery = normalizeText(displayedProductInput);
 
       setProductSuggestions(
         products
@@ -115,7 +100,7 @@ export const SaleForm = ({
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [productInput, products]);
+  }, [displayedProductInput, products]);
 
   const handleClientPick = (client: Client) => {
     onChange('clientId', client.id);
@@ -178,7 +163,8 @@ export const SaleForm = ({
 
         <ClientLookupFields
           clientNameInput={clientNameInput}
-          clientPhoneInput={clientPhoneInput}
+          clientNameInput={displayedClientNameInput}
+          clientPhoneInput={displayedClientPhoneInput}
           clientSuggestions={clientSuggestions}
           showClientSuggestions={showClientSuggestions}
           onNameChange={(value) => {
@@ -198,6 +184,7 @@ export const SaleForm = ({
 
         <ProductLookupField
           productInput={productInput}
+          productInput={displayedProductInput}
           productSuggestions={productSuggestions}
           showProductSuggestions={showProductSuggestions}
           onProductChange={(value) => {

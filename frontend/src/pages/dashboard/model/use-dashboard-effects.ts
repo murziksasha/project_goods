@@ -49,17 +49,7 @@ export const useDashboardEffects = ({
   setError,
 }: DashboardEffectsParams) => {
   useEffect(() => {
-    if (!enabled) {
-      setAllProducts([]);
-      setAllClients([]);
-      setAllEmployees([]);
-      setSettings(null);
-      setSettingsForm({ serviceName: 'Service CRM' });
-      setIsProductsLoading(false);
-      setIsClientsLoading(false);
-      setIsEmployeesLoading(false);
-      return;
-    }
+    if (!enabled) return;
 
     let isActive = true;
 
@@ -141,11 +131,7 @@ export const useDashboardEffects = ({
   ]);
 
   useEffect(() => {
-    if (!enabled) {
-      setSales([]);
-      setIsSalesLoading(false);
-      return;
-    }
+    if (!enabled) return;
 
     let isActive = true;
 
