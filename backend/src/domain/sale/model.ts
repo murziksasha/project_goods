@@ -121,6 +121,12 @@ export const saleSchema = new mongoose.Schema(
           required: false,
           default: null,
         },
+        serviceId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'ServiceCatalog',
+          required: false,
+          default: null,
+        },
         name: { type: String, required: true },
         price: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },

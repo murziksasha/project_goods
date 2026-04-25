@@ -81,6 +81,7 @@ export const formatSale = (sale: SaleDocument) => ({
     id: item.id,
     kind: item.kind,
     productId: item.productId ? item.productId.toString() : '',
+    serviceId: item.serviceId ? item.serviceId.toString() : '',
     name: item.name,
     price: item.price,
     quantity: item.quantity,

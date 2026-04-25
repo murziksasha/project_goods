@@ -782,7 +782,7 @@ export const createDashboardActions = ({
                   name: payload.serviceName.trim() || 'Repair',
                   price: estimatedCost,
                   quantity: 1,
-                  warrantyPeriod: 0,
+                  warrantyPeriod: 1,
                 },
               ];
 
