@@ -16,8 +16,25 @@ import {
   returnSaleLineItem,
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
-import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import {
+  createServiceCatalogItem,
+  getServiceCatalogItems,
+  updateServiceCatalogItem,
+} from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
+import {
+  initialServiceCatalogForm,
+  toServiceCatalogForm,
+} from '../../../entities/service-catalog/model/forms';
+import {
+  getProducts,
+  updateProduct,
+} from '../../../entities/product/api/productApi';
+import type {
+  Product,
+  ProductFormValues,
+} from '../../../entities/product/model/types';
+import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
@@ -99,6 +116,7 @@ type OrderLineItem = {
   id: string;
   kind: OrderLineItemKind;
   productId?: string;
+  serviceId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -202,13 +220,15 @@ const createOrderLineItem = (
   id: `${sale.id}-${kind}-default`,
   kind,
   productId: kind === 'product' ? sale.product.id : undefined,
+  serviceId: undefined,
   name: kind === 'product' ? sale.product.name : 'Repair',
   price: sale.salePrice,
   quantity: sale.quantity,
-  warrantyPeriod: 0,
+  warrantyPeriod: kind === 'service' ? 1 : 0,
 });
 
 const warrantyOptions = [
+  { label: 'None', value: 0 },
   { label: '30 day', value: 1 },
   { label: '3 month', value: 3 },
   { label: '6 month', value: 6 },
@@ -745,7 +765,7 @@ export const OrdersWorkspace = ({
   const updateLineItem = (
     sale: Sale,
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
   ) => {
     const nextItems = getLineItems(sale).map((item) =>
       item.id === itemId ? { ...item, ...patch } : item,
@@ -1093,6 +1113,8 @@ export const OrdersWorkspace = ({
           onOpenRelatedSale={openSaleCard}
           onAcceptPayment={() => openPaymentModal(selectedSale)}
           onRefundPayment={() => openRefundModal(selectedSale)}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       ) : null}
 
@@ -1412,12 +1434,14 @@ type OrderDetailCardProps = {
   onRemoveLineItem: (itemId: string) => void;
   onUpdateLineItem: (
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
   ) => void;
   onReturnLineItem: (item: OrderLineItem) => void;
   onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
   onRefundPayment: () => void;
+  onError: (message: string) => void;
+  onSuccess: (message: string) => void;
 };
 
 const OrderDetailCard = ({
@@ -1438,6 +1462,8 @@ const OrderDetailCard = ({
   onOpenRelatedSale,
   onAcceptPayment,
   onRefundPayment,
+  onError,
+  onSuccess,
 }: OrderDetailCardProps) => {
   const [comment, setComment] = useState('');
   const [isServicesOpen, setIsServicesOpen] = useState(false);
@@ -1577,7 +1603,7 @@ const OrderDetailCard = ({
           </dl>
         </section>
 
-        <section className='order-detail-panel'>
+        <section className='order-detail-panel order-detail-live-panel'>
           <h3>Live feed</h3>
           <div className='order-timeline'>
             {timelineItems.map((item, index) => (
@@ -1625,6 +1651,8 @@ const OrderDetailCard = ({
             onUpdateItem={onUpdateLineItem}
             onReturnItem={onReturnLineItem}
             isPaidSale={isSaleCard && paidAmount > 0}
+            onError={onError}
+            onSuccess={onSuccess}
           />
         </section>
 
@@ -1649,6 +1677,8 @@ const OrderDetailCard = ({
                 onUpdateItem={onUpdateLineItem}
                 onReturnItem={onReturnLineItem}
                 isPaidSale={false}
+                onError={onError}
+                onSuccess={onSuccess}
               />
             ) : null}
           </section>
@@ -1664,6 +1694,8 @@ const OrderDetailCard = ({
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
               isPaidSale={false}
+              onError={onError}
+              onSuccess={onSuccess}
             />
           </section>
         )}
@@ -1764,10 +1796,12 @@ type LineItemsPanelProps = {
   onRemoveItem: (itemId: string) => void;
   onUpdateItem: (
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
   isPaidSale: boolean;
+  onError: (message: string) => void;
+  onSuccess: (message: string) => void;
 };
 
 const LineItemsPanel = ({
@@ -1779,14 +1813,39 @@ const LineItemsPanel = ({
   onUpdateItem,
   onReturnItem,
   isPaidSale,
+  onError,
+  onSuccess,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [warrantyPeriod, setWarrantyPeriod] = useState('12');
+  const [warrantyPeriod, setWarrantyPeriod] = useState(kind === 'service' ? '1' : '0');
   const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>();
   const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
+  const [productForm, setProductForm] = useState<ProductFormValues | null>(null);
+  const [serviceForm, setServiceForm] = useState(initialServiceCatalogForm);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [isCatalogSaving, setIsCatalogSaving] = useState(false);
+  const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
+  const [createServiceForm, setCreateServiceForm] = useState(initialServiceCatalogForm);
+  const [isCreateServiceSaving, setIsCreateServiceSaving] = useState(false);
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
+  const hasExactServiceSuggestion = serviceSuggestions.some(
+    (service) => service.name.trim().toLowerCase() === serviceLookupQuery.toLowerCase(),
+  );
+  const canCreateMissingService =
+    kind === 'service' &&
+    serviceLookupQuery.length >= 2 &&
+    !isServiceLookupLoading &&
+    serviceSuggestions.length === 0 &&
+    !hasExactServiceSuggestion;
+
+  useEffect(() => {
+    setWarrantyPeriod(kind === 'service' ? '1' : '0');
+  }, [kind]);
 
   useEffect(() => {
     if (kind !== 'service' || serviceLookupQuery.length < 2) {
@@ -1817,7 +1876,117 @@ const LineItemsPanel = ({
     setName(service.name);
     setPrice(String(service.price));
     setQuantity('1');
+    setWarrantyPeriod('1');
+    setSelectedServiceId(service.id);
     setServiceSuggestions([]);
+  };
+
+  const openCreateServiceModal = () => {
+    setCreateServiceForm({
+      ...initialServiceCatalogForm,
+      name: serviceLookupQuery,
+      price,
+    });
+    setIsCreateServiceOpen(true);
+  };
+
+  const saveCreatedService = async () => {
+    setIsCreateServiceSaving(true);
+    try {
+      const createdService = await createServiceCatalogItem(createServiceForm);
+      setName(createdService.name);
+      setPrice(String(createdService.price));
+      setQuantity('1');
+      setWarrantyPeriod('1');
+      setSelectedServiceId(createdService.id);
+      setServiceSuggestions([createdService]);
+      setIsCreateServiceOpen(false);
+      onSuccess('Service saved to catalog.');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to save service.');
+    } finally {
+      setIsCreateServiceSaving(false);
+    }
+  };
+
+  const openLineItemModal = async (item: OrderLineItem) => {
+    setEditingItemId(item.id);
+    try {
+      if (item.kind === 'product') {
+        const products = await getProducts(item.name);
+        const product =
+          products.find((candidate) => candidate.id === item.productId) ??
+          products.find((candidate) => candidate.name === item.name) ??
+          null;
+        if (!product) {
+          onError('Product was not found in catalog.');
+          return;
+        }
+        setSelectedProduct(product);
+        setProductForm(toProductForm(product));
+        return;
+      }
+
+      const services = await getServiceCatalogItems(item.name);
+      const service =
+        services.find((candidate) => candidate.id === item.serviceId) ??
+        services.find((candidate) => candidate.name === item.name) ??
+        null;
+      if (!service) {
+        onError('Service was not found in catalog.');
+        return;
+      }
+      setSelectedService(service);
+      setServiceForm(toServiceCatalogForm(service));
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to load catalog item.');
+    }
+  };
+
+  const saveSelectedProduct = async () => {
+    if (!selectedProduct || !productForm || !editingItemId) return;
+
+    setIsCatalogSaving(true);
+    try {
+      const updatedProduct = await updateProduct(selectedProduct.id, productForm);
+      setSelectedProduct(updatedProduct);
+      setProductForm(toProductForm(updatedProduct));
+      onUpdateItem(editingItemId, {
+        name: updatedProduct.name,
+        productId: updatedProduct.id,
+        price: updatedProduct.salePriceOptions[0] ?? updatedProduct.price,
+        warrantyPeriod: 0,
+      });
+      onSuccess('Product updated.');
+      setSelectedProduct(null);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update product.');
+    } finally {
+      setIsCatalogSaving(false);
+    }
+  };
+
+  const saveSelectedService = async () => {
+    if (!selectedService || !editingItemId) return;
+
+    setIsCatalogSaving(true);
+    try {
+      const updatedService = await updateServiceCatalogItem(selectedService.id, serviceForm);
+      setSelectedService(updatedService);
+      setServiceForm(toServiceCatalogForm(updatedService));
+      onUpdateItem(editingItemId, {
+        name: updatedService.name,
+        serviceId: updatedService.id,
+        price: updatedService.price,
+        warrantyPeriod: 1,
+      });
+      onSuccess('Service updated.');
+      setSelectedService(null);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update service.');
+    } finally {
+      setIsCatalogSaving(false);
+    }
   };
 
   const submitItem = () => {
@@ -1837,6 +2006,11 @@ const LineItemsPanel = ({
 
     onAddItem({
       kind,
+      serviceId:
+        kind === 'service'
+          ? selectedServiceId ??
+            serviceSuggestions.find((service) => service.name === normalizedName)?.id
+          : undefined,
       name: normalizedName,
       price: normalizedPrice,
       quantity: normalizedQuantity,
@@ -1845,6 +2019,8 @@ const LineItemsPanel = ({
     setName('');
     setPrice('');
     setQuantity('1');
+    setWarrantyPeriod(kind === 'service' ? '1' : '0');
+    setSelectedServiceId(undefined);
     setServiceSuggestions([]);
   };
 
@@ -1861,7 +2037,15 @@ const LineItemsPanel = ({
         ) : (
           items.map((item) => (
             <div key={item.id} className='order-detail-table-row'>
-              <div key={`${item.id}-name`}>{item.name}</div>
+              <div key={`${item.id}-name`}>
+                <button
+                  type='button'
+                  className='order-line-item-name-button'
+                  onClick={() => void openLineItemModal(item)}
+                >
+                  {item.name}
+                </button>
+              </div>
               <div key={`${item.id}-price`}>
                 <NumberStepper
                   className='line-item-inline-input'
@@ -1881,7 +2065,7 @@ const LineItemsPanel = ({
               <div key={`${item.id}-warranty`}>
                 <select
                   className='line-item-inline-input'
-                  value={item.warrantyPeriod || 12}
+                  value={item.warrantyPeriod}
                   onChange={(event) =>
                     onUpdateItem(item.id, { warrantyPeriod: Number(event.target.value) })
                   }
@@ -1913,7 +2097,10 @@ const LineItemsPanel = ({
       <div className='order-line-items-form'>
         <input
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            setSelectedServiceId(undefined);
+          }}
           placeholder={`Add ${kind}`}
         />
         {kind === 'service' && (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
@@ -1931,6 +2118,15 @@ const LineItemsPanel = ({
               </button>
             ))}
           </div>
+        ) : null}
+        {canCreateMissingService ? (
+          <button
+            type='button'
+            className='secondary-button line-item-create-service-button'
+            onClick={openCreateServiceModal}
+          >
+            Add service
+          </button>
         ) : null}
         <NumberStepper
           min={0}
@@ -1962,8 +2158,259 @@ const LineItemsPanel = ({
           Add {kind}
         </button>
       </div>
+      {isCreateServiceOpen ? (
+        <CatalogServiceEditorModal
+          title='Create service'
+          form={createServiceForm}
+          isSaving={isCreateServiceSaving}
+          isEditing
+          onChange={(field, value) =>
+            setCreateServiceForm((current) => ({ ...current, [field]: value }))
+          }
+          onSubmit={() => void saveCreatedService()}
+          onClose={() => setIsCreateServiceOpen(false)}
+        />
+      ) : null}
+      {selectedProduct && productForm ? (
+        <CatalogProductEditorModal
+          product={selectedProduct}
+          form={productForm}
+          isSaving={isCatalogSaving}
+          onChange={(field, value) =>
+            setProductForm((current) => (current ? { ...current, [field]: value } : current))
+          }
+          onSubmit={() => void saveSelectedProduct()}
+          onClose={() => setSelectedProduct(null)}
+        />
+      ) : null}
+      {selectedService ? (
+        <CatalogServiceEditorModal
+          title={selectedService.name}
+          service={selectedService}
+          form={serviceForm}
+          isSaving={isCatalogSaving}
+          isEditing
+          onChange={(field, value) =>
+            setServiceForm((current) => ({ ...current, [field]: value }))
+          }
+          onSubmit={() => void saveSelectedService()}
+          onClose={() => setSelectedService(null)}
+        />
+      ) : null}
     </div>
   );
+};
+
+const getProductPriceOption = (form: ProductFormValues, index: number) =>
+  form.salePriceOptions
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)[index] ?? '';
+
+const setProductPriceOption = (
+  form: ProductFormValues,
+  index: number,
+  value: string,
+) => {
+  const values = form.salePriceOptions
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  values[index] = value;
+  return values.join(', ');
+};
+
+type CatalogProductEditorModalProps = {
+  product: Product;
+  form: ProductFormValues;
+  isSaving: boolean;
+  onChange: <K extends keyof ProductFormValues>(
+    field: K,
+    value: ProductFormValues[K],
+  ) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+};
+
+const CatalogProductEditorModal = ({
+  product,
+  form,
+  isSaving,
+  onChange,
+  onSubmit,
+  onClose,
+}: CatalogProductEditorModalProps) => {
+  useLockBodyScroll();
+
+  return (
+    <div
+      className='modal-backdrop'
+      role='presentation'
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+        <header className='catalog-edit-header'>
+          <div className='catalog-edit-title'>
+            <span>Product</span>
+            <h2>{product.name}</h2>
+          </div>
+          <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
+            &times;
+          </button>
+        </header>
+        <div className='catalog-edit-body'>
+          <h3>Main information</h3>
+          <label className='field'>
+            <span>Name</span>
+            <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+          </label>
+          <label className='field'>
+            <span>Article</span>
+            <input value={form.article} onChange={(event) => onChange('article', event.target.value)} />
+          </label>
+          <label className='field'>
+            <span>Serial number</span>
+            <input value={form.serialNumber} onChange={(event) => onChange('serialNumber', event.target.value)} />
+          </label>
+          <fieldset className='catalog-type-field'>
+            <legend>Item type</legend>
+            <label><input type='radio' checked readOnly /> Product</label>
+            <label><input type='radio' disabled /> Service</label>
+          </fieldset>
+          <div className='catalog-price-grid'>
+            <label className='field'>
+              <span>Retail price</span>
+              <NumberStepper
+                min={0}
+                value={getProductPriceOption(form, 0) || form.price}
+                onChange={(value) =>
+                  onChange('salePriceOptions', setProductPriceOption(form, 0, value))
+                }
+              />
+            </label>
+            <label className='field'>
+              <span>Purchase price</span>
+              <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+            </label>
+            <label className='field'>
+              <span>Quantity</span>
+              <NumberStepper min={0} value={form.quantity} onChange={(value) => onChange('quantity', value)} />
+            </label>
+            <label className='field'>
+              <span>Warehouse</span>
+              <input value={form.purchasePlace} onChange={(event) => onChange('purchasePlace', event.target.value)} />
+            </label>
+            <label className='field'>
+              <span>Warranty</span>
+              <input value={form.warrantyPeriod} onChange={(event) => onChange('warrantyPeriod', event.target.value)} />
+            </label>
+          </div>
+          <label className='field field-wide'>
+            <span>Note</span>
+            <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+          </label>
+        </div>
+        <footer className='catalog-edit-footer'>
+          <button type='button' className='secondary-button' onClick={onClose}>
+            Cancel
+          </button>
+          <button type='button' className='primary-button' onClick={onSubmit} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+type CatalogServiceEditorModalProps = {
+  title: string;
+  service?: ServiceCatalogItem;
+  form: typeof initialServiceCatalogForm;
+  isSaving: boolean;
+  isEditing: boolean;
+  onChange: <K extends keyof typeof initialServiceCatalogForm>(
+    field: K,
+    value: (typeof initialServiceCatalogForm)[K],
+  ) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+};
+
+const CatalogServiceEditorModal = ({
+  title,
+  service,
+  form,
+  isSaving,
+  isEditing,
+  onChange,
+  onSubmit,
+  onClose,
+}: CatalogServiceEditorModalProps) => {
+  useLockBodyScroll();
+
+  return (
+    <div
+      className='modal-backdrop'
+      role='presentation'
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+        <header className='catalog-edit-header'>
+          <div className='catalog-edit-title'>
+            <span>{service ? 'Service' : 'New service'}</span>
+            <h2>{title}</h2>
+          </div>
+          <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
+            &times;
+          </button>
+        </header>
+        <div className='catalog-edit-body'>
+          <h3>Main information</h3>
+          <label className='field'>
+            <span>Name</span>
+            <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+          </label>
+          <fieldset className='catalog-type-field'>
+            <legend>Item type</legend>
+            <label><input type='radio' disabled /> Product</label>
+            <label><input type='radio' checked readOnly /> Service</label>
+          </fieldset>
+          <label className='field'>
+            <span>Retail price</span>
+            <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+          </label>
+          <label className='field field-wide'>
+            <span>Note</span>
+            <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+          </label>
+        </div>
+        <footer className='catalog-edit-footer'>
+          <button type='button' className='secondary-button' onClick={onClose}>
+            Cancel
+          </button>
+          <button type='button' className='primary-button' onClick={onSubmit} disabled={isSaving || !isEditing}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+const useLockBodyScroll = () => {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 };
 
 type PaymentModalProps = {

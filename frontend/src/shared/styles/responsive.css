@@ -34,6 +34,14 @@
     grid-template-columns: 1fr;
   }
 
+  .order-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-detail-live-panel {
+    max-height: 340px;
+  }
+
   .create-order-right {
     border-left: 0;
     border-top: 1px solid #d5dde7;
@@ -163,6 +171,11 @@
 
   .create-order-actions button {
     width: 100%;
+  }
+
+  .order-detail-table-wide,
+  .order-line-items-form {
+    grid-template-columns: 1fr;
   }
 
   .payment-modal-form {

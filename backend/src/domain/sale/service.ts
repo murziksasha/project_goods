@@ -75,6 +75,7 @@ type SaleLineItem = {
   id: string;
   kind: string;
   productId?: string | mongoose.Types.ObjectId | null;
+  serviceId?: string | mongoose.Types.ObjectId | null;
   name: string;
   price: number;
   quantity: number;

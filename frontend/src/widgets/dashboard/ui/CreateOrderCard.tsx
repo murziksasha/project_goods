@@ -66,7 +66,7 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   product: null,
   price: '',
   quantity: '1',
-  warrantyPeriod: '12',
+  warrantyPeriod: '0',
 });
 
 const getProductPrice = (product: Product) =>
@@ -369,7 +369,7 @@ export const CreateOrderCard = ({
       product,
       price: String(getProductPrice(product)),
       quantity: '1',
-      warrantyPeriod: String(product.warrantyPeriod || 12),
+      warrantyPeriod: '0',
     });
     setSaleProductSuggestions([]);
   };
@@ -458,7 +458,7 @@ export const CreateOrderCard = ({
         product: null,
         price: '3899',
         quantity: '1',
-        warrantyPeriod: '12',
+        warrantyPeriod: '0',
       },
     ]);
   };
@@ -631,6 +631,7 @@ export const CreateOrderCard = ({
                               updateSaleItem(item.id, { warrantyPeriod: event.target.value })
                             }
                           >
+                            <option value="0">None</option>
                             <option value="1">30 day</option>
                             <option value="3">3 month</option>
                             <option value="6">6 month</option>

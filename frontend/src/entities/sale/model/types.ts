@@ -30,6 +30,7 @@ export type Sale = {
     id: string;
     kind: 'product' | 'service';
     productId?: string;
+    serviceId?: string;
     name: string;
     price: number;
     quantity: number;

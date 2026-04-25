@@ -944,6 +944,7 @@
   grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
   gap: 16px;
   padding: 16px;
+  align-items: start;
 }
 
 .order-detail-panel {
@@ -951,6 +952,14 @@
   border-radius: 8px;
   background: #fff;
   padding: 16px;
+  min-width: 0;
+}
+
+.order-detail-live-panel {
+  max-height: 360px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .order-detail-stacked-panel {
@@ -1038,6 +1047,9 @@
 .order-timeline {
   display: grid;
   gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .order-timeline-item {
@@ -1163,7 +1175,7 @@
 }
 
 .order-detail-table-wide {
-  grid-template-columns: minmax(0, 1fr) 140px 80px 120px 110px;
+  grid-template-columns: minmax(0, 1fr) 140px 104px 120px 110px;
 }
 
 .order-detail-table-row {
@@ -1182,9 +1194,30 @@
 
 .order-line-items-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 90px 130px 140px;
+  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
   gap: 10px;
   position: relative;
+}
+
+.order-line-item-name-button {
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: #2d8ae3;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-line-item-name-button:hover {
+  text-decoration: underline;
+}
+
+.line-item-create-service-button {
+  grid-column: 1;
+  justify-self: start;
 }
 
 .line-item-suggestions {
@@ -1202,12 +1235,46 @@
 
 .line-item-inline-input {
   width: 100%;
+  min-width: 0;
   border: 1px solid #ccd6e2;
   border-radius: 5px;
   background: #fff;
   color: #53677d;
   padding: 7px 8px;
   font: inherit;
+}
+
+.number-stepper.line-item-inline-input {
+  grid-template-columns: minmax(0, 1fr) 34px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 7px;
+  background: #f8fafd;
+  overflow: hidden;
+}
+
+.number-stepper.line-item-inline-input input {
+  min-width: 0;
+  padding: 8px 8px;
+  color: #111827;
+  font-weight: 700;
+  text-align: left;
+}
+
+.number-stepper.line-item-inline-input .number-stepper-controls {
+  width: 34px;
+  min-width: 34px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-self: stretch;
+}
+
+.number-stepper.line-item-inline-input .number-stepper-controls button {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 0;
+  line-height: 1;
 }
 
 .payment-modal-message {
@@ -2020,7 +2087,7 @@
 
 .sale-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px 130px 130px 42px;
+  grid-template-columns: minmax(0, 1fr) 104px 130px 130px 42px;
   gap: 10px;
   align-items: end;
 }
