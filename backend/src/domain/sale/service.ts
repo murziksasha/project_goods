@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { randomUUID } from 'crypto';
 import { Client, type ClientDocument } from '../client/model';
 import { Employee, type EmployeeDocument } from '../employee/model';
 import { Product, type ProductDocument } from '../product/model';
@@ -7,6 +8,7 @@ import { formatProduct, formatSale } from '../../shared/lib/formatters';
 import { normalizeSalePayload } from '../../shared/lib/parsers';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { getNextRecordNumber } from '../sequence/service';
+import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
 
 const ensureFreeStock = async (
@@ -43,6 +45,27 @@ const applyProductQuantityDelta = async (
   return product;
 };
 
+const receiveProductToWarehouse = async (
+  productId: mongoose.Types.ObjectId | string,
+  quantity: number,
+  warehouse: string,
+) => {
+  const product = await Product.findByIdAndUpdate(
+    productId,
+    {
+      $inc: { quantity },
+      $set: { purchasePlace: warehouse },
+    },
+    { new: false },
+  ).lean<ProductDocument | null>();
+
+  if (!product) {
+    throw new Error('Product not found.');
+  }
+
+  return product;
+};
+
 type StockLine = {
   productId: string;
   quantity: number;
@@ -55,6 +78,7 @@ type SaleLineItem = {
   name: string;
   price: number;
   quantity: number;
+  warrantyPeriod?: number;
 };
 
 const addStockQuantity = (
@@ -181,6 +205,7 @@ const getDefaultLineItems = (
     name: payload.kind === 'sale' ? product.name : 'Repair',
     price: payload.salePrice,
     quantity: payload.quantity,
+    warrantyPeriod: 0,
   },
 ];
 
@@ -220,7 +245,7 @@ const hasPermission = (
 
 const resolveEmployee = async (
   employeeId: string,
-  field: 'managerId' | 'masterId',
+  field: 'managerId' | 'masterId' | 'issuedById',
   requiredRoles: string[],
   requiredPermission: string,
 ) => {
@@ -239,6 +264,22 @@ const resolveEmployee = async (
   return employee;
 };
 
+const resolveActiveEmployee = async (
+  employeeId: string,
+  field: 'issuedById',
+) => {
+  if (!employeeId) {
+    return null;
+  }
+
+  isValidObjectIdOrThrow(employeeId, field);
+  const employee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
+  if (!employee || !employee.isActive) {
+    throw new Error(`${field} employee not found or inactive.`);
+  }
+  return employee;
+};
+
 export const listSales = async () => {
   const sales = await Sale.find().sort({ saleDate: -1 }).lean<SaleDocument[]>();
   return sales.map(formatSale);
@@ -251,11 +292,12 @@ export const createSale = async (payloadInput: SalePayload) => {
   isValidObjectIdOrThrow(payload.productId, 'productId');
   assertSalePayload(payload.quantity, payload.salePrice);
 
-  const [client, product, manager, master] = await Promise.all([
+  const [client, product, manager, master, issuedBy] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
     Product.findById(payload.productId).lean<ProductDocument | null>(),
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
+    resolveActiveEmployee(payload.issuedById, 'issuedById'),
   ]);
 
   if (!client) {
@@ -297,6 +339,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       product: product._id,
       manager: manager?._id ?? null,
       master: master?._id ?? null,
+      issuedBy: issuedBy?._id ?? null,
       quantity: payload.quantity,
       salePrice: payload.salePrice,
       kind: normalizedKind,
@@ -321,6 +364,9 @@ export const createSale = async (payloadInput: SalePayload) => {
         : undefined,
       masterSnapshot: master
         ? { name: master.name, role: master.role }
+        : undefined,
+      issuedBySnapshot: issuedBy
+        ? { name: issuedBy.name, role: issuedBy.role }
         : undefined,
     });
 
@@ -365,11 +411,12 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     throw new Error('Sale not found.');
   }
 
-  const [client, product, manager, master] = await Promise.all([
+  const [client, product, manager, master, issuedBy] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
     Product.findById(payload.productId).lean<ProductDocument | null>(),
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
+    resolveActiveEmployee(payload.issuedById, 'issuedById'),
   ]);
 
   if (!client) {
@@ -437,6 +484,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         product: product._id,
         manager: manager?._id ?? null,
         master: master?._id ?? null,
+        issuedBy: issuedBy?._id ?? existingSale.issuedBy ?? null,
         quantity: payload.quantity,
         salePrice: payload.salePrice,
         kind: normalizedKind,
@@ -462,7 +510,10 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           : undefined,
         masterSnapshot: master
           ? { name: master.name, role: master.role }
-          : undefined,
+          : existingSale.masterSnapshot,
+        issuedBySnapshot: issuedBy
+          ? { name: issuedBy.name, role: issuedBy.role }
+          : existingSale.issuedBySnapshot,
       },
       { new: true, runValidators: true },
     ).lean<SaleDocument | null>();
@@ -510,6 +561,7 @@ export const updateSaleWorkspace = async (
     payloadInput.paidAmount === undefined
       ? existingSale.paidAmount ?? 0
       : payload.paidAmount;
+  const issuedBy = await resolveActiveEmployee(payload.issuedById, 'issuedById');
   const nextTimeline =
     Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
       ? payload.timeline
@@ -544,9 +596,13 @@ export const updateSaleWorkspace = async (
       kind: nextKind,
       status: nextStatus,
       paidAmount: nextPaidAmount,
+      issuedBy: issuedBy?._id ?? existingSale.issuedBy ?? null,
       timeline: nextTimeline,
       paymentHistory: nextPaymentHistory,
       lineItems: nextLineItems,
+      issuedBySnapshot: issuedBy
+        ? { name: issuedBy.name, role: issuedBy.role }
+        : existingSale.issuedBySnapshot,
     },
     { new: true, runValidators: true },
   ).lean<SaleDocument | null>();
@@ -592,4 +648,261 @@ export const deleteSale = async (saleId: string) => {
   await Sale.findByIdAndDelete(saleId);
 
   return { id: saleId, restoredProductId: existingSale.product.toString() };
+};
+
+export const returnSaleLineItem = async (
+  saleId: string,
+  payload: {
+    lineItemId?: unknown;
+    cashboxId?: unknown;
+    refundAmount?: unknown;
+    warehouse?: unknown;
+    author?: unknown;
+  },
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+
+  const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
+  if (!sale) {
+    throw new Error('Sale not found.');
+  }
+  if (sale.kind !== 'sale') {
+    throw new Error('Only product sales can be returned this way.');
+  }
+
+  const lineItemId = String(payload.lineItemId ?? '').trim();
+  const lineItem = (sale.lineItems ?? []).find((item) => item.id === lineItemId);
+  if (!lineItem || lineItem.kind !== 'product') {
+    throw new Error('Product line item not found.');
+  }
+
+  const productId = lineItem.productId?.toString();
+  if (!productId) {
+    throw new Error('Line item is not linked to a stock product.');
+  }
+  isValidObjectIdOrThrow(productId, 'lineItems.productId');
+
+  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  const itemTotal = Math.round(lineItem.price * lineItem.quantity * 100) / 100;
+  if (
+    !Number.isFinite(refundAmount) ||
+    refundAmount <= 0 ||
+    refundAmount > itemTotal ||
+    refundAmount > (sale.paidAmount ?? 0)
+  ) {
+    throw new Error('Refund amount cannot exceed item total or paid amount.');
+  }
+
+  const cashboxId = String(payload.cashboxId ?? '').trim();
+  const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
+  const author = String(payload.author ?? '').trim() || 'System';
+  const createdAt = new Date();
+  const nextLineItems = (sale.lineItems ?? []).filter((item) => item.id !== lineItemId);
+  const nextPaidAmount = Math.max(Math.round(((sale.paidAmount ?? 0) - refundAmount) * 100) / 100, 0);
+
+  const previousProduct = await receiveProductToWarehouse(
+    productId,
+    lineItem.quantity,
+    warehouse,
+  );
+
+  try {
+    const transaction = await createFinanceTransaction({
+      type: 'withdraw',
+      amount: String(refundAmount),
+      currency: 'UAH',
+      fromCashboxId: cashboxId,
+      note: `Return for sale ${sale.recordNumber ?? sale._id.toString()}: ${lineItem.name}`,
+    });
+    const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
+    const nextPaymentHistory = [
+      {
+        id: randomUUID(),
+        type: 'refund' as const,
+        amount: refundAmount,
+        cashboxId,
+        cashboxName,
+        author,
+        createdAt,
+      },
+      ...(sale.paymentHistory ?? []),
+    ];
+    const nextTimeline = [
+      {
+        id: randomUUID(),
+        author,
+        message: `Returned "${lineItem.name}" to ${warehouse}; refunded ${refundAmount} UAH from ${cashboxName}.`,
+        createdAt,
+      },
+      ...(sale.timeline ?? []),
+    ];
+
+    assertWorkspaceState(sale.kind, sale.status, nextPaidAmount, nextLineItems);
+
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        paidAmount: nextPaidAmount,
+        lineItems: nextLineItems,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      },
+      { new: true, runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new Error('Sale not found.');
+    }
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    await Product.findByIdAndUpdate(productId, {
+      $inc: { quantity: -lineItem.quantity },
+      $set: { purchasePlace: previousProduct.purchasePlace },
+    });
+    throw error;
+  }
+};
+
+export const returnSale = async (
+  saleId: string,
+  payload: {
+    cashboxId?: unknown;
+    refundAmount?: unknown;
+    warehouse?: unknown;
+    author?: unknown;
+  },
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+
+  const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
+  if (!sale) {
+    throw new Error('Sale not found.');
+  }
+  if (sale.kind !== 'sale') {
+    throw new Error('Only product sales can be returned this way.');
+  }
+  if (sale.status === 'returned') {
+    throw new Error('Sale is already returned.');
+  }
+
+  const lineItems = sale.lineItems ?? [];
+  const productLineItems = lineItems.filter((item) => item.kind === 'product');
+  if (productLineItems.length === 0) {
+    throw new Error('Sale has no product line items to return.');
+  }
+
+  const stockDeltas = productLineItems.map((item) => {
+    const productId = item.productId?.toString();
+    if (!productId) {
+      throw new Error('Product line item is not linked to a stock product.');
+    }
+    isValidObjectIdOrThrow(productId, 'lineItems.productId');
+    return { productId, quantity: item.quantity };
+  });
+
+  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  const productTotal = calculateLineItemsTotal(productLineItems);
+  const remainingLineItems = lineItems.filter((item) => item.kind !== 'product');
+  const remainingTotal = calculateLineItemsTotal(remainingLineItems);
+  const currentPaidAmount = sale.paidAmount ?? 0;
+  const nextPaidAmount = Math.max(
+    Math.round((currentPaidAmount - refundAmount) * 100) / 100,
+    0,
+  );
+
+  if (
+    !Number.isFinite(refundAmount) ||
+    refundAmount <= 0 ||
+    refundAmount > productTotal ||
+    refundAmount > currentPaidAmount ||
+    nextPaidAmount > remainingTotal
+  ) {
+    throw new Error('Refund amount is not valid for this return.');
+  }
+
+  const cashboxId = String(payload.cashboxId ?? '').trim();
+  const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
+  const author = String(payload.author ?? '').trim() || 'System';
+  const createdAt = new Date();
+
+  const previousProducts: Array<{
+    productId: string;
+    quantity: number;
+    purchasePlace: string;
+  }> = [];
+
+  for (const delta of stockDeltas) {
+    const previousProduct = await receiveProductToWarehouse(
+      delta.productId,
+      delta.quantity,
+      warehouse,
+    );
+    previousProducts.push({
+      productId: delta.productId,
+      quantity: delta.quantity,
+      purchasePlace: previousProduct.purchasePlace,
+    });
+  }
+
+  try {
+    const transaction = await createFinanceTransaction({
+      type: 'withdraw',
+      amount: String(refundAmount),
+      currency: 'UAH',
+      fromCashboxId: cashboxId,
+      note: `Full return for sale ${sale.recordNumber ?? sale._id.toString()}`,
+    });
+    const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
+    const nextPaymentHistory = [
+      {
+        id: randomUUID(),
+        type: 'refund' as const,
+        amount: refundAmount,
+        cashboxId,
+        cashboxName,
+        author,
+        createdAt,
+      },
+      ...(sale.paymentHistory ?? []),
+    ];
+    const returnedNames = productLineItems.map((item) => item.name).join(', ');
+    const nextTimeline = [
+      {
+        id: randomUUID(),
+        author,
+        message: `Returned sale to ${warehouse}; products: ${returnedNames}; refunded ${refundAmount} UAH from ${cashboxName}.`,
+        createdAt,
+      },
+      ...(sale.timeline ?? []),
+    ];
+
+    assertWorkspaceState(sale.kind, 'returned', nextPaidAmount, remainingLineItems);
+
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        status: 'returned',
+        paidAmount: nextPaidAmount,
+        lineItems: remainingLineItems,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      },
+      { new: true, runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new Error('Sale not found.');
+    }
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    for (const product of previousProducts) {
+      await Product.findByIdAndUpdate(product.productId, {
+        $inc: { quantity: -product.quantity },
+        $set: { purchasePlace: product.purchasePlace },
+      });
+    }
+    throw error;
+  }
 };

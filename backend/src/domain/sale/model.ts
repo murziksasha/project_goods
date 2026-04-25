@@ -40,6 +40,13 @@ export const saleSchema = new mongoose.Schema(
       index: true,
       default: null,
     },
+    issuedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: false,
+      index: true,
+      default: null,
+    },
     quantity: {
       type: Number,
       required: [true, 'Sale quantity is required'],
@@ -117,6 +124,7 @@ export const saleSchema = new mongoose.Schema(
         name: { type: String, required: true },
         price: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },
+        warrantyPeriod: { type: Number, min: 0, default: 0 },
       },
     ],
     productSnapshot: {
@@ -134,6 +142,10 @@ export const saleSchema = new mongoose.Schema(
       role: { type: String, required: false },
     },
     masterSnapshot: {
+      name: { type: String, required: false },
+      role: { type: String, required: false },
+    },
+    issuedBySnapshot: {
       name: { type: String, required: false },
       role: { type: String, required: false },
     },

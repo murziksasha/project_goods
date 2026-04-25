@@ -89,6 +89,7 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   note: toNonEmptyString(payload.note),
   managerId: toNonEmptyString(payload.managerId),
   masterId: toNonEmptyString(payload.masterId),
+  issuedById: toNonEmptyString(payload.issuedById),
   kind: toNonEmptyString(payload.kind) === 'sale' ? 'sale' : 'repair',
   status: toNonEmptyString(payload.status) || 'new',
   paidAmount:
@@ -138,6 +139,10 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
           name: toNonEmptyString((item as { name?: unknown })?.name),
           price: toNumber((item as { price?: unknown })?.price),
           quantity: toNumber((item as { quantity?: unknown })?.quantity),
+          warrantyPeriod:
+            (item as { warrantyPeriod?: unknown })?.warrantyPeriod === undefined
+              ? 0
+              : toNumber((item as { warrantyPeriod?: unknown })?.warrantyPeriod),
         }))
         .filter(
           (item) =>
@@ -147,7 +152,9 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
             Number.isFinite(item.price) &&
             item.price >= 0 &&
             Number.isFinite(item.quantity) &&
-            item.quantity > 0,
+            item.quantity > 0 &&
+            Number.isFinite(item.warrantyPeriod) &&
+            item.warrantyPeriod >= 0,
         )
     : [],
 });

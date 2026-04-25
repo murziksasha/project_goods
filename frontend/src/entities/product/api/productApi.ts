@@ -45,6 +45,18 @@ export const deleteProduct = async (productId: string) => {
   }
 };
 
+export const archiveProduct = async (productId: string) => {
+  try {
+    const response = await apiClient.post<
+      { id: string; action: 'deleted' } | { action: 'deactivated'; product: Product }
+    >(`/products/${productId}/archive`);
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const exportProducts = async () => {
   try {
     const response = await apiClient.get<Blob>('/products/export', {

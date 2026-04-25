@@ -33,6 +33,7 @@ export type Sale = {
     name: string;
     price: number;
     quantity: number;
+    warrantyPeriod: number;
   }>;
   client: {
     id: string;
@@ -56,6 +57,11 @@ export type Sale = {
     name: string;
     role: string;
   } | null;
+  issuedBy: {
+    id: string;
+    name: string;
+    role: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -69,6 +75,7 @@ export type SaleFormValues = {
   note: string;
   managerId?: string;
   masterId?: string;
+  issuedById?: string;
   kind?: 'repair' | 'sale';
   status?: string;
   paidAmount?: number;
@@ -81,9 +88,25 @@ export type SaleWorkspacePayload = {
   kind?: 'repair' | 'sale';
   status?: string;
   paidAmount?: number;
+  issuedById?: string;
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
+};
+
+export type SaleLineItemReturnPayload = {
+  lineItemId: string;
+  cashboxId: string;
+  refundAmount: string;
+  warehouse: string;
+  author: string;
+};
+
+export type SaleReturnPayload = {
+  cashboxId: string;
+  refundAmount: string;
+  warehouse: string;
+  author: string;
 };
 
 export type SeedResponse = {

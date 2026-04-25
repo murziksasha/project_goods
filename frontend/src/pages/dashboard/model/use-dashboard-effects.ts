@@ -7,6 +7,8 @@ import { getProducts } from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
 import { getSales } from '../../../entities/sale/api/saleApi';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
@@ -19,6 +21,7 @@ type DashboardEffectsParams = {
   setAllProducts: Setter<Product[]>;
   setAllClients: Setter<Client[]>;
   setSales: Setter<Sale[]>;
+  setServices: Setter<ServiceCatalogItem[]>;
   setAllEmployees: Setter<Employee[]>;
   setSettings: Setter<AppSettings | null>;
   setSettingsForm: Setter<AppSettingsFormValues>;
@@ -26,6 +29,7 @@ type DashboardEffectsParams = {
   setIsProductsLoading: Setter<boolean>;
   setIsClientsLoading: Setter<boolean>;
   setIsSalesLoading: Setter<boolean>;
+  setIsServicesLoading: Setter<boolean>;
   setIsEmployeesLoading: Setter<boolean>;
   setIsClientHistoryLoading: Setter<boolean>;
   setError: Setter<string>;
@@ -37,6 +41,7 @@ export const useDashboardEffects = ({
   setAllProducts,
   setAllClients,
   setSales,
+  setServices,
   setAllEmployees,
   setSettings,
   setSettingsForm,
@@ -44,6 +49,7 @@ export const useDashboardEffects = ({
   setIsProductsLoading,
   setIsClientsLoading,
   setIsSalesLoading,
+  setIsServicesLoading,
   setIsEmployeesLoading,
   setIsClientHistoryLoading,
   setError,
@@ -57,14 +63,22 @@ export const useDashboardEffects = ({
       setIsProductsLoading(true);
       setIsClientsLoading(true);
       setIsEmployeesLoading(true);
+      setIsServicesLoading(true);
 
       try {
-        const [productsResult, clientsResult, employeesResult, settingsResult] =
+        const [
+          productsResult,
+          clientsResult,
+          employeesResult,
+          settingsResult,
+          servicesResult,
+        ] =
           await Promise.allSettled([
             getProducts(),
             getClients(),
             getEmployees(),
             getSettings(),
+            getServiceCatalogItems(),
           ]);
         if (!isActive) return;
 
@@ -85,6 +99,11 @@ export const useDashboardEffects = ({
         } else {
           setSettings(null);
           setSettingsForm({ serviceName: 'Service CRM' });
+        }
+        if (servicesResult.status === 'fulfilled') {
+          setServices(servicesResult.value);
+        } else {
+          setServices([]);
         }
 
         if (
@@ -109,6 +128,7 @@ export const useDashboardEffects = ({
           setIsProductsLoading(false);
           setIsClientsLoading(false);
           setIsEmployeesLoading(false);
+          setIsServicesLoading(false);
         }
       }
     };
@@ -127,7 +147,9 @@ export const useDashboardEffects = ({
     setSettingsForm,
     setIsClientsLoading,
     setIsEmployeesLoading,
+    setIsServicesLoading,
     setIsProductsLoading,
+    setServices,
   ]);
 
   useEffect(() => {

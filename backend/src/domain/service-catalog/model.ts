@@ -13,10 +13,25 @@ export const serviceCatalogSchema = new mongoose.Schema(
       required: [true, 'Service price is required'],
       min: [0, 'Service price cannot be negative'],
     },
+    salePriceOptions: {
+      type: [Number],
+      default: [],
+      validate: {
+        validator: (values: number[]) =>
+          Array.isArray(values) &&
+          values.every((value) => Number.isFinite(value) && value >= 0),
+        message: 'Service sale price options must contain only valid non-negative numbers.',
+      },
+    },
     note: {
       type: String,
       trim: true,
       default: '',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
     },
     searchText: {
       type: String,

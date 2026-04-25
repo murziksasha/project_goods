@@ -27,6 +27,7 @@ export type CreateOrderRequestPayload = {
     serialNumber: string;
     price: string;
     quantity: string;
+    warrantyPeriod: string;
     warehouse: string;
   }>;
 };

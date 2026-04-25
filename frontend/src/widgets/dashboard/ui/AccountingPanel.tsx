@@ -15,6 +15,7 @@ import type {
   FinanceTransactionType,
 } from '../../../entities/finance/model/types';
 import { formatDateTime } from '../../../shared/lib/format';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
 type AccountingPanelProps = {
   onError: (message: string) => void;
@@ -218,13 +219,11 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           </label>
           <label className="field">
             <span>Сумма</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
+            <NumberStepper
+              min={0}
               value={transactionForm.amount}
-              onChange={(event) =>
-                setTransactionForm((current) => ({ ...current, amount: event.target.value }))
+              onChange={(value) =>
+                setTransactionForm((current) => ({ ...current, amount: value }))
               }
             />
           </label>
