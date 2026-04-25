@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   acceptInvitation,
   getCurrentEmployee,
@@ -17,12 +17,32 @@ import { CreateOrderCard } from '../../../widgets/dashboard/ui/CreateOrderCard';
 import { EmployeeManagementPanel } from '../../../widgets/dashboard/ui/EmployeeManagementPanel';
 import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
+import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
+import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 
-type PageKey = 'home' | 'orders' | 'employees' | 'settings' | 'accounting';
+type PageKey =
+  | 'home'
+  | 'orders'
+  | 'employees'
+  | 'settings'
+  | 'accounting'
+  | 'catalog'
+  | 'warehouse';
 type OrdersTab = 'orders' | 'sales';
+type CreateOrderTab = 'repair' | 'sale';
 
-const pageKeys: PageKey[] = ['home', 'orders', 'employees', 'settings', 'accounting'];
+const pageKeys: PageKey[] = [
+  'home',
+  'orders',
+  'employees',
+  'settings',
+  'accounting',
+  'catalog',
+  'warehouse',
+];
+const ordersTabs: OrdersTab[] = ['orders', 'sales'];
+const ordersTabStorageKey = 'project-goods.orders-tab';
 
 const getPageFromUrl = (): PageKey => {
   const page = new URLSearchParams(window.location.search).get('page');
@@ -32,6 +52,24 @@ const getPageFromUrl = (): PageKey => {
 
 const getInvitationTokenFromUrl = () =>
   new URLSearchParams(window.location.search).get('inviteToken')?.trim() ?? '';
+
+const getOrdersTabFromUrl = (): OrdersTab | null => {
+  const tab = new URLSearchParams(window.location.search).get('ordersTab');
+
+  return ordersTabs.includes(tab as OrdersTab) ? (tab as OrdersTab) : null;
+};
+
+const getCreateOrderFromUrl = (): CreateOrderTab | null => {
+  const tab = new URLSearchParams(window.location.search).get('createOrder');
+
+  return tab === 'repair' || tab === 'sale' ? tab : null;
+};
+
+const getStoredOrdersTab = (): OrdersTab => {
+  const tab = window.localStorage.getItem(ordersTabStorageKey);
+
+  return ordersTabs.includes(tab as OrdersTab) ? (tab as OrdersTab) : 'orders';
+};
 
 const createEmptyInviteState = () => ({
   isLoading: false,
@@ -45,7 +83,16 @@ const createLoadingInviteState = () => ({
   isLoading: true,
 });
 
-const setPageInUrl = (page: PageKey) => {
+const getOrdersTabForCreateOrder = (tab: CreateOrderTab): OrdersTab =>
+  tab === 'sale' ? 'sales' : 'orders';
+
+const getCreateOrderForOrdersTab = (tab: OrdersTab): CreateOrderTab =>
+  tab === 'sales' ? 'sale' : 'repair';
+
+const getDashboardHref = (
+  page: PageKey,
+  options: { ordersTab?: OrdersTab; createOrder?: CreateOrderTab } = {},
+) => {
   const url = new URL(window.location.href);
 
   if (page === 'home') {
@@ -54,7 +101,35 @@ const setPageInUrl = (page: PageKey) => {
     url.searchParams.set('page', page);
   }
 
-  window.history.replaceState(null, '', url);
+  if (page === 'orders') {
+    url.searchParams.set('ordersTab', options.ordersTab ?? 'orders');
+  } else {
+    url.searchParams.delete('ordersTab');
+  }
+
+  if (page === 'orders' && options.createOrder) {
+    url.searchParams.set('createOrder', options.createOrder);
+  } else {
+    url.searchParams.delete('createOrder');
+  }
+
+  return `${url.pathname}${url.search}${url.hash}`;
+};
+
+const setDashboardUrl = (
+  page: PageKey,
+  ordersTab: OrdersTab,
+  createOrder: CreateOrderTab | null,
+) => {
+  window.history.replaceState(
+    null,
+    '',
+    getDashboardHref(page, { ordersTab, createOrder: createOrder ?? undefined }),
+  );
+};
+
+const setOrdersTabPreference = (tab: OrdersTab) => {
+  window.localStorage.setItem(ordersTabStorageKey, tab);
 };
 
 const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
@@ -63,13 +138,20 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'employees', label: 'Employees' },
   { key: 'other', label: 'Clients' },
   { key: 'accounting', label: 'Accounting' },
-  { key: 'other', label: 'Warehouses' },
-  { key: 'other', label: 'Products & Services' },
+  { key: 'warehouse', label: 'Warehouses' },
+  { key: 'catalog', label: 'Products & Services' },
   { key: 'other', label: 'Sales' },
   { key: 'other', label: 'Chats' },
   { key: 'other', label: 'More' },
   { key: 'settings', label: 'Settings' },
 ];
+
+const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+  event.button === 0 &&
+  !event.metaKey &&
+  !event.ctrlKey &&
+  !event.shiftKey &&
+  !event.altKey;
 
 export const DashboardPage = () => {
   const [authError, setAuthError] = useState('');
@@ -89,8 +171,10 @@ export const DashboardPage = () => {
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
   const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
-  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
-  const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>('orders');
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
+  const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
+    () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
+  );
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
@@ -137,8 +221,15 @@ export const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    setPageInUrl(activePage);
-  }, [activePage]);
+    window.localStorage.setItem(ordersTabStorageKey, activeOrdersTab);
+    setDashboardUrl(
+      activePage,
+      activeOrdersTab,
+      activePage === 'orders' && isCreateOrderOpen
+        ? getCreateOrderForOrdersTab(activeOrdersTab)
+        : null,
+    );
+  }, [activeOrdersTab, activePage, isCreateOrderOpen]);
 
   useEffect(() => {
     const syncInviteToken = () => {
@@ -185,13 +276,17 @@ export const DashboardPage = () => {
       return;
     }
 
-    setPageInUrl('home');
+    setDashboardUrl('home', activeOrdersTab, null);
   }, [currentEmployee, isAuthLoading]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
+      const createOrderTab = getCreateOrderFromUrl();
       setActivePage(getPageFromUrl());
-      setIsCreateOrderOpen(false);
+      setActiveOrdersTab(
+        createOrderTab ? getOrdersTabForCreateOrder(createOrderTab) : getOrdersTabFromUrl() ?? getStoredOrdersTab(),
+      );
+      setIsCreateOrderOpen(Boolean(createOrderTab));
     };
 
     window.addEventListener('popstate', syncPageFromHistory);
@@ -204,6 +299,11 @@ export const DashboardPage = () => {
     setIsCreateOrderOpen(false);
   };
 
+  const changeOrdersTab = (tab: OrdersTab) => {
+    setOrdersTabPreference(tab);
+    setActiveOrdersTab(tab);
+  };
+
   const openCreateOrder = (tab: OrdersTab) => {
     if (!canCreateOrders) {
       actions.showError('Current employee does not have permission to create orders.');
@@ -211,8 +311,13 @@ export const DashboardPage = () => {
     }
 
     setActivePage('orders');
-    setActiveOrdersTab(tab);
+    changeOrdersTab(tab);
     setIsCreateOrderOpen(true);
+  };
+
+  const openPage = (page: PageKey) => {
+    setActivePage(page);
+    setIsCreateOrderOpen(false);
   };
 
   const handleLogin = async () => {
@@ -227,7 +332,7 @@ export const DashboardPage = () => {
       setActivePage('home');
       setActiveOrdersTab('orders');
       setIsCreateOrderOpen(false);
-      setPageInUrl('home');
+      setDashboardUrl('home', 'orders', null);
       actions.showError('');
       actions.showSuccessMessage('');
     } catch (error) {
@@ -261,7 +366,7 @@ export const DashboardPage = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete('inviteToken');
       window.history.replaceState(null, '', url);
-      setPageInUrl('home');
+      setDashboardUrl('home', 'orders', null);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to complete registration.');
     } finally {
@@ -281,7 +386,7 @@ export const DashboardPage = () => {
       setIsCreateOrderOpen(false);
       setActiveOrdersTab('orders');
       setActivePage('home');
-      setPageInUrl('home');
+      setDashboardUrl('home', 'orders', null);
     }
   };
 
@@ -301,10 +406,10 @@ export const DashboardPage = () => {
 
   if (!currentEmployee) {
     return (
-      <main className="dashboard-shell">
+      <main className="dashboard-shell auth-dashboard-shell">
         <section className="dashboard-main">
-          <div className="page-shell">
-            <section className="panel" style={{ maxWidth: 480, margin: '40px auto' }}>
+          <div className="page-shell auth-page-shell">
+            <section className="panel auth-panel">
               <div className="panel-header">
                 <div>
                   <p className="section-label">Auth</p>
@@ -413,14 +518,16 @@ export const DashboardPage = () => {
             .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
-              <button
+              <a
                 key={item.label}
-                type="button"
+                href={item.key === 'other' ? '#' : getDashboardHref(item.key)}
                 className={isActive ? 'sidebar-nav-item sidebar-nav-item-active' : 'sidebar-nav-item'}
-                onClick={() => {
+                onClick={(event) => {
+                  if (!isPlainLeftClick(event)) return;
+                  event.preventDefault();
+
                   if (item.key === 'home') {
-                    setActivePage('home');
-                    setIsCreateOrderOpen(false);
+                    openPage('home');
                   }
 
                   if (item.key === 'orders') {
@@ -428,23 +535,28 @@ export const DashboardPage = () => {
                   }
 
                   if (item.key === 'employees') {
-                    setActivePage('employees');
-                    setIsCreateOrderOpen(false);
+                    openPage('employees');
                   }
 
                   if (item.key === 'settings') {
-                    setActivePage('settings');
-                    setIsCreateOrderOpen(false);
+                    openPage('settings');
                   }
 
                   if (item.key === 'accounting') {
-                    setActivePage('accounting');
-                    setIsCreateOrderOpen(false);
+                    openPage('accounting');
+                  }
+
+                  if (item.key === 'catalog') {
+                    openPage('catalog');
+                  }
+
+                  if (item.key === 'warehouse') {
+                    openPage('warehouse');
                   }
                 }}
               >
                 {item.label}
-              </button>
+              </a>
             );
           })}
         </nav>
@@ -486,9 +598,13 @@ export const DashboardPage = () => {
                 activeTab={activeOrdersTab}
                 searchValue={state.productSearchQuery}
                 isSeeding={state.isSeeding}
-                onActiveTabChange={setActiveOrdersTab}
+                onActiveTabChange={changeOrdersTab}
                 onSearchChange={actions.setProductSearchQuery}
                 onCreateOrder={openCreateOrder}
+                createOrderHref={getDashboardHref('orders', {
+                  ordersTab: activeOrdersTab,
+                  createOrder: getCreateOrderForOrdersTab(activeOrdersTab),
+                })}
                 currentEmployee={currentEmployee}
                 canCreateOrders={canCreateOrders}
                 onSeedDemoData={actions.seedDemoData}
@@ -523,6 +639,48 @@ export const DashboardPage = () => {
             <AccountingPanel
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
+            />
+          ) : activePage === 'catalog' ? (
+            <ProductCatalogPanel
+              products={state.products}
+              isLoading={state.isProductsLoading}
+              searchQuery={state.deferredProductSearchQuery}
+              currentSearchValue={state.productSearchQuery}
+              productForm={state.productForm}
+              isProductSaving={state.isProductSaving}
+              isProductEditing={Boolean(state.editingProductId)}
+              onSearchChange={actions.setProductSearchQuery}
+              onProductChange={actions.onProductChange}
+              onProductSubmit={actions.saveProduct}
+              onProductCancelEdit={actions.resetProductEditor}
+              onEdit={actions.editProduct}
+              onArchiveProduct={actions.archiveProduct}
+              services={state.services}
+              serviceForm={state.serviceForm}
+              isServicesLoading={state.isServicesLoading}
+              isServiceSaving={state.isServiceSaving}
+              isServiceEditing={Boolean(state.editingServiceId)}
+              serviceSearchQuery={state.deferredServiceSearchQuery}
+              currentServiceSearchValue={state.serviceSearchQuery}
+              onServiceSearchChange={actions.setServiceSearchQuery}
+              onServiceChange={actions.onServiceChange}
+              onServiceSubmit={actions.saveService}
+              onServiceCancelEdit={actions.resetServiceEditor}
+              onServiceEdit={actions.editService}
+              onServiceArchive={actions.archiveService}
+            />
+          ) : activePage === 'warehouse' ? (
+            <WarehousePanel
+              products={state.allProducts}
+              isLoading={state.isProductsLoading}
+              productForm={state.productForm}
+              isProductSaving={state.isProductSaving}
+              isProductEditing={Boolean(state.editingProductId)}
+              onProductChange={actions.onProductChange}
+              onProductSubmit={actions.saveProduct}
+              onProductCancelEdit={actions.resetProductEditor}
+              onProductEdit={actions.editProduct}
+              onProductDelete={actions.deleteProduct}
             />
           ) : (
             <AnalyticsHeroSection

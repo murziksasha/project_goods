@@ -1,4 +1,5 @@
 import type { ProductFormValues } from '../../../entities/product/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
 type ProductFormProps = {
   form: ProductFormValues;
@@ -70,13 +71,11 @@ export const ProductForm = ({
 
       <label className="field">
         <span>Price</span>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
+        <NumberStepper
+          min={0}
           value={form.price}
           placeholder="1200"
-          onChange={(event) => onChange('price', event.target.value)}
+          onChange={(value) => onChange('price', value)}
         />
       </label>
 
@@ -91,13 +90,11 @@ export const ProductForm = ({
 
       <label className="field">
         <span>Quantity</span>
-        <input
-          type="number"
-          min="0"
-          step="1"
+        <NumberStepper
+          min={0}
           value={form.quantity}
           placeholder="5"
-          onChange={(event) => onChange('quantity', event.target.value)}
+          onChange={(value) => onChange('quantity', value)}
         />
       </label>
 
@@ -130,15 +127,19 @@ export const ProductForm = ({
       </label>
 
       <label className="field field-wide">
-        <span>Warranty period, months</span>
-        <input
-          type="number"
-          min="0"
-          step="1"
+        <span>Warranty</span>
+        <select
           value={form.warrantyPeriod}
-          placeholder="12"
           onChange={(event) => onChange('warrantyPeriod', event.target.value)}
-        />
+        >
+          <option value="">Select warranty</option>
+          <option value="1">30 day</option>
+          <option value="3">3 month</option>
+          <option value="6">6 month</option>
+          <option value="12">1 year</option>
+          <option value="24">2 year</option>
+          <option value="36">3 year</option>
+        </select>
       </label>
     </div>
 

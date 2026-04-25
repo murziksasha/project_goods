@@ -22,6 +22,7 @@ import type {
   EmployeeFormValues,
 } from '../../../entities/employee/model/types';
 import {
+  archiveProduct,
   createProduct,
   deleteProduct,
   exportProducts,
@@ -33,12 +34,26 @@ import type { Product, ProductFormValues } from '../../../entities/product/model
 import { createSale, deleteSale, updateSale } from '../../../entities/sale/api/saleApi';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
+import {
+  archiveServiceCatalogItem,
+  createServiceCatalogItem,
+  deleteServiceCatalogItem,
+  updateServiceCatalogItem,
+} from '../../../entities/service-catalog/api/serviceCatalogApi';
+import {
+  initialServiceCatalogForm,
+  toServiceCatalogForm,
+} from '../../../entities/service-catalog/model/forms';
+import type {
+  ServiceCatalogFormValues,
+  ServiceCatalogItem,
+} from '../../../entities/service-catalog/model/types';
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
 import type {
   AppSettings,
   AppSettingsFormValues,
 } from '../../../entities/settings/model/types';
-import { seedDemoData } from '../../../features/demo-data/api/demoApi';
+import { seedDemoData, type DemoSeedKind } from '../../../features/demo-data/api/demoApi';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 
@@ -49,11 +64,13 @@ type DashboardActionParams = {
   allClients: Client[];
   allEmployees: Employee[];
   productForm: ProductFormValues;
+  serviceForm: ServiceCatalogFormValues;
   clientForm: ClientFormValues;
   saleForm: SaleFormValues;
   employeeForm: EmployeeFormValues;
   settingsForm: AppSettingsFormValues;
   editingProductId: string | null;
+  editingServiceId: string | null;
   editingClientId: string | null;
   editingSaleId: string | null;
   editingEmployeeId: string | null;
@@ -62,22 +79,27 @@ type DashboardActionParams = {
   setAllClients: Setter<Client[]>;
   setAllEmployees: Setter<Employee[]>;
   setSales: Setter<Sale[]>;
+  setServices: Setter<ServiceCatalogItem[]>;
   setSettings: Setter<AppSettings | null>;
   setSelectedClientId: Setter<string | null>;
   setClientHistory: Setter<ClientHistory | null>;
   setProductForm: Setter<ProductFormValues>;
+  setServiceForm: Setter<ServiceCatalogFormValues>;
   setClientForm: Setter<ClientFormValues>;
   setSaleForm: Setter<SaleFormValues>;
   setEmployeeForm: Setter<EmployeeFormValues>;
   setSettingsForm: Setter<AppSettingsFormValues>;
   setEditingProductId: Setter<string | null>;
+  setEditingServiceId: Setter<string | null>;
   setEditingClientId: Setter<string | null>;
   setEditingSaleId: Setter<string | null>;
   setEditingEmployeeId: Setter<string | null>;
   setProductSearchQuery: Setter<string>;
+  setServiceSearchQuery: Setter<string>;
   setClientSearchQuery: Setter<string>;
   setClientStatusFilter: Setter<ClientStatus | 'all'>;
   setIsProductSaving: Setter<boolean>;
+  setIsServiceSaving: Setter<boolean>;
   setIsClientSaving: Setter<boolean>;
   setIsSaleSaving: Setter<boolean>;
   setIsEmployeeSaving: Setter<boolean>;
@@ -94,11 +116,13 @@ export const createDashboardActions = ({
   allClients,
   allEmployees,
   productForm,
+  serviceForm,
   clientForm,
   saleForm,
   employeeForm,
   settingsForm,
   editingProductId,
+  editingServiceId,
   editingClientId,
   editingSaleId,
   editingEmployeeId,
@@ -107,22 +131,27 @@ export const createDashboardActions = ({
   setAllClients,
   setAllEmployees,
   setSales,
+  setServices,
   setSettings,
   setSelectedClientId,
   setClientHistory,
   setProductForm,
+  setServiceForm,
   setClientForm,
   setSaleForm,
   setEmployeeForm,
   setSettingsForm,
   setEditingProductId,
+  setEditingServiceId,
   setEditingClientId,
   setEditingSaleId,
   setEditingEmployeeId,
   setProductSearchQuery,
+  setServiceSearchQuery,
   setClientSearchQuery,
   setClientStatusFilter,
   setIsProductSaving,
+  setIsServiceSaving,
   setIsClientSaving,
   setIsSaleSaving,
   setIsEmployeeSaving,
@@ -141,6 +170,10 @@ export const createDashboardActions = ({
   const resetProductEditor = () => {
     setEditingProductId(null);
     setProductForm(initialProductForm);
+  };
+  const resetServiceEditor = () => {
+    setEditingServiceId(null);
+    setServiceForm(initialServiceCatalogForm);
   };
   const resetClientEditor = () => {
     setEditingClientId(null);
@@ -202,6 +235,7 @@ export const createDashboardActions = ({
       );
     },
     setProductSearchQuery,
+    setServiceSearchQuery,
     setClientSearchQuery,
     setClientStatusFilter,
     setSelectedClientId: (clientId: string | null) => {
@@ -215,6 +249,10 @@ export const createDashboardActions = ({
       field: K,
       value: ProductFormValues[K],
     ) => setProductForm((currentForm) => ({ ...currentForm, [field]: value })),
+    onServiceChange: <K extends keyof ServiceCatalogFormValues>(
+      field: K,
+      value: ServiceCatalogFormValues[K],
+    ) => setServiceForm((currentForm) => ({ ...currentForm, [field]: value })),
     onClientChange: <K extends keyof ClientFormValues>(
       field: K,
       value: ClientFormValues[K],
@@ -233,6 +271,11 @@ export const createDashboardActions = ({
       clearNotifications();
       setEditingProductId(product.id);
       setProductForm(toProductForm(product));
+    },
+    editService: (service: ServiceCatalogItem) => {
+      clearNotifications();
+      setEditingServiceId(service.id);
+      setServiceForm(toServiceCatalogForm(service));
     },
     editClient: (client: Client) => {
       clearNotifications();
@@ -255,6 +298,7 @@ export const createDashboardActions = ({
       setClientForm(toClientForm(client));
     },
     resetProductEditor,
+    resetServiceEditor,
     resetClientEditor,
     resetSaleEditor,
     resetEmployeeEditor,
@@ -280,6 +324,35 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to save product.'));
       } finally {
         setIsProductSaving(false);
+      }
+    },
+    saveService: async () => {
+      setIsServiceSaving(true);
+      clearNotifications();
+
+      try {
+        if (editingServiceId) {
+          const updatedService = await updateServiceCatalogItem(
+            editingServiceId,
+            serviceForm,
+          );
+          setServices((current) =>
+            current.map((item) =>
+              item.id === updatedService.id ? updatedService : item,
+            ),
+          );
+          setSuccessMessage('Service updated.');
+        } else {
+          const createdService = await createServiceCatalogItem(serviceForm);
+          setServices((current) => [createdService, ...current]);
+          setSuccessMessage('Service saved to catalog.');
+        }
+
+        resetServiceEditor();
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to save service.'));
+      } finally {
+        setIsServiceSaving(false);
       }
     },
     saveClient: async () => {
@@ -391,6 +464,73 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to delete product.'));
       }
     },
+    archiveProduct: async (product: Product) => {
+      clearNotifications();
+      if (
+        !window.confirm(
+          `Alarm: delete or deactivate product "${product.name}"? This action depends on stock and order history.`,
+        )
+      ) return;
+
+      try {
+        const result = await archiveProduct(product.id);
+        if (result.action === 'deleted') {
+          setAllProducts((current) => current.filter((item) => item.id !== product.id));
+          if (editingProductId === product.id) resetProductEditor();
+          setSuccessMessage('Product deleted.');
+          return;
+        }
+
+        setAllProducts((current) =>
+          current.map((item) =>
+            item.id === result.product.id ? result.product : item,
+          ),
+        );
+        setSuccessMessage('Product deactivated.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate product.'));
+      }
+    },
+    deleteService: async (service: ServiceCatalogItem) => {
+      clearNotifications();
+      if (!window.confirm(`Delete service "${service.name}"?`)) return;
+
+      try {
+        await deleteServiceCatalogItem(service.id);
+        setServices((current) => current.filter((item) => item.id !== service.id));
+        if (editingServiceId === service.id) resetServiceEditor();
+        setSuccessMessage('Service deleted.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to delete service.'));
+      }
+    },
+    archiveService: async (service: ServiceCatalogItem) => {
+      clearNotifications();
+      if (
+        !window.confirm(
+          `Alarm: delete or deactivate service "${service.name}"? Used services will be deactivated instead of deleted.`,
+        )
+      ) return;
+
+      try {
+        const result = await archiveServiceCatalogItem(service.id);
+        if (result.action === 'deleted') {
+          setServices((current) => current.filter((item) => item.id !== service.id));
+          if (editingServiceId === service.id) resetServiceEditor();
+          setSuccessMessage('Service deleted.');
+          return;
+        }
+
+        setServices((current) =>
+          current.map((item) =>
+            item.id === result.service.id ? result.service : item,
+          ),
+        );
+        setSuccessMessage('Service deactivated.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate service.'));
+      }
+    },
     deleteClient: async (client: Client) => {
       clearNotifications();
       if (!window.confirm(`Delete client "${client.name}"?`)) return;
@@ -452,11 +592,11 @@ export const createDashboardActions = ({
         setIsExporting(false);
       }
     },
-    seedDemoData: async () => {
+    seedDemoData: async (kind: DemoSeedKind = 'all') => {
       setIsSeeding(true);
       clearNotifications();
       try {
-        const result = await seedDemoData();
+        const result = await seedDemoData(kind);
         setAllProducts(result.products);
         setAllClients(result.clients);
         setSales(result.sales);
@@ -486,12 +626,17 @@ export const createDashboardActions = ({
           .map((item) => {
             const quantity = Number.parseInt(item.quantity || '1', 10);
             const price = Number.parseFloat(item.price || '0');
+            const warrantyPeriod = Number.parseInt(item.warrantyPeriod || '0', 10);
 
             return {
               ...item,
               name: item.name.trim(),
               quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
               price: Number.isFinite(price) && price >= 0 ? price : 0,
+              warrantyPeriod:
+                Number.isFinite(warrantyPeriod) && warrantyPeriod >= 0
+                  ? warrantyPeriod
+                  : 0,
             };
           })
           .filter((item) => item.name.length >= 2);
@@ -627,6 +772,7 @@ export const createDashboardActions = ({
                   : item.name,
                 price: item.price,
                 quantity: item.quantity,
+                warrantyPeriod: item.warrantyPeriod,
               }))
             : [
                 {
@@ -636,6 +782,7 @@ export const createDashboardActions = ({
                   name: payload.serviceName.trim() || 'Repair',
                   price: estimatedCost,
                   quantity: 1,
+                  warrantyPeriod: 0,
                 },
               ];
 

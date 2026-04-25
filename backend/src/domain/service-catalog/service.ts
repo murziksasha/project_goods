@@ -1,4 +1,5 @@
 import { ServiceCatalog, type ServiceCatalogDocument } from './model';
+import { Sale } from '../sale/model';
 import { getSearchQuery } from '../../shared/lib/query';
 import type { ServiceCatalogPayload } from '../shared/types';
 
@@ -18,12 +19,19 @@ const normalizePrice = (value: unknown) => {
   }
   return price;
 };
+const normalizeSalePriceOptions = (value: unknown) =>
+  (Array.isArray(value) ? value : String(value ?? '').split(','))
+    .map((item) => normalizePrice(item))
+    .filter((item) => Number.isFinite(item) && item >= 0)
+    .slice(0, 2);
 
 const formatServiceCatalogItem = (service: ServiceCatalogDocument) => ({
   id: service._id.toString(),
   name: service.name,
   price: service.price,
+  salePriceOptions: service.salePriceOptions ?? [],
   note: service.note ?? '',
+  isActive: service.isActive ?? true,
   createdAt: service.createdAt.toISOString(),
   updatedAt: service.updatedAt.toISOString(),
 });
@@ -58,6 +66,7 @@ export const createServiceCatalogItem = async (
   const service = new ServiceCatalog({
     name: normalizeName(payload.name),
     price: normalizePrice(payload.price),
+    salePriceOptions: normalizeSalePriceOptions(payload.salePriceOptions),
     note: String(payload.note ?? '').trim(),
   });
 
@@ -67,4 +76,71 @@ export const createServiceCatalogItem = async (
   return formatServiceCatalogItem(
     service.toObject<ServiceCatalogDocument>(),
   );
+};
+
+export const updateServiceCatalogItem = async (
+  serviceId: string,
+  payload: ServiceCatalogPayload,
+) => {
+  const service = await ServiceCatalog.findById(serviceId);
+  if (!service) {
+    throw new Error('Service not found.');
+  }
+
+  service.name = normalizeName(payload.name);
+  service.price = normalizePrice(payload.price);
+  service.salePriceOptions = normalizeSalePriceOptions(payload.salePriceOptions);
+  service.note = String(payload.note ?? '').trim();
+
+  await service.validate();
+  await service.save();
+
+  return formatServiceCatalogItem(
+    service.toObject<ServiceCatalogDocument>(),
+  );
+};
+
+export const deleteServiceCatalogItem = async (serviceId: string) => {
+  const service = await ServiceCatalog.findByIdAndDelete(serviceId).lean<ServiceCatalogDocument | null>();
+  if (!service) {
+    throw new Error('Service not found.');
+  }
+
+  return { id: serviceId };
+};
+
+export const archiveServiceCatalogItem = async (serviceId: string) => {
+  const service = await ServiceCatalog.findById(serviceId).lean<ServiceCatalogDocument | null>();
+  if (!service) {
+    throw new Error('Service not found.');
+  }
+
+  const wasUsed = await Sale.exists({
+    lineItems: {
+      $elemMatch: {
+        kind: 'service',
+        name: service.name,
+      },
+    },
+  });
+
+  if (!wasUsed) {
+    await ServiceCatalog.findByIdAndDelete(serviceId);
+    return { id: serviceId, action: 'deleted' as const };
+  }
+
+  const updatedService = await ServiceCatalog.findByIdAndUpdate(
+    serviceId,
+    { isActive: false },
+    { new: true, runValidators: true },
+  ).lean<ServiceCatalogDocument | null>();
+
+  if (!updatedService) {
+    throw new Error('Service not found.');
+  }
+
+  return {
+    action: 'deactivated' as const,
+    service: formatServiceCatalogItem(updatedService),
+  };
 };

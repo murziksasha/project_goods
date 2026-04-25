@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
 import {
   formatCurrency,
   formatDateTime,
@@ -10,8 +11,15 @@ import {
   createFinanceTransaction,
   getCashboxes,
 } from '../../../entities/finance/api/financeApi';
-import { updateSaleWorkspace } from '../../../entities/sale/api/saleApi';
+import {
+  returnSale as returnSaleRequest,
+  returnSaleLineItem,
+  updateSaleWorkspace,
+} from '../../../entities/sale/api/saleApi';
+import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import type { Cashbox } from '../../../entities/finance/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -24,13 +32,21 @@ type OrdersWorkspaceProps = {
   onActiveTabChange: (tab: OrdersTab) => void;
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
-  onSeedDemoData: () => void;
+  createOrderHref: string;
+  onSeedDemoData: (kind: DemoSeedKind) => void;
   onSaleUpdate: (sale: Sale) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 };
 
 type OrdersTab = 'orders' | 'sales';
+const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+  event.button === 0 &&
+  !event.metaKey &&
+  !event.ctrlKey &&
+  !event.shiftKey &&
+  !event.altKey;
+
 type RepairStatus =
   | 'issued'
   | 'ready'
@@ -56,7 +72,8 @@ type PaymentAction =
 type PaymentTargetStatus =
   | 'issued'
   | 'issuedWithoutRepair'
-  | 'paid';
+  | 'paid'
+  | 'completed';
 type PrintForm = {
   id: string;
   title: string;
@@ -85,6 +102,7 @@ type OrderLineItem = {
   name: string;
   price: number;
   quantity: number;
+  warrantyPeriod: number;
 };
 
 const orderTabs: Array<{ key: OrdersTab; label: string }> = [
@@ -159,6 +177,13 @@ const statusLabels = repairStatuses.reduce(
   ),
 );
 
+const getStatusOptionsForSale = (sale: Sale) =>
+  isRepairOrder(sale) ? repairStatuses : saleStatuses;
+
+const getStatusLabel = (sale: Sale, status: OrderStatus) =>
+  getStatusOptionsForSale(sale).find((option) => option.key === status)?.label ??
+  statusLabels[status];
+
 const readPrintForms = () => {
   try {
     const forms = JSON.parse(
@@ -180,7 +205,17 @@ const createOrderLineItem = (
   name: kind === 'product' ? sale.product.name : 'Repair',
   price: sale.salePrice,
   quantity: sale.quantity,
+  warrantyPeriod: 0,
 });
+
+const warrantyOptions = [
+  { label: '30 day', value: 1 },
+  { label: '3 month', value: 3 },
+  { label: '6 month', value: 6 },
+  { label: '1 year', value: 12 },
+  { label: '2 year', value: 24 },
+  { label: '3 year', value: 36 },
+];
 
 const getDefaultLineItems = (sale: Sale) =>
   isRepairOrder(sale)
@@ -197,6 +232,9 @@ const getOrderTotal = (
     0,
   );
 
+const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
+  lineItems.reduce((total, item) => total + item.price * item.quantity, 0);
+
 const getRemainingPayment = (
   sale: Sale,
   paidAmount: number,
@@ -208,6 +246,13 @@ const isClosingStatus = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
     ? status === 'issued' || status === 'issuedWithoutRepair'
     : status === 'paid' || status === 'completed';
+
+const shouldCaptureIssuedBy = (sale: Sale, status: OrderStatus) =>
+  !isRepairOrder(sale) && isClosingStatus(sale, status) && !sale.issuedBy;
+
+const isSalePaymentStatus = (status: OrderStatus) =>
+  status === 'paid' || status === 'completed';
+
 const escapeHtml = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -302,6 +347,7 @@ export const OrdersWorkspace = ({
   onActiveTabChange,
   onSearchChange,
   onCreateOrder,
+  createOrderHref,
   onSeedDemoData,
   onSaleUpdate,
   onError,
@@ -316,6 +362,9 @@ export const OrdersWorkspace = ({
   >(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
+  const [fullReturnSale, setFullReturnSale] = useState<Sale | null>(null);
+  const [returnLineItem, setReturnLineItem] = useState<OrderLineItem | null>(null);
   const [paymentTargetStatus, setPaymentTargetStatus] =
     useState<PaymentTargetStatus>('issued');
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
@@ -324,12 +373,18 @@ export const OrdersWorkspace = ({
   const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
     useState('');
   const [refundAmount, setRefundAmount] = useState('');
+  const [returnRefundAmount, setReturnRefundAmount] = useState('');
+  const [returnWarehouse, setReturnWarehouse] = useState('Service center');
   const [isPaymentModalLoading, setIsPaymentModalLoading] =
     useState(false);
   const [isPaymentSaving, setIsPaymentSaving] = useState(false);
   const [isRefundModalLoading, setIsRefundModalLoading] =
     useState(false);
   const [isRefundSaving, setIsRefundSaving] = useState(false);
+  const [isReturnModalLoading, setIsReturnModalLoading] = useState(false);
+  const [isReturnSaving, setIsReturnSaving] = useState(false);
+  const [isFullReturnModalLoading, setIsFullReturnModalLoading] = useState(false);
+  const [isFullReturnSaving, setIsFullReturnSaving] = useState(false);
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -377,8 +432,7 @@ export const OrdersWorkspace = ({
   const getStatus = (sale: Sale): OrderStatus =>
     (sale.status as OrderStatus) ?? 'new';
 
-  const getStatusOptions = (sale: Sale) =>
-    isRepairOrder(sale) ? repairStatuses : saleStatuses;
+  const getStatusOptions = getStatusOptionsForSale;
 
   const getLineItems = (sale: Sale) =>
     sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale);
@@ -415,6 +469,7 @@ export const OrdersWorkspace = ({
     payload: {
       status?: OrderStatus;
       paidAmount?: number;
+      issuedById?: string;
       timeline?: TimelineEntry[];
       paymentHistory?: PaymentEntry[];
       lineItems?: OrderLineItem[];
@@ -424,6 +479,7 @@ export const OrdersWorkspace = ({
       kind: sale.kind,
       status: payload.status ?? sale.status,
       paidAmount: payload.paidAmount ?? sale.paidAmount,
+      issuedById: payload.issuedById,
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory:
         payload.paymentHistory ?? sale.paymentHistory,
@@ -437,10 +493,46 @@ export const OrdersWorkspace = ({
     sale: Sale,
     status: OrderStatus,
   ) => {
+    const remainingPayment = getOrderRemainingPayment(sale);
+
+    if (!isRepairOrder(sale) && status === 'returned') {
+      setOpenStatusSaleId(null);
+      await openReturnSaleModal(sale);
+      return;
+    }
+
+    if (
+      (isRepairOrder(sale) && status === 'issued') ||
+      (!isRepairOrder(sale) && isSalePaymentStatus(status))
+    ) {
+      setOpenStatusSaleId(null);
+      if (remainingPayment <= 0) {
+        await persistSaleWorkspace(sale, {
+          status,
+          issuedById: shouldCaptureIssuedBy(sale, status)
+            ? currentEmployee?.id
+            : undefined,
+          timeline: [
+            appendTimelineEntry(
+              `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
+            ),
+            ...sale.timeline,
+          ],
+        });
+        return;
+      }
+
+      await openPaymentModal(
+        sale,
+        status as Extract<OrderStatus, PaymentTargetStatus>,
+      );
+      return;
+    }
+
     if (
       isClosingStatus(sale, status) &&
       hasAttachedProducts(sale) &&
-      getOrderRemainingPayment(sale) > 0
+      remainingPayment > 0
     ) {
       setWarningMessage(
         'Product shipped but payment has not been received.',
@@ -449,23 +541,14 @@ export const OrdersWorkspace = ({
       return;
     }
 
-    if (
-      (isRepairOrder(sale) && status === 'issued') ||
-      (!isRepairOrder(sale) && status === 'paid')
-    ) {
-      setOpenStatusSaleId(null);
-      await openPaymentModal(
-        sale,
-        status as Extract<OrderStatus, PaymentTargetStatus>,
-      );
-      return;
-    }
-
     await persistSaleWorkspace(sale, {
       status,
+      issuedById: shouldCaptureIssuedBy(sale, status)
+        ? currentEmployee?.id
+        : undefined,
       timeline: [
         appendTimelineEntry(
-          `${currentEmployeeName} changed status to "${statusLabels[status]}".`,
+          `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
         ),
         ...sale.timeline,
       ],
@@ -551,6 +634,89 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const openReturnLineItemModal = async (sale: Sale, item: OrderLineItem) => {
+    const lastDepositCashboxId =
+      (sale.paymentHistory ?? []).find((entry) => entry.type === 'deposit')
+        ?.cashboxId ?? '';
+
+    setReturnSale(sale);
+    setReturnLineItem(item);
+    setReturnRefundAmount(String(Math.min(item.price * item.quantity, getPaidAmount(sale))));
+    setReturnWarehouse('Service center');
+    setIsReturnModalLoading(true);
+
+    try {
+      const cashboxData = await getCashboxes();
+      setCashboxes(cashboxData);
+      setSelectedRefundCashboxId(
+        lastDepositCashboxId ||
+          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
+          cashboxData[0]?.id ||
+          '',
+      );
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load cashboxes.',
+      );
+      setReturnSale(null);
+      setReturnLineItem(null);
+    } finally {
+      setIsReturnModalLoading(false);
+    }
+  };
+
+  const openReturnSaleModal = async (sale: Sale) => {
+    const lastDepositCashboxId =
+      (sale.paymentHistory ?? []).find((entry) => entry.type === 'deposit')
+        ?.cashboxId ?? '';
+    const lineItems = getLineItems(sale);
+    const productTotal = getLineItemsTotal(
+      lineItems.filter((item) => item.kind === 'product'),
+    );
+    const serviceTotal = getLineItemsTotal(
+      lineItems.filter((item) => item.kind !== 'product'),
+    );
+    const paidAmount = getPaidAmount(sale);
+    const suggestedRefund = Math.min(productTotal, Math.max(paidAmount - serviceTotal, 0));
+
+    if (productTotal <= 0) {
+      onError('Sale has no products to return to stock.');
+      return;
+    }
+
+    if (suggestedRefund <= 0) {
+      onError('Cannot return a sale without received payment. Use another status for unpaid cancellation.');
+      return;
+    }
+
+    setFullReturnSale(sale);
+    setReturnRefundAmount(String(Math.round(suggestedRefund * 100) / 100));
+    setReturnWarehouse('Service center');
+    setIsFullReturnModalLoading(true);
+
+    try {
+      const cashboxData = await getCashboxes();
+      setCashboxes(cashboxData);
+      setSelectedRefundCashboxId(
+        lastDepositCashboxId ||
+          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
+          cashboxData[0]?.id ||
+          '',
+      );
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load cashboxes.',
+      );
+      setFullReturnSale(null);
+    } finally {
+      setIsFullReturnModalLoading(false);
+    }
+  };
+
   const addLineItem = (
     sale: Sale,
     item: Omit<OrderLineItem, 'id'>,
@@ -573,6 +739,20 @@ export const OrdersWorkspace = ({
     void persistSaleWorkspace(sale, {
       lineItems:
         nextItems.length > 0 ? nextItems : getDefaultLineItems(sale),
+    });
+  };
+
+  const updateLineItem = (
+    sale: Sale,
+    itemId: string,
+    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+  ) => {
+    const nextItems = getLineItems(sale).map((item) =>
+      item.id === itemId ? { ...item, ...patch } : item,
+    );
+
+    void persistSaleWorkspace(sale, {
+      lineItems: nextItems,
     });
   };
 
@@ -676,7 +856,7 @@ export const OrdersWorkspace = ({
         nextStatus = setIssuedStatus(paymentTargetStatus);
         nextTimeline = [
           appendTimelineEntry(
-            `${currentEmployeeName} changed status to "${statusLabels[nextStatus]}".`,
+            `${currentEmployeeName} changed status to "${getStatusLabel(paymentSale, nextStatus)}".`,
           ),
           ...nextTimeline,
         ];
@@ -685,6 +865,10 @@ export const OrdersWorkspace = ({
       await persistSaleWorkspace(paymentSale, {
         status: nextStatus,
         paidAmount: nextPaidAmount,
+        issuedById:
+          nextStatus && shouldCaptureIssuedBy(paymentSale, nextStatus)
+            ? currentEmployee?.id
+            : undefined,
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       });
@@ -694,9 +878,11 @@ export const OrdersWorkspace = ({
           ? 'Payment accepted to cashbox.'
           : paymentTargetStatus === 'paid'
             ? 'Sale marked as paid successfully.'
-            : paymentTargetStatus === 'issuedWithoutRepair'
-            ? 'Order issued without repair successfully.'
-            : 'Order issued successfully.',
+            : paymentTargetStatus === 'completed'
+              ? 'Sale completed successfully.'
+              : paymentTargetStatus === 'issuedWithoutRepair'
+                ? 'Order issued without repair successfully.'
+                : 'Order issued successfully.',
       );
       setPaymentSale(null);
     } catch (error) {
@@ -780,11 +966,108 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const returnLineItemToStock = async () => {
+    if (!returnSale || !returnLineItem || !selectedRefundCashboxId) return;
+
+    const refundAmountValue = Math.round(Number(returnRefundAmount) * 100) / 100;
+
+    if (
+      !Number.isFinite(refundAmountValue) ||
+      refundAmountValue <= 0 ||
+      refundAmountValue > returnLineItem.price * returnLineItem.quantity ||
+      refundAmountValue > getPaidAmount(returnSale)
+    ) {
+      onError('Refund amount cannot exceed item total or paid amount.');
+      return;
+    }
+
+    setIsReturnSaving(true);
+
+    try {
+      const updatedSale = await returnSaleLineItem(returnSale.id, {
+        lineItemId: returnLineItem.id,
+        cashboxId: selectedRefundCashboxId,
+        refundAmount: String(refundAmountValue),
+        warehouse: returnWarehouse,
+        author: currentEmployeeName,
+      });
+      onSaleUpdate(updatedSale);
+      setCashboxes(await getCashboxes());
+      window.dispatchEvent(
+        new CustomEvent('project-goods:finance-updated'),
+      );
+      onSuccess('Product returned to stock and refund completed.');
+      setReturnSale(null);
+      setReturnLineItem(null);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to return product.',
+      );
+    } finally {
+      setIsReturnSaving(false);
+    }
+  };
+
+  const returnFullSaleToStock = async () => {
+    if (!fullReturnSale || !selectedRefundCashboxId) return;
+
+    const refundAmountValue = Math.round(Number(returnRefundAmount) * 100) / 100;
+    const lineItems = getLineItems(fullReturnSale);
+    const productTotal = getLineItemsTotal(
+      lineItems.filter((item) => item.kind === 'product'),
+    );
+    const serviceTotal = getLineItemsTotal(
+      lineItems.filter((item) => item.kind !== 'product'),
+    );
+    const paidAmount = getPaidAmount(fullReturnSale);
+
+    if (
+      !Number.isFinite(refundAmountValue) ||
+      refundAmountValue <= 0 ||
+      refundAmountValue > productTotal ||
+      refundAmountValue > paidAmount ||
+      paidAmount - refundAmountValue > serviceTotal ||
+      !returnWarehouse.trim()
+    ) {
+      onError('Refund amount is not valid for this return.');
+      return;
+    }
+
+    setIsFullReturnSaving(true);
+
+    try {
+      const updatedSale = await returnSaleRequest(fullReturnSale.id, {
+        cashboxId: selectedRefundCashboxId,
+        refundAmount: String(refundAmountValue),
+        warehouse: returnWarehouse,
+        author: currentEmployeeName,
+      });
+      onSaleUpdate(updatedSale);
+      setCashboxes(await getCashboxes());
+      window.dispatchEvent(
+        new CustomEvent('project-goods:finance-updated'),
+      );
+      onSuccess('Sale returned, products moved back to stock, and refund completed.');
+      setFullReturnSale(null);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to return sale.',
+      );
+    } finally {
+      setIsFullReturnSaving(false);
+    }
+  };
+
   return (
     <section className='orders-page'>
       {selectedSale ? (
         <OrderDetailCard
           sale={selectedSale}
+          sales={sales}
           status={selectedSaleStatus}
           statusOptions={selectedSaleStatusOptions}
           comments={selectedSale.timeline ?? []}
@@ -801,6 +1084,13 @@ export const OrdersWorkspace = ({
           onRemoveLineItem={(itemId) =>
             removeLineItem(selectedSale, itemId)
           }
+          onUpdateLineItem={(itemId, patch) =>
+            updateLineItem(selectedSale, itemId, patch)
+          }
+          onReturnLineItem={(item) =>
+            openReturnLineItemModal(selectedSale, item)
+          }
+          onOpenRelatedSale={openSaleCard}
           onAcceptPayment={() => openPaymentModal(selectedSale)}
           onRefundPayment={() => openRefundModal(selectedSale)}
         />
@@ -853,16 +1143,38 @@ export const OrdersWorkspace = ({
           <button
             type='button'
             className='toolbar-filter-button'
-            onClick={onSeedDemoData}
+            onClick={() => onSeedDemoData('repairs')}
             disabled={isSeeding}
           >
-            {isSeeding ? 'Loading...' : 'Demo data'}
+            {isSeeding ? 'Loading...' : 'Demo repairs'}
           </button>
           <button
             type='button'
-            className='orders-create-button'
-            onClick={() => onCreateOrder(activeTab)}
-            disabled={!canCreateOrders}
+            className='toolbar-filter-button'
+            onClick={() => onSeedDemoData('sales')}
+            disabled={isSeeding}
+          >
+            {isSeeding ? 'Loading...' : 'Demo sales'}
+          </button>
+          <a
+            className={
+              canCreateOrders
+                ? 'orders-create-button'
+                : 'orders-create-button orders-create-button-disabled'
+            }
+            href={canCreateOrders ? createOrderHref : '#'}
+            aria-disabled={!canCreateOrders}
+            tabIndex={canCreateOrders ? undefined : -1}
+            onClick={(event) => {
+              if (!canCreateOrders) {
+                event.preventDefault();
+                return;
+              }
+
+              if (!isPlainLeftClick(event)) return;
+              event.preventDefault();
+              onCreateOrder(activeTab);
+            }}
             title={
               canCreateOrders
                 ? 'Create order'
@@ -870,7 +1182,7 @@ export const OrdersWorkspace = ({
             }
           >
             Create order
-          </button>
+          </a>
         </div>
       </div>
 
@@ -937,7 +1249,7 @@ export const OrdersWorkspace = ({
                             )
                           }
                         >
-                          {statusLabels[status]}
+                          {getStatusLabel(sale, status)}
                         </button>
                         {openStatusSaleId === sale.id ? (
                           <div className='order-status-options'>
@@ -1033,6 +1345,47 @@ export const OrdersWorkspace = ({
         />
       ) : null}
 
+      {returnSale && returnLineItem ? (
+        <ReturnLineItemModal
+          sale={returnSale}
+          item={returnLineItem}
+          cashboxes={cashboxes}
+          selectedCashboxId={selectedRefundCashboxId}
+          amount={returnRefundAmount}
+          warehouse={returnWarehouse}
+          paidAmount={getPaidAmount(returnSale)}
+          isLoading={isReturnModalLoading}
+          isSaving={isReturnSaving}
+          onCashboxChange={setSelectedRefundCashboxId}
+          onAmountChange={setReturnRefundAmount}
+          onWarehouseChange={setReturnWarehouse}
+          onClose={() => {
+            setReturnSale(null);
+            setReturnLineItem(null);
+          }}
+          onSubmit={returnLineItemToStock}
+        />
+      ) : null}
+
+      {fullReturnSale ? (
+        <ReturnSaleModal
+          sale={fullReturnSale}
+          lineItems={getLineItems(fullReturnSale)}
+          cashboxes={cashboxes}
+          selectedCashboxId={selectedRefundCashboxId}
+          amount={returnRefundAmount}
+          warehouse={returnWarehouse}
+          paidAmount={getPaidAmount(fullReturnSale)}
+          isLoading={isFullReturnModalLoading}
+          isSaving={isFullReturnSaving}
+          onCashboxChange={setSelectedRefundCashboxId}
+          onAmountChange={setReturnRefundAmount}
+          onWarehouseChange={setReturnWarehouse}
+          onClose={() => setFullReturnSale(null)}
+          onSubmit={returnFullSaleToStock}
+        />
+      ) : null}
+
       {warningMessage ? (
         <MessageModal
           title='Payment warning'
@@ -1046,6 +1399,7 @@ export const OrdersWorkspace = ({
 
 type OrderDetailCardProps = {
   sale: Sale;
+  sales: Sale[];
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; label: string }>;
   comments: TimelineEntry[];
@@ -1056,12 +1410,19 @@ type OrderDetailCardProps = {
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveLineItem: (itemId: string) => void;
+  onUpdateLineItem: (
+    itemId: string,
+    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+  ) => void;
+  onReturnLineItem: (item: OrderLineItem) => void;
+  onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
   onRefundPayment: () => void;
 };
 
 const OrderDetailCard = ({
   sale,
+  sales,
   status,
   statusOptions,
   comments,
@@ -1072,10 +1433,15 @@ const OrderDetailCard = ({
   onAddComment,
   onAddLineItem,
   onRemoveLineItem,
+  onUpdateLineItem,
+  onReturnLineItem,
+  onOpenRelatedSale,
   onAcceptPayment,
   onRefundPayment,
 }: OrderDetailCardProps) => {
   const [comment, setComment] = useState('');
+  const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
   const total = getOrderTotal(sale, lineItems);
   const remainingPayment = getRemainingPayment(
     sale,
@@ -1087,6 +1453,33 @@ const OrderDetailCard = ({
   );
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
+  );
+  const isSaleCard = !isRepairOrder(sale);
+  const relatedRecords = useMemo(
+    () =>
+      sales
+        .filter((item) => item.client.id === sale.client.id)
+        .sort(
+          (firstItem, secondItem) =>
+            getCreatedTime(secondItem) - getCreatedTime(firstItem),
+        ),
+    [sale.client.id, sales],
+  );
+  const relatedVisibleRecords = relatedRecords.filter((item) =>
+    relatedTab === 'orders' ? isRepairOrder(item) : !isRepairOrder(item),
+  );
+  const timelineItems = [
+    {
+      id: `${sale.id}-created`,
+      author: sale.client.name,
+      message: `created order with status "${getStatusLabel(sale, status)}"`,
+      createdAt: sale.createdAt,
+    },
+    ...comments,
+  ].sort(
+    (firstItem, secondItem) =>
+      new Date(secondItem.createdAt).getTime() -
+      new Date(firstItem.createdAt).getTime(),
   );
 
   const submitComment = () => {
@@ -1140,51 +1533,54 @@ const OrderDetailCard = ({
               <dt>Phone</dt>
               <dd>{formatPhoneNumber(sale.client.phone)}</dd>
             </div>
-            <div>
-              <dt>Device</dt>
-              <dd>{sale.product.name}</dd>
-            </div>
-            <div>
-              <dt>S/N</dt>
-              <dd>{sale.product.serialNumber}</dd>
-            </div>
-            <div>
-              <dt>Article</dt>
-              <dd>{sale.product.article}</dd>
-            </div>
+            {isSaleCard ? null : (
+              <>
+                <div>
+                  <dt>Device</dt>
+                  <dd>{sale.product.name}</dd>
+                </div>
+                <div>
+                  <dt>S/N</dt>
+                  <dd>{sale.product.serialNumber}</dd>
+                </div>
+                <div>
+                  <dt>Article</dt>
+                  <dd>{sale.product.article}</dd>
+                </div>
+              </>
+            )}
             <div>
               <dt>Received</dt>
               <dd>{formatDateTime(sale.createdAt)}</dd>
             </div>
             <div>
-              <dt>Manager</dt>
+              <dt>{isSaleCard ? 'Created order' : 'Manager'}</dt>
               <dd>{sale.manager?.name || '-'}</dd>
             </div>
-            <div>
-              <dt>Master</dt>
-              <dd>{sale.master?.name || '-'}</dd>
-            </div>
+            {isSaleCard ? (
+              <div>
+                <dt>Issued order</dt>
+                <dd>{sale.issuedBy?.name || '-'}</dd>
+              </div>
+            ) : (
+              <div>
+                <dt>Master</dt>
+                <dd>{sale.master?.name || '-'}</dd>
+              </div>
+            )}
+            {isSaleCard ? (
+              <div className='order-detail-notes-row'>
+                <dt>Notes</dt>
+                <dd>{sale.note || 'No notes for this sale yet.'}</dd>
+              </div>
+            ) : null}
           </dl>
         </section>
 
         <section className='order-detail-panel'>
           <h3>Live feed</h3>
           <div className='order-timeline'>
-            <div className='order-timeline-item'>
-              <span>
-                {new Date(sale.createdAt).toLocaleTimeString(
-                  'uk-UA',
-                  { hour: '2-digit', minute: '2-digit' },
-                )}
-              </span>
-              <p>
-                <strong>{sale.client.name}</strong>
-                <small>
-                  created order with status "{statusLabels[status]}"
-                </small>
-              </p>
-            </div>
-            {comments.map((item, index) => (
+            {timelineItems.map((item, index) => (
               <div
                 key={`${item.id}-${index}`}
                 className='order-timeline-item'
@@ -1226,21 +1622,53 @@ const OrderDetailCard = ({
             items={productItems}
             onAddItem={onAddLineItem}
             onRemoveItem={onRemoveLineItem}
+            onUpdateItem={onUpdateLineItem}
+            onReturnItem={onReturnLineItem}
+            isPaidSale={isSaleCard && paidAmount > 0}
           />
         </section>
 
-        <section className='order-detail-panel'>
-          <h3>Services</h3>
-          <LineItemsPanel
-            title='Services'
-            kind='service'
-            items={serviceItems}
-            onAddItem={onAddLineItem}
-            onRemoveItem={onRemoveLineItem}
-          />
-        </section>
+        {isSaleCard ? (
+          <section className='order-detail-panel order-detail-stacked-panel'>
+            <button
+              type='button'
+              className='order-detail-collapse-button'
+              onClick={() => setIsServicesOpen((current) => !current)}
+              aria-expanded={isServicesOpen}
+            >
+              <span>Services</span>
+              <span>{isServicesOpen ? 'Hide' : 'Show'}</span>
+            </button>
+            {isServicesOpen ? (
+              <LineItemsPanel
+                title='Services'
+                kind='service'
+                items={serviceItems}
+                onAddItem={onAddLineItem}
+                onRemoveItem={onRemoveLineItem}
+                onUpdateItem={onUpdateLineItem}
+                onReturnItem={onReturnLineItem}
+                isPaidSale={false}
+              />
+            ) : null}
+          </section>
+        ) : (
+          <section className='order-detail-panel'>
+            <h3>Services</h3>
+            <LineItemsPanel
+              title='Services'
+              kind='service'
+              items={serviceItems}
+              onAddItem={onAddLineItem}
+              onRemoveItem={onRemoveLineItem}
+              onUpdateItem={onUpdateLineItem}
+              onReturnItem={onReturnLineItem}
+              isPaidSale={false}
+            />
+          </section>
+        )}
 
-        <section className='order-detail-panel'>
+        <section className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}>
           <h3>Payment</h3>
           <dl className='order-payment-list'>
             <div>
@@ -1275,9 +1703,53 @@ const OrderDetailCard = ({
           ) : null}
         </section>
 
-        <section className='order-detail-panel order-detail-note'>
-          <h3>Notes</h3>
-          <p>{sale.note || 'No notes for this order yet.'}</p>
+        {!isSaleCard ? (
+          <section className='order-detail-panel order-detail-note'>
+            <h3>Notes</h3>
+            <p>{sale.note || 'No notes for this order yet.'}</p>
+          </section>
+        ) : null}
+
+        <section className='order-detail-panel order-detail-related-panel'>
+          <div className='order-related-tabs'>
+            {orderTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type='button'
+                className={
+                  relatedTab === tab.key
+                    ? 'order-related-tab order-related-tab-active'
+                    : 'order-related-tab'
+                }
+                onClick={() => setRelatedTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className='order-related-list'>
+            {relatedVisibleRecords.length === 0 ? (
+              <p>
+                {relatedTab === 'orders'
+                  ? 'No orders for this client.'
+                  : 'No sales for this client.'}
+              </p>
+            ) : (
+              relatedVisibleRecords.map((record) => (
+                <button
+                  key={record.id}
+                  className='order-related-item'
+                  type='button'
+                  onClick={() => onOpenRelatedSale(record)}
+                >
+                  <span>{buildOrderNumber(record)}</span>
+                  <strong>{record.product.name}</strong>
+                  <span>{formatCurrency(getOrderTotal(record))}</span>
+                  <span>{formatReadyDate(record.createdAt)}</span>
+                </button>
+              ))
+            )}
+          </div>
         </section>
       </div>
     </article>
@@ -1290,6 +1762,12 @@ type LineItemsPanelProps = {
   items: OrderLineItem[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveItem: (itemId: string) => void;
+  onUpdateItem: (
+    itemId: string,
+    patch: Partial<Pick<OrderLineItem, 'price' | 'quantity' | 'warrantyPeriod'>>,
+  ) => void;
+  onReturnItem: (item: OrderLineItem) => void;
+  isPaidSale: boolean;
 };
 
 const LineItemsPanel = ({
@@ -1298,10 +1776,49 @@ const LineItemsPanel = ({
   items,
   onAddItem,
   onRemoveItem,
+  onUpdateItem,
+  onReturnItem,
+  isPaidSale,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [warrantyPeriod, setWarrantyPeriod] = useState('12');
+  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
+  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const serviceLookupQuery = kind === 'service' ? name.trim() : '';
+
+  useEffect(() => {
+    if (kind !== 'service' || serviceLookupQuery.length < 2) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsServiceLookupLoading(true);
+      try {
+        const services = await getServiceCatalogItems(serviceLookupQuery);
+        if (isActive) setServiceSuggestions(services.slice(0, 6));
+      } catch {
+        if (isActive) setServiceSuggestions([]);
+      } finally {
+        if (isActive) setIsServiceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [kind, serviceLookupQuery]);
+
+  const applyServiceSuggestion = (service: ServiceCatalogItem) => {
+    setName(service.name);
+    setPrice(String(service.price));
+    setQuantity('1');
+    setServiceSuggestions([]);
+  };
 
   const submitItem = () => {
     const normalizedName = name.trim();
@@ -1323,10 +1840,12 @@ const LineItemsPanel = ({
       name: normalizedName,
       price: normalizedPrice,
       quantity: normalizedQuantity,
+      warrantyPeriod: Number(warrantyPeriod),
     });
     setName('');
     setPrice('');
     setQuantity('1');
+    setServiceSuggestions([]);
   };
 
   return (
@@ -1335,6 +1854,7 @@ const LineItemsPanel = ({
         <div>Name</div>
         <div>Price</div>
         <div>Qty</div>
+        <div>Warranty</div>
         <div>Action</div>
         {items.length === 0 ? (
           <div className='order-line-items-empty'>{`No ${title.toLowerCase()} added.`}</div>
@@ -1343,16 +1863,47 @@ const LineItemsPanel = ({
             <div key={item.id} className='order-detail-table-row'>
               <div key={`${item.id}-name`}>{item.name}</div>
               <div key={`${item.id}-price`}>
-                {formatCurrency(item.price)}
+                <NumberStepper
+                  className='line-item-inline-input'
+                  min={0}
+                  value={String(item.price)}
+                  onChange={(value) => onUpdateItem(item.id, { price: Number(value) })}
+                />
               </div>
-              <div key={`${item.id}-qty`}>{item.quantity}</div>
+              <div key={`${item.id}-qty`}>
+                <NumberStepper
+                  className='line-item-inline-input'
+                  min={1}
+                  value={String(item.quantity)}
+                  onChange={(value) => onUpdateItem(item.id, { quantity: Number(value) })}
+                />
+              </div>
+              <div key={`${item.id}-warranty`}>
+                <select
+                  className='line-item-inline-input'
+                  value={item.warrantyPeriod || 12}
+                  onChange={(event) =>
+                    onUpdateItem(item.id, { warrantyPeriod: Number(event.target.value) })
+                  }
+                >
+                  {warrantyOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div key={`${item.id}-action`}>
                 <button
                   type='button'
                   className='line-item-remove-button'
-                  onClick={() => onRemoveItem(item.id)}
+                  onClick={() =>
+                    isPaidSale && item.kind === 'product'
+                      ? onReturnItem(item)
+                      : onRemoveItem(item.id)
+                  }
                 >
-                  Remove
+                  {isPaidSale && item.kind === 'product' ? 'Return' : 'Remove'}
                 </button>
               </div>
             </div>
@@ -1365,22 +1916,44 @@ const LineItemsPanel = ({
           onChange={(event) => setName(event.target.value)}
           placeholder={`Add ${kind}`}
         />
-        <input
-          type='number'
-          min='0'
-          step='0.01'
+        {kind === 'service' && (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
+          <div className='create-suggestions line-item-suggestions'>
+            {isServiceLookupLoading ? <p>Searching services...</p> : null}
+            {serviceSuggestions.map((service) => (
+              <button
+                key={service.id}
+                type='button'
+                className='create-suggestion-item'
+                onClick={() => applyServiceSuggestion(service)}
+              >
+                <strong>{service.name}</strong>
+                <span>{`${formatCurrency(service.price)}${service.note ? ` / ${service.note}` : ''}`}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <NumberStepper
+          min={0}
           value={price}
-          onChange={(event) => setPrice(event.target.value)}
+          onChange={setPrice}
           placeholder='Price'
         />
-        <input
-          type='number'
-          min='1'
-          step='1'
+        <NumberStepper
+          min={1}
           value={quantity}
-          onChange={(event) => setQuantity(event.target.value)}
+          onChange={setQuantity}
           placeholder='Qty'
         />
+        <select
+          value={warrantyPeriod}
+          onChange={(event) => setWarrantyPeriod(event.target.value)}
+        >
+          {warrantyOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <button
           type='button'
           className='primary-button'
@@ -1437,7 +2010,18 @@ const PaymentModal = ({
     0,
   );
   const orderNumber = sale.recordNumber ?? 'r------';
-  const isSalePaymentFlow = paymentTargetStatus === 'paid';
+  const submitWithStatusLabel =
+    paymentTargetStatus === 'completed'
+      ? 'Accept and complete'
+      : paymentTargetStatus === 'paid'
+        ? 'Accept and mark paid'
+        : 'Accept and issue';
+  const submitWithoutPaymentLabel =
+    paymentTargetStatus === 'completed'
+      ? 'Complete without payment'
+      : paymentTargetStatus === 'paid'
+        ? 'Mark paid without payment'
+        : 'Issue without payment';
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
   const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
     [],
@@ -1585,13 +2169,11 @@ const PaymentModal = ({
           </label>
           <label className='field'>
             <span>Amount</span>
-            <input
-              type='number'
-              min='0'
-              max={String(currentPaymentRemaining)}
-              step='0.01'
+            <NumberStepper
+              min={0}
+              max={currentPaymentRemaining}
               value={amount}
-              onChange={(event) => onAmountChange(event.target.value)}
+              onChange={onAmountChange}
               disabled={isLoading || isSaving}
             />
           </label>
@@ -1666,7 +2248,7 @@ const PaymentModal = ({
               onClick={() => onSubmit('depositAndIssue')}
               disabled={isSubmitDisabled}
             >
-              {isSalePaymentFlow ? 'Accept and mark paid' : 'Accept and issue'}
+              {submitWithStatusLabel}
             </button>
             <button
               type='button'
@@ -1674,7 +2256,7 @@ const PaymentModal = ({
               onClick={() => onSubmit('issueWithoutPayment')}
               disabled={isIssueDisabled}
             >
-              {isSalePaymentFlow ? 'Mark paid without payment' : 'Issue without payment'}
+              {submitWithoutPaymentLabel}
             </button>
           </div>
         </footer>
@@ -1774,13 +2356,11 @@ const RefundModal = ({
           </label>
           <label className='field'>
             <span>Amount</span>
-            <input
-              type='number'
-              min='0'
-              max={String(paidAmount)}
-              step='0.01'
+            <NumberStepper
+              min={0}
+              max={paidAmount}
               value={amount}
-              onChange={(event) => onAmountChange(event.target.value)}
+              onChange={onAmountChange}
               disabled={isLoading || isSaving}
             />
           </label>
@@ -1808,6 +2388,307 @@ const RefundModal = ({
               disabled={isSubmitDisabled}
             >
               {isSaving ? 'Saving...' : 'Refund to client'}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+type ReturnLineItemModalProps = {
+  sale: Sale;
+  item: OrderLineItem;
+  cashboxes: Cashbox[];
+  selectedCashboxId: string;
+  amount: string;
+  warehouse: string;
+  paidAmount: number;
+  isLoading: boolean;
+  isSaving: boolean;
+  onCashboxChange: (cashboxId: string) => void;
+  onAmountChange: (amount: string) => void;
+  onWarehouseChange: (warehouse: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+};
+
+type ReturnSaleModalProps = {
+  sale: Sale;
+  lineItems: OrderLineItem[];
+  cashboxes: Cashbox[];
+  selectedCashboxId: string;
+  amount: string;
+  warehouse: string;
+  paidAmount: number;
+  isLoading: boolean;
+  isSaving: boolean;
+  onCashboxChange: (cashboxId: string) => void;
+  onAmountChange: (amount: string) => void;
+  onWarehouseChange: (warehouse: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+};
+
+const ReturnSaleModal = ({
+  sale,
+  lineItems,
+  cashboxes,
+  selectedCashboxId,
+  amount,
+  warehouse,
+  paidAmount,
+  isLoading,
+  isSaving,
+  onCashboxChange,
+  onAmountChange,
+  onWarehouseChange,
+  onClose,
+  onSubmit,
+}: ReturnSaleModalProps) => {
+  const productItems = lineItems.filter((item) => item.kind === 'product');
+  const serviceItems = lineItems.filter((item) => item.kind !== 'product');
+  const productTotal = getLineItemsTotal(productItems);
+  const serviceTotal = getLineItemsTotal(serviceItems);
+  const numericAmount = Number(amount);
+  const minRefund = Math.max(paidAmount - serviceTotal, 0);
+  const maxRefund = Math.min(productTotal, paidAmount);
+  const suggestedCashboxName =
+    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)?.name ??
+    'Cashbox';
+  const isSubmitDisabled =
+    isLoading ||
+    isSaving ||
+    !selectedCashboxId ||
+    !warehouse.trim() ||
+    !Number.isFinite(numericAmount) ||
+    numericAmount < minRefund ||
+    numericAmount <= 0 ||
+    numericAmount > maxRefund;
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='payment-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Return sale'
+      >
+        <button
+          type='button'
+          className='payment-modal-close'
+          onClick={onClose}
+          aria-label='Close return modal'
+        >
+          &times;
+        </button>
+
+        <div className='payment-modal-summary'>
+          <dl>
+            <div>
+              <dt>Order</dt>
+              <dd>{sale.recordNumber ?? 'r------'}</dd>
+            </div>
+            <div>
+              <dt>Products to stock</dt>
+              <dd>{productItems.map((item) => `${item.name} x${item.quantity}`).join(', ')}</dd>
+            </div>
+            <div>
+              <dt>Product total</dt>
+              <dd>{formatCurrency(productTotal)}</dd>
+            </div>
+            <div>
+              <dt>Paid</dt>
+              <dd>{formatCurrency(paidAmount)}</dd>
+            </div>
+          </dl>
+          <span className='payment-cash-badge'>Return</span>
+        </div>
+
+        <div className='payment-modal-form'>
+          <label className='field'>
+            <span>Receive to warehouse</span>
+            <input
+              value={warehouse}
+              onChange={(event) => onWarehouseChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+          <label className='field payment-cashbox-field'>
+            <span>Refund from cashbox</span>
+            <select
+              value={selectedCashboxId}
+              onChange={(event) => onCashboxChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            >
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='field'>
+            <span>Refund amount</span>
+            <NumberStepper
+              min={minRefund}
+              max={maxRefund}
+              value={amount}
+              onChange={onAmountChange}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+        </div>
+
+        <footer className='payment-modal-footer'>
+          <p className='muted-copy'>{`Suggested cashbox: ${suggestedCashboxName}`}</p>
+          <div className='payment-modal-actions'>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              className='payment-issue-secondary-button'
+              onClick={onSubmit}
+              disabled={isSubmitDisabled}
+            >
+              {isSaving ? 'Saving...' : 'Return sale'}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+const ReturnLineItemModal = ({
+  sale,
+  item,
+  cashboxes,
+  selectedCashboxId,
+  amount,
+  warehouse,
+  paidAmount,
+  isLoading,
+  isSaving,
+  onCashboxChange,
+  onAmountChange,
+  onWarehouseChange,
+  onClose,
+  onSubmit,
+}: ReturnLineItemModalProps) => {
+  const itemTotal = item.price * item.quantity;
+  const numericAmount = Number(amount);
+  const suggestedCashboxName =
+    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)?.name ??
+    'Cashbox';
+  const isSubmitDisabled =
+    isLoading ||
+    isSaving ||
+    !selectedCashboxId ||
+    !warehouse.trim() ||
+    !Number.isFinite(numericAmount) ||
+    numericAmount <= 0 ||
+    numericAmount > itemTotal ||
+    numericAmount > paidAmount;
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='payment-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Return product'
+      >
+        <button
+          type='button'
+          className='payment-modal-close'
+          onClick={onClose}
+          aria-label='Close return modal'
+        >
+          &times;
+        </button>
+
+        <div className='payment-modal-summary'>
+          <dl>
+            <div>
+              <dt>Product</dt>
+              <dd>{item.name}</dd>
+            </div>
+            <div>
+              <dt>Order</dt>
+              <dd>{sale.recordNumber ?? 'r------'}</dd>
+            </div>
+            <div>
+              <dt>Item total</dt>
+              <dd>{formatCurrency(itemTotal)}</dd>
+            </div>
+            <div>
+              <dt>Paid</dt>
+              <dd>{formatCurrency(paidAmount)}</dd>
+            </div>
+          </dl>
+          <span className='payment-cash-badge'>Return</span>
+        </div>
+
+        <div className='payment-modal-form'>
+          <label className='field'>
+            <span>Receive to warehouse</span>
+            <input
+              value={warehouse}
+              onChange={(event) => onWarehouseChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+          <label className='field payment-cashbox-field'>
+            <span>Refund from cashbox</span>
+            <select
+              value={selectedCashboxId}
+              onChange={(event) => onCashboxChange(event.target.value)}
+              disabled={isLoading || isSaving}
+            >
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='field'>
+            <span>Amount</span>
+            <NumberStepper
+              min={0}
+              max={Math.min(itemTotal, paidAmount)}
+              value={amount}
+              onChange={onAmountChange}
+              disabled={isLoading || isSaving}
+            />
+          </label>
+        </div>
+
+        <footer className='payment-modal-footer'>
+          <p className='muted-copy'>{`Suggested cashbox: ${suggestedCashboxName}`}</p>
+          <div className='payment-modal-actions'>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              className='payment-issue-secondary-button'
+              onClick={onSubmit}
+              disabled={isSubmitDisabled}
+            >
+              {isSaving ? 'Saving...' : 'Return product'}
             </button>
           </div>
         </footer>

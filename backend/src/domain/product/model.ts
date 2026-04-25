@@ -71,6 +71,11 @@ export const productSchema = new mongoose.Schema(
       min: [0, 'Warranty period cannot be negative'],
       default: 0,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
     searchText: {
       type: String,
       default: '',

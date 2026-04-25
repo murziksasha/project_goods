@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Client } from '../../../entities/client/model/types';
 import type { Product } from '../../../entities/product/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { SaleFormValues } from '../../../entities/sale/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
 import {
@@ -38,7 +39,6 @@ export const SaleForm = ({
   onSubmit,
   onCancelEdit,
 }: SaleFormProps) => {
-  const salePriceListId = useId();
   const [clientNameInput, setClientNameInput] = useState('');
   const [clientPhoneInput, setClientPhoneInput] = useState('');
   const [productInput, setProductInput] = useState('');
@@ -152,12 +152,10 @@ export const SaleForm = ({
 
         <label className="field">
           <span>Quantity</span>
-          <input
-            type="number"
-            min="1"
-            step="1"
+          <NumberStepper
+            min={1}
             value={form.quantity}
-            onChange={(event) => onChange('quantity', event.target.value)}
+            onChange={(value) => onChange('quantity', value)}
           />
         </label>
 
@@ -197,22 +195,17 @@ export const SaleForm = ({
 
         <label className="field">
           <span>Sale price</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            list={salePriceListId}
+          <NumberStepper
+            min={0}
             value={form.salePrice}
             placeholder={
               selectedProduct ? formatCurrency(getDefaultSalePrice(selectedProduct)) : ''
             }
-            onChange={(event) => onChange('salePrice', event.target.value)}
+            onChange={(value) => onChange('salePrice', value)}
           />
-          <datalist id={salePriceListId}>
-            {productSalePriceOptions.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
+          {productSalePriceOptions.length > 0 ? (
+            <span>{`Available prices: ${productSalePriceOptions.join(', ')}`}</span>
+          ) : null}
         </label>
 
         <label className="field field-wide">

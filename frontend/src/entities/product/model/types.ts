@@ -13,6 +13,7 @@ export type Product = {
   purchasePlace: string;
   purchaseDate: string | null;
   warrantyPeriod: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };

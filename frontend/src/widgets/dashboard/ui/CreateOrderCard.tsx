@@ -4,6 +4,9 @@ import type { Client, ClientHistory } from '../../../entities/client/model/types
 import type { Employee } from '../../../entities/employee/model/types';
 import { getProducts } from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
+import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 
 type CreateOrderCardProps = {
@@ -54,6 +57,7 @@ type SaleOrderItem = {
   product: Product | null;
   price: string;
   quantity: string;
+  warrantyPeriod: string;
 };
 
 const createSaleOrderItem = (): SaleOrderItem => ({
@@ -62,6 +66,7 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   product: null,
   price: '',
   quantity: '1',
+  warrantyPeriod: '12',
 });
 
 const getProductPrice = (product: Product) =>
@@ -136,11 +141,13 @@ export const CreateOrderCard = ({
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
   const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
+  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
   const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
+  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
 
   const managers = employees.filter(
@@ -171,6 +178,7 @@ export const CreateOrderCard = ({
     .filter(Boolean)
     .join(' ')
     .trim();
+  const serviceLookupQuery = serviceName.trim();
   const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
   const shouldShowClientSuggestions =
     !selectedClientId &&
@@ -264,6 +272,31 @@ export const CreateOrderCard = ({
   }, [deviceLookupQuery]);
 
   useEffect(() => {
+    if (activeTab !== 'repair' || serviceLookupQuery.length < 2) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsServiceLookupLoading(true);
+      try {
+        const services = await getServiceCatalogItems(serviceLookupQuery);
+        if (isActive) setServiceSuggestions(services.slice(0, 6));
+      } catch {
+        if (isActive) setServiceSuggestions([]);
+      } finally {
+        if (isActive) setIsServiceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeTab, serviceLookupQuery]);
+
+  useEffect(() => {
     if (activeTab !== 'sale' || saleProductLookupQuery.length < 2) {
       setSaleProductSuggestions([]);
       return;
@@ -318,6 +351,12 @@ export const CreateOrderCard = ({
     setDeviceSuggestions([]);
   };
 
+  const applyService = (service: ServiceCatalogItem) => {
+    setServiceName(service.name);
+    setEstimatedCost(String(service.price));
+    setServiceSuggestions([]);
+  };
+
   const updateSaleItem = (itemId: string, patch: Partial<SaleOrderItem>) => {
     setSaleItems((current) =>
       current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
@@ -330,6 +369,7 @@ export const CreateOrderCard = ({
       product,
       price: String(getProductPrice(product)),
       quantity: '1',
+      warrantyPeriod: String(product.warrantyPeriod || 12),
     });
     setSaleProductSuggestions([]);
   };
@@ -418,6 +458,7 @@ export const CreateOrderCard = ({
         product: null,
         price: '3899',
         quantity: '1',
+        warrantyPeriod: '12',
       },
     ]);
   };
@@ -452,6 +493,7 @@ export const CreateOrderCard = ({
         serialNumber: item.product?.serialNumber ?? '',
         price: item.price,
         quantity: item.quantity,
+        warrantyPeriod: item.warrantyPeriod,
         warehouse: item.product ? getProductWarehouse(item.product) : '',
       })),
     });
@@ -562,29 +604,40 @@ export const CreateOrderCard = ({
                         </label>
                         <label className="field">
                           <span>Qty</span>
-                          <input
-                            type="number"
-                            min="1"
+                          <NumberStepper
+                            min={1}
                             max={availableQuantity || undefined}
                             value={item.quantity}
-                            onChange={(event) =>
-                              updateSaleItem(item.id, { quantity: event.target.value })
-                            }
+                            onChange={(value) => updateSaleItem(item.id, { quantity: value })}
                           />
                         </label>
                         <label className="field">
                           <span>Price</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                          <NumberStepper
+                            min={0}
                             value={item.price}
-                            onChange={(event) => {
+                            onChange={(value) => {
                               setSyncTotalWithItems(true);
-                              updateSaleItem(item.id, { price: event.target.value });
+                              updateSaleItem(item.id, { price: value });
                             }}
                             placeholder="0"
                           />
+                        </label>
+                        <label className="field">
+                          <span>Warranty</span>
+                          <select
+                            value={item.warrantyPeriod}
+                            onChange={(event) =>
+                              updateSaleItem(item.id, { warrantyPeriod: event.target.value })
+                            }
+                          >
+                            <option value="1">30 day</option>
+                            <option value="3">3 month</option>
+                            <option value="6">6 month</option>
+                            <option value="12">1 year</option>
+                            <option value="24">2 year</option>
+                            <option value="36">3 year</option>
+                          </select>
                         </label>
                         <button
                           type="button"
@@ -711,6 +764,31 @@ export const CreateOrderCard = ({
                 </label>
 
                 <label className="field">
+                  <span>Service</span>
+                  <input
+                    value={serviceName}
+                    onChange={(event) => setServiceName(event.target.value)}
+                    placeholder="Diagnostics, screen replacement..."
+                  />
+                </label>
+                {(serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
+                  <div className="create-suggestions">
+                    {isServiceLookupLoading ? <p>Searching services...</p> : null}
+                    {serviceSuggestions.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        className="create-suggestion-item"
+                        onClick={() => applyService(service)}
+                      >
+                        <strong>{service.name}</strong>
+                        <span>{`${service.price} UAH${service.note ? ` / ${service.note}` : ''}`}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <label className="field">
                   <span>Issue from client</span>
                   <textarea
                     rows={3}
@@ -735,12 +813,11 @@ export const CreateOrderCard = ({
             <div className="create-cost-row">
               <label className="field">
                 <span>Estimated cost</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={estimatedCost}
-                  onChange={(event) => setEstimatedCost(event.target.value)}
-                />
+                  <NumberStepper
+                    min={0}
+                    value={estimatedCost}
+                    onChange={setEstimatedCost}
+                  />
               </label>
               <div className="create-currency-tag">UAH</div>
               <button type="button" className="secondary-button">Cash</button>
@@ -758,13 +835,12 @@ export const CreateOrderCard = ({
             <div className="create-prepay-row">
               <label className="field">
                 <span>Prepayment</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={prepayment}
-                  onChange={(event) => setPrepayment(event.target.value)}
-                  placeholder="Enter amount"
-                />
+                  <NumberStepper
+                    min={0}
+                    value={prepayment}
+                    onChange={setPrepayment}
+                    placeholder="Enter amount"
+                  />
               </label>
               <div className="create-currency-tag">UAH</div>
               <label className="field">
@@ -881,6 +957,7 @@ export const CreateOrderCard = ({
                           reservedQuantity: 0,
                           freeQuantity: 0,
                           isInStock: true,
+                          isActive: true,
                           purchasePlace: '',
                           purchaseDate: null,
                           warrantyPeriod: 0,

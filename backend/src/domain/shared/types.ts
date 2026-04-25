@@ -28,6 +28,7 @@ export type SalePayload = {
   note?: unknown;
   managerId?: unknown;
   masterId?: unknown;
+  issuedById?: unknown;
   kind?: unknown;
   status?: unknown;
   paidAmount?: unknown;
@@ -55,5 +56,6 @@ export type SettingsPayload = {
 export type ServiceCatalogPayload = {
   name?: unknown;
   price?: unknown;
+  salePriceOptions?: unknown;
   note?: unknown;
 };

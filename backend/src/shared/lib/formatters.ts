@@ -21,6 +21,7 @@ export const formatProduct = (product: ProductDocument) => {
     purchasePlace: product.purchasePlace,
     purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
     warrantyPeriod: product.warrantyPeriod,
+    isActive: product.isActive ?? true,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -83,6 +84,7 @@ export const formatSale = (sale: SaleDocument) => ({
     name: item.name,
     price: item.price,
     quantity: item.quantity,
+    warrantyPeriod: item.warrantyPeriod ?? 0,
   })),
   client: {
     id: sale.client.toString(),
@@ -103,6 +105,12 @@ export const formatSale = (sale: SaleDocument) => ({
     ? {
         id: sale.master.toString(),
         ...(sale.masterSnapshot ?? { name: '', role: '' }),
+      }
+    : null,
+  issuedBy: sale.issuedBy
+    ? {
+        id: sale.issuedBy.toString(),
+        ...(sale.issuedBySnapshot ?? { name: '', role: '' }),
       }
     : null,
   createdAt: sale.createdAt.toISOString(),
