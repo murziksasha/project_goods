@@ -73,12 +73,62 @@ export const EmployeeManagementPanel = ({
 
   return (
     <section className="panel">
+            <div className="panel-header" style={{ marginTop: 20 }}>
+        <div>
+          <p className="section-label">List</p>
+          <h2>Team</h2>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="empty-state">Loading employees...</p>
+      ) : employees.length === 0 ? (
+        <p className="empty-state">No employees yet.</p>
+      ) : (
+        <div className="stack-list">
+          {employees.map((employee) => {
+            const isCurrentEmployee = employee.id === currentEmployeeId;
+
+            return (
+              <article key={employee.id} className="list-card">
+                <div className="list-card-row">
+                  <div>
+                    <h3>{employee.name}</h3>
+                    <p>{employee.email || 'No email'} | {employee.phone || 'No phone'} | {employee.role}</p>
+                    <p>{employee.username || 'No login'}{isCurrentEmployee ? ' | current user' : ''}</p>
+                    <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      onClick={() => handleEdit(employee)}
+                      disabled={!canManageEmployees}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="danger-button"
+                      type="button"
+                      onClick={() => setEmployeeToDelete(employee)}
+                      disabled={!canManageEmployees || isCurrentEmployee}
+                      title={isCurrentEmployee ? 'You cannot delete your own account.' : 'Delete employee'}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
       <div ref={formTopRef} />
       {!canManageEmployees ? (
         <p className="empty-state">Only owners can create, edit, or delete employees.</p>
       ) : null}
 
-      <div className="panel-header">
+      <div className="panel-header" style={{marginTop:80}}>
         <div>
           <p className="section-label">Employees</p>
           <h2>{isEditing ? 'Edit employee' : 'Create employee'}</h2>
@@ -194,57 +244,6 @@ export const EmployeeManagementPanel = ({
       >
         {isSaving ? 'Saving...' : isEditing ? 'Update employee' : 'Save employee'}
       </button>
-
-      <div className="panel-header" style={{ marginTop: 20 }}>
-        <div>
-          <p className="section-label">List</p>
-          <h2>Team</h2>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p className="empty-state">Loading employees...</p>
-      ) : employees.length === 0 ? (
-        <p className="empty-state">No employees yet.</p>
-      ) : (
-        <div className="stack-list">
-          {employees.map((employee) => {
-            const isCurrentEmployee = employee.id === currentEmployeeId;
-
-            return (
-              <article key={employee.id} className="list-card">
-                <div className="list-card-row">
-                  <div>
-                    <h3>{employee.name}</h3>
-                    <p>{employee.email || 'No email'} | {employee.phone || 'No phone'} | {employee.role}</p>
-                    <p>{employee.username || 'No login'}{isCurrentEmployee ? ' | current user' : ''}</p>
-                    <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
-                  </div>
-                  <div className="card-actions">
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={() => handleEdit(employee)}
-                      disabled={!canManageEmployees}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      onClick={() => setEmployeeToDelete(employee)}
-                      disabled={!canManageEmployees || isCurrentEmployee}
-                      title={isCurrentEmployee ? 'You cannot delete your own account.' : 'Delete employee'}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
 
       {employeeToDelete ? (
         <div className="modal-backdrop" role="presentation">
