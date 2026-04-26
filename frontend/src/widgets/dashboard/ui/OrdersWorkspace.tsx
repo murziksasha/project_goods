@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
@@ -57,7 +64,24 @@ type OrdersWorkspaceProps = {
 };
 
 type OrdersTab = 'orders' | 'sales';
-const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+type OrdersColumnKey =
+  | 'orderNumber'
+  | 'receiver'
+  | 'manager'
+  | 'master'
+  | 'status'
+  | 'primaryItem'
+  | 'price'
+  | 'paid'
+  | 'client'
+  | 'term'
+  | 'warehouse'
+  | 'createdAt'
+  | 'readyDate';
+type OrdersColumnVisibility = Record<OrdersTab, OrdersColumnKey[]>;
+const isPlainLeftClick = (
+  event: ReactMouseEvent<HTMLAnchorElement>,
+) =>
   event.button === 0 &&
   !event.metaKey &&
   !event.ctrlKey &&
@@ -129,6 +153,45 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
 ];
 
 const printFormsStorageKey = 'project-goods.print-forms';
+const ordersColumnsStorageKey = 'project-goods.orders-columns';
+const allOrdersColumnKeys: OrdersColumnKey[] = [
+  'orderNumber',
+  'client',
+  'receiver',
+  'manager',
+  'status',
+  'primaryItem',
+  'price',
+  'paid',
+  'term',
+  'warehouse',
+  'master',
+  'createdAt',
+  'readyDate',
+];
+const defaultVisibleColumns: OrdersColumnVisibility = {
+  orders: allOrdersColumnKeys,
+  sales: [
+    'orderNumber',
+    'receiver',
+    'status',
+    'price',
+    'paid',
+    'client',
+    'master',
+    'warehouse',
+    'createdAt',
+    'readyDate',
+  ],
+};
+const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
+  orders: allOrdersColumnKeys,
+  sales: defaultVisibleColumns.sales,
+};
+const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
+  orders: ['orderNumber'],
+  sales: ['orderNumber'],
+};
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
   { key: 'issued', label: 'Issued' },
@@ -199,8 +262,9 @@ const getStatusOptionsForSale = (sale: Sale) =>
   isRepairOrder(sale) ? repairStatuses : saleStatuses;
 
 const getStatusLabel = (sale: Sale, status: OrderStatus) =>
-  getStatusOptionsForSale(sale).find((option) => option.key === status)?.label ??
-  statusLabels[status];
+  getStatusOptionsForSale(sale).find(
+    (option) => option.key === status,
+  )?.label ?? statusLabels[status];
 
 const readPrintForms = () => {
   try {
@@ -244,8 +308,9 @@ const getDefaultLineItems = (sale: Sale) =>
 
 const getOrderTotal = (
   sale: Sale,
-  lineItems: OrderLineItem[] =
-    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale),
+  lineItems: OrderLineItem[] = sale.lineItems?.length
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
 ) =>
   lineItems.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -253,13 +318,17 @@ const getOrderTotal = (
   );
 
 const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
-  lineItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  lineItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0,
+  );
 
 const getRemainingPayment = (
   sale: Sale,
   paidAmount: number,
-  lineItems: OrderLineItem[] =
-    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale),
+  lineItems: OrderLineItem[] = sale.lineItems?.length
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
 ) => Math.max(getOrderTotal(sale, lineItems) - paidAmount, 0);
 
 const isClosingStatus = (sale: Sale, status: OrderStatus) =>
@@ -267,8 +336,13 @@ const isClosingStatus = (sale: Sale, status: OrderStatus) =>
     ? status === 'issued' || status === 'issuedWithoutRepair'
     : status === 'paid' || status === 'completed';
 
-const shouldCaptureIssuedBy = (sale: Sale, status: OrderStatus) =>
-  !isRepairOrder(sale) && isClosingStatus(sale, status) && !sale.issuedBy;
+const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
+  isRepairOrder(sale)
+    ? isClosingStatus(sale, status)
+    : status === 'reserved' ||
+      status === 'paid' ||
+      status === 'completed' ||
+      status === 'returned';
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid' || status === 'completed';
@@ -307,7 +381,8 @@ const renderPrintTemplate = (
   );
 };
 
-const buildOrderNumber = (sale: Sale) => sale.recordNumber ?? 'r------';
+const buildOrderNumber = (sale: Sale) =>
+  sale.recordNumber ?? 'r------';
 
 const formatReadyDate = (value: string) =>
   new Intl.DateTimeFormat('uk-UA', {
@@ -318,14 +393,22 @@ const formatReadyDate = (value: string) =>
 const formatPhoneNumber = (value: string) => {
   const groups = getPhoneNumberGroups(value);
 
-  return groups.length > 0 ? groups.join(' ') : value.replace(/^\+?38\s*/, '');
+  return groups.length > 0
+    ? groups.join(' ')
+    : value.replace(/^\+?38\s*/, '');
 };
 
 const getPhoneNumberGroups = (value: string) => {
   const digits = value.replace(/\D/g, '');
-  const localDigits = digits.startsWith('38') ? digits.slice(2) : digits;
-  const tenDigitMatch = localDigits.match(/^(\d{3})(\d{3})(\d{2})(\d{2})$/);
-  const elevenDigitMatch = localDigits.match(/^(\d{3})(\d{4})(\d{2})(\d{2})$/);
+  const localDigits = digits.startsWith('38')
+    ? digits.slice(2)
+    : digits;
+  const tenDigitMatch = localDigits.match(
+    /^(\d{3})(\d{3})(\d{2})(\d{2})$/,
+  );
+  const elevenDigitMatch = localDigits.match(
+    /^(\d{3})(\d{4})(\d{2})(\d{2})$/,
+  );
 
   if (tenDigitMatch) {
     return tenDigitMatch.slice(1);
@@ -338,7 +421,88 @@ const getPhoneNumberGroups = (value: string) => {
   return [];
 };
 
-const getCreatedTime = (sale: Sale) => new Date(sale.createdAt).getTime();
+const getCreatedTime = (sale: Sale) =>
+  new Date(sale.createdAt).getTime();
+
+const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
+  activeTab === 'orders'
+    ? 'Search by order, client or device'
+    : 'Search by order, client or manager';
+
+const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
+  activeTab === 'orders' ? 'Device' : 'Service center';
+
+const getPrimaryItemCellContent = (
+  sale: Sale,
+  activeTab: OrdersTab,
+) => (activeTab === 'orders' ? sale.product.name : 'Service center');
+
+const getColumnLabel = (
+  columnKey: OrdersColumnKey,
+  activeTab: OrdersTab,
+) => {
+  switch (columnKey) {
+    case 'orderNumber':
+      return 'Order #';
+    case 'receiver':
+      return activeTab === 'orders' ? 'Receiver' : 'Client';
+    case 'manager':
+      return 'Manager';
+    case 'master':
+      return 'Received';
+    case 'status':
+      return 'Status';
+    case 'primaryItem':
+      return getPrimaryItemColumnLabel(activeTab);
+    case 'price':
+      return 'Price';
+    case 'paid':
+      return 'Paid';
+    case 'client':
+      return activeTab === 'orders' ? 'Client' : 'Manager';
+    case 'term':
+      return 'Term';
+    case 'warehouse':
+      return 'Warehouse';
+    case 'createdAt':
+      return 'Add';
+    case 'readyDate':
+      return 'Ready date';
+    default:
+      return '';
+  }
+};
+
+const readVisibleColumns = (): OrdersColumnVisibility => {
+  try {
+    const saved = JSON.parse(
+      window.localStorage.getItem(ordersColumnsStorageKey) ?? '{}',
+    ) as Partial<OrdersColumnVisibility>;
+    const sanitizeColumns = (
+      columns: OrdersColumnKey[] | undefined,
+      tab: OrdersTab,
+    ) => {
+      const safeColumns =
+        columns?.filter((columnKey) =>
+          availableColumnsByTab[tab].includes(columnKey),
+        ) ?? [];
+      const orderedColumns = availableColumnsByTab[tab].filter(
+        (columnKey) => safeColumns.includes(columnKey),
+      );
+
+      return orderedColumns.length > 0
+        ? orderedColumns
+        : defaultVisibleColumns[tab];
+    };
+
+    return {
+      orders: sanitizeColumns(saved.orders, 'orders'),
+      sales: sanitizeColumns(saved.sales, 'sales'),
+    };
+  } catch {
+    return defaultVisibleColumns;
+  }
+};
 
 const PhoneNumber = ({ value }: { value: string }) => {
   const groups = getPhoneNumberGroups(value);
@@ -373,7 +537,11 @@ export const OrdersWorkspace = ({
   onError,
   onSuccess,
 }: OrdersWorkspaceProps) => {
-  const currentEmployeeName = currentEmployee?.name ?? 'Unknown employee';
+  const currentEmployeeName =
+    currentEmployee?.name ?? 'Unknown employee';
+  const [visibleColumns, setVisibleColumns] =
+    useState<OrdersColumnVisibility>(readVisibleColumns);
+  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
@@ -383,8 +551,11 @@ export const OrdersWorkspace = ({
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
-  const [fullReturnSale, setFullReturnSale] = useState<Sale | null>(null);
-  const [returnLineItem, setReturnLineItem] = useState<OrderLineItem | null>(null);
+  const [fullReturnSale, setFullReturnSale] = useState<Sale | null>(
+    null,
+  );
+  const [returnLineItem, setReturnLineItem] =
+    useState<OrderLineItem | null>(null);
   const [paymentTargetStatus, setPaymentTargetStatus] =
     useState<PaymentTargetStatus>('issued');
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
@@ -394,20 +565,26 @@ export const OrdersWorkspace = ({
     useState('');
   const [refundAmount, setRefundAmount] = useState('');
   const [returnRefundAmount, setReturnRefundAmount] = useState('');
-  const [returnWarehouse, setReturnWarehouse] = useState('Service center');
+  const [returnWarehouse, setReturnWarehouse] =
+    useState('Service center');
   const [isPaymentModalLoading, setIsPaymentModalLoading] =
     useState(false);
   const [isPaymentSaving, setIsPaymentSaving] = useState(false);
   const [isRefundModalLoading, setIsRefundModalLoading] =
     useState(false);
   const [isRefundSaving, setIsRefundSaving] = useState(false);
-  const [isReturnModalLoading, setIsReturnModalLoading] = useState(false);
+  const [isReturnModalLoading, setIsReturnModalLoading] =
+    useState(false);
   const [isReturnSaving, setIsReturnSaving] = useState(false);
-  const [isFullReturnModalLoading, setIsFullReturnModalLoading] = useState(false);
+  const [isFullReturnModalLoading, setIsFullReturnModalLoading] =
+    useState(false);
   const [isFullReturnSaving, setIsFullReturnSaving] = useState(false);
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
+  const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const visibleColumnKeys = visibleColumns[activeTab];
+  const tableMinWidth = Math.max(840, visibleColumnKeys.length * 118);
 
   const filteredOrders = useMemo(() => {
     const tabSales = sales.filter((sale) =>
@@ -427,14 +604,56 @@ export const OrdersWorkspace = ({
 
     return sortedTabSales.filter((sale) => {
       const orderNumber = buildOrderNumber(sale);
+      const saleSearchValues = [
+        sale.client.name,
+        sale.client.phone,
+        sale.manager?.name ?? '',
+        sale.issuedBy?.name ?? '',
+      ];
+      const orderSearchValues = [
+        sale.product.name,
+        sale.client.name,
+        sale.client.phone,
+      ];
+
       return (
         String(orderNumber).includes(query) ||
-        sale.product.name.toLowerCase().includes(query) ||
-        sale.client.name.toLowerCase().includes(query) ||
-        sale.client.phone.toLowerCase().includes(query)
+        (activeTab === 'orders'
+          ? orderSearchValues
+          : saleSearchValues
+        ).some((value) => value.toLowerCase().includes(query))
       );
     });
   }, [activeTab, sales, searchValue]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      ordersColumnsStorageKey,
+      JSON.stringify(visibleColumns),
+    );
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    if (!isColumnsMenuOpen) return;
+
+    const closeMenuOnOutsideClick = (event: MouseEvent) => {
+      if (
+        columnsMenuRef.current &&
+        !columnsMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsColumnsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeMenuOnOutsideClick);
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeMenuOnOutsideClick,
+      );
+    };
+  }, [isColumnsMenuOpen]);
 
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
@@ -455,12 +674,18 @@ export const OrdersWorkspace = ({
   const getStatusOptions = getStatusOptionsForSale;
 
   const getLineItems = (sale: Sale) =>
-    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale);
+    sale.lineItems?.length
+      ? sale.lineItems
+      : getDefaultLineItems(sale);
 
   const getPaidAmount = (sale: Sale) => sale.paidAmount ?? 0;
 
   const getOrderRemainingPayment = (sale: Sale) =>
-    getRemainingPayment(sale, getPaidAmount(sale), getLineItems(sale));
+    getRemainingPayment(
+      sale,
+      getPaidAmount(sale),
+      getLineItems(sale),
+    );
 
   const hasAttachedProducts = (sale: Sale) =>
     getLineItems(sale).some((item) => item.kind === 'product');
@@ -469,20 +694,20 @@ export const OrdersWorkspace = ({
     message: string,
     author: string = currentEmployeeName,
   ): TimelineEntry => ({
-      id: crypto.randomUUID(),
-      author,
-      message,
-      createdAt: new Date().toISOString(),
-    });
+    id: crypto.randomUUID(),
+    author,
+    message,
+    createdAt: new Date().toISOString(),
+  });
 
   const addPaymentHistoryEntry = (
     entry: Omit<PaymentEntry, 'id' | 'createdAt' | 'author'>,
   ): PaymentEntry => ({
-      ...entry,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      author: currentEmployeeName,
-    });
+    ...entry,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    author: currentEmployeeName,
+  });
 
   const persistSaleWorkspace = async (
     sale: Sale,
@@ -501,18 +726,14 @@ export const OrdersWorkspace = ({
       paidAmount: payload.paidAmount ?? sale.paidAmount,
       issuedById: payload.issuedById,
       timeline: payload.timeline ?? sale.timeline,
-      paymentHistory:
-        payload.paymentHistory ?? sale.paymentHistory,
+      paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
     });
     onSaleUpdate(updatedSale);
     return updatedSale;
   };
 
-  const updateStatus = async (
-    sale: Sale,
-    status: OrderStatus,
-  ) => {
+  const updateStatus = async (sale: Sale, status: OrderStatus) => {
     const remainingPayment = getOrderRemainingPayment(sale);
 
     if (!isRepairOrder(sale) && status === 'returned') {
@@ -529,7 +750,7 @@ export const OrdersWorkspace = ({
       if (remainingPayment <= 0) {
         await persistSaleWorkspace(sale, {
           status,
-          issuedById: shouldCaptureIssuedBy(sale, status)
+          issuedById: shouldCaptureReceivedBy(sale, status)
             ? currentEmployee?.id
             : undefined,
           timeline: [
@@ -563,7 +784,7 @@ export const OrdersWorkspace = ({
 
     await persistSaleWorkspace(sale, {
       status,
-      issuedById: shouldCaptureIssuedBy(sale, status)
+      issuedById: shouldCaptureReceivedBy(sale, status)
         ? currentEmployee?.id
         : undefined,
       timeline: [
@@ -579,6 +800,166 @@ export const OrdersWorkspace = ({
   const openSaleCard = (sale: Sale) => {
     setSelectedSaleId(sale.id);
     setOpenStatusSaleId(null);
+  };
+
+  const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
+    if (
+      !currentEmployee?.id ||
+      !shouldCaptureReceivedBy(sale, status)
+    ) {
+      return sale;
+    }
+
+    return persistSaleWorkspace(sale, {
+      status,
+      issuedById: currentEmployee.id,
+    });
+  };
+
+  const toggleColumnVisibility = (columnKey: OrdersColumnKey) => {
+    setVisibleColumns((current) => {
+      const currentColumns = current[activeTab];
+      const availableColumns = availableColumnsByTab[activeTab];
+      const lockedColumns = lockedColumnsByTab[activeTab];
+
+      if (
+        !availableColumns.includes(columnKey) ||
+        lockedColumns.includes(columnKey)
+      ) {
+        return current;
+      }
+
+      if (
+        currentColumns.includes(columnKey) &&
+        currentColumns.length === lockedColumns.length + 1
+      ) {
+        return current;
+      }
+
+      const nextColumns = currentColumns.includes(columnKey)
+        ? currentColumns.filter((key) => key !== columnKey)
+        : availableColumns.filter(
+            (key) =>
+              key === columnKey || currentColumns.includes(key),
+          );
+
+      return {
+        ...current,
+        [activeTab]: nextColumns,
+      };
+    });
+  };
+
+  const renderOrdersCell = (
+    sale: Sale,
+    columnKey: OrdersColumnKey,
+  ): ReactNode => {
+    const status = getStatus(sale);
+    const statusOptions = getStatusOptions(sale);
+
+    switch (columnKey) {
+      case 'orderNumber':
+        return (
+          <button
+            type='button'
+            className='order-number-button'
+            onClick={() => openSaleCard(sale)}
+          >
+            {buildOrderNumber(sale)}
+          </button>
+        );
+      case 'receiver':
+        return sale.client.name;
+      case 'manager':
+        return activeTab === 'orders'
+          ? sale.manager?.name || '-'
+          : null;
+      case 'master':
+        return sale.issuedBy?.name || sale.master?.name || '-';
+      case 'status':
+        return (
+          <div className='order-status-menu'>
+            <button
+              type='button'
+              className={`order-status order-status-${status}`}
+              onClick={() =>
+                setOpenStatusSaleId((currentId) =>
+                  currentId === sale.id ? null : sale.id,
+                )
+              }
+            >
+              {getStatusLabel(sale, status)}
+            </button>
+            {openStatusSaleId === sale.id ? (
+              <div className='order-status-options'>
+                {statusOptions.map((statusOption) => (
+                  <button
+                    key={statusOption.key}
+                    type='button'
+                    className={
+                      statusOption.key === status
+                        ? 'order-status-option order-status-option-active'
+                        : 'order-status-option'
+                    }
+                    onClick={() => {
+                      void updateStatus(sale, statusOption.key);
+                    }}
+                  >
+                    {statusOption.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      case 'primaryItem':
+        return (
+          <button
+            type='button'
+            className='order-device-button'
+            onClick={() => openSaleCard(sale)}
+          >
+            <span>{getPrimaryItemCellContent(sale, activeTab)}</span>
+            <small>
+              {activeTab === 'orders'
+                ? `S/N: ${sale.product.serialNumber}`
+                : 'Warehouse: Service center'}
+            </small>
+          </button>
+        );
+      case 'price':
+        return formatCurrency(
+          getOrderTotal(sale, getLineItems(sale)),
+        );
+      case 'paid':
+        return formatCurrency(getPaidAmount(sale));
+      case 'client':
+        return activeTab === 'orders' ? (
+          <div className='orders-client-cell'>
+            <span>{sale.client.name}</span>
+            <small>
+              <PhoneNumber value={sale.client.phone} />
+            </small>
+          </div>
+        ) : (
+          <div className='orders-client-cell'>
+            <span>{sale.manager?.name || '-'}</span>
+            <small>
+              {sale.manager ? 'Created order' : 'Not assigned'}
+            </small>
+          </div>
+        );
+      case 'term':
+        return activeTab === 'orders' ? 'Non-urgent' : null;
+      case 'warehouse':
+        return 'Service center';
+      case 'createdAt':
+        return formatReadyDate(sale.createdAt);
+      case 'readyDate':
+        return formatReadyDate(sale.saleDate);
+      default:
+        return null;
+    }
   };
 
   const addComment = (sale: Sale, comment: string) => {
@@ -654,14 +1035,22 @@ export const OrdersWorkspace = ({
     }
   };
 
-  const openReturnLineItemModal = async (sale: Sale, item: OrderLineItem) => {
+  const openReturnLineItemModal = async (
+    sale: Sale,
+    item: OrderLineItem,
+  ) => {
     const lastDepositCashboxId =
-      (sale.paymentHistory ?? []).find((entry) => entry.type === 'deposit')
-        ?.cashboxId ?? '';
+      (sale.paymentHistory ?? []).find(
+        (entry) => entry.type === 'deposit',
+      )?.cashboxId ?? '';
 
     setReturnSale(sale);
     setReturnLineItem(item);
-    setReturnRefundAmount(String(Math.min(item.price * item.quantity, getPaidAmount(sale))));
+    setReturnRefundAmount(
+      String(
+        Math.min(item.price * item.quantity, getPaidAmount(sale)),
+      ),
+    );
     setReturnWarehouse('Service center');
     setIsReturnModalLoading(true);
 
@@ -689,8 +1078,9 @@ export const OrdersWorkspace = ({
 
   const openReturnSaleModal = async (sale: Sale) => {
     const lastDepositCashboxId =
-      (sale.paymentHistory ?? []).find((entry) => entry.type === 'deposit')
-        ?.cashboxId ?? '';
+      (sale.paymentHistory ?? []).find(
+        (entry) => entry.type === 'deposit',
+      )?.cashboxId ?? '';
     const lineItems = getLineItems(sale);
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
@@ -699,7 +1089,10 @@ export const OrdersWorkspace = ({
       lineItems.filter((item) => item.kind !== 'product'),
     );
     const paidAmount = getPaidAmount(sale);
-    const suggestedRefund = Math.min(productTotal, Math.max(paidAmount - serviceTotal, 0));
+    const suggestedRefund = Math.min(
+      productTotal,
+      Math.max(paidAmount - serviceTotal, 0),
+    );
 
     if (productTotal <= 0) {
       onError('Sale has no products to return to stock.');
@@ -707,12 +1100,16 @@ export const OrdersWorkspace = ({
     }
 
     if (suggestedRefund <= 0) {
-      onError('Cannot return a sale without received payment. Use another status for unpaid cancellation.');
+      onError(
+        'Cannot return a sale without received payment. Use another status for unpaid cancellation.',
+      );
       return;
     }
 
     setFullReturnSale(sale);
-    setReturnRefundAmount(String(Math.round(suggestedRefund * 100) / 100));
+    setReturnRefundAmount(
+      String(Math.round(suggestedRefund * 100) / 100),
+    );
     setReturnWarehouse('Service center');
     setIsFullReturnModalLoading(true);
 
@@ -755,7 +1152,9 @@ export const OrdersWorkspace = ({
 
   const removeLineItem = (sale: Sale, itemId: string) => {
     const currentItems = getLineItems(sale);
-    const nextItems = currentItems.filter((item) => item.id !== itemId);
+    const nextItems = currentItems.filter(
+      (item) => item.id !== itemId,
+    );
     void persistSaleWorkspace(sale, {
       lineItems:
         nextItems.length > 0 ? nextItems : getDefaultLineItems(sale),
@@ -765,7 +1164,17 @@ export const OrdersWorkspace = ({
   const updateLineItem = (
     sale: Sale,
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<
+      Pick<
+        OrderLineItem,
+        | 'name'
+        | 'productId'
+        | 'serviceId'
+        | 'price'
+        | 'quantity'
+        | 'warrantyPeriod'
+      >
+    >,
   ) => {
     const nextItems = getLineItems(sale).map((item) =>
       item.id === itemId ? { ...item, ...patch } : item,
@@ -776,9 +1185,8 @@ export const OrdersWorkspace = ({
     });
   };
 
-  const setIssuedStatus = (
-    status: PaymentTargetStatus = 'issued',
-  ) => status;
+  const setIssuedStatus = (status: PaymentTargetStatus = 'issued') =>
+    status;
 
   const acceptPayment = async (action: PaymentAction) => {
     if (
@@ -828,14 +1236,17 @@ export const OrdersWorkspace = ({
 
     try {
       let nextPaidAmount = currentPaidAmount;
-      let nextPaymentHistory = [...(paymentSale.paymentHistory ?? [])];
+      let nextPaymentHistory = [
+        ...(paymentSale.paymentHistory ?? []),
+      ];
       let nextTimeline = [...(paymentSale.timeline ?? [])];
       let nextStatus: OrderStatus | undefined;
 
       if (action !== 'issueWithoutPayment') {
         const cashboxName =
-          cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
-            ?.name ?? 'Cashbox';
+          cashboxes.find(
+            (cashbox) => cashbox.id === selectedCashboxId,
+          )?.name ?? 'Cashbox';
         const acceptedAmount = normalizedAmount;
         nextPaidAmount = Math.min(
           currentPaidAmount + acceptedAmount,
@@ -886,7 +1297,8 @@ export const OrdersWorkspace = ({
         status: nextStatus,
         paidAmount: nextPaidAmount,
         issuedById:
-          nextStatus && shouldCaptureIssuedBy(paymentSale, nextStatus)
+          nextStatus &&
+          shouldCaptureReceivedBy(paymentSale, nextStatus)
             ? currentEmployee?.id
             : undefined,
         paymentHistory: nextPaymentHistory,
@@ -920,7 +1332,8 @@ export const OrdersWorkspace = ({
     if (!refundSale || !selectedRefundCashboxId) return;
 
     const currentPaidAmount = getPaidAmount(refundSale);
-    const normalizedAmount = Math.round(Number(refundAmount) * 100) / 100;
+    const normalizedAmount =
+      Math.round(Number(refundAmount) * 100) / 100;
 
     if (
       !Number.isFinite(normalizedAmount) ||
@@ -987,17 +1400,22 @@ export const OrdersWorkspace = ({
   };
 
   const returnLineItemToStock = async () => {
-    if (!returnSale || !returnLineItem || !selectedRefundCashboxId) return;
+    if (!returnSale || !returnLineItem || !selectedRefundCashboxId)
+      return;
 
-    const refundAmountValue = Math.round(Number(returnRefundAmount) * 100) / 100;
+    const refundAmountValue =
+      Math.round(Number(returnRefundAmount) * 100) / 100;
 
     if (
       !Number.isFinite(refundAmountValue) ||
       refundAmountValue <= 0 ||
-      refundAmountValue > returnLineItem.price * returnLineItem.quantity ||
+      refundAmountValue >
+        returnLineItem.price * returnLineItem.quantity ||
       refundAmountValue > getPaidAmount(returnSale)
     ) {
-      onError('Refund amount cannot exceed item total or paid amount.');
+      onError(
+        'Refund amount cannot exceed item total or paid amount.',
+      );
       return;
     }
 
@@ -1012,6 +1430,10 @@ export const OrdersWorkspace = ({
         author: currentEmployeeName,
       });
       onSaleUpdate(updatedSale);
+      await syncReceivedBy(
+        updatedSale,
+        updatedSale.status as OrderStatus,
+      );
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
@@ -1033,7 +1455,8 @@ export const OrdersWorkspace = ({
   const returnFullSaleToStock = async () => {
     if (!fullReturnSale || !selectedRefundCashboxId) return;
 
-    const refundAmountValue = Math.round(Number(returnRefundAmount) * 100) / 100;
+    const refundAmountValue =
+      Math.round(Number(returnRefundAmount) * 100) / 100;
     const lineItems = getLineItems(fullReturnSale);
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
@@ -1065,11 +1488,17 @@ export const OrdersWorkspace = ({
         author: currentEmployeeName,
       });
       onSaleUpdate(updatedSale);
+      await syncReceivedBy(
+        updatedSale,
+        updatedSale.status as OrderStatus,
+      );
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
       );
-      onSuccess('Sale returned, products moved back to stock, and refund completed.');
+      onSuccess(
+        'Sale returned, products moved back to stock, and refund completed.',
+      );
       setFullReturnSale(null);
     } catch (error) {
       onError(
@@ -1151,11 +1580,57 @@ export const OrdersWorkspace = ({
           <button type='button' className='toolbar-filter-button'>
             Filter
           </button>
+          <div className='toolbar-settings' ref={columnsMenuRef}>
+            <button
+              type='button'
+              className='toolbar-square-button'
+              aria-label='Toggle table columns'
+              aria-expanded={isColumnsMenuOpen}
+              onClick={() =>
+                setIsColumnsMenuOpen((current) => !current)
+              }
+            >
+              <svg
+                viewBox='0 0 24 24'
+                aria-hidden='true'
+                className='toolbar-square-button-icon'
+              >
+                <path
+                  d='M12 3.25a1 1 0 0 1 .97.76l.31 1.25a6.96 6.96 0 0 1 1.68.7l1.1-.67a1 1 0 0 1 1.21.15l1.58 1.58a1 1 0 0 1 .15 1.21l-.67 1.1c.29.53.52 1.1.7 1.68l1.25.31a1 1 0 0 1 .76.97v2.24a1 1 0 0 1-.76.97l-1.25.31a6.96 6.96 0 0 1-.7 1.68l.67 1.1a1 1 0 0 1-.15 1.21l-1.58 1.58a1 1 0 0 1-1.21.15l-1.1-.67a6.96 6.96 0 0 1-1.68.7l-.31 1.25a1 1 0 0 1-.97.76H10.88a1 1 0 0 1-.97-.76l-.31-1.25a6.96 6.96 0 0 1-1.68-.7l-1.1.67a1 1 0 0 1-1.21-.15L4.03 18.6a1 1 0 0 1-.15-1.21l.67-1.1a6.96 6.96 0 0 1-.7-1.68l-1.25-.31a1 1 0 0 1-.76-.97v-2.24a1 1 0 0 1 .76-.97l1.25-.31c.18-.58.41-1.15.7-1.68l-.67-1.1a1 1 0 0 1 .15-1.21l1.58-1.58a1 1 0 0 1 1.21-.15l1.1.67c.53-.29 1.1-.52 1.68-.7l.31-1.25a1 1 0 0 1 .97-.76H12Zm-.01 5a3.63 3.63 0 1 0 0 7.26a3.63 3.63 0 0 0 0-7.26Z'
+                  fill='currentColor'
+                />
+              </svg>
+            </button>
+            {isColumnsMenuOpen ? (
+              <div className='toolbar-settings-menu'>
+                {availableColumnsByTab[activeTab].map((columnKey) => (
+                  <label
+                    key={`${activeTab}-${columnKey}`}
+                    className='toolbar-settings-option'
+                  >
+                    <input
+                      type='checkbox'
+                      checked={visibleColumnKeys.includes(columnKey)}
+                      disabled={lockedColumnsByTab[
+                        activeTab
+                      ].includes(columnKey)}
+                      onChange={() =>
+                        toggleColumnVisibility(columnKey)
+                      }
+                    />
+                    <span>
+                      {getColumnLabel(columnKey, activeTab)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className='orders-search-group'>
             <input
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
-              placeholder='Search by order, client or device'
+              placeholder={getOrdersSearchPlaceholder(activeTab)}
               aria-label='Search orders'
             />
             <button type='button'>Find</button>
@@ -1209,124 +1684,50 @@ export const OrdersWorkspace = ({
       </div>
 
       <div className='orders-table-wrap'>
-        <table className='orders-table'>
+        <table
+          className='orders-table'
+          style={{ minWidth: tableMinWidth }}
+        >
           <thead>
             <tr>
-              <th>Order #</th>
-              <th>Receiver</th>
-              <th>Manager</th>
-              <th>Master</th>
-              <th>Status</th>
-              <th>Device</th>
-              <th>Price</th>
-              <th>Paid</th>
-              <th>Client</th>
-              <th>Term</th>
-              <th>Warehouse</th>
-              <th>Add</th>
-              <th>Ready date</th>
+              {visibleColumnKeys.map((columnKey) => (
+                <th key={columnKey}>
+                  {getColumnLabel(columnKey, activeTab)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={13} className='orders-empty'>
+                <td
+                  colSpan={visibleColumnKeys.length}
+                  className='orders-empty'
+                >
                   Loading orders...
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={13} className='orders-empty'>
+                <td
+                  colSpan={visibleColumnKeys.length}
+                  className='orders-empty'
+                >
                   {activeTab === 'orders'
                     ? 'Orders not found.'
                     : 'Sales not found.'}
                 </td>
               </tr>
             ) : (
-              filteredOrders.map((sale) => {
-                const status = getStatus(sale);
-                const statusOptions = getStatusOptions(sale);
-                return (
-                  <tr key={sale.id}>
-                    <td>
-                      <button
-                        type='button'
-                        className='order-number-button'
-                        onClick={() => openSaleCard(sale)}
-                      >
-                        {buildOrderNumber(sale)}
-                      </button>
+              filteredOrders.map((sale) => (
+                <tr key={sale.id}>
+                  {visibleColumnKeys.map((columnKey) => (
+                    <td key={`${sale.id}-${columnKey}`}>
+                      {renderOrdersCell(sale, columnKey)}
                     </td>
-                    <td>{sale.client.name}</td>
-                    <td>{sale.manager?.name || '-'}</td>
-                    <td>{sale.master?.name || '-'}</td>
-                    <td>
-                      <div className='order-status-menu'>
-                        <button
-                          type='button'
-                          className={`order-status order-status-${status}`}
-                          onClick={() =>
-                            setOpenStatusSaleId((currentId) =>
-                              currentId === sale.id ? null : sale.id,
-                            )
-                          }
-                        >
-                          {getStatusLabel(sale, status)}
-                        </button>
-                        {openStatusSaleId === sale.id ? (
-                          <div className='order-status-options'>
-                            {statusOptions.map((statusOption) => (
-                              <button
-                                key={statusOption.key}
-                                type='button'
-                                className={
-                                  statusOption.key === status
-                                    ? 'order-status-option order-status-option-active'
-                                    : 'order-status-option'
-                                }
-                                onClick={() => {
-                                  void updateStatus(
-                                    sale,
-                                    statusOption.key,
-                                  );
-                                }}
-                              >
-                                {statusOption.label}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='order-device-button'
-                        onClick={() => openSaleCard(sale)}
-                      >
-                        <span>{sale.product.name}</span>
-                        <small>
-                          S/N: {sale.product.serialNumber}
-                        </small>
-                      </button>
-                    </td>
-                    <td>{formatCurrency(getOrderTotal(sale, getLineItems(sale)))}</td>
-                    <td>{formatCurrency(getPaidAmount(sale))}</td>
-                    <td>
-                      <div className='orders-client-cell'>
-                        <span>{sale.client.name}</span>
-                        <small>
-                          <PhoneNumber value={sale.client.phone} />
-                        </small>
-                      </div>
-                    </td>
-                    <td>Non-urgent</td>
-                    <td>Service center</td>
-                    <td>{formatReadyDate(sale.createdAt)}</td>
-                    <td>{formatReadyDate(sale.saleDate)}</td>
-                  </tr>
-                );
-              })
+                  ))}
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -1434,7 +1835,17 @@ type OrderDetailCardProps = {
   onRemoveLineItem: (itemId: string) => void;
   onUpdateLineItem: (
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<
+      Pick<
+        OrderLineItem,
+        | 'name'
+        | 'productId'
+        | 'serviceId'
+        | 'price'
+        | 'quantity'
+        | 'warrantyPeriod'
+      >
+    >,
   ) => void;
   onReturnLineItem: (item: OrderLineItem) => void;
   onOpenRelatedSale: (sale: Sale) => void;
@@ -1492,7 +1903,9 @@ const OrderDetailCard = ({
     [sale.client.id, sales],
   );
   const relatedVisibleRecords = relatedRecords.filter((item) =>
-    relatedTab === 'orders' ? isRepairOrder(item) : !isRepairOrder(item),
+    relatedTab === 'orders'
+      ? isRepairOrder(item)
+      : !isRepairOrder(item),
   );
   const timelineItems = [
     {
@@ -1524,9 +1937,7 @@ const OrderDetailCard = ({
           <select
             value={status}
             onChange={(event) => {
-              void onStatusChange(
-                event.target.value as OrderStatus,
-              );
+              void onStatusChange(event.target.value as OrderStatus);
             }}
             aria-label='Repair status'
           >
@@ -1700,7 +2111,9 @@ const OrderDetailCard = ({
           </section>
         )}
 
-        <section className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}>
+        <section
+          className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}
+        >
           <h3>Payment</h3>
           <dl className='order-payment-list'>
             <div>
@@ -1796,7 +2209,17 @@ type LineItemsPanelProps = {
   onRemoveItem: (itemId: string) => void;
   onUpdateItem: (
     itemId: string,
-    patch: Partial<Pick<OrderLineItem, 'name' | 'productId' | 'serviceId' | 'price' | 'quantity' | 'warrantyPeriod'>>,
+    patch: Partial<
+      Pick<
+        OrderLineItem,
+        | 'name'
+        | 'productId'
+        | 'serviceId'
+        | 'price'
+        | 'quantity'
+        | 'warrantyPeriod'
+      >
+    >,
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
   isPaidSale: boolean;
@@ -1819,22 +2242,42 @@ const LineItemsPanel = ({
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [warrantyPeriod, setWarrantyPeriod] = useState(kind === 'service' ? '1' : '0');
-  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>();
-  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
-  const [productForm, setProductForm] = useState<ProductFormValues | null>(null);
-  const [serviceForm, setServiceForm] = useState(initialServiceCatalogForm);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [warrantyPeriod, setWarrantyPeriod] = useState(
+    kind === 'service' ? '1' : '0',
+  );
+  const [serviceSuggestions, setServiceSuggestions] = useState<
+    ServiceCatalogItem[]
+  >([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<
+    string | undefined
+  >();
+  const [isServiceLookupLoading, setIsServiceLookupLoading] =
+    useState(false);
+  const [selectedProduct, setSelectedProduct] =
+    useState<Product | null>(null);
+  const [selectedService, setSelectedService] =
+    useState<ServiceCatalogItem | null>(null);
+  const [productForm, setProductForm] =
+    useState<ProductFormValues | null>(null);
+  const [serviceForm, setServiceForm] = useState(
+    initialServiceCatalogForm,
+  );
+  const [editingItemId, setEditingItemId] = useState<string | null>(
+    null,
+  );
   const [isCatalogSaving, setIsCatalogSaving] = useState(false);
-  const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
-  const [createServiceForm, setCreateServiceForm] = useState(initialServiceCatalogForm);
-  const [isCreateServiceSaving, setIsCreateServiceSaving] = useState(false);
+  const [isCreateServiceOpen, setIsCreateServiceOpen] =
+    useState(false);
+  const [createServiceForm, setCreateServiceForm] = useState(
+    initialServiceCatalogForm,
+  );
+  const [isCreateServiceSaving, setIsCreateServiceSaving] =
+    useState(false);
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
   const hasExactServiceSuggestion = serviceSuggestions.some(
-    (service) => service.name.trim().toLowerCase() === serviceLookupQuery.toLowerCase(),
+    (service) =>
+      service.name.trim().toLowerCase() ===
+      serviceLookupQuery.toLowerCase(),
   );
   const canCreateMissingService =
     kind === 'service' &&
@@ -1857,7 +2300,9 @@ const LineItemsPanel = ({
     const timeoutId = window.setTimeout(async () => {
       setIsServiceLookupLoading(true);
       try {
-        const services = await getServiceCatalogItems(serviceLookupQuery);
+        const services = await getServiceCatalogItems(
+          serviceLookupQuery,
+        );
         if (isActive) setServiceSuggestions(services.slice(0, 6));
       } catch {
         if (isActive) setServiceSuggestions([]);
@@ -1893,7 +2338,8 @@ const LineItemsPanel = ({
   const saveCreatedService = async () => {
     setIsCreateServiceSaving(true);
     try {
-      const createdService = await createServiceCatalogItem(createServiceForm);
+      const createdService =
+        await createServiceCatalogItem(createServiceForm);
       setName(createdService.name);
       setPrice(String(createdService.price));
       setQuantity('1');
@@ -1903,7 +2349,11 @@ const LineItemsPanel = ({
       setIsCreateServiceOpen(false);
       onSuccess('Service saved to catalog.');
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to save service.');
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save service.',
+      );
     } finally {
       setIsCreateServiceSaving(false);
     }
@@ -1915,8 +2365,12 @@ const LineItemsPanel = ({
       if (item.kind === 'product') {
         const products = await getProducts(item.name);
         const product =
-          products.find((candidate) => candidate.id === item.productId) ??
-          products.find((candidate) => candidate.name === item.name) ??
+          products.find(
+            (candidate) => candidate.id === item.productId,
+          ) ??
+          products.find(
+            (candidate) => candidate.name === item.name,
+          ) ??
           null;
         if (!product) {
           onError('Product was not found in catalog.');
@@ -1929,7 +2383,9 @@ const LineItemsPanel = ({
 
       const services = await getServiceCatalogItems(item.name);
       const service =
-        services.find((candidate) => candidate.id === item.serviceId) ??
+        services.find(
+          (candidate) => candidate.id === item.serviceId,
+        ) ??
         services.find((candidate) => candidate.name === item.name) ??
         null;
       if (!service) {
@@ -1939,7 +2395,11 @@ const LineItemsPanel = ({
       setSelectedService(service);
       setServiceForm(toServiceCatalogForm(service));
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to load catalog item.');
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load catalog item.',
+      );
     }
   };
 
@@ -1948,19 +2408,27 @@ const LineItemsPanel = ({
 
     setIsCatalogSaving(true);
     try {
-      const updatedProduct = await updateProduct(selectedProduct.id, productForm);
+      const updatedProduct = await updateProduct(
+        selectedProduct.id,
+        productForm,
+      );
       setSelectedProduct(updatedProduct);
       setProductForm(toProductForm(updatedProduct));
       onUpdateItem(editingItemId, {
         name: updatedProduct.name,
         productId: updatedProduct.id,
-        price: updatedProduct.salePriceOptions[0] ?? updatedProduct.price,
+        price:
+          updatedProduct.salePriceOptions[0] ?? updatedProduct.price,
         warrantyPeriod: 0,
       });
       onSuccess('Product updated.');
       setSelectedProduct(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to update product.');
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update product.',
+      );
     } finally {
       setIsCatalogSaving(false);
     }
@@ -1971,7 +2439,10 @@ const LineItemsPanel = ({
 
     setIsCatalogSaving(true);
     try {
-      const updatedService = await updateServiceCatalogItem(selectedService.id, serviceForm);
+      const updatedService = await updateServiceCatalogItem(
+        selectedService.id,
+        serviceForm,
+      );
       setSelectedService(updatedService);
       setServiceForm(toServiceCatalogForm(updatedService));
       onUpdateItem(editingItemId, {
@@ -1983,7 +2454,11 @@ const LineItemsPanel = ({
       onSuccess('Service updated.');
       setSelectedService(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to update service.');
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update service.',
+      );
     } finally {
       setIsCatalogSaving(false);
     }
@@ -2008,8 +2483,10 @@ const LineItemsPanel = ({
       kind,
       serviceId:
         kind === 'service'
-          ? selectedServiceId ??
-            serviceSuggestions.find((service) => service.name === normalizedName)?.id
+          ? (selectedServiceId ??
+            serviceSuggestions.find(
+              (service) => service.name === normalizedName,
+            )?.id)
           : undefined,
       name: normalizedName,
       price: normalizedPrice,
@@ -2051,7 +2528,9 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   min={0}
                   value={String(item.price)}
-                  onChange={(value) => onUpdateItem(item.id, { price: Number(value) })}
+                  onChange={(value) =>
+                    onUpdateItem(item.id, { price: Number(value) })
+                  }
                 />
               </div>
               <div key={`${item.id}-qty`}>
@@ -2059,7 +2538,9 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   min={1}
                   value={String(item.quantity)}
-                  onChange={(value) => onUpdateItem(item.id, { quantity: Number(value) })}
+                  onChange={(value) =>
+                    onUpdateItem(item.id, { quantity: Number(value) })
+                  }
                 />
               </div>
               <div key={`${item.id}-warranty`}>
@@ -2067,7 +2548,9 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   value={item.warrantyPeriod}
                   onChange={(event) =>
-                    onUpdateItem(item.id, { warrantyPeriod: Number(event.target.value) })
+                    onUpdateItem(item.id, {
+                      warrantyPeriod: Number(event.target.value),
+                    })
                   }
                 >
                   {warrantyOptions.map((option) => (
@@ -2087,7 +2570,9 @@ const LineItemsPanel = ({
                       : onRemoveItem(item.id)
                   }
                 >
-                  {isPaidSale && item.kind === 'product' ? 'Return' : 'Remove'}
+                  {isPaidSale && item.kind === 'product'
+                    ? 'Return'
+                    : 'Remove'}
                 </button>
               </div>
             </div>
@@ -2103,9 +2588,12 @@ const LineItemsPanel = ({
           }}
           placeholder={`Add ${kind}`}
         />
-        {kind === 'service' && (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
+        {kind === 'service' &&
+        (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>
-            {isServiceLookupLoading ? <p>Searching services...</p> : null}
+            {isServiceLookupLoading ? (
+              <p>Searching services...</p>
+            ) : null}
             {serviceSuggestions.map((service) => (
               <button
                 key={service.id}
@@ -2165,7 +2653,10 @@ const LineItemsPanel = ({
           isSaving={isCreateServiceSaving}
           isEditing
           onChange={(field, value) =>
-            setCreateServiceForm((current) => ({ ...current, [field]: value }))
+            setCreateServiceForm((current) => ({
+              ...current,
+              [field]: value,
+            }))
           }
           onSubmit={() => void saveCreatedService()}
           onClose={() => setIsCreateServiceOpen(false)}
@@ -2177,7 +2668,9 @@ const LineItemsPanel = ({
           form={productForm}
           isSaving={isCatalogSaving}
           onChange={(field, value) =>
-            setProductForm((current) => (current ? { ...current, [field]: value } : current))
+            setProductForm((current) =>
+              current ? { ...current, [field]: value } : current,
+            )
           }
           onSubmit={() => void saveSelectedProduct()}
           onClose={() => setSelectedProduct(null)}
@@ -2191,7 +2684,10 @@ const LineItemsPanel = ({
           isSaving={isCatalogSaving}
           isEditing
           onChange={(field, value) =>
-            setServiceForm((current) => ({ ...current, [field]: value }))
+            setServiceForm((current) => ({
+              ...current,
+              [field]: value,
+            }))
           }
           onSubmit={() => void saveSelectedService()}
           onClose={() => setSelectedService(null)}
@@ -2201,7 +2697,10 @@ const LineItemsPanel = ({
   );
 };
 
-const getProductPriceOption = (form: ProductFormValues, index: number) =>
+const getProductPriceOption = (
+  form: ProductFormValues,
+  index: number,
+) =>
   form.salePriceOptions
     .split(',')
     .map((value) => value.trim())
@@ -2250,13 +2749,22 @@ const CatalogProductEditorModal = ({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+      <section
+        className='catalog-edit-modal'
+        role='dialog'
+        aria-modal='true'
+      >
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
             <span>Product</span>
             <h2>{product.name}</h2>
           </div>
-          <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label='Close'
+          >
             &times;
           </button>
         </header>
@@ -2264,20 +2772,39 @@ const CatalogProductEditorModal = ({
           <h3>Main information</h3>
           <label className='field'>
             <span>Name</span>
-            <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+            <input
+              value={form.name}
+              onChange={(event) =>
+                onChange('name', event.target.value)
+              }
+            />
           </label>
           <label className='field'>
             <span>Article</span>
-            <input value={form.article} onChange={(event) => onChange('article', event.target.value)} />
+            <input
+              value={form.article}
+              onChange={(event) =>
+                onChange('article', event.target.value)
+              }
+            />
           </label>
           <label className='field'>
             <span>Serial number</span>
-            <input value={form.serialNumber} onChange={(event) => onChange('serialNumber', event.target.value)} />
+            <input
+              value={form.serialNumber}
+              onChange={(event) =>
+                onChange('serialNumber', event.target.value)
+              }
+            />
           </label>
           <fieldset className='catalog-type-field'>
             <legend>Item type</legend>
-            <label><input type='radio' checked readOnly /> Product</label>
-            <label><input type='radio' disabled /> Service</label>
+            <label>
+              <input type='radio' checked readOnly /> Product
+            </label>
+            <label>
+              <input type='radio' disabled /> Service
+            </label>
           </fieldset>
           <div className='catalog-price-grid'>
             <label className='field'>
@@ -2286,37 +2813,73 @@ const CatalogProductEditorModal = ({
                 min={0}
                 value={getProductPriceOption(form, 0) || form.price}
                 onChange={(value) =>
-                  onChange('salePriceOptions', setProductPriceOption(form, 0, value))
+                  onChange(
+                    'salePriceOptions',
+                    setProductPriceOption(form, 0, value),
+                  )
                 }
               />
             </label>
             <label className='field'>
               <span>Purchase price</span>
-              <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+              <NumberStepper
+                min={0}
+                value={form.price}
+                onChange={(value) => onChange('price', value)}
+              />
             </label>
             <label className='field'>
               <span>Quantity</span>
-              <NumberStepper min={0} value={form.quantity} onChange={(value) => onChange('quantity', value)} />
+              <NumberStepper
+                min={0}
+                value={form.quantity}
+                onChange={(value) => onChange('quantity', value)}
+              />
             </label>
             <label className='field'>
               <span>Warehouse</span>
-              <input value={form.purchasePlace} onChange={(event) => onChange('purchasePlace', event.target.value)} />
+              <input
+                value={form.purchasePlace}
+                onChange={(event) =>
+                  onChange('purchasePlace', event.target.value)
+                }
+              />
             </label>
             <label className='field'>
               <span>Warranty</span>
-              <input value={form.warrantyPeriod} onChange={(event) => onChange('warrantyPeriod', event.target.value)} />
+              <input
+                value={form.warrantyPeriod}
+                onChange={(event) =>
+                  onChange('warrantyPeriod', event.target.value)
+                }
+              />
             </label>
           </div>
           <label className='field field-wide'>
             <span>Note</span>
-            <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+            <textarea
+              rows={3}
+              value={form.note}
+              onChange={(event) =>
+                onChange('note', event.target.value)
+              }
+            />
           </label>
         </div>
         <footer className='catalog-edit-footer'>
-          <button type='button' className='secondary-button' onClick={onClose}>
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={onClose}
+          >
             Cancel
           </button>
-          <button type='button' className='primary-button' onClick={onSubmit} disabled={isSaving}>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={onSubmit}
+            disabled={isSaving}
+          >
             {isSaving ? 'Saving...' : 'Save'}
           </button>
         </footer>
@@ -2359,13 +2922,22 @@ const CatalogServiceEditorModal = ({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+      <section
+        className='catalog-edit-modal'
+        role='dialog'
+        aria-modal='true'
+      >
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
             <span>{service ? 'Service' : 'New service'}</span>
             <h2>{title}</h2>
           </div>
-          <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label='Close'
+          >
             &times;
           </button>
         </header>
@@ -2373,27 +2945,55 @@ const CatalogServiceEditorModal = ({
           <h3>Main information</h3>
           <label className='field'>
             <span>Name</span>
-            <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+            <input
+              value={form.name}
+              onChange={(event) =>
+                onChange('name', event.target.value)
+              }
+            />
           </label>
           <fieldset className='catalog-type-field'>
             <legend>Item type</legend>
-            <label><input type='radio' disabled /> Product</label>
-            <label><input type='radio' checked readOnly /> Service</label>
+            <label>
+              <input type='radio' disabled /> Product
+            </label>
+            <label>
+              <input type='radio' checked readOnly /> Service
+            </label>
           </fieldset>
           <label className='field'>
             <span>Retail price</span>
-            <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+            <NumberStepper
+              min={0}
+              value={form.price}
+              onChange={(value) => onChange('price', value)}
+            />
           </label>
           <label className='field field-wide'>
             <span>Note</span>
-            <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+            <textarea
+              rows={3}
+              value={form.note}
+              onChange={(event) =>
+                onChange('note', event.target.value)
+              }
+            />
           </label>
         </div>
         <footer className='catalog-edit-footer'>
-          <button type='button' className='secondary-button' onClick={onClose}>
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={onClose}
+          >
             Cancel
           </button>
-          <button type='button' className='primary-button' onClick={onSubmit} disabled={isSaving || !isEditing}>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={onSubmit}
+            disabled={isSaving || !isEditing}
+          >
             {isSaving ? 'Saving...' : 'Save'}
           </button>
         </footer>
@@ -2780,7 +3380,11 @@ const RefundModal = ({
             </div>
             <div>
               <dt>Refund amount</dt>
-              <dd>{formatCurrency(Number.isFinite(numericAmount) ? numericAmount : 0)}</dd>
+              <dd>
+                {formatCurrency(
+                  Number.isFinite(numericAmount) ? numericAmount : 0,
+                )}
+              </dd>
             </div>
           </dl>
           <span className='payment-cash-badge'>Refund</span>
@@ -2791,7 +3395,9 @@ const RefundModal = ({
             <span>* Cashbox</span>
             <select
               value={selectedCashboxId}
-              onChange={(event) => onCashboxChange(event.target.value)}
+              onChange={(event) =>
+                onCashboxChange(event.target.value)
+              }
               disabled={isLoading || isSaving}
             >
               {cashboxes.map((cashbox) => (
@@ -2893,16 +3499,20 @@ const ReturnSaleModal = ({
   onClose,
   onSubmit,
 }: ReturnSaleModalProps) => {
-  const productItems = lineItems.filter((item) => item.kind === 'product');
-  const serviceItems = lineItems.filter((item) => item.kind !== 'product');
+  const productItems = lineItems.filter(
+    (item) => item.kind === 'product',
+  );
+  const serviceItems = lineItems.filter(
+    (item) => item.kind !== 'product',
+  );
   const productTotal = getLineItemsTotal(productItems);
   const serviceTotal = getLineItemsTotal(serviceItems);
   const numericAmount = Number(amount);
   const minRefund = Math.max(paidAmount - serviceTotal, 0);
   const maxRefund = Math.min(productTotal, paidAmount);
   const suggestedCashboxName =
-    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)?.name ??
-    'Cashbox';
+    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
+      ?.name ?? 'Cashbox';
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -2938,7 +3548,11 @@ const ReturnSaleModal = ({
             </div>
             <div>
               <dt>Products to stock</dt>
-              <dd>{productItems.map((item) => `${item.name} x${item.quantity}`).join(', ')}</dd>
+              <dd>
+                {productItems
+                  .map((item) => `${item.name} x${item.quantity}`)
+                  .join(', ')}
+              </dd>
             </div>
             <div>
               <dt>Product total</dt>
@@ -2957,7 +3571,9 @@ const ReturnSaleModal = ({
             <span>Receive to warehouse</span>
             <input
               value={warehouse}
-              onChange={(event) => onWarehouseChange(event.target.value)}
+              onChange={(event) =>
+                onWarehouseChange(event.target.value)
+              }
               disabled={isLoading || isSaving}
             />
           </label>
@@ -2965,7 +3581,9 @@ const ReturnSaleModal = ({
             <span>Refund from cashbox</span>
             <select
               value={selectedCashboxId}
-              onChange={(event) => onCashboxChange(event.target.value)}
+              onChange={(event) =>
+                onCashboxChange(event.target.value)
+              }
               disabled={isLoading || isSaving}
             >
               {cashboxes.map((cashbox) => (
@@ -3032,8 +3650,8 @@ const ReturnLineItemModal = ({
   const itemTotal = item.price * item.quantity;
   const numericAmount = Number(amount);
   const suggestedCashboxName =
-    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)?.name ??
-    'Cashbox';
+    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
+      ?.name ?? 'Cashbox';
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -3088,7 +3706,9 @@ const ReturnLineItemModal = ({
             <span>Receive to warehouse</span>
             <input
               value={warehouse}
-              onChange={(event) => onWarehouseChange(event.target.value)}
+              onChange={(event) =>
+                onWarehouseChange(event.target.value)
+              }
               disabled={isLoading || isSaving}
             />
           </label>
@@ -3096,7 +3716,9 @@ const ReturnLineItemModal = ({
             <span>Refund from cashbox</span>
             <select
               value={selectedCashboxId}
-              onChange={(event) => onCashboxChange(event.target.value)}
+              onChange={(event) =>
+                onCashboxChange(event.target.value)
+              }
               disabled={isLoading || isSaving}
             >
               {cashboxes.map((cashbox) => (
