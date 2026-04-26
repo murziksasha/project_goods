@@ -66,16 +66,15 @@ type OrdersWorkspaceProps = {
 type OrdersTab = 'orders' | 'sales';
 type OrdersColumnKey =
   | 'orderNumber'
-  | 'receiver'
-  | 'manager'
-  | 'master'
+  | 'client'
   | 'status'
   | 'primaryItem'
   | 'price'
   | 'paid'
-  | 'client'
   | 'term'
   | 'warehouse'
+  | 'manager'
+  | 'received'
   | 'createdAt'
   | 'readyDate';
 type OrdersColumnVisibility = Record<OrdersTab, OrdersColumnKey[]>;
@@ -157,15 +156,14 @@ const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const allOrdersColumnKeys: OrdersColumnKey[] = [
   'orderNumber',
   'client',
-  'receiver',
-  'manager',
   'status',
   'primaryItem',
   'price',
   'paid',
   'term',
   'warehouse',
-  'master',
+  'manager',
+  'received',
   'createdAt',
   'readyDate',
 ];
@@ -173,13 +171,13 @@ const defaultVisibleColumns: OrdersColumnVisibility = {
   orders: allOrdersColumnKeys,
   sales: [
     'orderNumber',
-    'receiver',
+    'client',
     'status',
     'price',
     'paid',
-    'client',
-    'master',
     'warehouse',
+    'manager',
+    'received',
     'createdAt',
     'readyDate',
   ],
@@ -192,6 +190,7 @@ const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
 };
+
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
   { key: 'issued', label: 'Issued' },
@@ -444,11 +443,9 @@ const getColumnLabel = (
   switch (columnKey) {
     case 'orderNumber':
       return 'Order #';
-    case 'receiver':
-      return activeTab === 'orders' ? 'Receiver' : 'Client';
     case 'manager':
       return 'Manager';
-    case 'master':
+    case 'received':
       return 'Received';
     case 'status':
       return 'Status';
@@ -459,7 +456,7 @@ const getColumnLabel = (
     case 'paid':
       return 'Paid';
     case 'client':
-      return activeTab === 'orders' ? 'Client' : 'Manager';
+      return 'Client';
     case 'term':
       return 'Term';
     case 'warehouse':
@@ -868,14 +865,10 @@ export const OrdersWorkspace = ({
             {buildOrderNumber(sale)}
           </button>
         );
-      case 'receiver':
-        return sale.client.name;
       case 'manager':
-        return activeTab === 'orders'
-          ? sale.manager?.name || '-'
-          : null;
-      case 'master':
-        return sale.issuedBy?.name || sale.master?.name || '-';
+        return sale.manager?.name || '-';
+      case 'received':
+        return sale.issuedBy?.name || sale.manager?.name || '-';
       case 'status':
         return (
           <div className='order-status-menu'>
@@ -934,18 +927,11 @@ export const OrdersWorkspace = ({
       case 'paid':
         return formatCurrency(getPaidAmount(sale));
       case 'client':
-        return activeTab === 'orders' ? (
+        return (
           <div className='orders-client-cell'>
             <span>{sale.client.name}</span>
             <small>
               <PhoneNumber value={sale.client.phone} />
-            </small>
-          </div>
-        ) : (
-          <div className='orders-client-cell'>
-            <span>{sale.manager?.name || '-'}</span>
-            <small>
-              {sale.manager ? 'Created order' : 'Not assigned'}
             </small>
           </div>
         );
@@ -2001,8 +1987,8 @@ const OrderDetailCard = ({
               </div>
             ) : (
               <div>
-                <dt>Master</dt>
-                <dd>{sale.master?.name || '-'}</dd>
+                <dt>Received</dt>
+                <dd>{sale.manager?.name || '-'}</dd>
               </div>
             )}
             {isSaleCard ? (
