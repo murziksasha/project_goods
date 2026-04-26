@@ -15,8 +15,8 @@ type ProductFormProps = {
 
 const hasEmptyRequiredFields = (form: ProductFormValues) =>
   !form.name.trim() ||
-  !form.article.trim() ||
-  !form.serialNumber.trim() ||
+  // !form.article.trim() ||
+  // !form.serialNumber.trim() ||
   !form.price.trim() ||
   !form.quantity.trim();
 
@@ -46,7 +46,7 @@ export const ProductForm = ({
         <span>Name</span>
         <input
           value={form.name}
-          placeholder="Wireless mouse"
+          placeholder="Назва товару"
           onChange={(event) => onChange('name', event.target.value)}
         />
       </label>
@@ -74,7 +74,7 @@ export const ProductForm = ({
         <NumberStepper
           min={0}
           value={form.price}
-          placeholder="1200"
+          placeholder="100"
           onChange={(value) => onChange('price', value)}
         />
       </label>
@@ -92,7 +92,7 @@ export const ProductForm = ({
         <span>Quantity</span>
         <NumberStepper
           min={0}
-          value={form.quantity}
+          value={form.quantity || "1"}
           placeholder="5"
           onChange={(value) => onChange('quantity', value)}
         />
@@ -102,7 +102,7 @@ export const ProductForm = ({
         <span>Purchase place</span>
         <input
           value={form.purchasePlace}
-          placeholder="Rozetka"
+          placeholder="Постачальник"
           onChange={(event) => onChange('purchasePlace', event.target.value)}
         />
       </label>

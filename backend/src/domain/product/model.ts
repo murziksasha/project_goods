@@ -8,10 +8,11 @@ export const productSchema = new mongoose.Schema(
       trim: true,
       minlength: [2, 'Product name must contain at least 2 characters'],
       maxlength: [120, 'Product name must contain no more than 120 characters'],
+      unique: [true, 'Product with this name is exist']
     },
     article: {
       type: String,
-      required: [true, 'Article is required'],
+      required: false,
       trim: true,
       uppercase: true,
       maxlength: [50, 'Article must contain no more than 50 characters'],
@@ -19,7 +20,7 @@ export const productSchema = new mongoose.Schema(
     },
     serialNumber: {
       type: String,
-      required: [true, 'Serial number is required'],
+      required: false,
       trim: true,
       uppercase: true,
       maxlength: [80, 'Serial number must contain no more than 80 characters'],
