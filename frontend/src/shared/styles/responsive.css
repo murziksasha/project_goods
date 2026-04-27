@@ -112,6 +112,24 @@
     width: 100%;
   }
 
+  .orders-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .orders-filter-saved-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .orders-filter-actions {
+    justify-content: stretch;
+  }
+
+  .orders-filter-actions .toolbar-filter-button {
+    flex: 1;
+    justify-content: center;
+  }
+
   .orders-create-button {
     width: 100%;
   }
