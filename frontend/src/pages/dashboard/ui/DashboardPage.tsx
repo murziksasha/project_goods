@@ -140,9 +140,6 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'accounting', label: 'Accounting' },
   { key: 'warehouse', label: 'Warehouses' },
   { key: 'catalog', label: 'Products & Services' },
-  { key: 'other', label: 'Sales' },
-  { key: 'other', label: 'Chats' },
-  { key: 'other', label: 'More' },
   { key: 'settings', label: 'Settings' },
 ];
 
