@@ -2117,6 +2117,107 @@
   padding: 24px;
 }
 
+.clients-workspace {
+  display: grid;
+  gap: 12px;
+}
+
+.clients-toolbar {
+  margin-bottom: 0;
+}
+
+.clients-toolbar-actions .toolbar-filter-button {
+  min-width: 130px;
+  justify-content: center;
+}
+
+.clients-search-group {
+  grid-template-columns: minmax(280px, 420px) 82px;
+}
+
+.clients-table tbody tr {
+  cursor: pointer;
+}
+
+.clients-table-row-active {
+  background: #eef6ff;
+}
+
+.clients-delete-button {
+  border: 0;
+  background: transparent;
+  color: #d23a4f;
+  font-size: 1.1rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clients-delete-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clients-modal {
+  width: min(560px, calc(100vw - 28px));
+}
+
+.clients-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #d8e1ec;
+}
+
+.clients-modal-tabs .catalog-tab {
+  flex: 1;
+  border-right: 0;
+}
+
+.clients-modal-body {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.clients-card-modal {
+  width: min(940px, calc(100vw - 28px));
+  max-height: calc(100vh - 32px);
+  border-radius: 8px;
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  box-shadow: 0 24px 70px rgba(25, 36, 50, 0.28);
+}
+
+.clients-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #dbe3ee;
+  padding: 14px 16px;
+}
+
+.clients-card-header h2 {
+  margin: 0;
+  color: #35506d;
+}
+
+.clients-card-tabs {
+  margin: 0;
+  padding: 12px 16px 0;
+}
+
+.clients-card-body {
+  padding: 14px 16px 16px;
+  overflow-y: auto;
+}
+
+.clients-card-table th,
+.clients-card-table td {
+  white-space: nowrap;
+}
+
+.clients-main-save {
+  max-width: 220px;
+}
+
 .finance-page {
   display: grid;
   gap: 18px;

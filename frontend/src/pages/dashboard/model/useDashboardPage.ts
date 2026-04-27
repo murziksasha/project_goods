@@ -122,6 +122,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const actions = createDashboardActions({
     allProducts,
     allClients,
+    sales,
     allEmployees,
     settingsForm,
     productForm,

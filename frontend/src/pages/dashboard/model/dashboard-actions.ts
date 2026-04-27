@@ -62,6 +62,7 @@ type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 type DashboardActionParams = {
   allProducts: Product[];
   allClients: Client[];
+  sales: Sale[];
   allEmployees: Employee[];
   productForm: ProductFormValues;
   serviceForm: ServiceCatalogFormValues;
@@ -114,6 +115,7 @@ type DashboardActionParams = {
 export const createDashboardActions = ({
   allProducts,
   allClients,
+  sales,
   allEmployees,
   productForm,
   serviceForm,
@@ -368,16 +370,116 @@ export const createDashboardActions = ({
           if (selectedClientId === updatedClient.id) {
             setSelectedClientId(updatedClient.id);
           }
-          setSuccessMessage('Client updated.');
+          setSuccessMessage('Клієнта оновлено.');
         } else {
           const createdClient = await createClient(clientForm);
           setAllClients((current) => [createdClient, ...current]);
-          setSuccessMessage('Client card created.');
+          setSuccessMessage('Картку клієнта створено.');
         }
 
         resetClientEditor();
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to save client.'));
+        setError(getRequestErrorMessage(requestError, 'Не вдалося зберегти клієнта.'));
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    createClientCard: async (payload: ClientFormValues) => {
+      setIsClientSaving(true);
+      clearNotifications();
+
+      try {
+        const createdClient = await createClient(payload);
+        setAllClients((current) => [createdClient, ...current]);
+        setSuccessMessage('Картку клієнта створено.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Не вдалося створити картку клієнта.'));
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    mergeClients: async (targetClientId: string, sourceClientId: string) => {
+      setIsClientSaving(true);
+      clearNotifications();
+
+      try {
+        if (targetClientId === sourceClientId) {
+          throw new Error('Оберіть двох різних клієнтів.');
+        }
+
+        const targetClient = allClients.find((client) => client.id === targetClientId);
+        const sourceClient = allClients.find((client) => client.id === sourceClientId);
+
+        if (!targetClient || !sourceClient) {
+          throw new Error('Вибраного клієнта не знайдено.');
+        }
+
+        const sourceHistory = await getClientHistory(sourceClientId);
+        if (sourceHistory.sales.length > 0) {
+          throw new Error(
+            'Обʼєднання можливе лише для клієнта без історії замовлень або продажів.',
+          );
+        }
+
+        const mergedNote = [targetClient.note.trim(), sourceClient.note.trim()]
+          .filter(Boolean)
+          .filter((note, index, collection) => collection.indexOf(note) === index)
+          .join('\n');
+        const mergedStatus =
+          targetClient.status === 'new' && sourceClient.status !== 'new'
+            ? sourceClient.status
+            : targetClient.status;
+        const updatedClient = await updateClient(targetClientId, {
+          phone: targetClient.phone.trim() || sourceClient.phone,
+          name: targetClient.name.trim() || sourceClient.name,
+          note: mergedNote,
+          status: mergedStatus,
+        });
+
+        await deleteClient(sourceClientId);
+
+        setAllClients((current) =>
+          current
+            .filter((client) => client.id !== sourceClientId)
+            .map((client) => (client.id === updatedClient.id ? updatedClient : client)),
+        );
+
+        if (selectedClientId === sourceClientId || selectedClientId === targetClientId) {
+          setSelectedClientId(updatedClient.id);
+          await refreshClientHistory(updatedClient.id);
+        }
+
+        setSuccessMessage('Клієнтів обʼєднано.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Не вдалося обʼєднати клієнтів.'));
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    updateClientCard: async (clientId: string, payload: ClientFormValues) => {
+      setIsClientSaving(true);
+      clearNotifications();
+
+      try {
+        const updatedClient = await updateClient(clientId, payload);
+        setAllClients((current) =>
+          current.map((item) =>
+            item.id === updatedClient.id ? updatedClient : item,
+          ),
+        );
+        if (selectedClientId === updatedClient.id) {
+          setSelectedClientId(updatedClient.id);
+          await refreshClientHistory(updatedClient.id);
+        }
+        setSuccessMessage('Клієнта оновлено.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Не вдалося оновити клієнта.'));
+        return false;
       } finally {
         setIsClientSaving(false);
       }
@@ -533,7 +635,12 @@ export const createDashboardActions = ({
     },
     deleteClient: async (client: Client) => {
       clearNotifications();
-      if (!window.confirm(`Delete client "${client.name}"?`)) return;
+      const hasSalesHistory = sales.some((sale) => sale.client.id === client.id);
+      if (hasSalesHistory) {
+        setError('Клієнта не можна видалити, бо він має замовлення або продажі.');
+        return;
+      }
+      if (!window.confirm(`Видалити клієнта "${client.name}"?`)) return;
 
       try {
         await deleteClient(client.id);
@@ -543,9 +650,9 @@ export const createDashboardActions = ({
           setClientHistory(null);
         }
         if (editingClientId === client.id) resetClientEditor();
-        setSuccessMessage('Client deleted.');
+        setSuccessMessage('Клієнта видалено.');
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete client.'));
+        setError(getRequestErrorMessage(requestError, 'Не вдалося видалити клієнта.'));
       }
     },
     deleteSale: async (sale: Sale) => {
