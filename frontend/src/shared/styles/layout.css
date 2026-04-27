@@ -2047,11 +2047,11 @@
 }
 
 .order-status-diagnostics {
-  background: #c64d58;
+  background: #1f8fae;
 }
 
 .order-status-inRepair {
-  background: #2d8ae3;
+  background: #cade63;
 }
 
 .order-status-waitingParts {
@@ -2059,11 +2059,11 @@
 }
 
 .order-status-clientApproved {
-  background: #bf5b5b;
+  background: #5e7798;
 }
 
 .order-status-clientRejected {
-  background: #b17b98;
+  background: #bf5b5b;
 }
 
 .order-status-readyWithoutRepair {
@@ -2071,11 +2071,11 @@
 }
 
 .order-status-ready {
-  background: #18a878;
+  background: #505553;
 }
 
 .order-status-issued {
-  background: #223447;
+  background: #2c8945;
 }
 
 .order-status-options {
