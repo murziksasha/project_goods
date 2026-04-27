@@ -145,6 +145,27 @@ type OrderLineItem = {
   quantity: number;
   warrantyPeriod: number;
 };
+type RepairTypeFilter = 'all' | 'paid' | 'warranty';
+type OrdersFilters = {
+  statuses: OrderStatus[];
+  orderNumber: string;
+  client: string;
+  assigneeId: string;
+  warehouse: string;
+  repairType: RepairTypeFilter;
+  date: string;
+  product: string;
+  service: string;
+};
+type SavedOrdersFilter = {
+  id: string;
+  employeeId: string;
+  name: string;
+  icon: string;
+  tab: OrdersTab;
+  filters: OrdersFilters;
+  createdAt: string;
+};
 
 const orderTabs: Array<{ key: OrdersTab; label: string }> = [
   { key: 'orders', label: 'Orders' },
@@ -153,6 +174,22 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
 
 const printFormsStorageKey = 'project-goods.print-forms';
 const ordersColumnsStorageKey = 'project-goods.orders-columns';
+const savedOrdersFiltersStorageKey =
+  'project-goods.saved-orders-filters';
+const filterIconOptions = [
+  '★',
+  '⚙',
+  '🔧',
+  '🏷',
+  '📌',
+  '📦',
+  '💼',
+  '🛠',
+  '🚚',
+  '🧾',
+  '📈',
+  '🧲',
+];
 const allOrdersColumnKeys: OrdersColumnKey[] = [
   'orderNumber',
   'client',
@@ -209,6 +246,17 @@ const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
   { key: 'completed', label: 'Completed' },
   { key: 'returned', label: 'Returned' },
 ];
+const emptyOrdersFilters: OrdersFilters = {
+  statuses: [],
+  orderNumber: '',
+  client: '',
+  assigneeId: '',
+  warehouse: '',
+  repairType: 'all',
+  date: '',
+  product: '',
+  service: '',
+};
 
 const defaultPrintForms: PrintForm[] = [
   {
@@ -273,6 +321,26 @@ const readPrintForms = () => {
     return forms.length > 0 ? forms : defaultPrintForms;
   } catch {
     return defaultPrintForms;
+  }
+};
+
+const readSavedOrderFilters = () => {
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(savedOrdersFiltersStorageKey) ??
+        '[]',
+    ) as SavedOrdersFilter[];
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (item) =>
+        Boolean(item?.id) &&
+        Boolean(item?.employeeId) &&
+        Boolean(item?.name) &&
+        (item?.tab === 'orders' || item?.tab === 'sales') &&
+        item?.filters,
+    );
+  } catch {
+    return [];
   }
 };
 
@@ -388,6 +456,10 @@ const formatReadyDate = (value: string) =>
     day: 'numeric',
     month: 'short',
   }).format(new Date(value));
+
+const getWarehouseLabel = (_sale: Sale) => 'Service center';
+
+const getIsoDatePart = (value: string) => value.slice(0, 10);
 
 const formatPhoneNumber = (value: string) => {
   const groups = getPhoneNumberGroups(value);
@@ -576,52 +648,391 @@ export const OrdersWorkspace = ({
   const [isFullReturnModalLoading, setIsFullReturnModalLoading] =
     useState(false);
   const [isFullReturnSaving, setIsFullReturnSaving] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isStatusFilterOpen, setIsStatusFilterOpen] =
+    useState(false);
+  const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
+    useState(false);
+  const [savedFilters, setSavedFilters] = useState<
+    SavedOrdersFilter[]
+  >(readSavedOrderFilters);
+  const [newFilterName, setNewFilterName] = useState('');
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    filterIconOptions[0],
+  );
+  const [draftFilters, setDraftFilters] =
+    useState<OrdersFilters>(emptyOrdersFilters);
+  const [appliedFilters, setAppliedFilters] =
+    useState<OrdersFilters>(emptyOrdersFilters);
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const statusFilterRef = useRef<HTMLDivElement | null>(null);
+  const canManageSavedFilters = Boolean(currentEmployee?.id);
+  const employeeSavedFilters = useMemo(() => {
+    if (!currentEmployee?.id) return [];
+    return savedFilters
+      .filter((item) => item.employeeId === currentEmployee.id)
+      .sort(
+        (first, second) =>
+          new Date(second.createdAt).getTime() -
+          new Date(first.createdAt).getTime(),
+      );
+  }, [currentEmployee?.id, savedFilters]);
+  const visibleSavedFilters = useMemo(
+    () =>
+      employeeSavedFilters.filter(
+        (item) => item.tab === activeTab,
+      ),
+    [activeTab, employeeSavedFilters],
+  );
   const visibleColumnKeys = visibleColumns[activeTab];
   const tableMinWidth = Math.max(840, visibleColumnKeys.length * 118);
+  const tabSales = useMemo(
+    () =>
+      sales.filter((sale) =>
+        activeTab === 'orders'
+          ? isRepairOrder(sale)
+          : !isRepairOrder(sale),
+      ),
+    [activeTab, sales],
+  );
+  const statusOptionsForActiveTab = useMemo(
+    () =>
+      activeTab === 'orders' ? repairStatuses : saleStatuses,
+    [activeTab],
+  );
+  const statusKeysForActiveTab = useMemo(
+    () =>
+      new Set(
+        statusOptionsForActiveTab.map((option) => option.key),
+      ),
+    [statusOptionsForActiveTab],
+  );
+  const assigneeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    tabSales.forEach((sale) => {
+      if (sale.master) {
+        map.set(sale.master.id, `${sale.master.name} (Master)`);
+      }
+      if (sale.manager) {
+        map.set(sale.manager.id, `${sale.manager.name} (Manager)`);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((first, second) =>
+        first.label.localeCompare(second.label),
+      );
+  }, [tabSales]);
+  const warehouseOptions = useMemo(() => {
+    const values = new Set(
+      tabSales.map((sale) => getWarehouseLabel(sale)),
+    );
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [tabSales]);
+  const activeFiltersCount = useMemo(
+    () =>
+      appliedFilters.statuses.length +
+      (appliedFilters.orderNumber.trim() ? 1 : 0) +
+      (appliedFilters.client.trim() ? 1 : 0) +
+      (appliedFilters.assigneeId ? 1 : 0) +
+      (appliedFilters.warehouse ? 1 : 0) +
+      (appliedFilters.repairType !== 'all' ? 1 : 0) +
+      (appliedFilters.date ? 1 : 0) +
+      (appliedFilters.product.trim() ? 1 : 0) +
+      (appliedFilters.service.trim() ? 1 : 0),
+    [appliedFilters],
+  );
 
   const filteredOrders = useMemo(() => {
-    const tabSales = sales.filter((sale) =>
-      activeTab === 'orders'
-        ? isRepairOrder(sale)
-        : !isRepairOrder(sale),
-    );
     const query = searchValue.trim().toLowerCase();
     const sortedTabSales = [...tabSales].sort(
       (firstSale, secondSale) =>
         getCreatedTime(secondSale) - getCreatedTime(firstSale),
     );
-
-    if (!query) {
-      return sortedTabSales;
-    }
+    const orderNumberValue = appliedFilters.orderNumber
+      .trim()
+      .toLowerCase();
+    const clientValue = appliedFilters.client.trim().toLowerCase();
+    const productValue = appliedFilters.product.trim().toLowerCase();
+    const serviceValue = appliedFilters.service.trim().toLowerCase();
 
     return sortedTabSales.filter((sale) => {
       const orderNumber = buildOrderNumber(sale);
-      const saleSearchValues = [
-        sale.client.name,
-        sale.client.phone,
-        sale.manager?.name ?? '',
-        sale.issuedBy?.name ?? '',
-      ];
-      const orderSearchValues = [
-        sale.product.name,
-        sale.client.name,
-        sale.client.phone,
-      ];
-
-      return (
-        String(orderNumber).includes(query) ||
-        (activeTab === 'orders'
-          ? orderSearchValues
-          : saleSearchValues
-        ).some((value) => value.toLowerCase().includes(query))
+      const status = (sale.status as OrderStatus) ?? 'new';
+      const lineItems = sale.lineItems?.length
+        ? sale.lineItems
+        : getDefaultLineItems(sale);
+      const hasWarrantyService = lineItems.some(
+        (item) =>
+          item.kind === 'service' && item.warrantyPeriod > 0,
       );
+      const searchValues =
+        activeTab === 'orders'
+          ? [
+              sale.product.name,
+              sale.client.name,
+              sale.client.phone,
+            ]
+          : [
+              sale.client.name,
+              sale.client.phone,
+              sale.manager?.name ?? '',
+              sale.issuedBy?.name ?? '',
+            ];
+
+      if (
+        query &&
+        !(
+          String(orderNumber).includes(query) ||
+          searchValues.some((value) =>
+            value.toLowerCase().includes(query),
+          )
+        )
+      ) {
+        return false;
+      }
+      if (
+        orderNumberValue &&
+        !String(orderNumber)
+          .toLowerCase()
+          .includes(orderNumberValue)
+      ) {
+        return false;
+      }
+      if (
+        clientValue &&
+        ![
+          sale.client.name,
+          sale.client.phone,
+          String(orderNumber),
+        ].some((value) =>
+          value.toLowerCase().includes(clientValue),
+        )
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.statuses.length > 0 &&
+        !appliedFilters.statuses.includes(status)
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.assigneeId &&
+        sale.master?.id !== appliedFilters.assigneeId &&
+        sale.manager?.id !== appliedFilters.assigneeId
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.warehouse &&
+        getWarehouseLabel(sale) !== appliedFilters.warehouse
+      ) {
+        return false;
+      }
+      if (appliedFilters.repairType === 'warranty') {
+        if (!hasWarrantyService) return false;
+      }
+      if (appliedFilters.repairType === 'paid') {
+        if (hasWarrantyService) return false;
+      }
+      if (
+        appliedFilters.date &&
+        getIsoDatePart(sale.saleDate) !== appliedFilters.date
+      ) {
+        return false;
+      }
+      if (
+        productValue &&
+        ![
+          sale.product.name,
+          ...lineItems
+            .filter((item) => item.kind === 'product')
+            .map((item) => item.name),
+        ].some((value) =>
+          value.toLowerCase().includes(productValue),
+        )
+      ) {
+        return false;
+      }
+      if (
+        serviceValue &&
+        !lineItems
+          .filter((item) => item.kind === 'service')
+          .some((item) =>
+            item.name.toLowerCase().includes(serviceValue),
+          )
+      ) {
+        return false;
+      }
+      return true;
     });
-  }, [activeTab, sales, searchValue]);
+  }, [activeTab, appliedFilters, searchValue, tabSales]);
+
+  useEffect(() => {
+    const sanitizeFilters = (current: OrdersFilters) => {
+      const nextStatuses = current.statuses.filter((status) =>
+        statusKeysForActiveTab.has(status),
+      );
+      if (nextStatuses.length === current.statuses.length) {
+        return current;
+      }
+      return { ...current, statuses: nextStatuses };
+    };
+    setDraftFilters((current) => sanitizeFilters(current));
+    setAppliedFilters((current) => sanitizeFilters(current));
+  }, [statusKeysForActiveTab]);
+
+  const toggleStatusFilter = (status: OrderStatus) => {
+    setDraftFilters((current) => {
+      const hasStatus = current.statuses.includes(status);
+      return {
+        ...current,
+        statuses: hasStatus
+          ? current.statuses.filter((key) => key !== status)
+          : [...current.statuses, status],
+      };
+    });
+  };
+  const toggleAllStatuses = () => {
+    setDraftFilters((current) => {
+      const isAllSelected =
+        current.statuses.length ===
+        statusOptionsForActiveTab.length;
+      return {
+        ...current,
+        statuses: isAllSelected
+          ? []
+          : statusOptionsForActiveTab.map((item) => item.key),
+      };
+    });
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters({
+      ...draftFilters,
+      orderNumber: draftFilters.orderNumber.trim(),
+      client: draftFilters.client.trim(),
+      product: draftFilters.product.trim(),
+      service: draftFilters.service.trim(),
+    });
+    setIsStatusFilterOpen(false);
+  };
+
+  const resetFilters = () => {
+    setDraftFilters(emptyOrdersFilters);
+    setAppliedFilters(emptyOrdersFilters);
+    setIsStatusFilterOpen(false);
+  };
+  const saveCurrentFilter = () => {
+    if (!currentEmployee?.id) {
+      onError('Current employee is required to save filters.');
+      return;
+    }
+    const name = newFilterName.trim();
+    if (!name) {
+      onError('Enter a filter name.');
+      return;
+    }
+    const nextFilter: SavedOrdersFilter = {
+      id: crypto.randomUUID(),
+      employeeId: currentEmployee.id,
+      name,
+      icon: newFilterIcon,
+      tab: activeTab,
+      filters: {
+        ...draftFilters,
+        orderNumber: draftFilters.orderNumber.trim(),
+        client: draftFilters.client.trim(),
+        product: draftFilters.product.trim(),
+        service: draftFilters.service.trim(),
+      },
+      createdAt: new Date().toISOString(),
+    };
+    setSavedFilters((current) => [nextFilter, ...current]);
+    setIsSaveFilterDrawerOpen(false);
+    setNewFilterName('');
+    setNewFilterIcon(filterIconOptions[0]);
+    onSuccess('Filter saved.');
+  };
+  const applySavedFilter = (savedFilter: SavedOrdersFilter) => {
+    onActiveTabChange(savedFilter.tab);
+    setDraftFilters(savedFilter.filters);
+    setAppliedFilters(savedFilter.filters);
+    setIsFilterPanelOpen(true);
+    setIsStatusFilterOpen(false);
+  };
+  const removeSavedFilter = (filterId: string) => {
+    setSavedFilters((current) =>
+      current.filter((item) => item.id !== filterId),
+    );
+  };
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      savedOrdersFiltersStorageKey,
+      JSON.stringify(savedFilters),
+    );
+  }, [savedFilters]);
+
+  useEffect(() => {
+    if (!isFilterPanelOpen && !isSaveFilterDrawerOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isSaveFilterDrawerOpen) {
+          setIsSaveFilterDrawerOpen(false);
+          return;
+        }
+        if (isStatusFilterOpen) {
+          setIsStatusFilterOpen(false);
+          return;
+        }
+        setIsFilterPanelOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [
+    isFilterPanelOpen,
+    isSaveFilterDrawerOpen,
+    isStatusFilterOpen,
+  ]);
+
+  useEffect(() => {
+    if (!isStatusFilterOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (
+        statusFilterRef.current &&
+        !statusFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsStatusFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeOnOutsideClick,
+      );
+    };
+  }, [isStatusFilterOpen]);
+
+  useEffect(() => {
+    if (!isFilterPanelOpen) {
+      setIsStatusFilterOpen(false);
+    }
+  }, [isFilterPanelOpen]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -938,7 +1349,7 @@ export const OrdersWorkspace = ({
       case 'term':
         return activeTab === 'orders' ? 'Non-urgent' : null;
       case 'warehouse':
-        return 'Service center';
+        return getWarehouseLabel(sale);
       case 'createdAt':
         return formatReadyDate(sale.createdAt);
       case 'readyDate':
@@ -1560,11 +1971,36 @@ export const OrdersWorkspace = ({
             type='button'
             className='toolbar-square-button'
             aria-label='Filters'
+            aria-expanded={isFilterPanelOpen}
+            onClick={() =>
+              setIsFilterPanelOpen((current) => !current)
+            }
           >
-            ⚙
+            <svg
+              viewBox='0 0 24 24'
+              aria-hidden='true'
+              className='toolbar-square-button-icon'
+            >
+              <path
+                d='M3 5.5A1.5 1.5 0 0 1 4.5 4h15a1.5 1.5 0 0 1 1.2 2.4l-5.7 7.6V19a1 1 0 0 1-.45.83l-3 2A1 1 0 0 1 10 21v-6.6L3.3 6.4A1.5 1.5 0 0 1 3 5.5Z'
+                fill='currentColor'
+              />
+            </svg>
           </button>
-          <button type='button' className='toolbar-filter-button'>
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isFilterPanelOpen}
+            onClick={() =>
+              setIsFilterPanelOpen((current) => !current)
+            }
+          >
             Filter
+            {activeFiltersCount > 0 ? (
+              <span className='toolbar-filter-count'>
+                {activeFiltersCount}
+              </span>
+            ) : null}
           </button>
           <div className='toolbar-settings' ref={columnsMenuRef}>
             <button
@@ -1668,6 +2104,362 @@ export const OrdersWorkspace = ({
           </a>
         </div>
       </div>
+
+      <section
+        className={
+          isFilterPanelOpen
+            ? 'orders-filter-panel orders-filter-panel-open'
+            : 'orders-filter-panel'
+        }
+        aria-hidden={!isFilterPanelOpen}
+      >
+        <div className='orders-filter-saved-row'>
+          <p>Saved filters:</p>
+          <div className='orders-filter-saved-list'>
+            {visibleSavedFilters.length > 0 ? (
+              visibleSavedFilters.map((savedFilter) => (
+                <div
+                  key={savedFilter.id}
+                  className='orders-filter-saved-item'
+                >
+                  <button
+                    type='button'
+                    className='orders-filter-saved-button'
+                    onClick={() => applySavedFilter(savedFilter)}
+                    title={savedFilter.name}
+                  >
+                    <span>{savedFilter.icon}</span>
+                    <span>{savedFilter.name}</span>
+                  </button>
+                  <button
+                    type='button'
+                    className='orders-filter-delete-button'
+                    aria-label={`Delete ${savedFilter.name}`}
+                    onClick={() =>
+                      removeSavedFilter(savedFilter.id)
+                    }
+                  >
+                    🗑
+                  </button>
+                </div>
+              ))
+            ) : (
+              <small>No saved filters for this tab.</small>
+            )}
+          </div>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={() => setIsSaveFilterDrawerOpen(true)}
+            disabled={!canManageSavedFilters}
+            title={
+              canManageSavedFilters
+                ? 'Save filter'
+                : 'Employee profile is required to save filters.'
+            }
+          >
+            Save filter
+          </button>
+        </div>
+
+        <div className='orders-filter-grid'>
+          <div
+            className='orders-filter-field orders-filter-status-field'
+            ref={statusFilterRef}
+          >
+            <span>Status</span>
+            <button
+              type='button'
+              className='orders-filter-status-toggle'
+              aria-expanded={isStatusFilterOpen}
+              onClick={() =>
+                setIsStatusFilterOpen((current) => !current)
+              }
+            >
+              {draftFilters.statuses.length > 0
+                ? `${draftFilters.statuses.length} selected`
+                : 'All'}
+            </button>
+            {isStatusFilterOpen ? (
+              <div className='orders-filter-status-menu'>
+                <label className='orders-filter-status-all'>
+                  <input
+                    type='checkbox'
+                    checked={
+                      draftFilters.statuses.length ===
+                      statusOptionsForActiveTab.length
+                    }
+                    onChange={toggleAllStatuses}
+                  />
+                  <strong>All</strong>
+                </label>
+                {statusOptionsForActiveTab.map((statusOption) => (
+                  <label key={statusOption.key}>
+                    <input
+                      type='checkbox'
+                      checked={draftFilters.statuses.includes(
+                        statusOption.key,
+                      )}
+                      onChange={() =>
+                        toggleStatusFilter(statusOption.key)
+                      }
+                    />
+                    <span>{statusOption.label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <label className='orders-filter-field'>
+            <span>Order number</span>
+            <input
+              type='text'
+              value={draftFilters.orderNumber}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  orderNumber: event.target.value,
+                }))
+              }
+              placeholder='Order #'
+            />
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Client</span>
+            <input
+              type='text'
+              value={draftFilters.client}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  client: event.target.value,
+                }))
+              }
+              placeholder='Client name or phone'
+            />
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Master / manager</span>
+            <select
+              value={draftFilters.assigneeId}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  assigneeId: event.target.value,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              {assigneeOptions.map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {assignee.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Warehouse</span>
+            <select
+              value={draftFilters.warehouse}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  warehouse: event.target.value,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              {warehouseOptions.map((warehouse) => (
+                <option key={warehouse} value={warehouse}>
+                  {warehouse}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Repair type</span>
+            <select
+              value={draftFilters.repairType}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  repairType: event.target
+                    .value as RepairTypeFilter,
+                }))
+              }
+            >
+              <option value='all'>All</option>
+              <option value='paid'>Paid</option>
+              <option value='warranty'>Warranty</option>
+            </select>
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Date</span>
+            <input
+              type='date'
+              value={draftFilters.date}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  date: event.target.value,
+                }))
+              }
+            />
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Product</span>
+            <input
+              type='text'
+              value={draftFilters.product}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  product: event.target.value,
+                }))
+              }
+              placeholder='Product name'
+            />
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Service</span>
+            <input
+              type='text'
+              value={draftFilters.service}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  service: event.target.value,
+                }))
+              }
+              placeholder='Service name'
+            />
+          </label>
+        </div>
+        <div className='orders-filter-actions'>
+          <button
+            type='button'
+            className='toolbar-filter-button orders-filter-apply'
+            onClick={applyFilters}
+          >
+            Apply
+          </button>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={resetFilters}
+          >
+            Clear
+          </button>
+        </div>
+      </section>
+
+      {isSaveFilterDrawerOpen ? (
+        <div
+          className='orders-filter-drawer-backdrop'
+          onClick={() => setIsSaveFilterDrawerOpen(false)}
+        >
+          <aside
+            className='orders-filter-drawer'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <h3>Save filter</h3>
+              <button
+                type='button'
+                aria-label='Close save filter panel'
+                onClick={() => setIsSaveFilterDrawerOpen(false)}
+              >
+                x
+              </button>
+            </header>
+            <label className='orders-filter-field'>
+              <span>Filter name</span>
+              <input
+                type='text'
+                value={newFilterName}
+                onChange={(event) =>
+                  setNewFilterName(event.target.value)
+                }
+                placeholder='My filter'
+              />
+            </label>
+            <div className='orders-filter-icons'>
+              <span>Choose icon</span>
+              <div className='orders-filter-icons-grid'>
+                {filterIconOptions.map((icon) => (
+                  <button
+                    key={icon}
+                    type='button'
+                    className={
+                      icon === newFilterIcon
+                        ? 'orders-filter-icon-button orders-filter-icon-button-active'
+                        : 'orders-filter-icon-button'
+                    }
+                    onClick={() => setNewFilterIcon(icon)}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className='orders-filter-drawer-list'>
+              <span>Your saved filters</span>
+              {employeeSavedFilters.length > 0 ? (
+                employeeSavedFilters.map((savedFilter) => (
+                  <div
+                    key={savedFilter.id}
+                    className='orders-filter-drawer-item'
+                  >
+                    <button
+                      type='button'
+                      onClick={() => applySavedFilter(savedFilter)}
+                    >
+                      {`${savedFilter.icon} ${savedFilter.name}`}
+                    </button>
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button'
+                      onClick={() =>
+                        removeSavedFilter(savedFilter.id)
+                      }
+                      aria-label={`Delete ${savedFilter.name}`}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <small>No filters yet.</small>
+              )}
+            </div>
+            <footer>
+              <button
+                type='button'
+                className='toolbar-filter-button orders-filter-apply'
+                onClick={saveCurrentFilter}
+                disabled={!canManageSavedFilters}
+              >
+                Save
+              </button>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsSaveFilterDrawerOpen(false)}
+              >
+                Cancel
+              </button>
+            </footer>
+          </aside>
+        </div>
+      ) : null}
 
       <div className='orders-table-wrap'>
         <table
@@ -3789,3 +4581,4 @@ const MessageModal = ({
     </section>
   </div>
 );
+
