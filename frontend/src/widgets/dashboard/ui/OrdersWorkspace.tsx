@@ -61,6 +61,8 @@ type OrdersWorkspaceProps = {
   onSaleUpdate: (sale: Sale) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  externalSelectedSaleId?: string | null;
+  onExternalSaleOpenHandled?: () => void;
 };
 
 type OrdersTab = 'orders' | 'sales';
@@ -605,6 +607,8 @@ export const OrdersWorkspace = ({
   onSaleUpdate,
   onError,
   onSuccess,
+  externalSelectedSaleId = null,
+  onExternalSaleOpenHandled,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
     currentEmployee?.name ?? 'Unknown employee';
@@ -1209,6 +1213,14 @@ export const OrdersWorkspace = ({
     setSelectedSaleId(sale.id);
     setOpenStatusSaleId(null);
   };
+
+  useEffect(() => {
+    if (!externalSelectedSaleId) return;
+
+    setSelectedSaleId(externalSelectedSaleId);
+    setOpenStatusSaleId(null);
+    onExternalSaleOpenHandled?.();
+  }, [externalSelectedSaleId, onExternalSaleOpenHandled]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (

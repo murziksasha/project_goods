@@ -2178,12 +2178,13 @@
 
 .clients-card-modal {
   width: min(940px, calc(100vw - 28px));
-  max-height: calc(100vh - 32px);
+  height: min(760px, calc(100vh - 32px));
   border-radius: 8px;
   background: #fff;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   box-shadow: 0 24px 70px rgba(25, 36, 50, 0.28);
+  overflow: hidden;
 }
 
 .clients-card-header {
@@ -2212,6 +2213,10 @@
 .clients-card-table th,
 .clients-card-table td {
   white-space: nowrap;
+}
+
+.clients-history-row {
+  cursor: pointer;
 }
 
 .clients-main-save {

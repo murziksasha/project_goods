@@ -2,6 +2,7 @@ import {
   createClient,
   deleteClient,
   getClientHistory,
+  mergeClients as mergeClientsApi,
   updateClient,
 } from '../../../entities/client/api/clientApi';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
@@ -405,53 +406,42 @@ export const createDashboardActions = ({
       clearNotifications();
 
       try {
-        if (targetClientId === sourceClientId) {
-          throw new Error('Оберіть двох різних клієнтів.');
-        }
-
-        const targetClient = allClients.find((client) => client.id === targetClientId);
-        const sourceClient = allClients.find((client) => client.id === sourceClientId);
-
-        if (!targetClient || !sourceClient) {
-          throw new Error('Вибраного клієнта не знайдено.');
-        }
-
-        const sourceHistory = await getClientHistory(sourceClientId);
-        if (sourceHistory.sales.length > 0) {
-          throw new Error(
-            'Обʼєднання можливе лише для клієнта без історії замовлень або продажів.',
-          );
-        }
-
-        const mergedNote = [targetClient.note.trim(), sourceClient.note.trim()]
-          .filter(Boolean)
-          .filter((note, index, collection) => collection.indexOf(note) === index)
-          .join('\n');
-        const mergedStatus =
-          targetClient.status === 'new' && sourceClient.status !== 'new'
-            ? sourceClient.status
-            : targetClient.status;
-        const updatedClient = await updateClient(targetClientId, {
-          phone: targetClient.phone.trim() || sourceClient.phone,
-          name: targetClient.name.trim() || sourceClient.name,
-          note: mergedNote,
-          status: mergedStatus,
-        });
-
-        await deleteClient(sourceClientId);
-
+        const result = await mergeClientsApi(targetClientId, sourceClientId);
         setAllClients((current) =>
           current
-            .filter((client) => client.id !== sourceClientId)
-            .map((client) => (client.id === updatedClient.id ? updatedClient : client)),
+            .filter((client) => client.id !== result.removedClientId)
+            .map((client) =>
+              client.id === result.client.id ? result.client : client,
+            ),
+        );
+        setSales((current) =>
+          current.map((sale) =>
+            sale.client.id === result.removedClientId
+              ? {
+                  ...sale,
+                  client: {
+                    ...sale.client,
+                    id: result.client.id,
+                    name: result.client.name,
+                    phone: result.client.phone,
+                    status: result.client.status,
+                  },
+                }
+              : sale,
+          ),
         );
 
-        if (selectedClientId === sourceClientId || selectedClientId === targetClientId) {
-          setSelectedClientId(updatedClient.id);
-          await refreshClientHistory(updatedClient.id);
+        if (
+          selectedClientId === sourceClientId ||
+          selectedClientId === targetClientId
+        ) {
+          setSelectedClientId(result.client.id);
+          await refreshClientHistory(result.client.id);
         }
 
-        setSuccessMessage('Клієнтів обʼєднано.');
+        setSuccessMessage(
+          `Клієнтів обʼєднано. Перенесено звернень: ${result.movedSalesCount}.`,
+        );
         return true;
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Не вдалося обʼєднати клієнтів.'));

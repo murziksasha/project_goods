@@ -19,6 +19,11 @@ export type ClientPayload = {
   status?: unknown;
 };
 
+export type MergeClientsPayload = {
+  targetClientId?: unknown;
+  sourceClientId?: unknown;
+};
+
 export type SalePayload = {
   saleDate?: unknown;
   clientId?: unknown;

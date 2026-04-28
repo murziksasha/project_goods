@@ -27,6 +27,7 @@ type ClientsWorkspaceProps = {
     clientId: string,
     payload: ClientFormValues,
   ) => Promise<boolean>;
+  onOpenSaleCard: (sale: Sale) => void;
 };
 
 type ClientFilters = {
@@ -106,8 +107,10 @@ const formatClientIncome = (value: number) =>
 
 const clientStatusOptions: Array<{
   label: string;
-  value: ClientStatus;
+  value: ClientStatus | '';
 }> = [
+  { label: '—', value: '' },
+  { label: 'new', value: 'new' },
   { label: 'Чорний список', value: 'blacklist' },
   { label: 'VIP', value: 'vip' },
   { label: 'Знижка', value: 'opt' },
@@ -273,6 +276,7 @@ export const ClientsWorkspace = ({
   onCreateClient,
   onMergeClients,
   onUpdateClient,
+  onOpenSaleCard,
 }: ClientsWorkspaceProps) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [draftFilters, setDraftFilters] =
@@ -314,7 +318,7 @@ export const ClientsWorkspace = ({
     email: '',
     address: '',
     note: '',
-    status: 'ok' as ClientStatus,
+    status: '' as ClientStatus | '',
   });
 
   const statsByClient = useMemo(() => getClientStatsMap(sales), [sales]);
@@ -407,9 +411,20 @@ export const ClientsWorkspace = ({
         getMetaFieldFromNote(selectedClient.note, 'Address') ||
         getMetaFieldFromNoteLegacy(selectedClient.note, 'Адреса'),
       note: getPlainNote(selectedClient.note),
-      status: selectedClient.status,
+      status: selectedClient.status || '',
     });
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (!isClientCardOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isClientCardOpen]);
 
   const selectedHistorySales =
     history?.client.id === selectedClientId ? history.sales : [];
@@ -549,8 +564,13 @@ export const ClientsWorkspace = ({
       name: mainTabForm.name.trim(),
       phone: mainTabForm.phone.trim(),
       note: noteParts.join('\n'),
-      status: mainTabForm.status,
+      status: (mainTabForm.status || 'new') as ClientStatus,
     });
+  };
+
+  const openSaleCardFromClientModal = (sale: Sale) => {
+    closeClientCard();
+    onOpenSaleCard(sale);
   };
 
   return (
@@ -1331,7 +1351,7 @@ export const ClientsWorkspace = ({
                       onChange={(event) =>
                         setMainTabForm((current) => ({
                           ...current,
-                          status: event.target.value as ClientStatus,
+                          status: event.target.value as ClientStatus | '',
                         }))
                       }
                     >
@@ -1396,8 +1416,23 @@ export const ClientsWorkspace = ({
                     </thead>
                     <tbody>
                       {activeHistoryRows.map((sale) => (
-                        <tr key={sale.id}>
-                          <td>{sale.recordNumber ?? sale.id.slice(-6)}</td>
+                        <tr
+                          key={sale.id}
+                          className='clients-history-row'
+                          onClick={() => openSaleCardFromClientModal(sale)}
+                        >
+                          <td>
+                            <button
+                              type='button'
+                              className='order-number-button'
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openSaleCardFromClientModal(sale);
+                              }}
+                            >
+                              {sale.recordNumber ?? sale.id.slice(-6)}
+                            </button>
+                          </td>
                           <td>{formatDateTime(sale.saleDate)}</td>
                           <td>{formatItemList(sale, clientCardTab)}</td>
                           <td>{sale.status}</td>
