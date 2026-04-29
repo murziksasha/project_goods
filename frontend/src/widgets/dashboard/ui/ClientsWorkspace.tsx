@@ -35,6 +35,8 @@ type ClientsWorkspaceProps = {
     payload: ClientFormValues,
   ) => Promise<boolean>;
   onOpenSaleCard: (sale: Sale) => void;
+  openClientCardRequestId?: string | null;
+  onOpenClientCardHandled?: () => void;
 };
 
 type ClientFilters = {
@@ -47,7 +49,7 @@ type ClientFilters = {
   visitsTo: string;
   incomeFrom: string;
   incomeTo: string;
-  operatorIds: string[];
+  status: ClientStatus | '' | 'all';
 };
 
 type ClientCardTab = 'main' | 'services' | 'sales';
@@ -58,7 +60,6 @@ type ClientStats = {
   income: number;
   serviceCount: number;
   salesCount: number;
-  operatorIds: string[];
   orderNumbers: string[];
 };
 
@@ -72,7 +73,7 @@ const emptyFilters: ClientFilters = {
   visitsTo: '',
   incomeFrom: '',
   incomeTo: '',
-  operatorIds: [],
+  status: 'all',
 };
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
@@ -107,7 +108,6 @@ const defaultClientStats: ClientStats = {
   income: 0,
   serviceCount: 0,
   salesCount: 0,
-  operatorIds: [],
   orderNumbers: [],
 };
 
@@ -116,17 +116,39 @@ const formatClientIncome = (value: number) =>
     .replace(/[^\d,\s.-]/g, '')
     .trim()} грн`;
 
+
+
 const clientStatusOptions: Array<{
   label: string;
   value: ClientStatus | '';
 }> = [
-  { label: '—', value: '' },
+  { label: '-', value: '' },
   { label: 'new', value: 'new' },
-  { label: 'Чорний список', value: 'blacklist' },
+  { label: 'blacklist', value: 'blacklist' },
   { label: 'VIP', value: 'vip' },
-  { label: 'Знижка', value: 'opt' },
-  { label: 'Регулярний', value: 'ok' },
+  { label: 'discount', value: 'opt' },
+  { label: 'regular', value: 'ok' },
 ];
+
+const filterStatusOptions: Array<{
+  label: string;
+  value: ClientStatus | '' | 'all';
+}> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
+
+const getAutoClientStatus = (visits: number): ClientStatus => {
+  if (visits >= 10) return 'vip';
+  if (visits >= 5) return 'opt';
+  if (visits >= 3) return 'ok';
+  return 'new';
+};
+
+const getEffectiveClientStatus = (
+  status: ClientStatus | '',
+  visits: number,
+): ClientStatus | '' => {
+  if (status === 'blacklist' || status === '') return status;
+  return getAutoClientStatus(visits);
+};
 
 const getMetaFieldFromNote = (
   note: string,
@@ -189,10 +211,6 @@ const getClientStatsMap = (sales: Sale[]) => {
     const orderNumbers = sale.recordNumber
       ? [...current.orderNumbers, sale.recordNumber]
       : current.orderNumbers;
-    const operatorId = sale.manager?.id ?? '';
-    const operatorIds = operatorId
-      ? [...current.operatorIds, operatorId]
-      : current.operatorIds;
 
     map.set(sale.client.id, {
       visits: current.visits + 1,
@@ -201,24 +219,10 @@ const getClientStatsMap = (sales: Sale[]) => {
         current.serviceCount + (sale.kind === 'repair' ? 1 : 0),
       salesCount: current.salesCount + (sale.kind === 'sale' ? 1 : 0),
       orderNumbers,
-      operatorIds,
     });
   });
 
   return map;
-};
-
-const getOperatorOptions = (sales: Sale[]) => {
-  const unique = new Map<string, string>();
-
-  sales.forEach((sale) => {
-    if (!sale.manager?.id) return;
-    unique.set(sale.manager.id, sale.manager.name || sale.manager.id);
-  });
-
-  return [...unique.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
 };
 
 const mapClientToCreatePayload = (
@@ -295,15 +299,14 @@ export const ClientsWorkspace = ({
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
+  openClientCardRequestId = null,
+  onOpenClientCardHandled,
 }: ClientsWorkspaceProps) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [draftFilters, setDraftFilters] =
     useState<ClientFilters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<ClientFilters>(emptyFilters);
-  const [selectedOperatorIds, setSelectedOperatorIds] = useState<
-    string[]
-  >([]);
   const [searchValue, setSearchValue] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -349,10 +352,6 @@ export const ClientsWorkspace = ({
     () => getClientStatsMap(sales),
     [sales],
   );
-  const operatorOptions = useMemo(
-    () => getOperatorOptions(sales),
-    [sales],
-  );
 
   const activeFiltersCount = useMemo(
     () =>
@@ -365,7 +364,7 @@ export const ClientsWorkspace = ({
       (appliedFilters.visitsTo ? 1 : 0) +
       (appliedFilters.incomeFrom ? 1 : 0) +
       (appliedFilters.incomeTo ? 1 : 0) +
-      (appliedFilters.operatorIds.length > 0 ? 1 : 0),
+      (appliedFilters.status !== 'all' ? 1 : 0),
     [appliedFilters],
   );
 
@@ -386,6 +385,10 @@ export const ClientsWorkspace = ({
         const searchable =
           `${client.id} ${client.name} ${client.phone} ${client.note}`.toLowerCase();
         const createdAt = new Date(client.createdAt).getTime();
+        const effectiveStatus = getEffectiveClientStatus(
+          client.status || '',
+          stats.visits,
+        );
 
         if (query && !searchable.includes(query)) return false;
         if (
@@ -415,10 +418,8 @@ export const ClientsWorkspace = ({
         if (incomeTo !== null && stats.income > incomeTo)
           return false;
         if (
-          appliedFilters.operatorIds.length > 0 &&
-          !appliedFilters.operatorIds.some((operatorId) =>
-            stats.operatorIds.includes(operatorId),
-          )
+          appliedFilters.status !== 'all' &&
+          effectiveStatus !== appliedFilters.status
         )
           return false;
 
@@ -453,6 +454,18 @@ export const ClientsWorkspace = ({
       status: selectedClient.status || '',
     });
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (!openClientCardRequestId) return;
+    onSelectClient(openClientCardRequestId);
+    setClientCardTab('main');
+    setIsClientCardOpen(true);
+    onOpenClientCardHandled?.();
+  }, [
+    onOpenClientCardHandled,
+    onSelectClient,
+    openClientCardRequestId,
+  ]);
 
   useEffect(() => {
     if (!isClientCardOpen) return;
@@ -512,13 +525,11 @@ export const ClientsWorkspace = ({
 
     setDraftFilters(next);
     setAppliedFilters(next);
-    setSelectedOperatorIds(draftFilters.operatorIds);
   };
 
   const clearFilters = () => {
     setDraftFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
-    setSelectedOperatorIds([]);
   };
 
   const submitSearch = () => {
@@ -629,7 +640,7 @@ export const ClientsWorkspace = ({
       name: mainTabForm.name.trim(),
       phone: mainTabForm.phone.trim(),
       note: noteParts.join('\n'),
-      status: (mainTabForm.status || 'new') as ClientStatus,
+      status: mainTabForm.status as ClientStatus | '',
     });
   };
 
@@ -702,7 +713,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   query: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='+380..., Іван'
@@ -717,7 +727,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   clientId: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='ID'
@@ -732,7 +741,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   orderNumber: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='r000001'
@@ -747,7 +755,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   dateFrom: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
             />
@@ -761,50 +768,30 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   dateTo: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
             />
           </label>
           <label className='orders-filter-field'>
-            <span>Оператор</span>
-            <div className='operator-checkboxes'>
-              <label className='checkbox-item'>
-                <input
-                  type='checkbox'
-                  checked={selectedOperatorIds.length === 0}
-                  onChange={(event) => {
-                    if (event.target.checked) {
-                      setSelectedOperatorIds([]);
-                    } else {
-                      setSelectedOperatorIds([]);
-                    }
-                  }}
-                />
-                <span>Вибрати усі</span>
-              </label>
-              {operatorOptions.map((option) => (
-                <label key={option.id} className='checkbox-item'>
-                  <input
-                    type='checkbox'
-                    checked={selectedOperatorIds.includes(option.id)}
-                    onChange={(event) => {
-                      if (event.target.checked) {
-                        setSelectedOperatorIds((current) => [
-                          ...current,
-                          option.id,
-                        ]);
-                      } else {
-                        setSelectedOperatorIds((current) =>
-                          current.filter((id) => id !== option.id),
-                        );
-                      }
-                    }}
-                  />
-                  <span>{option.name}</span>
-                </label>
+            <span>Status</span>
+            <select
+              value={draftFilters.status}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  status: event.target.value as
+                    | ClientStatus
+                    | ''
+                    | 'all',
+                }))
+              }
+            >
+              {filterStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
-            </div>
+            </select>
           </label>
           <label className='orders-filter-field'>
             <span>Кількість звернень від</span>
@@ -816,7 +803,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   visitsFrom: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='0'
@@ -832,7 +818,6 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   visitsTo: event.target.value,
-                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='0'
@@ -931,7 +916,7 @@ export const ClientsWorkspace = ({
                     onClick={() => openClientCard(client.id)}
                   >
                     <td>{client.id.slice(-6)}</td>
-                    <td>{client.status}</td>
+                    <td>{getEffectiveClientStatus(client.status || '', stats.visits) || '-'}</td>
                     <td>{client.name}</td>
                     <td>
                       <a
@@ -1574,3 +1559,5 @@ export const ClientsWorkspace = ({
     </section>
   );
 };
+
+

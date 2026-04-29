@@ -176,6 +176,7 @@ export const DashboardPage = () => {
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
   const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(null);
+  const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
@@ -326,6 +327,12 @@ export const DashboardPage = () => {
     setIsCreateOrderOpen(false);
     changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
     setExternalSelectedSaleId(sale.id);
+  };
+
+  const openClientCardFromOrders = (clientId: string) => {
+    setActivePage('clients');
+    setIsCreateOrderOpen(false);
+    setOpenClientCardRequestId(clientId);
   };
 
   const handleLogin = async () => {
@@ -625,6 +632,7 @@ export const DashboardPage = () => {
                 onSuccess={actions.showSuccessMessage}
                 externalSelectedSaleId={externalSelectedSaleId}
                 onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
+                onOpenClientCard={openClientCardFromOrders}
               />
             )
           ) : activePage === 'employees' ? (
@@ -657,6 +665,8 @@ export const DashboardPage = () => {
               onMergeClients={actions.mergeClients}
               onUpdateClient={actions.updateClientCard}
               onOpenSaleCard={openSaleFromClientCard}
+              openClientCardRequestId={openClientCardRequestId}
+              onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}
             />
           ) : activePage === 'settings' ? (
             <SettingsPanel

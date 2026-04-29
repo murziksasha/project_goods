@@ -2017,6 +2017,21 @@
   color: #7f91a7;
 }
 
+.orders-client-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #2d7dca;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.orders-client-link:hover {
+  text-decoration: underline;
+}
+
 .orders-client-phone {
   display: inline-flex;
   gap: 4px;
