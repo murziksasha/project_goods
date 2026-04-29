@@ -308,6 +308,44 @@ const statusLabels = repairStatuses.reduce(
   ),
 );
 
+const normalizeOrderStatus = (
+  status: string | null | undefined,
+): OrderStatus => {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  const aliasMap: Record<string, OrderStatus> = {
+    issuedwithoutrepair: 'issuedWithoutRepair',
+    issued_without_repair: 'issuedWithoutRepair',
+    'issued without repair': 'issuedWithoutRepair',
+  };
+  const repairStatusMap: Record<string, RepairStatus> = {
+    new: 'new',
+    diagnostics: 'diagnostics',
+    inrepair: 'inRepair',
+    waitingparts: 'waitingParts',
+    clientapproved: 'clientApproved',
+    clientrejected: 'clientRejected',
+    ready: 'ready',
+    issued: 'issued',
+    issuedwithoutrepair: 'issuedWithoutRepair',
+  };
+  const saleStatusMap: Record<string, SaleStatus> = {
+    new: 'new',
+    reserved: 'reserved',
+    paid: 'paid',
+    completed: 'completed',
+    returned: 'returned',
+  };
+  const compact = normalized.replace(/[\s_-]+/g, '');
+
+  return (
+    aliasMap[normalized] ??
+    aliasMap[compact] ??
+    repairStatusMap[compact] ??
+    saleStatusMap[compact] ??
+    'new'
+  );
+};
+
 const getStatusOptionsForSale = (sale: Sale) =>
   isRepairOrder(sale) ? repairStatuses : saleStatuses;
 
@@ -767,7 +805,7 @@ export const OrdersWorkspace = ({
 
     return sortedTabSales.filter((sale) => {
       const orderNumber = buildOrderNumber(sale);
-      const status = (sale.status as OrderStatus) ?? 'new';
+      const status = normalizeOrderStatus(sale.status);
       const lineItems = sale.lineItems?.length
         ? sale.lineItems
         : getDefaultLineItems(sale);
@@ -1079,11 +1117,11 @@ export const OrdersWorkspace = ({
       : saleStatuses
     : repairStatuses;
   const selectedSaleStatus = selectedSale
-    ? ((selectedSale.status ?? 'new') as OrderStatus)
+    ? normalizeOrderStatus(selectedSale.status)
     : 'new';
 
   const getStatus = (sale: Sale): OrderStatus =>
-    (sale.status as OrderStatus) ?? 'new';
+    normalizeOrderStatus(sale.status);
 
   const getStatusOptions = getStatusOptionsForSale;
 
@@ -1136,7 +1174,7 @@ export const OrdersWorkspace = ({
   ) => {
     const updatedSale = await updateSaleWorkspace(sale.id, {
       kind: sale.kind,
-      status: payload.status ?? sale.status,
+      status: payload.status ?? normalizeOrderStatus(sale.status),
       paidAmount: payload.paidAmount ?? sale.paidAmount,
       issuedById: payload.issuedById,
       timeline: payload.timeline ?? sale.timeline,
