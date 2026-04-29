@@ -44,6 +44,7 @@ import type {
 import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -230,6 +231,7 @@ const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
 };
+const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
@@ -708,6 +710,12 @@ export const OrdersWorkspace = ({
     useState<OrdersFilters>(emptyOrdersFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<OrdersFilters>(emptyOrdersFilters);
+  const [pageByTab, setPageByTab] = useState<Record<OrdersTab, number>>(
+    { orders: 1, sales: 1 },
+  );
+  const [pageSizeByTab, setPageSizeByTab] = useState<
+    Record<OrdersTab, number>
+  >({ orders: 10, sales: 10 });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -916,6 +924,13 @@ export const OrdersWorkspace = ({
     });
   }, [activeTab, appliedFilters, searchValue, tabSales]);
 
+  const currentPage = pageByTab[activeTab];
+  const currentPageSize = pageSizeByTab[activeTab];
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return filteredOrders.slice(start, start + currentPageSize);
+  }, [currentPage, currentPageSize, filteredOrders]);
+
   useEffect(() => {
     const sanitizeFilters = (current: OrdersFilters) => {
       const nextStatuses = current.statuses.filter((status) =>
@@ -929,6 +944,29 @@ export const OrdersWorkspace = ({
     setDraftFilters((current) => sanitizeFilters(current));
     setAppliedFilters((current) => sanitizeFilters(current));
   }, [statusKeysForActiveTab]);
+
+  useEffect(() => {
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+  }, [activeTab, searchValue]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredOrders.length / currentPageSize),
+    );
+
+    if (currentPage > pageCount) {
+      setPageByTab((current) => ({
+        ...current,
+        [activeTab]: pageCount,
+      }));
+    }
+  }, [
+    activeTab,
+    currentPage,
+    currentPageSize,
+    filteredOrders.length,
+  ]);
 
   const toggleStatusFilter = (status: OrderStatus) => {
     setDraftFilters((current) => {
@@ -963,12 +1001,14 @@ export const OrdersWorkspace = ({
       product: draftFilters.product.trim(),
       service: draftFilters.service.trim(),
     });
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
 
   const resetFilters = () => {
     setDraftFilters(emptyOrdersFilters);
     setAppliedFilters(emptyOrdersFilters);
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
   const saveCurrentFilter = () => {
@@ -2558,7 +2598,7 @@ export const OrdersWorkspace = ({
                 </td>
               </tr>
             ) : (
-              filteredOrders.map((sale) => (
+              paginatedOrders.map((sale) => (
                 <tr key={sale.id}>
                   {visibleColumnKeys.map((columnKey) => (
                     <td key={`${sale.id}-${columnKey}`}>
@@ -2571,6 +2611,25 @@ export const OrdersWorkspace = ({
           </tbody>
         </table>
       </div>
+      <PaginationPanel
+        totalItems={filteredOrders.length}
+        page={currentPage}
+        pageSize={currentPageSize}
+        pageSizeOptions={paginationPageSizeOptions}
+        onPageChange={(page) =>
+          setPageByTab((current) => ({
+            ...current,
+            [activeTab]: page,
+          }))
+        }
+        onPageSizeChange={(pageSize) => {
+          setPageSizeByTab((current) => ({
+            ...current,
+            [activeTab]: pageSize,
+          }));
+          setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+        }}
+      />
 
       {paymentSale ? (
         <PaymentModal

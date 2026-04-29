@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import { ProductForm } from '../../../features/manage-product/ui/ProductForm';
 import { formatDate } from '../../../shared/lib/format';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type WarehouseTab =
   | 'stock'
@@ -45,6 +46,7 @@ const searchModes: Array<{ key: WarehouseSearchMode; label: string }> = [
   { key: 'name', label: 'By name' },
   { key: 'warehouse', label: 'By warehouse' },
 ];
+const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const getSearchText = (product: Product, mode: WarehouseSearchMode) => {
   if (mode === 'serial') return product.serialNumber;
@@ -68,6 +70,8 @@ export const WarehousePanel = ({
   const [activeTab, setActiveTab] = useState<WarehouseTab>('stock');
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<WarehouseSearchMode>('serial');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -77,6 +81,24 @@ export const WarehousePanel = ({
       getSearchText(product, searchMode).toLowerCase().includes(normalizedQuery),
     );
   }, [products, query, searchMode]);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [currentPage, filteredProducts, pageSize]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredProducts.length / pageSize),
+    );
+    if (currentPage > pageCount) {
+      setCurrentPage(pageCount);
+    }
+  }, [currentPage, filteredProducts.length, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchMode]);
 
   return (
     <section className="panel warehouse-panel">
@@ -115,7 +137,10 @@ export const WarehousePanel = ({
         <div className="orders-search-group warehouse-search-group">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search stock"
           />
           <button type="button">Find</button>
@@ -130,7 +155,10 @@ export const WarehousePanel = ({
                   ? 'warehouse-mode-button warehouse-mode-button-active'
                   : 'warehouse-mode-button'
               }
-              onClick={() => setSearchMode(mode.key)}
+              onClick={() => {
+                setSearchMode(mode.key);
+                setCurrentPage(1);
+              }}
             >
               {mode.label}
             </button>
@@ -152,12 +180,25 @@ export const WarehousePanel = ({
       ) : null}
 
       {activeTab === 'stock' || activeTab === 'receipts' ? (
-        <StockTable
-          products={filteredProducts}
-          isLoading={isLoading}
-          onEdit={onProductEdit}
-          onDelete={onProductDelete}
-        />
+        <>
+          <StockTable
+            products={paginatedProducts}
+            isLoading={isLoading}
+            onEdit={onProductEdit}
+            onDelete={onProductDelete}
+          />
+          <PaginationPanel
+            totalItems={filteredProducts.length}
+            page={currentPage}
+            pageSize={pageSize}
+            pageSizeOptions={paginationPageSizeOptions}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setCurrentPage(1);
+            }}
+          />
+        </>
       ) : (
         <p className="empty-state">This warehouse section is ready for the next workflow.</p>
       )}
