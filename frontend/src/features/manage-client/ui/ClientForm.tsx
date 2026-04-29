@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import {
-  clientStatuses,
-} from '../../../entities/client/model/constants';
+import { clientStatuses } from '../../../entities/client/model/constants';
 import type {
   Client,
   ClientFormValues,
   ClientStatus,
 } from '../../../entities/client/model/types';
+import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 
 type ClientFormProps = {
   clients: Client[];
@@ -38,8 +37,12 @@ export const ClientForm = ({
   onCancelEdit,
   onPickExisting,
 }: ClientFormProps) => {
-  const [recommendations, setRecommendations] = useState<Client[]>([]);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [recommendations, setRecommendations] = useState<Client[]>(
+    [],
+  );
+  const [showRecommendations, setShowRecommendations] =
+    useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -55,10 +58,11 @@ export const ClientForm = ({
         clients
           .filter((client) => {
             const matchesName =
-              !normalizedName || client.name.toLowerCase().includes(normalizedName);
-            const matchesPhone =
-              !normalizedPhone ||
-              normalizeDigits(client.phone).includes(normalizedPhone);
+              !normalizedName ||
+              client.name.toLowerCase().includes(normalizedName);
+            const matchesPhone = normalizeDigits(
+              client.phone,
+            ).includes(normalizedPhone);
 
             return matchesName || matchesPhone;
           })
@@ -69,64 +73,104 @@ export const ClientForm = ({
     return () => window.clearTimeout(timeoutId);
   }, [clients, form.name, form.phone]);
 
+  // Validates Ukrainian phone number: 10 digits (without code) or 12 digits (with 380 code)
+  const validatePhone = (phone: string): boolean => {
+    if (!isValidUkrainianPhone(phone)) {
+      setPhoneError('Не вірний формат номеру телефона');
+      return false;
+    }
+    setPhoneError(null);
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (!validatePhone(form.phone)) {
+      return;
+    }
+    onSubmit();
+  };
+
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className='panel'>
+      <div className='panel-header'>
         <div>
-          <p className="section-label">Clients</p>
+          <p className='section-label'>Clients</p>
           <h2>{isEditing ? 'Edit client' : 'Add client'}</h2>
         </div>
         {isEditing ? (
-          <button className="ghost-button" type="button" onClick={onCancelEdit}>
+          <button
+            className='ghost-button'
+            type='button'
+            onClick={onCancelEdit}
+          >
             Cancel
           </button>
         ) : null}
       </div>
 
-      <div className="form-grid">
-        <label className="field">
+      <div className='form-grid'>
+        <label className='field'>
           <span>Phone</span>
           <input
             value={form.phone}
-            placeholder="+380671112233"
+            placeholder='+38 067 111 22 33'
             onFocus={() => setShowRecommendations(true)}
-            onBlur={() => window.setTimeout(() => setShowRecommendations(false), 120)}
-            onChange={(event) => onChange('phone', event.target.value)}
+            onBlur={() => {
+              window.setTimeout(
+                () => setShowRecommendations(false),
+                120,
+              );
+              validatePhone(form.phone);
+            }}
+            onChange={(event) => {
+              onChange('phone', event.target.value);
+              setPhoneError(null);
+            }}
           />
+          {phoneError && (
+            <span className='error-message'>{phoneError}</span>
+          )}
         </label>
 
-        <label className="field">
+        <label className='field'>
           <span>Name</span>
           <input
             value={form.name}
-            placeholder="Ivan Petrenko"
+            placeholder='Ivan Petrenko'
             onFocus={() => setShowRecommendations(true)}
-            onBlur={() => window.setTimeout(() => setShowRecommendations(false), 120)}
+            onBlur={() =>
+              window.setTimeout(
+                () => setShowRecommendations(false),
+                120,
+              )
+            }
             onChange={(event) => onChange('name', event.target.value)}
           />
         </label>
 
         {showRecommendations && recommendations.length > 0 ? (
-          <div className="field field-wide">
+          <div className='field field-wide'>
             <span>Similar clients</span>
-            <div className="suggestions-panel">
+            <div className='suggestions-panel'>
               {recommendations.map((client) => (
                 <button
                   key={client.id}
-                  className="suggestion-item"
-                  type="button"
+                  className='suggestion-item'
+                  type='button'
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onPickExisting(client)}
                 >
                   <strong>{client.name}</strong>
-                  <span>{client.phone} • {client.status}</span>
+                  <span>
+                    {client.phone} • {client.status}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         ) : null}
 
-        <label className="field field-wide">
+        <label className='field field-wide'>
           <span>Status</span>
           <select
             value={form.status}
@@ -142,24 +186,33 @@ export const ClientForm = ({
           </select>
         </label>
 
-        <label className="field field-wide">
+        <label className='field field-wide'>
           <span>Note</span>
           <textarea
             rows={4}
             value={form.note}
-            placeholder="Preferences, warnings, order history..."
+            placeholder='Preferences, warnings, order history...'
             onChange={(event) => onChange('note', event.target.value)}
           />
         </label>
       </div>
 
       <button
-        className="primary-button"
-        type="button"
-        onClick={onSubmit}
-        disabled={isSaving || !form.phone.trim() || !form.name.trim()}
+        className='primary-button'
+        type='button'
+        onClick={handleSubmit}
+        disabled={
+          isSaving ||
+          !form.phone.trim() ||
+          !form.name.trim() ||
+          phoneError !== null
+        }
       >
-        {isSaving ? 'Saving...' : isEditing ? 'Update client' : 'Add client'}
+        {isSaving
+          ? 'Saving...'
+          : isEditing
+            ? 'Update client'
+            : 'Add client'}
       </button>
     </section>
   );

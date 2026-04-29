@@ -19,11 +19,13 @@ import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
+import { ClientsWorkspace } from '../../../widgets/dashboard/ui/ClientsWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 
 type PageKey =
   | 'home'
   | 'orders'
+  | 'clients'
   | 'employees'
   | 'settings'
   | 'accounting'
@@ -35,6 +37,7 @@ type CreateOrderTab = 'repair' | 'sale';
 const pageKeys: PageKey[] = [
   'home',
   'orders',
+  'clients',
   'employees',
   'settings',
   'accounting',
@@ -136,13 +139,10 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
   { key: 'employees', label: 'Employees' },
-  { key: 'other', label: 'Clients' },
+  { key: 'clients', label: 'Clients' },
   { key: 'accounting', label: 'Accounting' },
   { key: 'warehouse', label: 'Warehouses' },
   { key: 'catalog', label: 'Products & Services' },
-  { key: 'other', label: 'Sales' },
-  { key: 'other', label: 'Chats' },
-  { key: 'other', label: 'More' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -175,6 +175,7 @@ export const DashboardPage = () => {
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
+  const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(null);
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
@@ -318,6 +319,13 @@ export const DashboardPage = () => {
   const openPage = (page: PageKey) => {
     setActivePage(page);
     setIsCreateOrderOpen(false);
+  };
+
+  const openSaleFromClientCard = (sale: { id: string; kind: 'repair' | 'sale' }) => {
+    setActivePage('orders');
+    setIsCreateOrderOpen(false);
+    changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
+    setExternalSelectedSaleId(sale.id);
   };
 
   const handleLogin = async () => {
@@ -538,6 +546,10 @@ export const DashboardPage = () => {
                     openPage('employees');
                   }
 
+                  if (item.key === 'clients') {
+                    openPage('clients');
+                  }
+
                   if (item.key === 'settings') {
                     openPage('settings');
                   }
@@ -611,6 +623,8 @@ export const DashboardPage = () => {
                 onSaleUpdate={actions.replaceSaleInState}
                 onError={actions.showError}
                 onSuccess={actions.showSuccessMessage}
+                externalSelectedSaleId={externalSelectedSaleId}
+                onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
               />
             )
           ) : activePage === 'employees' ? (
@@ -627,6 +641,22 @@ export const DashboardPage = () => {
               onCancelEdit={actions.resetEmployeeEditor}
               onEdit={actions.editEmployee}
               onDelete={actions.deleteEmployee}
+            />
+          ) : activePage === 'clients' ? (
+            <ClientsWorkspace
+              clients={state.allClients}
+              sales={state.sales}
+              selectedClientId={state.selectedClientId}
+              history={state.clientHistory}
+              isClientsLoading={state.isClientsLoading}
+              isHistoryLoading={state.isClientHistoryLoading}
+              isSaving={state.isClientSaving}
+              onSelectClient={actions.setSelectedClientId}
+              onDeleteClient={actions.deleteClient}
+              onCreateClient={actions.createClientCard}
+              onMergeClients={actions.mergeClients}
+              onUpdateClient={actions.updateClientCard}
+              onOpenSaleCard={openSaleFromClientCard}
             />
           ) : activePage === 'settings' ? (
             <SettingsPanel
