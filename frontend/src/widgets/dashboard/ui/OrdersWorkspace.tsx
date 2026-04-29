@@ -63,6 +63,7 @@ type OrdersWorkspaceProps = {
   onSuccess: (message: string) => void;
   externalSelectedSaleId?: string | null;
   onExternalSaleOpenHandled?: () => void;
+  onOpenClientCard: (clientId: string) => void;
 };
 
 type OrdersTab = 'orders' | 'sales';
@@ -609,6 +610,7 @@ export const OrdersWorkspace = ({
   onSuccess,
   externalSelectedSaleId = null,
   onExternalSaleOpenHandled,
+  onOpenClientCard,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
     currentEmployee?.name ?? 'Unknown employee';
@@ -1352,7 +1354,13 @@ export const OrdersWorkspace = ({
       case 'client':
         return (
           <div className='orders-client-cell'>
-            <span>{sale.client.name}</span>
+            <button
+              type='button'
+              className='orders-client-link'
+              onClick={() => onOpenClientCard(sale.client.id)}
+            >
+              {sale.client.name}
+            </button>
             <small>
               <PhoneNumber value={sale.client.phone} />
             </small>
@@ -1951,6 +1959,9 @@ export const OrdersWorkspace = ({
           onOpenRelatedSale={openSaleCard}
           onAcceptPayment={() => openPaymentModal(selectedSale)}
           onRefundPayment={() => openRefundModal(selectedSale)}
+          onOpenClientCard={() =>
+            onOpenClientCard(selectedSale.client.id)
+          }
           onError={onError}
           onSuccess={onSuccess}
         />
@@ -2641,6 +2652,7 @@ type OrderDetailCardProps = {
   onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
   onRefundPayment: () => void;
+  onOpenClientCard: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 };
@@ -2663,6 +2675,7 @@ const OrderDetailCard = ({
   onOpenRelatedSale,
   onAcceptPayment,
   onRefundPayment,
+  onOpenClientCard,
   onError,
   onSuccess,
 }: OrderDetailCardProps) => {
@@ -2700,7 +2713,10 @@ const OrderDetailCard = ({
   const timelineItems = [
     {
       id: `${sale.id}-created`,
-      author: sale.client.name,
+      author:
+        sale.manager?.name ||
+        sale.issuedBy?.name ||
+        'Unknown employee',
       message: `created order with status "${getStatusLabel(sale, status)}"`,
       createdAt: sale.createdAt,
     },
@@ -2754,7 +2770,15 @@ const OrderDetailCard = ({
           <dl className='order-detail-list'>
             <div>
               <dt>Client</dt>
-              <dd>{sale.client.name}</dd>
+              <dd>
+                <button
+                  type='button'
+                  className='orders-client-link'
+                  onClick={onOpenClientCard}
+                >
+                  {sale.client.name}
+                </button>
+              </dd>
             </div>
             <div>
               <dt>Phone</dt>
