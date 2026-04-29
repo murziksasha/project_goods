@@ -319,7 +319,6 @@ export const ClientsWorkspace = ({
     email: '',
     note: '',
   });
-  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [companyForm, setCompanyForm] = useState({
     organizationName: '',
     phone: '+380',
@@ -545,18 +544,18 @@ export const ClientsWorkspace = ({
   const validatePhone = (phone: string): boolean => {
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
-      setPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Не вірний формат номеру телефона');
       return false;
     }
     if (normalized.length > MAX_PHONE_LENGTH) {
-      setPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Не вірний формат номеру телефона');
       return false;
     }
     if (!isValidUkrainianPhone(phone)) {
-      setPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Не вірний формат номеру телефона');
       return false;
     }
-    setPhoneError(null);
+    setMainTabPhoneError(null);
     return true;
   };
 
@@ -567,10 +566,6 @@ export const ClientsWorkspace = ({
       companyForm,
     );
     if (!payload.phone || !payload.name) return;
-
-    if (!validatePhone(payload.phone)) {
-      return;
-    }
 
     const isSuccess = await onCreateClient(payload);
     if (!isSuccess) return;
@@ -594,7 +589,6 @@ export const ClientsWorkspace = ({
       email: '',
       note: '',
     });
-    setPhoneError(null);
   };
 
   const handleMergeClients = async () => {
@@ -1035,15 +1029,8 @@ export const ClientsWorkspace = ({
                           ...current,
                           phone: event.target.value,
                         }));
-                        setPhoneError(null);
                       }}
-                      onBlur={() => validatePhone(personForm.phone)}
                     />
-                    {phoneError && (
-                      <span className='error-message'>
-                        {phoneError}
-                      </span>
-                    )}
                   </label>
                   <label className='field field-wide'>
                     <span>ПІБ</span>
@@ -1118,15 +1105,8 @@ export const ClientsWorkspace = ({
                           ...current,
                           phone: event.target.value,
                         }));
-                        setPhoneError(null);
                       }}
-                      onBlur={() => validatePhone(companyForm.phone)}
                     />
-                    {phoneError && (
-                      <span className='error-message'>
-                        {phoneError}
-                      </span>
-                    )}
                   </label>
                   <label className='field field-wide'>
                     <span>Реєстраційні дані 1</span>
@@ -1208,7 +1188,7 @@ export const ClientsWorkspace = ({
               <button
                 type='button'
                 className='primary-button'
-                disabled={isSaving || phoneError !== null}
+                disabled={isSaving}
                 onClick={() => {
                   void handleCreateClient();
                 }}
