@@ -6,7 +6,14 @@ import type {
   ClientStatus,
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
+import {
+  formatCurrency,
+  formatDateTime,
+} from '../../../shared/lib/format';
+import {
+  isValidUkrainianPhone,
+  normalizePhone,
+} from '../../../shared/lib/phoneFormatter';
 
 type ClientsWorkspaceProps = {
   clients: Client[];
@@ -40,7 +47,7 @@ type ClientFilters = {
   visitsTo: string;
   incomeFrom: string;
   incomeTo: string;
-  operatorId: string;
+  operatorIds: string[];
 };
 
 type ClientCardTab = 'main' | 'services' | 'sales';
@@ -65,7 +72,7 @@ const emptyFilters: ClientFilters = {
   visitsTo: '',
   incomeFrom: '',
   incomeTo: '',
-  operatorId: '',
+  operatorIds: [],
 };
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
@@ -77,6 +84,8 @@ const parseNumber = (value: string) => {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const MAX_PHONE_LENGTH = 10;
 
 const getDateStart = (value: string) => {
   if (!value) return null;
@@ -103,7 +112,9 @@ const defaultClientStats: ClientStats = {
 };
 
 const formatClientIncome = (value: number) =>
-  `${formatCurrency(value).replace(/[^\d,\s.-]/g, '').trim()} грн`;
+  `${formatCurrency(value)
+    .replace(/[^\d,\s.-]/g, '')
+    .trim()} грн`;
 
 const clientStatusOptions: Array<{
   label: string;
@@ -122,7 +133,9 @@ const getMetaFieldFromNote = (
   key: 'Address' | 'Email',
 ) => {
   const prefix = `${key}:`;
-  const line = note.split('\n').find((item) => item.startsWith(prefix));
+  const line = note
+    .split('\n')
+    .find((item) => item.startsWith(prefix));
   return line ? line.slice(prefix.length).trim() : '';
 };
 
@@ -131,7 +144,9 @@ const getMetaFieldFromNoteLegacy = (
   key: 'Адреса' | 'Електронна пошта',
 ) => {
   const prefix = `${key}:`;
-  const line = note.split('\n').find((item) => item.startsWith(prefix));
+  const line = note
+    .split('\n')
+    .find((item) => item.startsWith(prefix));
   return line ? line.slice(prefix.length).trim() : '';
 };
 
@@ -167,7 +182,9 @@ const getClientStatsMap = (sales: Sale[]) => {
   const map = new Map<string, ClientStats>();
 
   sales.forEach((sale) => {
-    const current = map.get(sale.client.id) ?? { ...defaultClientStats };
+    const current = map.get(sale.client.id) ?? {
+      ...defaultClientStats,
+    };
     const income = sale.salePrice * sale.quantity;
     const orderNumbers = sale.recordNumber
       ? [...current.orderNumbers, sale.recordNumber]
@@ -180,7 +197,8 @@ const getClientStatsMap = (sales: Sale[]) => {
     map.set(sale.client.id, {
       visits: current.visits + 1,
       income: current.income + income,
-      serviceCount: current.serviceCount + (sale.kind === 'repair' ? 1 : 0),
+      serviceCount:
+        current.serviceCount + (sale.kind === 'repair' ? 1 : 0),
       salesCount: current.salesCount + (sale.kind === 'sale' ? 1 : 0),
       orderNumbers,
       operatorIds,
@@ -283,6 +301,9 @@ export const ClientsWorkspace = ({
     useState<ClientFilters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<ClientFilters>(emptyFilters);
+  const [selectedOperatorIds, setSelectedOperatorIds] = useState<
+    string[]
+  >([]);
   const [searchValue, setSearchValue] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -298,6 +319,7 @@ export const ClientsWorkspace = ({
     email: '',
     note: '',
   });
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [companyForm, setCompanyForm] = useState({
     organizationName: '',
     phone: '+380',
@@ -320,9 +342,18 @@ export const ClientsWorkspace = ({
     note: '',
     status: '' as ClientStatus | '',
   });
+  const [mainTabPhoneError, setMainTabPhoneError] = useState<
+    string | null
+  >(null);
 
-  const statsByClient = useMemo(() => getClientStatsMap(sales), [sales]);
-  const operatorOptions = useMemo(() => getOperatorOptions(sales), [sales]);
+  const statsByClient = useMemo(
+    () => getClientStatsMap(sales),
+    [sales],
+  );
+  const operatorOptions = useMemo(
+    () => getOperatorOptions(sales),
+    [sales],
+  );
 
   const activeFiltersCount = useMemo(
     () =>
@@ -335,7 +366,7 @@ export const ClientsWorkspace = ({
       (appliedFilters.visitsTo ? 1 : 0) +
       (appliedFilters.incomeFrom ? 1 : 0) +
       (appliedFilters.incomeTo ? 1 : 0) +
-      (appliedFilters.operatorId ? 1 : 0),
+      (appliedFilters.operatorIds.length > 0 ? 1 : 0),
     [appliedFilters],
   );
 
@@ -351,7 +382,8 @@ export const ClientsWorkspace = ({
 
     return [...clients]
       .filter((client) => {
-        const stats = statsByClient.get(client.id) ?? defaultClientStats;
+        const stats =
+          statsByClient.get(client.id) ?? defaultClientStats;
         const searchable =
           `${client.id} ${client.name} ${client.phone} ${client.note}`.toLowerCase();
         const createdAt = new Date(client.createdAt).getTime();
@@ -375,13 +407,19 @@ export const ClientsWorkspace = ({
         }
         if (dateFrom !== null && createdAt < dateFrom) return false;
         if (dateTo !== null && createdAt > dateTo) return false;
-        if (visitsFrom !== null && stats.visits < visitsFrom) return false;
-        if (visitsTo !== null && stats.visits > visitsTo) return false;
-        if (incomeFrom !== null && stats.income < incomeFrom) return false;
-        if (incomeTo !== null && stats.income > incomeTo) return false;
+        if (visitsFrom !== null && stats.visits < visitsFrom)
+          return false;
+        if (visitsTo !== null && stats.visits > visitsTo)
+          return false;
+        if (incomeFrom !== null && stats.income < incomeFrom)
+          return false;
+        if (incomeTo !== null && stats.income > incomeTo)
+          return false;
         if (
-          appliedFilters.operatorId &&
-          !stats.operatorIds.includes(appliedFilters.operatorId)
+          appliedFilters.operatorIds.length > 0 &&
+          !appliedFilters.operatorIds.some((operatorId) =>
+            stats.operatorIds.includes(operatorId),
+          )
         )
           return false;
 
@@ -391,7 +429,9 @@ export const ClientsWorkspace = ({
   }, [appliedFilters, clients, statsByClient]);
 
   const selectedClient = useMemo(
-    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    () =>
+      clients.find((client) => client.id === selectedClientId) ??
+      null,
     [clients, selectedClientId],
   );
 
@@ -473,17 +513,22 @@ export const ClientsWorkspace = ({
 
     setDraftFilters(next);
     setAppliedFilters(next);
+    setSelectedOperatorIds(draftFilters.operatorIds);
   };
 
   const clearFilters = () => {
     setDraftFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
+    setSelectedOperatorIds([]);
   };
 
   const submitSearch = () => {
     const nextQuery = searchValue.trim();
     setDraftFilters((current) => ({ ...current, query: nextQuery }));
-    setAppliedFilters((current) => ({ ...current, query: nextQuery }));
+    setAppliedFilters((current) => ({
+      ...current,
+      query: nextQuery,
+    }));
   };
 
   const openClientCard = (clientId: string) => {
@@ -497,6 +542,24 @@ export const ClientsWorkspace = ({
     onSelectClient(null);
   };
 
+  const validatePhone = (phone: string): boolean => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length === 0) {
+      setPhoneError('Не вірний формат номеру телефона');
+      return false;
+    }
+    if (normalized.length > MAX_PHONE_LENGTH) {
+      setPhoneError('Не вірний формат номеру телефона');
+      return false;
+    }
+    if (!isValidUkrainianPhone(phone)) {
+      setPhoneError('Не вірний формат номеру телефона');
+      return false;
+    }
+    setPhoneError(null);
+    return true;
+  };
+
   const handleCreateClient = async () => {
     const payload = mapClientToCreatePayload(
       createClientTab,
@@ -504,6 +567,10 @@ export const ClientsWorkspace = ({
       companyForm,
     );
     if (!payload.phone || !payload.name) return;
+
+    if (!validatePhone(payload.phone)) {
+      return;
+    }
 
     const isSuccess = await onCreateClient(payload);
     if (!isSuccess) return;
@@ -527,6 +594,7 @@ export const ClientsWorkspace = ({
       email: '',
       note: '',
     });
+    setPhoneError(null);
   };
 
   const handleMergeClients = async () => {
@@ -537,7 +605,10 @@ export const ClientsWorkspace = ({
     )
       return;
 
-    const isSuccess = await onMergeClients(mergeTargetId, mergeSourceId);
+    const isSuccess = await onMergeClients(
+      mergeTargetId,
+      mergeSourceId,
+    );
     if (!isSuccess) return;
 
     setIsMergeModalOpen(false);
@@ -637,6 +708,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   query: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='+380..., Іван'
@@ -651,6 +723,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   clientId: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='ID'
@@ -665,6 +738,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   orderNumber: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='r000001'
@@ -679,6 +753,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   dateFrom: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
             />
@@ -692,28 +767,50 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   dateTo: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
             />
           </label>
           <label className='orders-filter-field'>
             <span>Оператор</span>
-            <select
-              value={draftFilters.operatorId}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  operatorId: event.target.value,
-                }))
-              }
-            >
-              <option value=''>Будь-який</option>
+            <div className='operator-checkboxes'>
+              <label className='checkbox-item'>
+                <input
+                  type='checkbox'
+                  checked={selectedOperatorIds.length === 0}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setSelectedOperatorIds([]);
+                    } else {
+                      setSelectedOperatorIds([]);
+                    }
+                  }}
+                />
+                <span>Вибрати усі</span>
+              </label>
               {operatorOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
+                <label key={option.id} className='checkbox-item'>
+                  <input
+                    type='checkbox'
+                    checked={selectedOperatorIds.includes(option.id)}
+                    onChange={(event) => {
+                      if (event.target.checked) {
+                        setSelectedOperatorIds((current) => [
+                          ...current,
+                          option.id,
+                        ]);
+                      } else {
+                        setSelectedOperatorIds((current) =>
+                          current.filter((id) => id !== option.id),
+                        );
+                      }
+                    }}
+                  />
+                  <span>{option.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </label>
           <label className='orders-filter-field'>
             <span>Кількість звернень від</span>
@@ -725,6 +822,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   visitsFrom: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='0'
@@ -740,6 +838,7 @@ export const ClientsWorkspace = ({
                 setDraftFilters((current) => ({
                   ...current,
                   visitsTo: event.target.value,
+                  operatorIds: selectedOperatorIds,
                 }))
               }
               placeholder='0'
@@ -931,13 +1030,20 @@ export const ClientsWorkspace = ({
                     <span>Телефон</span>
                     <input
                       value={personForm.phone}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setPersonForm((current) => ({
                           ...current,
                           phone: event.target.value,
-                        }))
-                      }
+                        }));
+                        setPhoneError(null);
+                      }}
+                      onBlur={() => validatePhone(personForm.phone)}
                     />
+                    {phoneError && (
+                      <span className='error-message'>
+                        {phoneError}
+                      </span>
+                    )}
                   </label>
                   <label className='field field-wide'>
                     <span>ПІБ</span>
@@ -1007,13 +1113,20 @@ export const ClientsWorkspace = ({
                     <span>Телефон</span>
                     <input
                       value={companyForm.phone}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setCompanyForm((current) => ({
                           ...current,
                           phone: event.target.value,
-                        }))
-                      }
+                        }));
+                        setPhoneError(null);
+                      }}
+                      onBlur={() => validatePhone(companyForm.phone)}
                     />
+                    {phoneError && (
+                      <span className='error-message'>
+                        {phoneError}
+                      </span>
+                    )}
                   </label>
                   <label className='field field-wide'>
                     <span>Реєстраційні дані 1</span>
@@ -1095,7 +1208,7 @@ export const ClientsWorkspace = ({
               <button
                 type='button'
                 className='primary-button'
-                disabled={isSaving}
+                disabled={isSaving || phoneError !== null}
                 onClick={() => {
                   void handleCreateClient();
                 }}
@@ -1132,7 +1245,8 @@ export const ClientsWorkspace = ({
             <div className='catalog-edit-body clients-modal-body'>
               <p className='muted-copy'>
                 Виберіть клієнта 1 та клієнта 2. Дані з клієнта 2
-                будуть обʼєднані в клієнта 1, після чого клієнта 2 буде видалено.
+                будуть обʼєднані в клієнта 1, після чого клієнта 2
+                буде видалено.
               </p>
               <label className='field field-wide'>
                 <span>Клієнт 1</span>
@@ -1154,7 +1268,9 @@ export const ClientsWorkspace = ({
                       className='suggestion-item'
                       onClick={() => {
                         setMergeTargetId(client.id);
-                        setMergeTargetQuery(getClientSubtitle(client));
+                        setMergeTargetQuery(
+                          getClientSubtitle(client),
+                        );
                       }}
                     >
                       <strong>{client.name}</strong>
@@ -1183,7 +1299,9 @@ export const ClientsWorkspace = ({
                       className='suggestion-item'
                       onClick={() => {
                         setMergeSourceId(client.id);
-                        setMergeSourceQuery(getClientSubtitle(client));
+                        setMergeSourceQuery(
+                          getClientSubtitle(client),
+                        );
                       }}
                     >
                       <strong>{client.name}</strong>
@@ -1235,7 +1353,9 @@ export const ClientsWorkspace = ({
                     'Картка клієнта'}
                 </h2>
                 <p className='panel-subtitle'>
-                  {selectedClient?.phone ?? history?.client.phone ?? ''}
+                  {selectedClient?.phone ??
+                    history?.client.phone ??
+                    ''}
                 </p>
               </div>
               <button
@@ -1289,7 +1409,9 @@ export const ClientsWorkspace = ({
 
             <div className='clients-card-body'>
               {isHistoryLoading && clientCardTab !== 'main' ? (
-                <p className='empty-state'>Завантаження історії клієнта...</p>
+                <p className='empty-state'>
+                  Завантаження історії клієнта...
+                </p>
               ) : !selectedClientId ? (
                 <p className='empty-state'>
                   Оберіть клієнта зі списку.
@@ -1336,13 +1458,20 @@ export const ClientsWorkspace = ({
                     <span>Телефон</span>
                     <input
                       value={mainTabForm.phone}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setMainTabForm((current) => ({
                           ...current,
                           phone: event.target.value,
-                        }))
-                      }
+                        }));
+                        setMainTabPhoneError(null);
+                      }}
+                      onBlur={() => validatePhone(mainTabForm.phone)}
                     />
+                    {mainTabPhoneError && (
+                      <span className='error-message'>
+                        {mainTabPhoneError}
+                      </span>
+                    )}
                   </label>
                   <label className='field field-wide'>
                     <span>Статус</span>
@@ -1351,12 +1480,17 @@ export const ClientsWorkspace = ({
                       onChange={(event) =>
                         setMainTabForm((current) => ({
                           ...current,
-                          status: event.target.value as ClientStatus | '',
+                          status: event.target.value as
+                            | ClientStatus
+                            | '',
                         }))
                       }
                     >
                       {clientStatusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        <option
+                          key={option.value}
+                          value={option.value}
+                        >
                           {option.label}
                         </option>
                       ))}
@@ -1388,7 +1522,9 @@ export const ClientsWorkspace = ({
                         void handleMainTabSave();
                       }}
                     >
-                      {isSaving ? 'Збереження...' : 'Зберегти клієнта'}
+                      {isSaving
+                        ? 'Збереження...'
+                        : 'Зберегти клієнта'}
                     </button>
                   </div>
                 </div>
@@ -1419,7 +1555,9 @@ export const ClientsWorkspace = ({
                         <tr
                           key={sale.id}
                           className='clients-history-row'
-                          onClick={() => openSaleCardFromClientModal(sale)}
+                          onClick={() =>
+                            openSaleCardFromClientModal(sale)
+                          }
                         >
                           <td>
                             <button
@@ -1434,7 +1572,9 @@ export const ClientsWorkspace = ({
                             </button>
                           </td>
                           <td>{formatDateTime(sale.saleDate)}</td>
-                          <td>{formatItemList(sale, clientCardTab)}</td>
+                          <td>
+                            {formatItemList(sale, clientCardTab)}
+                          </td>
                           <td>{sale.status}</td>
                           <td>
                             {formatClientIncome(

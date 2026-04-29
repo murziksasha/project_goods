@@ -1791,6 +1791,33 @@
   background: #fff;
 }
 
+.operator-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.operator-checkboxes .checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.operator-checkboxes .checkbox-item input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.operator-checkboxes .checkbox-item span {
+  font-size: 0.9rem;
+  color: #435a72;
+}
+
 .orders-filter-actions {
   display: flex;
   gap: 10px;
