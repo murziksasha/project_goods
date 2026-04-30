@@ -146,6 +146,17 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'settings', label: 'Settings' },
 ];
 
+const sidebarItemIcons: Record<PageKey, string> = {
+  home: '\u2302',
+  orders: '\u2630',
+  clients: '\u263A',
+  employees: '\u2699',
+  settings: '\u2692',
+  accounting: '$',
+  catalog: '\u25A6',
+  warehouse: '\u25A3',
+};
+
 const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   event.button === 0 &&
   !event.metaKey &&
@@ -175,6 +186,7 @@ export const DashboardPage = () => {
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(null);
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
   const productSales = state.sales.filter(isProductSale);
@@ -510,8 +522,8 @@ export const DashboardPage = () => {
   }
 
   return (
-    <main className="dashboard-shell">
-      <aside className="app-sidebar">
+    <main className={isSidebarCollapsed ? 'dashboard-shell dashboard-shell-collapsed' : 'dashboard-shell'}>
+      <aside className={isSidebarCollapsed ? 'app-sidebar app-sidebar-collapsed' : 'app-sidebar'}>
         <div className="sidebar-profile">
           <div className="sidebar-avatar">
             {currentEmployee.name
@@ -521,7 +533,7 @@ export const DashboardPage = () => {
               .slice(0, 2)
               .toUpperCase()}
           </div>
-          <div>
+          <div className={isSidebarCollapsed ? 'sidebar-profile-meta sidebar-profile-meta-hidden' : 'sidebar-profile-meta'}>
             <p className="sidebar-user-name">{currentEmployee.name}</p>
             <p className="sidebar-user-role">{currentEmployee.role}</p>
           </div>
@@ -574,7 +586,12 @@ export const DashboardPage = () => {
                   }
                 }}
               >
-                {item.label}
+                <span className="sidebar-nav-item-icon" aria-hidden="true">
+                  {item.key !== 'other' ? sidebarItemIcons[item.key] : '\u2022'}
+                </span>
+                <span className={isSidebarCollapsed ? 'sidebar-nav-item-label sidebar-nav-item-label-hidden' : 'sidebar-nav-item-label'}>
+                  {item.label}
+                </span>
               </a>
             );
           })}
@@ -583,7 +600,12 @@ export const DashboardPage = () => {
 
       <section className="dashboard-main">
         <header className="topbar">
-          <button type="button" className="topbar-menu-button" aria-label="Open menu">
+          <button
+            type="button"
+            className="topbar-menu-button"
+            aria-label={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+            onClick={() => setIsSidebarCollapsed((previousValue) => !previousValue)}
+          >
             &#9776;
           </button>
           <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
@@ -712,6 +734,7 @@ export const DashboardPage = () => {
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
+              employees={state.allEmployees}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}
               isProductSaving={state.isProductSaving}
