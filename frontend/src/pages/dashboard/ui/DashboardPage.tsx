@@ -734,6 +734,7 @@ export const DashboardPage = () => {
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
+              employees={state.allEmployees}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}
               isProductSaving={state.isProductSaving}
