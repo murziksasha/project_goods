@@ -730,10 +730,12 @@ export const DashboardPage = () => {
               onServiceCancelEdit={actions.resetServiceEditor}
               onServiceEdit={actions.editService}
               onServiceArchive={actions.archiveService}
+              suppliers={state.allClients}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
+              clients={state.allClients}
               employees={state.allEmployees}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}

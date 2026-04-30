@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Client } from '../../../entities/client/model/types';
 import type {
   Product,
   ProductFormValues,
@@ -12,7 +13,7 @@ import { ServiceCatalogForm } from '../../../features/manage-service-catalog/ui/
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
-type CatalogTab = 'products' | 'services';
+type CatalogTab = 'products' | 'services' | 'suppliers';
 
 type ProductCatalogPanelProps = {
   products: Product[];
@@ -47,11 +48,13 @@ type ProductCatalogPanelProps = {
   onServiceCancelEdit: () => void;
   onServiceEdit: (service: ServiceCatalogItem) => void;
   onServiceArchive: (service: ServiceCatalogItem) => void;
+  suppliers: Client[];
 };
 
 const tabs: Array<{ key: CatalogTab; label: string }> = [
   { key: 'products', label: 'Products' },
   { key: 'services', label: 'Services' },
+  { key: 'suppliers', label: 'Suppliers' },
 ];
 const paginationPageSizeOptions = [10, 30, 50, 100];
 
@@ -82,6 +85,7 @@ export const ProductCatalogPanel = ({
   onServiceCancelEdit,
   onServiceEdit,
   onServiceArchive,
+  suppliers,
 }: ProductCatalogPanelProps) => {
   const [activeTab, setActiveTab] = useState<CatalogTab>('products');
   const [productsPage, setProductsPage] = useState(1);
@@ -92,6 +96,7 @@ export const ProductCatalogPanel = ({
   const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const isProductsTab = activeTab === 'products';
+  const isSuppliersTab = activeTab === 'suppliers';
   const paginatedProducts = useMemo(() => {
     const start = (productsPage - 1) * productsPageSize;
     return products.slice(start, start + productsPageSize);
@@ -171,14 +176,16 @@ export const ProductCatalogPanel = ({
         </button>
         <div className="orders-search-group catalog-search-group">
           <input
-            value={isProductsTab ? currentSearchValue : currentServiceSearchValue}
+            value={isProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
             placeholder={
               isProductsTab
                 ? 'Product name, article or serial'
-                : 'Service name or note'
+                : isSuppliersTab
+                  ? 'Supplier name or phone'
+                  : 'Service name or note'
             }
             onChange={(event) =>
-              isProductsTab
+              isProductsTab || isSuppliersTab
                 ? (onSearchChange(event.target.value), setProductsPage(1))
                 : (onServiceSearchChange(event.target.value), setServicesPage(1))
             }
@@ -188,6 +195,8 @@ export const ProductCatalogPanel = ({
         <div className="catalog-toolbar-actions">
           {isProductsTab ? (
             <span className="muted-copy">Product creation moves to Warehouses.</span>
+          ) : isSuppliersTab ? (
+            <span className="muted-copy">Supplier directory is shared with Clients.</span>
           ) : (
             <button type="button" className="orders-create-button" onClick={openServiceForm}>
               Create service
@@ -196,7 +205,7 @@ export const ProductCatalogPanel = ({
         </div>
       </div>
 
-      {!isProductsTab && isServiceFormOpen ? (
+      {!isProductsTab && !isSuppliersTab && isServiceFormOpen ? (
         <div className="catalog-inline-form">
           <ServiceCatalogForm
             form={serviceForm}
@@ -233,6 +242,8 @@ export const ProductCatalogPanel = ({
             }}
           />
         </>
+      ) : isSuppliersTab ? (
+        <SuppliersTable suppliers={suppliers} searchQuery={searchQuery} />
       ) : (
         <>
           <ServicesTable
@@ -276,7 +287,7 @@ export const ProductCatalogPanel = ({
         />
       ) : null}
 
-      {selectedService ? (
+      {selectedService && !isSuppliersTab ? (
         <CatalogServiceModal
           service={selectedService}
           form={serviceForm}
@@ -296,6 +307,32 @@ export const ProductCatalogPanel = ({
         />
       ) : null}
     </section>
+  );
+};
+
+const SuppliersTable = ({ suppliers, searchQuery }: { suppliers: Client[]; searchQuery: string }) => {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredSuppliers = normalizedQuery
+    ? suppliers.filter((supplier) => [supplier.name, supplier.phone, supplier.note].join(' ').toLowerCase().includes(normalizedQuery))
+    : suppliers;
+  if (filteredSuppliers.length === 0) return <p className="empty-state">{normalizedQuery ? 'No suppliers found.' : 'No suppliers yet.'}</p>;
+  return (
+    <div className="catalog-table-wrap">
+      <table className="catalog-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody>
+          {filteredSuppliers.map((supplier) => (
+            <tr key={supplier.id}>
+              <td>{supplier.id.slice(-6)}</td>
+              <td>{supplier.name}</td>
+              <td>{supplier.phone}</td>
+              <td>{supplier.status || '-'}</td>
+              <td>{formatDate(supplier.createdAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 

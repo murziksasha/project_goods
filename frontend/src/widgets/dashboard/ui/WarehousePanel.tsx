@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { Client } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
-import { ProductForm } from '../../../features/manage-product/ui/ProductForm';
-import { formatDate } from '../../../shared/lib/format';
+import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type WarehouseTab = 'stock' | 'receipts' | 'expenses' | 'transfers' | 'logistics' | 'inventory' | 'settings';
@@ -12,6 +12,22 @@ type SettingsTab = 'service-centers' | 'warehouses' | 'administrators';
 
 type ServiceCenter = { id: string; name: string; color: string; address: string; phone: string };
 type WarehouseLocation = { id: string; name: string };
+type ReceiptStatus = 'approved' | 'received';
+type ReceiptRow = {
+  id: string;
+  number: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  paid: number;
+  supplierName: string;
+  createdAt: string;
+  acceptedBy: string;
+  acceptedAt: string;
+  status: ReceiptStatus;
+  note: string;
+};
 type WarehouseItem = {
   id: string;
   name: string;
@@ -39,6 +55,7 @@ type WarehouseFormState = {
 
 type WarehousePanelProps = {
   products: Product[];
+  clients: Client[];
   employees: Employee[];
   isLoading: boolean;
   productForm: ProductFormValues;
@@ -90,7 +107,7 @@ const getSearchText = (product: Product, mode: WarehouseSearchMode) => (mode ===
 const toServiceCenterForm = (c?: ServiceCenter): ServiceCenterFormState => ({ name: c?.name ?? '', color: c?.color ?? '#000000', address: c?.address ?? '', phone: c?.phone ?? '+380' });
 const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({ name: w?.name ?? '', isActive: w?.isActive ?? true, serviceCenterId: w?.serviceCenterId ?? '', receiptAddress: w?.receiptAddress ?? '', receiptPhone: w?.receiptPhone ?? '', locations: w?.locations.map((x) => x.name) ?? [''] });
 
-export const WarehousePanel = ({ products, employees, isLoading, productForm, isProductSaving, isProductEditing, onProductChange, onProductSubmit, onProductCancelEdit, onProductEdit, onProductDelete }: WarehousePanelProps) => {
+export const WarehousePanel = ({ products, clients, employees, isLoading, isProductSaving, onProductChange, onProductSubmit, onProductEdit, onProductDelete }: WarehousePanelProps) => {
   const [activeTab, setActiveTab] = useState<WarehouseTab>('stock');
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<WarehouseSearchMode>('serial');
@@ -104,7 +121,36 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
   const [serviceCenterForm, setServiceCenterForm] = useState<ServiceCenterFormState>(toServiceCenterForm());
   const [warehouseModalId, setWarehouseModalId] = useState<string | null>(null);
   const [warehouseForm, setWarehouseForm] = useState<WarehouseFormState>(toWarehouseForm());
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptForm, setReceiptForm] = useState({
+    supplierId: '',
+    productName: '',
+    price: '0',
+    quantity: '1',
+    note: '',
+  });
+  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>(() =>
+    products.slice(0, 8).map((product, index) => ({
+      id: `r-${product.id}`,
+      number: 23000 + index,
+      productName: product.name,
+      quantity: product.quantity,
+      price: product.price,
+      amount: product.price * product.quantity,
+      paid: product.price * product.quantity,
+      supplierName: product.purchasePlace || 'Постачальник',
+      createdAt: product.createdAt,
+      acceptedBy: 'Адміністратор',
+      acceptedAt: product.purchaseDate || product.createdAt,
+      status: product.freeQuantity > 0 ? 'received' : 'approved',
+      note: product.note || 'Л',
+    })),
+  );
   const activeEmployees = useMemo(() => employees.filter((employee) => employee.isActive), [employees]);
+  const suppliers = useMemo(() => clients.map((client) => ({
+    id: client.id,
+    name: client.name,
+  })), [clients]);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -116,6 +162,17 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [currentPage, filteredProducts, pageSize]);
+  const filteredReceipts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return receiptHistory;
+    return receiptHistory.filter((receipt) =>
+      [String(receipt.number), receipt.productName, receipt.supplierName, receipt.status].join(' ').toLowerCase().includes(normalizedQuery),
+    );
+  }, [query, receiptHistory]);
+  const paginatedReceipts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredReceipts.slice(start, start + pageSize);
+  }, [currentPage, filteredReceipts, pageSize]);
 
   const warehousesByServiceCenter = useMemo(() => warehouses.reduce<Record<string, number>>((acc, warehouse) => {
     acc[warehouse.serviceCenterId] = (acc[warehouse.serviceCenterId] ?? 0) + 1;
@@ -123,9 +180,10 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
   }, {}), [warehouses]);
 
   useEffect(() => {
-    const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+    const totalItems = activeTab === 'receipts' ? filteredReceipts.length : filteredProducts.length;
+    const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
     if (currentPage > pageCount) setCurrentPage(pageCount);
-  }, [currentPage, filteredProducts.length, pageSize]);
+  }, [activeTab, currentPage, filteredProducts.length, filteredReceipts.length, pageSize]);
 
   useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
 
@@ -167,6 +225,47 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
     }
     setWarehouseModalId(null);
   };
+  const createReceipt = () => {
+    if (!receiptForm.supplierId || !receiptForm.productName.trim()) return;
+    const supplier = suppliers.find((item) => item.id === receiptForm.supplierId);
+    const quantity = Number(receiptForm.quantity) || 0;
+    const price = Number(receiptForm.price) || 0;
+    if (quantity <= 0 || price < 0) return;
+
+    const amount = quantity * price;
+    const now = new Date().toISOString();
+    setReceiptHistory((current) => [
+      {
+        id: `r-${Date.now()}`,
+        number: 23000 + current.length + 1,
+        productName: receiptForm.productName.trim(),
+        quantity,
+        price,
+        amount,
+        paid: amount,
+        supplierName: supplier?.name || 'Постачальник',
+        createdAt: now,
+        acceptedBy: 'Адміністратор',
+        acceptedAt: now,
+        status: 'received',
+        note: receiptForm.note.trim() || 'Л',
+      },
+      ...current,
+    ]);
+
+    onProductChange('name', receiptForm.productName.trim());
+    onProductChange('article', `WM-${Date.now().toString().slice(-4)}`);
+    onProductChange('serialNumber', `REC-${Date.now().toString().slice(-6)}`);
+    onProductChange('price', String(price));
+    onProductChange('quantity', String(quantity));
+    onProductChange('purchasePlace', supplier?.name || 'Постачальник');
+    onProductChange('purchaseDate', now.slice(0, 10));
+    onProductChange('note', receiptForm.note.trim());
+    onProductSubmit();
+
+    setReceiptForm({ supplierId: '', productName: '', price: '0', quantity: '1', note: '' });
+    setIsReceiptModalOpen(false);
+  };
 
   return (
     <section className="panel warehouse-panel">
@@ -200,7 +299,12 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
         </div>
       ) : null}
 
-      {activeTab === 'receipts' ? <div className="warehouse-receipt"><ProductForm form={productForm} isSaving={isProductSaving} isEditing={isProductEditing} onChange={onProductChange} onSubmit={onProductSubmit} onCancelEdit={onProductCancelEdit} /></div> : null}
+      {activeTab === 'receipts' ? (
+        <div className="warehouse-receipt-header">
+          <p className="panel-subtitle">Замовлення постачальникам, які очікують оприбуткування</p>
+          <button type="button" className="orders-create-button" onClick={() => setIsReceiptModalOpen(true)}>+ Оприбуткувати</button>
+        </div>
+      ) : null}
 
       {activeTab === 'settings' ? (
         <WarehouseSettings
@@ -217,10 +321,15 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
           onEditWarehouse={(warehouse) => { setWarehouseModalId(warehouse.id); setWarehouseForm(toWarehouseForm(warehouse)); }}
           onAdministratorChange={setAdministrators}
         />
-      ) : activeTab === 'stock' || activeTab === 'receipts' ? (
+      ) : activeTab === 'stock' ? (
         <>
           <StockTable products={paginatedProducts} isLoading={isLoading} onEdit={onProductEdit} onDelete={onProductDelete} />
           <PaginationPanel totalItems={filteredProducts.length} page={currentPage} pageSize={pageSize} pageSizeOptions={paginationPageSizeOptions} onPageChange={setCurrentPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setCurrentPage(1); }} />
+        </>
+      ) : activeTab === 'receipts' ? (
+        <>
+          <ReceiptsTable receipts={paginatedReceipts} />
+          <PaginationPanel totalItems={filteredReceipts.length} page={currentPage} pageSize={pageSize} pageSizeOptions={paginationPageSizeOptions} onPageChange={setCurrentPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setCurrentPage(1); }} />
         </>
       ) : <p className="empty-state">This warehouse section is ready for the next workflow.</p>}
 
@@ -263,7 +372,72 @@ export const WarehousePanel = ({ products, employees, isLoading, productForm, is
           </div>
         </ModalShell>
       ) : null}
+
+      {isReceiptModalOpen ? (
+        <ModalShell
+          title="Оприходування"
+          onClose={() => setIsReceiptModalOpen(false)}
+          onSubmit={createReceipt}
+          submitLabel={isProductSaving ? 'Збереження...' : 'Оприходувати'}
+          canSubmit={Boolean(receiptForm.supplierId && receiptForm.productName.trim() && Number(receiptForm.quantity) > 0)}
+        >
+          <div className="warehouse-receipt-modal-grid">
+            <label className="field">
+              <span>Постачальник*</span>
+              <select value={receiptForm.supplierId} onChange={(event) => setReceiptForm((current) => ({ ...current, supplierId: event.target.value }))}>
+                <option value="">Не обрано</option>
+                {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span>Товар*</span>
+              <input value={receiptForm.productName} onChange={(event) => setReceiptForm((current) => ({ ...current, productName: event.target.value }))} placeholder="Введіть щоб знайти та додати" />
+            </label>
+            <label className="field">
+              <span>Ціна (UAH)*</span>
+              <input type="number" min="0" value={receiptForm.price} onChange={(event) => setReceiptForm((current) => ({ ...current, price: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>К-сть*</span>
+              <input type="number" min="1" value={receiptForm.quantity} onChange={(event) => setReceiptForm((current) => ({ ...current, quantity: event.target.value }))} />
+            </label>
+            <label className="field field-wide">
+              <span>Примітка</span>
+              <textarea rows={3} value={receiptForm.note} onChange={(event) => setReceiptForm((current) => ({ ...current, note: event.target.value }))} />
+            </label>
+          </div>
+        </ModalShell>
+      ) : null}
     </section>
+  );
+};
+
+const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
+  if (receipts.length === 0) return <p className="empty-state">Немає оприбуткувань.</p>;
+  return (
+    <div className="catalog-table-wrap">
+      <table className="catalog-table warehouse-receipts-table">
+        <thead><tr><th>№</th><th>Товар</th><th>К-сть</th><th>Ціна</th><th>Вартість</th><th>Сплачено</th><th>Постачальник</th><th>Дата пост.</th><th>Прийняв</th><th>Опріб.</th><th>Статус</th><th>Прим.</th></tr></thead>
+        <tbody>
+          {receipts.map((receipt) => (
+            <tr key={receipt.id}>
+              <td>{receipt.number}</td>
+              <td>{receipt.productName}</td>
+              <td>{receipt.quantity} шт</td>
+              <td>{formatCurrency(receipt.price)}</td>
+              <td>{formatCurrency(receipt.amount)}</td>
+              <td>{formatCurrency(receipt.paid)}</td>
+              <td>{receipt.supplierName}</td>
+              <td>{formatDate(receipt.createdAt)}</td>
+              <td>{receipt.acceptedBy}</td>
+              <td>{receipt.quantity} шт</td>
+              <td><span className={receipt.status === 'received' ? 'receipt-status receipt-status-received' : 'receipt-status receipt-status-approved'}>{receipt.status === 'received' ? 'Оприбутковано' : 'Затверджено'}</span></td>
+              <td>{receipt.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
