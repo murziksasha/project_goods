@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   Product,
   ProductFormValues,
@@ -10,6 +10,7 @@ import type {
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { ServiceCatalogForm } from '../../../features/manage-service-catalog/ui/ServiceCatalogForm';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type CatalogTab = 'products' | 'services';
 
@@ -52,6 +53,7 @@ const tabs: Array<{ key: CatalogTab; label: string }> = [
   { key: 'products', label: 'Products' },
   { key: 'services', label: 'Services' },
 ];
+const paginationPageSizeOptions = [10, 30, 50, 100];
 
 export const ProductCatalogPanel = ({
   products,
@@ -82,10 +84,22 @@ export const ProductCatalogPanel = ({
   onServiceArchive,
 }: ProductCatalogPanelProps) => {
   const [activeTab, setActiveTab] = useState<CatalogTab>('products');
+  const [productsPage, setProductsPage] = useState(1);
+  const [productsPageSize, setProductsPageSize] = useState(10);
+  const [servicesPage, setServicesPage] = useState(1);
+  const [servicesPageSize, setServicesPageSize] = useState(10);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const isProductsTab = activeTab === 'products';
+  const paginatedProducts = useMemo(() => {
+    const start = (productsPage - 1) * productsPageSize;
+    return products.slice(start, start + productsPageSize);
+  }, [products, productsPage, productsPageSize]);
+  const paginatedServices = useMemo(() => {
+    const start = (servicesPage - 1) * servicesPageSize;
+    return services.slice(start, start + servicesPageSize);
+  }, [services, servicesPage, servicesPageSize]);
   const catalogNumbers = new Map(
     [...products, ...services]
       .sort((firstItem, secondItem) =>
@@ -108,6 +122,26 @@ export const ProductCatalogPanel = ({
     onServiceEdit(service);
     setSelectedService(service);
   };
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(products.length / productsPageSize),
+    );
+    if (productsPage > pageCount) {
+      setProductsPage(pageCount);
+    }
+  }, [products.length, productsPage, productsPageSize]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(services.length / servicesPageSize),
+    );
+    if (servicesPage > pageCount) {
+      setServicesPage(pageCount);
+    }
+  }, [services.length, servicesPage, servicesPageSize]);
 
   return (
     <section className="panel catalog-table-panel">
@@ -145,8 +179,8 @@ export const ProductCatalogPanel = ({
             }
             onChange={(event) =>
               isProductsTab
-                ? onSearchChange(event.target.value)
-                : onServiceSearchChange(event.target.value)
+                ? (onSearchChange(event.target.value), setProductsPage(1))
+                : (onServiceSearchChange(event.target.value), setServicesPage(1))
             }
           />
           <button type="button">Find</button>
@@ -179,19 +213,47 @@ export const ProductCatalogPanel = ({
       ) : null}
 
       {isProductsTab ? (
-        <ProductsTable
-          products={products}
-          isLoading={isLoading}
-          searchQuery={searchQuery}
-          onEdit={editProduct}
-        />
+        <>
+          <ProductsTable
+            products={paginatedProducts}
+            isLoading={isLoading}
+            searchQuery={searchQuery}
+            onEdit={editProduct}
+            rowStartIndex={(productsPage - 1) * productsPageSize}
+          />
+          <PaginationPanel
+            totalItems={products.length}
+            page={productsPage}
+            pageSize={productsPageSize}
+            pageSizeOptions={paginationPageSizeOptions}
+            onPageChange={setProductsPage}
+            onPageSizeChange={(nextPageSize) => {
+              setProductsPageSize(nextPageSize);
+              setProductsPage(1);
+            }}
+          />
+        </>
       ) : (
-        <ServicesTable
-          services={services}
-          isLoading={isServicesLoading}
-          searchQuery={serviceSearchQuery}
-          onEdit={editService}
-        />
+        <>
+          <ServicesTable
+            services={paginatedServices}
+            isLoading={isServicesLoading}
+            searchQuery={serviceSearchQuery}
+            onEdit={editService}
+            rowStartIndex={(servicesPage - 1) * servicesPageSize}
+          />
+          <PaginationPanel
+            totalItems={services.length}
+            page={servicesPage}
+            pageSize={servicesPageSize}
+            pageSizeOptions={paginationPageSizeOptions}
+            onPageChange={setServicesPage}
+            onPageSizeChange={(nextPageSize) => {
+              setServicesPageSize(nextPageSize);
+              setServicesPage(1);
+            }}
+          />
+        </>
       )}
 
       {selectedProduct ? (
@@ -242,6 +304,7 @@ type ProductsTableProps = {
   isLoading: boolean;
   searchQuery: string;
   onEdit: (product: Product) => void;
+  rowStartIndex: number;
 };
 
 const ProductsTable = ({
@@ -249,6 +312,7 @@ const ProductsTable = ({
   isLoading,
   searchQuery,
   onEdit,
+  rowStartIndex,
 }: ProductsTableProps) => {
   if (isLoading) return <p className="empty-state">Loading products...</p>;
 
@@ -283,7 +347,7 @@ const ProductsTable = ({
         <tbody>
           {products.map((product, index) => (
             <tr key={product.id}>
-              <td>{index + 1}</td>
+              <td>{rowStartIndex + index + 1}</td>
               <td><input type="checkbox" aria-label={`Select ${product.name}`} /></td>
               <td>
                 <button
@@ -324,6 +388,7 @@ type ServicesTableProps = {
   isLoading: boolean;
   searchQuery: string;
   onEdit: (service: ServiceCatalogItem) => void;
+  rowStartIndex: number;
 };
 
 const ServicesTable = ({
@@ -331,6 +396,7 @@ const ServicesTable = ({
   isLoading,
   searchQuery,
   onEdit,
+  rowStartIndex,
 }: ServicesTableProps) => {
   if (isLoading) return <p className="empty-state">Loading services...</p>;
 
@@ -359,7 +425,7 @@ const ServicesTable = ({
         <tbody>
           {services.map((service, index) => (
             <tr key={service.id}>
-              <td>{index + 1}</td>
+              <td>{rowStartIndex + index + 1}</td>
               <td><input type="checkbox" aria-label={`Select ${service.name}`} /></td>
               <td>
                 <button

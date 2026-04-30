@@ -14,6 +14,7 @@ import {
   isValidUkrainianPhone,
   normalizePhone,
 } from '../../../shared/lib/phoneFormatter';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type ClientsWorkspaceProps = {
   clients: Client[];
@@ -75,6 +76,7 @@ const emptyFilters: ClientFilters = {
   incomeTo: '',
   status: 'all',
 };
+const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
@@ -347,6 +349,8 @@ export const ClientsWorkspace = ({
   const [mainTabPhoneError, setMainTabPhoneError] = useState<
     string | null
   >(null);
+  const [clientsPage, setClientsPage] = useState(1);
+  const [clientsPageSize, setClientsPageSize] = useState(10);
 
   const statsByClient = useMemo(
     () => getClientStatsMap(sales),
@@ -427,6 +431,10 @@ export const ClientsWorkspace = ({
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [appliedFilters, clients, statsByClient]);
+  const paginatedClients = useMemo(() => {
+    const start = (clientsPage - 1) * clientsPageSize;
+    return filteredClients.slice(start, start + clientsPageSize);
+  }, [clientsPage, clientsPageSize, filteredClients]);
 
   const selectedClient = useMemo(
     () =>
@@ -525,11 +533,13 @@ export const ClientsWorkspace = ({
 
     setDraftFilters(next);
     setAppliedFilters(next);
+    setClientsPage(1);
   };
 
   const clearFilters = () => {
     setDraftFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
+    setClientsPage(1);
   };
 
   const submitSearch = () => {
@@ -539,7 +549,18 @@ export const ClientsWorkspace = ({
       ...current,
       query: nextQuery,
     }));
+    setClientsPage(1);
   };
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredClients.length / clientsPageSize),
+    );
+    if (clientsPage > pageCount) {
+      setClientsPage(pageCount);
+    }
+  }, [clientsPage, clientsPageSize, filteredClients.length]);
 
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);
@@ -900,7 +921,7 @@ export const ClientsWorkspace = ({
                 </td>
               </tr>
             ) : (
-              filteredClients.map((client) => {
+              paginatedClients.map((client) => {
                 const stats =
                   statsByClient.get(client.id) ?? defaultClientStats;
                 const isActive = selectedClientId === client.id;
@@ -955,6 +976,17 @@ export const ClientsWorkspace = ({
           </tbody>
         </table>
       </div>
+      <PaginationPanel
+        totalItems={filteredClients.length}
+        page={clientsPage}
+        pageSize={clientsPageSize}
+        pageSizeOptions={paginationPageSizeOptions}
+        onPageChange={setClientsPage}
+        onPageSizeChange={(nextPageSize) => {
+          setClientsPageSize(nextPageSize);
+          setClientsPage(1);
+        }}
+      />
 
       {isCreateModalOpen ? (
         <div

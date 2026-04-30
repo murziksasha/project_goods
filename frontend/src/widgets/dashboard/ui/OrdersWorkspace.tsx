@@ -44,6 +44,7 @@ import type {
 import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -230,6 +231,7 @@ const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
 };
+const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
@@ -307,6 +309,44 @@ const statusLabels = repairStatuses.reduce(
     {} as Record<OrderStatus, string>,
   ),
 );
+
+const normalizeOrderStatus = (
+  status: string | null | undefined,
+): OrderStatus => {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  const aliasMap: Record<string, OrderStatus> = {
+    issuedwithoutrepair: 'issuedWithoutRepair',
+    issued_without_repair: 'issuedWithoutRepair',
+    'issued without repair': 'issuedWithoutRepair',
+  };
+  const repairStatusMap: Record<string, RepairStatus> = {
+    new: 'new',
+    diagnostics: 'diagnostics',
+    inrepair: 'inRepair',
+    waitingparts: 'waitingParts',
+    clientapproved: 'clientApproved',
+    clientrejected: 'clientRejected',
+    ready: 'ready',
+    issued: 'issued',
+    issuedwithoutrepair: 'issuedWithoutRepair',
+  };
+  const saleStatusMap: Record<string, SaleStatus> = {
+    new: 'new',
+    reserved: 'reserved',
+    paid: 'paid',
+    completed: 'completed',
+    returned: 'returned',
+  };
+  const compact = normalized.replace(/[\s_-]+/g, '');
+
+  return (
+    aliasMap[normalized] ??
+    aliasMap[compact] ??
+    repairStatusMap[compact] ??
+    saleStatusMap[compact] ??
+    'new'
+  );
+};
 
 const getStatusOptionsForSale = (sale: Sale) =>
   isRepairOrder(sale) ? repairStatuses : saleStatuses;
@@ -670,6 +710,12 @@ export const OrdersWorkspace = ({
     useState<OrdersFilters>(emptyOrdersFilters);
   const [appliedFilters, setAppliedFilters] =
     useState<OrdersFilters>(emptyOrdersFilters);
+  const [pageByTab, setPageByTab] = useState<Record<OrdersTab, number>>(
+    { orders: 1, sales: 1 },
+  );
+  const [pageSizeByTab, setPageSizeByTab] = useState<
+    Record<OrdersTab, number>
+  >({ orders: 10, sales: 10 });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -767,7 +813,7 @@ export const OrdersWorkspace = ({
 
     return sortedTabSales.filter((sale) => {
       const orderNumber = buildOrderNumber(sale);
-      const status = (sale.status as OrderStatus) ?? 'new';
+      const status = normalizeOrderStatus(sale.status);
       const lineItems = sale.lineItems?.length
         ? sale.lineItems
         : getDefaultLineItems(sale);
@@ -878,6 +924,13 @@ export const OrdersWorkspace = ({
     });
   }, [activeTab, appliedFilters, searchValue, tabSales]);
 
+  const currentPage = pageByTab[activeTab];
+  const currentPageSize = pageSizeByTab[activeTab];
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return filteredOrders.slice(start, start + currentPageSize);
+  }, [currentPage, currentPageSize, filteredOrders]);
+
   useEffect(() => {
     const sanitizeFilters = (current: OrdersFilters) => {
       const nextStatuses = current.statuses.filter((status) =>
@@ -891,6 +944,29 @@ export const OrdersWorkspace = ({
     setDraftFilters((current) => sanitizeFilters(current));
     setAppliedFilters((current) => sanitizeFilters(current));
   }, [statusKeysForActiveTab]);
+
+  useEffect(() => {
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+  }, [activeTab, searchValue]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredOrders.length / currentPageSize),
+    );
+
+    if (currentPage > pageCount) {
+      setPageByTab((current) => ({
+        ...current,
+        [activeTab]: pageCount,
+      }));
+    }
+  }, [
+    activeTab,
+    currentPage,
+    currentPageSize,
+    filteredOrders.length,
+  ]);
 
   const toggleStatusFilter = (status: OrderStatus) => {
     setDraftFilters((current) => {
@@ -925,12 +1001,14 @@ export const OrdersWorkspace = ({
       product: draftFilters.product.trim(),
       service: draftFilters.service.trim(),
     });
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
 
   const resetFilters = () => {
     setDraftFilters(emptyOrdersFilters);
     setAppliedFilters(emptyOrdersFilters);
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
   const saveCurrentFilter = () => {
@@ -1079,11 +1157,11 @@ export const OrdersWorkspace = ({
       : saleStatuses
     : repairStatuses;
   const selectedSaleStatus = selectedSale
-    ? ((selectedSale.status ?? 'new') as OrderStatus)
+    ? normalizeOrderStatus(selectedSale.status)
     : 'new';
 
   const getStatus = (sale: Sale): OrderStatus =>
-    (sale.status as OrderStatus) ?? 'new';
+    normalizeOrderStatus(sale.status);
 
   const getStatusOptions = getStatusOptionsForSale;
 
@@ -1136,7 +1214,7 @@ export const OrdersWorkspace = ({
   ) => {
     const updatedSale = await updateSaleWorkspace(sale.id, {
       kind: sale.kind,
-      status: payload.status ?? sale.status,
+      status: payload.status ?? normalizeOrderStatus(sale.status),
       paidAmount: payload.paidAmount ?? sale.paidAmount,
       issuedById: payload.issuedById,
       timeline: payload.timeline ?? sale.timeline,
@@ -2520,7 +2598,7 @@ export const OrdersWorkspace = ({
                 </td>
               </tr>
             ) : (
-              filteredOrders.map((sale) => (
+              paginatedOrders.map((sale) => (
                 <tr key={sale.id}>
                   {visibleColumnKeys.map((columnKey) => (
                     <td key={`${sale.id}-${columnKey}`}>
@@ -2533,6 +2611,25 @@ export const OrdersWorkspace = ({
           </tbody>
         </table>
       </div>
+      <PaginationPanel
+        totalItems={filteredOrders.length}
+        page={currentPage}
+        pageSize={currentPageSize}
+        pageSizeOptions={paginationPageSizeOptions}
+        onPageChange={(page) =>
+          setPageByTab((current) => ({
+            ...current,
+            [activeTab]: page,
+          }))
+        }
+        onPageSizeChange={(pageSize) => {
+          setPageSizeByTab((current) => ({
+            ...current,
+            [activeTab]: pageSize,
+          }));
+          setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+        }}
+      />
 
       {paymentSale ? (
         <PaymentModal
