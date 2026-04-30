@@ -62,6 +62,7 @@ type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardActionParams = {
   allProducts: Product[];
+  allServices: ServiceCatalogItem[];
   allClients: Client[];
   sales: Sale[];
   allEmployees: Employee[];
@@ -115,6 +116,7 @@ type DashboardActionParams = {
 
 export const createDashboardActions = ({
   allProducts,
+  allServices,
   allClients,
   sales,
   allEmployees,
@@ -202,6 +204,8 @@ export const createDashboardActions = ({
     }
     return `+380${digits}`;
   };
+  const normalizeServiceName = (value: string) =>
+    value.trim().replace(/\s+/g, ' ').toLowerCase();
 
   const formatOrderDateTime = (dateValue: string, timeValue: string) => {
     const now = new Date();
@@ -330,8 +334,21 @@ export const createDashboardActions = ({
       }
     },
     saveService: async () => {
-      setIsServiceSaving(true);
       clearNotifications();
+      if (!editingServiceId) {
+        const nextServiceName = normalizeServiceName(serviceForm.name);
+        const hasDuplicateService = allServices.some(
+          (service) =>
+            normalizeServiceName(service.name) === nextServiceName,
+        );
+
+        if (hasDuplicateService) {
+          setError('Такая услуга уже есть в каталоге.');
+          return;
+        }
+      }
+
+      setIsServiceSaving(true);
 
       try {
         if (editingServiceId) {
