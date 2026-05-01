@@ -352,9 +352,15 @@ export const createDashboardActions = ({
 
       try {
         if (editingServiceId) {
+          const editingService = allServices.find(
+            (service) => service.id === editingServiceId,
+          );
           const updatedService = await updateServiceCatalogItem(
             editingServiceId,
-            serviceForm,
+            {
+              ...serviceForm,
+              isActive: editingService?.isActive,
+            },
           );
           setServices((current) =>
             current.map((item) =>
@@ -638,6 +644,35 @@ export const createDashboardActions = ({
         setSuccessMessage('Service deactivated.');
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate service.'));
+      }
+    },
+    activateService: async (service: ServiceCatalogItem) => {
+      clearNotifications();
+      if (service.isActive) return;
+      setIsServiceSaving(true);
+
+      try {
+        const updatedServiceResponse = await updateServiceCatalogItem(service.id, {
+          ...toServiceCatalogForm(service),
+          isActive: true,
+        });
+        const updatedService = {
+          ...updatedServiceResponse,
+          isActive: true,
+        };
+        setServices((current) =>
+          current.map((item) =>
+            item.id === updatedService.id ? updatedService : item,
+          ),
+        );
+        if (editingServiceId === updatedService.id) {
+          setServiceForm(toServiceCatalogForm(updatedService));
+        }
+        setSuccessMessage('Service activated.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to activate service.'));
+      } finally {
+        setIsServiceSaving(false);
       }
     },
     deleteClient: async (client: Client) => {

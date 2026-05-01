@@ -14,6 +14,7 @@ import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type CatalogTab = 'products' | 'services' | 'suppliers';
+const catalogTabStorageKey = 'project-goods.catalog-tab';
 
 type ProductCatalogPanelProps = {
   products: Product[];
@@ -48,6 +49,7 @@ type ProductCatalogPanelProps = {
   onServiceCancelEdit: () => void;
   onServiceEdit: (service: ServiceCatalogItem) => void;
   onServiceArchive: (service: ServiceCatalogItem) => void;
+  onServiceActivate: (service: ServiceCatalogItem) => void | Promise<void>;
   suppliers: Client[];
 };
 
@@ -85,9 +87,15 @@ export const ProductCatalogPanel = ({
   onServiceCancelEdit,
   onServiceEdit,
   onServiceArchive,
+  onServiceActivate,
   suppliers,
 }: ProductCatalogPanelProps) => {
-  const [activeTab, setActiveTab] = useState<CatalogTab>('products');
+  const [activeTab, setActiveTab] = useState<CatalogTab>(() => {
+    const storedTab = window.localStorage.getItem(catalogTabStorageKey);
+    return storedTab === 'products' || storedTab === 'services' || storedTab === 'suppliers'
+      ? storedTab
+      : 'products';
+  });
   const [productsPage, setProductsPage] = useState(1);
   const [productsPageSize, setProductsPageSize] = useState(10);
   const [servicesPage, setServicesPage] = useState(1);
@@ -147,6 +155,16 @@ export const ProductCatalogPanel = ({
       setServicesPage(pageCount);
     }
   }, [services.length, servicesPage, servicesPageSize]);
+
+  useEffect(() => {
+    window.localStorage.setItem(catalogTabStorageKey, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!selectedService) return;
+    const updatedSelectedService = services.find((service) => service.id === selectedService.id);
+    setSelectedService(updatedSelectedService ?? null);
+  }, [services, selectedService]);
 
   return (
     <section className="panel catalog-table-panel">
@@ -303,6 +321,7 @@ export const ProductCatalogPanel = ({
             onServiceArchive(selectedService);
             setSelectedService(null);
           }}
+          onActivate={() => onServiceActivate(selectedService)}
           catalogNumber={catalogNumbers.get(selectedService.id) ?? 0}
         />
       ) : null}
@@ -698,6 +717,7 @@ type CatalogServiceModalProps = {
   onSubmit: () => void | Promise<void>;
   onClose: () => void;
   onArchive: () => void;
+  onActivate: () => void;
 };
 
 const CatalogServiceModal = ({
@@ -710,6 +730,7 @@ const CatalogServiceModal = ({
   onSubmit,
   onClose,
   onArchive,
+  onActivate,
 }: CatalogServiceModalProps) => {
   useLockBodyScroll();
 
@@ -789,6 +810,14 @@ const CatalogServiceModal = ({
       <footer className="catalog-edit-footer">
         <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
           Delete / deactivate
+        </button>
+        <button
+          type="button"
+          className="primary-button catalog-activate-button"
+          onClick={onActivate}
+          disabled={isSaving || service.isActive}
+        >
+          Activate
         </button>
         <button type="button" className="primary-button" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
           {isSaving ? 'Saving...' : 'Save'}

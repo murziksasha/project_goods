@@ -361,6 +361,15 @@
   color: #fff;
 }
 
+.catalog-activate-button {
+  background: #16a34a;
+}
+
+.catalog-activate-button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
 .warehouse-panel {
   padding: 0;
   overflow: hidden;

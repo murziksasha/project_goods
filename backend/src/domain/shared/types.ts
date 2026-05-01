@@ -63,4 +63,5 @@ export type ServiceCatalogPayload = {
   price?: unknown;
   salePriceOptions?: unknown;
   note?: unknown;
+  isActive?: unknown;
 };

@@ -91,6 +91,11 @@ export const updateServiceCatalogItem = async (
   service.price = normalizePrice(payload.price);
   service.salePriceOptions = normalizeSalePriceOptions(payload.salePriceOptions);
   service.note = String(payload.note ?? '').trim();
+  if (payload.isActive !== undefined) {
+    service.isActive =
+      payload.isActive === true ||
+      String(payload.isActive).toLowerCase() === 'true';
+  }
 
   await service.validate();
   await service.save();
