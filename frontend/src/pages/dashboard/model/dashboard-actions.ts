@@ -606,6 +606,35 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate product.'));
       }
     },
+    activateProduct: async (product: Product) => {
+      clearNotifications();
+      if (product.isActive) return;
+      setIsProductSaving(true);
+
+      try {
+        const updatedProductResponse = await updateProduct(product.id, {
+          ...toProductForm(product),
+          isActive: true,
+        });
+        const updatedProduct = {
+          ...updatedProductResponse,
+          isActive: true,
+        };
+        setAllProducts((current) =>
+          current.map((item) =>
+            item.id === updatedProduct.id ? updatedProduct : item,
+          ),
+        );
+        if (editingProductId === updatedProduct.id) {
+          setProductForm(toProductForm(updatedProduct));
+        }
+        setSuccessMessage('Product activated.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to activate product.'));
+      } finally {
+        setIsProductSaving(false);
+      }
+    },
     deleteService: async (service: ServiceCatalogItem) => {
       clearNotifications();
       if (!window.confirm(`Delete service "${service.name}"?`)) return;

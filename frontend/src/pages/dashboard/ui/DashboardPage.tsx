@@ -717,6 +717,7 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onEdit={actions.editProduct}
               onArchiveProduct={actions.archiveProduct}
+              onActivateProduct={actions.activateProduct}
               services={state.services}
               serviceForm={state.serviceForm}
               isServicesLoading={state.isServicesLoading}
