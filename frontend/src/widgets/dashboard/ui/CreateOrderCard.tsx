@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
-import { getProducts } from '../../../entities/product/api/productApi';
+import { createProduct, getProducts } from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
-import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 
@@ -77,7 +75,13 @@ const getProductWarehouse = (product: Product) =>
 
 const formatPhone = (input: string) => {
   const digitsOnly = input.replace(/\D/g, '');
-  const localDigits = (digitsOnly.startsWith('380') ? digitsOnly.slice(3) : digitsOnly).slice(0, 9);
+  if (!digitsOnly) return '';
+  const normalizedDigits = digitsOnly.startsWith('380')
+    ? digitsOnly.slice(3)
+    : digitsOnly.startsWith('0')
+      ? digitsOnly.slice(1)
+      : digitsOnly;
+  const localDigits = normalizedDigits.slice(0, 9);
 
   let result = '+380';
   if (localDigits.length > 0) result += ` ${localDigits.slice(0, 2)}`;
@@ -117,19 +121,15 @@ export const CreateOrderCard = ({
   onSave,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(initialTab);
-  const [clientPhone, setClientPhone] = useState('+380');
+  const [clientPhone, setClientPhone] = useState('');
   const [clientName, setClientName] = useState('');
-  const [discountCode, setDiscountCode] = useState('');
   const [deviceName, setDeviceName] = useState('');
   const [deviceSerialNumber, setDeviceSerialNumber] = useState('');
   const [deviceColor, setDeviceColor] = useState('');
   const [deviceKit, setDeviceKit] = useState('');
-  const [serviceName, setServiceName] = useState('');
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState('');
-  const [syncTotalWithItems, setSyncTotalWithItems] = useState(true);
   const [prepayment, setPrepayment] = useState('');
   const [prepaymentComment, setPrepaymentComment] = useState('');
   const [readyDate, setReadyDate] = useState('');
@@ -141,13 +141,15 @@ export const CreateOrderCard = ({
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
   const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
-  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
+  const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
+  const [newDeviceName, setNewDeviceName] = useState('');
+  const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
+  const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
   const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
-  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
 
   const managers = employees.filter(
@@ -170,7 +172,16 @@ export const CreateOrderCard = ({
       currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
 
-  const clientLookupQuery = [clientPhone.replace(/\s/g, ''), clientName.trim()]
+  const phoneDigits = clientPhone.replace(/\D/g, '');
+  const normalizedPhoneDigits = phoneDigits.startsWith('380')
+    ? phoneDigits.slice(3)
+    : phoneDigits.startsWith('0')
+      ? phoneDigits.slice(1)
+      : phoneDigits;
+  const clientLookupQuery = [
+    normalizedPhoneDigits.length >= 3 ? normalizedPhoneDigits : '',
+    clientName.trim(),
+  ]
     .filter(Boolean)
     .join(' ')
     .trim();
@@ -178,14 +189,12 @@ export const CreateOrderCard = ({
     .filter(Boolean)
     .join(' ')
     .trim();
-  const serviceLookupQuery = serviceName.trim();
   const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
   const shouldShowClientSuggestions =
-    !selectedClientId &&
-    (clientLookupQuery.replace(/\D/g, '').length >= 5 || clientName.trim().length >= 2);
+    !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
   const visibleClientHistory = selectedClientId ? clientHistory : null;
-  const visibleDeviceSuggestions = deviceLookupQuery.length >= 2 ? deviceSuggestions : [];
+  const visibleDeviceSuggestions = deviceName.trim().length >= 2 ? deviceSuggestions : [];
   const focusedSaleItem =
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
   const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
@@ -272,31 +281,6 @@ export const CreateOrderCard = ({
   }, [deviceLookupQuery]);
 
   useEffect(() => {
-    if (activeTab !== 'repair' || serviceLookupQuery.length < 2) {
-      setServiceSuggestions([]);
-      return;
-    }
-
-    let isActive = true;
-    const timeoutId = window.setTimeout(async () => {
-      setIsServiceLookupLoading(true);
-      try {
-        const services = await getServiceCatalogItems(serviceLookupQuery);
-        if (isActive) setServiceSuggestions(services.slice(0, 6));
-      } catch {
-        if (isActive) setServiceSuggestions([]);
-      } finally {
-        if (isActive) setIsServiceLookupLoading(false);
-      }
-    }, 350);
-
-    return () => {
-      isActive = false;
-      window.clearTimeout(timeoutId);
-    };
-  }, [activeTab, serviceLookupQuery]);
-
-  useEffect(() => {
     if (activeTab !== 'sale' || saleProductLookupQuery.length < 2) {
       setSaleProductSuggestions([]);
       return;
@@ -323,12 +307,6 @@ export const CreateOrderCard = ({
     };
   }, [activeTab, saleProductLookupQuery]);
 
-  useEffect(() => {
-    if (activeTab === 'sale' && syncTotalWithItems) {
-      setEstimatedCost(String(Math.round(saleItemsTotal * 100) / 100));
-    }
-  }, [activeTab, saleItemsTotal, syncTotalWithItems]);
-
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
       current.includes(flag)
@@ -349,12 +327,6 @@ export const CreateOrderCard = ({
     setDeviceSerialNumber(product.serialNumber);
     setDeviceKit(extractDeviceKit(product.note));
     setDeviceSuggestions([]);
-  };
-
-  const applyService = (service: ServiceCatalogItem) => {
-    setServiceName(service.name);
-    setEstimatedCost(String(service.price));
-    setServiceSuggestions([]);
   };
 
   const updateSaleItem = (itemId: string, patch: Partial<SaleOrderItem>) => {
@@ -397,8 +369,12 @@ export const CreateOrderCard = ({
   };
 
   const onClientPhoneChange = (value: string) => {
-    setClientPhone(formatPhone(value));
+    setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
     setSelectedClientId(null);
+  };
+
+  const onClientPhoneBlur = () => {
+    setClientPhone((current) => formatPhone(current));
   };
 
   const onClientNameChange = (value: string) => {
@@ -412,16 +388,13 @@ export const CreateOrderCard = ({
     setClientPhone('+380 67 111 22 33');
     setClientName('Ivan Petrenko');
     setSelectedClientId(null);
-    setDiscountCode('');
     setDeviceName('Laptop Lenovo IdeaPad 5');
     setDeviceSerialNumber(`RPR-${suffix}`);
     setDeviceColor('Silver');
     setDeviceKit('Laptop, charger');
-    setServiceName('Diagnostics');
     setRepairType('Paid');
     setIssueFromClient('Does not charge and shuts down after a few minutes.');
     setExternalView('Small scratches on the top cover, no liquid marks.');
-    setEstimatedCost('1800');
     setPrepayment('300');
     setPrepaymentComment('Cash prepayment');
     setReadyDate(new Date().toISOString().slice(0, 10));
@@ -435,17 +408,13 @@ export const CreateOrderCard = ({
     setClientPhone('+380 50 101 01 01');
     setClientName('Maxim Bondar');
     setSelectedClientId(null);
-    setDiscountCode('VIP');
     setDeviceName('Portable SSD Samsung T7 1TB');
     setDeviceSerialNumber(`SAL-${suffix}`);
     setDeviceColor('Blue');
     setDeviceKit('Box, cable, warranty card');
-    setServiceName('Product sale');
     setRepairType('Paid');
     setIssueFromClient('Client buys a new device from stock.');
     setExternalView('New sealed package.');
-    setEstimatedCost('3899');
-    setSyncTotalWithItems(true);
     setPrepayment('3899');
     setPrepaymentComment('Full payment');
     setReadyDate(new Date().toISOString().slice(0, 10));
@@ -463,20 +432,49 @@ export const CreateOrderCard = ({
     ]);
   };
 
+  const createDeviceFromModal = async () => {
+    const name = newDeviceName.trim();
+    if (name.length < 2 || isDeviceCreating) return;
+
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)
+      .toString(36)
+      .padStart(2, '0')}`.toUpperCase();
+    setIsDeviceCreating(true);
+    try {
+      const created = await createProduct({
+        name,
+        article: `ORD-${suffix}`,
+        serialNumber: deviceSerialNumber.trim().toUpperCase() || `SRV-${suffix}`,
+        price: '0',
+        salePriceOptions: '0',
+        quantity: '1',
+        note: deviceKit.trim() || 'Created from repair order',
+        purchasePlace: '',
+        purchaseDate: '',
+        warrantyPeriod: '0',
+        isActive: newDeviceIsActive,
+      });
+      applyProduct(created);
+      setIsCreateDeviceModalOpen(false);
+    } finally {
+      setIsDeviceCreating(false);
+    }
+  };
+
   const handleSave = async () => {
     const success = await onSave({
       clientPhone,
       clientName,
-      discountCode,
+      discountCode: '',
       deviceName,
       deviceSerialNumber,
       deviceColor,
       deviceKit,
-      serviceName,
+      serviceName: '',
       repairType,
       issueFromClient,
       externalView,
-      estimatedCost,
+      estimatedCost: activeTab === 'sale' ? String(Math.round(saleItemsTotal * 100) / 100) : '0',
       prepayment,
       prepaymentComment,
       readyDate,
@@ -544,7 +542,7 @@ export const CreateOrderCard = ({
                 <input
                   value={clientPhone}
                   onChange={(event) => onClientPhoneChange(event.target.value)}
-                  onFocus={() => setClientPhone((current) => current || '+380')}
+                  onBlur={onClientPhoneBlur}
                   placeholder="+380"
                 />
               </label>
@@ -573,11 +571,6 @@ export const CreateOrderCard = ({
                 ))}
               </div>
             ) : null}
-
-            <label className="field">
-              <span>Discount code</span>
-              <input value={discountCode} onChange={(event) => setDiscountCode(event.target.value)} />
-            </label>
 
             {activeTab === 'sale' ? (
               <>
@@ -617,7 +610,6 @@ export const CreateOrderCard = ({
                             min={0}
                             value={item.price}
                             onChange={(value) => {
-                              setSyncTotalWithItems(true);
                               updateSaleItem(item.id, { price: value });
                             }}
                             placeholder="0"
@@ -709,7 +701,17 @@ export const CreateOrderCard = ({
                       placeholder="Enter device name"
                     />
                   </label>
-                  <button type="button" className="secondary-button">Create new</button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setNewDeviceName(deviceName.trim());
+                      setNewDeviceIsActive(true);
+                      setIsCreateDeviceModalOpen(true);
+                    }}
+                  >
+                    Create new
+                  </button>
                 </div>
                 {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
                   <div className="create-suggestions">
@@ -720,12 +722,12 @@ export const CreateOrderCard = ({
                         type="button"
                         className="create-suggestion-item"
                         onClick={() => applyProduct(product)}
-                      >
-                        <strong>{product.name}</strong>
-                        <span>{product.serialNumber}</span>
-                      </button>
-                    ))}
-                  </div>
+                    >
+                      <strong>{product.name}{product.isActive ? '' : ' (inactive)'}</strong>
+                      <span>{product.serialNumber}</span>
+                    </button>
+                  ))}
+                </div>
                 ) : null}
 
                 <div className="create-row-2">
@@ -765,31 +767,6 @@ export const CreateOrderCard = ({
                 </label>
 
                 <label className="field">
-                  <span>Service</span>
-                  <input
-                    value={serviceName}
-                    onChange={(event) => setServiceName(event.target.value)}
-                    placeholder="Diagnostics, screen replacement..."
-                  />
-                </label>
-                {(serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
-                  <div className="create-suggestions">
-                    {isServiceLookupLoading ? <p>Searching services...</p> : null}
-                    {serviceSuggestions.map((service) => (
-                      <button
-                        key={service.id}
-                        type="button"
-                        className="create-suggestion-item"
-                        onClick={() => applyService(service)}
-                      >
-                        <strong>{service.name}</strong>
-                        <span>{`${service.price} UAH${service.note ? ` / ${service.note}` : ''}`}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                <label className="field">
                   <span>Issue from client</span>
                   <textarea
                     rows={3}
@@ -809,29 +786,6 @@ export const CreateOrderCard = ({
                 </label>
               </>
             )}
-
-            <h3 className="create-section-title">Cost</h3>
-            <div className="create-cost-row">
-              <label className="field">
-                <span>Estimated cost</span>
-                  <NumberStepper
-                    min={0}
-                    value={estimatedCost}
-                    onChange={setEstimatedCost}
-                  />
-              </label>
-              <div className="create-currency-tag">UAH</div>
-              <button type="button" className="secondary-button">Cash</button>
-            </div>
-
-            <label className="create-inline-checkbox">
-              <input
-                type="checkbox"
-                checked={syncTotalWithItems}
-                onChange={(event) => setSyncTotalWithItems(event.target.checked)}
-              />
-              <span>{activeTab === 'sale' ? 'Recalculate total from positions' : '"Total" equals "Repair cost"'}</span>
-            </label>
 
             <div className="create-prepay-row">
               <label className="field">
@@ -1000,6 +954,56 @@ export const CreateOrderCard = ({
           </aside>
         </div>
       </div>
+      {isCreateDeviceModalOpen ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+            <header className="catalog-edit-header">
+              <div className="catalog-edit-title">
+                <h2>Create device</h2>
+              </div>
+              <button
+                type="button"
+                className="create-order-close"
+                onClick={() => setIsCreateDeviceModalOpen(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </header>
+            <div className="catalog-edit-body">
+              <label className="field">
+                <span>Name</span>
+                <input
+                  value={newDeviceName}
+                  onChange={(event) => setNewDeviceName(event.target.value)}
+                  placeholder="Device name"
+                />
+              </label>
+              <label className="create-inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={newDeviceIsActive}
+                  onChange={(event) => setNewDeviceIsActive(event.target.checked)}
+                />
+                <span>Activity</span>
+              </label>
+            </div>
+            <footer className="catalog-edit-footer">
+              <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isDeviceCreating || newDeviceName.trim().length < 2}
+                onClick={() => void createDeviceFromModal()}
+              >
+                {isDeviceCreating ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };

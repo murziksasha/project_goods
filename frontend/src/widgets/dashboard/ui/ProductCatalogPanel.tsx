@@ -33,6 +33,7 @@ type ProductCatalogPanelProps = {
   onProductCancelEdit: () => void;
   onEdit: (product: Product) => void;
   onArchiveProduct: (product: Product) => void;
+  onActivateProduct: (product: Product) => void | Promise<void>;
   services: ServiceCatalogItem[];
   serviceForm: ServiceCatalogFormValues;
   isServicesLoading: boolean;
@@ -74,6 +75,7 @@ export const ProductCatalogPanel = ({
   onProductCancelEdit,
   onEdit,
   onArchiveProduct,
+  onActivateProduct,
   services,
   serviceForm,
   isServicesLoading,
@@ -197,7 +199,7 @@ export const ProductCatalogPanel = ({
             value={isProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
             placeholder={
               isProductsTab
-                ? 'Product name, article or serial'
+                ? 'Device name'
                 : isSuppliersTab
                   ? 'Supplier name or phone'
                   : 'Service name or note'
@@ -212,7 +214,7 @@ export const ProductCatalogPanel = ({
         </div>
         <div className="catalog-toolbar-actions">
           {isProductsTab ? (
-            <span className="muted-copy">Product creation moves to Warehouses.</span>
+            <span className="muted-copy">Client devices created from repair orders.</span>
           ) : isSuppliersTab ? (
             <span className="muted-copy">Supplier directory is shared with Clients.</span>
           ) : (
@@ -301,6 +303,7 @@ export const ProductCatalogPanel = ({
             onArchiveProduct(selectedProduct);
             setSelectedProduct(null);
           }}
+          onActivate={() => onActivateProduct(selectedProduct)}
           catalogNumber={catalogNumbers.get(selectedProduct.id) ?? 0}
         />
       ) : null}
@@ -386,16 +389,7 @@ const ProductsTable = ({
         <thead>
           <tr>
             <th>ID</th>
-            <th><input type="checkbox" aria-label="Select all products" /></th>
             <th>Name</th>
-            <th>Article</th>
-            <th>Serial</th>
-            <th>Retail</th>
-            <th>Purchase</th>
-            <th>Total</th>
-            <th>Free</th>
-            <th>Warehouse</th>
-            <th>Warranty</th>
             <th>Date</th>
             <th>Action</th>
           </tr>
@@ -404,7 +398,6 @@ const ProductsTable = ({
           {products.map((product, index) => (
             <tr key={product.id}>
               <td>{rowStartIndex + index + 1}</td>
-              <td><input type="checkbox" aria-label={`Select ${product.name}`} /></td>
               <td>
                 <button
                   type="button"
@@ -415,15 +408,7 @@ const ProductsTable = ({
                 </button>
                 {!product.isActive ? <span className="catalog-inactive-badge">Inactive</span> : null}
               </td>
-              <td>{product.article}</td>
-              <td>{product.serialNumber}</td>
-              <td>{formatCurrency(product.salePriceOptions[0] ?? product.price)}</td>
-              <td>{formatCurrency(product.price)}</td>
-              <td>{product.quantity} pcs</td>
-              <td>{product.freeQuantity} pcs</td>
-              <td>{product.purchasePlace || '-'}</td>
-              <td>{product.warrantyPeriod} mo</td>
-              <td>{formatDate(product.purchaseDate)}</td>
+              <td>{formatDate(product.createdAt)}</td>
               <td>
                 <div className="catalog-row-actions">
                   <button type="button" className="danger-button" onClick={() => onEdit(product)}>
@@ -524,6 +509,7 @@ type CatalogProductModalProps = {
   onSubmit: () => void | Promise<void>;
   onClose: () => void;
   onArchive: () => void;
+  onActivate: () => void;
 };
 
 const getPriceOption = (form: ProductFormValues, index: number) =>
@@ -576,6 +562,7 @@ const CatalogProductModal = ({
   onSubmit,
   onClose,
   onArchive,
+  onActivate,
 }: CatalogProductModalProps) => {
   useLockBodyScroll();
 
@@ -694,6 +681,14 @@ const CatalogProductModal = ({
       <footer className="catalog-edit-footer">
         <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
           Delete / deactivate
+        </button>
+        <button
+          type="button"
+          className="primary-button catalog-activate-button"
+          onClick={onActivate}
+          disabled={isSaving || product.isActive}
+        >
+          Activate
         </button>
         <button type="button" className="primary-button" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
           {isSaving ? 'Saving...' : 'Save'}
