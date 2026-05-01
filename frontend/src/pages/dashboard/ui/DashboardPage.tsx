@@ -730,6 +730,7 @@ export const DashboardPage = () => {
               onServiceCancelEdit={actions.resetServiceEditor}
               onServiceEdit={actions.editService}
               onServiceArchive={actions.archiveService}
+              onServiceActivate={actions.activateService}
               suppliers={state.allClients}
             />
           ) : activePage === 'warehouse' ? (

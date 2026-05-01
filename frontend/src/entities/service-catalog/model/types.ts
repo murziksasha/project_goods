@@ -14,4 +14,5 @@ export type ServiceCatalogFormValues = {
   price: string;
   salePriceOptions: string;
   note: string;
+  isActive?: boolean;
 };
