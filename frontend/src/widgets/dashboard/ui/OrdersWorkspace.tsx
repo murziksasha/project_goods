@@ -2444,6 +2444,7 @@ export const OrdersWorkspace = ({
             />
           </label>
         </div>
+        
         <div className='orders-filter-actions'>
           <button
             type='button'
