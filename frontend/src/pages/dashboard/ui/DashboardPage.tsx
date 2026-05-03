@@ -147,14 +147,14 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
 ];
 
 const sidebarItemIcons: Record<PageKey, string> = {
-  home: '\u2302',
-  orders: '\u2630',
-  clients: '\u263A',
-  employees: '\u2699',
-  settings: '\u2692',
-  accounting: '$',
-  catalog: '\u25A6',
-  warehouse: '\u25A3',
+  home: '🏠',
+  orders: '🧾',
+  clients: '📞',
+  accounting: '💰',
+  catalog: '📁',
+  warehouse: '📦',
+  settings: '⚙',
+  employees: '👥',
 };
 
 const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>

@@ -2387,11 +2387,11 @@
 }
 
 .order-status-diagnostics {
-  background: #c64d58;
+  background: #ac8a8d;
 }
 
 .order-status-inRepair {
-  background: #2d8ae3;
+  background: rgb(215, 215, 64);
 }
 
 .order-status-waitingParts {
@@ -2399,23 +2399,43 @@
 }
 
 .order-status-clientApproved {
-  background: #bf5b5b;
+  background: #5c0a71;
 }
 
 .order-status-clientRejected {
-  background: #b17b98;
+  background: #c21e1e;
 }
 
 .order-status-readyWithoutRepair {
-  background: #f08a3c;
+  background: #b6c114;
 }
 
 .order-status-ready {
-  background: #18a878;
+  background: #969f98;
 }
 
 .order-status-issued {
-  background: #223447;
+  background: #5bea3e;
+}
+
+.order-status-issuedWithoutRepair{
+  background: rgb(232, 98, 98);
+}
+
+.order-status-returned{
+  background:  #c21e1e;
+}
+
+.order-status-reserved{
+  background:  #15a7bb;
+}
+
+.order-status-completed {
+   background: #5bea3e;
+}
+
+.order-status-paid {
+  background: #5c0a71;
 }
 
 .order-status-options {
