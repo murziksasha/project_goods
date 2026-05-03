@@ -59,7 +59,6 @@ const tabs: Array<{ key: CatalogTab; label: string }> = [
   { key: 'services', label: 'Services' },
   { key: 'suppliers', label: 'Suppliers' },
 ];
-const paginationPageSizeOptions = [10, 30, 50, 100];
 
 export const ProductCatalogPanel = ({
   products,
@@ -254,7 +253,6 @@ export const ProductCatalogPanel = ({
             totalItems={products.length}
             page={productsPage}
             pageSize={productsPageSize}
-            pageSizeOptions={paginationPageSizeOptions}
             onPageChange={setProductsPage}
             onPageSizeChange={(nextPageSize) => {
               setProductsPageSize(nextPageSize);
@@ -277,7 +275,6 @@ export const ProductCatalogPanel = ({
             totalItems={services.length}
             page={servicesPage}
             pageSize={servicesPageSize}
-            pageSizeOptions={paginationPageSizeOptions}
             onPageChange={setServicesPage}
             onPageSizeChange={(nextPageSize) => {
               setServicesPageSize(nextPageSize);

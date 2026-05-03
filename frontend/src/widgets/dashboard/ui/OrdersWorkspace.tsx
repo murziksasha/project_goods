@@ -231,7 +231,6 @@ const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
 };
-const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
@@ -2570,7 +2569,6 @@ export const OrdersWorkspace = ({
         totalItems={filteredOrders.length}
         page={currentPage}
         pageSize={currentPageSize}
-        pageSizeOptions={paginationPageSizeOptions}
         onPageChange={(page) =>
           setPageByTab((current) => ({
             ...current,
