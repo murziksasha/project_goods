@@ -313,7 +313,9 @@ const statusLabels = repairStatuses.reduce(
 const normalizeOrderStatus = (
   status: string | null | undefined,
 ): OrderStatus => {
-  const normalized = String(status ?? '').trim().toLowerCase();
+  const normalized = String(status ?? '')
+    .trim()
+    .toLowerCase();
   const aliasMap: Record<string, OrderStatus> = {
     issuedwithoutrepair: 'issuedWithoutRepair',
     issued_without_repair: 'issuedWithoutRepair',
@@ -695,8 +697,7 @@ export const OrdersWorkspace = ({
     useState(false);
   const [isFullReturnSaving, setIsFullReturnSaving] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [isStatusFilterOpen, setIsStatusFilterOpen] =
-    useState(false);
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
   const [savedFilters, setSavedFilters] = useState<
@@ -706,13 +707,15 @@ export const OrdersWorkspace = ({
   const [newFilterIcon, setNewFilterIcon] = useState(
     filterIconOptions[0],
   );
-  const [draftFilters, setDraftFilters] =
-    useState<OrdersFilters>(emptyOrdersFilters);
-  const [appliedFilters, setAppliedFilters] =
-    useState<OrdersFilters>(emptyOrdersFilters);
-  const [pageByTab, setPageByTab] = useState<Record<OrdersTab, number>>(
-    { orders: 1, sales: 1 },
+  const [draftFilters, setDraftFilters] = useState<OrdersFilters>(
+    emptyOrdersFilters,
   );
+  const [appliedFilters, setAppliedFilters] = useState<OrdersFilters>(
+    emptyOrdersFilters,
+  );
+  const [pageByTab, setPageByTab] = useState<
+    Record<OrdersTab, number>
+  >({ orders: 1, sales: 1 });
   const [pageSizeByTab, setPageSizeByTab] = useState<
     Record<OrdersTab, number>
   >({ orders: 10, sales: 10 });
@@ -734,9 +737,7 @@ export const OrdersWorkspace = ({
   }, [currentEmployee?.id, savedFilters]);
   const visibleSavedFilters = useMemo(
     () =>
-      employeeSavedFilters.filter(
-        (item) => item.tab === activeTab,
-      ),
+      employeeSavedFilters.filter((item) => item.tab === activeTab),
     [activeTab, employeeSavedFilters],
   );
   const visibleColumnKeys = visibleColumns[activeTab];
@@ -751,15 +752,12 @@ export const OrdersWorkspace = ({
     [activeTab, sales],
   );
   const statusOptionsForActiveTab = useMemo(
-    () =>
-      activeTab === 'orders' ? repairStatuses : saleStatuses,
+    () => (activeTab === 'orders' ? repairStatuses : saleStatuses),
     [activeTab],
   );
   const statusKeysForActiveTab = useMemo(
     () =>
-      new Set(
-        statusOptionsForActiveTab.map((option) => option.key),
-      ),
+      new Set(statusOptionsForActiveTab.map((option) => option.key)),
     [statusOptionsForActiveTab],
   );
   const assigneeOptions = useMemo(() => {
@@ -818,16 +816,11 @@ export const OrdersWorkspace = ({
         ? sale.lineItems
         : getDefaultLineItems(sale);
       const hasWarrantyService = lineItems.some(
-        (item) =>
-          item.kind === 'service' && item.warrantyPeriod > 0,
+        (item) => item.kind === 'service' && item.warrantyPeriod > 0,
       );
       const searchValues =
         activeTab === 'orders'
-          ? [
-              sale.product.name,
-              sale.client.name,
-              sale.client.phone,
-            ]
+          ? [sale.product.name, sale.client.name, sale.client.phone]
           : [
               sale.client.name,
               sale.client.phone,
@@ -848,9 +841,7 @@ export const OrdersWorkspace = ({
       }
       if (
         orderNumberValue &&
-        !String(orderNumber)
-          .toLowerCase()
-          .includes(orderNumberValue)
+        !String(orderNumber).toLowerCase().includes(orderNumberValue)
       ) {
         return false;
       }
@@ -860,9 +851,7 @@ export const OrdersWorkspace = ({
           sale.client.name,
           sale.client.phone,
           String(orderNumber),
-        ].some((value) =>
-          value.toLowerCase().includes(clientValue),
-        )
+        ].some((value) => value.toLowerCase().includes(clientValue))
       ) {
         return false;
       }
@@ -904,9 +893,7 @@ export const OrdersWorkspace = ({
           ...lineItems
             .filter((item) => item.kind === 'product')
             .map((item) => item.name),
-        ].some((value) =>
-          value.toLowerCase().includes(productValue),
-        )
+        ].some((value) => value.toLowerCase().includes(productValue))
       ) {
         return false;
       }
@@ -982,8 +969,7 @@ export const OrdersWorkspace = ({
   const toggleAllStatuses = () => {
     setDraftFilters((current) => {
       const isAllSelected =
-        current.statuses.length ===
-        statusOptionsForActiveTab.length;
+        current.statuses.length === statusOptionsForActiveTab.length;
       return {
         ...current,
         statuses: isAllSelected
@@ -1084,11 +1070,7 @@ export const OrdersWorkspace = ({
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [
-    isFilterPanelOpen,
-    isSaveFilterDrawerOpen,
-    isStatusFilterOpen,
-  ]);
+  }, [isFilterPanelOpen, isSaveFilterDrawerOpen, isStatusFilterOpen]);
 
   useEffect(() => {
     if (!isStatusFilterOpen) return;
@@ -1105,10 +1087,7 @@ export const OrdersWorkspace = ({
     document.addEventListener('mousedown', closeOnOutsideClick);
 
     return () => {
-      document.removeEventListener(
-        'mousedown',
-        closeOnOutsideClick,
-      );
+      document.removeEventListener('mousedown', closeOnOutsideClick);
     };
   }, [isStatusFilterOpen]);
 
@@ -2070,25 +2049,6 @@ export const OrdersWorkspace = ({
         <div className='orders-toolbar-left'>
           <button
             type='button'
-            className='toolbar-square-button'
-            aria-label='Filters'
-            aria-expanded={isFilterPanelOpen}
-            onClick={() =>
-              setIsFilterPanelOpen((current) => !current)
-            }
-          >
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 24 24"
-  className="toolbar-square-button-icon"
-  fill="currentColor"
->
-  <path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
-</svg>
-
-          </button>
-          <button
-            type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isFilterPanelOpen}
             onClick={() =>
@@ -2113,14 +2073,12 @@ export const OrdersWorkspace = ({
               }
             >
               <svg
+                xmlns='http://www.w3.org/2000/svg'
                 viewBox='0 0 24 24'
-                aria-hidden='true'
                 className='toolbar-square-button-icon'
+                fill='currentColor'
               >
-                <path
-                  d='M12 3.25a1 1 0 0 1 .97.76l.31 1.25a6.96 6.96 0 0 1 1.68.7l1.1-.67a1 1 0 0 1 1.21.15l1.58 1.58a1 1 0 0 1 .15 1.21l-.67 1.1c.29.53.52 1.1.7 1.68l1.25.31a1 1 0 0 1 .76.97v2.24a1 1 0 0 1-.76.97l-1.25.31a6.96 6.96 0 0 1-.7 1.68l.67 1.1a1 1 0 0 1-.15 1.21l-1.58 1.58a1 1 0 0 1-1.21.15l-1.1-.67a6.96 6.96 0 0 1-1.68.7l-.31 1.25a1 1 0 0 1-.97.76H10.88a1 1 0 0 1-.97-.76l-.31-1.25a6.96 6.96 0 0 1-1.68-.7l-1.1.67a1 1 0 0 1-1.21-.15L4.03 18.6a1 1 0 0 1-.15-1.21l.67-1.1a6.96 6.96 0 0 1-.7-1.68l-1.25-.31a1 1 0 0 1-.76-.97v-2.24a1 1 0 0 1 .76-.97l1.25-.31c.18-.58.41-1.15.7-1.68l-.67-1.1a1 1 0 0 1 .15-1.21l1.58-1.58a1 1 0 0 1 1.21-.15l1.1.67c.53-.29 1.1-.52 1.68-.7l.31-1.25a1 1 0 0 1 .97-.76H12Zm-.01 5a3.63 3.63 0 1 0 0 7.26a3.63 3.63 0 0 0 0-7.26Z'
-                  fill='currentColor'
-                />
+                <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
               </svg>
             </button>
             {isColumnsMenuOpen ? (
@@ -2235,9 +2193,7 @@ export const OrdersWorkspace = ({
                     type='button'
                     className='orders-filter-delete-button'
                     aria-label={`Delete ${savedFilter.name}`}
-                    onClick={() =>
-                      removeSavedFilter(savedFilter.id)
-                    }
+                    onClick={() => removeSavedFilter(savedFilter.id)}
                   >
                     🗑
                   </button>
@@ -2388,8 +2344,7 @@ export const OrdersWorkspace = ({
               onChange={(event) =>
                 setDraftFilters((current) => ({
                   ...current,
-                  repairType: event.target
-                    .value as RepairTypeFilter,
+                  repairType: event.target.value as RepairTypeFilter,
                 }))
               }
             >
@@ -2443,7 +2398,7 @@ export const OrdersWorkspace = ({
             />
           </label>
         </div>
-        
+
         <div className='orders-filter-actions'>
           <button
             type='button'
@@ -4714,4 +4669,3 @@ const MessageModal = ({
     </section>
   </div>
 );
-
