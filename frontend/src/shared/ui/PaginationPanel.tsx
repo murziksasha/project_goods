@@ -7,7 +7,7 @@ type PaginationPanelProps = {
   pageSizeOptions?: number[];
 };
 
-const defaultPageSizeOptions = [10, 30, 50, 100];
+const defaultPageSizeOptions = [30, 50, 100, 200];
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -57,7 +57,9 @@ export const PaginationPanel = ({
       <select
         className='pagination-size-select'
         value={pageSize}
-        onChange={(event) => onPageSizeChange(Number(event.target.value))}
+        onChange={(event) =>
+          onPageSizeChange(Number(event.target.value))
+        }
         aria-label='Rows per page'
       >
         {pageSizeOptions.map((option) => (

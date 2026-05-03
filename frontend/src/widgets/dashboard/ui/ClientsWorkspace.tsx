@@ -76,7 +76,6 @@ const emptyFilters: ClientFilters = {
   incomeTo: '',
   status: 'all',
 };
-const paginationPageSizeOptions = [10, 30, 50, 100];
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
@@ -980,7 +979,6 @@ export const ClientsWorkspace = ({
         totalItems={filteredClients.length}
         page={clientsPage}
         pageSize={clientsPageSize}
-        pageSizeOptions={paginationPageSizeOptions}
         onPageChange={setClientsPage}
         onPageSizeChange={(nextPageSize) => {
           setClientsPageSize(nextPageSize);
