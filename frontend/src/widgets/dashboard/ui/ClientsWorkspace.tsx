@@ -7,6 +7,10 @@ import type {
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
+  getClientStatusColor,
+  getClientStatusClass,
+} from '../../../entities/client/model/constants';
+import {
   formatCurrency,
   formatDateTime,
 } from '../../../shared/lib/format';
@@ -807,7 +811,13 @@ export const ClientsWorkspace = ({
               }
             >
               {filterStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option
+                  key={option.value}
+                  value={option.value}
+                  style={{
+                    color: option.value && option.value !== 'all' ? getClientStatusColor(option.value as ClientStatus) : '#6B7280'
+                  }}
+                >
                   {option.label}
                 </option>
               ))}
@@ -936,7 +946,17 @@ export const ClientsWorkspace = ({
                     onClick={() => openClientCard(client.id)}
                   >
                     <td>{client.id.slice(-6)}</td>
-                    <td>{getEffectiveClientStatus(client.status || '', stats.visits) || '-'}</td>
+                    <td>
+                      <span
+                        className={`client-status-badge ${getClientStatusClass(getEffectiveClientStatus(client.status || '', stats.visits) || '')}`}
+                        style={{
+                          backgroundColor: getClientStatusColor(getEffectiveClientStatus(client.status || '', stats.visits) || ''),
+                          color: 'white'
+                        }}
+                      >
+                        {getEffectiveClientStatus(client.status || '', stats.visits) || '-'}
+                      </span>
+                    </td>
                     <td>{client.name}</td>
                     <td>
                       <a
@@ -1485,6 +1505,9 @@ export const ClientsWorkspace = ({
                         <option
                           key={option.value}
                           value={option.value}
+                          style={{
+                            color: option.value ? getClientStatusColor(option.value as ClientStatus) : '#6B7280'
+                          }}
                         >
                           {option.label}
                         </option>
