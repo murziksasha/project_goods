@@ -2734,8 +2734,12 @@ const OrderDetailCard = ({
   onError,
   onSuccess,
 }: OrderDetailCardProps) => {
+  const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
-  const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const [isProductsOpen, setIsProductsOpen] = useState(isSaleCard);
+  const [isServicesOpen, setIsServicesOpen] = useState(
+    isSaleCard ? false : true,
+  );
   const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
   const total = getOrderTotal(sale, lineItems);
   const remainingPayment = getRemainingPayment(
@@ -2749,7 +2753,10 @@ const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
-  const isSaleCard = !isRepairOrder(sale);
+  useEffect(() => {
+    setIsProductsOpen(isSaleCard);
+    setIsServicesOpen(isSaleCard ? false : true);
+  }, [sale.id, isSaleCard]);
   const relatedRecords = useMemo(
     () =>
       sales
@@ -2920,51 +2927,43 @@ const OrderDetailCard = ({
           </div>
         </section>
 
-        <section className='order-detail-panel'>
-          <h3>Products</h3>
-          <LineItemsPanel
-            title='Products'
-            kind='product'
-            items={productItems}
-            onAddItem={onAddLineItem}
-            onRemoveItem={onRemoveLineItem}
-            onUpdateItem={onUpdateLineItem}
-            onReturnItem={onReturnLineItem}
-            isPaidSale={isSaleCard && paidAmount > 0}
-            onError={onError}
-            onSuccess={onSuccess}
-          />
+        <section className='order-detail-panel order-detail-wide-panel'>
+          <button
+            type='button'
+            className='order-detail-collapse-button'
+            onClick={() => setIsProductsOpen((current) => !current)}
+            aria-expanded={isProductsOpen}
+          >
+            <span>Products</span>
+            <span>{isProductsOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {isProductsOpen ? (
+            <LineItemsPanel
+              title='Products'
+              kind='product'
+              items={productItems}
+              onAddItem={onAddLineItem}
+              onRemoveItem={onRemoveLineItem}
+              onUpdateItem={onUpdateLineItem}
+              onReturnItem={onReturnLineItem}
+              isPaidSale={isSaleCard && paidAmount > 0}
+              onError={onError}
+              onSuccess={onSuccess}
+            />
+          ) : null}
         </section>
 
-        {isSaleCard ? (
-          <section className='order-detail-panel order-detail-stacked-panel'>
-            <button
-              type='button'
-              className='order-detail-collapse-button'
-              onClick={() => setIsServicesOpen((current) => !current)}
-              aria-expanded={isServicesOpen}
-            >
-              <span>Services</span>
-              <span>{isServicesOpen ? 'Hide' : 'Show'}</span>
-            </button>
-            {isServicesOpen ? (
-              <LineItemsPanel
-                title='Services'
-                kind='service'
-                items={serviceItems}
-                onAddItem={onAddLineItem}
-                onRemoveItem={onRemoveLineItem}
-                onUpdateItem={onUpdateLineItem}
-                onReturnItem={onReturnLineItem}
-                isPaidSale={false}
-                onError={onError}
-                onSuccess={onSuccess}
-              />
-            ) : null}
-          </section>
-        ) : (
-          <section className='order-detail-panel'>
-            <h3>Services</h3>
+        <section className='order-detail-panel order-detail-wide-panel'>
+          <button
+            type='button'
+            className='order-detail-collapse-button'
+            onClick={() => setIsServicesOpen((current) => !current)}
+            aria-expanded={isServicesOpen}
+          >
+            <span>Services</span>
+            <span>{isServicesOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {isServicesOpen ? (
             <LineItemsPanel
               title='Services'
               kind='service'
@@ -2977,8 +2976,8 @@ const OrderDetailCard = ({
               onError={onError}
               onSuccess={onSuccess}
             />
-          </section>
-        )}
+          ) : null}
+        </section>
 
         <section
           className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}

@@ -1265,6 +1265,10 @@
   grid-column: 1;
 }
 
+.order-detail-wide-panel {
+  grid-column: 1 / -1;
+}
+
 .order-detail-related-panel {
   grid-column: 1 / -1;
 }

@@ -23,3 +23,25 @@ export const seedDemoData = async (kind: DemoSeedKind = 'all') => {
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const eraseAllData = async () => {
+  try {
+    const response = await apiClient.post<SeedResponse>('/demo/erase');
+    return response.data;
+  } catch (error) {
+    const message = getApiErrorMessage(error);
+
+    if (message.toLowerCase().includes('route not found')) {
+      try {
+        const fallbackResponse = await apiClient.post<SeedResponse>(
+          '/demo/seed?kind=erase',
+        );
+        return fallbackResponse.data;
+      } catch (fallbackError) {
+        throw new Error(getApiErrorMessage(fallbackError));
+      }
+    }
+
+    throw new Error(message);
+  }
+};

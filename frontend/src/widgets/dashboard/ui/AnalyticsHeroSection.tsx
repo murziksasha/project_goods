@@ -194,7 +194,7 @@ export const AnalyticsHeroSection = ({
             ))}
           </div>
           <button className="secondary-button" type="button" onClick={onSeed} disabled={isSeeding}>
-            {isSeeding ? 'Loading...' : 'Demo data'}
+            {isSeeding ? 'Loading...' : 'Erase all data'}
           </button>
           <button
             className="primary-button"

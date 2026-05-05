@@ -59,7 +59,11 @@ import type {
   AppSettings,
   AppSettingsFormValues,
 } from '../../../entities/settings/model/types';
-import { seedDemoData, type DemoSeedKind } from '../../../features/demo-data/api/demoApi';
+import {
+  eraseAllData,
+  seedDemoData,
+  type DemoSeedKind,
+} from '../../../features/demo-data/api/demoApi';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 
@@ -847,6 +851,29 @@ export const createDashboardActions = ({
         setSuccessMessage(result.message);
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to seed demo data.'));
+      } finally {
+        setIsSeeding(false);
+      }
+    },
+    eraseAllData: async () => {
+      setIsSeeding(true);
+      clearNotifications();
+      try {
+        const result = await eraseAllData();
+        setAllProducts(result.products);
+        setAllClients(result.clients);
+        setSales(result.sales);
+        setSelectedClientId(null);
+        setClientHistory(null);
+        resetProductEditor();
+        resetClientEditor();
+        resetSaleEditor();
+        setProductSearchQuery('');
+        setClientSearchQuery('');
+        setClientStatusFilter('all');
+        setSuccessMessage(result.message);
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to erase data.'));
       } finally {
         setIsSeeding(false);
       }
