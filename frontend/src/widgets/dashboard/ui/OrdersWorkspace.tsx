@@ -67,7 +67,7 @@ type OrdersWorkspaceProps = {
   onOpenClientCard: (clientId: string) => void;
 };
 
-type OrdersTab = 'orders' | 'sales';
+type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
 type OrdersColumnKey =
   | 'orderNumber'
   | 'client'
@@ -174,6 +174,7 @@ type SavedOrdersFilter = {
 const orderTabs: Array<{ key: OrdersTab; label: string }> = [
   { key: 'orders', label: 'Orders' },
   { key: 'sales', label: 'Sales' },
+  { key: 'supplierOrders', label: 'Supplier Order' },
 ];
 
 const printFormsStorageKey = 'project-goods.print-forms';
@@ -181,18 +182,18 @@ const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
 const filterIconOptions = [
-  '★',
-  '⚙',
-  '🔧',
-  '🏷',
-  '📌',
-  '📦',
-  '💼',
-  '🛠',
-  '🚚',
-  '🧾',
-  '📈',
-  '🧲',
+  '?',
+  '?',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
+  '??',
 ];
 const allOrdersColumnKeys: OrdersColumnKey[] = [
   'orderNumber',
@@ -222,14 +223,17 @@ const defaultVisibleColumns: OrdersColumnVisibility = {
     'createdAt',
     'readyDate',
   ],
+  supplierOrders: allOrdersColumnKeys,
 };
 const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: allOrdersColumnKeys,
   sales: defaultVisibleColumns.sales,
+  supplierOrders: allOrdersColumnKeys,
 };
 const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
+  supplierOrders: ['orderNumber'],
 };
 
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
@@ -380,7 +384,7 @@ const readSavedOrderFilters = () => {
         Boolean(item?.id) &&
         Boolean(item?.employeeId) &&
         Boolean(item?.name) &&
-        (item?.tab === 'orders' || item?.tab === 'sales') &&
+        (item?.tab === 'orders' || item?.tab === 'sales' || item?.tab === 'supplierOrders') &&
         item?.filters,
     );
   } catch {
@@ -611,6 +615,7 @@ const readVisibleColumns = (): OrdersColumnVisibility => {
     return {
       orders: sanitizeColumns(saved.orders, 'orders'),
       sales: sanitizeColumns(saved.sales, 'sales'),
+      supplierOrders: defaultVisibleColumns.orders,
     };
   } catch {
     return defaultVisibleColumns;
@@ -714,10 +719,10 @@ export const OrdersWorkspace = ({
   );
   const [pageByTab, setPageByTab] = useState<
     Record<OrdersTab, number>
-  >({ orders: 1, sales: 1 });
+  >({ orders: 1, sales: 1, supplierOrders: 1 });
   const [pageSizeByTab, setPageSizeByTab] = useState<
     Record<OrdersTab, number>
-  >({ orders: 10, sales: 10 });
+  >({ orders: 10, sales: 10, supplierOrders: 10 });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -2194,7 +2199,7 @@ export const OrdersWorkspace = ({
                     aria-label={`Delete ${savedFilter.name}`}
                     onClick={() => removeSavedFilter(savedFilter.id)}
                   >
-                    🗑
+                    ??
                   </button>
                 </div>
               ))
@@ -2487,7 +2492,7 @@ export const OrdersWorkspace = ({
                       }
                       aria-label={`Delete ${savedFilter.name}`}
                     >
-                      🗑
+                      ??
                     </button>
                   </div>
                 ))

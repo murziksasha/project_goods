@@ -50,6 +50,11 @@ import type {
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
+import { createSupplier, updateSupplier } from '../../../entities/supplier/api/supplierApi';
+import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
+import { createClientDevice } from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
+import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import type {
   AppSettings,
   AppSettingsFormValues,
@@ -64,6 +69,7 @@ type DashboardActionParams = {
   allProducts: Product[];
   allServices: ServiceCatalogItem[];
   allClients: Client[];
+  clientDevices: ClientDevice[];
   sales: Sale[];
   allEmployees: Employee[];
   productForm: ProductFormValues;
@@ -81,6 +87,8 @@ type DashboardActionParams = {
   setAllProducts: Setter<Product[]>;
   setAllClients: Setter<Client[]>;
   setAllEmployees: Setter<Employee[]>;
+  setSuppliers: Setter<Supplier[]>;
+  setClientDevices: Setter<ClientDevice[]>;
   setSales: Setter<Sale[]>;
   setServices: Setter<ServiceCatalogItem[]>;
   setSettings: Setter<AppSettings | null>;
@@ -118,6 +126,7 @@ export const createDashboardActions = ({
   allProducts,
   allServices,
   allClients,
+  clientDevices,
   sales,
   allEmployees,
   productForm,
@@ -135,6 +144,8 @@ export const createDashboardActions = ({
   setAllProducts,
   setAllClients,
   setAllEmployees,
+  setSuppliers,
+  setClientDevices,
   setSales,
   setServices,
   setSettings,
@@ -419,6 +430,53 @@ export const createDashboardActions = ({
         return true;
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Не вдалося створити картку клієнта.'));
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    createSupplierCard: async (payload: SupplierFormValues) => {
+      setIsClientSaving(true);
+      clearNotifications();
+      try {
+        const createdSupplier = await createSupplier(payload);
+        setSuppliers((current) => [createdSupplier, ...current]);
+        setSuccessMessage('Supplier created.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to create supplier.'));
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    createClientDeviceCard: async (payload: ClientDeviceFormValues) => {
+      setIsProductSaving(true);
+      clearNotifications();
+      try {
+        const createdDevice = await createClientDevice(payload);
+        setClientDevices((current) => [createdDevice, ...current]);
+        setSuccessMessage('Client device created.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to create client device.'));
+        return false;
+      } finally {
+        setIsProductSaving(false);
+      }
+    },
+    updateSupplierCard: async (supplierId: string, payload: SupplierFormValues) => {
+      setIsClientSaving(true);
+      clearNotifications();
+      try {
+        const updatedSupplier = await updateSupplier(supplierId, payload);
+        setSuppliers((current) =>
+          current.map((item) => (item.id === updatedSupplier.id ? updatedSupplier : item)),
+        );
+        setSuccessMessage('Supplier updated.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to update supplier.'));
         return false;
       } finally {
         setIsClientSaving(false);
@@ -1020,6 +1078,24 @@ export const createDashboardActions = ({
         });
 
         setSales((current) => [saleResult.sale, ...current]);
+        const deviceAlreadyExists = clientDevices.some(
+          (device) =>
+            device.clientId === client.id &&
+            device.serialNumber.toUpperCase() === serialNumber.toUpperCase(),
+        );
+        if (!deviceAlreadyExists) {
+          const createdDevice = await createClientDevice({
+            clientId: client.id,
+            clientName: client.name,
+            clientPhone: client.phone,
+            name: deviceName,
+            serialNumber,
+            note: payload.deviceKit.trim() || 'Created from order',
+            source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
+            isActive: true,
+          });
+          setClientDevices((current) => [createdDevice, ...current]);
+        }
         setAllProducts(await getProducts());
         setSuccessMessage('Order saved successfully.');
         return true;

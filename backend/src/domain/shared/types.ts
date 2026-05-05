@@ -65,3 +65,21 @@ export type ServiceCatalogPayload = {
   note?: unknown;
   isActive?: unknown;
 };
+
+export type SupplierPayload = {
+  phone?: unknown;
+  name?: unknown;
+  note?: unknown;
+  isActive?: unknown;
+};
+
+export type ClientDevicePayload = {
+  clientId?: unknown;
+  clientName?: unknown;
+  clientPhone?: unknown;
+  name?: unknown;
+  serialNumber?: unknown;
+  note?: unknown;
+  source?: unknown;
+  isActive?: unknown;
+};

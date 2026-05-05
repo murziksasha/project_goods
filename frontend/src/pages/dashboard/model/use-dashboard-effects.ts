@@ -5,6 +5,10 @@ import { getEmployees } from '../../../entities/employee/api/employeeApi';
 import type { Employee } from '../../../entities/employee/model/types';
 import { getProducts } from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
+import { getSuppliers } from '../../../entities/supplier/api/supplierApi';
+import type { Supplier } from '../../../entities/supplier/model/types';
+import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { getSales } from '../../../entities/sale/api/saleApi';
 import type { Sale } from '../../../entities/sale/model/types';
 import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
@@ -19,6 +23,8 @@ type DashboardEffectsParams = {
   enabled: boolean;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
+  setClientDevices: Setter<ClientDevice[]>;
+  setSuppliers: Setter<Supplier[]>;
   setAllClients: Setter<Client[]>;
   setSales: Setter<Sale[]>;
   setServices: Setter<ServiceCatalogItem[]>;
@@ -27,6 +33,7 @@ type DashboardEffectsParams = {
   setSettingsForm: Setter<AppSettingsFormValues>;
   setClientHistory: Setter<ClientHistory | null>;
   setIsProductsLoading: Setter<boolean>;
+  setIsSuppliersLoading: Setter<boolean>;
   setIsClientsLoading: Setter<boolean>;
   setIsSalesLoading: Setter<boolean>;
   setIsServicesLoading: Setter<boolean>;
@@ -39,6 +46,8 @@ export const useDashboardEffects = ({
   enabled,
   selectedClientId,
   setAllProducts,
+  setClientDevices,
+  setSuppliers,
   setAllClients,
   setSales,
   setServices,
@@ -47,6 +56,7 @@ export const useDashboardEffects = ({
   setSettingsForm,
   setClientHistory,
   setIsProductsLoading,
+  setIsSuppliersLoading,
   setIsClientsLoading,
   setIsSalesLoading,
   setIsServicesLoading,
@@ -61,6 +71,7 @@ export const useDashboardEffects = ({
 
     const fetchWorkspaceData = async () => {
       setIsProductsLoading(true);
+      setIsSuppliersLoading(true);
       setIsClientsLoading(true);
       setIsEmployeesLoading(true);
       setIsServicesLoading(true);
@@ -68,6 +79,8 @@ export const useDashboardEffects = ({
       try {
         const [
           productsResult,
+          devicesResult,
+          suppliersResult,
           clientsResult,
           employeesResult,
           settingsResult,
@@ -75,6 +88,8 @@ export const useDashboardEffects = ({
         ] =
           await Promise.allSettled([
             getProducts(),
+            getClientDevices(),
+            getSuppliers(),
             getClients(),
             getEmployees(),
             getSettings(),
@@ -84,6 +99,12 @@ export const useDashboardEffects = ({
 
         if (productsResult.status === 'fulfilled') {
           setAllProducts(productsResult.value);
+        }
+        if (devicesResult.status === 'fulfilled') {
+          setClientDevices(devicesResult.value);
+        }
+        if (suppliersResult.status === 'fulfilled') {
+          setSuppliers(suppliersResult.value);
         }
         if (clientsResult.status === 'fulfilled') {
           setAllClients(clientsResult.value);
@@ -126,6 +147,7 @@ export const useDashboardEffects = ({
       } finally {
         if (isActive) {
           setIsProductsLoading(false);
+          setIsSuppliersLoading(false);
           setIsClientsLoading(false);
           setIsEmployeesLoading(false);
           setIsServicesLoading(false);
@@ -142,6 +164,8 @@ export const useDashboardEffects = ({
     setAllClients,
     setAllEmployees,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setError,
     setSettings,
     setSettingsForm,
@@ -149,6 +173,7 @@ export const useDashboardEffects = ({
     setIsEmployeesLoading,
     setIsServicesLoading,
     setIsProductsLoading,
+    setIsSuppliersLoading,
     setServices,
   ]);
 
