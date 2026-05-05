@@ -10,6 +10,8 @@ import {
 import { initialProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import { filterProducts } from '../../../entities/product/lib/filter-products';
+import type { Supplier } from '../../../entities/supplier/model/types';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
@@ -24,6 +26,8 @@ import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analyti
 
 export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
@@ -54,6 +58,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const deferredServiceSearchQuery = useDeferredValue(serviceSearchQuery.trim());
   const deferredClientSearchQuery = useDeferredValue(clientSearchQuery.trim());
   const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(true);
   const [isServicesLoading, setIsServicesLoading] = useState(true);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const [isSalesLoading, setIsSalesLoading] = useState(true);
@@ -74,6 +79,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     enabled,
     selectedClientId,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setAllClients,
     setSales,
     setServices,
@@ -82,6 +89,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     setSettingsForm,
     setClientHistory,
     setIsProductsLoading,
+    setIsSuppliersLoading,
     setIsClientsLoading,
     setIsSalesLoading,
     setIsServicesLoading,
@@ -121,6 +129,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   );
   const actions = createDashboardActions({
     allProducts,
+    clientDevices,
     allServices: services,
     allClients,
     sales,
@@ -138,6 +147,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     editingEmployeeId,
     selectedClientId,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setAllClients,
     setSales,
     setServices,
@@ -176,6 +187,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   return {
     state: {
       allProducts: enabled ? allProducts : [],
+      clientDevices: enabled ? clientDevices : [],
+      suppliers: enabled ? suppliers : [],
       allClients: enabled ? allClients : [],
       sales: enabled ? sales : [],
       services: enabled ? filteredServices : [],
@@ -206,6 +219,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       deferredClientSearchQuery,
       totalFreeStock: enabled ? totalFreeStock : 0,
       isProductsLoading: enabled ? isProductsLoading : false,
+      isSuppliersLoading: enabled ? isSuppliersLoading : false,
       isServicesLoading: enabled ? isServicesLoading : false,
       isClientsLoading: enabled ? isClientsLoading : false,
       isSalesLoading: enabled ? isSalesLoading : false,

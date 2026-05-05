@@ -12,6 +12,8 @@ import { productRouter } from './routes/product.routes';
 import { saleRouter } from './routes/sale.routes';
 import { serviceCatalogRouter } from './routes/service-catalog.routes';
 import { settingsRouter } from './routes/settings.routes';
+import { supplierRouter } from './routes/supplier.routes';
+import { clientDeviceRouter } from './routes/client-device.routes';
 import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
 export const app = express();
@@ -35,6 +37,8 @@ app.use('/api', demoRouter);
 app.use('/api', employeeRouter);
 app.use('/api', settingsRouter);
 app.use('/api', financeRouter);
+app.use('/api', supplierRouter);
+app.use('/api', clientDeviceRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });

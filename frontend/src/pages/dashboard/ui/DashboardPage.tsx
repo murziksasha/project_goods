@@ -21,6 +21,7 @@ import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalo
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
 import { ClientsWorkspace } from '../../../widgets/dashboard/ui/ClientsWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 
 type PageKey =
   | 'home'
@@ -31,7 +32,7 @@ type PageKey =
   | 'accounting'
   | 'catalog'
   | 'warehouse';
-type OrdersTab = 'orders' | 'sales';
+type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
 type CreateOrderTab = 'repair' | 'sale';
 
 const pageKeys: PageKey[] = [
@@ -44,7 +45,7 @@ const pageKeys: PageKey[] = [
   'catalog',
   'warehouse',
 ];
-const ordersTabs: OrdersTab[] = ['orders', 'sales'];
+const ordersTabs: OrdersTab[] = ['orders', 'sales', 'supplierOrders'];
 const ordersTabStorageKey = 'project-goods.orders-tab';
 
 const getPageFromUrl = (): PageKey => {
@@ -623,7 +624,7 @@ export const DashboardPage = () => {
           <Notifications error={state.error} successMessage={state.successMessage} />
 
           {activePage === 'orders' ? (
-            isCreateOrderOpen ? (
+            isCreateOrderOpen && activeOrdersTab !== 'supplierOrders' ? (
               <CreateOrderCard
                 isSaving={state.isSaleSaving}
                 employees={state.allEmployees}
@@ -633,29 +634,42 @@ export const DashboardPage = () => {
                 onSave={actions.saveOrderRequest}
               />
             ) : (
-              <OrdersWorkspace
-                sales={state.sales}
-                isLoading={state.isSalesLoading}
-                activeTab={activeOrdersTab}
-                searchValue={state.productSearchQuery}
-                isSeeding={state.isSeeding}
-                onActiveTabChange={changeOrdersTab}
-                onSearchChange={actions.setProductSearchQuery}
-                onCreateOrder={openCreateOrder}
-                createOrderHref={getDashboardHref('orders', {
-                  ordersTab: activeOrdersTab,
-                  createOrder: getCreateOrderForOrdersTab(activeOrdersTab),
-                })}
-                currentEmployee={currentEmployee}
-                canCreateOrders={canCreateOrders}
-                onSeedDemoData={actions.seedDemoData}
-                onSaleUpdate={actions.replaceSaleInState}
-                onError={actions.showError}
-                onSuccess={actions.showSuccessMessage}
-                externalSelectedSaleId={externalSelectedSaleId}
-                onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
-                onOpenClientCard={openClientCardFromOrders}
-              />
+              activeOrdersTab === 'supplierOrders' ? (
+                <SupplierOrdersWorkspace
+                  activeTab={activeOrdersTab}
+                  onActiveTabChange={changeOrdersTab}
+                  suppliers={state.suppliers}
+                  currentEmployeeName={currentEmployee.name}
+                  onCreateSupplier={actions.createSupplierCard}
+                  onUpdateSupplier={actions.updateSupplierCard}
+                  onSuccess={actions.showSuccessMessage}
+                  onError={actions.showError}
+                />
+              ) : (
+                <OrdersWorkspace
+                  sales={state.sales}
+                  isLoading={state.isSalesLoading}
+                  activeTab={activeOrdersTab}
+                  searchValue={state.productSearchQuery}
+                  isSeeding={state.isSeeding}
+                  onActiveTabChange={changeOrdersTab}
+                  onSearchChange={actions.setProductSearchQuery}
+                  onCreateOrder={openCreateOrder}
+                  createOrderHref={getDashboardHref('orders', {
+                    ordersTab: activeOrdersTab,
+                    createOrder: getCreateOrderForOrdersTab(activeOrdersTab),
+                  })}
+                  currentEmployee={currentEmployee}
+                  canCreateOrders={canCreateOrders}
+                  onSeedDemoData={actions.seedDemoData}
+                  onSaleUpdate={actions.replaceSaleInState}
+                  onError={actions.showError}
+                  onSuccess={actions.showSuccessMessage}
+                  externalSelectedSaleId={externalSelectedSaleId}
+                  onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
+                  onOpenClientCard={openClientCardFromOrders}
+                />
+              )
             )
           ) : activePage === 'employees' ? (
             <EmployeeManagementPanel
@@ -705,6 +719,7 @@ export const DashboardPage = () => {
           ) : activePage === 'catalog' ? (
             <ProductCatalogPanel
               products={state.products}
+              clientDevices={state.clientDevices}
               isLoading={state.isProductsLoading}
               searchQuery={state.deferredProductSearchQuery}
               currentSearchValue={state.productSearchQuery}
@@ -715,7 +730,6 @@ export const DashboardPage = () => {
               onProductChange={actions.onProductChange}
               onProductSubmit={actions.saveProduct}
               onProductCancelEdit={actions.resetProductEditor}
-              onEdit={actions.editProduct}
               onArchiveProduct={actions.archiveProduct}
               onActivateProduct={actions.activateProduct}
               services={state.services}
@@ -732,7 +746,10 @@ export const DashboardPage = () => {
               onServiceEdit={actions.editService}
               onServiceArchive={actions.archiveService}
               onServiceActivate={actions.activateService}
-              suppliers={state.allClients}
+              suppliers={state.suppliers}
+              onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
+              onCreateClientDevice={actions.createClientDeviceCard}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel

@@ -2,6 +2,8 @@ import type { ClientDocument } from '../../domain/client/model';
 import type { EmployeeDocument } from '../../domain/employee/model';
 import type { ProductDocument } from '../../domain/product/model';
 import type { SaleDocument } from '../../domain/sale/model';
+import type { SupplierDocument } from '../../domain/supplier/model';
+import type { ClientDeviceDocument } from '../../domain/client-device/model';
 
 export const formatProduct = (product: ProductDocument) => {
   const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
@@ -35,6 +37,30 @@ export const formatClient = (client: ClientDocument) => ({
   status: client.status,
   createdAt: client.createdAt.toISOString(),
   updatedAt: client.updatedAt.toISOString(),
+});
+
+export const formatSupplier = (supplier: SupplierDocument) => ({
+  id: supplier._id.toString(),
+  phone: supplier.phone,
+  name: supplier.name,
+  note: supplier.note,
+  isActive: supplier.isActive,
+  createdAt: supplier.createdAt.toISOString(),
+  updatedAt: supplier.updatedAt.toISOString(),
+});
+
+export const formatClientDevice = (device: ClientDeviceDocument) => ({
+  id: device._id.toString(),
+  clientId: device.client.toString(),
+  clientName: device.clientName,
+  clientPhone: device.clientPhone,
+  name: device.name,
+  serialNumber: device.serialNumber ?? '',
+  note: device.note ?? '',
+  source: device.source,
+  isActive: device.isActive ?? true,
+  createdAt: device.createdAt.toISOString(),
+  updatedAt: device.updatedAt.toISOString(),
 });
 
 export const formatEmployee = (employee: EmployeeDocument) => ({

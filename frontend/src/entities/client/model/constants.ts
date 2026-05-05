@@ -1,5 +1,18 @@
 import type { ClientStatus } from './types';
 
+export const clientStatuses: ClientStatus[] = [
+  'new',
+  'vip',
+  'opt',
+  'blacklist',
+  'ok',
+];
+
+export const clientStatusFilters: Array<ClientStatus | 'all'> = [
+  'all',
+  ...clientStatuses,
+];
+
 export const CLIENT_STATUS_COLORS: Record<ClientStatus, string> = {
   new: '#6B7280', // gray - для новых клиентов
   vip: '#F59E0B', // amber - для VIP клиентов
