@@ -779,7 +779,7 @@ export const DashboardPage = () => {
               hasProducts={state.products.length > 0}
               statsPeriod={state.statsPeriod}
               onStatsPeriodChange={actions.setStatsPeriod}
-              onSeed={actions.seedDemoData}
+              onSeed={actions.eraseAllData}
               onExport={actions.exportProducts}
             />
           )}

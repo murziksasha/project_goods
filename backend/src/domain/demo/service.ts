@@ -1,6 +1,12 @@
 import { Client, type ClientDocument } from '../client/model';
+import { ClientDevice } from '../client-device/model';
+import { Cashbox, FinanceTransaction } from '../finance/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from '../sale/model';
+import { Sequence } from '../sequence/model';
+import { ServiceCatalog } from '../service-catalog/model';
+import { Settings } from '../settings/model';
+import { Supplier } from '../supplier/model';
 import { formatClient, formatProduct, formatSale } from '../../shared/lib/formatters';
 import { demoClients } from '../../shared/data/demo-clients';
 import { demoProducts } from '../../shared/data/demo-products';
@@ -128,5 +134,29 @@ export const seedDemoData = async (seedKind?: unknown) => {
     products: freshProducts.map(formatProduct),
     clients: freshClients.map(formatClient),
     sales: freshSales.map(formatSale),
+  };
+};
+
+export const eraseAllDataExceptEmployees = async () => {
+  await Promise.all([
+    Sale.deleteMany({}),
+    Client.deleteMany({}),
+    Product.deleteMany({}),
+    Supplier.deleteMany({}),
+    ServiceCatalog.deleteMany({}),
+    ClientDevice.deleteMany({}),
+    Cashbox.deleteMany({}),
+    FinanceTransaction.deleteMany({}),
+    Settings.deleteMany({}),
+    Sequence.deleteMany({}),
+  ]);
+
+  await resetRecordNumberSequence(0);
+
+  return {
+    message: 'All data erased. Employees were kept.',
+    products: [],
+    clients: [],
+    sales: [],
   };
 };
