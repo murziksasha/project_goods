@@ -54,3 +54,45 @@ h3 {
 p {
   margin: 0;
 }
+
+/* Client Status Badges */
+.client-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+  min-width: 40px;
+  text-align: center;
+}
+
+.status-new {
+  background-color: #6B7280;
+  color: white;
+}
+
+.status-vip {
+  background-color: #F59E0B;
+  color: white;
+}
+
+.status-opt {
+  background-color: #10B981;
+  color: white;
+}
+
+.status-blacklist {
+  background-color: #EF4444;
+  color: white;
+}
+
+.status-ok {
+  background-color: #3B82F6;
+  color: white;
+}
+
+.status-gray {
+  background-color: #6B7280;
+  color: white;
+}

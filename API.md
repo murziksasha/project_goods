@@ -73,3 +73,5 @@ http://localhost:5000/api
 - backend origin: `http://localhost:5000`
 
 Эти значения можно изменить через переменные окружения, описанные в [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+Client status localization rule: keep client status values in original English (do not translate status enums in UI, API payloads, or docs).

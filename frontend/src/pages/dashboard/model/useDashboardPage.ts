@@ -10,17 +10,27 @@ import {
 import { initialProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import { filterProducts } from '../../../entities/product/lib/filter-products';
+import type { Supplier } from '../../../entities/supplier/model/types';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
+import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
+import type {
+  ServiceCatalogFormValues,
+  ServiceCatalogItem,
+} from '../../../entities/service-catalog/model/types';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
 
-export const useDashboardPage = () => {
+export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>({
@@ -30,24 +40,32 @@ export const useDashboardPage = () => {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [productForm, setProductForm] = useState<ProductFormValues>(initialProductForm);
+  const [serviceForm, setServiceForm] =
+    useState<ServiceCatalogFormValues>(initialServiceCatalogForm);
   const [clientForm, setClientForm] = useState<ClientFormValues>(initialClientForm);
   const [saleForm, setSaleForm] = useState<SaleFormValues>(initialSaleForm);
   const [employeeForm, setEmployeeForm] = useState<EmployeeFormValues>(initialEmployeeForm);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatus | 'all'>('all');
   const deferredProductSearchQuery = useDeferredValue(productSearchQuery.trim());
+  const deferredServiceSearchQuery = useDeferredValue(serviceSearchQuery.trim());
   const deferredClientSearchQuery = useDeferredValue(clientSearchQuery.trim());
   const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(true);
+  const [isServicesLoading, setIsServicesLoading] = useState(true);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const [isSalesLoading, setIsSalesLoading] = useState(true);
   const [isEmployeesLoading, setIsEmployeesLoading] = useState(true);
   const [isClientHistoryLoading, setIsClientHistoryLoading] = useState(false);
   const [isProductSaving, setIsProductSaving] = useState(false);
+  const [isServiceSaving, setIsServiceSaving] = useState(false);
   const [isClientSaving, setIsClientSaving] = useState(false);
   const [isSaleSaving, setIsSaleSaving] = useState(false);
   const [isEmployeeSaving, setIsEmployeeSaving] = useState(false);
@@ -58,17 +76,23 @@ export const useDashboardPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   useDashboardEffects({
+    enabled,
     selectedClientId,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setAllClients,
     setSales,
+    setServices,
     setAllEmployees,
     setSettings,
     setSettingsForm,
     setClientHistory,
     setIsProductsLoading,
+    setIsSuppliersLoading,
     setIsClientsLoading,
     setIsSalesLoading,
+    setIsServicesLoading,
     setIsEmployeesLoading,
     setIsClientHistoryLoading,
     setError,
@@ -86,6 +110,15 @@ export const useDashboardPage = () => {
   }, [error, successMessage]);
 
   const products = filterProducts(allProducts, deferredProductSearchQuery);
+  const filteredServices = services.filter((service) => {
+    const query = deferredServiceSearchQuery.toLowerCase();
+    if (!query) return true;
+
+    return [service.name, service.note]
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
   const clients = filterClientsByQuery(
     filterClientsByStatus(allClients, clientStatusFilter),
     deferredClientSearchQuery,
@@ -96,38 +129,50 @@ export const useDashboardPage = () => {
   );
   const actions = createDashboardActions({
     allProducts,
+    clientDevices,
+    allServices: services,
     allClients,
+    sales,
     allEmployees,
     settingsForm,
     productForm,
+    serviceForm,
     clientForm,
     saleForm,
     employeeForm,
     editingProductId,
+    editingServiceId,
     editingClientId,
     editingSaleId,
     editingEmployeeId,
     selectedClientId,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setAllClients,
     setSales,
+    setServices,
     setAllEmployees,
     setSettings,
     setSettingsForm,
     setSelectedClientId,
     setClientHistory,
     setProductForm,
+    setServiceForm,
     setClientForm,
     setSaleForm,
     setEmployeeForm,
     setEditingProductId,
+    setEditingServiceId,
     setEditingClientId,
     setEditingSaleId,
     setEditingEmployeeId,
     setProductSearchQuery,
+    setServiceSearchQuery,
     setClientSearchQuery,
     setClientStatusFilter,
     setIsProductSaving,
+    setIsServiceSaving,
     setIsClientSaving,
     setIsSaleSaving,
     setIsEmployeeSaving,
@@ -136,41 +181,52 @@ export const useDashboardPage = () => {
     setIsSeeding,
     setError,
     setSuccessMessage,
+    currentEmployee,
   });
 
   return {
     state: {
-      allProducts,
-      allClients,
-      sales,
-      allEmployees,
-      settings,
-      settingsForm,
+      allProducts: enabled ? allProducts : [],
+      clientDevices: enabled ? clientDevices : [],
+      suppliers: enabled ? suppliers : [],
+      allClients: enabled ? allClients : [],
+      sales: enabled ? sales : [],
+      services: enabled ? filteredServices : [],
+      allEmployees: enabled ? allEmployees : [],
+      settings: enabled ? settings : null,
+      settingsForm: enabled ? settingsForm : { serviceName: 'Service CRM' },
       statsPeriod,
-      products,
-      clients,
-      clientHistory,
+      products: enabled ? products : [],
+      clients: enabled ? clients : [],
+      clientHistory: enabled ? clientHistory : null,
       selectedClientId,
       productForm,
+      serviceForm,
       clientForm,
       saleForm,
       employeeForm,
       editingProductId,
+      editingServiceId,
       editingClientId,
       editingSaleId,
       editingEmployeeId,
       productSearchQuery,
+      serviceSearchQuery,
       clientSearchQuery,
       clientStatusFilter,
       deferredProductSearchQuery,
+      deferredServiceSearchQuery,
       deferredClientSearchQuery,
-      totalFreeStock,
-      isProductsLoading,
-      isClientsLoading,
-      isSalesLoading,
-      isEmployeesLoading,
-      isClientHistoryLoading,
+      totalFreeStock: enabled ? totalFreeStock : 0,
+      isProductsLoading: enabled ? isProductsLoading : false,
+      isSuppliersLoading: enabled ? isSuppliersLoading : false,
+      isServicesLoading: enabled ? isServicesLoading : false,
+      isClientsLoading: enabled ? isClientsLoading : false,
+      isSalesLoading: enabled ? isSalesLoading : false,
+      isEmployeesLoading: enabled ? isEmployeesLoading : false,
+      isClientHistoryLoading: enabled ? isClientHistoryLoading : false,
       isProductSaving,
+      isServiceSaving,
       isClientSaving,
       isSaleSaving,
       isEmployeeSaving,

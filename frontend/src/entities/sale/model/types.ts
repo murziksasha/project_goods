@@ -7,7 +7,35 @@ export type Sale = {
   saleDate: string;
   quantity: number;
   salePrice: number;
+  kind: 'repair' | 'sale';
+  status: string;
+  paidAmount: number;
   note: string;
+  timeline: Array<{
+    id: string;
+    author: string;
+    message: string;
+    createdAt: string;
+  }>;
+  paymentHistory: Array<{
+    id: string;
+    type: 'deposit' | 'refund';
+    amount: number;
+    cashboxId: string;
+    cashboxName: string;
+    author: string;
+    createdAt: string;
+  }>;
+  lineItems: Array<{
+    id: string;
+    kind: 'product' | 'service';
+    productId?: string;
+    serviceId?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    warrantyPeriod: number;
+  }>;
   client: {
     id: string;
     name: string;
@@ -30,6 +58,11 @@ export type Sale = {
     name: string;
     role: string;
   } | null;
+  issuedBy: {
+    id: string;
+    name: string;
+    role: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -43,6 +76,38 @@ export type SaleFormValues = {
   note: string;
   managerId?: string;
   masterId?: string;
+  issuedById?: string;
+  kind?: 'repair' | 'sale';
+  status?: string;
+  paidAmount?: number;
+  timeline?: Sale['timeline'];
+  paymentHistory?: Sale['paymentHistory'];
+  lineItems?: Sale['lineItems'];
+};
+
+export type SaleWorkspacePayload = {
+  kind?: 'repair' | 'sale';
+  status?: string;
+  paidAmount?: number;
+  issuedById?: string;
+  timeline?: Sale['timeline'];
+  paymentHistory?: Sale['paymentHistory'];
+  lineItems?: Sale['lineItems'];
+};
+
+export type SaleLineItemReturnPayload = {
+  lineItemId: string;
+  cashboxId: string;
+  refundAmount: string;
+  warehouse: string;
+  author: string;
+};
+
+export type SaleReturnPayload = {
+  cashboxId: string;
+  refundAmount: string;
+  warehouse: string;
+  author: string;
 };
 
 export type SeedResponse = {

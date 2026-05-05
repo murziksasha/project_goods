@@ -73,3 +73,87 @@ export const getClientHistory = async (clientId: string) => {
 
   return formatClientHistory(client, sales);
 };
+
+export const mergeClients = async (
+  targetClientIdInput: unknown,
+  sourceClientIdInput: unknown,
+) => {
+  const targetClientId =
+    typeof targetClientIdInput === 'string'
+      ? targetClientIdInput.trim()
+      : '';
+  const sourceClientId =
+    typeof sourceClientIdInput === 'string'
+      ? sourceClientIdInput.trim()
+      : '';
+
+  if (!targetClientId || !sourceClientId) {
+    throw new Error('Both targetClientId and sourceClientId are required.');
+  }
+  if (targetClientId === sourceClientId) {
+    throw new Error('Select two different clients.');
+  }
+
+  isValidObjectIdOrThrow(targetClientId, 'targetClientId');
+  isValidObjectIdOrThrow(sourceClientId, 'sourceClientId');
+
+  const [targetClient, sourceClient] = await Promise.all([
+    Client.findById(targetClientId).lean<ClientDocument | null>(),
+    Client.findById(sourceClientId).lean<ClientDocument | null>(),
+  ]);
+
+  if (!targetClient) {
+    throw new Error('Target client not found.');
+  }
+  if (!sourceClient) {
+    throw new Error('Source client not found.');
+  }
+
+  const mergedNote = [targetClient.note?.trim(), sourceClient.note?.trim()]
+    .filter(Boolean)
+    .filter((note, index, collection) => collection.indexOf(note) === index)
+    .join('\n');
+  const mergedStatus =
+    targetClient.status === 'new' && sourceClient.status !== 'new'
+      ? sourceClient.status
+      : targetClient.status;
+  const payload = normalizeClientPayload({
+    phone: targetClient.phone?.trim() || sourceClient.phone,
+    name: targetClient.name?.trim() || sourceClient.name,
+    note: mergedNote,
+    status: mergedStatus,
+  });
+
+  const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
+    new: true,
+    runValidators: true,
+  }).lean<ClientDocument | null>();
+  if (!updatedTarget) {
+    throw new Error('Failed to update target client.');
+  }
+
+  const movedSalesResult = await Sale.updateMany(
+    { client: sourceClient._id },
+    {
+      $set: {
+        client: updatedTarget._id,
+        clientSnapshot: {
+          name: updatedTarget.name,
+          phone: updatedTarget.phone,
+          status: updatedTarget.status,
+        },
+      },
+    },
+  );
+
+  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
+  if (!deletedSource) {
+    throw new Error('Failed to delete source client.');
+  }
+
+  return {
+    client: formatClient(updatedTarget),
+    removedClientId: sourceClientId,
+    movedSalesCount: movedSalesResult.modifiedCount ?? 0,
+  };
+};

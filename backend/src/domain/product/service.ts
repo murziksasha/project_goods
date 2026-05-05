@@ -49,7 +49,11 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
 export const deleteProduct = async (productId: string) => {
   isValidObjectIdOrThrow(productId, 'productId');
 
-  if (await Sale.exists({ product: productId })) {
+  if (
+    await Sale.exists({
+      $or: [{ product: productId }, { 'lineItems.productId': productId }],
+    })
+  ) {
     throw new Error('Cannot delete a product that has sales history.');
   }
 
@@ -59,6 +63,43 @@ export const deleteProduct = async (productId: string) => {
   }
 
   return { id: productId };
+};
+
+export const archiveProduct = async (productId: string) => {
+  isValidObjectIdOrThrow(productId, 'productId');
+
+  const product = await Product.findById(productId).lean<ProductDocument | null>();
+  if (!product) {
+    throw new Error('Product not found.');
+  }
+
+  if ((product.quantity ?? 0) > 0 || (product.reservedQuantity ?? 0) > 0) {
+    throw new Error('Product is in stock.');
+  }
+
+  const wasUsed = await Sale.exists({
+    $or: [{ product: productId }, { 'lineItems.productId': productId }],
+  });
+
+  if (!wasUsed) {
+    await Product.findByIdAndDelete(productId);
+    return { id: productId, action: 'deleted' as const };
+  }
+
+  const updatedProduct = await Product.findByIdAndUpdate(
+    productId,
+    { isActive: false },
+    { new: true, runValidators: true },
+  ).lean<ProductDocument | null>();
+
+  if (!updatedProduct) {
+    throw new Error('Product not found.');
+  }
+
+  return {
+    action: 'deactivated' as const,
+    product: formatProduct(updatedProduct),
+  };
 };
 
 export const exportProductsWorkbook = async () => {

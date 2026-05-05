@@ -5,8 +5,14 @@ import { getEmployees } from '../../../entities/employee/api/employeeApi';
 import type { Employee } from '../../../entities/employee/model/types';
 import { getProducts } from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
+import { getSuppliers } from '../../../entities/supplier/api/supplierApi';
+import type { Supplier } from '../../../entities/supplier/model/types';
+import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { getSales } from '../../../entities/sale/api/saleApi';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
@@ -14,58 +20,91 @@ import { getRequestErrorMessage } from '../../../shared/lib/request';
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardEffectsParams = {
+  enabled: boolean;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
+  setClientDevices: Setter<ClientDevice[]>;
+  setSuppliers: Setter<Supplier[]>;
   setAllClients: Setter<Client[]>;
   setSales: Setter<Sale[]>;
+  setServices: Setter<ServiceCatalogItem[]>;
   setAllEmployees: Setter<Employee[]>;
   setSettings: Setter<AppSettings | null>;
   setSettingsForm: Setter<AppSettingsFormValues>;
   setClientHistory: Setter<ClientHistory | null>;
   setIsProductsLoading: Setter<boolean>;
+  setIsSuppliersLoading: Setter<boolean>;
   setIsClientsLoading: Setter<boolean>;
   setIsSalesLoading: Setter<boolean>;
+  setIsServicesLoading: Setter<boolean>;
   setIsEmployeesLoading: Setter<boolean>;
   setIsClientHistoryLoading: Setter<boolean>;
   setError: Setter<string>;
 };
 
 export const useDashboardEffects = ({
+  enabled,
   selectedClientId,
   setAllProducts,
+  setClientDevices,
+  setSuppliers,
   setAllClients,
   setSales,
+  setServices,
   setAllEmployees,
   setSettings,
   setSettingsForm,
   setClientHistory,
   setIsProductsLoading,
+  setIsSuppliersLoading,
   setIsClientsLoading,
   setIsSalesLoading,
+  setIsServicesLoading,
   setIsEmployeesLoading,
   setIsClientHistoryLoading,
   setError,
 }: DashboardEffectsParams) => {
   useEffect(() => {
+    if (!enabled) return;
+
     let isActive = true;
 
     const fetchWorkspaceData = async () => {
       setIsProductsLoading(true);
+      setIsSuppliersLoading(true);
       setIsClientsLoading(true);
       setIsEmployeesLoading(true);
+      setIsServicesLoading(true);
 
       try {
-        const [productsResult, clientsResult, employeesResult, settingsResult] =
+        const [
+          productsResult,
+          devicesResult,
+          suppliersResult,
+          clientsResult,
+          employeesResult,
+          settingsResult,
+          servicesResult,
+        ] =
           await Promise.allSettled([
             getProducts(),
+            getClientDevices(),
+            getSuppliers(),
             getClients(),
             getEmployees(),
             getSettings(),
+            getServiceCatalogItems(),
           ]);
         if (!isActive) return;
 
         if (productsResult.status === 'fulfilled') {
           setAllProducts(productsResult.value);
+        }
+        if (devicesResult.status === 'fulfilled') {
+          setClientDevices(devicesResult.value);
+        }
+        if (suppliersResult.status === 'fulfilled') {
+          setSuppliers(suppliersResult.value);
         }
         if (clientsResult.status === 'fulfilled') {
           setAllClients(clientsResult.value);
@@ -81,6 +120,11 @@ export const useDashboardEffects = ({
         } else {
           setSettings(null);
           setSettingsForm({ serviceName: 'Service CRM' });
+        }
+        if (servicesResult.status === 'fulfilled') {
+          setServices(servicesResult.value);
+        } else {
+          setServices([]);
         }
 
         if (
@@ -103,8 +147,10 @@ export const useDashboardEffects = ({
       } finally {
         if (isActive) {
           setIsProductsLoading(false);
+          setIsSuppliersLoading(false);
           setIsClientsLoading(false);
           setIsEmployeesLoading(false);
+          setIsServicesLoading(false);
         }
       }
     };
@@ -114,18 +160,26 @@ export const useDashboardEffects = ({
       isActive = false;
     };
   }, [
+    enabled,
     setAllClients,
     setAllEmployees,
     setAllProducts,
+    setClientDevices,
+    setSuppliers,
     setError,
     setSettings,
     setSettingsForm,
     setIsClientsLoading,
     setIsEmployeesLoading,
+    setIsServicesLoading,
     setIsProductsLoading,
+    setIsSuppliersLoading,
+    setServices,
   ]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let isActive = true;
 
     const fetchSalesData = async () => {
@@ -144,10 +198,10 @@ export const useDashboardEffects = ({
     return () => {
       isActive = false;
     };
-  }, [setError, setIsSalesLoading, setSales]);
+  }, [enabled, setError, setIsSalesLoading, setSales]);
 
   useEffect(() => {
-    if (!selectedClientId) return;
+    if (!enabled || !selectedClientId) return;
 
     let isActive = true;
 
@@ -169,5 +223,5 @@ export const useDashboardEffects = ({
     return () => {
       isActive = false;
     };
-  }, [selectedClientId, setClientHistory, setError, setIsClientHistoryLoading]);
+  }, [enabled, selectedClientId, setClientHistory, setError, setIsClientHistoryLoading]);
 };

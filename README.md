@@ -95,3 +95,8 @@ npm run install:all
 - детали API лучше хранить в одном месте, без дублирования
 - при изменении структуры, скриптов или окружения документация обновляется в той же задаче
 - документация должна описывать реальные договоренности проекта, а не абстрактный идеал
+
+## Client Status Localization Rule
+
+- Keep client status values in original English.
+- Do not translate client status enums in UI labels, API payloads, or documentation.

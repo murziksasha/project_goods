@@ -34,6 +34,14 @@
     grid-template-columns: 1fr;
   }
 
+  .order-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-detail-live-panel {
+    max-height: 340px;
+  }
+
   .create-order-right {
     border-left: 0;
     border-top: 1px solid #d5dde7;
@@ -104,6 +112,24 @@
     width: 100%;
   }
 
+  .orders-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .orders-filter-saved-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .orders-filter-actions {
+    justify-content: stretch;
+  }
+
+  .orders-filter-actions .toolbar-filter-button {
+    flex: 1;
+    justify-content: center;
+  }
+
   .orders-create-button {
     width: 100%;
   }
@@ -114,6 +140,21 @@
 
   .orders-toolbar-actions button {
     flex: 1;
+  }
+
+  .clients-toolbar-actions {
+    width: 100%;
+  }
+
+  .clients-toolbar-actions .toolbar-filter-button,
+  .clients-toolbar-actions .orders-create-button {
+    flex: 1;
+    width: 100%;
+  }
+
+  .clients-card-modal {
+    width: min(100vw - 16px, 940px);
+    height: min(760px, calc(100vh - 16px));
   }
 
   .finance-toolbar {
@@ -163,6 +204,11 @@
 
   .create-order-actions button {
     width: 100%;
+  }
+
+  .order-detail-table-wide,
+  .order-line-items-form {
+    grid-template-columns: 1fr;
   }
 
   .payment-modal-form {

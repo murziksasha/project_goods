@@ -7,7 +7,7 @@ export type Client = {
   phone: string;
   name: string;
   note: string;
-  status: ClientStatus;
+  status: ClientStatus | '';
   createdAt: string;
   updatedAt: string;
 };
@@ -16,7 +16,7 @@ export type ClientFormValues = {
   phone: string;
   name: string;
   note: string;
-  status: ClientStatus;
+  status: ClientStatus | '';
 };
 
 export type ClientHistory = {

@@ -4,9 +4,10 @@ import {
   deleteClient,
   getClientHistory,
   listClients,
+  mergeClients,
   updateClient,
 } from '../domain/client/service';
-import type { ClientPayload } from '../domain/shared/types';
+import type { ClientPayload, MergeClientsPayload } from '../domain/shared/types';
 
 export const clientRouter = Router();
 
@@ -21,6 +22,17 @@ clientRouter.get('/clients', async (req, res, next) => {
 clientRouter.post('/clients', async (req, res, next) => {
   try {
     res.status(201).json(await createClient(req.body as ClientPayload));
+  } catch (error) {
+    next(error);
+  }
+});
+
+clientRouter.post('/clients/merge', async (req, res, next) => {
+  try {
+    const payload = req.body as MergeClientsPayload;
+    res.json(
+      await mergeClients(payload.targetClientId, payload.sourceClientId),
+    );
   } catch (error) {
     next(error);
   }

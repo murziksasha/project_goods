@@ -7,7 +7,8 @@
     "dev": "node -r ts-node/register server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clear:sales": "node -r ts-node/register src/scripts/clear-sales.ts"
   },
   "keywords": [],
   "author": "",

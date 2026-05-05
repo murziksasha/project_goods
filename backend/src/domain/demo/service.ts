@@ -1,13 +1,64 @@
 import { Client, type ClientDocument } from '../client/model';
+import { ClientDevice } from '../client-device/model';
+import { Cashbox, FinanceTransaction } from '../finance/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from '../sale/model';
+import { Sequence } from '../sequence/model';
+import { ServiceCatalog } from '../service-catalog/model';
+import { Settings } from '../settings/model';
+import { Supplier } from '../supplier/model';
 import { formatClient, formatProduct, formatSale } from '../../shared/lib/formatters';
 import { demoClients } from '../../shared/data/demo-clients';
 import { demoProducts } from '../../shared/data/demo-products';
 import { demoRepairOrders, demoSales } from '../../shared/data/demo-sales';
 import { formatRecordNumber, resetRecordNumberSequence } from '../sequence/service';
 
-export const seedDemoData = async () => {
+type DemoSeedKind = 'all' | 'sales' | 'repairs';
+
+const normalizeSeedKind = (value: unknown): DemoSeedKind => {
+  if (value === 'sales' || value === 'repairs') {
+    return value;
+  }
+
+  return 'all';
+};
+
+const getFixturesForKind = (kind: DemoSeedKind) => {
+  if (kind === 'sales') {
+    return demoSales.map((item) => ({ kind: 'sale' as const, item }));
+  }
+
+  if (kind === 'repairs') {
+    return demoRepairOrders.map((item) => ({ kind: 'repair' as const, item }));
+  }
+
+  return [
+    ...demoSales.map((item) => ({ kind: 'sale' as const, item })),
+    ...demoRepairOrders.map((item) => ({ kind: 'repair' as const, item })),
+  ];
+};
+
+const getSeedMessage = (
+  kind: DemoSeedKind,
+  productsCount: number,
+  clientsCount: number,
+  recordsCount: number,
+) => {
+  if (kind === 'sales') {
+    return `Demo sales created: ${productsCount} products, ${clientsCount} clients, ${recordsCount} sales.`;
+  }
+
+  if (kind === 'repairs') {
+    return `Demo repair orders created: ${productsCount} products, ${clientsCount} clients, ${recordsCount} orders.`;
+  }
+
+  return `Demo data created: ${productsCount} products, ${clientsCount} clients, ${demoSales.length} sales, ${demoRepairOrders.length} orders.`;
+};
+
+export const seedDemoData = async (seedKind?: unknown) => {
+  const kind = normalizeSeedKind(seedKind);
+  const fixtures = getFixturesForKind(kind);
+
   await Promise.all([Sale.deleteMany({}), Client.deleteMany({}), Product.deleteMany({})]);
   await resetRecordNumberSequence(0);
 
@@ -24,7 +75,7 @@ export const seedDemoData = async () => {
   const clientMap = new Map(demoClients.map((item, index) => [item.key, clients[index]]));
 
   const sales = await Promise.all(
-    [...demoSales, ...demoRepairOrders].map(async ([saleDate, clientKey, productKey, quantity, salePrice, note], index) => {
+    fixtures.map(async ({ kind: recordKind, item: [saleDate, clientKey, productKey, quantity, salePrice, note] }, index) => {
       const client = clientMap.get(clientKey);
       const product = productMap.get(productKey);
 
@@ -32,7 +83,9 @@ export const seedDemoData = async () => {
         throw new Error('Failed to build demo fixtures.');
       }
 
-      await Product.findByIdAndUpdate(product._id, { $inc: { quantity: -quantity } });
+      if (recordKind === 'sale') {
+        await Product.findByIdAndUpdate(product._id, { $inc: { quantity: -quantity } });
+      }
 
       const sale = new Sale({
         recordNumber: formatRecordNumber(index + 1),
@@ -41,7 +94,19 @@ export const seedDemoData = async () => {
         product: product._id,
         quantity,
         salePrice,
+        kind: recordKind,
+        status: 'new',
         note,
+        lineItems: [
+          {
+            id: `${product._id.toString()}-${recordKind}-demo-${index + 1}`,
+            kind: recordKind === 'sale' ? 'product' : 'service',
+            productId: recordKind === 'sale' ? product._id : null,
+            name: recordKind === 'sale' ? product.name : 'Repair',
+            price: salePrice,
+            quantity,
+          },
+        ],
         productSnapshot: {
           article: product.article,
           name: product.name,
@@ -65,9 +130,33 @@ export const seedDemoData = async () => {
   const freshSales = await Sale.find().sort({ saleDate: -1 }).lean<SaleDocument[]>();
 
   return {
-    message: `Demo data created: ${products.length} products, ${clients.length} clients, ${demoSales.length} sales, ${demoRepairOrders.length} orders.`,
+    message: getSeedMessage(kind, products.length, clients.length, sales.length),
     products: freshProducts.map(formatProduct),
     clients: freshClients.map(formatClient),
     sales: freshSales.map(formatSale),
+  };
+};
+
+export const eraseAllDataExceptEmployees = async () => {
+  await Promise.all([
+    Sale.deleteMany({}),
+    Client.deleteMany({}),
+    Product.deleteMany({}),
+    Supplier.deleteMany({}),
+    ServiceCatalog.deleteMany({}),
+    ClientDevice.deleteMany({}),
+    Cashbox.deleteMany({}),
+    FinanceTransaction.deleteMany({}),
+    Settings.deleteMany({}),
+    Sequence.deleteMany({}),
+  ]);
+
+  await resetRecordNumberSequence(0);
+
+  return {
+    message: 'All data erased. Employees were kept.',
+    products: [],
+    clients: [],
+    sales: [],
   };
 };

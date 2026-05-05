@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Client } from '../../../entities/client/model/types';
 import type { Product } from '../../../entities/product/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { SaleFormValues } from '../../../entities/sale/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
 import {
@@ -38,7 +39,6 @@ export const SaleForm = ({
   onSubmit,
   onCancelEdit,
 }: SaleFormProps) => {
-  const salePriceListId = useId();
   const [clientNameInput, setClientNameInput] = useState('');
   const [clientPhoneInput, setClientPhoneInput] = useState('');
   const [productInput, setProductInput] = useState('');
@@ -46,35 +46,20 @@ export const SaleForm = ({
   const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
-  const previousClientIdRef = useRef(form.clientId);
-  const previousProductIdRef = useRef(form.productId);
 
   const selectedClient = clients.find((client) => client.id === form.clientId) ?? null;
   const selectedProduct = products.find((product) => product.id === form.productId) ?? null;
-
-  useEffect(() => {
-    if (selectedClient) {
-      setClientNameInput(selectedClient.name);
-      setClientPhoneInput(selectedClient.phone);
-    }
-
-    previousClientIdRef.current = form.clientId;
-  }, [form.clientId, selectedClient]);
-
-  useEffect(() => {
-    if (selectedProduct) {
-      setProductInput(getProductLabel(selectedProduct));
-    } else if (previousProductIdRef.current && !form.productId) {
-      setProductInput('');
-    }
-
-    previousProductIdRef.current = form.productId;
-  }, [form.productId, selectedProduct]);
+  const displayedClientNameInput =
+    form.clientId && selectedClient ? selectedClient.name : clientNameInput;
+  const displayedClientPhoneInput =
+    form.clientId && selectedClient ? selectedClient.phone : clientPhoneInput;
+  const displayedProductInput =
+    form.productId && selectedProduct ? getProductLabel(selectedProduct) : productInput;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const normalizedName = normalizeText(clientNameInput);
-      const normalizedPhone = normalizeDigits(clientPhoneInput);
+      const normalizedName = normalizeText(displayedClientNameInput);
+      const normalizedPhone = normalizeDigits(displayedClientPhoneInput);
 
       setClientSuggestions(
         clients
@@ -92,11 +77,11 @@ export const SaleForm = ({
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [clientNameInput, clientPhoneInput, clients]);
+  }, [clients, displayedClientNameInput, displayedClientPhoneInput]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const normalizedQuery = normalizeText(productInput);
+      const normalizedQuery = normalizeText(displayedProductInput);
 
       setProductSuggestions(
         products
@@ -115,7 +100,7 @@ export const SaleForm = ({
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [productInput, products]);
+  }, [displayedProductInput, products]);
 
   const handleClientPick = (client: Client) => {
     onChange('clientId', client.id);
@@ -167,18 +152,16 @@ export const SaleForm = ({
 
         <label className="field">
           <span>Quantity</span>
-          <input
-            type="number"
-            min="1"
-            step="1"
+          <NumberStepper
+            min={1}
             value={form.quantity}
-            onChange={(event) => onChange('quantity', event.target.value)}
+            onChange={(value) => onChange('quantity', value)}
           />
         </label>
 
         <ClientLookupFields
-          clientNameInput={clientNameInput}
-          clientPhoneInput={clientPhoneInput}
+          clientNameInput={displayedClientNameInput}
+          clientPhoneInput={displayedClientPhoneInput}
           clientSuggestions={clientSuggestions}
           showClientSuggestions={showClientSuggestions}
           onNameChange={(value) => {
@@ -197,7 +180,7 @@ export const SaleForm = ({
         />
 
         <ProductLookupField
-          productInput={productInput}
+          productInput={displayedProductInput}
           productSuggestions={productSuggestions}
           showProductSuggestions={showProductSuggestions}
           onProductChange={(value) => {
@@ -212,22 +195,17 @@ export const SaleForm = ({
 
         <label className="field">
           <span>Sale price</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            list={salePriceListId}
+          <NumberStepper
+            min={0}
             value={form.salePrice}
             placeholder={
               selectedProduct ? formatCurrency(getDefaultSalePrice(selectedProduct)) : ''
             }
-            onChange={(event) => onChange('salePrice', event.target.value)}
+            onChange={(value) => onChange('salePrice', value)}
           />
-          <datalist id={salePriceListId}>
-            {productSalePriceOptions.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
+          {productSalePriceOptions.length > 0 ? (
+            <span>{`Available prices: ${productSalePriceOptions.join(', ')}`}</span>
+          ) : null}
         </label>
 
         <label className="field field-wide">

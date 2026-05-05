@@ -66,3 +66,22 @@ export const getClientHistory = async (clientId: string) => {
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const mergeClients = async (
+  targetClientId: string,
+  sourceClientId: string,
+) => {
+  try {
+    const response = await apiClient.post<{
+      client: Client;
+      removedClientId: string;
+      movedSalesCount: number;
+    }>('/clients/merge', {
+      targetClientId,
+      sourceClientId,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

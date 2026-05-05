@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  archiveProduct,
   createProduct,
   deleteProduct,
   exportProductsWorkbook,
@@ -37,6 +38,14 @@ productRouter.put('/products/:productId', async (req, res, next) => {
 productRouter.delete('/products/:productId', async (req, res, next) => {
   try {
     res.json(await deleteProduct(req.params.productId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+productRouter.post('/products/:productId/archive', async (req, res, next) => {
+  try {
+    res.json(await archiveProduct(req.params.productId));
   } catch (error) {
     next(error);
   }

@@ -6,6 +6,7 @@ export type CreateOrderRequestPayload = {
   deviceSerialNumber: string;
   deviceColor: string;
   deviceKit: string;
+  serviceName: string;
   repairType: string;
   issueFromClient: string;
   externalView: string;
@@ -18,4 +19,15 @@ export type CreateOrderRequestPayload = {
   masterId: string;
   extraFlags: string[];
   sourceTab: 'repair' | 'sale';
+  saleItems?: Array<{
+    id: string;
+    productId: string;
+    name: string;
+    article: string;
+    serialNumber: string;
+    price: string;
+    quantity: string;
+    warrantyPeriod: string;
+    warehouse: string;
+  }>;
 };

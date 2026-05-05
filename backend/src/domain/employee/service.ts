@@ -1,7 +1,9 @@
 import { employeeRoles, type EmployeeRole } from './constants';
 import { Employee, type EmployeeDocument } from './model';
+import { hashPassword } from '../../shared/lib/auth';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { normalizeEmployeePayload } from '../../shared/lib/parsers';
+import { HttpError } from '../../shared/lib/errors';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { EmployeePayload } from '../shared/types';
 
@@ -20,7 +22,29 @@ export const listEmployees = async (queryValue: unknown, roleValue: unknown) => 
 };
 
 export const createEmployee = async (payload: EmployeePayload) => {
-  const employee = new Employee(normalizeEmployeePayload(payload));
+  const normalizedPayload = normalizeEmployeePayload(payload);
+  if (!normalizedPayload.username) {
+    throw new HttpError(400, 'Username is required.');
+  }
+  if (normalizedPayload.password.length < 3) {
+    throw new HttpError(400, 'Password must contain at least 3 characters.');
+  }
+
+  const employee = new Employee({
+    name: normalizedPayload.name,
+    phone: normalizedPayload.phone,
+    email: normalizedPayload.email || undefined,
+    username: normalizedPayload.username,
+    passwordHash: hashPassword(normalizedPayload.password),
+    authToken: '',
+    inviteToken: '',
+    inviteExpiresAt: null,
+    role: normalizedPayload.role,
+    permissions: normalizedPayload.permissions,
+    isActive: normalizedPayload.isActive,
+    note: normalizedPayload.note,
+  });
+
   await employee.validate();
   await employee.save();
   return formatEmployee(employee.toObject<EmployeeDocument>());
@@ -29,14 +53,37 @@ export const createEmployee = async (payload: EmployeePayload) => {
 export const updateEmployee = async (employeeId: string, payload: EmployeePayload) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
 
+  const normalizedPayload = normalizeEmployeePayload(payload);
+  if (!normalizedPayload.username) {
+    throw new HttpError(400, 'Username is required.');
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    name: normalizedPayload.name,
+    phone: normalizedPayload.phone,
+    email: normalizedPayload.email || undefined,
+    username: normalizedPayload.username,
+    role: normalizedPayload.role,
+    permissions: normalizedPayload.permissions,
+    isActive: normalizedPayload.isActive,
+    note: normalizedPayload.note,
+  };
+
+  if (normalizedPayload.password) {
+    if (normalizedPayload.password.length < 3) {
+      throw new HttpError(400, 'Password must contain at least 3 characters.');
+    }
+    updatePayload.passwordHash = hashPassword(normalizedPayload.password);
+  }
+
   const employee = await Employee.findByIdAndUpdate(
     employeeId,
-    normalizeEmployeePayload(payload),
+    updatePayload,
     { new: true, runValidators: true },
   ).lean<EmployeeDocument | null>();
 
   if (!employee) {
-    throw new Error('Employee not found.');
+    throw new HttpError(404, 'Employee not found.');
   }
 
   return formatEmployee(employee);
@@ -47,7 +94,7 @@ export const deleteEmployee = async (employeeId: string) => {
 
   const deletedEmployee = await Employee.findByIdAndDelete(employeeId).lean<EmployeeDocument | null>();
   if (!deletedEmployee) {
-    throw new Error('Employee not found.');
+    throw new HttpError(404, 'Employee not found.');
   }
 
   return { id: employeeId };

@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+export class HttpError extends Error {
+  statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
 export const isDuplicateKeyError = (
   error: unknown,
 ): error is { code: number; keyPattern?: Record<string, number> } =>
@@ -26,6 +35,14 @@ export const getErrorMessage = (error: unknown) => {
 
     if (error.keyPattern?.phone) {
       return 'Client phone must be unique.';
+    }
+
+    if (error.keyPattern?.username) {
+      return 'Employee username must be unique.';
+    }
+
+    if (error.keyPattern?.email) {
+      return 'Employee email must be unique.';
     }
 
     return 'Duplicate value detected.';

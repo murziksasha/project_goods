@@ -2,6 +2,8 @@ import type { ClientDocument } from '../../domain/client/model';
 import type { EmployeeDocument } from '../../domain/employee/model';
 import type { ProductDocument } from '../../domain/product/model';
 import type { SaleDocument } from '../../domain/sale/model';
+import type { SupplierDocument } from '../../domain/supplier/model';
+import type { ClientDeviceDocument } from '../../domain/client-device/model';
 
 export const formatProduct = (product: ProductDocument) => {
   const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
@@ -21,6 +23,7 @@ export const formatProduct = (product: ProductDocument) => {
     purchasePlace: product.purchasePlace,
     purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
     warrantyPeriod: product.warrantyPeriod,
+    isActive: product.isActive ?? true,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -36,13 +39,40 @@ export const formatClient = (client: ClientDocument) => ({
   updatedAt: client.updatedAt.toISOString(),
 });
 
+export const formatSupplier = (supplier: SupplierDocument) => ({
+  id: supplier._id.toString(),
+  phone: supplier.phone,
+  name: supplier.name,
+  note: supplier.note,
+  isActive: supplier.isActive,
+  createdAt: supplier.createdAt.toISOString(),
+  updatedAt: supplier.updatedAt.toISOString(),
+});
+
+export const formatClientDevice = (device: ClientDeviceDocument) => ({
+  id: device._id.toString(),
+  clientId: device.client.toString(),
+  clientName: device.clientName,
+  clientPhone: device.clientPhone,
+  name: device.name,
+  serialNumber: device.serialNumber ?? '',
+  note: device.note ?? '',
+  source: device.source,
+  isActive: device.isActive ?? true,
+  createdAt: device.createdAt.toISOString(),
+  updatedAt: device.updatedAt.toISOString(),
+});
+
 export const formatEmployee = (employee: EmployeeDocument) => ({
   id: employee._id.toString(),
   name: employee.name,
   phone: employee.phone,
+  email: employee.email ?? '',
+  username: employee.username ?? '',
   role: employee.role,
   permissions: employee.permissions,
   isActive: employee.isActive,
+  isRegistered: Boolean(employee.username),
   note: employee.note,
   createdAt: employee.createdAt.toISOString(),
   updatedAt: employee.updatedAt.toISOString(),
@@ -54,7 +84,35 @@ export const formatSale = (sale: SaleDocument) => ({
   saleDate: sale.saleDate.toISOString(),
   quantity: sale.quantity,
   salePrice: sale.salePrice,
+  kind: sale.kind,
+  status: sale.status,
+  paidAmount: sale.paidAmount ?? 0,
   note: sale.note,
+  timeline: (sale.timeline ?? []).map((entry) => ({
+    id: entry.id,
+    author: entry.author,
+    message: entry.message,
+    createdAt: entry.createdAt.toISOString(),
+  })),
+  paymentHistory: (sale.paymentHistory ?? []).map((entry) => ({
+    id: entry.id,
+    type: entry.type,
+    amount: entry.amount,
+    cashboxId: entry.cashboxId,
+    cashboxName: entry.cashboxName,
+    author: entry.author,
+    createdAt: entry.createdAt.toISOString(),
+  })),
+  lineItems: (sale.lineItems ?? []).map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    productId: item.productId ? item.productId.toString() : '',
+    serviceId: item.serviceId ? item.serviceId.toString() : '',
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    warrantyPeriod: item.warrantyPeriod ?? 0,
+  })),
   client: {
     id: sale.client.toString(),
     ...sale.clientSnapshot,
@@ -74,6 +132,12 @@ export const formatSale = (sale: SaleDocument) => ({
     ? {
         id: sale.master.toString(),
         ...(sale.masterSnapshot ?? { name: '', role: '' }),
+      }
+    : null,
+  issuedBy: sale.issuedBy
+    ? {
+        id: sale.issuedBy.toString(),
+        ...(sale.issuedBySnapshot ?? { name: '', role: '' }),
       }
     : null,
   createdAt: sale.createdAt.toISOString(),

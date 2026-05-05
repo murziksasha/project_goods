@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getClients, getClientHistory } from '../../../entities/client/api/clientApi';
+import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
+import { createProduct, getProducts } from '../../../entities/product/api/productApi';
+import type { Product } from '../../../entities/product/model/types';
+import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
+  currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
@@ -29,9 +35,53 @@ const extraOptionsRight = [
   'Home master call',
 ];
 
+const saleExtraOptionsLeft = [
+  'New sale',
+  'Issued',
+  'At postal company',
+  'Waiting for supply',
+];
+
+const saleExtraOptionsRight = [
+  'Reserved for client',
+  'Needs invoice',
+  'Warranty card issued',
+  'Delivery required',
+];
+
+type SaleOrderItem = {
+  id: string;
+  query: string;
+  product: Product | null;
+  price: string;
+  quantity: string;
+  warrantyPeriod: string;
+};
+
+const createSaleOrderItem = (): SaleOrderItem => ({
+  id: crypto.randomUUID(),
+  query: '',
+  product: null,
+  price: '',
+  quantity: '1',
+  warrantyPeriod: '0',
+});
+
+const getProductPrice = (product: Product) =>
+  product.salePriceOptions[0] ?? product.price ?? 0;
+
+const getProductWarehouse = (product: Product) =>
+  product.purchasePlace.trim() || 'Main warehouse';
+
 const formatPhone = (input: string) => {
   const digitsOnly = input.replace(/\D/g, '');
-  const localDigits = (digitsOnly.startsWith('380') ? digitsOnly.slice(3) : digitsOnly).slice(0, 9);
+  if (!digitsOnly) return '';
+  const normalizedDigits = digitsOnly.startsWith('380')
+    ? digitsOnly.slice(3)
+    : digitsOnly.startsWith('0')
+      ? digitsOnly.slice(1)
+      : digitsOnly;
+  const localDigits = normalizedDigits.slice(0, 9);
 
   let result = '+380';
   if (localDigits.length > 0) result += ` ${localDigits.slice(0, 2)}`;
@@ -41,17 +91,38 @@ const formatPhone = (input: string) => {
   return result;
 };
 
+const extractDeviceKit = (note: string) =>
+  note
+    .split('|')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ');
+
+const getDeviceHistory = (history: ClientHistory | null) => {
+  if (!history) return [];
+
+  const seen = new Set<string>();
+  return history.sales.filter((sale) => {
+    if (seen.has(sale.product.id)) {
+      return false;
+    }
+    seen.add(sale.product.id);
+    return true;
+  });
+};
+
 export const CreateOrderCard = ({
   isSaving,
   employees,
+  currentEmployee,
   initialTab = 'repair',
   onClose,
   onSave,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(initialTab);
-  const [clientPhone, setClientPhone] = useState('+380');
+  const [clientPhone, setClientPhone] = useState('');
   const [clientName, setClientName] = useState('');
-  const [discountCode, setDiscountCode] = useState('');
   const [deviceName, setDeviceName] = useState('');
   const [deviceSerialNumber, setDeviceSerialNumber] = useState('');
   const [deviceColor, setDeviceColor] = useState('');
@@ -59,14 +130,27 @@ export const CreateOrderCard = ({
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState('');
   const [prepayment, setPrepayment] = useState('');
   const [prepaymentComment, setPrepaymentComment] = useState('');
-  const [readyDate, setReadyDate] = useState(new Date().toISOString().slice(0, 10));
+  const [readyDate, setReadyDate] = useState('');
   const [readyTime, setReadyTime] = useState('');
   const [managerId, setManagerId] = useState('');
   const [masterId, setMasterId] = useState('');
   const [selectedFlags, setSelectedFlags] = useState<string[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
+  const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
+  const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
+  const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
+  const [newDeviceName, setNewDeviceName] = useState('');
+  const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
+  const [isDeviceCreating, setIsDeviceCreating] = useState(false);
+  const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
+  const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
+  const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
+  const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
+  const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
 
   const managers = employees.filter(
     (employee) =>
@@ -82,6 +166,146 @@ export const CreateOrderCard = ({
         employee.role === 'master' ||
         employee.permissions.includes('repairs.execute')),
   );
+  const canCurrentEmployeeManageOrders =
+    currentEmployee?.isActive === true &&
+    (currentEmployee.role === 'owner' ||
+      currentEmployee.role === 'manager' ||
+      currentEmployee.permissions.includes('orders.manage'));
+
+  const phoneDigits = clientPhone.replace(/\D/g, '');
+  const normalizedPhoneDigits = phoneDigits.startsWith('380')
+    ? phoneDigits.slice(3)
+    : phoneDigits.startsWith('0')
+      ? phoneDigits.slice(1)
+      : phoneDigits;
+  const clientLookupQuery = [
+    normalizedPhoneDigits.length >= 3 ? normalizedPhoneDigits : '',
+    clientName.trim(),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const deviceLookupQuery = [deviceName.trim(), deviceSerialNumber.trim()]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
+  const shouldShowClientSuggestions =
+    !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
+  const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const visibleClientHistory = selectedClientId ? clientHistory : null;
+  const visibleDeviceSuggestions = deviceName.trim().length >= 2 ? deviceSuggestions : [];
+  const focusedSaleItem =
+    saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
+  const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
+  const visibleSaleProductSuggestions =
+    activeTab === 'sale' && saleProductLookupQuery.length >= 2
+      ? saleProductSuggestions
+      : [];
+  const saleItemsTotal = saleItems.reduce((total, item) => {
+    const price = Number.parseFloat(item.price || '0');
+    const quantity = Number.parseInt(item.quantity || '0', 10);
+    return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
+  }, 0);
+  const hasAvailableSaleSuggestion = visibleSaleProductSuggestions.some(
+    (product) => product.freeQuantity > 0,
+  );
+  const canOrderUnavailableProduct =
+    activeTab === 'sale' &&
+    saleProductLookupQuery.length >= 2 &&
+    !isSaleProductLookupLoading &&
+    !hasAvailableSaleSuggestion;
+  const effectiveManagerId =
+    canCurrentEmployeeManageOrders && currentEmployee ? currentEmployee.id : managerId;
+
+  useEffect(() => {
+    if (!shouldShowClientSuggestions) return;
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsClientLookupLoading(true);
+      try {
+        const clients = await getClients(clientLookupQuery);
+        if (isActive) setClientSuggestions(clients.slice(0, 6));
+      } catch {
+        if (isActive) setClientSuggestions([]);
+      } finally {
+        if (isActive) setIsClientLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [clientLookupQuery, shouldShowClientSuggestions]);
+
+  useEffect(() => {
+    if (!selectedClientId) return;
+
+    let isActive = true;
+    void (async () => {
+      try {
+        const history = await getClientHistory(selectedClientId);
+        if (isActive) setClientHistory(history);
+      } catch {
+        if (isActive) setClientHistory(null);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    if (deviceLookupQuery.length < 2) return;
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsDeviceLookupLoading(true);
+      try {
+        const products = await getProducts(deviceLookupQuery);
+        if (isActive) setDeviceSuggestions(products.slice(0, 8));
+      } catch {
+        if (isActive) setDeviceSuggestions([]);
+      } finally {
+        if (isActive) setIsDeviceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [deviceLookupQuery]);
+
+  useEffect(() => {
+    if (activeTab !== 'sale' || saleProductLookupQuery.length < 2) {
+      setSaleProductSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsSaleProductLookupLoading(true);
+      try {
+        const products = await getProducts(saleProductLookupQuery);
+        if (isActive) {
+          setSaleProductSuggestions(products.filter((product) => product.freeQuantity > 0).slice(0, 8));
+        }
+      } catch {
+        if (isActive) setSaleProductSuggestions([]);
+      } finally {
+        if (isActive) setIsSaleProductLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeTab, saleProductLookupQuery]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -91,12 +315,79 @@ export const CreateOrderCard = ({
     );
   };
 
+  const applyClient = (client: Client) => {
+    setClientPhone(client.phone);
+    setClientName(client.name);
+    setSelectedClientId(client.id);
+    setClientSuggestions([]);
+  };
+
+  const applyProduct = (product: Product) => {
+    setDeviceName(product.name);
+    setDeviceSerialNumber(product.serialNumber);
+    setDeviceKit(extractDeviceKit(product.note));
+    setDeviceSuggestions([]);
+  };
+
+  const updateSaleItem = (itemId: string, patch: Partial<SaleOrderItem>) => {
+    setSaleItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const applySaleProduct = (itemId: string, product: Product) => {
+    updateSaleItem(itemId, {
+      query: `${product.name} / ${product.article} / ${product.serialNumber}`,
+      product,
+      price: String(getProductPrice(product)),
+      quantity: '1',
+      warrantyPeriod: '0',
+    });
+    setSaleProductSuggestions([]);
+  };
+
+  const addSaleItem = () => {
+    const item = createSaleOrderItem();
+    setSaleItems((current) => [...current, item]);
+    setFocusedSaleItemId(item.id);
+  };
+
+  const removeSaleItem = (itemId: string) => {
+    setSaleItems((current) =>
+      current.length === 1 ? current : current.filter((item) => item.id !== itemId),
+    );
+  };
+
+  const orderUnavailableProduct = () => {
+    if (!focusedSaleItem || !canOrderUnavailableProduct) return;
+
+    updateSaleItem(focusedSaleItem.id, {
+      product: null,
+      query: saleProductLookupQuery,
+      price: focusedSaleItem.price,
+    });
+  };
+
+  const onClientPhoneChange = (value: string) => {
+    setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
+    setSelectedClientId(null);
+  };
+
+  const onClientPhoneBlur = () => {
+    setClientPhone((current) => formatPhone(current));
+  };
+
+  const onClientNameChange = (value: string) => {
+    setClientName(value);
+    setSelectedClientId(null);
+  };
+
   const fillRepairDemo = () => {
     const suffix = Date.now().toString().slice(-6);
     setActiveTab('repair');
     setClientPhone('+380 67 111 22 33');
     setClientName('Ivan Petrenko');
-    setDiscountCode('');
+    setSelectedClientId(null);
     setDeviceName('Laptop Lenovo IdeaPad 5');
     setDeviceSerialNumber(`RPR-${suffix}`);
     setDeviceColor('Silver');
@@ -104,7 +395,6 @@ export const CreateOrderCard = ({
     setRepairType('Paid');
     setIssueFromClient('Does not charge and shuts down after a few minutes.');
     setExternalView('Small scratches on the top cover, no liquid marks.');
-    setEstimatedCost('1800');
     setPrepayment('300');
     setPrepaymentComment('Cash prepayment');
     setReadyDate(new Date().toISOString().slice(0, 10));
@@ -117,7 +407,7 @@ export const CreateOrderCard = ({
     setActiveTab('sale');
     setClientPhone('+380 50 101 01 01');
     setClientName('Maxim Bondar');
-    setDiscountCode('VIP');
+    setSelectedClientId(null);
     setDeviceName('Portable SSD Samsung T7 1TB');
     setDeviceSerialNumber(`SAL-${suffix}`);
     setDeviceColor('Blue');
@@ -125,40 +415,90 @@ export const CreateOrderCard = ({
     setRepairType('Paid');
     setIssueFromClient('Client buys a new device from stock.');
     setExternalView('New sealed package.');
-    setEstimatedCost('3899');
     setPrepayment('3899');
     setPrepaymentComment('Full payment');
     setReadyDate(new Date().toISOString().slice(0, 10));
     setReadyTime('15:00');
-    setSelectedFlags(['Device stays with client']);
+    setSelectedFlags(['New sale', 'Issued']);
+    setSaleItems([
+      {
+        id: crypto.randomUUID(),
+        query: 'Portable SSD Samsung T7 1TB',
+        product: null,
+        price: '3899',
+        quantity: '1',
+        warrantyPeriod: '0',
+      },
+    ]);
+  };
+
+  const createDeviceFromModal = async () => {
+    const name = newDeviceName.trim();
+    if (name.length < 2 || isDeviceCreating) return;
+
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)
+      .toString(36)
+      .padStart(2, '0')}`.toUpperCase();
+    setIsDeviceCreating(true);
+    try {
+      const created = await createProduct({
+        name,
+        article: `ORD-${suffix}`,
+        serialNumber: deviceSerialNumber.trim().toUpperCase() || `SRV-${suffix}`,
+        price: '0',
+        salePriceOptions: '0',
+        quantity: '1',
+        note: deviceKit.trim() || 'Created from repair order',
+        purchasePlace: '',
+        purchaseDate: '',
+        warrantyPeriod: '0',
+        isActive: newDeviceIsActive,
+      });
+      applyProduct(created);
+      setIsCreateDeviceModalOpen(false);
+    } finally {
+      setIsDeviceCreating(false);
+    }
   };
 
   const handleSave = async () => {
     const success = await onSave({
       clientPhone,
       clientName,
-      discountCode,
+      discountCode: '',
       deviceName,
       deviceSerialNumber,
       deviceColor,
       deviceKit,
+      serviceName: '',
       repairType,
       issueFromClient,
       externalView,
-      estimatedCost,
+      estimatedCost: activeTab === 'sale' ? String(Math.round(saleItemsTotal * 100) / 100) : '0',
       prepayment,
       prepaymentComment,
       readyDate,
       readyTime,
-      managerId,
+      managerId: effectiveManagerId,
       masterId,
       extraFlags: selectedFlags,
       sourceTab: activeTab,
+      saleItems: saleItems.map((item) => ({
+        id: item.id,
+        productId: item.product?.id ?? '',
+        name: item.product?.name ?? item.query.trim(),
+        article: item.product?.article ?? '',
+        serialNumber: item.product?.serialNumber ?? '',
+        price: item.price,
+        quantity: item.quantity,
+        warrantyPeriod: item.warrantyPeriod,
+        warehouse: item.product ? getProductWarehouse(item.product) : '',
+      })),
     });
 
-    if (success) {
-      onClose();
-    }
+      if (success) {
+        onClose();
+      }
   };
 
   return (
@@ -195,19 +535,14 @@ export const CreateOrderCard = ({
 
         <div className="create-order-grid">
           <div className="create-order-left">
-            <label className="field">
-              <span>Order number</span>
-              <input placeholder="Automatic r000001" readOnly />
-            </label>
-
             <h3 className="create-section-title">Client</h3>
-            <div className="create-row-3">
+            <div className="create-row-2">
               <label className="field">
                 <span>Client data *</span>
                 <input
                   value={clientPhone}
-                  onChange={(event) => setClientPhone(formatPhone(event.target.value))}
-                  onFocus={() => setClientPhone((current) => current || '+380')}
+                  onChange={(event) => onClientPhoneChange(event.target.value)}
+                  onBlur={onClientPhoneBlur}
                   placeholder="+380"
                 />
               </label>
@@ -215,122 +550,252 @@ export const CreateOrderCard = ({
                 <span>&nbsp;</span>
                 <input
                   value={clientName}
-                  onChange={(event) => setClientName(event.target.value)}
+                  onChange={(event) => onClientNameChange(event.target.value)}
                   placeholder="Full name"
                 />
               </label>
-              <label className="field">
-                <span>&nbsp;</span>
-                <select defaultValue="Individual">
-                  <option>Individual</option>
-                  <option>Business</option>
-                </select>
-              </label>
             </div>
+            {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
+              <div className="create-suggestions">
+                {isClientLookupLoading ? <p>Searching clients...</p> : null}
+                {visibleClientSuggestions.map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    className="create-suggestion-item"
+                    onClick={() => applyClient(client)}
+                  >
+                    <strong>{client.name}</strong>
+                    <span>{client.phone}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
-            <label className="field">
-              <span>Discount code</span>
-              <input value={discountCode} onChange={(event) => setDiscountCode(event.target.value)} />
-            </label>
+            {activeTab === 'sale' ? (
+              <>
+                <h3 className="create-section-title">Products</h3>
+                <div className="sale-items-list">
+                  {saleItems.map((item, index) => {
+                    const availableQuantity = item.product?.freeQuantity ?? 0;
+                    return (
+                      <div key={item.id} className="sale-item-row">
+                        <label className="field sale-item-product">
+                          <span>{`Product ${index + 1} *`}</span>
+                          <input
+                            value={item.query}
+                            onFocus={() => setFocusedSaleItemId(item.id)}
+                            onChange={(event) => {
+                              setFocusedSaleItemId(item.id);
+                              updateSaleItem(item.id, {
+                                query: event.target.value,
+                                product: null,
+                              });
+                            }}
+                            placeholder="Name, serial or article"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Qty</span>
+                          <NumberStepper
+                            min={1}
+                            max={availableQuantity || undefined}
+                            value={item.quantity}
+                            onChange={(value) => updateSaleItem(item.id, { quantity: value })}
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Price</span>
+                          <NumberStepper
+                            min={0}
+                            value={item.price}
+                            onChange={(value) => {
+                              updateSaleItem(item.id, { price: value });
+                            }}
+                            placeholder="0"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Warranty</span>
+                          <select
+                            value={item.warrantyPeriod}
+                            onChange={(event) =>
+                              updateSaleItem(item.id, { warrantyPeriod: event.target.value })
+                            }
+                          >
+                            <option value="0">None</option>
+                            <option value="1">30 day</option>
+                            <option value="3">3 month</option>
+                            <option value="6">6 month</option>
+                            <option value="12">1 year</option>
+                            <option value="24">2 year</option>
+                            <option value="36">3 year</option>
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className="toolbar-square-button sale-item-add-button"
+                          onClick={index === saleItems.length - 1 ? addSaleItem : () => removeSaleItem(item.id)}
+                          aria-label={index === saleItems.length - 1 ? 'Add product position' : 'Remove product position'}
+                        >
+                          {index === saleItems.length - 1 ? '+' : '-'}
+                        </button>
+                        {item.product ? (
+                          <div className="sale-item-stock">
+                            <span>{getProductWarehouse(item.product)}</span>
+                            <span>{`${item.product.serialNumber} / available ${item.product.freeQuantity}`}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
 
-            <h3 className="create-section-title">Device</h3>
-            <div className="create-device-search">
-              <label className="field">
-                <span>Device #1 *</span>
-                <input
-                  value={deviceName}
-                  onChange={(event) => setDeviceName(event.target.value)}
-                  placeholder="Enter device name"
-                />
-              </label>
-              <button type="button" className="secondary-button">Create new</button>
-            </div>
+                {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading || canOrderUnavailableProduct) ? (
+                  <div className="create-suggestions">
+                    {isSaleProductLookupLoading ? <p>Searching products in stock...</p> : null}
+                    {visibleSaleProductSuggestions.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="create-suggestion-item"
+                        onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
+                      >
+                        <strong>{product.name}</strong>
+                        <span>{`${product.article} / ${product.serialNumber} / ${getProductWarehouse(product)} / available ${product.freeQuantity}`}</span>
+                      </button>
+                    ))}
+                    <div className="sale-order-unavailable">
+                      <span>{focusedSaleItem?.price ? `${focusedSaleItem.price} UAH` : 'Price'}</span>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={!canOrderUnavailableProduct}
+                        onClick={orderUnavailableProduct}
+                      >
+                        Order
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
-            <div className="create-row-2">
-              <label className="field">
-                <span>&nbsp;</span>
-                <input
-                  value={deviceColor}
-                  onChange={(event) => setDeviceColor(event.target.value)}
-                  placeholder="Device color"
-                />
-              </label>
-              <label className="field">
-                <span>&nbsp;</span>
-                <input
-                  value={deviceSerialNumber}
-                  onChange={(event) => setDeviceSerialNumber(event.target.value)}
-                  placeholder="Serial number"
-                />
-              </label>
-            </div>
+                <label className="field">
+                  <span>Notes</span>
+                  <textarea
+                    rows={3}
+                    value={issueFromClient}
+                    onChange={(event) => setIssueFromClient(event.target.value)}
+                    placeholder="Sale notes"
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                <h3 className="create-section-title">Device</h3>
+                <div className="create-device-search">
+                  <label className="field">
+                    <span>Device #1 *</span>
+                    <input
+                      value={deviceName}
+                      onChange={(event) => setDeviceName(event.target.value)}
+                      placeholder="Enter device name"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setNewDeviceName(deviceName.trim());
+                      setNewDeviceIsActive(true);
+                      setIsCreateDeviceModalOpen(true);
+                    }}
+                  >
+                    Create new
+                  </button>
+                </div>
+                {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
+                  <div className="create-suggestions">
+                    {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
+                    {visibleDeviceSuggestions.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="create-suggestion-item"
+                        onClick={() => applyProduct(product)}
+                    >
+                      <strong>{product.name}{product.isActive ? '' : ' (inactive)'}</strong>
+                      <span>{product.serialNumber}</span>
+                    </button>
+                  ))}
+                </div>
+                ) : null}
 
-            <label className="field">
-              <span>Kit</span>
-              <input
-                value={deviceKit}
-                onChange={(event) => setDeviceKit(event.target.value)}
-                placeholder="Describe accessories"
-              />
-            </label>
+                <div className="create-row-2">
+                  <label className="field">
+                    <span>&nbsp;</span>
+                    <input
+                      value={deviceColor}
+                      onChange={(event) => setDeviceColor(event.target.value)}
+                      placeholder="Device color"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>&nbsp;</span>
+                    <input
+                      value={deviceSerialNumber}
+                      onChange={(event) => setDeviceSerialNumber(event.target.value)}
+                      placeholder="Serial number"
+                    />
+                  </label>
+                </div>
 
-            <label className="field">
-              <span>Repair type</span>
-              <select value={repairType} onChange={(event) => setRepairType(event.target.value)}>
-                <option>Paid</option>
-                <option>Warranty</option>
-              </select>
-            </label>
+                <label className="field">
+                  <span>Kit</span>
+                  <input
+                    value={deviceKit}
+                    onChange={(event) => setDeviceKit(event.target.value)}
+                    placeholder="Describe accessories"
+                  />
+                </label>
 
-            <label className="field">
-              <span>Issue from client</span>
-              <textarea
-                rows={3}
-                value={issueFromClient}
-                onChange={(event) => setIssueFromClient(event.target.value)}
-              />
-            </label>
+                <label className="field">
+                  <span>Repair type</span>
+                  <select value={repairType} onChange={(event) => setRepairType(event.target.value)}>
+                    <option>Paid</option>
+                    <option>Warranty</option>
+                  </select>
+                </label>
 
-            <label className="field">
-              <span>External condition</span>
-              <textarea
-                rows={3}
-                value={externalView}
-                onChange={(event) => setExternalView(event.target.value)}
-                placeholder="Scratches, dents..."
-              />
-            </label>
+                <label className="field">
+                  <span>Issue from client</span>
+                  <textarea
+                    rows={3}
+                    value={issueFromClient}
+                    onChange={(event) => setIssueFromClient(event.target.value)}
+                  />
+                </label>
 
-            <h3 className="create-section-title">Cost</h3>
-            <div className="create-cost-row">
-              <label className="field">
-                <span>Estimated cost</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={estimatedCost}
-                  onChange={(event) => setEstimatedCost(event.target.value)}
-                />
-              </label>
-              <div className="create-currency-tag">UAH</div>
-              <button type="button" className="secondary-button">Cash</button>
-            </div>
-
-            <label className="create-inline-checkbox">
-              <input type="checkbox" defaultChecked />
-              <span>"Total" equals "Repair cost"</span>
-            </label>
+                <label className="field">
+                  <span>External condition</span>
+                  <textarea
+                    rows={3}
+                    value={externalView}
+                    onChange={(event) => setExternalView(event.target.value)}
+                    placeholder="Scratches, dents..."
+                  />
+                </label>
+              </>
+            )}
 
             <div className="create-prepay-row">
               <label className="field">
                 <span>Prepayment</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={prepayment}
-                  onChange={(event) => setPrepayment(event.target.value)}
-                  placeholder="Enter amount"
-                />
+                  <NumberStepper
+                    min={0}
+                    value={prepayment}
+                    onChange={setPrepayment}
+                    placeholder="Enter amount"
+                  />
               </label>
               <div className="create-currency-tag">UAH</div>
               <label className="field">
@@ -357,7 +822,7 @@ export const CreateOrderCard = ({
             <h4 className="create-subtitle">Additional information</h4>
             <div className="create-checks-grid">
               <div className="create-checks-col">
-                {extraOptionsLeft.map((option) => (
+                {(activeTab === 'sale' ? saleExtraOptionsLeft : extraOptionsLeft).map((option) => (
                   <label key={option} className="create-inline-checkbox">
                     <input
                       type="checkbox"
@@ -369,7 +834,7 @@ export const CreateOrderCard = ({
                 ))}
               </div>
               <div className="create-checks-col">
-                {extraOptionsRight.map((option) => (
+                {(activeTab === 'sale' ? saleExtraOptionsRight : extraOptionsRight).map((option) => (
                   <label key={option} className="create-inline-checkbox">
                     <input
                       type="checkbox"
@@ -385,8 +850,12 @@ export const CreateOrderCard = ({
             <h3 className="create-section-title">Responsible</h3>
             <div className="create-row-2">
               <label className="field">
-                <span>Manager</span>
-                <select value={managerId} onChange={(event) => setManagerId(event.target.value)}>
+                  <span>Manager</span>
+                <select
+                  value={effectiveManagerId}
+                  onChange={(event) => setManagerId(event.target.value)}
+                  disabled={canCurrentEmployeeManageOrders}
+                >
                   <option value="">Select manager</option>
                   {managers.map((employee) => (
                     <option key={employee.id} value={employee.id}>
@@ -395,17 +864,19 @@ export const CreateOrderCard = ({
                   ))}
                 </select>
               </label>
-              <label className="field">
-                <span>Master</span>
-                <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
-                  <option value="">Select master</option>
-                  {masters.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {activeTab === 'repair' ? (
+                <label className="field">
+                  <span>Master</span>
+                  <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
+                    <option value="">Select master</option>
+                    {masters.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
 
             <div className="create-order-actions">
@@ -420,13 +891,60 @@ export const CreateOrderCard = ({
 
           <aside className="create-order-right">
             <section className="create-side-box">
-              <h4>Client requests</h4>
-              <p>Select client or device to view previous requests.</p>
+              <h4>Client devices</h4>
+              {deviceHistory.length ? (
+                <div className="create-side-list">
+                  {deviceHistory.map((sale) => (
+                    <button
+                      key={sale.id}
+                      type="button"
+                      className="create-side-list-button"
+                      onClick={() =>
+                        applyProduct({
+                          id: sale.product.id,
+                          article: sale.product.article,
+                          name: sale.product.name,
+                          serialNumber: sale.product.serialNumber,
+                          price: sale.salePrice,
+                          salePriceOptions: [],
+                          note: '',
+                          quantity: sale.quantity,
+                          reservedQuantity: 0,
+                          freeQuantity: 0,
+                          isInStock: true,
+                          isActive: true,
+                          purchasePlace: '',
+                          purchaseDate: null,
+                          warrantyPeriod: 0,
+                          createdAt: sale.createdAt,
+                          updatedAt: sale.updatedAt,
+                        })
+                      }
+                    >
+                      <strong>{sale.product.name}</strong>
+                      <span>{sale.product.serialNumber}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p>Select client to view devices that were already in service.</p>
+              )}
             </section>
 
             <section className="create-side-box">
-              <h4>Client devices</h4>
-              <p>Select client to view devices that were already in service.</p>
+              <h4>Client requests</h4>
+              {visibleClientHistory?.sales.length ? (
+                <div className="create-side-list">
+                  {visibleClientHistory.sales.slice(0, 5).map((sale) => (
+                    <div key={sale.id} className="create-side-list-item">
+                      <strong>{sale.recordNumber ?? 'r------'}</strong>
+                      <span>{sale.product.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>Select client or device to view previous requests.</p>
+              )}
             </section>
 
             <section className="create-side-box">
@@ -436,6 +954,56 @@ export const CreateOrderCard = ({
           </aside>
         </div>
       </div>
+      {isCreateDeviceModalOpen ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+            <header className="catalog-edit-header">
+              <div className="catalog-edit-title">
+                <h2>Create device</h2>
+              </div>
+              <button
+                type="button"
+                className="create-order-close"
+                onClick={() => setIsCreateDeviceModalOpen(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </header>
+            <div className="catalog-edit-body">
+              <label className="field">
+                <span>Name</span>
+                <input
+                  value={newDeviceName}
+                  onChange={(event) => setNewDeviceName(event.target.value)}
+                  placeholder="Device name"
+                />
+              </label>
+              <label className="create-inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={newDeviceIsActive}
+                  onChange={(event) => setNewDeviceIsActive(event.target.checked)}
+                />
+                <span>Activity</span>
+              </label>
+            </div>
+            <footer className="catalog-edit-footer">
+              <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isDeviceCreating || newDeviceName.trim().length < 2}
+                onClick={() => void createDeviceFromModal()}
+              >
+                {isDeviceCreating ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };
