@@ -9,6 +9,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import {
   getClientStatusColor,
   getClientStatusClass,
+  getEffectiveClientStatusLogic,
 } from '../../../entities/client/model/constants';
 import {
   formatCurrency,
@@ -140,20 +141,6 @@ const filterStatusOptions: Array<{
   value: ClientStatus | '' | 'all';
 }> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
 
-const getAutoClientStatus = (visits: number): ClientStatus => {
-  if (visits >= 10) return 'vip';
-  if (visits >= 5) return 'opt';
-  if (visits >= 3) return 'ok';
-  return 'new';
-};
-
-const getEffectiveClientStatus = (
-  status: ClientStatus | '',
-  visits: number,
-): ClientStatus | '' => {
-  if (status === 'blacklist' || status === '') return status;
-  return getAutoClientStatus(visits);
-};
 
 const getMetaFieldFromNote = (
   note: string,
@@ -392,7 +379,7 @@ export const ClientsWorkspace = ({
         const searchable =
           `${client.id} ${client.name} ${client.phone} ${client.note}`.toLowerCase();
         const createdAt = new Date(client.createdAt).getTime();
-        const effectiveStatus = getEffectiveClientStatus(
+        const effectiveStatus = getEffectiveClientStatusLogic(
           client.status || '',
           stats.visits,
         );
@@ -948,13 +935,13 @@ export const ClientsWorkspace = ({
                     <td>{client.id.slice(-6)}</td>
                     <td>
                       <span
-                        className={`client-status-badge ${getClientStatusClass(getEffectiveClientStatus(client.status || '', stats.visits) || '')}`}
+                        className={`client-status-badge ${getClientStatusClass(getEffectiveClientStatusLogic(client.status || '', stats.visits) || '')}`}
                         style={{
-                          backgroundColor: getClientStatusColor(getEffectiveClientStatus(client.status || '', stats.visits) || ''),
+                          backgroundColor: getClientStatusColor(getEffectiveClientStatusLogic(client.status || '', stats.visits) || ''),
                           color: 'white'
                         }}
                       >
-                        {getEffectiveClientStatus(client.status || '', stats.visits) || '-'}
+                        {getEffectiveClientStatusLogic(client.status || '', stats.visits) || '-'}
                       </span>
                     </td>
                     <td>{client.name}</td>

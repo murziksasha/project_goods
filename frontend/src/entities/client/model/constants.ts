@@ -17,3 +17,24 @@ export const getClientStatusClass = (status: ClientStatus | ''): string => {
   if (!status) return 'status-gray';
   return `status-${status}`;
 };
+
+/**
+ * Логика определения эффективного статуса клиента:
+ * - blacklist всегда имеет приоритет (не может быть изменен автоматически)
+ * - если статус установлен вручную (не пустой) - используется как есть
+ * - если статус пустой - автоматически определяется по количеству заказов
+ */
+export const getEffectiveClientStatusLogic = (
+  status: ClientStatus | '',
+  visits: number,
+): ClientStatus | '' => {
+  // blacklist всегда имеет приоритет
+  if (status === 'blacklist') return 'blacklist';
+  // если статус установлен вручную (не пустой), используем его
+  if (status !== '') return status;
+  // иначе автоматически определяем статус по количеству заказов
+  if (visits >= 10) return 'vip';
+  if (visits >= 5) return 'opt';
+  if (visits >= 3) return 'ok';
+  return 'new';
+};
