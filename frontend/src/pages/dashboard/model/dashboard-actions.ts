@@ -1,9 +1,6 @@
 import {
-  createClient,
-  deleteClient,
   getClientHistory,
   mergeClients as mergeClientsApi,
-  updateClient,
 } from '../../../entities/client/api/clientApi';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
 import type {
@@ -23,23 +20,13 @@ import type {
   EmployeeFormValues,
 } from '../../../entities/employee/model/types';
 import {
-  archiveProduct,
-  createProduct,
-  deleteProduct,
   exportProducts,
-  getProducts,
-  updateProduct,
 } from '../../../entities/product/api/productApi';
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
-import { createSale, deleteSale, updateSale } from '../../../entities/sale/api/saleApi';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import {
-  archiveServiceCatalogItem,
-  createServiceCatalogItem,
-  deleteServiceCatalogItem,
-  updateServiceCatalogItem,
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import {
   initialServiceCatalogForm,
@@ -52,7 +39,6 @@ import type {
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
 import { createSupplier, updateSupplier } from '../../../entities/supplier/api/supplierApi';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
-import { createClientDevice } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import type {
@@ -92,7 +78,6 @@ type DashboardActionParams = {
   setAllClients: Setter<Client[]>;
   setAllEmployees: Setter<Employee[]>;
   setSuppliers: Setter<Supplier[]>;
-  setClientDevices: Setter<ClientDevice[]>;
   setSales: Setter<Sale[]>;
   setServices: Setter<ServiceCatalogItem[]>;
   setSettings: Setter<AppSettings | null>;
@@ -124,6 +109,58 @@ type DashboardActionParams = {
   setError: Setter<string>;
   setSuccessMessage: Setter<string>;
   currentEmployee: Employee | null;
+  refreshSales: () => Promise<void>;
+  refreshProducts: () => Promise<void>;
+  refreshClientDevices: () => Promise<void>;
+  mutateCreateProduct: (payload: ProductFormValues) => Promise<Product>;
+  mutateUpdateProduct: (
+    productId: string,
+    payload: ProductFormValues,
+  ) => Promise<Product>;
+  mutateCreateSale: (payload: SaleFormValues) => Promise<{
+    sale: Sale;
+    product: Product;
+  }>;
+  mutateUpdateSale: (saleId: string, payload: SaleFormValues) => Promise<{
+    sale: Sale;
+    product: Product;
+  }>;
+  mutateCreateClientDevice: (
+    payload: ClientDeviceFormValues,
+  ) => Promise<ClientDevice>;
+  mutateUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<ClientDevice>;
+  mutateDeleteClientDevice: (deviceId: string) => Promise<{ id: string }>;
+  mutateArchiveProduct: (
+    productId: string,
+  ) => Promise<
+    { id: string; action: 'deleted' } | { action: 'deactivated'; product: Product }
+  >;
+  mutateDeleteProduct: (productId: string) => Promise<void>;
+  mutateDeleteSale: (
+    saleId: string,
+  ) => Promise<{ id: string; restoredProductId: string }>;
+  mutateCreateService: (
+    payload: ServiceCatalogFormValues,
+  ) => Promise<ServiceCatalogItem>;
+  mutateUpdateService: (
+    serviceId: string,
+    payload: ServiceCatalogFormValues,
+  ) => Promise<ServiceCatalogItem>;
+  mutateDeleteService: (serviceId: string) => Promise<{ id: string }>;
+  mutateArchiveService: (
+    serviceId: string,
+  ) => Promise<
+    { id: string; action: 'deleted' } | { action: 'deactivated'; service: ServiceCatalogItem }
+  >;
+  mutateCreateClient: (payload: ClientFormValues) => Promise<Client>;
+  mutateUpdateClient: (
+    clientId: string,
+    payload: ClientFormValues,
+  ) => Promise<Client>;
+  mutateDeleteClient: (clientId: string) => Promise<void>;
 };
 
 export const createDashboardActions = ({
@@ -149,7 +186,6 @@ export const createDashboardActions = ({
   setAllClients,
   setAllEmployees,
   setSuppliers,
-  setClientDevices,
   setSales,
   setServices,
   setSettings,
@@ -181,6 +217,26 @@ export const createDashboardActions = ({
   setError,
   setSuccessMessage,
   currentEmployee,
+  refreshSales,
+  refreshProducts,
+  refreshClientDevices,
+  mutateCreateProduct,
+  mutateUpdateProduct,
+  mutateCreateSale,
+  mutateUpdateSale,
+  mutateCreateClientDevice,
+  mutateUpdateClientDevice,
+  mutateDeleteClientDevice,
+  mutateArchiveProduct,
+  mutateDeleteProduct,
+  mutateDeleteSale,
+  mutateCreateService,
+  mutateUpdateService,
+  mutateDeleteService,
+  mutateArchiveService,
+  mutateCreateClient,
+  mutateUpdateClient,
+  mutateDeleteClient,
 }: DashboardActionParams) => {
   const clearNotifications = () => {
     setError('');
@@ -221,6 +277,32 @@ export const createDashboardActions = ({
   };
   const normalizeServiceName = (value: string) =>
     value.trim().replace(/\s+/g, ' ').toLowerCase();
+  const safeRefresh = async (
+    refreshAction: () => Promise<void>,
+    fallbackMessage: string,
+  ) => {
+    try {
+      await refreshAction();
+    } catch (requestError) {
+      setError(getRequestErrorMessage(requestError, fallbackMessage));
+    }
+  };
+  const isOptimisticConflict = (error: unknown) =>
+    getRequestErrorMessage(error, '')
+      .toLowerCase()
+      .includes('modified by another user');
+  const handleOptimisticConflict = async (
+    error: unknown,
+    refreshAction: () => Promise<void>,
+    entityLabel: string,
+  ) => {
+    if (!isOptimisticConflict(error)) return false;
+    await safeRefresh(refreshAction, `Failed to refresh ${entityLabel}.`);
+    setError(
+      `${entityLabel} was updated by another user. Latest data loaded, please retry.`,
+    );
+    return true;
+  };
 
   const formatOrderDateTime = (dateValue: string, timeValue: string) => {
     const now = new Date();
@@ -249,6 +331,10 @@ export const createDashboardActions = ({
       article: articleFallback,
     };
   };
+
+  const repairPlaceholderProduct = allProducts.find(
+    (product) => product.article.toUpperCase() === 'REPAIR-PLACEHOLDER',
+  );
 
   return {
     replaceSaleInState: (sale: Sale) => {
@@ -330,19 +416,26 @@ export const createDashboardActions = ({
 
       try {
         if (editingProductId) {
-          const updatedProduct = await updateProduct(editingProductId, productForm);
-          setAllProducts((current) =>
-            current.map((item) => (item.id === updatedProduct.id ? updatedProduct : item)),
-          );
+          await mutateUpdateProduct(editingProductId, productForm);
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
           setSuccessMessage('Product updated.');
         } else {
-          const createdProduct = await createProduct(productForm);
-          setAllProducts((current) => [createdProduct, ...current]);
+          await mutateCreateProduct(productForm);
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
           setSuccessMessage('Product saved to MongoDB.');
         }
 
         resetProductEditor();
       } catch (requestError) {
+        if (
+          await handleOptimisticConflict(
+            requestError,
+            refreshProducts,
+            'Product',
+          )
+        ) {
+          return;
+        }
         setError(getRequestErrorMessage(requestError, 'Failed to save product.'));
       } finally {
         setIsProductSaving(false);
@@ -370,7 +463,7 @@ export const createDashboardActions = ({
           const editingService = allServices.find(
             (service) => service.id === editingServiceId,
           );
-          const updatedService = await updateServiceCatalogItem(
+          const updatedService = await mutateUpdateService(
             editingServiceId,
             {
               ...serviceForm,
@@ -384,7 +477,7 @@ export const createDashboardActions = ({
           );
           setSuccessMessage('Service updated.');
         } else {
-          const createdService = await createServiceCatalogItem(serviceForm);
+          const createdService = await mutateCreateService(serviceForm);
           setServices((current) => [createdService, ...current]);
           setSuccessMessage('Service saved to catalog.');
         }
@@ -402,7 +495,7 @@ export const createDashboardActions = ({
 
       try {
         if (editingClientId) {
-          const updatedClient = await updateClient(editingClientId, clientForm);
+          const updatedClient = await mutateUpdateClient(editingClientId, clientForm);
           setAllClients((current) =>
             current.map((item) => (item.id === updatedClient.id ? updatedClient : item)),
           );
@@ -411,7 +504,7 @@ export const createDashboardActions = ({
           }
           setSuccessMessage('Клієнта оновлено.');
         } else {
-          const createdClient = await createClient(clientForm);
+          const createdClient = await mutateCreateClient(clientForm);
           setAllClients((current) => [createdClient, ...current]);
           setSuccessMessage('Картку клієнта створено.');
         }
@@ -428,7 +521,7 @@ export const createDashboardActions = ({
       clearNotifications();
 
       try {
-        const createdClient = await createClient(payload);
+        const createdClient = await mutateCreateClient(payload);
         setAllClients((current) => [createdClient, ...current]);
         setSuccessMessage('Картку клієнта створено.');
         return true;
@@ -458,8 +551,8 @@ export const createDashboardActions = ({
       setIsProductSaving(true);
       clearNotifications();
       try {
-        const createdDevice = await createClientDevice(payload);
-        setClientDevices((current) => [createdDevice, ...current]);
+        await mutateCreateClientDevice(payload);
+        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
         setSuccessMessage('Client device created.');
         return true;
       } catch (requestError) {
@@ -540,7 +633,7 @@ export const createDashboardActions = ({
       clearNotifications();
 
       try {
-        const updatedClient = await updateClient(clientId, payload);
+        const updatedClient = await mutateUpdateClient(clientId, payload);
         setAllClients((current) =>
           current.map((item) =>
             item.id === updatedClient.id ? updatedClient : item,
@@ -565,18 +658,14 @@ export const createDashboardActions = ({
 
       try {
         if (editingSaleId) {
-          const result = await updateSale(editingSaleId, saleForm);
-          setSales((current) =>
-            current.map((sale) => (sale.id === result.sale.id ? result.sale : sale)),
-          );
-          setAllProducts(await getProducts());
+          await mutateUpdateSale(editingSaleId, saleForm);
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
+          await safeRefresh(refreshSales, 'Failed to refresh sales.');
           setSuccessMessage('Sale updated and stock recalculated.');
         } else {
-          const result = await createSale(saleForm);
-          setSales((current) => [result.sale, ...current]);
-          setAllProducts(
-            allProducts.map((item) => (item.id === result.product.id ? result.product : item)),
-          );
+          await mutateCreateSale(saleForm);
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
+          await safeRefresh(refreshSales, 'Failed to refresh sales.');
           setSuccessMessage('Sale card created and stock updated.');
         }
 
@@ -585,6 +674,16 @@ export const createDashboardActions = ({
           await refreshClientHistory(selectedClientId);
         }
       } catch (requestError) {
+        if (
+          await handleOptimisticConflict(
+            requestError,
+            refreshSales,
+            'Sale',
+          )
+        ) {
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
+          return;
+        }
         setError(getRequestErrorMessage(requestError, 'Failed to save sale.'));
       } finally {
         setIsSaleSaving(false);
@@ -633,8 +732,9 @@ export const createDashboardActions = ({
       if (!window.confirm(`Delete product "${product.name}"?`)) return;
 
       try {
-        await deleteProduct(product.id);
+        await mutateDeleteProduct(product.id);
         setAllProducts((current) => current.filter((item) => item.id !== product.id));
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
         if (editingProductId === product.id) resetProductEditor();
         setSuccessMessage('Product deleted.');
       } catch (requestError) {
@@ -650,9 +750,10 @@ export const createDashboardActions = ({
       ) return;
 
       try {
-        const result = await archiveProduct(product.id);
+        const result = await mutateArchiveProduct(product.id);
         if (result.action === 'deleted') {
           setAllProducts((current) => current.filter((item) => item.id !== product.id));
+          await safeRefresh(refreshProducts, 'Failed to refresh products.');
           if (editingProductId === product.id) resetProductEditor();
           setSuccessMessage('Product deleted.');
           return;
@@ -663,6 +764,7 @@ export const createDashboardActions = ({
             item.id === result.product.id ? result.product : item,
           ),
         );
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
         setSuccessMessage('Product deactivated.');
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate product.'));
@@ -674,7 +776,7 @@ export const createDashboardActions = ({
       setIsProductSaving(true);
 
       try {
-        const updatedProductResponse = await updateProduct(product.id, {
+        const updatedProductResponse = await mutateUpdateProduct(product.id, {
           ...toProductForm(product),
           isActive: true,
         });
@@ -687,6 +789,7 @@ export const createDashboardActions = ({
             item.id === updatedProduct.id ? updatedProduct : item,
           ),
         );
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
         if (editingProductId === updatedProduct.id) {
           setProductForm(toProductForm(updatedProduct));
         }
@@ -702,7 +805,7 @@ export const createDashboardActions = ({
       if (!window.confirm(`Delete service "${service.name}"?`)) return;
 
       try {
-        await deleteServiceCatalogItem(service.id);
+        await mutateDeleteService(service.id);
         setServices((current) => current.filter((item) => item.id !== service.id));
         if (editingServiceId === service.id) resetServiceEditor();
         setSuccessMessage('Service deleted.');
@@ -719,7 +822,7 @@ export const createDashboardActions = ({
       ) return;
 
       try {
-        const result = await archiveServiceCatalogItem(service.id);
+        const result = await mutateArchiveService(service.id);
         if (result.action === 'deleted') {
           setServices((current) => current.filter((item) => item.id !== service.id));
           if (editingServiceId === service.id) resetServiceEditor();
@@ -743,7 +846,7 @@ export const createDashboardActions = ({
       setIsServiceSaving(true);
 
       try {
-        const updatedServiceResponse = await updateServiceCatalogItem(service.id, {
+        const updatedServiceResponse = await mutateUpdateService(service.id, {
           ...toServiceCatalogForm(service),
           isActive: true,
         });
@@ -776,7 +879,7 @@ export const createDashboardActions = ({
       if (!window.confirm(`Видалити клієнта "${client.name}"?`)) return;
 
       try {
-        await deleteClient(client.id);
+        await mutateDeleteClient(client.id);
         setAllClients((current) => current.filter((item) => item.id !== client.id));
         if (selectedClientId === client.id) {
           setSelectedClientId(null);
@@ -793,9 +896,10 @@ export const createDashboardActions = ({
       if (!window.confirm(`Delete sale for "${sale.product.name}"?`)) return;
 
       try {
-        await deleteSale(sale.id);
+        await mutateDeleteSale(sale.id);
         setSales((current) => current.filter((item) => item.id !== sale.id));
-        setAllProducts(await getProducts());
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        await safeRefresh(refreshSales, 'Failed to refresh sales.');
         if (editingSaleId === sale.id) resetSaleEditor();
         if (selectedClientId === sale.client.id) await refreshClientHistory(sale.client.id);
         setSuccessMessage('Sale deleted and stock restored.');
@@ -853,6 +957,45 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to seed demo data.'));
       } finally {
         setIsSeeding(false);
+      }
+    },
+    updateClientDeviceCard: async (deviceId: string, payload: ClientDeviceFormValues) => {
+      setIsProductSaving(true);
+      clearNotifications();
+      try {
+        await mutateUpdateClientDevice(deviceId, payload);
+        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
+        setSuccessMessage('Client device updated.');
+        return true;
+      } catch (requestError) {
+        if (
+          await handleOptimisticConflict(
+            requestError,
+            refreshClientDevices,
+            'Client device',
+          )
+        ) {
+          return false;
+        }
+        setError(getRequestErrorMessage(requestError, 'Failed to update client device.'));
+        return false;
+      } finally {
+        setIsProductSaving(false);
+      }
+    },
+    deleteClientDeviceCard: async (deviceId: string) => {
+      setIsProductSaving(true);
+      clearNotifications();
+      try {
+        await mutateDeleteClientDevice(deviceId);
+        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
+        setSuccessMessage('Client device removed.');
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to remove client device.'));
+        return false;
+      } finally {
+        setIsProductSaving(false);
       }
     },
     eraseAllData: async () => {
@@ -945,7 +1088,7 @@ export const createDashboardActions = ({
         );
         const client =
           existingClient ??
-          (await createClient({
+          (await mutateCreateClient({
             phone: normalizedPhone,
             name: clientName,
             note: payload.discountCode ? `Discount code: ${payload.discountCode.trim()}` : '',
@@ -960,33 +1103,36 @@ export const createDashboardActions = ({
         const existingProduct =
           payload.sourceTab === 'sale' && primarySaleItem?.productId
             ? allProducts.find((product) => product.id === primarySaleItem.productId)
-            : allProducts.find(
-                (product) => product.serialNumber.toUpperCase() === serialNumber,
-              );
+            : null;
 
-        let product = existingProduct;
+        let product = existingProduct ?? repairPlaceholderProduct;
         if (!product) {
-          const fallbackPrice =
-            payload.sourceTab === 'sale' && primarySaleItem
-              ? primarySaleItem.price
-              : estimatedCost;
-          const fallbackQuantity =
-            payload.sourceTab === 'sale' && primarySaleItem
-              ? String(primarySaleItem.quantity)
-              : '1';
-          product = await createProduct({
+          product = await mutateCreateProduct({
+            name: 'Repair placeholder',
+            article: 'REPAIR-PLACEHOLDER',
+            serialNumber: 'REPAIR-PLACEHOLDER',
+            price: '0',
+            salePriceOptions: '0',
+            quantity: '1',
+            note: 'System placeholder for repair orders. Do not use in stock sales.',
+            purchasePlace: 'Service center',
+            purchaseDate: '',
+            warrantyPeriod: '0',
+          });
+          setAllProducts((current) => [product!, ...current]);
+        }
+
+        if (payload.sourceTab === 'sale' && !existingProduct) {
+          const fallbackPrice = primarySaleItem ? primarySaleItem.price : estimatedCost;
+          const fallbackQuantity = primarySaleItem ? String(primarySaleItem.quantity) : '1';
+          product = await mutateCreateProduct({
             name: deviceName,
             article: primarySaleItem?.article || article,
             serialNumber: primarySaleItem?.serialNumber || serialNumber,
             price: String(fallbackPrice),
             salePriceOptions: String(fallbackPrice),
             quantity: fallbackQuantity,
-            note:
-              payload.sourceTab === 'sale'
-                ? 'Ordered from sale request'
-                : [payload.deviceColor, payload.deviceKit, payload.repairType]
-                    .filter(Boolean)
-                    .join(' | '),
+            note: 'Ordered from sale request',
             purchasePlace: '',
             purchaseDate: '',
             warrantyPeriod: '0',
@@ -1037,27 +1183,13 @@ export const createDashboardActions = ({
                 quantity: item.quantity,
                 warrantyPeriod: item.warrantyPeriod,
               }))
-            : [
-                {
-                  id: crypto.randomUUID(),
-                  kind: 'service' as const,
-                  productId: '',
-                  name: payload.serviceName.trim() || 'Repair',
-                  price: estimatedCost,
-                  quantity: 1,
-                  warrantyPeriod: 1,
-                },
-              ];
+            : [];
 
-        const saleResult = await createSale({
+        await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
           productId: product.id,
-          quantity: String(
-            payload.sourceTab === 'sale' && primarySaleItem
-              ? primarySaleItem.quantity
-              : 1,
-          ),
+          quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
           status: 'new',
@@ -1101,17 +1233,17 @@ export const createDashboardActions = ({
                   },
                 ]
               : [],
-          lineItems,
+          lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
 
-        setSales((current) => [saleResult.sale, ...current]);
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
             device.clientId === client.id &&
+            serialNumber.trim().length > 0 &&
             device.serialNumber.toUpperCase() === serialNumber.toUpperCase(),
         );
         if (!deviceAlreadyExists) {
-          const createdDevice = await createClientDevice({
+          await mutateCreateClientDevice({
             clientId: client.id,
             clientName: client.name,
             clientPhone: client.phone,
@@ -1121,9 +1253,10 @@ export const createDashboardActions = ({
             source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
             isActive: true,
           });
-          setClientDevices((current) => [createdDevice, ...current]);
         }
-        setAllProducts(await getProducts());
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        await safeRefresh(refreshSales, 'Failed to refresh sales.');
+        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
         setSuccessMessage('Order saved successfully.');
         return true;
       } catch (requestError) {
@@ -1135,3 +1268,4 @@ export const createDashboardActions = ({
     },
   };
 };
+

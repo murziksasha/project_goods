@@ -49,7 +49,7 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   updatedAt: supplier.updatedAt.toISOString(),
 });
 
-export const formatClientDevice = (device: ClientDeviceDocument) => ({
+export const formatClientDevice = (device: ClientDeviceDocument, usageCount = 0) => ({
   id: device._id.toString(),
   clientId: device.client.toString(),
   clientName: device.clientName,
@@ -59,6 +59,8 @@ export const formatClientDevice = (device: ClientDeviceDocument) => ({
   note: device.note ?? '',
   source: device.source,
   isActive: device.isActive ?? true,
+  usageCount,
+  canRemove: usageCount === 0,
   createdAt: device.createdAt.toISOString(),
   updatedAt: device.updatedAt.toISOString(),
 });
@@ -156,3 +158,4 @@ export const formatClientHistory = (
     totalItemsSold: sales.reduce((sum, sale) => sum + sale.quantity, 0),
   },
 });
+

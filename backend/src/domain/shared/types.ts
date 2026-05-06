@@ -10,6 +10,7 @@ export type ProductPayload = {
   purchaseDate?: unknown;
   warrantyPeriod?: unknown;
   reservedQuantity?: unknown;
+  expectedUpdatedAt?: unknown;
 };
 
 export type ClientPayload = {
@@ -40,6 +41,7 @@ export type SalePayload = {
   timeline?: unknown;
   paymentHistory?: unknown;
   lineItems?: unknown;
+  expectedUpdatedAt?: unknown;
 };
 
 export type EmployeePayload = {
@@ -82,4 +84,5 @@ export type ClientDevicePayload = {
   note?: unknown;
   source?: unknown;
   isActive?: unknown;
+  expectedUpdatedAt?: unknown;
 };

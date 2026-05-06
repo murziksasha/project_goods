@@ -141,3 +141,9 @@ npm run preview --prefix frontend
 - не коммитить локальные `.env` файлы
 - поддерживать `.env.example` в актуальном состоянии
 - обновлять документацию вместе с изменениями скриптов, портов и окружения
+
+## Multi-user Stability Notes
+
+- Current implementation includes post-mutation refresh for shared entities and a visible sync timestamp.
+- See [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) for phased implementation plan (conflict control, query cache, realtime, transactions).
+

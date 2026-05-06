@@ -1,4 +1,4 @@
-﻿export type ClientDevice = {
+export type ClientDevice = {
   id: string;
   clientId: string;
   clientName: string;
@@ -8,6 +8,8 @@
   note: string;
   source: 'clientCard' | 'repairOrder';
   isActive: boolean;
+  canRemove?: boolean;
+  usageCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -21,4 +23,6 @@ export type ClientDeviceFormValues = {
   note: string;
   source?: 'clientCard' | 'repairOrder';
   isActive?: boolean;
+  expectedUpdatedAt?: string;
 };
+
