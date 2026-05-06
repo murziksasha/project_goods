@@ -24,6 +24,12 @@ import {
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
+  createClientDevice,
+  getClientDevices,
+  updateClientDevice,
+} from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
+import {
   createServiceCatalogItem,
   getServiceCatalogItems,
   updateServiceCatalogItem,
@@ -48,6 +54,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
+  employees: Employee[];
   isLoading: boolean;
   activeTab: OrdersTab;
   searchValue: string;
@@ -78,6 +85,7 @@ type OrdersColumnKey =
   | 'term'
   | 'warehouse'
   | 'manager'
+  | 'master'
   | 'received'
   | 'createdAt'
   | 'readyDate';
@@ -205,6 +213,7 @@ const allOrdersColumnKeys: OrdersColumnKey[] = [
   'term',
   'warehouse',
   'manager',
+  'master',
   'received',
   'createdAt',
   'readyDate',
@@ -219,6 +228,7 @@ const defaultVisibleColumns: OrdersColumnVisibility = {
     'paid',
     'warehouse',
     'manager',
+    'master',
     'received',
     'createdAt',
     'readyDate',
@@ -253,6 +263,11 @@ const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
   { key: 'paid', label: 'Paid' },
   { key: 'completed', label: 'Completed' },
   { key: 'returned', label: 'Returned' },
+];
+const finalRepairStatuses: RepairStatus[] = [
+  'issued',
+  'clientRejected',
+  'issuedWithoutRepair',
 ];
 const emptyOrdersFilters: OrdersFilters = {
   statuses: [],
@@ -418,7 +433,7 @@ const warrantyOptions = [
 
 const getDefaultLineItems = (sale: Sale) =>
   isRepairOrder(sale)
-    ? [createOrderLineItem(sale, 'service')]
+    ? []
     : [createOrderLineItem(sale, 'product')];
 
 const getOrderTotal = (
@@ -427,10 +442,12 @@ const getOrderTotal = (
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
-  lineItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
+  lineItems.length > 0
+    ? lineItems.reduce(
+        (total, item) => total + item.price * item.quantity,
+        0,
+      )
+    : sale.salePrice;
 
 const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
   lineItems.reduce(
@@ -453,11 +470,26 @@ const isClosingStatus = (sale: Sale, status: OrderStatus) =>
 
 const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
-    ? isClosingStatus(sale, status)
+    ? finalRepairStatuses.includes(status as RepairStatus)
     : status === 'reserved' ||
       status === 'paid' ||
       status === 'completed' ||
       status === 'returned';
+
+const getRepairCompletionDate = (sale: Sale) => {
+  if (!isRepairOrder(sale)) return sale.saleDate;
+
+  const completionLabels = new Set(
+    finalRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
+  );
+  const completionEntry = (sale.timeline ?? []).find((entry) => {
+    const text = entry.message.toLowerCase();
+    if (!text.includes('changed status to')) return false;
+    return Array.from(completionLabels).some((label) => text.includes(`"${label}"`));
+  });
+
+  return completionEntry?.createdAt ?? sale.saleDate;
+};
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid' || status === 'completed';
@@ -551,10 +583,29 @@ const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
 const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   activeTab === 'orders' ? 'Device' : 'Service center';
 
+const getDeviceLineItem = (sale: Sale) =>
+  (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
+
+const getPrimaryDeviceName = (sale: Sale) => {
+  const snapshotName = sale.product.name?.trim();
+  if (snapshotName && snapshotName.toUpperCase() !== 'REPAIR PLACEHOLDER') {
+    return snapshotName;
+  }
+  const deviceItem = getDeviceLineItem(sale);
+  if (deviceItem?.name?.trim()) return deviceItem.name.trim();
+  return sale.product.name;
+};
+
+const getPrimaryDeviceSerial = (sale: Sale) => {
+  const serial = sale.product.serialNumber?.trim();
+  if (!serial || serial.toUpperCase() === 'REPAIR-PLACEHOLDER') return '';
+  return serial;
+};
+
 const getPrimaryItemCellContent = (
   sale: Sale,
   activeTab: OrdersTab,
-) => (activeTab === 'orders' ? sale.product.name : 'Service center');
+) => (activeTab === 'orders' ? getPrimaryDeviceName(sale) : 'Service center');
 
 const isUrgentRepairOrder = (sale: Sale) =>
   isRepairOrder(sale) &&
@@ -570,7 +621,9 @@ const getColumnLabel = (
     case 'manager':
       return 'Manager';
     case 'received':
-      return 'Received';
+      return 'Issued';
+    case 'master':
+      return 'Master';
     case 'status':
       return 'Status';
     case 'primaryItem':
@@ -642,8 +695,37 @@ const PhoneNumber = ({ value }: { value: string }) => {
   );
 };
 
+const isSystemTimelineMessage = (message: string) => {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized.includes('changed status to "') ||
+    normalized.includes('updated order main information') ||
+    normalized.includes('created order with status "') ||
+    normalized.includes('returned "') ||
+    normalized.includes('returned sale to ')
+  );
+};
+
+const getClientStatusClass = (status: string) => {
+  switch (status) {
+    case 'new':
+      return 'status-new';
+    case 'vip':
+      return 'status-vip';
+    case 'opt':
+      return 'status-opt';
+    case 'blacklist':
+      return 'status-blacklist';
+    case 'ok':
+      return 'status-ok';
+    default:
+      return 'status-gray';
+  }
+};
+
 export const OrdersWorkspace = ({
   sales,
+  employees,
   isLoading,
   activeTab,
   searchValue,
@@ -1193,7 +1275,10 @@ export const OrdersWorkspace = ({
     payload: {
       status?: OrderStatus;
       paidAmount?: number;
+      masterId?: string;
       issuedById?: string;
+      deviceName?: string;
+      serialNumber?: string;
       timeline?: TimelineEntry[];
       paymentHistory?: PaymentEntry[];
       lineItems?: OrderLineItem[];
@@ -1203,7 +1288,10 @@ export const OrdersWorkspace = ({
       kind: sale.kind,
       status: payload.status ?? normalizeOrderStatus(sale.status),
       paidAmount: payload.paidAmount ?? sale.paidAmount,
+      masterId: payload.masterId,
       issuedById: payload.issuedById,
+      deviceName: payload.deviceName,
+      serialNumber: payload.serialNumber,
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
@@ -1232,7 +1320,7 @@ export const OrdersWorkspace = ({
           status,
           issuedById: shouldCaptureReceivedBy(sale, status)
             ? currentEmployee?.id
-            : undefined,
+            : '',
           timeline: [
             appendTimelineEntry(
               `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
@@ -1266,7 +1354,7 @@ export const OrdersWorkspace = ({
       status,
       issuedById: shouldCaptureReceivedBy(sale, status)
         ? currentEmployee?.id
-        : undefined,
+        : '',
       timeline: [
         appendTimelineEntry(
           `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
@@ -1359,7 +1447,7 @@ export const OrdersWorkspace = ({
       case 'manager':
         return sale.manager?.name || '-';
       case 'received':
-        return sale.issuedBy?.name || sale.manager?.name || '-';
+        return sale.issuedBy?.name || '-';
       case 'status':
         return (
           <div className='order-status-menu'>
@@ -1404,11 +1492,13 @@ export const OrdersWorkspace = ({
             onClick={() => openSaleCard(sale)}
           >
             <span>{getPrimaryItemCellContent(sale, activeTab)}</span>
-            <small>
-              {activeTab === 'orders'
-                ? `S/N: ${sale.product.serialNumber}`
-                : 'Warehouse: Service center'}
-            </small>
+            {activeTab === 'orders' ? (
+              getPrimaryDeviceSerial(sale) ? (
+                <small>{`S/N: ${getPrimaryDeviceSerial(sale)}`}</small>
+              ) : null
+            ) : (
+              <small>Warehouse: Service center</small>
+            )}
           </button>
         );
       case 'price':
@@ -1429,6 +1519,13 @@ export const OrdersWorkspace = ({
             </button>
             <small>
               <PhoneNumber value={sale.client.phone} />
+              <span
+                className={`client-status-badge ${getClientStatusClass(
+                  String(sale.client.status || ''),
+                )}`}
+              >
+                {sale.client.status || 'new'}
+              </span>
             </small>
           </div>
         );
@@ -1441,10 +1538,12 @@ export const OrdersWorkspace = ({
         );
       case 'warehouse':
         return getWarehouseLabel(sale);
+      case 'master':
+        return sale.master?.name || '-';
       case 'createdAt':
         return formatReadyDate(sale.createdAt);
       case 'readyDate':
-        return formatReadyDate(sale.saleDate);
+        return formatReadyDate(getRepairCompletionDate(sale));
       default:
         return null;
     }
@@ -1793,7 +1892,7 @@ export const OrdersWorkspace = ({
           nextStatus &&
           shouldCaptureReceivedBy(paymentSale, nextStatus)
             ? currentEmployee?.id
-            : undefined,
+            : '',
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       });
@@ -2004,21 +2103,106 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const saveOrderMainInfo = async (
+    sale: Sale,
+    payload: {
+      deviceName: string;
+      serialNumber: string;
+      masterId: string;
+      status: OrderStatus;
+    },
+  ) => {
+    try {
+      const timeline = [
+        appendTimelineEntry(
+          `${currentEmployeeName} updated order main information.`,
+        ),
+        ...sale.timeline,
+      ];
+      const shouldAssignIssuedBy = shouldCaptureReceivedBy(
+        sale,
+        payload.status,
+      );
+      await persistSaleWorkspace(sale, {
+        status: payload.status,
+        masterId: payload.masterId,
+        deviceName: payload.deviceName,
+        serialNumber: payload.serialNumber,
+        issuedById:
+          shouldAssignIssuedBy && currentEmployee?.id
+            ? currentEmployee.id
+            : '',
+        timeline,
+      });
+
+      if (isRepairOrder(sale)) {
+        const normalizedOldDeviceName = getPrimaryDeviceName(sale)
+          .trim()
+          .toLowerCase();
+        const normalizedOldSerial = getPrimaryDeviceSerial(sale).trim().toUpperCase();
+        const probeQuery =
+          payload.deviceName.trim() || payload.serialNumber.trim() || sale.client.phone;
+        const allDevices = await getClientDevices(probeQuery);
+        const linkedDevice = allDevices.find((device) => {
+          if (device.clientId !== sale.client.id) return false;
+          if (
+            normalizedOldSerial &&
+            device.serialNumber.trim().toUpperCase() === normalizedOldSerial
+          ) {
+            return true;
+          }
+          return device.name.trim().toLowerCase() === normalizedOldDeviceName;
+        });
+
+        if (linkedDevice) {
+          await updateClientDevice(linkedDevice.id, {
+            clientId: sale.client.id,
+            clientName: sale.client.name,
+            clientPhone: sale.client.phone,
+            name: payload.deviceName,
+            serialNumber: '',
+            note: linkedDevice.note ?? '',
+            source: linkedDevice.source,
+            isActive: linkedDevice.isActive,
+            expectedUpdatedAt: linkedDevice.updatedAt,
+          });
+        } else if (payload.deviceName.trim().length >= 2) {
+          await createClientDevice({
+            clientId: sale.client.id,
+            clientName: sale.client.name,
+            clientPhone: sale.client.phone,
+            name: payload.deviceName,
+            serialNumber: '',
+            note: '',
+            source: 'repairOrder',
+            isActive: true,
+          });
+        }
+      }
+
+      onSuccess('Order main information updated.');
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save order main information.',
+      );
+    }
+  };
+
   return (
     <section className='orders-page'>
       {selectedSale ? (
         <OrderDetailCard
           sale={selectedSale}
           sales={sales}
+          employees={employees}
           status={selectedSaleStatus}
           statusOptions={selectedSaleStatusOptions}
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
           paidAmount={getPaidAmount(selectedSale)}
           onClose={() => setSelectedSaleId(null)}
-          onStatusChange={(status) =>
-            updateStatus(selectedSale, status)
-          }
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
           }
@@ -2040,6 +2224,9 @@ export const OrdersWorkspace = ({
           }
           onError={onError}
           onSuccess={onSuccess}
+          onSaveMainInfo={(payload) =>
+            saveOrderMainInfo(selectedSale, payload)
+          }
         />
       ) : null}
 
@@ -2694,13 +2881,13 @@ export const OrdersWorkspace = ({
 type OrderDetailCardProps = {
   sale: Sale;
   sales: Sale[];
+  employees: Employee[];
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; label: string }>;
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   paidAmount: number;
   onClose: () => void;
-  onStatusChange: (status: OrderStatus) => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveLineItem: (itemId: string) => void;
@@ -2725,18 +2912,24 @@ type OrderDetailCardProps = {
   onOpenClientCard: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  onSaveMainInfo: (payload: {
+    deviceName: string;
+    serialNumber: string;
+    masterId: string;
+    status: OrderStatus;
+  }) => Promise<void>;
 };
 
 const OrderDetailCard = ({
   sale,
   sales,
+  employees,
   status,
   statusOptions,
   comments,
   lineItems,
   paidAmount,
   onClose,
-  onStatusChange,
   onAddComment,
   onAddLineItem,
   onRemoveLineItem,
@@ -2748,6 +2941,7 @@ const OrderDetailCard = ({
   onOpenClientCard,
   onError,
   onSuccess,
+  onSaveMainInfo,
 }: OrderDetailCardProps) => {
   const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
@@ -2755,7 +2949,20 @@ const OrderDetailCard = ({
   const [isServicesOpen, setIsServicesOpen] = useState(
     isSaleCard ? false : true,
   );
+  const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
   const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
+  const [deviceNameInput, setDeviceNameInput] = useState('');
+  const [serialNumberInput, setSerialNumberInput] = useState('');
+  const [masterIdInput, setMasterIdInput] = useState('');
+  const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+  const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [deviceFormName, setDeviceFormName] = useState('');
+  const [deviceFormSerial, setDeviceFormSerial] = useState('');
+  const [deviceFormNote, setDeviceFormNote] = useState('');
+  const [isDeviceModalLoading, setIsDeviceModalLoading] = useState(false);
+  const [isDeviceModalSaving, setIsDeviceModalSaving] = useState(false);
   const total = getOrderTotal(sale, lineItems);
   const remainingPayment = getRemainingPayment(
     sale,
@@ -2772,6 +2979,76 @@ const OrderDetailCard = ({
     setIsProductsOpen(isSaleCard);
     setIsServicesOpen(isSaleCard ? false : true);
   }, [sale.id, isSaleCard]);
+  useEffect(() => {
+    setStatusDraft(status);
+  }, [status]);
+  useEffect(() => {
+    setDeviceNameInput(getPrimaryDeviceName(sale));
+    setSerialNumberInput(getPrimaryDeviceSerial(sale));
+    setMasterIdInput(sale.master?.id ?? '');
+  }, [sale]);
+  const masterOptions = useMemo(
+    () =>
+      employees.filter(
+        (employee) =>
+          employee.isActive &&
+          (employee.role === 'master' ||
+            employee.role === 'owner' ||
+            employee.permissions.includes('repairs.execute')),
+      ),
+    [employees],
+  );
+  const knownSerialNumbers = useMemo(() => {
+    if (isSaleCard) return [] as string[];
+    const targetName = deviceFormName.trim().toLowerCase();
+    if (!targetName) return [] as string[];
+    const values = sales
+      .filter((item) => item.client.id === sale.client.id)
+      .map((item) => {
+        const name = getPrimaryDeviceName(item).trim().toLowerCase();
+        const serial = getPrimaryDeviceSerial(item).trim().toUpperCase();
+        return name === targetName ? serial : '';
+      })
+      .filter(Boolean);
+    return Array.from(new Set(values));
+  }, [isSaleCard, deviceFormName, sales, sale.client.id]);
+  const isMainInfoDirty =
+    deviceNameInput.trim() !== getPrimaryDeviceName(sale).trim() ||
+    serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
+    masterIdInput !== (sale.master?.id ?? '') ||
+    statusDraft !== status;
+  const openDeviceModal = async () => {
+    setIsDeviceModalOpen(true);
+    setIsDeviceModalLoading(true);
+    try {
+      const devices = await getClientDevices(sale.client.phone);
+      const scoped = devices.filter((device) => device.clientId === sale.client.id);
+      setClientDevices(scoped);
+      const matched =
+        scoped.find(
+          (device) =>
+            device.name.trim().toLowerCase() === deviceNameInput.trim().toLowerCase() ||
+            (serialNumberInput.trim() &&
+              device.serialNumber.trim().toUpperCase() ===
+                serialNumberInput.trim().toUpperCase()),
+        ) ?? scoped[0] ?? null;
+      if (matched) {
+        setSelectedDeviceId(matched.id);
+        setDeviceFormName(matched.name);
+        setDeviceFormSerial(matched.serialNumber);
+        setDeviceFormNote(matched.note ?? '');
+      } else {
+        setSelectedDeviceId('');
+        setDeviceFormName(deviceNameInput);
+        setDeviceFormSerial(serialNumberInput);
+        setDeviceFormNote('');
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to load client devices.');
+    } finally {
+      setIsDeviceModalLoading(false);
+    }
+  };
   const relatedRecords = useMemo(
     () =>
       sales
@@ -2809,6 +3086,53 @@ const OrderDetailCard = ({
     setComment('');
   };
 
+  const saveDeviceModal = async () => {
+    if (deviceFormName.trim().length < 2) return;
+    setIsDeviceModalSaving(true);
+    try {
+      const normalizedSerial = deviceFormSerial.trim().toUpperCase();
+      const selectedDevice = clientDevices.find((device) => device.id === selectedDeviceId) ?? null;
+      if (selectedDevice) {
+        const updated = await updateClientDevice(selectedDevice.id, {
+          clientId: selectedDevice.clientId,
+          clientName: selectedDevice.clientName,
+          clientPhone: selectedDevice.clientPhone,
+          name: deviceFormName.trim(),
+          serialNumber: '',
+          note: deviceFormNote.trim(),
+          source: selectedDevice.source,
+          isActive: selectedDevice.isActive,
+          expectedUpdatedAt: selectedDevice.updatedAt,
+        });
+        setClientDevices((current) =>
+          current.map((device) => (device.id === updated.id ? updated : device)),
+        );
+      } else {
+        const created = await createClientDevice({
+          clientId: sale.client.id,
+          clientName: sale.client.name,
+          clientPhone: sale.client.phone,
+          name: deviceFormName.trim(),
+          serialNumber: '',
+          note: deviceFormNote.trim(),
+          source: 'repairOrder',
+          isActive: true,
+        });
+        setClientDevices((current) => [created, ...current]);
+        setSelectedDeviceId(created.id);
+      }
+
+      setDeviceNameInput(deviceFormName.trim());
+      setSerialNumberInput(normalizedSerial);
+      setIsDeviceModalOpen(false);
+      onSuccess('Client device updated.');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to save client device.');
+    } finally {
+      setIsDeviceModalSaving(false);
+    }
+  };
+
   return (
     <article className='order-detail-card' aria-label='Order card'>
       <header className='order-detail-header'>
@@ -2818,9 +3142,9 @@ const OrderDetailCard = ({
         </div>
         <div className='order-detail-actions'>
           <select
-            value={status}
+            value={statusDraft}
             onChange={(event) => {
-              void onStatusChange(event.target.value as OrderStatus);
+              setStatusDraft(event.target.value as OrderStatus);
             }}
             aria-label='Repair status'
           >
@@ -2865,26 +3189,52 @@ const OrderDetailCard = ({
               <>
                 <div>
                   <dt>Device</dt>
-                  <dd>{sale.product.name}</dd>
+                  <dd>
+                    <div className='order-device-inline'>
+                      <span>{deviceNameInput || '-'}</span>
+                      <button
+                        type='button'
+                        className='secondary-button order-device-edit-button'
+                        onClick={() => void openDeviceModal()}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </dd>
                 </div>
                 <div>
                   <dt>S/N</dt>
-                  <dd>{sale.product.serialNumber}</dd>
-                </div>
-                <div>
-                  <dt>Article</dt>
-                  <dd>{sale.product.article}</dd>
+                  <dd>{serialNumberInput || '-'}</dd>
                 </div>
               </>
             )}
             <div>
-              <dt>Received</dt>
+              <dt>Created</dt>
               <dd>{formatDateTime(sale.createdAt)}</dd>
             </div>
             <div>
               <dt>{isSaleCard ? 'Created order' : 'Manager'}</dt>
               <dd>{sale.manager?.name || '-'}</dd>
             </div>
+            {isSaleCard ? null : (
+              <div>
+                <dt>Master</dt>
+                <dd>
+                  <select
+                    className='order-detail-master-select'
+                    value={masterIdInput}
+                    onChange={(event) => setMasterIdInput(event.target.value)}
+                  >
+                    <option value=''>Select master</option>
+                    {masterOptions.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </div>
+            )}
             {isSaleCard ? (
               <div>
                 <dt>Issued order</dt>
@@ -2892,8 +3242,8 @@ const OrderDetailCard = ({
               </div>
             ) : (
               <div>
-                <dt>Received</dt>
-                <dd>{sale.manager?.name || '-'}</dd>
+                <dt>Issued</dt>
+                <dd>{sale.issuedBy?.name || '-'}</dd>
               </div>
             )}
             {isSaleCard ? (
@@ -2902,12 +3252,43 @@ const OrderDetailCard = ({
                 <dd>{sale.note || 'No notes for this sale yet.'}</dd>
               </div>
             ) : null}
+            {isMainInfoDirty ? (
+              <div className='order-detail-notes-row'>
+                <dt>&nbsp;</dt>
+                <dd>
+                  <button
+                    type='button'
+                    className='primary-button'
+                    disabled={
+                      isSavingMainInfo ||
+                      (!isSaleCard && deviceNameInput.trim().length < 2)
+                    }
+                    onClick={async () => {
+                      setIsSavingMainInfo(true);
+                      try {
+                        await onSaveMainInfo({
+                          deviceName: deviceNameInput.trim(),
+                          serialNumber: serialNumberInput.trim().toUpperCase(),
+                          masterId: masterIdInput,
+                          status: statusDraft,
+                        });
+                      } finally {
+                        setIsSavingMainInfo(false);
+                      }
+                    }}
+                  >
+                    {isSavingMainInfo ? 'Saving...' : 'Save changes'}
+                  </button>
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </section>
 
         <section className='order-detail-panel order-detail-live-panel'>
           <h3>Live feed</h3>
           <div className='order-timeline'>
+            <div className='order-timeline-list'>
             {timelineItems.map((item, index) => (
               <div
                 key={`${item.id}-${index}`}
@@ -2921,13 +3302,23 @@ const OrderDetailCard = ({
                 </span>
                 <p>
                   <strong>{item.author}</strong>
-                  <small>{item.message}</small>
+                  <small
+                    className={
+                      isSystemTimelineMessage(item.message)
+                        ? 'order-timeline-message-system'
+                        : 'order-timeline-message-manual'
+                    }
+                  >
+                    {item.message}
+                  </small>
                 </p>
               </div>
             ))}
+            </div>
+            <div className='order-timeline-composer'>
             <textarea
               placeholder='Comment'
-              rows={3}
+              rows={2}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
             />
@@ -2939,6 +3330,7 @@ const OrderDetailCard = ({
             >
               Add
             </button>
+            </div>
           </div>
         </section>
 
@@ -3080,6 +3472,106 @@ const OrderDetailCard = ({
           </div>
         </section>
       </div>
+      {isDeviceModalOpen ? (
+        <div className='modal-backdrop' role='presentation'>
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Client device</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsDeviceModalOpen(false)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Device from clients goods</span>
+                <select
+                  value={selectedDeviceId}
+                  onChange={(event) => {
+                    const nextId = event.target.value;
+                    setSelectedDeviceId(nextId);
+                    const selected = clientDevices.find((device) => device.id === nextId) ?? null;
+                    if (selected) {
+                      setDeviceFormName(selected.name);
+                      setDeviceFormSerial(selected.serialNumber);
+                      setDeviceFormNote(selected.note ?? '');
+                    }
+                  }}
+                  disabled={isDeviceModalLoading || isDeviceModalSaving}
+                >
+                  <option value=''>New device</option>
+                  {clientDevices.map((device) => (
+                    <option key={device.id} value={device.id}>
+                      {`${device.name}${device.serialNumber ? ` / ${device.serialNumber}` : ''}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className='field'>
+                <span>Name</span>
+                <input
+                  value={deviceFormName}
+                  onChange={(event) => setDeviceFormName(event.target.value)}
+                  placeholder='Device name'
+                />
+              </label>
+              <label className='field'>
+                <span>Serial number</span>
+                <input
+                  value={deviceFormSerial}
+                  onChange={(event) => setDeviceFormSerial(event.target.value)}
+                  placeholder='Serial number'
+                />
+              </label>
+              {knownSerialNumbers.length > 0 ? (
+                <label className='field'>
+                  <span>Known S/N for this device</span>
+                  <select
+                    value=''
+                    onChange={(event) => {
+                      if (event.target.value) setDeviceFormSerial(event.target.value);
+                    }}
+                  >
+                    <option value=''>Select known serial</option>
+                    {knownSerialNumbers.map((serial) => (
+                      <option key={serial} value={serial}>
+                        {serial}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className='field'>
+                <span>Note</span>
+                <input
+                  value={deviceFormNote}
+                  onChange={(event) => setDeviceFormNote(event.target.value)}
+                  placeholder='Accessories / note'
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button type='button' className='secondary-button' onClick={() => setIsDeviceModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isDeviceModalSaving || deviceFormName.trim().length < 2}
+                onClick={() => void saveDeviceModal()}
+              >
+                {isDeviceModalSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </article>
   );
 };

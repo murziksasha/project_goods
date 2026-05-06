@@ -41,6 +41,8 @@ export type SalePayload = {
   timeline?: unknown;
   paymentHistory?: unknown;
   lineItems?: unknown;
+  deviceName?: unknown;
+  serialNumber?: unknown;
   expectedUpdatedAt?: unknown;
 };
 

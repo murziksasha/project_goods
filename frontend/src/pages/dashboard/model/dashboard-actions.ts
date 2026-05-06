@@ -1099,7 +1099,12 @@ export const createDashboardActions = ({
           setAllClients((current) => [client, ...current]);
         }
 
-        const { serialNumber, article } = buildProductIdentity(payload);
+        const { serialNumber: fallbackSerialNumber, article } = buildProductIdentity(payload);
+        const repairDeviceSerialNumber = payload.deviceSerialNumber.trim().toUpperCase();
+        const serialNumber =
+          payload.sourceTab === 'repair'
+            ? repairDeviceSerialNumber
+            : fallbackSerialNumber;
         const existingProduct =
           payload.sourceTab === 'sale' && primarySaleItem?.productId
             ? allProducts.find((product) => product.id === primarySaleItem.productId)
@@ -1197,6 +1202,8 @@ export const createDashboardActions = ({
           note: noteParts.join('\n'),
           managerId: payload.managerId,
           masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
+          deviceName: payload.sourceTab === 'repair' ? deviceName : '',
+          serialNumber: payload.sourceTab === 'repair' ? serialNumber : '',
           timeline: [
             ...(payload.issueFromClient.trim()
               ? [
@@ -1249,7 +1256,7 @@ export const createDashboardActions = ({
             clientPhone: client.phone,
             name: deviceName,
             serialNumber,
-            note: payload.deviceKit.trim() || 'Created from order',
+            note: payload.deviceKit.trim(),
             source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
             isActive: true,
           });

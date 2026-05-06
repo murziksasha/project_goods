@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getClients, getClientHistory } from '../../../entities/client/api/clientApi';
+import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import { getProducts } from '../../../entities/product/api/productApi';
@@ -96,6 +96,15 @@ const formatPhone = (input: string) => {
   return result;
 };
 
+const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
+const toApiPhone = (input: string) => {
+  const digits = phoneDigitsOnly(input);
+  if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
+  if (digits.startsWith('0') && digits.length === 10) return `+380${digits.slice(1)}`;
+  if (digits.length === 9) return `+380${digits}`;
+  return '';
+};
+
 const extractDeviceKit = (note: string) =>
   note
     .split('|')
@@ -157,6 +166,7 @@ export const CreateOrderCard = ({
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
+  const [isClientEnsuring, setIsClientEnsuring] = useState(false);
 
   const managers = employees.filter(
     (employee) =>
@@ -199,11 +209,33 @@ export const CreateOrderCard = ({
   const shouldShowClientSuggestions =
     !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const resolvedClientForDeviceCreate = useMemo(() => {
+    if (selectedClientId && selectedClient) {
+      return selectedClient;
+    }
+
+    const normalizedInputPhone = phoneDigitsOnly(clientPhone);
+    const normalizedInputName = clientName.trim().toLowerCase();
+    if (normalizedInputPhone.length < 3 && normalizedInputName.length < 2) {
+      return null;
+    }
+
+    const exactMatches = clientSuggestions.filter((client) => {
+      const samePhone =
+        normalizedInputPhone.length > 0 &&
+        phoneDigitsOnly(client.phone) === normalizedInputPhone;
+      const sameName =
+        normalizedInputName.length >= 2 && client.name.trim().toLowerCase() === normalizedInputName;
+      return samePhone || sameName;
+    });
+
+    return exactMatches.length === 1 ? exactMatches[0] : null;
+  }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
   const visibleClientHistory = selectedClientId ? clientHistory : null;
   const visibleDeviceSuggestions = deviceName.trim().length >= 2 ? deviceSuggestions : [];
   const canCreateClientDevice =
     activeTab === 'repair' &&
-    Boolean(selectedClientId && selectedClient) &&
+    Boolean(resolvedClientForDeviceCreate) &&
     deviceName.trim().length >= 2 &&
     !isDeviceLookupLoading &&
     visibleDeviceSuggestions.length === 0;
@@ -271,7 +303,11 @@ export const CreateOrderCard = ({
   }, [selectedClientId]);
 
   useEffect(() => {
-    if (deviceLookupQuery.length < 2) return;
+    if (deviceLookupQuery.length < 2) {
+      setDeviceSuggestions([]);
+      setIsDeviceLookupLoading(false);
+      return;
+    }
 
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
@@ -279,11 +315,7 @@ export const CreateOrderCard = ({
       try {
         const devices = await getClientDevices(deviceLookupQuery);
         if (isActive) {
-          setDeviceSuggestions(
-            devices
-              .filter((device) => device.isActive)
-              .slice(0, 8),
-          );
+          setDeviceSuggestions(devices.filter((device) => device.isActive).slice(0, 8));
         }
       } catch {
         if (isActive) setDeviceSuggestions([]);
@@ -465,7 +497,7 @@ export const CreateOrderCard = ({
         clientPhone: selectedClient.phone,
         name,
         serialNumber: deviceSerialNumber.trim().toUpperCase(),
-        note: deviceKit.trim() || 'Created from repair order',
+        note: deviceKit.trim(),
         source: 'repairOrder',
         isActive: newDeviceIsActive,
       });
@@ -473,6 +505,49 @@ export const CreateOrderCard = ({
       setIsCreateDeviceModalOpen(false);
     } finally {
       setIsDeviceCreating(false);
+    }
+  };
+
+  const ensureClientForDevice = async () => {
+    if (selectedClientId && selectedClient) return selectedClient;
+    if (isClientEnsuring) return null;
+
+    const normalizedPhone = toApiPhone(clientPhone);
+    const normalizedName = clientName.trim();
+    if (!normalizedPhone || normalizedName.length < 2) return null;
+
+    const normalizedPhoneDigits = phoneDigitsOnly(normalizedPhone);
+    const fromSuggestions = clientSuggestions.find(
+      (client) => phoneDigitsOnly(client.phone) === normalizedPhoneDigits,
+    );
+    if (fromSuggestions) {
+      applyClient(fromSuggestions);
+      return fromSuggestions;
+    }
+
+    setIsClientEnsuring(true);
+    try {
+      const clients = await getClients(normalizedPhone);
+      const existingClient =
+        clients.find((client) => phoneDigitsOnly(client.phone) === normalizedPhoneDigits) ?? null;
+
+      if (existingClient) {
+        applyClient(existingClient);
+        return existingClient;
+      }
+
+      const createdClient = await createClient({
+        phone: normalizedPhone,
+        name: normalizedName,
+        note: '',
+        status: 'new',
+      });
+      applyClient(createdClient);
+      return createdClient;
+    } catch {
+      return null;
+    } finally {
+      setIsClientEnsuring(false);
     }
   };
 
@@ -712,6 +787,9 @@ export const CreateOrderCard = ({
                     <span>Device #1 *</span>
                     <input
                       value={deviceName}
+                      onFocus={() => {
+                        void ensureClientForDevice();
+                      }}
                       onChange={(event) => setDeviceName(event.target.value)}
                       placeholder="Enter device name"
                     />
@@ -719,8 +797,13 @@ export const CreateOrderCard = ({
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={!canCreateClientDevice}
-                    onClick={() => {
+                    disabled={!canCreateClientDevice || isClientEnsuring}
+                    onClick={async () => {
+                      const resolvedClient = resolvedClientForDeviceCreate ?? (await ensureClientForDevice());
+                      if (!resolvedClient) return;
+
+                      setSelectedClientId(resolvedClient.id);
+                      setSelectedClient(resolvedClient);
                       setNewDeviceName(deviceName.trim());
                       setNewDeviceIsActive(true);
                       setIsCreateDeviceModalOpen(true);
@@ -911,29 +994,40 @@ export const CreateOrderCard = ({
               {deviceHistory.length ? (
                 <div className="create-side-list">
                   {deviceHistory.map((sale) => (
-                    <button
-                      key={sale.id}
-                      type="button"
-                      className="create-side-list-button"
-                      onClick={() =>
-                        applyDevice({
-                          id: sale.product.id,
-                          clientId: sale.client.id,
-                          clientName: sale.client.name,
-                          clientPhone: sale.client.phone,
-                          name: sale.product.name,
-                          serialNumber: sale.product.serialNumber,
-                          note: '',
-                          source: 'repairOrder',
-                          isActive: true,
-                          createdAt: sale.createdAt,
-                          updatedAt: sale.updatedAt,
-                        })
-                      }
-                    >
-                      <strong>{sale.product.name}</strong>
-                      <span>{sale.product.serialNumber}</span>
-                    </button>
+                    (() => {
+                      const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
+                      const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
+                      const serialValue = sale.product.serialNumber?.trim();
+                      const displaySerial =
+                        serialValue && serialValue.toUpperCase() !== 'REPAIR-PLACEHOLDER'
+                          ? serialValue
+                          : '';
+                      return (
+                        <button
+                          key={sale.id}
+                          type="button"
+                          className="create-side-list-button"
+                          onClick={() =>
+                            applyDevice({
+                              id: sale.product.id,
+                              clientId: sale.client.id,
+                              clientName: sale.client.name,
+                              clientPhone: sale.client.phone,
+                              name: deviceNameValue,
+                              serialNumber: displaySerial,
+                              note: '',
+                              source: 'repairOrder',
+                              isActive: true,
+                              createdAt: sale.createdAt,
+                              updatedAt: sale.updatedAt,
+                            })
+                          }
+                        >
+                          <strong>{deviceNameValue}</strong>
+                          <span>{displaySerial || '-'}</span>
+                        </button>
+                      );
+                    })()
                   ))}
                 </div>
               ) : (
@@ -946,10 +1040,16 @@ export const CreateOrderCard = ({
               {visibleClientHistory?.sales.length ? (
                 <div className="create-side-list">
                   {visibleClientHistory.sales.slice(0, 5).map((sale) => (
-                    <div key={sale.id} className="create-side-list-item">
-                      <strong>{sale.recordNumber ?? 'r------'}</strong>
-                      <span>{sale.product.name}</span>
-                    </div>
+                    (() => {
+                      const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
+                      const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
+                      return (
+                        <div key={sale.id} className="create-side-list-item">
+                          <strong>{sale.recordNumber ?? 'r------'}</strong>
+                          <span>{deviceNameValue}</span>
+                        </div>
+                      );
+                    })()
                   ))}
                 </div>
               ) : (
