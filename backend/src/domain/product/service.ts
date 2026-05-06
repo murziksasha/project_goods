@@ -5,6 +5,7 @@ import { formatProduct } from '../../shared/lib/formatters';
 import { normalizeProductPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { ProductPayload } from '../shared/types';
+import { assertNotStale } from '../../shared/lib/errors';
 
 export const listProducts = async (query: unknown) => {
   const products = await Product.find(getSearchQuery(query))
@@ -28,6 +29,7 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
   if (!existingProduct) {
     throw new Error('Product not found.');
   }
+  assertNotStale(payload.expectedUpdatedAt, existingProduct.updatedAt, 'Product');
 
   const normalizedPayload = normalizeProductPayload(payload);
   if (normalizedPayload.quantity - existingProduct.reservedQuantity < 0) {

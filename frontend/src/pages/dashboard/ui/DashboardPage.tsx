@@ -610,6 +610,11 @@ export const DashboardPage = () => {
             &#9776;
           </button>
           <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
+          {state.lastSyncAt ? (
+            <small className="topbar-sync-label">
+              {`Last sync: ${new Date(state.lastSyncAt).toLocaleTimeString('uk-UA')}`}
+            </small>
+          ) : null}
           <div className="topbar-actions">
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
@@ -750,6 +755,8 @@ export const DashboardPage = () => {
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
               onCreateClientDevice={actions.createClientDeviceCard}
+              onUpdateClientDevice={actions.updateClientDeviceCard}
+              onDeleteClientDevice={actions.deleteClientDeviceCard}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel

@@ -30,4 +30,5 @@ export type ProductFormValues = {
   purchaseDate: string;
   warrantyPeriod: string;
   isActive?: boolean;
+  expectedUpdatedAt?: string;
 };

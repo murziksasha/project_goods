@@ -54,3 +54,23 @@ export const getErrorMessage = (error: unknown) => {
 
   return 'Unexpected server error';
 };
+
+export const assertNotStale = (
+  expectedUpdatedAt: unknown,
+  actualUpdatedAt: Date,
+  entityLabel: string,
+) => {
+  if (!expectedUpdatedAt) return;
+
+  const expectedDate = new Date(String(expectedUpdatedAt));
+  if (Number.isNaN(expectedDate.getTime())) {
+    throw new HttpError(400, 'Invalid expectedUpdatedAt value.');
+  }
+
+  if (expectedDate.getTime() !== actualUpdatedAt.getTime()) {
+    throw new HttpError(
+      409,
+      `${entityLabel} was modified by another user. Reload and try again.`,
+    );
+  }
+};

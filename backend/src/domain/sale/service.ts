@@ -10,6 +10,7 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { getNextRecordNumber } from '../sequence/service';
 import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
+import { assertNotStale } from '../../shared/lib/errors';
 
 const ensureFreeStock = async (
   productId: mongoose.Types.ObjectId | string,
@@ -411,6 +412,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   if (!existingSale) {
     throw new Error('Sale not found.');
   }
+  assertNotStale(payloadInput.expectedUpdatedAt, existingSale.updatedAt, 'Sale');
 
   const [client, product, manager, master, issuedBy] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
@@ -552,6 +554,7 @@ export const updateSaleWorkspace = async (
   if (!existingSale) {
     throw new Error('Sale not found.');
   }
+  assertNotStale(payloadInput.expectedUpdatedAt, existingSale.updatedAt, 'Sale');
 
   const nextKind =
     payload.kind === 'sale' || existingSale.kind === 'sale'
@@ -573,7 +576,7 @@ export const updateSaleWorkspace = async (
       ? payload.paymentHistory
       : existingSale.paymentHistory ?? [];
   const nextLineItems =
-    Array.isArray(payloadInput.lineItems) && payload.lineItems.length > 0
+    Array.isArray(payloadInput.lineItems)
       ? payload.lineItems
       : (existingSale.lineItems?.length
           ? existingSale.lineItems
@@ -584,8 +587,8 @@ export const updateSaleWorkspace = async (
                 quantity: existingSale.quantity,
               },
               {
-              _id: existingSale.product,
-              name: existingSale.productSnapshot?.name ?? 'Item',
+                _id: existingSale.product,
+                name: existingSale.productSnapshot?.name ?? 'Item',
               },
             ));
 

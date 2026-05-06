@@ -20,4 +20,5 @@ export const toSaleForm = (sale: Sale): SaleFormValues => ({
   note: sale.note,
   managerId: sale.manager?.id ?? '',
   masterId: sale.master?.id ?? '',
+  expectedUpdatedAt: sale.updatedAt,
 });

@@ -57,10 +57,12 @@ type ProductCatalogPanelProps = {
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (clientId: string, payload: SupplierFormValues) => Promise<boolean>;
   onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
+  onUpdateClientDevice: (deviceId: string, payload: ClientDeviceFormValues) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
 };
 
 const tabs: Array<{ key: CatalogTab; label: string }> = [
-  { key: 'products', label: 'Products' },
+  { key: 'products', label: 'Clients goods' },
   { key: 'services', label: 'Services' },
   { key: 'suppliers', label: 'Suppliers' },
 ];
@@ -98,6 +100,8 @@ export const ProductCatalogPanel = ({
   onCreateSupplier,
   onUpdateSupplier,
   onCreateClientDevice,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
 }: ProductCatalogPanelProps) => {
   void productForm;
   void isProductSaving;
@@ -120,6 +124,7 @@ export const ProductCatalogPanel = ({
   const [servicesPageSize, setServicesPageSize] = useState(10);
   const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [selectedClientDevice, setSelectedClientDevice] = useState<ClientDevice | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
@@ -138,10 +143,20 @@ export const ProductCatalogPanel = ({
   });
   const isProductsTab = activeTab === 'products';
   const isSuppliersTab = activeTab === 'suppliers';
+  const filteredClientDevices = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return clientDevices;
+    return clientDevices.filter((device) =>
+      [device.name, device.clientName, device.clientPhone, device.serialNumber]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [clientDevices, searchQuery]);
   const paginatedProducts = useMemo(() => {
     const start = (productsPage - 1) * productsPageSize;
-    return clientDevices.slice(start, start + productsPageSize);
-  }, [clientDevices, productsPage, productsPageSize]);
+    return filteredClientDevices.slice(start, start + productsPageSize);
+  }, [filteredClientDevices, productsPage, productsPageSize]);
   const paginatedServices = useMemo(() => {
     const start = (servicesPage - 1) * servicesPageSize;
     return services.slice(start, start + servicesPageSize);
@@ -167,12 +182,12 @@ export const ProductCatalogPanel = ({
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(clientDevices.length / productsPageSize),
+      Math.ceil(filteredClientDevices.length / productsPageSize),
     );
     if (productsPage > pageCount) {
       setProductsPage(pageCount);
     }
-  }, [clientDevices.length, productsPage, productsPageSize]);
+  }, [filteredClientDevices.length, productsPage, productsPageSize]);
 
   useEffect(() => {
     const pageCount = Math.max(
@@ -278,9 +293,10 @@ export const ProductCatalogPanel = ({
             isLoading={isLoading}
             searchQuery={searchQuery}
             rowStartIndex={(productsPage - 1) * productsPageSize}
+            onSelectDevice={setSelectedClientDevice}
           />
           <PaginationPanel
-            totalItems={clientDevices.length}
+            totalItems={filteredClientDevices.length}
             page={productsPage}
             pageSize={productsPageSize}
             onPageChange={setProductsPage}
@@ -344,6 +360,22 @@ export const ProductCatalogPanel = ({
             if (ok) setSelectedSupplier(null);
           }}
           onCreate={onCreateSupplier}
+        />
+      ) : null}
+
+      {selectedClientDevice ? (
+        <ClientDeviceModal
+          device={selectedClientDevice}
+          onClose={() => setSelectedClientDevice(null)}
+          onSave={async (payload) => {
+            const ok = await onUpdateClientDevice(selectedClientDevice.id, payload);
+            if (ok) setSelectedClientDevice(null);
+          }}
+          onRemove={async () => {
+            if (!window.confirm(`Remove device \"${selectedClientDevice.name}\"?`)) return;
+            const ok = await onDeleteClientDevice(selectedClientDevice.id);
+            if (ok) setSelectedClientDevice(null);
+          }}
         />
       ) : null}
 
@@ -511,6 +543,7 @@ type ProductsTableProps = {
   isLoading: boolean;
   searchQuery: string;
   rowStartIndex: number;
+  onSelectDevice: (device: ClientDevice) => void;
 };
 
 const ProductsTable = ({
@@ -518,6 +551,7 @@ const ProductsTable = ({
   isLoading,
   searchQuery,
   rowStartIndex,
+  onSelectDevice,
 }: ProductsTableProps) => {
   if (isLoading) return <p className="empty-state">Loading products...</p>;
 
@@ -536,9 +570,7 @@ const ProductsTable = ({
           <tr>
             <th>ID</th>
             <th>Name</th>
-            <th>Client</th>
-            <th>Phone</th>
-            <th>Serial</th>
+            <th>Activity</th>
             <th>Date</th>
           </tr>
         </thead>
@@ -547,11 +579,11 @@ const ProductsTable = ({
             <tr key={product.id}>
               <td>{rowStartIndex + index + 1}</td>
               <td>
-                {product.name}
+                <button type="button" className="catalog-name-button" onClick={() => onSelectDevice(product)}>
+                  {product.name}
+                </button>
               </td>
-              <td>{product.clientName}</td>
-              <td>{product.clientPhone}</td>
-              <td>{product.serialNumber || '-'}</td>
+              <td>{product.isActive ? 'active' : 'inactive'}</td>
               <td>{formatDate(product.createdAt)}</td>
             </tr>
           ))}
@@ -955,6 +987,79 @@ const CatalogServiceModal = ({
           {isSaving ? 'Saving...' : 'Save'}
         </button>
       </footer>
+      </section>
+    </div>
+  );
+};
+
+const ClientDeviceModal = ({
+  device,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  device: ClientDevice;
+  onClose: () => void;
+  onSave: (payload: ClientDeviceFormValues) => Promise<void>;
+  onRemove: () => Promise<void>;
+}) => {
+  useLockBodyScroll();
+  const [name, setName] = useState(device.name);
+  const [serialNumber, setSerialNumber] = useState(device.serialNumber);
+  const [note, setNote] = useState(device.note);
+  const [isActive, setIsActive] = useState(device.isActive);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const save = async () => {
+    setIsSaving(true);
+    await onSave({
+      clientId: device.clientId,
+      clientName: device.clientName,
+      clientPhone: device.clientPhone,
+      name: name.trim(),
+      serialNumber: serialNumber.trim(),
+      note: note.trim(),
+      source: device.source,
+      isActive,
+      expectedUpdatedAt: device.updatedAt,
+    });
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+        <header className="catalog-edit-header">
+          <div className="catalog-edit-title">
+            <span>{`ID ${device.id.slice(-6)}`}</span>
+            <h2>Client good</h2>
+          </div>
+          <button type="button" className="create-order-close" onClick={onClose} aria-label="Close">
+            &times;
+          </button>
+        </header>
+        <div className="catalog-edit-body">
+          <label className="field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label className="field"><span>Serial</span><input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} /></label>
+          <label className="field field-wide"><span>Note</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <label className="field">
+            <span>Status</span>
+            <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+        </div>
+        <footer className="catalog-edit-footer">
+          <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={!device.canRemove || isSaving}>
+            Remove
+          </button>
+          <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        </footer>
       </section>
     </div>
   );

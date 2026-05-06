@@ -556,6 +556,10 @@ const getPrimaryItemCellContent = (
   activeTab: OrdersTab,
 ) => (activeTab === 'orders' ? sale.product.name : 'Service center');
 
+const isUrgentRepairOrder = (sale: Sale) =>
+  isRepairOrder(sale) &&
+  sale.note.toLowerCase().includes('urgent repair');
+
 const getColumnLabel = (
   columnKey: OrdersColumnKey,
   activeTab: OrdersTab,
@@ -1203,6 +1207,7 @@ export const OrdersWorkspace = ({
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
+      expectedUpdatedAt: sale.updatedAt,
     });
     onSaleUpdate(updatedSale);
     return updatedSale;
@@ -1428,7 +1433,12 @@ export const OrdersWorkspace = ({
           </div>
         );
       case 'term':
-        return activeTab === 'orders' ? 'Non-urgent' : null;
+        if (activeTab !== 'orders') return null;
+        return isUrgentRepairOrder(sale) ? (
+          <span className='orders-term-urgent'>Urgent</span>
+        ) : (
+          'Non-urgent'
+        );
       case 'warehouse':
         return getWarehouseLabel(sale);
       case 'createdAt':
@@ -1633,9 +1643,14 @@ export const OrdersWorkspace = ({
     const nextItems = currentItems.filter(
       (item) => item.id !== itemId,
     );
+    if (nextItems.length === 0) {
+      void persistSaleWorkspace(sale, {
+        lineItems: [],
+      });
+      return;
+    }
     void persistSaleWorkspace(sale, {
-      lineItems:
-        nextItems.length > 0 ? nextItems : getDefaultLineItems(sale),
+      lineItems: nextItems,
     });
   };
 
