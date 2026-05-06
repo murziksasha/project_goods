@@ -11,8 +11,6 @@ export type CreateOrderRequestPayload = {
   issueFromClient: string;
   externalView: string;
   estimatedCost: string;
-  prepayment: string;
-  prepaymentComment: string;
   readyDate: string;
   readyTime: string;
   managerId: string;

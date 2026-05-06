@@ -118,10 +118,14 @@ const getDeviceHistory = (history: ClientHistory | null) => {
 
   const seen = new Set<string>();
   return history.sales.filter((sale) => {
-    if (seen.has(sale.product.id)) {
+    const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
+    const deviceName = (deviceItem?.name?.trim() || sale.product.name || '').toLowerCase();
+    const serial = (sale.product.serialNumber || '').trim().toLowerCase();
+    const dedupeKey = `${deviceName}::${serial}`;
+    if (seen.has(dedupeKey)) {
       return false;
     }
-    seen.add(sale.product.id);
+    seen.add(dedupeKey);
     return true;
   });
 };
@@ -144,8 +148,6 @@ export const CreateOrderCard = ({
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
-  const [prepayment, setPrepayment] = useState('');
-  const [prepaymentComment, setPrepaymentComment] = useState('');
   const [readyDate, setReadyDate] = useState('');
   const [readyTime, setReadyTime] = useState('');
   const [managerId, setManagerId] = useState('');
@@ -448,8 +450,6 @@ export const CreateOrderCard = ({
     setRepairType('Paid');
     setIssueFromClient('Does not charge and shuts down after a few minutes.');
     setExternalView('Small scratches on the top cover, no liquid marks.');
-    setPrepayment('300');
-    setPrepaymentComment('Cash prepayment');
     setReadyDate(new Date().toISOString().slice(0, 10));
     setReadyTime('17:30');
     setSelectedFlags(['Urgent repair', 'Start work without confirmation']);
@@ -468,8 +468,6 @@ export const CreateOrderCard = ({
     setRepairType('Paid');
     setIssueFromClient('Client buys a new device from stock.');
     setExternalView('New sealed package.');
-    setPrepayment('3899');
-    setPrepaymentComment('Full payment');
     setReadyDate(new Date().toISOString().slice(0, 10));
     setReadyTime('15:00');
     setSelectedFlags(['New sale', 'Issued']);
@@ -496,7 +494,7 @@ export const CreateOrderCard = ({
         clientName: selectedClient.name,
         clientPhone: selectedClient.phone,
         name,
-        serialNumber: deviceSerialNumber.trim().toUpperCase(),
+        serialNumber: '',
         note: deviceKit.trim(),
         source: 'repairOrder',
         isActive: newDeviceIsActive,
@@ -565,8 +563,6 @@ export const CreateOrderCard = ({
       issueFromClient,
       externalView,
       estimatedCost: activeTab === 'sale' ? String(Math.round(saleItemsTotal * 100) / 100) : '0',
-      prepayment,
-      prepaymentComment,
       readyDate,
       readyTime,
       managerId: effectiveManagerId,
@@ -885,27 +881,6 @@ export const CreateOrderCard = ({
                 </label>
               </>
             )}
-
-            <div className="create-prepay-row">
-              <label className="field">
-                <span>Prepayment</span>
-                  <NumberStepper
-                    min={0}
-                    value={prepayment}
-                    onChange={setPrepayment}
-                    placeholder="Enter amount"
-                  />
-              </label>
-              <div className="create-currency-tag">UAH</div>
-              <label className="field">
-                <span>&nbsp;</span>
-                <input
-                  value={prepaymentComment}
-                  onChange={(event) => setPrepaymentComment(event.target.value)}
-                  placeholder="Prepayment comment"
-                />
-              </label>
-            </div>
 
             <div className="create-prepay-row">
               <label className="field">

@@ -201,17 +201,23 @@ const getDefaultLineItems = (
     quantity: number;
   },
   product: { _id: mongoose.Types.ObjectId | string; name: string },
-) => [
-  {
-    id: `${product._id.toString()}-${payload.kind}-default`,
-    kind: payload.kind === 'sale' ? 'product' : 'service',
-    productId: payload.kind === 'sale' ? product._id.toString() : undefined,
-    name: payload.kind === 'sale' ? product.name : 'Repair',
-    price: payload.salePrice,
-    quantity: payload.quantity,
-    warrantyPeriod: 0,
-  },
-];
+) => {
+  if (payload.kind === 'repair') {
+    return [];
+  }
+
+  return [
+    {
+      id: `${product._id.toString()}-${payload.kind}-default`,
+      kind: 'product',
+      productId: product._id.toString(),
+      name: product.name,
+      price: payload.salePrice,
+      quantity: payload.quantity,
+      warrantyPeriod: 0,
+    },
+  ];
+};
 
 const assertWorkspaceState = (
   kind: 'repair' | 'sale',
