@@ -28,7 +28,7 @@ const toNameKey = (value: string) =>
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
-  const normalizedName = device.name.trim();
+  const normalizedName = device.name.trim().replace(/\s+/g, ' ');
   const normalizedSerial = device.serialNumber.trim();
 
   const usageQuery: Record<string, unknown> = {
@@ -37,7 +37,9 @@ const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
 
   const orConditions: Array<Record<string, unknown>> = [];
   if (normalizedName) {
-    orConditions.push({ 'productSnapshot.name': normalizedName });
+    const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
+    orConditions.push({ 'productSnapshot.name': { $regex: `^${normalizedNamePattern}$`, $options: 'i' } });
+    orConditions.push({ 'lineItems.name': { $regex: `^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, $options: 'i' } });
     orConditions.push({ note: { $regex: escapeRegExp(normalizedName), $options: 'i' } });
   }
   if (normalizedSerial) {

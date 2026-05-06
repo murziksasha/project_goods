@@ -26,9 +26,15 @@
 ## Repair vs Stock Product Separation
 
 - Repair order creation no longer creates warehouse products from customer devices.
-- Customer device name/serial are stored as order context and in client devices.
+- Customer device name is stored in `Clients goods`; serial is stored only in order context/history.
 - No automatic `Repair` service line item is injected into new repair orders.
 - Removing service line items from order card is allowed and persisted.
+
+## Prepayment
+
+- Prepayment logic is fully removed from `Create order`.
+- There is no prepayment input block in the create-order modal.
+- New orders are created with `paidAmount = 0` and empty `paymentHistory`.
 
 ## Orders List Columns (`Orders` tab)
 
@@ -48,8 +54,10 @@
 
 ## Order Card Editing Rules
 
-- In order card `Main information`, `Device` and `S/N` are editable fields.
+- In order card `Main information`, `Device` is read-only (no `Edit` button and no device-edit modal in order card).
+- In order card `Main information`, `S/N` is editable.
 - `S/N` must remain editable at any time, including empty value.
+- `Save changes` from order card does not modify device name.
 - `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
 - `Manager` remains informational.
 - `Article` is removed from order card main information.
@@ -60,7 +68,10 @@
   - `client rejected`
   - `issued without repair`
   then `Issued` worker is cleared in both orders list and order card.
-- Saving order card main information must also sync linked `Clients goods` record for the same `clientId` (device name and serial).
+- Saving order card main information does not provide device editing via order-card modal; device management is performed via `Clients goods`.
+- `S/N` in order card remains order-specific and must not be written to `Clients goods`.
+- In order card device modal, if no exact device-name match is found in `Clients goods`, the form must stay in `New device` mode.
+- The modal must not auto-select the first available client device as fallback.
 - `Live feed` composer (comment input + `Add` button) is fixed at the bottom of the live feed panel and must not shrink.
 
 ## Clients Goods (`Products & Services` first tab)
@@ -69,9 +80,12 @@
 - Fields shown: `ID`, `Name`, `Activity`, `Date`.
 - Device `Name` is unique per client (case-insensitive).
 - Same device names are allowed across different clients.
-- Serial numbers are not stored in `Clients goods`; they are handled in order card context/history.
+- Serial numbers are not stored or edited in `Clients goods`; they are handled in order card context/history only.
 - Clicking `Name` opens edit modal.
+- Create/Edit modals for `Clients goods` include only device name, note and activity.
 - Modal allows toggling `active/inactive`.
 - Inactive devices are excluded from order device lookup.
+- A device is considered "used" if it appears in at least one order/sale history entry for the same client (including order snapshot and line items).
+- If a device is used in orders/sales, `Remove` is forbidden; only deactivation is allowed.
 - `Remove` is enabled only when device is not used in orders/sales.
 - `Remove` action asks for confirmation.

@@ -1055,7 +1055,6 @@ export const createDashboardActions = ({
           payload.sourceTab === 'sale' && saleItems.length > 0
             ? saleItems.reduce((total, item) => total + item.price * item.quantity, 0)
             : Number.parseFloat(payload.estimatedCost || '0');
-        const prepaymentAmount = Number.parseFloat(payload.prepayment || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
           throw new Error('Client phone must include full +380 number.');
@@ -1078,10 +1077,6 @@ export const createDashboardActions = ({
         ) {
           throw new Error('Sale item quantity must be at least 1.');
         }
-        if (Number.isFinite(prepaymentAmount) && prepaymentAmount > estimatedCost) {
-          throw new Error('Prepayment cannot exceed order total.');
-        }
-
         const existingClient = allClients.find(
           (client) =>
             client.phone.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, ''),
@@ -1149,24 +1144,10 @@ export const createDashboardActions = ({
         const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
         const createdAt = new Date().toISOString();
         const author = currentEmployee?.name ?? managerName ?? 'System';
-        const normalizedPrepayment =
-          Number.isFinite(prepaymentAmount) && prepaymentAmount > 0
-            ? Math.round(prepaymentAmount * 100) / 100
-            : 0;
-        const prepaymentMessage =
-          normalizedPrepayment > 0
-            ? `кассы ОСНОВНАЯ : ${normalizedPrepayment} uah${
-                payload.prepaymentComment.trim()
-                  ? `, ${payload.prepaymentComment.trim()}`
-                  : ''
-              }`
-            : '';
 
         const noteParts = [
           payload.issueFromClient.trim(),
           payload.sourceTab === 'repair' ? payload.externalView.trim() : '',
-          payload.prepayment ? `Prepayment: ${payload.prepayment}` : '',
-          prepaymentMessage,
           payload.serviceName.trim()
             ? `Service: ${payload.serviceName.trim()}`
             : '',
@@ -1198,7 +1179,7 @@ export const createDashboardActions = ({
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
           status: 'new',
-          paidAmount: normalizedPrepayment,
+          paidAmount: 0,
           note: noteParts.join('\n'),
           managerId: payload.managerId,
           masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
@@ -1215,39 +1196,15 @@ export const createDashboardActions = ({
                   },
                 ]
               : []),
-            ...(prepaymentMessage
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    author,
-                    message: prepaymentMessage,
-                    createdAt,
-                  },
-                ]
-              : []),
           ],
-          paymentHistory:
-            normalizedPrepayment > 0
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    type: 'deposit',
-                    amount: normalizedPrepayment,
-                    cashboxId: 'main',
-                    cashboxName: 'ОСНОВНАЯ',
-                    author,
-                    createdAt,
-                  },
-                ]
-              : [],
+          paymentHistory: [],
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
 
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
             device.clientId === client.id &&
-            serialNumber.trim().length > 0 &&
-            device.serialNumber.toUpperCase() === serialNumber.toUpperCase(),
+            device.name.trim().toLowerCase() === deviceName.trim().toLowerCase(),
         );
         if (!deviceAlreadyExists) {
           await mutateCreateClientDevice({
@@ -1255,7 +1212,7 @@ export const createDashboardActions = ({
             clientName: client.name,
             clientPhone: client.phone,
             name: deviceName,
-            serialNumber,
+            serialNumber: '',
             note: payload.deviceKit.trim(),
             source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
             isActive: true,

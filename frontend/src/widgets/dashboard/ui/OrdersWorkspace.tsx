@@ -28,7 +28,6 @@ import {
   getClientDevices,
   updateClientDevice,
 } from '../../../entities/client-device/api/clientDeviceApi';
-import type { ClientDevice } from '../../../entities/client-device/model/types';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
@@ -2106,7 +2105,6 @@ export const OrdersWorkspace = ({
   const saveOrderMainInfo = async (
     sale: Sale,
     payload: {
-      deviceName: string;
       serialNumber: string;
       masterId: string;
       status: OrderStatus;
@@ -2126,7 +2124,7 @@ export const OrdersWorkspace = ({
       await persistSaleWorkspace(sale, {
         status: payload.status,
         masterId: payload.masterId,
-        deviceName: payload.deviceName,
+        deviceName: getPrimaryDeviceName(sale),
         serialNumber: payload.serialNumber,
         issuedById:
           shouldAssignIssuedBy && currentEmployee?.id
@@ -2139,18 +2137,10 @@ export const OrdersWorkspace = ({
         const normalizedOldDeviceName = getPrimaryDeviceName(sale)
           .trim()
           .toLowerCase();
-        const normalizedOldSerial = getPrimaryDeviceSerial(sale).trim().toUpperCase();
-        const probeQuery =
-          payload.deviceName.trim() || payload.serialNumber.trim() || sale.client.phone;
+        const probeQuery = getPrimaryDeviceName(sale).trim() || sale.client.phone;
         const allDevices = await getClientDevices(probeQuery);
         const linkedDevice = allDevices.find((device) => {
           if (device.clientId !== sale.client.id) return false;
-          if (
-            normalizedOldSerial &&
-            device.serialNumber.trim().toUpperCase() === normalizedOldSerial
-          ) {
-            return true;
-          }
           return device.name.trim().toLowerCase() === normalizedOldDeviceName;
         });
 
@@ -2159,19 +2149,19 @@ export const OrdersWorkspace = ({
             clientId: sale.client.id,
             clientName: sale.client.name,
             clientPhone: sale.client.phone,
-            name: payload.deviceName,
+            name: getPrimaryDeviceName(sale),
             serialNumber: '',
             note: linkedDevice.note ?? '',
             source: linkedDevice.source,
             isActive: linkedDevice.isActive,
             expectedUpdatedAt: linkedDevice.updatedAt,
           });
-        } else if (payload.deviceName.trim().length >= 2) {
+        } else if (getPrimaryDeviceName(sale).trim().length >= 2) {
           await createClientDevice({
             clientId: sale.client.id,
             clientName: sale.client.name,
             clientPhone: sale.client.phone,
-            name: payload.deviceName,
+            name: getPrimaryDeviceName(sale),
             serialNumber: '',
             note: '',
             source: 'repairOrder',
@@ -2913,7 +2903,6 @@ type OrderDetailCardProps = {
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   onSaveMainInfo: (payload: {
-    deviceName: string;
     serialNumber: string;
     masterId: string;
     status: OrderStatus;
@@ -2951,18 +2940,9 @@ const OrderDetailCard = ({
   );
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
   const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
-  const [deviceNameInput, setDeviceNameInput] = useState('');
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
-  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
-  const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState('');
-  const [deviceFormName, setDeviceFormName] = useState('');
-  const [deviceFormSerial, setDeviceFormSerial] = useState('');
-  const [deviceFormNote, setDeviceFormNote] = useState('');
-  const [isDeviceModalLoading, setIsDeviceModalLoading] = useState(false);
-  const [isDeviceModalSaving, setIsDeviceModalSaving] = useState(false);
   const total = getOrderTotal(sale, lineItems);
   const remainingPayment = getRemainingPayment(
     sale,
@@ -2983,7 +2963,6 @@ const OrderDetailCard = ({
     setStatusDraft(status);
   }, [status]);
   useEffect(() => {
-    setDeviceNameInput(getPrimaryDeviceName(sale));
     setSerialNumberInput(getPrimaryDeviceSerial(sale));
     setMasterIdInput(sale.master?.id ?? '');
   }, [sale]);
@@ -2998,57 +2977,10 @@ const OrderDetailCard = ({
       ),
     [employees],
   );
-  const knownSerialNumbers = useMemo(() => {
-    if (isSaleCard) return [] as string[];
-    const targetName = deviceFormName.trim().toLowerCase();
-    if (!targetName) return [] as string[];
-    const values = sales
-      .filter((item) => item.client.id === sale.client.id)
-      .map((item) => {
-        const name = getPrimaryDeviceName(item).trim().toLowerCase();
-        const serial = getPrimaryDeviceSerial(item).trim().toUpperCase();
-        return name === targetName ? serial : '';
-      })
-      .filter(Boolean);
-    return Array.from(new Set(values));
-  }, [isSaleCard, deviceFormName, sales, sale.client.id]);
   const isMainInfoDirty =
-    deviceNameInput.trim() !== getPrimaryDeviceName(sale).trim() ||
     serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
     masterIdInput !== (sale.master?.id ?? '') ||
     statusDraft !== status;
-  const openDeviceModal = async () => {
-    setIsDeviceModalOpen(true);
-    setIsDeviceModalLoading(true);
-    try {
-      const devices = await getClientDevices(sale.client.phone);
-      const scoped = devices.filter((device) => device.clientId === sale.client.id);
-      setClientDevices(scoped);
-      const matched =
-        scoped.find(
-          (device) =>
-            device.name.trim().toLowerCase() === deviceNameInput.trim().toLowerCase() ||
-            (serialNumberInput.trim() &&
-              device.serialNumber.trim().toUpperCase() ===
-                serialNumberInput.trim().toUpperCase()),
-        ) ?? scoped[0] ?? null;
-      if (matched) {
-        setSelectedDeviceId(matched.id);
-        setDeviceFormName(matched.name);
-        setDeviceFormSerial(matched.serialNumber);
-        setDeviceFormNote(matched.note ?? '');
-      } else {
-        setSelectedDeviceId('');
-        setDeviceFormName(deviceNameInput);
-        setDeviceFormSerial(serialNumberInput);
-        setDeviceFormNote('');
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to load client devices.');
-    } finally {
-      setIsDeviceModalLoading(false);
-    }
-  };
   const relatedRecords = useMemo(
     () =>
       sales
@@ -3084,53 +3016,6 @@ const OrderDetailCard = ({
   const submitComment = () => {
     onAddComment(comment);
     setComment('');
-  };
-
-  const saveDeviceModal = async () => {
-    if (deviceFormName.trim().length < 2) return;
-    setIsDeviceModalSaving(true);
-    try {
-      const normalizedSerial = deviceFormSerial.trim().toUpperCase();
-      const selectedDevice = clientDevices.find((device) => device.id === selectedDeviceId) ?? null;
-      if (selectedDevice) {
-        const updated = await updateClientDevice(selectedDevice.id, {
-          clientId: selectedDevice.clientId,
-          clientName: selectedDevice.clientName,
-          clientPhone: selectedDevice.clientPhone,
-          name: deviceFormName.trim(),
-          serialNumber: '',
-          note: deviceFormNote.trim(),
-          source: selectedDevice.source,
-          isActive: selectedDevice.isActive,
-          expectedUpdatedAt: selectedDevice.updatedAt,
-        });
-        setClientDevices((current) =>
-          current.map((device) => (device.id === updated.id ? updated : device)),
-        );
-      } else {
-        const created = await createClientDevice({
-          clientId: sale.client.id,
-          clientName: sale.client.name,
-          clientPhone: sale.client.phone,
-          name: deviceFormName.trim(),
-          serialNumber: '',
-          note: deviceFormNote.trim(),
-          source: 'repairOrder',
-          isActive: true,
-        });
-        setClientDevices((current) => [created, ...current]);
-        setSelectedDeviceId(created.id);
-      }
-
-      setDeviceNameInput(deviceFormName.trim());
-      setSerialNumberInput(normalizedSerial);
-      setIsDeviceModalOpen(false);
-      onSuccess('Client device updated.');
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to save client device.');
-    } finally {
-      setIsDeviceModalSaving(false);
-    }
   };
 
   return (
@@ -3190,16 +3075,7 @@ const OrderDetailCard = ({
                 <div>
                   <dt>Device</dt>
                   <dd>
-                    <div className='order-device-inline'>
-                      <span>{deviceNameInput || '-'}</span>
-                      <button
-                        type='button'
-                        className='secondary-button order-device-edit-button'
-                        onClick={() => void openDeviceModal()}
-                      >
-                        Edit
-                      </button>
-                    </div>
+                    <span className='order-device-name'>{getPrimaryDeviceName(sale) || '-'}</span>
                   </dd>
                 </div>
                 <div>
@@ -3260,14 +3136,12 @@ const OrderDetailCard = ({
                     type='button'
                     className='primary-button'
                     disabled={
-                      isSavingMainInfo ||
-                      (!isSaleCard && deviceNameInput.trim().length < 2)
+                      isSavingMainInfo
                     }
                     onClick={async () => {
                       setIsSavingMainInfo(true);
                       try {
                         await onSaveMainInfo({
-                          deviceName: deviceNameInput.trim(),
                           serialNumber: serialNumberInput.trim().toUpperCase(),
                           masterId: masterIdInput,
                           status: statusDraft,
@@ -3472,106 +3346,6 @@ const OrderDetailCard = ({
           </div>
         </section>
       </div>
-      {isDeviceModalOpen ? (
-        <div className='modal-backdrop' role='presentation'>
-          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'>
-              <div className='catalog-edit-title'>
-                <h2>Client device</h2>
-              </div>
-              <button
-                type='button'
-                className='create-order-close'
-                onClick={() => setIsDeviceModalOpen(false)}
-                aria-label='Close'
-              >
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <label className='field'>
-                <span>Device from clients goods</span>
-                <select
-                  value={selectedDeviceId}
-                  onChange={(event) => {
-                    const nextId = event.target.value;
-                    setSelectedDeviceId(nextId);
-                    const selected = clientDevices.find((device) => device.id === nextId) ?? null;
-                    if (selected) {
-                      setDeviceFormName(selected.name);
-                      setDeviceFormSerial(selected.serialNumber);
-                      setDeviceFormNote(selected.note ?? '');
-                    }
-                  }}
-                  disabled={isDeviceModalLoading || isDeviceModalSaving}
-                >
-                  <option value=''>New device</option>
-                  {clientDevices.map((device) => (
-                    <option key={device.id} value={device.id}>
-                      {`${device.name}${device.serialNumber ? ` / ${device.serialNumber}` : ''}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className='field'>
-                <span>Name</span>
-                <input
-                  value={deviceFormName}
-                  onChange={(event) => setDeviceFormName(event.target.value)}
-                  placeholder='Device name'
-                />
-              </label>
-              <label className='field'>
-                <span>Serial number</span>
-                <input
-                  value={deviceFormSerial}
-                  onChange={(event) => setDeviceFormSerial(event.target.value)}
-                  placeholder='Serial number'
-                />
-              </label>
-              {knownSerialNumbers.length > 0 ? (
-                <label className='field'>
-                  <span>Known S/N for this device</span>
-                  <select
-                    value=''
-                    onChange={(event) => {
-                      if (event.target.value) setDeviceFormSerial(event.target.value);
-                    }}
-                  >
-                    <option value=''>Select known serial</option>
-                    {knownSerialNumbers.map((serial) => (
-                      <option key={serial} value={serial}>
-                        {serial}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label className='field'>
-                <span>Note</span>
-                <input
-                  value={deviceFormNote}
-                  onChange={(event) => setDeviceFormNote(event.target.value)}
-                  placeholder='Accessories / note'
-                />
-              </label>
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button type='button' className='secondary-button' onClick={() => setIsDeviceModalOpen(false)}>
-                Cancel
-              </button>
-              <button
-                type='button'
-                className='primary-button'
-                disabled={isDeviceModalSaving || deviceFormName.trim().length < 2}
-                onClick={() => void saveDeviceModal()}
-              >
-                {isDeviceModalSaving ? 'Saving...' : 'Save'}
-              </button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
     </article>
   );
 };
