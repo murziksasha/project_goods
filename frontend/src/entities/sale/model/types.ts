@@ -83,6 +83,7 @@ export type SaleFormValues = {
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
+  expectedUpdatedAt?: string;
 };
 
 export type SaleWorkspacePayload = {
@@ -93,6 +94,7 @@ export type SaleWorkspacePayload = {
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
+  expectedUpdatedAt?: string;
 };
 
 export type SaleLineItemReturnPayload = {

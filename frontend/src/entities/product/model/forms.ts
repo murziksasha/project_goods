@@ -24,4 +24,5 @@ export const toProductForm = (product: Product): ProductFormValues => ({
   purchasePlace: product.purchasePlace,
   purchaseDate: product.purchaseDate ? product.purchaseDate.slice(0, 10) : '',
   warrantyPeriod: String(product.warrantyPeriod),
+  expectedUpdatedAt: product.updatedAt,
 });

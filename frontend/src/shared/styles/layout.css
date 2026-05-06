@@ -741,6 +741,12 @@
   font-size: 1.45rem;
 }
 
+.topbar-sync-label {
+  color: #6f839a;
+  font-size: 0.85rem;
+  margin-right: auto;
+}
+
 .topbar-actions {
   display: flex;
   gap: 10px;
@@ -2308,6 +2314,11 @@
 
 .orders-table td {
   font-size: 0.95rem;
+}
+
+.orders-term-urgent {
+  color: #dc6b6b;
+  font-weight: 600;
 }
 
 .orders-client-cell {

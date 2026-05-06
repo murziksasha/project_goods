@@ -138,3 +138,11 @@ Backend собран по модульному практическому пат
 2. Усилить валидацию входных данных на границах API.
 3. Зафиксировать общие стандарты linting, formatting и quality gates.
 4. Рассмотреть workspace-tooling, если общих скриптов и связей между пакетами станет больше.
+
+## Shared State Consistency (2026-05-06)
+
+- Frontend keeps local state in useDashboardPage and syncs with backend via dashboard actions.
+- Critical mutations trigger targeted refresh calls for sales, products, and client-devices.
+- Topbar shows Last sync timestamp to visualize data freshness.
+- Full rollout plan is tracked in [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md).
+

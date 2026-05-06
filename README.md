@@ -100,3 +100,9 @@ npm run install:all
 
 - Keep client status values in original English.
 - Do not translate client status enums in UI labels, API payloads, or documentation.
+
+## Additional Docs
+
+- [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) - state management and multi-user roadmap
+- [ORDER_FLOW.md](./ORDER_FLOW.md) - order creation and clients goods rules
+

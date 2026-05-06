@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
-import { createProduct, getProducts } from '../../../entities/product/api/productApi';
+import { getProducts } from '../../../entities/product/api/productApi';
+import {
+  createClientDevice,
+  getClientDevices,
+} from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
@@ -138,9 +143,10 @@ export const CreateOrderCard = ({
   const [masterId, setMasterId] = useState('');
   const [selectedFlags, setSelectedFlags] = useState<string[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
-  const [deviceSuggestions, setDeviceSuggestions] = useState<Product[]>([]);
+  const [deviceSuggestions, setDeviceSuggestions] = useState<ClientDevice[]>([]);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
@@ -195,6 +201,12 @@ export const CreateOrderCard = ({
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
   const visibleClientHistory = selectedClientId ? clientHistory : null;
   const visibleDeviceSuggestions = deviceName.trim().length >= 2 ? deviceSuggestions : [];
+  const canCreateClientDevice =
+    activeTab === 'repair' &&
+    Boolean(selectedClientId && selectedClient) &&
+    deviceName.trim().length >= 2 &&
+    !isDeviceLookupLoading &&
+    visibleDeviceSuggestions.length === 0;
   const focusedSaleItem =
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
   const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
@@ -265,8 +277,14 @@ export const CreateOrderCard = ({
     const timeoutId = window.setTimeout(async () => {
       setIsDeviceLookupLoading(true);
       try {
-        const products = await getProducts(deviceLookupQuery);
-        if (isActive) setDeviceSuggestions(products.slice(0, 8));
+        const devices = await getClientDevices(deviceLookupQuery);
+        if (isActive) {
+          setDeviceSuggestions(
+            devices
+              .filter((device) => device.isActive)
+              .slice(0, 8),
+          );
+        }
       } catch {
         if (isActive) setDeviceSuggestions([]);
       } finally {
@@ -319,13 +337,14 @@ export const CreateOrderCard = ({
     setClientPhone(client.phone);
     setClientName(client.name);
     setSelectedClientId(client.id);
+    setSelectedClient(client);
     setClientSuggestions([]);
   };
 
-  const applyProduct = (product: Product) => {
-    setDeviceName(product.name);
-    setDeviceSerialNumber(product.serialNumber);
-    setDeviceKit(extractDeviceKit(product.note));
+  const applyDevice = (device: ClientDevice) => {
+    setDeviceName(device.name);
+    setDeviceSerialNumber(device.serialNumber);
+    setDeviceKit(extractDeviceKit(device.note));
     setDeviceSuggestions([]);
   };
 
@@ -371,6 +390,7 @@ export const CreateOrderCard = ({
   const onClientPhoneChange = (value: string) => {
     setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
     setSelectedClientId(null);
+    setSelectedClient(null);
   };
 
   const onClientPhoneBlur = () => {
@@ -380,6 +400,7 @@ export const CreateOrderCard = ({
   const onClientNameChange = (value: string) => {
     setClientName(value);
     setSelectedClientId(null);
+    setSelectedClient(null);
   };
 
   const fillRepairDemo = () => {
@@ -434,27 +455,21 @@ export const CreateOrderCard = ({
 
   const createDeviceFromModal = async () => {
     const name = newDeviceName.trim();
-    if (name.length < 2 || isDeviceCreating) return;
+    if (name.length < 2 || isDeviceCreating || !selectedClientId || !selectedClient) return;
 
-    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)
-      .toString(36)
-      .padStart(2, '0')}`.toUpperCase();
     setIsDeviceCreating(true);
     try {
-      const created = await createProduct({
+      const created = await createClientDevice({
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientPhone: selectedClient.phone,
         name,
-        article: `ORD-${suffix}`,
-        serialNumber: deviceSerialNumber.trim().toUpperCase() || `SRV-${suffix}`,
-        price: '0',
-        salePriceOptions: '0',
-        quantity: '1',
+        serialNumber: deviceSerialNumber.trim().toUpperCase(),
         note: deviceKit.trim() || 'Created from repair order',
-        purchasePlace: '',
-        purchaseDate: '',
-        warrantyPeriod: '0',
+        source: 'repairOrder',
         isActive: newDeviceIsActive,
       });
-      applyProduct(created);
+      applyDevice(created);
       setIsCreateDeviceModalOpen(false);
     } finally {
       setIsDeviceCreating(false);
@@ -704,6 +719,7 @@ export const CreateOrderCard = ({
                   <button
                     type="button"
                     className="secondary-button"
+                    disabled={!canCreateClientDevice}
                     onClick={() => {
                       setNewDeviceName(deviceName.trim());
                       setNewDeviceIsActive(true);
@@ -716,15 +732,15 @@ export const CreateOrderCard = ({
                 {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
                   <div className="create-suggestions">
                     {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
-                    {visibleDeviceSuggestions.map((product) => (
+                    {visibleDeviceSuggestions.map((device) => (
                       <button
-                        key={product.id}
+                        key={device.id}
                         type="button"
                         className="create-suggestion-item"
-                        onClick={() => applyProduct(product)}
+                        onClick={() => applyDevice(device)}
                     >
-                      <strong>{product.name}{product.isActive ? '' : ' (inactive)'}</strong>
-                      <span>{product.serialNumber}</span>
+                      <strong>{device.name}</strong>
+                      <span>{device.serialNumber || '-'}</span>
                     </button>
                   ))}
                 </div>
@@ -900,22 +916,16 @@ export const CreateOrderCard = ({
                       type="button"
                       className="create-side-list-button"
                       onClick={() =>
-                        applyProduct({
+                        applyDevice({
                           id: sale.product.id,
-                          article: sale.product.article,
+                          clientId: sale.client.id,
+                          clientName: sale.client.name,
+                          clientPhone: sale.client.phone,
                           name: sale.product.name,
                           serialNumber: sale.product.serialNumber,
-                          price: sale.salePrice,
-                          salePriceOptions: [],
                           note: '',
-                          quantity: sale.quantity,
-                          reservedQuantity: 0,
-                          freeQuantity: 0,
-                          isInStock: true,
+                          source: 'repairOrder',
                           isActive: true,
-                          purchasePlace: '',
-                          purchaseDate: null,
-                          warrantyPeriod: 0,
                           createdAt: sale.createdAt,
                           updatedAt: sale.updatedAt,
                         })
@@ -995,7 +1005,12 @@ export const CreateOrderCard = ({
               <button
                 type="button"
                 className="primary-button"
-                disabled={isDeviceCreating || newDeviceName.trim().length < 2}
+                disabled={
+                  isDeviceCreating ||
+                  !selectedClientId ||
+                  !selectedClient ||
+                  newDeviceName.trim().length < 2
+                }
                 onClick={() => void createDeviceFromModal()}
               >
                 {isDeviceCreating ? 'Saving...' : 'Save'}

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getClientHistory, getClients } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import { getEmployees } from '../../../entities/employee/api/employeeApi';
@@ -16,6 +17,7 @@ import type { ServiceCatalogItem } from '../../../entities/service-catalog/model
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
+import { queryKeys } from '../../../shared/api/queryClient';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -40,6 +42,7 @@ type DashboardEffectsParams = {
   setIsEmployeesLoading: Setter<boolean>;
   setIsClientHistoryLoading: Setter<boolean>;
   setError: Setter<string>;
+  setLastSyncAt: Setter<string | null>;
 };
 
 export const useDashboardEffects = ({
@@ -63,6 +66,7 @@ export const useDashboardEffects = ({
   setIsEmployeesLoading,
   setIsClientHistoryLoading,
   setError,
+  setLastSyncAt,
 }: DashboardEffectsParams) => {
   useEffect(() => {
     if (!enabled) return;
@@ -72,42 +76,25 @@ export const useDashboardEffects = ({
     const fetchWorkspaceData = async () => {
       setIsProductsLoading(true);
       setIsSuppliersLoading(true);
-      setIsClientsLoading(true);
       setIsEmployeesLoading(true);
+      setIsClientsLoading(true);
       setIsServicesLoading(true);
 
       try {
         const [
-          productsResult,
-          devicesResult,
           suppliersResult,
-          clientsResult,
           employeesResult,
           settingsResult,
-          servicesResult,
         ] =
           await Promise.allSettled([
-            getProducts(),
-            getClientDevices(),
             getSuppliers(),
-            getClients(),
             getEmployees(),
             getSettings(),
-            getServiceCatalogItems(),
           ]);
         if (!isActive) return;
 
-        if (productsResult.status === 'fulfilled') {
-          setAllProducts(productsResult.value);
-        }
-        if (devicesResult.status === 'fulfilled') {
-          setClientDevices(devicesResult.value);
-        }
         if (suppliersResult.status === 'fulfilled') {
           setSuppliers(suppliersResult.value);
-        }
-        if (clientsResult.status === 'fulfilled') {
-          setAllClients(clientsResult.value);
         }
         if (employeesResult.status === 'fulfilled') {
           setAllEmployees(employeesResult.value);
@@ -121,36 +108,12 @@ export const useDashboardEffects = ({
           setSettings(null);
           setSettingsForm({ serviceName: 'Service CRM' });
         }
-        if (servicesResult.status === 'fulfilled') {
-          setServices(servicesResult.value);
-        } else {
-          setServices([]);
-        }
-
-        if (
-          productsResult.status === 'rejected' ||
-          clientsResult.status === 'rejected'
-        ) {
-          const coreError =
-            productsResult.status === 'rejected'
-              ? productsResult.reason
-              : clientsResult.status === 'rejected'
-                ? clientsResult.reason
-                : new Error('Failed to load workspace data.');
-          setError(
-            getRequestErrorMessage(
-              coreError,
-              'Failed to load workspace data.',
-            ),
-          );
-        }
+        setLastSyncAt(new Date().toISOString());
       } finally {
         if (isActive) {
           setIsProductsLoading(false);
           setIsSuppliersLoading(false);
-          setIsClientsLoading(false);
           setIsEmployeesLoading(false);
-          setIsServicesLoading(false);
         }
       }
     };
@@ -177,28 +140,152 @@ export const useDashboardEffects = ({
     setServices,
   ]);
 
+  const productsQuery = useQuery({
+    queryKey: queryKeys.products,
+    queryFn: () => getProducts(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
+  const clientDevicesQuery = useQuery({
+    queryKey: queryKeys.clientDevices,
+    queryFn: () => getClientDevices(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
+  const salesQuery = useQuery({
+    queryKey: queryKeys.sales,
+    queryFn: () => getSales(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
+  const clientsQuery = useQuery({
+    queryKey: queryKeys.clients,
+    queryFn: () => getClients(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
+  const servicesQuery = useQuery({
+    queryKey: queryKeys.services,
+    queryFn: () => getServiceCatalogItems(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
+
   useEffect(() => {
     if (!enabled) return;
+    setIsProductsLoading(productsQuery.isLoading);
+    if (productsQuery.data) {
+      setAllProducts(productsQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (productsQuery.error) {
+      setError(
+        getRequestErrorMessage(productsQuery.error, 'Failed to load products.'),
+      );
+    }
+  }, [
+    enabled,
+    productsQuery.data,
+    productsQuery.error,
+    productsQuery.isLoading,
+    setAllProducts,
+    setError,
+    setIsProductsLoading,
+    setLastSyncAt,
+  ]);
 
-    let isActive = true;
+  useEffect(() => {
+    if (!enabled) return;
+    if (clientDevicesQuery.data) {
+      setClientDevices(clientDevicesQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (clientDevicesQuery.error) {
+      setError(
+        getRequestErrorMessage(
+          clientDevicesQuery.error,
+          'Failed to load client devices.',
+        ),
+      );
+    }
+  }, [
+    enabled,
+    clientDevicesQuery.data,
+    clientDevicesQuery.error,
+    setClientDevices,
+    setError,
+    setLastSyncAt,
+  ]);
 
-    const fetchSalesData = async () => {
-      setIsSalesLoading(true);
-      try {
-        const data = await getSales();
-        if (isActive) setSales(data);
-      } catch (requestError) {
-        if (isActive) setError(getRequestErrorMessage(requestError, 'Failed to load sales.'));
-      } finally {
-        if (isActive) setIsSalesLoading(false);
-      }
-    };
+  useEffect(() => {
+    if (!enabled) return;
+    setIsSalesLoading(salesQuery.isLoading);
+    if (salesQuery.data) {
+      setSales(salesQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (salesQuery.error) {
+      setError(getRequestErrorMessage(salesQuery.error, 'Failed to load sales.'));
+    }
+  }, [
+    enabled,
+    salesQuery.data,
+    salesQuery.error,
+    salesQuery.isLoading,
+    setError,
+    setIsSalesLoading,
+    setLastSyncAt,
+    setSales,
+  ]);
 
-    void fetchSalesData();
-    return () => {
-      isActive = false;
-    };
-  }, [enabled, setError, setIsSalesLoading, setSales]);
+  useEffect(() => {
+    if (!enabled) return;
+    setIsClientsLoading(clientsQuery.isLoading);
+    if (clientsQuery.data) {
+      setAllClients(clientsQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (clientsQuery.error) {
+      setError(
+        getRequestErrorMessage(clientsQuery.error, 'Failed to load clients.'),
+      );
+    }
+  }, [
+    enabled,
+    clientsQuery.data,
+    clientsQuery.error,
+    clientsQuery.isLoading,
+    setAllClients,
+    setError,
+    setIsClientsLoading,
+    setLastSyncAt,
+  ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setIsServicesLoading(servicesQuery.isLoading);
+    if (servicesQuery.data) {
+      setServices(servicesQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (servicesQuery.error) {
+      setError(
+        getRequestErrorMessage(
+          servicesQuery.error,
+          'Failed to load services.',
+        ),
+      );
+    }
+  }, [
+    enabled,
+    servicesQuery.data,
+    servicesQuery.error,
+    servicesQuery.isLoading,
+    setError,
+    setIsServicesLoading,
+    setLastSyncAt,
+    setServices,
+  ]);
 
   useEffect(() => {
     if (!enabled || !selectedClientId) return;
