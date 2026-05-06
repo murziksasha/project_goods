@@ -4,16 +4,16 @@
 
 - Clicking `Create order` opens the modal.
 - `Client phone` + `Client name` perform lookup in clients.
-- If client is not found, a new client is created automatically on save.
+- If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is unique. If uniqueness fails, order creation is rejected.
 
 ## Repair Order Device Behavior
 
-- `Device #1` searches in `Products & Services -> Clients goods` (client devices).
+- `Device #1` searches in `Products & Services -> Clients goods` (client devices), globally across all clients (no `clientId` filter).
 - Search returns only active client devices.
 - `Create new` button is visible but disabled until:
   - tab is `Repair order`
-  - a client is selected from suggestions
+  - a client is selected from suggestions (required only for creating a new device card)
   - device name has at least 2 chars
   - no active matches are found
 - New device is created in `client-devices` collection, not in warehouse products.
@@ -30,10 +30,46 @@
 - No automatic `Repair` service line item is injected into new repair orders.
 - Removing service line items from order card is allowed and persisted.
 
+## Orders List Columns (`Orders` tab)
+
+- Column `Received` is renamed to `Issued`.
+- Column `Master` is added.
+- `Issued` displays only the employee who performed the status change to one of final repair statuses:
+  - `issued`
+  - `client rejected`
+  - `issued without repair`
+- If no such status transition happened yet, `Issued` shows `-`.
+- Every status change action is recorded in `Live feed` with author and timestamp.
+- `Ready date` in the orders list is treated as completion date and is set from the timestamp of transition to one of:
+  - `issued`
+  - `client rejected`
+  - `issued without repair`
+- Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
+
+## Order Card Editing Rules
+
+- In order card `Main information`, `Device` and `S/N` are editable fields.
+- `S/N` must remain editable at any time, including empty value.
+- `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
+- `Manager` remains informational.
+- `Article` is removed from order card main information.
+- `Save changes` button appears only when main information or status was modified (dirty state), and persists changes atomically.
+- Status in order card is applied on `Save changes` (not immediately on select).
+- If saved status is NOT one of final issued statuses:
+  - `issued`
+  - `client rejected`
+  - `issued without repair`
+  then `Issued` worker is cleared in both orders list and order card.
+- Saving order card main information must also sync linked `Clients goods` record for the same `clientId` (device name and serial).
+- `Live feed` composer (comment input + `Add` button) is fixed at the bottom of the live feed panel and must not shrink.
+
 ## Clients Goods (`Products & Services` first tab)
 
 - First tab is named `Clients goods`.
 - Fields shown: `ID`, `Name`, `Activity`, `Date`.
+- Device `Name` is unique per client (case-insensitive).
+- Same device names are allowed across different clients.
+- Serial numbers are not stored in `Clients goods`; they are handled in order card context/history.
 - Clicking `Name` opens edit modal.
 - Modal allows toggling `active/inactive`.
 - Inactive devices are excluded from order device lookup.

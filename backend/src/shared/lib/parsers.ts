@@ -160,6 +160,8 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
             item.warrantyPeriod >= 0,
         )
     : [],
+  deviceName: toNonEmptyString(payload.deviceName),
+  serialNumber: toNonEmptyString(payload.serialNumber).toUpperCase(),
 });
 
 export const normalizeEmployeePayload = (payload: EmployeePayload) => {

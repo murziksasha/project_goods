@@ -83,6 +83,8 @@ export type SaleFormValues = {
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
+  deviceName?: string;
+  serialNumber?: string;
   expectedUpdatedAt?: string;
 };
 
@@ -90,7 +92,10 @@ export type SaleWorkspacePayload = {
   kind?: 'repair' | 'sale';
   status?: string;
   paidAmount?: number;
+  masterId?: string;
   issuedById?: string;
+  deviceName?: string;
+  serialNumber?: string;
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];

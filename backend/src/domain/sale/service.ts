@@ -97,17 +97,19 @@ const getStockLines = (
   fallbackProductId: mongoose.Types.ObjectId | string,
   fallbackQuantity: number,
 ): StockLine[] => {
+  if (kind !== 'sale') {
+    return [];
+  }
+
   const stockMap = new Map<string, number>();
 
-  if (kind === 'sale') {
-    lineItems.forEach((item) => {
-      const productId = item.productId?.toString();
+  lineItems.forEach((item) => {
+    const productId = item.productId?.toString();
 
-      if (item.kind === 'product' && productId) {
-        addStockQuantity(stockMap, productId, item.quantity);
-      }
-    });
-  }
+    if (item.kind === 'product' && productId) {
+      addStockQuantity(stockMap, productId, item.quantity);
+    }
+  });
 
   if (stockMap.size === 0) {
     addStockQuantity(stockMap, fallbackProductId.toString(), fallbackQuantity);
@@ -353,8 +355,8 @@ export const createSale = async (payloadInput: SalePayload) => {
       lineItems,
       productSnapshot: {
         article: product.article,
-        name: product.name,
-        serialNumber: product.serialNumber,
+        name: payload.deviceName || product.name,
+        serialNumber: payload.serialNumber || product.serialNumber,
       },
       clientSnapshot: {
         name: client.name,
@@ -500,8 +502,8 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         lineItems: nextLineItems,
         productSnapshot: {
           article: product.article,
-          name: product.name,
-          serialNumber: product.serialNumber,
+          name: payload.deviceName || product.name,
+          serialNumber: payload.serialNumber || product.serialNumber,
         },
         clientSnapshot: {
           name: client.name,
@@ -566,6 +568,7 @@ export const updateSaleWorkspace = async (
       ? existingSale.paidAmount ?? 0
       : payload.paidAmount;
   const issuedBy = await resolveActiveEmployee(payload.issuedById, 'issuedById');
+  const hasIssuedByUpdate = payloadInput.issuedById !== undefined;
   const nextTimeline =
     Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
       ? payload.timeline
@@ -591,8 +594,23 @@ export const updateSaleWorkspace = async (
                 name: existingSale.productSnapshot?.name ?? 'Item',
               },
             ));
+  const nextDeviceName =
+    payload.deviceName || existingSale.productSnapshot?.name || '';
+  const nextSerialNumber =
+    payload.serialNumber !== undefined
+      ? payload.serialNumber
+      : (existingSale.productSnapshot?.serialNumber ?? '');
+  const normalizedLineItems = nextLineItems.map((item) =>
+    item.kind === 'product' ? { ...item, name: nextDeviceName || item.name } : item,
+  );
+  const master = await resolveEmployee(
+    payload.masterId,
+    'masterId',
+    ['master', 'owner'],
+    'repairs.execute',
+  );
 
-  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, nextLineItems);
+  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, normalizedLineItems);
 
   const updatedSale = await Sale.findByIdAndUpdate(
     saleId,
@@ -600,12 +618,25 @@ export const updateSaleWorkspace = async (
       kind: nextKind,
       status: nextStatus,
       paidAmount: nextPaidAmount,
-      issuedBy: issuedBy?._id ?? existingSale.issuedBy ?? null,
+      master: master?._id ?? existingSale.master ?? null,
+      issuedBy: hasIssuedByUpdate
+        ? issuedBy?._id ?? null
+        : existingSale.issuedBy ?? null,
       timeline: nextTimeline,
       paymentHistory: nextPaymentHistory,
-      lineItems: nextLineItems,
-      issuedBySnapshot: issuedBy
-        ? { name: issuedBy.name, role: issuedBy.role }
+      lineItems: normalizedLineItems,
+      productSnapshot: {
+        article: existingSale.productSnapshot?.article ?? '',
+        name: nextDeviceName || existingSale.productSnapshot?.name || '',
+        serialNumber: nextSerialNumber ?? '',
+      },
+      masterSnapshot: master
+        ? { name: master.name, role: master.role }
+        : existingSale.masterSnapshot,
+      issuedBySnapshot: hasIssuedByUpdate
+        ? (issuedBy
+            ? { name: issuedBy.name, role: issuedBy.role }
+            : undefined)
         : existingSale.issuedBySnapshot,
     },
     { new: true, runValidators: true },
