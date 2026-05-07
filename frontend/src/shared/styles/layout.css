@@ -1275,8 +1275,17 @@
   grid-column: 1 / -1;
 }
 
+.order-detail-line-items-panel {
+  grid-column: 1;
+}
+
 .order-detail-related-panel {
   grid-column: 1 / -1;
+}
+
+.order-detail-payment-panel {
+  grid-column: 2;
+  grid-row: 3 / span 3;
 }
 
 .order-detail-panel h3 {
@@ -1306,6 +1315,13 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;
+}
+
+.order-detail-collapse-icon {
+  min-width: 18px;
+  text-align: center;
+  color: #c9b8a2;
+  font-size: 0.95rem;
 }
 
 .order-detail-collapse-button + .order-line-items {
@@ -1547,9 +1563,14 @@
 
 .order-line-items-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
   gap: 10px;
   position: relative;
+}
+
+.order-line-items-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
+  gap: 10px;
 }
 
 .order-line-item-name-button {
@@ -1569,13 +1590,14 @@
 }
 
 .line-item-create-service-button {
-  grid-column: 1;
   justify-self: start;
 }
 
 .line-item-suggestions {
-  grid-column: 1 / -1;
-  margin-top: -2px;
+  margin-top: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .line-item-remove-button {
