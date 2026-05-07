@@ -120,7 +120,7 @@ export const formatSale = (sale: SaleDocument) => ({
     ...sale.clientSnapshot,
   },
   product: {
-    id: sale.product.toString(),
+    id: sale.product ? sale.product.toString() : '',
     ...sale.productSnapshot,
     serialNumber: sale.productSnapshot?.serialNumber ?? '',
   },

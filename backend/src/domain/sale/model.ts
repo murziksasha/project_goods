@@ -23,7 +23,8 @@ export const saleSchema = new mongoose.Schema(
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
-      required: [true, 'Product is required'],
+      required: false,
+      default: null,
       index: true,
     },
     manager: {

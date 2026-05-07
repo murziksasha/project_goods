@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { Sale } from '../model/types';
 import { createWarehouseShipment } from '../api/shipmentApi';
 
