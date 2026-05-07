@@ -97,17 +97,19 @@ const getStockLines = (
   fallbackProductId: mongoose.Types.ObjectId | string,
   fallbackQuantity: number,
 ): StockLine[] => {
+  if (kind !== 'sale') {
+    return [];
+  }
+
   const stockMap = new Map<string, number>();
 
-  if (kind === 'sale') {
-    lineItems.forEach((item) => {
-      const productId = item.productId?.toString();
+  lineItems.forEach((item) => {
+    const productId = item.productId?.toString();
 
-      if (item.kind === 'product' && productId) {
-        addStockQuantity(stockMap, productId, item.quantity);
-      }
-    });
-  }
+    if (item.kind === 'product' && productId) {
+      addStockQuantity(stockMap, productId, item.quantity);
+    }
+  });
 
   if (stockMap.size === 0) {
     addStockQuantity(stockMap, fallbackProductId.toString(), fallbackQuantity);
@@ -199,17 +201,23 @@ const getDefaultLineItems = (
     quantity: number;
   },
   product: { _id: mongoose.Types.ObjectId | string; name: string },
-) => [
-  {
-    id: `${product._id.toString()}-${payload.kind}-default`,
-    kind: payload.kind === 'sale' ? 'product' : 'service',
-    productId: payload.kind === 'sale' ? product._id.toString() : undefined,
-    name: payload.kind === 'sale' ? product.name : 'Repair',
-    price: payload.salePrice,
-    quantity: payload.quantity,
-    warrantyPeriod: 0,
-  },
-];
+) => {
+  if (payload.kind === 'repair') {
+    return [];
+  }
+
+  return [
+    {
+      id: `${product._id.toString()}-${payload.kind}-default`,
+      kind: 'product',
+      productId: product._id.toString(),
+      name: product.name,
+      price: payload.salePrice,
+      quantity: payload.quantity,
+      warrantyPeriod: 0,
+    },
+  ];
+};
 
 const assertWorkspaceState = (
   kind: 'repair' | 'sale',
@@ -291,12 +299,15 @@ export const createSale = async (payloadInput: SalePayload) => {
   const payload = normalizeSalePayload(payloadInput);
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
-  isValidObjectIdOrThrow(payload.productId, 'productId');
+  const hasProductId = Boolean(payload.productId);
+  if (normalizedKind === 'sale') {
+    isValidObjectIdOrThrow(payload.productId, 'productId');
+  }
   assertSalePayload(payload.quantity, payload.salePrice);
 
   const [client, product, manager, master, issuedBy] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
-    Product.findById(payload.productId).lean<ProductDocument | null>(),
+    hasProductId ? Product.findById(payload.productId).lean<ProductDocument | null>() : null,
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
     resolveActiveEmployee(payload.issuedById, 'issuedById'),
@@ -308,23 +319,25 @@ export const createSale = async (payloadInput: SalePayload) => {
   if (client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
-  if (!product) {
+  if (normalizedKind === 'sale' && !product) {
     throw new Error('Product not found.');
   }
 
   const lineItems =
     payload.lineItems.length > 0
       ? payload.lineItems
-      : getFallbackLineItems(
-          normalizedKind,
-          payload.salePrice,
-          payload.quantity,
-          product,
-        );
+      : product
+        ? getFallbackLineItems(
+            normalizedKind,
+            payload.salePrice,
+            payload.quantity,
+            product,
+          )
+        : [];
   const stockDeltas = getStockLines(
     normalizedKind,
     lineItems,
-    payload.productId,
+    product?._id ?? payload.productId,
     payload.quantity,
   );
 
@@ -333,12 +346,14 @@ export const createSale = async (payloadInput: SalePayload) => {
   try {
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
-    const updatedProduct = await Product.findById(payload.productId).lean<ProductDocument | null>();
+    const updatedProduct = product
+      ? await Product.findById(product._id).lean<ProductDocument | null>()
+      : null;
 
     const sale = new Sale({
       saleDate: payload.saleDate,
       client: client._id,
-      product: product._id,
+      product: product?._id ?? null,
       manager: manager?._id ?? null,
       master: master?._id ?? null,
       issuedBy: issuedBy?._id ?? null,
@@ -352,9 +367,9 @@ export const createSale = async (payloadInput: SalePayload) => {
       paymentHistory: payload.paymentHistory ?? [],
       lineItems,
       productSnapshot: {
-        article: product.article,
-        name: product.name,
-        serialNumber: product.serialNumber,
+        article: product?.article || 'REPAIR',
+        name: payload.deviceName || product?.name || 'Repair',
+        serialNumber: payload.serialNumber || product?.serialNumber || '',
       },
       clientSnapshot: {
         name: client.name,
@@ -384,7 +399,7 @@ export const createSale = async (payloadInput: SalePayload) => {
 
     return {
       sale: formatSale(sale.toObject<SaleDocument>()),
-      product: formatProduct(updatedProduct ?? product),
+      product: updatedProduct ? formatProduct(updatedProduct) : null,
     };
   } catch (error) {
     if (stockDeltasApplied) {
@@ -405,7 +420,10 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   const payload = normalizeSalePayload(payloadInput);
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
-  isValidObjectIdOrThrow(payload.productId, 'productId');
+  const hasProductId = Boolean(payload.productId);
+  if (normalizedKind === 'sale') {
+    isValidObjectIdOrThrow(payload.productId, 'productId');
+  }
   assertSalePayload(payload.quantity, payload.salePrice);
 
   const existingSale = await Sale.findById(saleId).lean<SaleDocument | null>();
@@ -416,7 +434,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
 
   const [client, product, manager, master, issuedBy] = await Promise.all([
     Client.findById(payload.clientId).lean<ClientDocument | null>(),
-    Product.findById(payload.productId).lean<ProductDocument | null>(),
+    hasProductId ? Product.findById(payload.productId).lean<ProductDocument | null>() : null,
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
     resolveActiveEmployee(payload.issuedById, 'issuedById'),
@@ -428,7 +446,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   if (client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
-  if (!product) {
+  if (normalizedKind === 'sale' && !product) {
     throw new Error('Product not found.');
   }
 
@@ -440,30 +458,32 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           existingSale.salePrice,
           existingSale.quantity,
           {
-            _id: existingSale.product,
+            _id: existingSale.product ?? '',
             name: existingSale.productSnapshot?.name ?? 'Item',
           },
         );
   const nextLineItems =
     payload.lineItems.length > 0
       ? payload.lineItems
-      : getFallbackLineItems(
-          normalizedKind,
-          payload.salePrice,
-          payload.quantity,
-          product,
-        );
+      : product
+        ? getFallbackLineItems(
+            normalizedKind,
+            payload.salePrice,
+            payload.quantity,
+            product,
+          )
+        : [];
   const stockDeltas = getStockDeltas(
     getStockLines(
       existingSale.kind === 'sale' ? 'sale' : 'repair',
       currentLineItems,
-      existingSale.product,
+      existingSale.product ?? '',
       existingSale.quantity,
     ),
     getStockLines(
       normalizedKind,
       nextLineItems,
-      payload.productId,
+      product?._id ?? payload.productId,
       payload.quantity,
     ),
   );
@@ -484,7 +504,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
       {
         saleDate: payload.saleDate,
         client: client._id,
-        product: product._id,
+        product: product?._id ?? existingSale.product ?? null,
         manager: manager?._id ?? null,
         master: master?._id ?? null,
         issuedBy: issuedBy?._id ?? existingSale.issuedBy ?? null,
@@ -499,9 +519,13 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           payload.paymentHistory ?? existingSale.paymentHistory ?? [],
         lineItems: nextLineItems,
         productSnapshot: {
-          article: product.article,
-          name: product.name,
-          serialNumber: product.serialNumber,
+          article: product?.article || existingSale.productSnapshot?.article || 'REPAIR',
+          name: payload.deviceName || product?.name || existingSale.productSnapshot?.name || 'Repair',
+          serialNumber:
+            payload.serialNumber ||
+            product?.serialNumber ||
+            existingSale.productSnapshot?.serialNumber ||
+            '',
         },
         clientSnapshot: {
           name: client.name,
@@ -524,11 +548,13 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     if (!updatedSale) {
       throw new Error('Sale not found.');
     }
-    const updatedProduct = await Product.findById(payload.productId).lean<ProductDocument | null>();
+    const updatedProduct = product
+      ? await Product.findById(product._id).lean<ProductDocument | null>()
+      : null;
 
     return {
       sale: formatSale(updatedSale),
-      product: formatProduct(updatedProduct ?? product),
+      product: updatedProduct ? formatProduct(updatedProduct) : null,
     };
   } catch (error) {
     if (stockDeltasApplied) {
@@ -566,6 +592,7 @@ export const updateSaleWorkspace = async (
       ? existingSale.paidAmount ?? 0
       : payload.paidAmount;
   const issuedBy = await resolveActiveEmployee(payload.issuedById, 'issuedById');
+  const hasIssuedByUpdate = payloadInput.issuedById !== undefined;
   const nextTimeline =
     Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
       ? payload.timeline
@@ -587,12 +614,27 @@ export const updateSaleWorkspace = async (
                 quantity: existingSale.quantity,
               },
               {
-                _id: existingSale.product,
+                _id: existingSale.product ?? '',
                 name: existingSale.productSnapshot?.name ?? 'Item',
               },
             ));
+  const nextDeviceName =
+    payload.deviceName || existingSale.productSnapshot?.name || '';
+  const nextSerialNumber =
+    payload.serialNumber !== undefined
+      ? payload.serialNumber
+      : (existingSale.productSnapshot?.serialNumber ?? '');
+  const normalizedLineItems = nextLineItems.map((item) =>
+    item.kind === 'product' ? { ...item, name: nextDeviceName || item.name } : item,
+  );
+  const master = await resolveEmployee(
+    payload.masterId,
+    'masterId',
+    ['master', 'owner'],
+    'repairs.execute',
+  );
 
-  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, nextLineItems);
+  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, normalizedLineItems);
 
   const updatedSale = await Sale.findByIdAndUpdate(
     saleId,
@@ -600,12 +642,25 @@ export const updateSaleWorkspace = async (
       kind: nextKind,
       status: nextStatus,
       paidAmount: nextPaidAmount,
-      issuedBy: issuedBy?._id ?? existingSale.issuedBy ?? null,
+      master: master?._id ?? existingSale.master ?? null,
+      issuedBy: hasIssuedByUpdate
+        ? issuedBy?._id ?? null
+        : existingSale.issuedBy ?? null,
       timeline: nextTimeline,
       paymentHistory: nextPaymentHistory,
-      lineItems: nextLineItems,
-      issuedBySnapshot: issuedBy
-        ? { name: issuedBy.name, role: issuedBy.role }
+      lineItems: normalizedLineItems,
+      productSnapshot: {
+        article: existingSale.productSnapshot?.article ?? '',
+        name: nextDeviceName || existingSale.productSnapshot?.name || '',
+        serialNumber: nextSerialNumber ?? '',
+      },
+      masterSnapshot: master
+        ? { name: master.name, role: master.role }
+        : existingSale.masterSnapshot,
+      issuedBySnapshot: hasIssuedByUpdate
+        ? (issuedBy
+            ? { name: issuedBy.name, role: issuedBy.role }
+            : undefined)
         : existingSale.issuedBySnapshot,
     },
     { new: true, runValidators: true },
@@ -634,14 +689,14 @@ export const deleteSale = async (saleId: string) => {
           existingSale.salePrice,
           existingSale.quantity,
           {
-            _id: existingSale.product,
+            _id: existingSale.product ?? '',
             name: existingSale.productSnapshot?.name ?? 'Item',
           },
         );
   const stockDeltas = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
     lineItems,
-    existingSale.product,
+    existingSale.product ?? '',
     existingSale.quantity,
   ).map((line) => ({
     ...line,
@@ -651,7 +706,7 @@ export const deleteSale = async (saleId: string) => {
   await applyStockDeltas(stockDeltas);
   await Sale.findByIdAndDelete(saleId);
 
-  return { id: saleId, restoredProductId: existingSale.product.toString() };
+  return { id: saleId, restoredProductId: existingSale.product?.toString() ?? '' };
 };
 
 export const returnSaleLineItem = async (

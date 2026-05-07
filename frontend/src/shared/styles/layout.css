@@ -1275,8 +1275,17 @@
   grid-column: 1 / -1;
 }
 
+.order-detail-line-items-panel {
+  grid-column: 1;
+}
+
 .order-detail-related-panel {
   grid-column: 1 / -1;
+}
+
+.order-detail-payment-panel {
+  grid-column: 2;
+  grid-row: 3 / span 3;
 }
 
 .order-detail-panel h3 {
@@ -1306,6 +1315,13 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;
+}
+
+.order-detail-collapse-icon {
+  min-width: 18px;
+  text-align: center;
+  color: #c9b8a2;
+  font-size: 0.95rem;
 }
 
 .order-detail-collapse-button + .order-line-items {
@@ -1355,10 +1371,25 @@
 
 .order-timeline {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.order-timeline-list {
   min-height: 0;
   overflow-y: auto;
+  display: grid;
+  gap: 12px;
   padding-right: 4px;
+}
+
+.order-timeline-composer {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #d7dfe8;
+  padding-top: 10px;
+  background: #fff;
 }
 
 .order-timeline-item {
@@ -1383,12 +1414,41 @@
   color: #2d8ae3;
 }
 
+.order-timeline-message-system {
+  color: #6f8197;
+}
+
+.order-timeline-message-manual {
+  color: #2d8ae3;
+}
+
 .order-timeline textarea {
   border: 1px solid #cbd5e1;
   border-radius: 7px;
   padding: 10px 12px;
   font: inherit;
   resize: vertical;
+  min-height: 58px;
+  max-height: 120px;
+}
+
+.order-detail-master-select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #ccd6e2;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #3e556f;
+  font: inherit;
+}
+
+.order-device-name {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .order-related-tabs {
@@ -1503,9 +1563,14 @@
 
 .order-line-items-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
   gap: 10px;
   position: relative;
+}
+
+.order-line-items-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
+  gap: 10px;
 }
 
 .order-line-item-name-button {
@@ -1525,13 +1590,14 @@
 }
 
 .line-item-create-service-button {
-  grid-column: 1;
   justify-self: start;
 }
 
 .line-item-suggestions {
-  grid-column: 1 / -1;
-  margin-top: -2px;
+  margin-top: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .line-item-remove-button {
@@ -2328,6 +2394,10 @@
 
 .orders-client-cell small {
   color: #7f91a7;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .orders-client-link {
@@ -2349,6 +2419,7 @@
   display: inline-flex;
   gap: 4px;
   white-space: nowrap;
+  font-size: calc(0.95rem + 2px);
 }
 
 .order-number-button,

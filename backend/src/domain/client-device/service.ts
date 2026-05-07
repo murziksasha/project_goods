@@ -10,8 +10,8 @@ const normalizeClientDevicePayload = (payload: ClientDevicePayload) => ({
   clientId: toNonEmptyString(payload.clientId),
   clientName: toNonEmptyString(payload.clientName),
   clientPhone: toNonEmptyString(payload.clientPhone),
-  name: toNonEmptyString(payload.name),
-  serialNumber: toNonEmptyString(payload.serialNumber).toUpperCase(),
+  name: toNonEmptyString(payload.name).replace(/\s+/g, ' '),
+  serialNumber: '',
   note: toNonEmptyString(payload.note),
   source: toNonEmptyString(payload.source) === 'clientCard' ? 'clientCard' : 'repairOrder',
   isActive:
@@ -19,11 +19,16 @@ const normalizeClientDevicePayload = (payload: ClientDevicePayload) => ({
       ? true
       : payload.isActive === true || String(payload.isActive).toLowerCase() === 'true',
 });
+const toNameKey = (value: string) =>
+  value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
-  const normalizedName = device.name.trim();
+  const normalizedName = device.name.trim().replace(/\s+/g, ' ');
   const normalizedSerial = device.serialNumber.trim();
 
   const usageQuery: Record<string, unknown> = {
@@ -32,7 +37,9 @@ const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
 
   const orConditions: Array<Record<string, unknown>> = [];
   if (normalizedName) {
-    orConditions.push({ 'productSnapshot.name': normalizedName });
+    const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
+    orConditions.push({ 'productSnapshot.name': { $regex: `^${normalizedNamePattern}$`, $options: 'i' } });
+    orConditions.push({ 'lineItems.name': { $regex: `^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, $options: 'i' } });
     orConditions.push({ note: { $regex: escapeRegExp(normalizedName), $options: 'i' } });
   }
   if (normalizedSerial) {
@@ -50,9 +57,17 @@ const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
 export const listClientDevices = async (queryValue: unknown) => {
   const query = getSearchQuery(queryValue);
   const devices = await ClientDevice.find(query).sort({ createdAt: -1 }).lean<ClientDeviceDocument[]>();
+  const deduped = new Map<string, ClientDeviceDocument>();
+  devices.forEach((device) => {
+    const key = `${device.client.toString()}::${toNameKey(device.name)}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, device);
+    }
+  });
+  const uniqueDevices = Array.from(deduped.values());
 
   return Promise.all(
-    devices.map(async (device) => {
+    uniqueDevices.map(async (device) => {
       const usageCount = await getDeviceUsageCount(device);
       return formatClientDevice(device, usageCount);
     }),
@@ -62,6 +77,22 @@ export const listClientDevices = async (queryValue: unknown) => {
 export const createClientDevice = async (payload: ClientDevicePayload) => {
   const normalized = normalizeClientDevicePayload(payload);
   isValidObjectIdOrThrow(normalized.clientId, 'clientId');
+  const normalizedNameKey = toNameKey(normalized.name);
+  const duplicateByName = await ClientDevice.exists({
+    client: normalized.clientId,
+    nameKey: normalizedNameKey,
+  });
+  if (duplicateByName) {
+    const existingDevice = await ClientDevice.findOne({
+      client: normalized.clientId,
+      nameKey: normalizedNameKey,
+    }).lean<ClientDeviceDocument | null>();
+    if (existingDevice) {
+      const usageCount = await getDeviceUsageCount(existingDevice);
+      return formatClientDevice(existingDevice, usageCount);
+    }
+    throw new Error('Device name already exists for this client.');
+  }
 
   const device = new ClientDevice({
     client: normalized.clientId,
@@ -84,9 +115,18 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
   isValidObjectIdOrThrow(deviceId, 'deviceId');
   const normalized = normalizeClientDevicePayload(payload);
   isValidObjectIdOrThrow(normalized.clientId, 'clientId');
+  const normalizedNameKey = toNameKey(normalized.name);
   const existingDevice = await ClientDevice.findById(deviceId).lean<ClientDeviceDocument | null>();
   if (!existingDevice) throw new Error('Client device not found.');
   assertNotStale(payload.expectedUpdatedAt, existingDevice.updatedAt, 'Client device');
+  const duplicateByName = await ClientDevice.exists({
+    _id: { $ne: deviceId },
+    client: normalized.clientId,
+    nameKey: normalizedNameKey,
+  });
+  if (duplicateByName) {
+    throw new Error('Device name already exists for this client.');
+  }
 
   const device = await ClientDevice.findByIdAndUpdate(
     deviceId,

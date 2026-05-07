@@ -133,7 +133,6 @@ export const ProductCatalogPanel = ({
     clientName: '',
     clientPhone: '',
     name: '',
-    serialNumber: '',
     note: '',
   });
   const [createSupplierForm, setCreateSupplierForm] = useState({
@@ -144,10 +143,17 @@ export const ProductCatalogPanel = ({
   const isProductsTab = activeTab === 'products';
   const isSuppliersTab = activeTab === 'suppliers';
   const filteredClientDevices = useMemo(() => {
+    const uniqueByName = new Map<string, ClientDevice>();
+    clientDevices.forEach((device) => {
+      const key = device.name.trim().toLowerCase();
+      if (!key || uniqueByName.has(key)) return;
+      uniqueByName.set(key, device);
+    });
+    const uniqueDevices = Array.from(uniqueByName.values());
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return clientDevices;
-    return clientDevices.filter((device) =>
-      [device.name, device.clientName, device.clientPhone, device.serialNumber]
+    if (!query) return uniqueDevices;
+    return uniqueDevices.filter((device) =>
+      [device.name, device.clientName, device.clientPhone]
         .join(' ')
         .toLowerCase()
         .includes(query),
@@ -383,7 +389,7 @@ export const ProductCatalogPanel = ({
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateDeviceModalOpen(false); }}>
           <section className="catalog-edit-modal" role="dialog" aria-modal="true">
             <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>Create client device</h2></div>
+              <div className="catalog-edit-title"><h2>Client device</h2></div>
               <button type="button" className="create-order-close" onClick={() => setIsCreateDeviceModalOpen(false)} aria-label="Close">&times;</button>
             </header>
             <div className="catalog-edit-body">
@@ -391,17 +397,19 @@ export const ProductCatalogPanel = ({
               <label className="field"><span>Client name</span><input value={createDeviceForm.clientName} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, clientName: e.target.value }))} /></label>
               <label className="field"><span>Client phone</span><input value={createDeviceForm.clientPhone} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, clientPhone: e.target.value }))} /></label>
               <label className="field"><span>Device name</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
-              <label className="field"><span>Serial</span><input value={createDeviceForm.serialNumber} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, serialNumber: e.target.value }))} /></label>
               <label className="field field-wide"><span>Note</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
             </div>
             <footer className="catalog-edit-footer">
+              <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
+                Cancel
+              </button>
               <button type="button" className="primary-button" disabled={!createDeviceForm.clientId.trim() || !createDeviceForm.clientName.trim() || !createDeviceForm.clientPhone.trim() || !createDeviceForm.name.trim()} onClick={async () => {
-                const ok = await onCreateClientDevice({ ...createDeviceForm, source: 'clientCard', isActive: true });
+                const ok = await onCreateClientDevice({ ...createDeviceForm, serialNumber: '', source: 'clientCard', isActive: true });
                 if (ok) {
                   setIsCreateDeviceModalOpen(false);
-                  setCreateDeviceForm({ clientId: '', clientName: '', clientPhone: '', name: '', serialNumber: '', note: '' });
+                  setCreateDeviceForm({ clientId: '', clientName: '', clientPhone: '', name: '', note: '' });
                 }
-              }}>Create</button>
+              }}>Save</button>
             </footer>
           </section>
         </div>
@@ -1005,7 +1013,6 @@ const ClientDeviceModal = ({
 }) => {
   useLockBodyScroll();
   const [name, setName] = useState(device.name);
-  const [serialNumber, setSerialNumber] = useState(device.serialNumber);
   const [note, setNote] = useState(device.note);
   const [isActive, setIsActive] = useState(device.isActive);
   const [isSaving, setIsSaving] = useState(false);
@@ -1017,7 +1024,7 @@ const ClientDeviceModal = ({
       clientName: device.clientName,
       clientPhone: device.clientPhone,
       name: name.trim(),
-      serialNumber: serialNumber.trim(),
+      serialNumber: '',
       note: note.trim(),
       source: device.source,
       isActive,
@@ -1033,8 +1040,7 @@ const ClientDeviceModal = ({
       <section className="catalog-edit-modal" role="dialog" aria-modal="true">
         <header className="catalog-edit-header">
           <div className="catalog-edit-title">
-            <span>{`ID ${device.id.slice(-6)}`}</span>
-            <h2>Client good</h2>
+            <h2>Client device</h2>
           </div>
           <button type="button" className="create-order-close" onClick={onClose} aria-label="Close">
             &times;
@@ -1042,7 +1048,6 @@ const ClientDeviceModal = ({
         </header>
         <div className="catalog-edit-body">
           <label className="field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label className="field"><span>Serial</span><input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} /></label>
           <label className="field field-wide"><span>Note</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           <label className="field">
             <span>Status</span>

@@ -23,7 +23,8 @@ export const saleSchema = new mongoose.Schema(
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
-      required: [true, 'Product is required'],
+      required: false,
+      default: null,
       index: true,
     },
     manager: {
@@ -136,7 +137,7 @@ export const saleSchema = new mongoose.Schema(
     productSnapshot: {
       article: { type: String, required: true },
       name: { type: String, required: true },
-      serialNumber: { type: String, required: true },
+      serialNumber: { type: String, required: false, default: '' },
     },
     clientSnapshot: {
       name: { type: String, required: true },

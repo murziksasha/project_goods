@@ -25,6 +25,13 @@ export const clientDeviceSchema = new mongoose.Schema(
       minlength: [2, 'Device name must contain at least 2 characters'],
       maxlength: [120, 'Device name must contain no more than 120 characters'],
     },
+    nameKey: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     serialNumber: {
       type: String,
       trim: true,
@@ -60,6 +67,10 @@ export const clientDeviceSchema = new mongoose.Schema(
 );
 
 clientDeviceSchema.pre('validate', function updateSearchText() {
+  this.name = String(this.name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  this.nameKey = this.name.toLowerCase();
   this.searchText = [
     this.clientName,
     this.clientPhone,
@@ -71,6 +82,8 @@ clientDeviceSchema.pre('validate', function updateSearchText() {
     .join(' ')
     .toLowerCase();
 });
+
+clientDeviceSchema.index({ client: 1, nameKey: 1 }, { unique: true });
 
 export type ClientDeviceDocument = mongoose.InferSchemaType<typeof clientDeviceSchema> & {
   _id: mongoose.Types.ObjectId;

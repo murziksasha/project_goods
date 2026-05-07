@@ -75,3 +75,10 @@ http://localhost:5000/api
 Эти значения можно изменить через переменные окружения, описанные в [DEVELOPMENT.md](./DEVELOPMENT.md).
 
 Client status localization rule: keep client status values in original English (do not translate status enums in UI, API payloads, or docs).
+
+## Client Devices (Clients goods) Notes
+
+- Endpoints: `GET /client-devices`, `POST /client-devices`, `PUT /client-devices/:deviceId`, `DELETE /client-devices/:deviceId`.
+- In current flow, `serialNumber` for `Clients goods` is deprecated and should be treated as empty.
+- Device serial numbers are maintained in order context/history (`Order card`), not in `Clients goods`.
+- For repair orders, `serialNumber` in order context (`productSnapshot.serialNumber`) is optional: empty value is valid and must not fail `PATCH /sales/:saleId/workspace` / `Save changes`.

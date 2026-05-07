@@ -653,6 +653,7 @@ export const DashboardPage = () => {
               ) : (
                 <OrdersWorkspace
                   sales={state.sales}
+                  employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
                   activeTab={activeOrdersTab}
                   searchValue={state.productSearchQuery}

@@ -24,6 +24,11 @@ import {
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
+  createClientDevice,
+  getClientDevices,
+  updateClientDevice,
+} from '../../../entities/client-device/api/clientDeviceApi';
+import {
   createServiceCatalogItem,
   getServiceCatalogItems,
   updateServiceCatalogItem,
@@ -48,6 +53,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
+  employees: Employee[];
   isLoading: boolean;
   activeTab: OrdersTab;
   searchValue: string;
@@ -78,6 +84,7 @@ type OrdersColumnKey =
   | 'term'
   | 'warehouse'
   | 'manager'
+  | 'master'
   | 'received'
   | 'createdAt'
   | 'readyDate';
@@ -182,18 +189,45 @@ const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
 const filterIconOptions = [
-  '?',
-  '?',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
+  '\u2753',
+  '\u2702\ufe0f',
+  '\ud83e\udd16',
+  '\ud83d\udcc8',
+  '\ud83e\ude9f',
+  '\ud83d\udc26',
+  '\u2733\ufe0f',
+  '\u00a9\ufe0f',
+  '\ud83d\udd07',
+  '\u2795',
+  '\ud83d\udc19',
+  '\u2195\ufe0f',
+  '\u2716\ufe0f',
+  '\ud83d\udc4d',
+  '\ud83d\udc4e',
+  '\u261d\ufe0f',
+  '\ud83d\udcde',
+  '\ud83d\udd2d',
+  '\ud83d\udd12',
+  'VISA',
+  '\ud83d\udd17',
+  '\ud83c\udf4e',
+  '\ud83d\udcb2',
+  '\u21a9\ufe0f',
+  '\ud83e\uddee',
+  '@',
+  '\u2620\ufe0f',
+  '\ud83d\udd0c',
+  '\u2796',
+  '\ud83d\udcbc',
+  '\ud83d\ude97',
+  '\ud83d\ude80',
+  '\u2708\ufe0f',
+  '\ud83d\udeb4',
+  '\u267f\ufe0f',
+  '\u2194\ufe0f',
+  '\u2605',
+  '\u2606',
+  '\u2728',
 ];
 const allOrdersColumnKeys: OrdersColumnKey[] = [
   'orderNumber',
@@ -205,6 +239,7 @@ const allOrdersColumnKeys: OrdersColumnKey[] = [
   'term',
   'warehouse',
   'manager',
+  'master',
   'received',
   'createdAt',
   'readyDate',
@@ -219,6 +254,7 @@ const defaultVisibleColumns: OrdersColumnVisibility = {
     'paid',
     'warehouse',
     'manager',
+    'master',
     'received',
     'createdAt',
     'readyDate',
@@ -253,6 +289,11 @@ const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
   { key: 'paid', label: 'Paid' },
   { key: 'completed', label: 'Completed' },
   { key: 'returned', label: 'Returned' },
+];
+const finalRepairStatuses: RepairStatus[] = [
+  'issued',
+  'clientRejected',
+  'issuedWithoutRepair',
 ];
 const emptyOrdersFilters: OrdersFilters = {
   statuses: [],
@@ -418,7 +459,7 @@ const warrantyOptions = [
 
 const getDefaultLineItems = (sale: Sale) =>
   isRepairOrder(sale)
-    ? [createOrderLineItem(sale, 'service')]
+    ? []
     : [createOrderLineItem(sale, 'product')];
 
 const getOrderTotal = (
@@ -427,10 +468,12 @@ const getOrderTotal = (
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
-  lineItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
+  lineItems.length > 0
+    ? lineItems.reduce(
+        (total, item) => total + item.price * item.quantity,
+        0,
+      )
+    : sale.salePrice;
 
 const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
   lineItems.reduce(
@@ -453,11 +496,26 @@ const isClosingStatus = (sale: Sale, status: OrderStatus) =>
 
 const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
-    ? isClosingStatus(sale, status)
+    ? finalRepairStatuses.includes(status as RepairStatus)
     : status === 'reserved' ||
       status === 'paid' ||
       status === 'completed' ||
       status === 'returned';
+
+const getRepairCompletionDate = (sale: Sale) => {
+  if (!isRepairOrder(sale)) return sale.saleDate;
+
+  const completionLabels = new Set(
+    finalRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
+  );
+  const completionEntry = (sale.timeline ?? []).find((entry) => {
+    const text = entry.message.toLowerCase();
+    if (!text.includes('changed status to')) return false;
+    return Array.from(completionLabels).some((label) => text.includes(`"${label}"`));
+  });
+
+  return completionEntry?.createdAt ?? sale.saleDate;
+};
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid' || status === 'completed';
@@ -551,10 +609,29 @@ const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
 const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   activeTab === 'orders' ? 'Device' : 'Service center';
 
+const getDeviceLineItem = (sale: Sale) =>
+  (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
+
+const getPrimaryDeviceName = (sale: Sale) => {
+  const snapshotName = sale.product.name?.trim();
+  if (snapshotName && snapshotName.toUpperCase() !== 'REPAIR PLACEHOLDER') {
+    return snapshotName;
+  }
+  const deviceItem = getDeviceLineItem(sale);
+  if (deviceItem?.name?.trim()) return deviceItem.name.trim();
+  return sale.product.name;
+};
+
+const getPrimaryDeviceSerial = (sale: Sale) => {
+  const serial = sale.product.serialNumber?.trim();
+  if (!serial || serial.toUpperCase() === 'REPAIR-PLACEHOLDER') return '';
+  return serial;
+};
+
 const getPrimaryItemCellContent = (
   sale: Sale,
   activeTab: OrdersTab,
-) => (activeTab === 'orders' ? sale.product.name : 'Service center');
+) => (activeTab === 'orders' ? getPrimaryDeviceName(sale) : 'Service center');
 
 const isUrgentRepairOrder = (sale: Sale) =>
   isRepairOrder(sale) &&
@@ -570,7 +647,9 @@ const getColumnLabel = (
     case 'manager':
       return 'Manager';
     case 'received':
-      return 'Received';
+      return 'Issued';
+    case 'master':
+      return 'Master';
     case 'status':
       return 'Status';
     case 'primaryItem':
@@ -642,8 +721,37 @@ const PhoneNumber = ({ value }: { value: string }) => {
   );
 };
 
+const isSystemTimelineMessage = (message: string) => {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized.includes('changed status to "') ||
+    normalized.includes('updated order main information') ||
+    normalized.includes('created order with status "') ||
+    normalized.includes('returned "') ||
+    normalized.includes('returned sale to ')
+  );
+};
+
+const getClientStatusClass = (status: string) => {
+  switch (status) {
+    case 'new':
+      return 'status-new';
+    case 'vip':
+      return 'status-vip';
+    case 'opt':
+      return 'status-opt';
+    case 'blacklist':
+      return 'status-blacklist';
+    case 'ok':
+      return 'status-ok';
+    default:
+      return 'status-gray';
+  }
+};
+
 export const OrdersWorkspace = ({
   sales,
+  employees,
   isLoading,
   activeTab,
   searchValue,
@@ -986,6 +1094,9 @@ export const OrdersWorkspace = ({
       };
     });
   };
+  const toggleFilterPanel = () => {
+    setIsFilterPanelOpen((current) => !current);
+  };
 
   const applyFilters = () => {
     setAppliedFilters({
@@ -997,6 +1108,9 @@ export const OrdersWorkspace = ({
     });
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
+    if (isFilterPanelOpen) {
+      toggleFilterPanel();
+    }
   };
 
   const resetFilters = () => {
@@ -1193,7 +1307,10 @@ export const OrdersWorkspace = ({
     payload: {
       status?: OrderStatus;
       paidAmount?: number;
+      masterId?: string;
       issuedById?: string;
+      deviceName?: string;
+      serialNumber?: string;
       timeline?: TimelineEntry[];
       paymentHistory?: PaymentEntry[];
       lineItems?: OrderLineItem[];
@@ -1203,7 +1320,10 @@ export const OrdersWorkspace = ({
       kind: sale.kind,
       status: payload.status ?? normalizeOrderStatus(sale.status),
       paidAmount: payload.paidAmount ?? sale.paidAmount,
+      masterId: payload.masterId,
       issuedById: payload.issuedById,
+      deviceName: payload.deviceName,
+      serialNumber: payload.serialNumber,
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
@@ -1232,7 +1352,7 @@ export const OrdersWorkspace = ({
           status,
           issuedById: shouldCaptureReceivedBy(sale, status)
             ? currentEmployee?.id
-            : undefined,
+            : '',
           timeline: [
             appendTimelineEntry(
               `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
@@ -1266,7 +1386,7 @@ export const OrdersWorkspace = ({
       status,
       issuedById: shouldCaptureReceivedBy(sale, status)
         ? currentEmployee?.id
-        : undefined,
+        : '',
       timeline: [
         appendTimelineEntry(
           `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
@@ -1359,7 +1479,7 @@ export const OrdersWorkspace = ({
       case 'manager':
         return sale.manager?.name || '-';
       case 'received':
-        return sale.issuedBy?.name || sale.manager?.name || '-';
+        return sale.issuedBy?.name || '-';
       case 'status':
         return (
           <div className='order-status-menu'>
@@ -1404,11 +1524,13 @@ export const OrdersWorkspace = ({
             onClick={() => openSaleCard(sale)}
           >
             <span>{getPrimaryItemCellContent(sale, activeTab)}</span>
-            <small>
-              {activeTab === 'orders'
-                ? `S/N: ${sale.product.serialNumber}`
-                : 'Warehouse: Service center'}
-            </small>
+            {activeTab === 'orders' ? (
+              getPrimaryDeviceSerial(sale) ? (
+                <small>{`S/N: ${getPrimaryDeviceSerial(sale)}`}</small>
+              ) : null
+            ) : (
+              <small>Warehouse: Service center</small>
+            )}
           </button>
         );
       case 'price':
@@ -1429,6 +1551,13 @@ export const OrdersWorkspace = ({
             </button>
             <small>
               <PhoneNumber value={sale.client.phone} />
+              <span
+                className={`client-status-badge ${getClientStatusClass(
+                  String(sale.client.status || ''),
+                )}`}
+              >
+                {sale.client.status || 'new'}
+              </span>
             </small>
           </div>
         );
@@ -1441,10 +1570,12 @@ export const OrdersWorkspace = ({
         );
       case 'warehouse':
         return getWarehouseLabel(sale);
+      case 'master':
+        return sale.master?.name || '-';
       case 'createdAt':
         return formatReadyDate(sale.createdAt);
       case 'readyDate':
-        return formatReadyDate(sale.saleDate);
+        return formatReadyDate(getRepairCompletionDate(sale));
       default:
         return null;
     }
@@ -1793,7 +1924,7 @@ export const OrdersWorkspace = ({
           nextStatus &&
           shouldCaptureReceivedBy(paymentSale, nextStatus)
             ? currentEmployee?.id
-            : undefined,
+            : '',
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       });
@@ -2004,21 +2135,97 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const saveOrderMainInfo = async (
+    sale: Sale,
+    payload: {
+      serialNumber: string;
+      masterId: string;
+      status: OrderStatus;
+    },
+  ) => {
+    try {
+      const timeline = [
+        appendTimelineEntry(
+          `${currentEmployeeName} updated order main information.`,
+        ),
+        ...sale.timeline,
+      ];
+      const shouldAssignIssuedBy = shouldCaptureReceivedBy(
+        sale,
+        payload.status,
+      );
+      await persistSaleWorkspace(sale, {
+        status: payload.status,
+        masterId: payload.masterId,
+        deviceName: getPrimaryDeviceName(sale),
+        serialNumber: payload.serialNumber,
+        issuedById:
+          shouldAssignIssuedBy && currentEmployee?.id
+            ? currentEmployee.id
+            : '',
+        timeline,
+      });
+
+      if (isRepairOrder(sale)) {
+        const normalizedOldDeviceName = getPrimaryDeviceName(sale)
+          .trim()
+          .toLowerCase();
+        const probeQuery = getPrimaryDeviceName(sale).trim() || sale.client.phone;
+        const allDevices = await getClientDevices(probeQuery);
+        const linkedDevice = allDevices.find((device) => {
+          if (device.clientId !== sale.client.id) return false;
+          return device.name.trim().toLowerCase() === normalizedOldDeviceName;
+        });
+
+        if (linkedDevice) {
+          await updateClientDevice(linkedDevice.id, {
+            clientId: sale.client.id,
+            clientName: sale.client.name,
+            clientPhone: sale.client.phone,
+            name: getPrimaryDeviceName(sale),
+            serialNumber: '',
+            note: linkedDevice.note ?? '',
+            source: linkedDevice.source,
+            isActive: linkedDevice.isActive,
+            expectedUpdatedAt: linkedDevice.updatedAt,
+          });
+        } else if (getPrimaryDeviceName(sale).trim().length >= 2) {
+          await createClientDevice({
+            clientId: sale.client.id,
+            clientName: sale.client.name,
+            clientPhone: sale.client.phone,
+            name: getPrimaryDeviceName(sale),
+            serialNumber: '',
+            note: '',
+            source: 'repairOrder',
+            isActive: true,
+          });
+        }
+      }
+
+      onSuccess('Order main information updated.');
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save order main information.',
+      );
+    }
+  };
+
   return (
     <section className='orders-page'>
       {selectedSale ? (
         <OrderDetailCard
           sale={selectedSale}
           sales={sales}
+          employees={employees}
           status={selectedSaleStatus}
           statusOptions={selectedSaleStatusOptions}
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
           paidAmount={getPaidAmount(selectedSale)}
           onClose={() => setSelectedSaleId(null)}
-          onStatusChange={(status) =>
-            updateStatus(selectedSale, status)
-          }
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
           }
@@ -2040,6 +2247,9 @@ export const OrdersWorkspace = ({
           }
           onError={onError}
           onSuccess={onSuccess}
+          onSaveMainInfo={(payload) =>
+            saveOrderMainInfo(selectedSale, payload)
+          }
         />
       ) : null}
 
@@ -2070,9 +2280,7 @@ export const OrdersWorkspace = ({
             type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isFilterPanelOpen}
-            onClick={() =>
-              setIsFilterPanelOpen((current) => !current)
-            }
+            onClick={toggleFilterPanel}
           >
             Filter
             {activeFiltersCount > 0 ? (
@@ -2214,7 +2422,7 @@ export const OrdersWorkspace = ({
                     aria-label={`Delete ${savedFilter.name}`}
                     onClick={() => removeSavedFilter(savedFilter.id)}
                   >
-                    ??
+                    🗑️
                   </button>
                 </div>
               ))
@@ -2469,9 +2677,9 @@ export const OrdersWorkspace = ({
             <div className='orders-filter-icons'>
               <span>Choose icon</span>
               <div className='orders-filter-icons-grid'>
-                {filterIconOptions.map((icon) => (
+                {filterIconOptions.map((icon, index) => (
                   <button
-                    key={icon}
+                    key={`${icon}-${index}`}
                     type='button'
                     className={
                       icon === newFilterIcon
@@ -2507,7 +2715,7 @@ export const OrdersWorkspace = ({
                       }
                       aria-label={`Delete ${savedFilter.name}`}
                     >
-                      ??
+                      🗑️
                     </button>
                   </div>
                 ))
@@ -2694,13 +2902,13 @@ export const OrdersWorkspace = ({
 type OrderDetailCardProps = {
   sale: Sale;
   sales: Sale[];
+  employees: Employee[];
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; label: string }>;
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   paidAmount: number;
   onClose: () => void;
-  onStatusChange: (status: OrderStatus) => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveLineItem: (itemId: string) => void;
@@ -2725,18 +2933,23 @@ type OrderDetailCardProps = {
   onOpenClientCard: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  onSaveMainInfo: (payload: {
+    serialNumber: string;
+    masterId: string;
+    status: OrderStatus;
+  }) => Promise<void>;
 };
 
 const OrderDetailCard = ({
   sale,
   sales,
+  employees,
   status,
   statusOptions,
   comments,
   lineItems,
   paidAmount,
   onClose,
-  onStatusChange,
   onAddComment,
   onAddLineItem,
   onRemoveLineItem,
@@ -2748,6 +2961,7 @@ const OrderDetailCard = ({
   onOpenClientCard,
   onError,
   onSuccess,
+  onSaveMainInfo,
 }: OrderDetailCardProps) => {
   const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
@@ -2755,7 +2969,11 @@ const OrderDetailCard = ({
   const [isServicesOpen, setIsServicesOpen] = useState(
     isSaleCard ? false : true,
   );
+  const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
   const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
+  const [serialNumberInput, setSerialNumberInput] = useState('');
+  const [masterIdInput, setMasterIdInput] = useState('');
+  const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
   const total = getOrderTotal(sale, lineItems);
   const remainingPayment = getRemainingPayment(
     sale,
@@ -2772,6 +2990,28 @@ const OrderDetailCard = ({
     setIsProductsOpen(isSaleCard);
     setIsServicesOpen(isSaleCard ? false : true);
   }, [sale.id, isSaleCard]);
+  useEffect(() => {
+    setStatusDraft(status);
+  }, [status]);
+  useEffect(() => {
+    setSerialNumberInput(getPrimaryDeviceSerial(sale));
+    setMasterIdInput(sale.master?.id ?? '');
+  }, [sale]);
+  const masterOptions = useMemo(
+    () =>
+      employees.filter(
+        (employee) =>
+          employee.isActive &&
+          (employee.role === 'master' ||
+            employee.role === 'owner' ||
+            employee.permissions.includes('repairs.execute')),
+      ),
+    [employees],
+  );
+  const isMainInfoDirty =
+    serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
+    masterIdInput !== (sale.master?.id ?? '') ||
+    statusDraft !== status;
   const relatedRecords = useMemo(
     () =>
       sales
@@ -2818,9 +3058,9 @@ const OrderDetailCard = ({
         </div>
         <div className='order-detail-actions'>
           <select
-            value={status}
+            value={statusDraft}
             onChange={(event) => {
-              void onStatusChange(event.target.value as OrderStatus);
+              setStatusDraft(event.target.value as OrderStatus);
             }}
             aria-label='Repair status'
           >
@@ -2865,26 +3105,43 @@ const OrderDetailCard = ({
               <>
                 <div>
                   <dt>Device</dt>
-                  <dd>{sale.product.name}</dd>
+                  <dd>
+                    <span className='order-device-name'>{getPrimaryDeviceName(sale) || '-'}</span>
+                  </dd>
                 </div>
                 <div>
                   <dt>S/N</dt>
-                  <dd>{sale.product.serialNumber}</dd>
-                </div>
-                <div>
-                  <dt>Article</dt>
-                  <dd>{sale.product.article}</dd>
+                  <dd>{serialNumberInput || '-'}</dd>
                 </div>
               </>
             )}
             <div>
-              <dt>Received</dt>
+              <dt>Created</dt>
               <dd>{formatDateTime(sale.createdAt)}</dd>
             </div>
             <div>
               <dt>{isSaleCard ? 'Created order' : 'Manager'}</dt>
               <dd>{sale.manager?.name || '-'}</dd>
             </div>
+            {isSaleCard ? null : (
+              <div>
+                <dt>Master</dt>
+                <dd>
+                  <select
+                    className='order-detail-master-select'
+                    value={masterIdInput}
+                    onChange={(event) => setMasterIdInput(event.target.value)}
+                  >
+                    <option value=''>Select master</option>
+                    {masterOptions.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </div>
+            )}
             {isSaleCard ? (
               <div>
                 <dt>Issued order</dt>
@@ -2892,8 +3149,8 @@ const OrderDetailCard = ({
               </div>
             ) : (
               <div>
-                <dt>Received</dt>
-                <dd>{sale.manager?.name || '-'}</dd>
+                <dt>Issued</dt>
+                <dd>{sale.issuedBy?.name || '-'}</dd>
               </div>
             )}
             {isSaleCard ? (
@@ -2902,12 +3159,41 @@ const OrderDetailCard = ({
                 <dd>{sale.note || 'No notes for this sale yet.'}</dd>
               </div>
             ) : null}
+            {isMainInfoDirty ? (
+              <div className='order-detail-notes-row'>
+                <dt>&nbsp;</dt>
+                <dd>
+                  <button
+                    type='button'
+                    className='primary-button'
+                    disabled={
+                      isSavingMainInfo
+                    }
+                    onClick={async () => {
+                      setIsSavingMainInfo(true);
+                      try {
+                        await onSaveMainInfo({
+                          serialNumber: serialNumberInput.trim().toUpperCase(),
+                          masterId: masterIdInput,
+                          status: statusDraft,
+                        });
+                      } finally {
+                        setIsSavingMainInfo(false);
+                      }
+                    }}
+                  >
+                    {isSavingMainInfo ? 'Saving...' : 'Save changes'}
+                  </button>
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </section>
 
         <section className='order-detail-panel order-detail-live-panel'>
           <h3>Live feed</h3>
           <div className='order-timeline'>
+            <div className='order-timeline-list'>
             {timelineItems.map((item, index) => (
               <div
                 key={`${item.id}-${index}`}
@@ -2921,13 +3207,23 @@ const OrderDetailCard = ({
                 </span>
                 <p>
                   <strong>{item.author}</strong>
-                  <small>{item.message}</small>
+                  <small
+                    className={
+                      isSystemTimelineMessage(item.message)
+                        ? 'order-timeline-message-system'
+                        : 'order-timeline-message-manual'
+                    }
+                  >
+                    {item.message}
+                  </small>
                 </p>
               </div>
             ))}
+            </div>
+            <div className='order-timeline-composer'>
             <textarea
               placeholder='Comment'
-              rows={3}
+              rows={2}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
             />
@@ -2939,10 +3235,11 @@ const OrderDetailCard = ({
             >
               Add
             </button>
+            </div>
           </div>
         </section>
 
-        <section className='order-detail-panel order-detail-wide-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -2950,7 +3247,9 @@ const OrderDetailCard = ({
             aria-expanded={isProductsOpen}
           >
             <span>Products</span>
-            <span>{isProductsOpen ? 'Hide' : 'Show'}</span>
+            <span className='order-detail-collapse-icon'>
+              {isProductsOpen ? '⌃' : '⌄'}
+            </span>
           </button>
           {isProductsOpen ? (
             <LineItemsPanel
@@ -2968,7 +3267,7 @@ const OrderDetailCard = ({
           ) : null}
         </section>
 
-        <section className='order-detail-panel order-detail-wide-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -2976,7 +3275,9 @@ const OrderDetailCard = ({
             aria-expanded={isServicesOpen}
           >
             <span>Services</span>
-            <span>{isServicesOpen ? 'Hide' : 'Show'}</span>
+            <span className='order-detail-collapse-icon'>
+              {isServicesOpen ? '⌃' : '⌄'}
+            </span>
           </button>
           {isServicesOpen ? (
             <LineItemsPanel
@@ -2994,9 +3295,7 @@ const OrderDetailCard = ({
           ) : null}
         </section>
 
-        <section
-          className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}
-        >
+        <section className='order-detail-panel order-detail-payment-panel'>
           <h3>Payment</h3>
           <dl className='order-payment-list'>
             <div>
@@ -3131,10 +3430,18 @@ const LineItemsPanel = ({
   const [serviceSuggestions, setServiceSuggestions] = useState<
     ServiceCatalogItem[]
   >([]);
+  const [productSuggestions, setProductSuggestions] = useState<
+    Product[]
+  >([]);
   const [selectedServiceId, setSelectedServiceId] = useState<
     string | undefined
   >();
+  const [selectedProductId, setSelectedProductId] = useState<
+    string | undefined
+  >();
   const [isServiceLookupLoading, setIsServiceLookupLoading] =
+    useState(false);
+  const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
@@ -3174,6 +3481,31 @@ const LineItemsPanel = ({
   }, [kind]);
 
   useEffect(() => {
+    if (kind !== 'product' || name.trim().length < 2) {
+      setProductSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsProductLookupLoading(true);
+      try {
+        const products = await getProducts(name.trim());
+        if (isActive) setProductSuggestions(products.slice(0, 8));
+      } catch {
+        if (isActive) setProductSuggestions([]);
+      } finally {
+        if (isActive) setIsProductLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [kind, name]);
+
+  useEffect(() => {
     if (kind !== 'service' || serviceLookupQuery.length < 2) {
       setServiceSuggestions([]);
       return;
@@ -3207,6 +3539,17 @@ const LineItemsPanel = ({
     setWarrantyPeriod('1');
     setSelectedServiceId(service.id);
     setServiceSuggestions([]);
+  };
+
+  const applyProductSuggestion = (product: Product) => {
+    const suggestedPrice =
+      product.salePriceOptions[0] ?? product.price ?? 0;
+    setName(product.name);
+    setPrice(String(suggestedPrice));
+    setQuantity('1');
+    setWarrantyPeriod('0');
+    setSelectedProductId(product.id);
+    setProductSuggestions([]);
   };
 
   const openCreateServiceModal = () => {
@@ -3364,6 +3707,13 @@ const LineItemsPanel = ({
 
     onAddItem({
       kind,
+      productId:
+        kind === 'product'
+          ? (selectedProductId ??
+            productSuggestions.find(
+              (product) => product.name === normalizedName,
+            )?.id)
+          : undefined,
       serviceId:
         kind === 'service'
           ? (selectedServiceId ??
@@ -3381,7 +3731,9 @@ const LineItemsPanel = ({
     setQuantity('1');
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
+    setSelectedProductId(undefined);
     setServiceSuggestions([]);
+    setProductSuggestions([]);
   };
 
   return (
@@ -3463,14 +3815,65 @@ const LineItemsPanel = ({
         )}
       </div>
       <div className='order-line-items-form'>
-        <input
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setSelectedServiceId(undefined);
-          }}
-          placeholder={`Add ${kind}`}
-        />
+        <div className='order-line-items-entry-row'>
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setSelectedServiceId(undefined);
+              setSelectedProductId(undefined);
+            }}
+            placeholder={`Add ${kind}`}
+          />
+          <NumberStepper
+            min={0}
+            value={price}
+            onChange={setPrice}
+            placeholder='Price'
+          />
+          <NumberStepper
+            min={1}
+            value={quantity}
+            onChange={setQuantity}
+            placeholder='Qty'
+          />
+          <select
+            value={warrantyPeriod}
+            onChange={(event) => setWarrantyPeriod(event.target.value)}
+          >
+            {warrantyOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={submitItem}
+          >
+            Add {kind}
+          </button>
+        </div>
+        {kind === 'product' &&
+        (productSuggestions.length > 0 || isProductLookupLoading) ? (
+          <div className='create-suggestions line-item-suggestions'>
+            {isProductLookupLoading ? (
+              <p>Searching products...</p>
+            ) : null}
+            {productSuggestions.map((product) => (
+              <button
+                key={product.id}
+                type='button'
+                className='create-suggestion-item'
+                onClick={() => applyProductSuggestion(product)}
+              >
+                <strong>{product.name}</strong>
+                <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber}`}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         {kind === 'service' &&
         (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>
@@ -3499,35 +3902,6 @@ const LineItemsPanel = ({
             Add service
           </button>
         ) : null}
-        <NumberStepper
-          min={0}
-          value={price}
-          onChange={setPrice}
-          placeholder='Price'
-        />
-        <NumberStepper
-          min={1}
-          value={quantity}
-          onChange={setQuantity}
-          placeholder='Qty'
-        />
-        <select
-          value={warrantyPeriod}
-          onChange={(event) => setWarrantyPeriod(event.target.value)}
-        >
-          {warrantyOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type='button'
-          className='primary-button'
-          onClick={submitItem}
-        >
-          Add {kind}
-        </button>
       </div>
       {isCreateServiceOpen ? (
         <CatalogServiceEditorModal

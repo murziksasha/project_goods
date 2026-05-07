@@ -4,11 +4,12 @@ import { getSearchQuery } from '../../shared/lib/query';
 import type { ServiceCatalogPayload } from '../shared/types';
 
 const defaultServices: Array<{ name: string; price: number; note: string }> = [
-  { name: 'Diagnostics', price: 400, note: 'Basic device diagnostics' },
-  { name: 'Screen replacement', price: 3200, note: 'Display module replacement' },
-  { name: 'Battery replacement', price: 1800, note: 'Battery and installation' },
-  { name: 'Cleaning and maintenance', price: 900, note: 'Preventive cleaning service' },
-  { name: 'Software setup', price: 700, note: 'OS and driver setup' },
+  { name: 'Діагностика', price: 250, note: 'Стандартна діагностика приладу' },
+  { name: 'Доналаштування ОС', price: 1000, note: 'Роботи по ОС, встановлення драйверів тощо' },
+  { name: 'Доналаштування андроїд ОС', price: 750, note: 'Доналаштування андроїд приладу' },
+  { name: 'Очищення та заміна термопасти', price: 500, note: 'Стандарнте очищення та заміна термопасти у приладі' },
+  { name: 'Очищення та заміна термопасти ноутбука', price: 1000, note: 'Обслуговування ноутбку, заміна термопасти' },
+    { name: 'Заміна термопасти ноутбука (фазовий перехід)', price: 1000, note: 'Обслуговування ноутбку, заміна термопасти' },
 ];
 
 const normalizeName = (value: unknown) => String(value ?? '').trim();

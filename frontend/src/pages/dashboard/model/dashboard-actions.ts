@@ -119,11 +119,11 @@ type DashboardActionParams = {
   ) => Promise<Product>;
   mutateCreateSale: (payload: SaleFormValues) => Promise<{
     sale: Sale;
-    product: Product;
+    product: Product | null;
   }>;
   mutateUpdateSale: (saleId: string, payload: SaleFormValues) => Promise<{
     sale: Sale;
-    product: Product;
+    product: Product | null;
   }>;
   mutateCreateClientDevice: (
     payload: ClientDeviceFormValues,
@@ -331,10 +331,6 @@ export const createDashboardActions = ({
       article: articleFallback,
     };
   };
-
-  const repairPlaceholderProduct = allProducts.find(
-    (product) => product.article.toUpperCase() === 'REPAIR-PLACEHOLDER',
-  );
 
   return {
     replaceSaleInState: (sale: Sale) => {
@@ -1055,7 +1051,6 @@ export const createDashboardActions = ({
           payload.sourceTab === 'sale' && saleItems.length > 0
             ? saleItems.reduce((total, item) => total + item.price * item.quantity, 0)
             : Number.parseFloat(payload.estimatedCost || '0');
-        const prepaymentAmount = Number.parseFloat(payload.prepayment || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
           throw new Error('Client phone must include full +380 number.');
@@ -1078,10 +1073,6 @@ export const createDashboardActions = ({
         ) {
           throw new Error('Sale item quantity must be at least 1.');
         }
-        if (Number.isFinite(prepaymentAmount) && prepaymentAmount > estimatedCost) {
-          throw new Error('Prepayment cannot exceed order total.');
-        }
-
         const existingClient = allClients.find(
           (client) =>
             client.phone.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, ''),
@@ -1099,28 +1090,18 @@ export const createDashboardActions = ({
           setAllClients((current) => [client, ...current]);
         }
 
-        const { serialNumber, article } = buildProductIdentity(payload);
+        const { serialNumber: fallbackSerialNumber, article } = buildProductIdentity(payload);
+        const repairDeviceSerialNumber = payload.deviceSerialNumber.trim().toUpperCase();
+        const serialNumber =
+          payload.sourceTab === 'repair'
+            ? repairDeviceSerialNumber
+            : fallbackSerialNumber;
         const existingProduct =
           payload.sourceTab === 'sale' && primarySaleItem?.productId
             ? allProducts.find((product) => product.id === primarySaleItem.productId)
             : null;
 
-        let product = existingProduct ?? repairPlaceholderProduct;
-        if (!product) {
-          product = await mutateCreateProduct({
-            name: 'Repair placeholder',
-            article: 'REPAIR-PLACEHOLDER',
-            serialNumber: 'REPAIR-PLACEHOLDER',
-            price: '0',
-            salePriceOptions: '0',
-            quantity: '1',
-            note: 'System placeholder for repair orders. Do not use in stock sales.',
-            purchasePlace: 'Service center',
-            purchaseDate: '',
-            warrantyPeriod: '0',
-          });
-          setAllProducts((current) => [product!, ...current]);
-        }
+        let product = existingProduct;
 
         if (payload.sourceTab === 'sale' && !existingProduct) {
           const fallbackPrice = primarySaleItem ? primarySaleItem.price : estimatedCost;
@@ -1139,29 +1120,20 @@ export const createDashboardActions = ({
           });
           setAllProducts((current) => [product!, ...current]);
         }
+        if (payload.sourceTab === 'sale' && !product) {
+          throw new Error('Product is required for sale orders.');
+        }
 
         const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
         const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
         const createdAt = new Date().toISOString();
         const author = currentEmployee?.name ?? managerName ?? 'System';
-        const normalizedPrepayment =
-          Number.isFinite(prepaymentAmount) && prepaymentAmount > 0
-            ? Math.round(prepaymentAmount * 100) / 100
-            : 0;
-        const prepaymentMessage =
-          normalizedPrepayment > 0
-            ? `кассы ОСНОВНАЯ : ${normalizedPrepayment} uah${
-                payload.prepaymentComment.trim()
-                  ? `, ${payload.prepaymentComment.trim()}`
-                  : ''
-              }`
-            : '';
 
+        const kitsNote = payload.deviceKit.trim();
         const noteParts = [
+          kitsNote ? `(kits: ${kitsNote})` : '',
           payload.issueFromClient.trim(),
           payload.sourceTab === 'repair' ? payload.externalView.trim() : '',
-          payload.prepayment ? `Prepayment: ${payload.prepayment}` : '',
-          prepaymentMessage,
           payload.serviceName.trim()
             ? `Service: ${payload.serviceName.trim()}`
             : '',
@@ -1175,7 +1147,7 @@ export const createDashboardActions = ({
             ? saleItems.map((item, index) => ({
                 id: item.id || crypto.randomUUID(),
                 kind: 'product' as const,
-                productId: item.productId || (index === 0 ? product.id : ''),
+                productId: item.productId || (index === 0 ? product!.id : ''),
                 name: item.warehouse
                   ? `${item.name} (${item.warehouse})`
                   : item.name,
@@ -1188,15 +1160,17 @@ export const createDashboardActions = ({
         await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
-          productId: product.id,
+          productId: payload.sourceTab === 'repair' ? '' : product!.id,
           quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
           status: 'new',
-          paidAmount: normalizedPrepayment,
+          paidAmount: 0,
           note: noteParts.join('\n'),
           managerId: payload.managerId,
           masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
+          deviceName: payload.sourceTab === 'repair' ? deviceName : '',
+          serialNumber: payload.sourceTab === 'repair' ? serialNumber : '',
           timeline: [
             ...(payload.issueFromClient.trim()
               ? [
@@ -1208,39 +1182,15 @@ export const createDashboardActions = ({
                   },
                 ]
               : []),
-            ...(prepaymentMessage
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    author,
-                    message: prepaymentMessage,
-                    createdAt,
-                  },
-                ]
-              : []),
           ],
-          paymentHistory:
-            normalizedPrepayment > 0
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    type: 'deposit',
-                    amount: normalizedPrepayment,
-                    cashboxId: 'main',
-                    cashboxName: 'ОСНОВНАЯ',
-                    author,
-                    createdAt,
-                  },
-                ]
-              : [],
+          paymentHistory: [],
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
 
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
             device.clientId === client.id &&
-            serialNumber.trim().length > 0 &&
-            device.serialNumber.toUpperCase() === serialNumber.toUpperCase(),
+            device.name.trim().toLowerCase() === deviceName.trim().toLowerCase(),
         );
         if (!deviceAlreadyExists) {
           await mutateCreateClientDevice({
@@ -1248,8 +1198,8 @@ export const createDashboardActions = ({
             clientName: client.name,
             clientPhone: client.phone,
             name: deviceName,
-            serialNumber,
-            note: payload.deviceKit.trim() || 'Created from order',
+            serialNumber: '',
+            note: '',
             source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
             isActive: true,
           });
