@@ -38,6 +38,12 @@
     grid-template-columns: 1fr;
   }
 
+  .order-detail-line-items-panel,
+  .order-detail-payment-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
   .order-detail-live-panel {
     max-height: 340px;
   }
@@ -207,7 +213,7 @@
   }
 
   .order-detail-table-wide,
-  .order-line-items-form {
+  .order-line-items-entry-row {
     grid-template-columns: 1fr;
   }
 

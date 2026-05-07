@@ -3239,7 +3239,7 @@ const OrderDetailCard = ({
           </div>
         </section>
 
-        <section className='order-detail-panel order-detail-wide-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -3247,7 +3247,9 @@ const OrderDetailCard = ({
             aria-expanded={isProductsOpen}
           >
             <span>Products</span>
-            <span>{isProductsOpen ? 'Hide' : 'Show'}</span>
+            <span className='order-detail-collapse-icon'>
+              {isProductsOpen ? '⌃' : '⌄'}
+            </span>
           </button>
           {isProductsOpen ? (
             <LineItemsPanel
@@ -3265,7 +3267,7 @@ const OrderDetailCard = ({
           ) : null}
         </section>
 
-        <section className='order-detail-panel order-detail-wide-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -3273,7 +3275,9 @@ const OrderDetailCard = ({
             aria-expanded={isServicesOpen}
           >
             <span>Services</span>
-            <span>{isServicesOpen ? 'Hide' : 'Show'}</span>
+            <span className='order-detail-collapse-icon'>
+              {isServicesOpen ? '⌃' : '⌄'}
+            </span>
           </button>
           {isServicesOpen ? (
             <LineItemsPanel
@@ -3291,9 +3295,7 @@ const OrderDetailCard = ({
           ) : null}
         </section>
 
-        <section
-          className={`order-detail-panel ${isSaleCard ? 'order-detail-stacked-panel' : ''}`}
-        >
+        <section className='order-detail-panel order-detail-payment-panel'>
           <h3>Payment</h3>
           <dl className='order-payment-list'>
             <div>
@@ -3428,10 +3430,18 @@ const LineItemsPanel = ({
   const [serviceSuggestions, setServiceSuggestions] = useState<
     ServiceCatalogItem[]
   >([]);
+  const [productSuggestions, setProductSuggestions] = useState<
+    Product[]
+  >([]);
   const [selectedServiceId, setSelectedServiceId] = useState<
     string | undefined
   >();
+  const [selectedProductId, setSelectedProductId] = useState<
+    string | undefined
+  >();
   const [isServiceLookupLoading, setIsServiceLookupLoading] =
+    useState(false);
+  const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
@@ -3471,6 +3481,31 @@ const LineItemsPanel = ({
   }, [kind]);
 
   useEffect(() => {
+    if (kind !== 'product' || name.trim().length < 2) {
+      setProductSuggestions([]);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsProductLookupLoading(true);
+      try {
+        const products = await getProducts(name.trim());
+        if (isActive) setProductSuggestions(products.slice(0, 8));
+      } catch {
+        if (isActive) setProductSuggestions([]);
+      } finally {
+        if (isActive) setIsProductLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [kind, name]);
+
+  useEffect(() => {
     if (kind !== 'service' || serviceLookupQuery.length < 2) {
       setServiceSuggestions([]);
       return;
@@ -3504,6 +3539,17 @@ const LineItemsPanel = ({
     setWarrantyPeriod('1');
     setSelectedServiceId(service.id);
     setServiceSuggestions([]);
+  };
+
+  const applyProductSuggestion = (product: Product) => {
+    const suggestedPrice =
+      product.salePriceOptions[0] ?? product.price ?? 0;
+    setName(product.name);
+    setPrice(String(suggestedPrice));
+    setQuantity('1');
+    setWarrantyPeriod('0');
+    setSelectedProductId(product.id);
+    setProductSuggestions([]);
   };
 
   const openCreateServiceModal = () => {
@@ -3661,6 +3707,13 @@ const LineItemsPanel = ({
 
     onAddItem({
       kind,
+      productId:
+        kind === 'product'
+          ? (selectedProductId ??
+            productSuggestions.find(
+              (product) => product.name === normalizedName,
+            )?.id)
+          : undefined,
       serviceId:
         kind === 'service'
           ? (selectedServiceId ??
@@ -3678,7 +3731,9 @@ const LineItemsPanel = ({
     setQuantity('1');
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
+    setSelectedProductId(undefined);
     setServiceSuggestions([]);
+    setProductSuggestions([]);
   };
 
   return (
@@ -3760,14 +3815,65 @@ const LineItemsPanel = ({
         )}
       </div>
       <div className='order-line-items-form'>
-        <input
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setSelectedServiceId(undefined);
-          }}
-          placeholder={`Add ${kind}`}
-        />
+        <div className='order-line-items-entry-row'>
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setSelectedServiceId(undefined);
+              setSelectedProductId(undefined);
+            }}
+            placeholder={`Add ${kind}`}
+          />
+          <NumberStepper
+            min={0}
+            value={price}
+            onChange={setPrice}
+            placeholder='Price'
+          />
+          <NumberStepper
+            min={1}
+            value={quantity}
+            onChange={setQuantity}
+            placeholder='Qty'
+          />
+          <select
+            value={warrantyPeriod}
+            onChange={(event) => setWarrantyPeriod(event.target.value)}
+          >
+            {warrantyOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={submitItem}
+          >
+            Add {kind}
+          </button>
+        </div>
+        {kind === 'product' &&
+        (productSuggestions.length > 0 || isProductLookupLoading) ? (
+          <div className='create-suggestions line-item-suggestions'>
+            {isProductLookupLoading ? (
+              <p>Searching products...</p>
+            ) : null}
+            {productSuggestions.map((product) => (
+              <button
+                key={product.id}
+                type='button'
+                className='create-suggestion-item'
+                onClick={() => applyProductSuggestion(product)}
+              >
+                <strong>{product.name}</strong>
+                <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber}`}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         {kind === 'service' &&
         (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>
@@ -3796,35 +3902,6 @@ const LineItemsPanel = ({
             Add service
           </button>
         ) : null}
-        <NumberStepper
-          min={0}
-          value={price}
-          onChange={setPrice}
-          placeholder='Price'
-        />
-        <NumberStepper
-          min={1}
-          value={quantity}
-          onChange={setQuantity}
-          placeholder='Qty'
-        />
-        <select
-          value={warrantyPeriod}
-          onChange={(event) => setWarrantyPeriod(event.target.value)}
-        >
-          {warrantyOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type='button'
-          className='primary-button'
-          onClick={submitItem}
-        >
-          Add {kind}
-        </button>
       </div>
       {isCreateServiceOpen ? (
         <CatalogServiceEditorModal
