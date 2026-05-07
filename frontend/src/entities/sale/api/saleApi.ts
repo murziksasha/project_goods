@@ -19,7 +19,7 @@ export const getSales = async () => {
 
 export const createSale = async (payload: SaleFormValues) => {
   try {
-    const response = await apiClient.post<{ sale: Sale; product: Product }>(
+    const response = await apiClient.post<{ sale: Sale; product: Product | null }>(
       '/sales',
       payload,
     );
@@ -31,7 +31,7 @@ export const createSale = async (payload: SaleFormValues) => {
 
 export const updateSale = async (saleId: string, payload: SaleFormValues) => {
   try {
-    const response = await apiClient.put<{ sale: Sale; product: Product }>(
+    const response = await apiClient.put<{ sale: Sale; product: Product | null }>(
       `/sales/${saleId}`,
       payload,
     );

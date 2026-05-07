@@ -119,11 +119,11 @@ type DashboardActionParams = {
   ) => Promise<Product>;
   mutateCreateSale: (payload: SaleFormValues) => Promise<{
     sale: Sale;
-    product: Product;
+    product: Product | null;
   }>;
   mutateUpdateSale: (saleId: string, payload: SaleFormValues) => Promise<{
     sale: Sale;
-    product: Product;
+    product: Product | null;
   }>;
   mutateCreateClientDevice: (
     payload: ClientDeviceFormValues,
@@ -331,10 +331,6 @@ export const createDashboardActions = ({
       article: articleFallback,
     };
   };
-
-  const repairPlaceholderProduct = allProducts.find(
-    (product) => product.article.toUpperCase() === 'REPAIR-PLACEHOLDER',
-  );
 
   return {
     replaceSaleInState: (sale: Sale) => {
@@ -1105,22 +1101,7 @@ export const createDashboardActions = ({
             ? allProducts.find((product) => product.id === primarySaleItem.productId)
             : null;
 
-        let product = existingProduct ?? repairPlaceholderProduct;
-        if (!product) {
-          product = await mutateCreateProduct({
-            name: 'Repair placeholder',
-            article: 'REPAIR-PLACEHOLDER',
-            serialNumber: 'REPAIR-PLACEHOLDER',
-            price: '0',
-            salePriceOptions: '0',
-            quantity: '1',
-            note: 'System placeholder for repair orders. Do not use in stock sales.',
-            purchasePlace: 'Service center',
-            purchaseDate: '',
-            warrantyPeriod: '0',
-          });
-          setAllProducts((current) => [product!, ...current]);
-        }
+        let product = existingProduct;
 
         if (payload.sourceTab === 'sale' && !existingProduct) {
           const fallbackPrice = primarySaleItem ? primarySaleItem.price : estimatedCost;
@@ -1138,6 +1119,9 @@ export const createDashboardActions = ({
             warrantyPeriod: '0',
           });
           setAllProducts((current) => [product!, ...current]);
+        }
+        if (payload.sourceTab === 'sale' && !product) {
+          throw new Error('Product is required for sale orders.');
         }
 
         const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
@@ -1163,7 +1147,7 @@ export const createDashboardActions = ({
             ? saleItems.map((item, index) => ({
                 id: item.id || crypto.randomUUID(),
                 kind: 'product' as const,
-                productId: item.productId || (index === 0 ? product.id : ''),
+                productId: item.productId || (index === 0 ? product!.id : ''),
                 name: item.warehouse
                   ? `${item.name} (${item.warehouse})`
                   : item.name,
@@ -1176,7 +1160,7 @@ export const createDashboardActions = ({
         await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
-          productId: product.id,
+          productId: payload.sourceTab === 'repair' ? '' : product!.id,
           quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
