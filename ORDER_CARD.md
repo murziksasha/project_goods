@@ -15,6 +15,7 @@
 - If a device with the same canonical name already exists for this client, system reuses that record (no duplicates).
 - `S/N` may be empty and can be added later.
 - `S/N` is stored in order card snapshot/history and used as suggestion for repeat requests of the same client/device.
+- Empty `S/N` is a valid value and must not block `Save changes` (including status-only updates).
 
 ## Status And Issued
 

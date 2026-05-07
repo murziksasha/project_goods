@@ -136,7 +136,7 @@ export const saleSchema = new mongoose.Schema(
     productSnapshot: {
       article: { type: String, required: true },
       name: { type: String, required: true },
-      serialNumber: { type: String, required: true },
+      serialNumber: { type: String, required: false, default: '' },
     },
     clientSnapshot: {
       name: { type: String, required: true },
