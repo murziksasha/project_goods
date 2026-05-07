@@ -189,18 +189,45 @@ const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
 const filterIconOptions = [
-  '?',
-  '?',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
-  '??',
+  '\u2753',
+  '\u2702\ufe0f',
+  '\ud83e\udd16',
+  '\ud83d\udcc8',
+  '\ud83e\ude9f',
+  '\ud83d\udc26',
+  '\u2733\ufe0f',
+  '\u00a9\ufe0f',
+  '\ud83d\udd07',
+  '\u2795',
+  '\ud83d\udc19',
+  '\u2195\ufe0f',
+  '\u2716\ufe0f',
+  '\ud83d\udc4d',
+  '\ud83d\udc4e',
+  '\u261d\ufe0f',
+  '\ud83d\udcde',
+  '\ud83d\udd2d',
+  '\ud83d\udd12',
+  'VISA',
+  '\ud83d\udd17',
+  '\ud83c\udf4e',
+  '\ud83d\udcb2',
+  '\u21a9\ufe0f',
+  '\ud83e\uddee',
+  '@',
+  '\u2620\ufe0f',
+  '\ud83d\udd0c',
+  '\u2796',
+  '\ud83d\udcbc',
+  '\ud83d\ude97',
+  '\ud83d\ude80',
+  '\u2708\ufe0f',
+  '\ud83d\udeb4',
+  '\u267f\ufe0f',
+  '\u2194\ufe0f',
+  '\u2605',
+  '\u2606',
+  '\u2728',
 ];
 const allOrdersColumnKeys: OrdersColumnKey[] = [
   'orderNumber',
@@ -1067,6 +1094,9 @@ export const OrdersWorkspace = ({
       };
     });
   };
+  const toggleFilterPanel = () => {
+    setIsFilterPanelOpen((current) => !current);
+  };
 
   const applyFilters = () => {
     setAppliedFilters({
@@ -1078,6 +1108,9 @@ export const OrdersWorkspace = ({
     });
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
+    if (isFilterPanelOpen) {
+      toggleFilterPanel();
+    }
   };
 
   const resetFilters = () => {
@@ -2247,9 +2280,7 @@ export const OrdersWorkspace = ({
             type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isFilterPanelOpen}
-            onClick={() =>
-              setIsFilterPanelOpen((current) => !current)
-            }
+            onClick={toggleFilterPanel}
           >
             Filter
             {activeFiltersCount > 0 ? (
@@ -2391,7 +2422,7 @@ export const OrdersWorkspace = ({
                     aria-label={`Delete ${savedFilter.name}`}
                     onClick={() => removeSavedFilter(savedFilter.id)}
                   >
-                    ??
+                    🗑️
                   </button>
                 </div>
               ))
@@ -2646,9 +2677,9 @@ export const OrdersWorkspace = ({
             <div className='orders-filter-icons'>
               <span>Choose icon</span>
               <div className='orders-filter-icons-grid'>
-                {filterIconOptions.map((icon) => (
+                {filterIconOptions.map((icon, index) => (
                   <button
-                    key={icon}
+                    key={`${icon}-${index}`}
                     type='button'
                     className={
                       icon === newFilterIcon
@@ -2684,7 +2715,7 @@ export const OrdersWorkspace = ({
                       }
                       aria-label={`Delete ${savedFilter.name}`}
                     >
-                      ??
+                      🗑️
                     </button>
                   </div>
                 ))
