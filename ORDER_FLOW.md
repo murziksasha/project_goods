@@ -61,6 +61,7 @@
 - In order card `Main information`, `Device` is read-only (no `Edit` button and no device-edit modal in order card).
 - In order card `Main information`, `S/N` is editable.
 - `S/N` must remain editable at any time, including empty value.
+- Empty `S/N` must be accepted by backend validation and must not prevent saving order-card changes.
 - `Save changes` from order card does not modify device name.
 - `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
 - `Manager` remains informational.
