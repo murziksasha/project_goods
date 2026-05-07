@@ -1145,7 +1145,9 @@ export const createDashboardActions = ({
         const createdAt = new Date().toISOString();
         const author = currentEmployee?.name ?? managerName ?? 'System';
 
+        const kitsNote = payload.deviceKit.trim();
         const noteParts = [
+          kitsNote ? `(kits: ${kitsNote})` : '',
           payload.issueFromClient.trim(),
           payload.sourceTab === 'repair' ? payload.externalView.trim() : '',
           payload.serviceName.trim()
@@ -1213,7 +1215,7 @@ export const createDashboardActions = ({
             clientPhone: client.phone,
             name: deviceName,
             serialNumber: '',
-            note: payload.deviceKit.trim(),
+            note: '',
             source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
             isActive: true,
           });

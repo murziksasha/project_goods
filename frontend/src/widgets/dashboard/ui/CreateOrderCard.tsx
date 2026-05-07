@@ -97,6 +97,8 @@ const formatPhone = (input: string) => {
 };
 
 const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
+const toNameKey = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, ' ');
 const toApiPhone = (input: string) => {
   const digits = phoneDigitsOnly(input);
   if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
@@ -234,7 +236,18 @@ export const CreateOrderCard = ({
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
   const visibleClientHistory = selectedClientId ? clientHistory : null;
-  const visibleDeviceSuggestions = deviceName.trim().length >= 2 ? deviceSuggestions : [];
+  const visibleDeviceSuggestions = useMemo(() => {
+    if (deviceName.trim().length < 2) return [];
+
+    const normalizedInput = toNameKey(deviceName);
+    const uniqueByName = new Map<string, ClientDevice>();
+    deviceSuggestions.forEach((device) => {
+      const key = toNameKey(device.name);
+      if (!key || key === normalizedInput || uniqueByName.has(key)) return;
+      uniqueByName.set(key, device);
+    });
+    return Array.from(uniqueByName.values());
+  }, [deviceName, deviceSuggestions]);
   const canCreateClientDevice =
     activeTab === 'repair' &&
     Boolean(resolvedClientForDeviceCreate) &&

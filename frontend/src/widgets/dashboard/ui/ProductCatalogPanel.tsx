@@ -143,9 +143,16 @@ export const ProductCatalogPanel = ({
   const isProductsTab = activeTab === 'products';
   const isSuppliersTab = activeTab === 'suppliers';
   const filteredClientDevices = useMemo(() => {
+    const uniqueByName = new Map<string, ClientDevice>();
+    clientDevices.forEach((device) => {
+      const key = device.name.trim().toLowerCase();
+      if (!key || uniqueByName.has(key)) return;
+      uniqueByName.set(key, device);
+    });
+    const uniqueDevices = Array.from(uniqueByName.values());
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return clientDevices;
-    return clientDevices.filter((device) =>
+    if (!query) return uniqueDevices;
+    return uniqueDevices.filter((device) =>
       [device.name, device.clientName, device.clientPhone]
         .join(' ')
         .toLowerCase()

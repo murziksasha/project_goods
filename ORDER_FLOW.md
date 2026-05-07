@@ -11,6 +11,8 @@
 
 - `Device #1` searches in `Products & Services -> Clients goods` (client devices), globally across all clients (no `clientId` filter).
 - Search returns only active client devices.
+- Device suggestions in `Create order` are deduplicated by canonical device name (case-insensitive).
+- If current `Device #1` value already exactly matches a suggested device name, that suggestion is hidden (no repeated selected item in dropdown).
 - `Create new` button is visible but disabled until:
   - tab is `Repair order`
   - a client is selected from suggestions (required only for creating a new device card)
@@ -27,6 +29,8 @@
 
 - Repair order creation no longer creates warehouse products from customer devices.
 - Customer device name is stored in `Clients goods`; serial is stored only in order context/history.
+- Field `Kit` from `Create order` is order-scoped and must not be written to `Clients goods.note`.
+- On order creation, `Kit` is prepended to order `Notes` in format `(kits: ...)` as the first line.
 - No automatic `Repair` service line item is injected into new repair orders.
 - Removing service line items from order card is allowed and persisted.
 
@@ -78,8 +82,8 @@
 
 - First tab is named `Clients goods`.
 - Fields shown: `ID`, `Name`, `Activity`, `Date`.
-- Device `Name` is unique per client (case-insensitive).
-- Same device names are allowed across different clients.
+- Device `Name` must be unique in `Clients goods` list view (case-insensitive).
+- When creating an order, if a device with the same canonical name already exists in `Clients goods`, it must be reused from suggestions and no duplicate record is created.
 - Serial numbers are not stored or edited in `Clients goods`; they are handled in order card context/history only.
 - Clicking `Name` opens edit modal.
 - Create/Edit modals for `Clients goods` include only device name, note and activity.

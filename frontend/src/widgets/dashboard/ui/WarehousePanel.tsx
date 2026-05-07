@@ -105,10 +105,7 @@ const tabs: Array<{
 }> = [
   { key: 'stock', label: 'Stock balances' },
   { key: 'receipts', label: 'Receipts', badge: '10' },
-  { key: 'expenses', label: 'Expenses', badge: '4' },
   { key: 'transfers', label: 'Transfers' },
-  { key: 'logistics', label: 'Logistics' },
-  { key: 'inventory', label: 'Inventory' },
   { key: 'settings', label: 'Settings' },
 ];
 
