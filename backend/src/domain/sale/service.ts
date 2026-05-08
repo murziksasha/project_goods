@@ -279,7 +279,7 @@ const assertWorkspaceState = (
   const isClosingStatus =
     kind === 'repair'
       ? status === 'issued' || status === 'issuedWithoutRepair'
-      : status === 'paid' || status === 'completed';
+      : status === 'issued' || status === 'paid' || status === 'completed';
 
   if (hasAttachedProducts && isClosingStatus && paidAmount < total) {
     throw new Error('Product shipped but payment has not been received.');

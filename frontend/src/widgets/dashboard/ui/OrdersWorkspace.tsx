@@ -1346,6 +1346,28 @@ export const OrdersWorkspace = ({
     };
   }, [isColumnsMenuOpen]);
 
+  useEffect(() => {
+    if (!openStatusSaleId) return;
+
+    const closeStatusDropdownOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.order-status-menu')) return;
+      setOpenStatusSaleId(null);
+    };
+
+    document.addEventListener(
+      'mousedown',
+      closeStatusDropdownOnOutsideClick,
+    );
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeStatusDropdownOnOutsideClick,
+      );
+    };
+  }, [openStatusSaleId]);
+
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
@@ -1445,6 +1467,9 @@ export const OrdersWorkspace = ({
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
     const remainingPayment = getOrderRemainingPayment(sale);
+    const isZeroTotalSale =
+      !isRepairOrder(sale) &&
+      getOrderTotal(sale, getLineItems(sale)) <= 0;
 
     if (!isRepairOrder(sale) && status === 'returned') {
       setOpenStatusSaleId(null);
@@ -1454,7 +1479,8 @@ export const OrdersWorkspace = ({
 
     if (
       (isRepairOrder(sale) && status === 'issued') ||
-      (!isRepairOrder(sale) && isSalePaymentStatus(status))
+      (!isRepairOrder(sale) &&
+        (isSalePaymentStatus(status) || status === 'issued'))
     ) {
       setOpenStatusSaleId(null);
       if (remainingPayment <= 0) {
@@ -1470,6 +1496,11 @@ export const OrdersWorkspace = ({
             ...sale.timeline,
           ],
         });
+        return;
+      }
+
+      if (!isRepairOrder(sale) && status === 'issued' && !isZeroTotalSale) {
+        await openPaymentModal(sale, 'issued');
         return;
       }
 
@@ -1998,6 +2029,18 @@ export const OrdersWorkspace = ({
     }
 
     if (
+      action === 'issueWithoutPayment' &&
+      !isRepairOrder(paymentSale) &&
+      paymentTargetStatus === 'issued' &&
+      currentPaymentRemaining > 0
+    ) {
+      onError(
+        'Issued status requires payment to cashbox. Use payment action or keep unpaid status.',
+      );
+      return;
+    }
+
+    if (
       (action === 'depositAndIssue' ||
         action === 'issueWithoutPayment') &&
       hasAttachedProducts(paymentSale) &&
@@ -2055,6 +2098,22 @@ export const OrdersWorkspace = ({
         window.dispatchEvent(
           new CustomEvent('project-goods:finance-updated'),
         );
+      }
+
+      const shouldAutoMarkPaidOnDeposit =
+        action === 'deposit' &&
+        !isRepairOrder(paymentSale) &&
+        (paymentTargetStatus === 'issued' ||
+          paymentTargetStatus === 'paid');
+
+      if (shouldAutoMarkPaidOnDeposit) {
+        nextStatus = 'paid';
+        nextTimeline = [
+          appendTimelineEntry(
+            `${currentEmployeeName} changed status to "${getStatusLabel(paymentSale, 'paid')}".`,
+          ),
+          ...nextTimeline,
+        ];
       }
 
       if (
@@ -4593,7 +4652,10 @@ const PaymentModal = ({
     !Number.isFinite(numericAmount) ||
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
-  const isIssueDisabled = isLoading || isSaving;
+  const isIssueWithoutPaymentBlocked =
+    paymentTargetStatus === 'issued' && currentPaymentRemaining > 0;
+  const isIssueDisabled =
+    isLoading || isSaving || isIssueWithoutPaymentBlocked;
 
   useEffect(() => {
     if (!isPrintMenuOpen) return;
@@ -4871,6 +4933,11 @@ const PaymentModal = ({
               className='payment-issue-secondary-button'
               onClick={() => onSubmit('issueWithoutPayment')}
               disabled={isIssueDisabled}
+              title={
+                isIssueWithoutPaymentBlocked
+                  ? 'Issued requires payment to cashbox unless total is 0.'
+                  : undefined
+              }
             >
               {submitWithoutPaymentLabel}
             </button>

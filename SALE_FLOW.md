@@ -67,3 +67,19 @@
   - `%` percent discount
   - `₴` fixed amount discount
 - Discount is shared with sale card payment panel and affects `To pay` immediately.
+
+## Status Change: Issued In Sales List
+
+- In `Orders -> Sales` list, when user selects status `issued`, `Accept payment` modal is opened if `To pay > 0`.
+- If in this modal user clicks `Accept to cashbox` and enters full or partial payment:
+  - payment is added to cashbox
+  - sale status is auto-changed to `paid`
+- If user selected status `paid` and accepts payment, resulting status is `paid`.
+- Strict rule for sales:
+  - `issued` is not allowed when `To pay > 0`
+  - exception: `issued` is allowed when final order total is `0`
+- Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid`/`completed` with unpaid product amount.
+
+## Status Dropdown UX
+
+- Status dropdown in list is closed when user clicks outside the dropdown menu area.
