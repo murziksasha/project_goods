@@ -11,12 +11,18 @@ import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
+import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
+import { SupplierOrderModal } from './SupplierOrderModal';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
+  suppliers: Supplier[];
+  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
 };
@@ -59,8 +65,10 @@ type SaleOrderItem = {
   query: string;
   product: Product | null;
   price: string;
+  unitPrice: string;
   quantity: string;
   warrantyPeriod: string;
+  supplierOrderRequested: boolean;
 };
 
 const createSaleOrderItem = (): SaleOrderItem => ({
@@ -68,8 +76,10 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   query: '',
   product: null,
   price: '',
+  unitPrice: '',
   quantity: '1',
   warrantyPeriod: '0',
+  supplierOrderRequested: false,
 });
 
 const getProductPrice = (product: Product) =>
@@ -146,6 +156,10 @@ export const CreateOrderCard = ({
   employees,
   currentEmployee,
   initialTab = 'repair',
+  suppliers,
+  onCreateSupplier,
+  onSuccess,
+  onError,
   onClose,
   onSave,
 }: CreateOrderCardProps) => {
@@ -180,6 +194,7 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [supplierOrderModalItemId, setSupplierOrderModalItemId] = useState<string | null>(null);
 
   const managers = employees.filter(
     (employee) =>
@@ -411,12 +426,15 @@ export const CreateOrderCard = ({
   };
 
   const applySaleProduct = (itemId: string, product: Product) => {
+    const unitPrice = getProductPrice(product);
     updateSaleItem(itemId, {
       query: `${product.name} / ${product.article} / ${product.serialNumber}`,
       product,
-      price: String(getProductPrice(product)),
+      price: String(unitPrice),
+      unitPrice: String(unitPrice),
       quantity: '1',
       warrantyPeriod: '0',
+      supplierOrderRequested: false,
     });
     setSaleProductSuggestions([]);
   };
@@ -433,14 +451,63 @@ export const CreateOrderCard = ({
     );
   };
 
-  const orderUnavailableProduct = () => {
-    if (!focusedSaleItem || !canOrderUnavailableProduct) return;
+  const handleSaleItemQuantityChange = (item: SaleOrderItem, value: string) => {
+    const nextQuantity = Math.max(1, Number.parseInt(value || '1', 10) || 1);
+    const previousQuantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
+    const currentPrice = Number.parseFloat(item.price || '0');
+    const knownUnitPrice = Number.parseFloat(item.unitPrice || '0');
+    const resolvedUnitPrice =
+      Number.isFinite(knownUnitPrice) && knownUnitPrice > 0
+        ? knownUnitPrice
+        : Number.isFinite(currentPrice) && currentPrice > 0
+          ? currentPrice / previousQuantity
+          : 0;
 
-    updateSaleItem(focusedSaleItem.id, {
-      product: null,
-      query: saleProductLookupQuery,
-      price: focusedSaleItem.price,
+    updateSaleItem(item.id, {
+      quantity: String(nextQuantity),
+      unitPrice: resolvedUnitPrice > 0 ? String(Math.round(resolvedUnitPrice * 100) / 100) : item.unitPrice,
+      price:
+        resolvedUnitPrice > 0
+          ? String(Math.round(resolvedUnitPrice * nextQuantity * 100) / 100)
+          : item.price,
     });
+  };
+
+  const handleSaleItemPriceChange = (item: SaleOrderItem, value: string) => {
+    const normalizedPrice = value.trim();
+    const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
+    const numericPrice = Number.parseFloat(normalizedPrice || '0');
+    const resolvedUnitPrice =
+      Number.isFinite(numericPrice) && numericPrice >= 0 ? numericPrice / quantity : 0;
+
+    updateSaleItem(item.id, {
+      price: normalizedPrice,
+      unitPrice:
+        Number.isFinite(resolvedUnitPrice) && resolvedUnitPrice >= 0
+          ? String(Math.round(resolvedUnitPrice * 100) / 100)
+          : item.unitPrice,
+    });
+  };
+
+  const getShippingStatusLabel = (item: SaleOrderItem) => {
+    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return 'In stock';
+    if (item.supplierOrderRequested) return 'Supplier order';
+    return 'Order';
+  };
+
+  const handleShippingStatusClick = (item: SaleOrderItem) => {
+    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return;
+    setSupplierOrderModalItemId(item.id);
+  };
+
+  const confirmSupplierOrderRequest = () => {
+    if (!supplierOrderModalItemId) return;
+
+    updateSaleItem(supplierOrderModalItemId, { supplierOrderRequested: true });
+    setSelectedFlags((current) =>
+      current.includes('Waiting for supply') ? current : [...current, 'Waiting for supply'],
+    );
+    setSupplierOrderModalItemId(null);
   };
 
   const onClientPhoneChange = (value: string) => {
@@ -499,8 +566,10 @@ export const CreateOrderCard = ({
         query: 'Portable SSD Samsung T7 1TB',
         product: null,
         price: '3899',
+        unitPrice: '3899',
         quantity: '1',
         warrantyPeriod: '0',
+        supplierOrderRequested: false,
       },
     ]);
   };
@@ -572,6 +641,26 @@ export const CreateOrderCard = ({
   };
 
   const handleSave = async () => {
+    const normalizedSaleItems = saleItems.flatMap((item) => {
+      const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
+      const totalPrice = Math.max(0, Number.parseFloat(item.price || '0') || 0);
+      const knownUnitPrice = Math.max(0, Number.parseFloat(item.unitPrice || '0') || 0);
+      const resolvedUnitPrice = knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
+      const normalizedUnitPrice = String(Math.round(resolvedUnitPrice * 100) / 100);
+
+      return Array.from({ length: quantity }, (_, index) => ({
+        id: `${item.id}-${index + 1}`,
+        productId: item.product?.id ?? '',
+        name: item.product?.name ?? item.query.trim(),
+        article: item.product?.article ?? '',
+        serialNumber: item.product?.serialNumber ?? '',
+        price: normalizedUnitPrice,
+        quantity: '1',
+        warrantyPeriod: item.warrantyPeriod,
+        warehouse: item.product ? getProductWarehouse(item.product) : '',
+      }));
+    });
+
     const success = await onSave({
       clientPhone,
       clientName,
@@ -591,17 +680,7 @@ export const CreateOrderCard = ({
       masterId,
       extraFlags: selectedFlags,
       sourceTab: activeTab,
-      saleItems: saleItems.map((item) => ({
-        id: item.id,
-        productId: item.product?.id ?? '',
-        name: item.product?.name ?? item.query.trim(),
-        article: item.product?.article ?? '',
-        serialNumber: item.product?.serialNumber ?? '',
-        price: item.price,
-        quantity: item.quantity,
-        warrantyPeriod: item.warrantyPeriod,
-        warehouse: item.product ? getProductWarehouse(item.product) : '',
-      })),
+      saleItems: normalizedSaleItems,
     });
 
       if (success) {
@@ -709,7 +788,7 @@ export const CreateOrderCard = ({
                             min={1}
                             max={availableQuantity || undefined}
                             value={item.quantity}
-                            onChange={(value) => updateSaleItem(item.id, { quantity: value })}
+                            onChange={(value) => handleSaleItemQuantityChange(item, value)}
                           />
                         </label>
                         <label className="field">
@@ -718,7 +797,7 @@ export const CreateOrderCard = ({
                             min={0}
                             value={item.price}
                             onChange={(value) => {
-                              updateSaleItem(item.id, { price: value });
+                              handleSaleItemPriceChange(item, value);
                             }}
                             placeholder="0"
                           />
@@ -739,6 +818,16 @@ export const CreateOrderCard = ({
                             <option value="24">2 year</option>
                             <option value="36">3 year</option>
                           </select>
+                        </label>
+                        <label className="field">
+                          <span>Shipping status</span>
+                          <button
+                            type="button"
+                            className="secondary-button sale-item-status-button"
+                            onClick={() => handleShippingStatusClick(item)}
+                          >
+                            {getShippingStatusLabel(item)}
+                          </button>
                         </label>
                         <button
                           type="button"
@@ -774,15 +863,7 @@ export const CreateOrderCard = ({
                       </button>
                     ))}
                     <div className="sale-order-unavailable">
-                      <span>{focusedSaleItem?.price ? `${focusedSaleItem.price} UAH` : 'Price'}</span>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={!canOrderUnavailableProduct}
-                        onClick={orderUnavailableProduct}
-                      >
-                        Order
-                      </button>
+                      <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
                     </div>
                   </div>
                 ) : null}
@@ -1123,6 +1204,20 @@ export const CreateOrderCard = ({
           </section>
         </div>
       ) : null}
+      <SupplierOrderModal
+        isOpen={Boolean(supplierOrderModalItemId)}
+        suppliers={suppliers}
+        initialProductName={
+          supplierOrderModalItemId
+            ? saleItems.find((item) => item.id === supplierOrderModalItemId)?.query ?? ''
+            : ''
+        }
+        onClose={() => setSupplierOrderModalItemId(null)}
+        onCreateSupplier={onCreateSupplier}
+        onSuccess={onSuccess}
+        onError={onError}
+        onSubmit={confirmSupplierOrderRequest}
+      />
     </section>
   );
 };

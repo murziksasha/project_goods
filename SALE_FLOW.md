@@ -29,6 +29,13 @@
   - warranty to `None`
 - Selected suggestion binds `productId` for the line item.
 
+## Sale Creation: Product/Device Linking Rules
+
+- Creating a `Sales order` must not auto-create warehouse product cards when a catalog match is absent.
+- Sales line items may be saved without `productId` (manual item text), to avoid fake stock entries before receipt.
+- Creating a `Sales order` must not auto-create entries in `Clients goods` (`client-devices`).
+- `Clients goods` auto-link/create behavior is applied only for `Repair order` flows.
+
 ## Services In Sale Card
 
 - Services are optional for sale card.

@@ -653,6 +653,10 @@ export const DashboardPage = () => {
                 currentEmployee={currentEmployee}
                 onClose={openOrdersPage}
                 initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
+                suppliers={state.suppliers}
+                onCreateSupplier={actions.createSupplierCard}
+                onSuccess={actions.showSuccessMessage}
+                onError={actions.showError}
                 onSave={actions.saveOrderRequest}
               />
             ) : (
@@ -663,7 +667,6 @@ export const DashboardPage = () => {
                   suppliers={state.suppliers}
                   currentEmployeeName={currentEmployee.name}
                   onCreateSupplier={actions.createSupplierCard}
-                  onUpdateSupplier={actions.updateSupplierCard}
                   onSuccess={actions.showSuccessMessage}
                   onError={actions.showError}
                 />
