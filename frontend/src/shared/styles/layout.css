@@ -1246,7 +1246,7 @@
 
 .order-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(380px, 1.1fr);
   gap: 16px;
   padding: 16px;
   align-items: start;
@@ -1279,6 +1279,10 @@
   grid-column: 1;
 }
 
+.order-detail-products-panel {
+  grid-column: 1 / -1;
+}
+
 .order-detail-related-panel {
   grid-column: 1 / -1;
 }
@@ -1286,6 +1290,14 @@
 .order-detail-payment-panel {
   grid-column: 2;
   grid-row: 3 / span 3;
+}
+
+.order-shipping-status-button {
+  min-width: 140px;
+}
+
+.order-shipping-status-add {
+  flex: 0 0 auto;
 }
 
 .order-detail-panel h3 {
@@ -1363,6 +1375,32 @@
 .order-detail-list .order-detail-notes-row {
   grid-column: 1 / -1;
   align-items: start;
+}
+
+.order-payment-discount-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  border: 1px solid #c9d2dd;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 220px;
+}
+
+.order-payment-discount-control input {
+  border: 0;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: right;
+  color: #4d637a;
+}
+
+.order-payment-discount-mode {
+  border: 0;
+  border-left: 1px solid #c9d2dd;
+  background: #f3f6fa;
+  color: #4d637a;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .order-detail-notes-row dd {
@@ -1573,6 +1611,16 @@
   gap: 10px;
 }
 
+.order-line-items-entry-row-product {
+  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 200px 140px;
+}
+
+.order-line-items-shipping-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .order-line-item-name-button {
   max-width: 100%;
   border: 0;
@@ -1731,6 +1779,33 @@
 .payment-modal-summary dd {
   margin: 0;
   color: #687789;
+}
+
+.payment-summary-discount-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-summary-discount-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e9f1fb;
+  border: 1px solid #c8d9ef;
+  color: #2d5f91;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payment-summary-discount-badge:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .payment-modal-summary dd {

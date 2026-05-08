@@ -36,6 +36,10 @@ export type Sale = {
     quantity: number;
     warrantyPeriod: number;
   }>;
+  discount?: {
+    mode: 'percent' | 'amount';
+    value: number;
+  };
   client: {
     id: string;
     name: string;
@@ -85,6 +89,7 @@ export type SaleFormValues = {
   lineItems?: Sale['lineItems'];
   deviceName?: string;
   serialNumber?: string;
+  discount?: Sale['discount'];
   expectedUpdatedAt?: string;
 };
 
@@ -96,6 +101,7 @@ export type SaleWorkspacePayload = {
   issuedById?: string;
   deviceName?: string;
   serialNumber?: string;
+  discount?: Sale['discount'];
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];

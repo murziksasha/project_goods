@@ -194,6 +194,46 @@ const calculateLineItemsTotal = (
     ) * 100,
   ) / 100;
 
+const normalizeDiscount = (
+  discount?: { mode?: string; value?: number } | null,
+) => {
+  const value =
+    Number.isFinite(discount?.value) && (discount?.value ?? 0) > 0
+      ? (discount?.value as number)
+      : 0;
+
+  return {
+    mode: discount?.mode === 'percent' ? 'percent' : 'amount',
+    value,
+  } as const;
+};
+
+const calculateDiscountAmount = (
+  total: number,
+  discount?: { mode?: string; value?: number } | null,
+) => {
+  const normalized = normalizeDiscount(discount);
+  if (normalized.value <= 0 || total <= 0) return 0;
+
+  if (normalized.mode === 'percent') {
+    return Math.min(
+      Math.round(((total * normalized.value) / 100) * 100) / 100,
+      total,
+    );
+  }
+
+  return Math.min(Math.round(normalized.value * 100) / 100, total);
+};
+
+const calculateTotalAfterDiscount = (
+  lineItems: Array<{ price: number; quantity: number }>,
+  discount?: { mode?: string; value?: number } | null,
+) => {
+  const total = calculateLineItemsTotal(lineItems);
+  const discountAmount = calculateDiscountAmount(total, discount);
+  return Math.max(Math.round((total - discountAmount) * 100) / 100, 0);
+};
+
 const getDefaultLineItems = (
   payload: {
     kind: 'repair' | 'sale';
@@ -224,12 +264,13 @@ const assertWorkspaceState = (
   status: string,
   paidAmount: number,
   lineItems: Array<{ kind: string; price: number; quantity: number }>,
+  discount?: { mode?: string; value?: number } | null,
 ) => {
   if (!Number.isFinite(paidAmount) || paidAmount < 0) {
     throw new Error('Paid amount cannot be negative.');
   }
 
-  const total = calculateLineItemsTotal(lineItems);
+  const total = calculateTotalAfterDiscount(lineItems, discount);
   if (paidAmount > total) {
     throw new Error('Paid amount cannot exceed order total.');
   }
@@ -238,7 +279,7 @@ const assertWorkspaceState = (
   const isClosingStatus =
     kind === 'repair'
       ? status === 'issued' || status === 'issuedWithoutRepair'
-      : status === 'paid' || status === 'completed';
+      : status === 'issued' || status === 'paid' || status === 'completed';
 
   if (hasAttachedProducts && isClosingStatus && paidAmount < total) {
     throw new Error('Product shipped but payment has not been received.');
@@ -366,6 +407,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       timeline: payload.timeline ?? [],
       paymentHistory: payload.paymentHistory ?? [],
       lineItems,
+      discount: normalizeDiscount(payload.discount),
       productSnapshot: {
         article: product?.article || 'REPAIR',
         name: payload.deviceName || product?.name || 'Repair',
@@ -392,6 +434,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       sale.status,
       sale.paidAmount,
       sale.lineItems,
+      sale.discount,
     );
     await sale.validate();
     sale.recordNumber = await getNextRecordNumber();
@@ -498,6 +541,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
       payload.status || existingSale.status || 'new',
       payload.paidAmount || 0,
       nextLineItems,
+      payload.discount,
     );
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
@@ -518,6 +562,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         paymentHistory:
           payload.paymentHistory ?? existingSale.paymentHistory ?? [],
         lineItems: nextLineItems,
+        discount: normalizeDiscount(payload.discount),
         productSnapshot: {
           article: product?.article || existingSale.productSnapshot?.article || 'REPAIR',
           name: payload.deviceName || product?.name || existingSale.productSnapshot?.name || 'Repair',
@@ -627,6 +672,10 @@ export const updateSaleWorkspace = async (
   const normalizedLineItems = nextLineItems.map((item) =>
     item.kind === 'product' ? { ...item, name: nextDeviceName || item.name } : item,
   );
+  const nextDiscount =
+    payloadInput.discount === undefined
+      ? normalizeDiscount(existingSale.discount)
+      : normalizeDiscount(payload.discount);
   const master = await resolveEmployee(
     payload.masterId,
     'masterId',
@@ -634,7 +683,13 @@ export const updateSaleWorkspace = async (
     'repairs.execute',
   );
 
-  assertWorkspaceState(nextKind, nextStatus, nextPaidAmount, normalizedLineItems);
+  assertWorkspaceState(
+    nextKind,
+    nextStatus,
+    nextPaidAmount,
+    normalizedLineItems,
+    nextDiscount,
+  );
 
   const updatedSale = await Sale.findByIdAndUpdate(
     saleId,
@@ -649,6 +704,7 @@ export const updateSaleWorkspace = async (
       timeline: nextTimeline,
       paymentHistory: nextPaymentHistory,
       lineItems: normalizedLineItems,
+      discount: nextDiscount,
       productSnapshot: {
         article: existingSale.productSnapshot?.article ?? '',
         name: nextDeviceName || existingSale.productSnapshot?.name || '',
@@ -796,7 +852,13 @@ export const returnSaleLineItem = async (
       ...(sale.timeline ?? []),
     ];
 
-    assertWorkspaceState(sale.kind, sale.status, nextPaidAmount, nextLineItems);
+    assertWorkspaceState(
+      sale.kind,
+      sale.status,
+      nextPaidAmount,
+      nextLineItems,
+      sale.discount,
+    );
 
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
@@ -936,7 +998,13 @@ export const returnSale = async (
       ...(sale.timeline ?? []),
     ];
 
-    assertWorkspaceState(sale.kind, 'returned', nextPaidAmount, remainingLineItems);
+    assertWorkspaceState(
+      sale.kind,
+      'returned',
+      nextPaidAmount,
+      remainingLineItems,
+      sale.discount,
+    );
 
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,

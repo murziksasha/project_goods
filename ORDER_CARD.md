@@ -37,3 +37,21 @@
 
 - `Products` section contains only attached products/parts/services used for the order work.
 - Accepted repair device is not a product line item.
+
+## Payment And Discount
+
+- `Payment` block in order card contains:
+  - `Repair cost`
+  - `Discount`
+  - `Paid`
+  - `To pay`
+- `Discount` is editable both:
+  - in the right `Payment` panel of the card
+  - in `Accept payment` modal summary
+- `Discount` supports two modes switched by icon/button:
+  - `%` (percentage from total)
+  - `₴` (fixed amount in currency)
+- Discount reduces final order amount before `To pay` calculation.
+- `To pay` formula:
+  - `max((Repair cost - Discount) - Paid, 0)`
+- Discount is persisted in sale/order workspace and reused across card and payment modal views.

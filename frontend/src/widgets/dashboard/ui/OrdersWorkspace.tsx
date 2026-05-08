@@ -494,7 +494,30 @@ const getDefaultLineItems = (sale: Sale) =>
     ? []
     : [createOrderLineItem(sale, 'product')];
 
-const getOrderTotal = (
+const getDiscount = (sale: Sale) => ({
+  mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',
+  value:
+    Number.isFinite(sale.discount?.value) && (sale.discount?.value ?? 0) > 0
+      ? Number(sale.discount?.value)
+      : 0,
+} as const);
+
+const getDiscountAmount = (
+  sale: Sale,
+  total: number,
+) => {
+  const discount = getDiscount(sale);
+  if (discount.value <= 0 || total <= 0) return 0;
+  if (discount.mode === 'percent') {
+    return Math.min(
+      Math.round(((total * discount.value) / 100) * 100) / 100,
+      total,
+    );
+  }
+  return Math.min(Math.round(discount.value * 100) / 100, total);
+};
+
+const getOrderBaseTotal = (
   sale: Sale,
   lineItems: OrderLineItem[] = sale.lineItems?.length
     ? sale.lineItems
@@ -506,6 +529,21 @@ const getOrderTotal = (
         0,
       )
     : sale.salePrice;
+
+const getOrderTotal = (
+  sale: Sale,
+  lineItems: OrderLineItem[] = sale.lineItems?.length
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
+) =>
+  (() => {
+    const baseTotal = getOrderBaseTotal(sale, lineItems);
+    const discountAmount = getDiscountAmount(sale, baseTotal);
+    return Math.max(
+      Math.round((baseTotal - discountAmount) * 100) / 100,
+      0,
+    );
+  })();
 
 const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
   lineItems.reduce(
@@ -1308,10 +1346,42 @@ export const OrdersWorkspace = ({
     };
   }, [isColumnsMenuOpen]);
 
+  useEffect(() => {
+    if (!openStatusSaleId) return;
+
+    const closeStatusDropdownOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.order-status-menu')) return;
+      setOpenStatusSaleId(null);
+    };
+
+    document.addEventListener(
+      'mousedown',
+      closeStatusDropdownOnOutsideClick,
+    );
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeStatusDropdownOnOutsideClick,
+      );
+    };
+  }, [openStatusSaleId]);
+
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
+
+  useEffect(() => {
+    if (!paymentSale) return;
+    const refreshedSale = sales.find((item) => item.id === paymentSale.id);
+    if (!refreshedSale) return;
+    if (refreshedSale.updatedAt !== paymentSale.updatedAt) {
+      setPaymentSale(refreshedSale);
+    }
+  }, [paymentSale, sales]);
+
   const selectedSaleStatusOptions = selectedSale
     ? isRepairOrder(selectedSale)
       ? repairStatuses
@@ -1371,6 +1441,7 @@ export const OrdersWorkspace = ({
       issuedById?: string;
       deviceName?: string;
       serialNumber?: string;
+      discount?: Sale['discount'];
       timeline?: TimelineEntry[];
       paymentHistory?: PaymentEntry[];
       lineItems?: OrderLineItem[];
@@ -1384,6 +1455,7 @@ export const OrdersWorkspace = ({
       issuedById: payload.issuedById,
       deviceName: payload.deviceName,
       serialNumber: payload.serialNumber,
+      discount: payload.discount ?? sale.discount,
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
@@ -1395,6 +1467,9 @@ export const OrdersWorkspace = ({
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
     const remainingPayment = getOrderRemainingPayment(sale);
+    const isZeroTotalSale =
+      !isRepairOrder(sale) &&
+      getOrderTotal(sale, getLineItems(sale)) <= 0;
 
     if (!isRepairOrder(sale) && status === 'returned') {
       setOpenStatusSaleId(null);
@@ -1404,7 +1479,8 @@ export const OrdersWorkspace = ({
 
     if (
       (isRepairOrder(sale) && status === 'issued') ||
-      (!isRepairOrder(sale) && isSalePaymentStatus(status))
+      (!isRepairOrder(sale) &&
+        (isSalePaymentStatus(status) || status === 'issued'))
     ) {
       setOpenStatusSaleId(null);
       if (remainingPayment <= 0) {
@@ -1420,6 +1496,11 @@ export const OrdersWorkspace = ({
             ...sale.timeline,
           ],
         });
+        return;
+      }
+
+      if (!isRepairOrder(sale) && status === 'issued' && !isZeroTotalSale) {
+        await openPaymentModal(sale, 'issued');
         return;
       }
 
@@ -1649,6 +1730,49 @@ export const OrdersWorkspace = ({
         appendTimelineEntry(normalizedComment),
         ...sale.timeline,
       ],
+    });
+  };
+
+  const updateDiscount = (
+    sale: Sale,
+    discount: { mode: 'percent' | 'amount'; value: number },
+  ) => {
+    const normalizedValue =
+      Number.isFinite(discount.value) && discount.value > 0
+        ? Math.round(discount.value * 100) / 100
+        : 0;
+    const currentDiscount = getDiscount(sale);
+    if (
+      currentDiscount.mode === discount.mode &&
+      currentDiscount.value === normalizedValue
+    ) {
+      return;
+    }
+
+    // Optimistic UI update so the modal badge/mode flips immediately.
+    setPaymentSale((current) =>
+      current && current.id === sale.id
+        ? {
+            ...current,
+            discount: {
+              mode: discount.mode,
+              value: normalizedValue,
+            },
+          }
+        : current,
+    );
+
+    const discountedTotal = Math.max(
+      getOrderTotal(sale, getLineItems(sale)),
+      0,
+    );
+    const nextPaidAmount = Math.min(getPaidAmount(sale), discountedTotal);
+    void persistSaleWorkspace(sale, {
+      paidAmount: nextPaidAmount,
+      discount: {
+        mode: discount.mode,
+        value: normalizedValue,
+      },
     });
   };
 
@@ -1905,6 +2029,18 @@ export const OrdersWorkspace = ({
     }
 
     if (
+      action === 'issueWithoutPayment' &&
+      !isRepairOrder(paymentSale) &&
+      paymentTargetStatus === 'issued' &&
+      currentPaymentRemaining > 0
+    ) {
+      onError(
+        'Issued status requires payment to cashbox. Use payment action or keep unpaid status.',
+      );
+      return;
+    }
+
+    if (
       (action === 'depositAndIssue' ||
         action === 'issueWithoutPayment') &&
       hasAttachedProducts(paymentSale) &&
@@ -1962,6 +2098,22 @@ export const OrdersWorkspace = ({
         window.dispatchEvent(
           new CustomEvent('project-goods:finance-updated'),
         );
+      }
+
+      const shouldAutoMarkPaidOnDeposit =
+        action === 'deposit' &&
+        !isRepairOrder(paymentSale) &&
+        (paymentTargetStatus === 'issued' ||
+          paymentTargetStatus === 'paid');
+
+      if (shouldAutoMarkPaidOnDeposit) {
+        nextStatus = 'paid';
+        nextTimeline = [
+          appendTimelineEntry(
+            `${currentEmployeeName} changed status to "${getStatusLabel(paymentSale, 'paid')}".`,
+          ),
+          ...nextTimeline,
+        ];
       }
 
       if (
@@ -2302,6 +2454,9 @@ export const OrdersWorkspace = ({
           onOpenRelatedSale={openSaleCard}
           onAcceptPayment={() => openPaymentModal(selectedSale)}
           onRefundPayment={() => openRefundModal(selectedSale)}
+          onDiscountChange={(discount) =>
+            updateDiscount(selectedSale, discount)
+          }
           onOpenClientCard={() =>
             onOpenClientCard(selectedSale.client.id)
           }
@@ -2885,6 +3040,9 @@ export const OrdersWorkspace = ({
           isSaving={isPaymentSaving}
           onCashboxChange={setSelectedCashboxId}
           onAmountChange={setPaymentAmount}
+          onDiscountChange={(discount) =>
+            updateDiscount(paymentSale, discount)
+          }
           onClose={() => setPaymentSale(null)}
           onSubmit={acceptPayment}
         />
@@ -2990,6 +3148,10 @@ type OrderDetailCardProps = {
   onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
   onRefundPayment: () => void;
+  onDiscountChange: (discount: {
+    mode: 'percent' | 'amount';
+    value: number;
+  }) => void;
   onOpenClientCard: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -3018,6 +3180,7 @@ const OrderDetailCard = ({
   onOpenRelatedSale,
   onAcceptPayment,
   onRefundPayment,
+  onDiscountChange,
   onOpenClientCard,
   onError,
   onSuccess,
@@ -3034,7 +3197,8 @@ const OrderDetailCard = ({
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
-  const total = getOrderTotal(sale, lineItems);
+  const total = getOrderBaseTotal(sale, lineItems);
+  const discount = getDiscount(sale);
   const remainingPayment = getRemainingPayment(
     sale,
     paidAmount,
@@ -3108,6 +3272,16 @@ const OrderDetailCard = ({
     onAddComment(comment);
     setComment('');
   };
+
+  const shippingStatusLabel = (() => {
+    if (productItems.length === 0) return 'Order';
+    const withLinkedProduct = productItems.filter(
+      (item) => Boolean(item.productId),
+    ).length;
+    if (withLinkedProduct === productItems.length) return 'In stock';
+    if (withLinkedProduct > 0) return 'Supplier order';
+    return 'Order';
+  })();
 
   return (
     <article className='order-detail-card' aria-label='Order card'>
@@ -3299,7 +3473,7 @@ const OrderDetailCard = ({
           </div>
         </section>
 
-        <section className='order-detail-panel order-detail-line-items-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel order-detail-products-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -3323,6 +3497,7 @@ const OrderDetailCard = ({
               isPaidSale={isSaleCard && paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
+              shippingStatusLabel={shippingStatusLabel}
             />
           ) : null}
         </section>
@@ -3361,6 +3536,52 @@ const OrderDetailCard = ({
             <div>
               <dt>Repair cost</dt>
               <dd>{formatCurrency(total)}</dd>
+            </div>
+            <div>
+              <dt>
+                <span className='payment-summary-discount-label'>
+                  Discount
+                  <span className='payment-summary-discount-badge'>
+                    {discount.mode === 'percent' ? '%' : '₴'}
+                  </span>
+                </span>
+              </dt>
+              <dd>
+                <div className='order-payment-discount-control'>
+                  <input
+                    type='number'
+                    min={0}
+                    step='0.01'
+                    value={String(discount.value)}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value);
+                      onDiscountChange({
+                        mode: discount.mode,
+                        value:
+                          Number.isFinite(nextValue) && nextValue > 0
+                            ? Math.round(nextValue * 100) / 100
+                            : 0,
+                      });
+                    }}
+                  />
+                  <button
+                    type='button'
+                    className='order-payment-discount-mode'
+                    onClick={() =>
+                      onDiscountChange({
+                        mode:
+                          discount.mode === 'percent'
+                            ? 'amount'
+                            : 'percent',
+                        value: discount.value,
+                      })
+                    }
+                    aria-label='Toggle discount mode'
+                  >
+                    {discount.mode === 'percent' ? '%' : '₴'}
+                  </button>
+                </div>
+              </dd>
             </div>
             <div>
               <dt>Paid</dt>
@@ -3467,6 +3688,7 @@ type LineItemsPanelProps = {
   isPaidSale: boolean;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  shippingStatusLabel?: string;
 };
 
 const LineItemsPanel = ({
@@ -3480,6 +3702,7 @@ const LineItemsPanel = ({
   isPaidSale,
   onError,
   onSuccess,
+  shippingStatusLabel,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -3875,7 +4098,13 @@ const LineItemsPanel = ({
         )}
       </div>
       <div className='order-line-items-form'>
-        <div className='order-line-items-entry-row'>
+        <div
+          className={
+            kind === 'product'
+              ? 'order-line-items-entry-row order-line-items-entry-row-product'
+              : 'order-line-items-entry-row'
+          }
+        >
           <input
             value={name}
             onChange={(event) => {
@@ -3907,6 +4136,24 @@ const LineItemsPanel = ({
               </option>
             ))}
           </select>
+          {kind === 'product' ? (
+            <div className='order-line-items-shipping-inline'>
+              <button
+                type='button'
+                className='secondary-button order-shipping-status-button'
+              >
+                {shippingStatusLabel ?? 'Order'}
+              </button>
+              <button
+                type='button'
+                className='toolbar-square-button order-shipping-status-add'
+                onClick={submitItem}
+                aria-label='Add product'
+              >
+                +
+              </button>
+            </div>
+          ) : null}
           <button
             type='button'
             className='primary-button'
@@ -4342,6 +4589,10 @@ type PaymentModalProps = {
   isSaving: boolean;
   onCashboxChange: (cashboxId: string) => void;
   onAmountChange: (amount: string) => void;
+  onDiscountChange: (discount: {
+    mode: 'percent' | 'amount';
+    value: number;
+  }) => void;
   onClose: () => void;
   onSubmit: (action: PaymentAction) => void;
 };
@@ -4358,10 +4609,12 @@ const PaymentModal = ({
   isSaving,
   onCashboxChange,
   onAmountChange,
+  onDiscountChange,
   onClose,
   onSubmit,
 }: PaymentModalProps) => {
-  const total = getOrderTotal(sale, lineItems);
+  const total = getOrderBaseTotal(sale, lineItems);
+  const discount = getDiscount(sale);
   const numericAmount = Number(amount);
   const currentPaymentRemaining = getRemainingPayment(
     sale,
@@ -4399,7 +4652,10 @@ const PaymentModal = ({
     !Number.isFinite(numericAmount) ||
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
-  const isIssueDisabled = isLoading || isSaving;
+  const isIssueWithoutPaymentBlocked =
+    paymentTargetStatus === 'issued' && currentPaymentRemaining > 0;
+  const isIssueDisabled =
+    isLoading || isSaving || isIssueWithoutPaymentBlocked;
 
   useEffect(() => {
     if (!isPrintMenuOpen) return;
@@ -4503,8 +4759,66 @@ const PaymentModal = ({
               <dd>{formatCurrency(paidAmount)}</dd>
             </div>
             <div>
-              <dt>Discount</dt>
-              <dd>0%</dd>
+              <dt>
+                <span className='payment-summary-discount-label'>
+                  Discount
+                  <button
+                    type='button'
+                    className='payment-summary-discount-badge'
+                    onClick={() =>
+                      onDiscountChange({
+                        mode:
+                          discount.mode === 'percent'
+                            ? 'amount'
+                            : 'percent',
+                        value: discount.value,
+                      })
+                    }
+                    aria-label='Toggle discount mode from summary badge'
+                    disabled={isLoading || isSaving}
+                  >
+                    {discount.mode === 'percent' ? '%' : '₴'}
+                  </button>
+                </span>
+              </dt>
+              <dd>
+                <div className='order-payment-discount-control'>
+                  <input
+                    type='number'
+                    min={0}
+                    step='0.01'
+                    value={String(discount.value)}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value);
+                      onDiscountChange({
+                        mode: discount.mode,
+                        value:
+                          Number.isFinite(nextValue) && nextValue > 0
+                            ? Math.round(nextValue * 100) / 100
+                            : 0,
+                      });
+                    }}
+                    disabled={isLoading || isSaving}
+                  />
+                  <button
+                    type='button'
+                    className='order-payment-discount-mode'
+                    onClick={() =>
+                      onDiscountChange({
+                        mode:
+                          discount.mode === 'percent'
+                            ? 'amount'
+                            : 'percent',
+                        value: discount.value,
+                      })
+                    }
+                    aria-label='Toggle discount mode'
+                    disabled={isLoading || isSaving}
+                  >
+                    {discount.mode === 'percent' ? '%' : '₴'}
+                  </button>
+                </div>
+              </dd>
             </div>
             <div>
               <dt>To pay</dt>
@@ -4619,6 +4933,11 @@ const PaymentModal = ({
               className='payment-issue-secondary-button'
               onClick={() => onSubmit('issueWithoutPayment')}
               disabled={isIssueDisabled}
+              title={
+                isIssueWithoutPaymentBlocked
+                  ? 'Issued requires payment to cashbox unless total is 0.'
+                  : undefined
+              }
             >
               {submitWithoutPaymentLabel}
             </button>

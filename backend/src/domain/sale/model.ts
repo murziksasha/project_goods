@@ -134,6 +134,18 @@ export const saleSchema = new mongoose.Schema(
         warrantyPeriod: { type: Number, min: 0, default: 0 },
       },
     ],
+    discount: {
+      mode: {
+        type: String,
+        enum: ['percent', 'amount'],
+        default: 'amount',
+      },
+      value: {
+        type: Number,
+        min: [0, 'Discount cannot be negative'],
+        default: 0,
+      },
+    },
     productSnapshot: {
       article: { type: String, required: true },
       name: { type: String, required: true },
