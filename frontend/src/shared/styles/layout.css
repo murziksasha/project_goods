@@ -2985,6 +2985,15 @@
   border-bottom: 1px solid #e1e8f0;
 }
 
+.create-side-list-link {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #2b4f7e;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .create-cost-row {
   grid-template-columns: minmax(0, 1fr) 56px 88px;
   align-items: end;

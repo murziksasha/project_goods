@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -61,6 +61,8 @@ const getAutoPaymentStatus = (status: SupplierOrderStatus): SupplierPaymentStatu
   return 'pending';
 };
 
+const supplierOrdersFiltersStorageKey = 'project-goods.supplier-orders-filters';
+
 export const SupplierOrdersWorkspace = ({
   activeTab,
   onActiveTabChange,
@@ -74,9 +76,32 @@ export const SupplierOrdersWorkspace = ({
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [query, setQuery] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<SupplierOrderStatus[]>([]);
-  const [paymentStatus, setPaymentStatus] = useState<SupplierPaymentStatus | 'all'>('all');
+  const [query, setQuery] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ query: string }>;
+      return parsed.query ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedStatuses, setSelectedStatuses] = useState<SupplierOrderStatus[]>(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ selectedStatuses: SupplierOrderStatus[] }>;
+      return Array.isArray(parsed.selectedStatuses) ? parsed.selectedStatuses : [];
+    } catch {
+      return [];
+    }
+  });
+  const [paymentStatus, setPaymentStatus] = useState<SupplierPaymentStatus | 'all'>(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ paymentStatus: SupplierPaymentStatus | 'all' }>;
+      return parsed.paymentStatus === 'pending' || parsed.paymentStatus === 'paid' || parsed.paymentStatus === 'cancelled' || parsed.paymentStatus === 'all'
+        ? parsed.paymentStatus
+        : 'all';
+    } catch {
+      return 'all';
+    }
+  });
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
   const [statusQuery, setStatusQuery] = useState('');
@@ -135,6 +160,17 @@ export const SupplierOrdersWorkspace = ({
     setSelectedStatuses((current) => (current.includes(status) ? current.filter((item) => item !== status) : [...current, status]));
     setPage(1);
   };
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      supplierOrdersFiltersStorageKey,
+      JSON.stringify({
+        query,
+        selectedStatuses,
+        paymentStatus,
+      }),
+    );
+  }, [paymentStatus, query, selectedStatuses]);
 
   return (
     <section className='orders-page'>
@@ -340,3 +376,4 @@ export const SupplierOrdersWorkspace = ({
     </section>
   );
 };
+
