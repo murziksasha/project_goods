@@ -167,6 +167,7 @@ const initialWarehouses: WarehouseItem[] = [
 ];
 
 const initialAdministrators: Administrator[] = [];
+const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
 
 
 const getSearchText = (
@@ -206,14 +207,48 @@ export const WarehousePanel = ({
   onProductEdit,
   onProductDelete,
 }: WarehousePanelProps) => {
-  const [activeTab, setActiveTab] = useState<WarehouseTab>('stock');
-  const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ activeTab: WarehouseTab }>;
+      return parsed.activeTab === 'stock' || parsed.activeTab === 'receipts' || parsed.activeTab === 'expenses' || parsed.activeTab === 'transfers' || parsed.activeTab === 'logistics' || parsed.activeTab === 'inventory' || parsed.activeTab === 'settings'
+        ? parsed.activeTab
+        : 'stock';
+    } catch {
+      return 'stock';
+    }
+  });
+  const [query, setQuery] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ query: string }>;
+      return parsed.query ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [searchMode, setSearchMode] =
-    useState<WarehouseSearchMode>('serial');
+    useState<WarehouseSearchMode>(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ searchMode: WarehouseSearchMode }>;
+        return parsed.searchMode === 'serial' || parsed.searchMode === 'name' || parsed.searchMode === 'warehouse'
+          ? parsed.searchMode
+          : 'serial';
+      } catch {
+        return 'serial';
+      }
+    });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [settingsTab, setSettingsTab] =
-    useState<SettingsTab>('service-centers');
+    useState<SettingsTab>(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ settingsTab: SettingsTab }>;
+        return parsed.settingsTab === 'service-centers' || parsed.settingsTab === 'warehouses' || parsed.settingsTab === 'administrators'
+          ? parsed.settingsTab
+          : 'service-centers';
+      } catch {
+        return 'service-centers';
+      }
+    });
   const [serviceCenters, setServiceCenters] = useState<
     ServiceCenter[]
   >(initialServiceCenters);
@@ -331,6 +366,18 @@ export const WarehousePanel = ({
   ]);
 
   useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      warehouseFiltersStorageKey,
+      JSON.stringify({
+        activeTab,
+        query,
+        searchMode,
+        settingsTab,
+      }),
+    );
+  }, [activeTab, query, searchMode, settingsTab]);
 
   useEffect(() => {
     setAdministrators((current) => {

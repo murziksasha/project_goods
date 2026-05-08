@@ -6,6 +6,9 @@
 - `Client phone` + `Client name` perform lookup in clients.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is unique. If uniqueness fails, order creation is rejected.
+- In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
+- Clicking request number opens a new browser tab/window (`target="_blank"`).
+- The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
 
 ## Repair Order Device Behavior
 

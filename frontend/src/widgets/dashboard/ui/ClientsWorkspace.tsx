@@ -69,6 +69,8 @@ type ClientStats = {
   orderNumbers: string[];
 };
 
+const clientsFiltersStorageKey = 'project-goods.clients-active-filters';
+
 const emptyFilters: ClientFilters = {
   query: '',
   clientId: '',
@@ -294,12 +296,54 @@ export const ClientsWorkspace = ({
   openClientCardRequestId = null,
   onOpenClientCardHandled,
 }: ClientsWorkspaceProps) => {
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        isFilterOpen: boolean;
+      }>;
+      return Boolean(parsed.isFilterOpen);
+    } catch {
+      return false;
+    }
+  });
   const [draftFilters, setDraftFilters] =
-    useState<ClientFilters>(emptyFilters);
+    useState<ClientFilters>(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+          draftFilters: ClientFilters;
+          appliedFilters: ClientFilters;
+          searchValue: string;
+          isFilterOpen: boolean;
+        }>;
+        return { ...emptyFilters, ...(parsed.draftFilters ?? {}) };
+      } catch {
+        return emptyFilters;
+      }
+    });
   const [appliedFilters, setAppliedFilters] =
-    useState<ClientFilters>(emptyFilters);
-  const [searchValue, setSearchValue] = useState('');
+    useState<ClientFilters>(() => {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+          draftFilters: ClientFilters;
+          appliedFilters: ClientFilters;
+          searchValue: string;
+          isFilterOpen: boolean;
+        }>;
+        return { ...emptyFilters, ...(parsed.appliedFilters ?? {}) };
+      } catch {
+        return emptyFilters;
+      }
+    });
+  const [searchValue, setSearchValue] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        searchValue: string;
+      }>;
+      return parsed.searchValue ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
@@ -551,6 +595,18 @@ export const ClientsWorkspace = ({
       setClientsPage(pageCount);
     }
   }, [clientsPage, clientsPageSize, filteredClients.length]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      clientsFiltersStorageKey,
+      JSON.stringify({
+        draftFilters,
+        appliedFilters,
+        searchValue,
+        isFilterOpen,
+      }),
+    );
+  }, [appliedFilters, draftFilters, isFilterOpen, searchValue]);
 
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);

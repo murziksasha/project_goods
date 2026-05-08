@@ -69,6 +69,9 @@ const getCreateOrderFromUrl = (): CreateOrderTab | null => {
   return tab === 'repair' || tab === 'sale' ? tab : null;
 };
 
+const getSaleIdFromUrl = () =>
+  new URLSearchParams(window.location.search).get('saleId')?.trim() ?? '';
+
 const getStoredOrdersTab = (): OrdersTab => {
   const tab = window.localStorage.getItem(ordersTabStorageKey);
 
@@ -95,7 +98,7 @@ const getCreateOrderForOrdersTab = (tab: OrdersTab): CreateOrderTab =>
 
 const getDashboardHref = (
   page: PageKey,
-  options: { ordersTab?: OrdersTab; createOrder?: CreateOrderTab } = {},
+  options: { ordersTab?: OrdersTab; createOrder?: CreateOrderTab; saleId?: string } = {},
 ) => {
   const url = new URL(window.location.href);
 
@@ -117,6 +120,12 @@ const getDashboardHref = (
     url.searchParams.delete('createOrder');
   }
 
+  if (page === 'orders' && options.saleId) {
+    url.searchParams.set('saleId', options.saleId);
+  } else {
+    url.searchParams.delete('saleId');
+  }
+
   return `${url.pathname}${url.search}${url.hash}`;
 };
 
@@ -124,11 +133,16 @@ const setDashboardUrl = (
   page: PageKey,
   ordersTab: OrdersTab,
   createOrder: CreateOrderTab | null,
+  saleId: string | null = null,
 ) => {
   window.history.replaceState(
     null,
     '',
-    getDashboardHref(page, { ordersTab, createOrder: createOrder ?? undefined }),
+    getDashboardHref(page, {
+      ordersTab,
+      createOrder: createOrder ?? undefined,
+      saleId: saleId ?? undefined,
+    }),
   );
 };
 
@@ -188,7 +202,9 @@ export const DashboardPage = () => {
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(null);
+  const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(
+    () => getSaleIdFromUrl() || null,
+  );
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
@@ -302,6 +318,7 @@ export const DashboardPage = () => {
         createOrderTab ? getOrdersTabForCreateOrder(createOrderTab) : getOrdersTabFromUrl() ?? getStoredOrdersTab(),
       );
       setIsCreateOrderOpen(Boolean(createOrderTab));
+      setExternalSelectedSaleId(getSaleIdFromUrl() || null);
     };
 
     window.addEventListener('popstate', syncPageFromHistory);

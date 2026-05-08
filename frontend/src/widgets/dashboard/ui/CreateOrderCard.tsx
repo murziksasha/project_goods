@@ -132,6 +132,15 @@ const getDeviceHistory = (history: ClientHistory | null) => {
   });
 };
 
+const getOrderLink = (saleId: string, kind: 'repair' | 'sale') => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('page', 'orders');
+  url.searchParams.set('ordersTab', kind === 'sale' ? 'sales' : 'orders');
+  url.searchParams.delete('createOrder');
+  url.searchParams.set('saleId', saleId);
+  return `${url.pathname}${url.search}${url.hash}`;
+};
+
 export const CreateOrderCard = ({
   isSaving,
   employees,
@@ -1033,7 +1042,14 @@ export const CreateOrderCard = ({
                       const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
                       return (
                         <div key={sale.id} className="create-side-list-item">
-                          <strong>{sale.recordNumber ?? 'r------'}</strong>
+                          <a
+                            className="create-side-list-link"
+                            href={getOrderLink(sale.id, sale.kind)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {sale.recordNumber ?? 'r------'}
+                          </a>
                           <span>{deviceNameValue}</span>
                         </div>
                       );

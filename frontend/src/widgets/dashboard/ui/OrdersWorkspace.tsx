@@ -188,6 +188,7 @@ const printFormsStorageKey = 'project-goods.print-forms';
 const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
+const activeOrdersFiltersStorageKey = 'project-goods.orders-active-filters';
 const filterIconOptions = [
   '\u2753',
   '\u2702\ufe0f',
@@ -305,6 +306,37 @@ const emptyOrdersFilters: OrdersFilters = {
   date: '',
   product: '',
   service: '',
+};
+
+const readActiveOrderFilters = () => {
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(activeOrdersFiltersStorageKey) ?? '{}',
+    ) as Partial<Record<OrdersTab, OrdersFilters>>;
+
+    const normalizeOne = (
+      value: OrdersFilters | undefined,
+    ): OrdersFilters => {
+      if (!value) return emptyOrdersFilters;
+      return {
+        ...emptyOrdersFilters,
+        ...value,
+        statuses: Array.isArray(value.statuses) ? value.statuses : [],
+      };
+    };
+
+    return {
+      orders: normalizeOne(raw.orders),
+      sales: normalizeOne(raw.sales),
+      supplierOrders: normalizeOne(raw.supplierOrders),
+    } as Record<OrdersTab, OrdersFilters>;
+  } catch {
+    return {
+      orders: emptyOrdersFilters,
+      sales: emptyOrdersFilters,
+      supplierOrders: emptyOrdersFilters,
+    } as Record<OrdersTab, OrdersFilters>;
+  }
 };
 
 const defaultPrintForms: PrintForm[] = [
@@ -823,11 +855,14 @@ export const OrdersWorkspace = ({
   const [newFilterIcon, setNewFilterIcon] = useState(
     filterIconOptions[0],
   );
+  const [storedActiveFilters, setStoredActiveFilters] = useState<
+    Record<OrdersTab, OrdersFilters>
+  >(readActiveOrderFilters);
   const [draftFilters, setDraftFilters] = useState<OrdersFilters>(
-    emptyOrdersFilters,
+    () => readActiveOrderFilters()[activeTab],
   );
   const [appliedFilters, setAppliedFilters] = useState<OrdersFilters>(
-    emptyOrdersFilters,
+    () => readActiveOrderFilters()[activeTab],
   );
   const [pageByTab, setPageByTab] = useState<
     Record<OrdersTab, number>
@@ -1049,6 +1084,11 @@ export const OrdersWorkspace = ({
   }, [statusKeysForActiveTab]);
 
   useEffect(() => {
+    setDraftFilters(storedActiveFilters[activeTab] ?? emptyOrdersFilters);
+    setAppliedFilters(storedActiveFilters[activeTab] ?? emptyOrdersFilters);
+  }, [activeTab, storedActiveFilters]);
+
+  useEffect(() => {
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
   }, [activeTab, searchValue]);
 
@@ -1099,13 +1139,18 @@ export const OrdersWorkspace = ({
   };
 
   const applyFilters = () => {
-    setAppliedFilters({
+    const nextFilters = {
       ...draftFilters,
       orderNumber: draftFilters.orderNumber.trim(),
       client: draftFilters.client.trim(),
       product: draftFilters.product.trim(),
       service: draftFilters.service.trim(),
-    });
+    };
+    setAppliedFilters(nextFilters);
+    setStoredActiveFilters((current) => ({
+      ...current,
+      [activeTab]: nextFilters,
+    }));
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
     if (isFilterPanelOpen) {
@@ -1116,6 +1161,10 @@ export const OrdersWorkspace = ({
   const resetFilters = () => {
     setDraftFilters(emptyOrdersFilters);
     setAppliedFilters(emptyOrdersFilters);
+    setStoredActiveFilters((current) => ({
+      ...current,
+      [activeTab]: emptyOrdersFilters,
+    }));
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
@@ -1154,6 +1203,10 @@ export const OrdersWorkspace = ({
     onActiveTabChange(savedFilter.tab);
     setDraftFilters(savedFilter.filters);
     setAppliedFilters(savedFilter.filters);
+    setStoredActiveFilters((current) => ({
+      ...current,
+      [savedFilter.tab]: savedFilter.filters,
+    }));
     setIsFilterPanelOpen(true);
     setIsStatusFilterOpen(false);
   };
@@ -1169,6 +1222,13 @@ export const OrdersWorkspace = ({
       JSON.stringify(savedFilters),
     );
   }, [savedFilters]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      activeOrdersFiltersStorageKey,
+      JSON.stringify(storedActiveFilters),
+    );
+  }, [storedActiveFilters]);
 
   useEffect(() => {
     if (!isFilterPanelOpen && !isSaveFilterDrawerOpen) return;
