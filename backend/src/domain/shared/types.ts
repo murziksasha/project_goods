@@ -75,6 +75,7 @@ export type SupplierPayload = {
   phone?: unknown;
   name?: unknown;
   note?: unknown;
+  supplierOrder?: unknown;
   isActive?: unknown;
 };
 

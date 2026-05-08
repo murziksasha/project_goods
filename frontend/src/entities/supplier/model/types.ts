@@ -3,6 +3,7 @@
   phone: string;
   name: string;
   note: string;
+  supplierOrder: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -12,5 +13,6 @@ export type SupplierFormValues = {
   phone: string;
   name: string;
   note: string;
+  supplierOrder?: string;
   isActive?: boolean;
 };

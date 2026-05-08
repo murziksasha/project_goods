@@ -23,7 +23,7 @@ import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
-import { ClientsWorkspace } from '../../../widgets/dashboard/ui/ClientsWorkspace';
+import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 
@@ -177,7 +177,7 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
   { key: 'employees', label: 'Employees' },
-  { key: 'clients', label: 'Clients' },
+  { key: 'clients', label: 'Clients & Supplier' },
   { key: 'accounting', label: 'Accounting' },
   { key: 'warehouse', label: 'Warehouses' },
   { key: 'catalog', label: 'Products & Services' },
@@ -784,8 +784,9 @@ export const DashboardPage = () => {
               onDelete={actions.deleteEmployee}
             />
           ) : activePage === 'clients' ? (
-            <ClientsWorkspace
+            <ClientsSuppliersWorkspace
               clients={state.allClients}
+              suppliers={state.suppliers}
               sales={state.sales}
               selectedClientId={state.selectedClientId}
               history={state.clientHistory}
@@ -797,6 +798,8 @@ export const DashboardPage = () => {
               onCreateClient={actions.createClientCard}
               onMergeClients={actions.mergeClients}
               onUpdateClient={actions.updateClientCard}
+              onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
               onOpenSaleCard={openSaleFromClientCard}
               openClientCardRequestId={openClientCardRequestId}
               onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}

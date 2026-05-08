@@ -21,6 +21,12 @@ export const supplierSchema = new mongoose.Schema(
       maxlength: [500, 'Supplier note must contain no more than 500 characters'],
       default: '',
     },
+    supplierOrder: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Supplier order must contain no more than 120 characters'],
+      default: '',
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -39,11 +45,16 @@ export const supplierSchema = new mongoose.Schema(
 );
 
 supplierSchema.pre('validate', function updateSearchText() {
-  this.searchText = [this.phone, this.name, this.note]
+  this.searchText = [this.phone, this.name, this.note, this.supplierOrder]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
 });
+
+supplierSchema.index(
+  { name: 1 },
+  { unique: true, collation: { locale: 'en', strength: 2 } },
+);
 
 export type SupplierDocument = mongoose.InferSchemaType<typeof supplierSchema> & {
   _id: mongoose.Types.ObjectId;

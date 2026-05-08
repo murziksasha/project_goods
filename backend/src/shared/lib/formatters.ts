@@ -44,6 +44,7 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   phone: supplier.phone,
   name: supplier.name,
   note: supplier.note,
+  supplierOrder: supplier.supplierOrder ?? '',
   isActive: supplier.isActive,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
