@@ -55,3 +55,15 @@
 
 - Sale totals are based on current line items (`Products` + optional `Services`).
 - `Paid` and `To pay` are recalculated from line items total and payment history.
+
+## Status Change: Paid / Completed
+
+- For `Sales` flow, when status is changed to `paid` or `completed`, system opens `Accept payment` modal (if `To pay > 0`).
+- Payment modal is the working path for these status transitions:
+  - `Accept to cashbox` (deposit only)
+  - `Accept and mark paid` / `Accept and complete` (deposit + status change)
+  - `Mark paid without payment` / `Complete without payment` (status change without deposit)
+- Modal summary includes editable `Discount` with mode switch:
+  - `%` percent discount
+  - `₴` fixed amount discount
+- Discount is shared with sale card payment panel and affects `To pay` immediately.
