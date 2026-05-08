@@ -50,7 +50,7 @@ import {
   seedDemoData,
   type DemoSeedKind,
 } from '../../../features/demo-data/api/demoApi';
-import { getRequestErrorMessage } from '../../../shared/lib/request';
+import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
@@ -286,6 +286,7 @@ export const createDashboardActions = ({
     }
   };
   const isOptimisticConflict = (error: unknown) =>
+    isConflictRequestError(error) ||
     getRequestErrorMessage(error, '')
       .toLowerCase()
       .includes('modified by another user');
