@@ -11,12 +11,18 @@ import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
+import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
+import { SupplierOrderModal } from './SupplierOrderModal';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
+  suppliers: Supplier[];
+  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
 };
@@ -61,6 +67,7 @@ type SaleOrderItem = {
   price: string;
   quantity: string;
   warrantyPeriod: string;
+  supplierOrderRequested: boolean;
 };
 
 const createSaleOrderItem = (): SaleOrderItem => ({
@@ -70,6 +77,7 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   price: '',
   quantity: '1',
   warrantyPeriod: '0',
+  supplierOrderRequested: false,
 });
 
 const getProductPrice = (product: Product) =>
@@ -146,6 +154,10 @@ export const CreateOrderCard = ({
   employees,
   currentEmployee,
   initialTab = 'repair',
+  suppliers,
+  onCreateSupplier,
+  onSuccess,
+  onError,
   onClose,
   onSave,
 }: CreateOrderCardProps) => {
@@ -180,6 +192,7 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [supplierOrderModalItemId, setSupplierOrderModalItemId] = useState<string | null>(null);
 
   const managers = employees.filter(
     (employee) =>
@@ -417,6 +430,7 @@ export const CreateOrderCard = ({
       price: String(getProductPrice(product)),
       quantity: '1',
       warrantyPeriod: '0',
+      supplierOrderRequested: false,
     });
     setSaleProductSuggestions([]);
   };
@@ -440,7 +454,29 @@ export const CreateOrderCard = ({
       product: null,
       query: saleProductLookupQuery,
       price: focusedSaleItem.price,
+      supplierOrderRequested: false,
     });
+  };
+
+  const getShippingStatusLabel = (item: SaleOrderItem) => {
+    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return 'In stock';
+    if (item.supplierOrderRequested) return 'Supplier order';
+    return 'Order';
+  };
+
+  const handleShippingStatusClick = (item: SaleOrderItem) => {
+    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return;
+    setSupplierOrderModalItemId(item.id);
+  };
+
+  const confirmSupplierOrderRequest = () => {
+    if (!supplierOrderModalItemId) return;
+
+    updateSaleItem(supplierOrderModalItemId, { supplierOrderRequested: true });
+    setSelectedFlags((current) =>
+      current.includes('Waiting for supply') ? current : [...current, 'Waiting for supply'],
+    );
+    setSupplierOrderModalItemId(null);
   };
 
   const onClientPhoneChange = (value: string) => {
@@ -501,6 +537,7 @@ export const CreateOrderCard = ({
         price: '3899',
         quantity: '1',
         warrantyPeriod: '0',
+        supplierOrderRequested: false,
       },
     ]);
   };
@@ -739,6 +776,16 @@ export const CreateOrderCard = ({
                             <option value="24">2 year</option>
                             <option value="36">3 year</option>
                           </select>
+                        </label>
+                        <label className="field">
+                          <span>Shipping status</span>
+                          <button
+                            type="button"
+                            className="secondary-button sale-item-status-button"
+                            onClick={() => handleShippingStatusClick(item)}
+                          >
+                            {getShippingStatusLabel(item)}
+                          </button>
                         </label>
                         <button
                           type="button"
@@ -1123,6 +1170,20 @@ export const CreateOrderCard = ({
           </section>
         </div>
       ) : null}
+      <SupplierOrderModal
+        isOpen={Boolean(supplierOrderModalItemId)}
+        suppliers={suppliers}
+        initialProductName={
+          supplierOrderModalItemId
+            ? saleItems.find((item) => item.id === supplierOrderModalItemId)?.query ?? ''
+            : ''
+        }
+        onClose={() => setSupplierOrderModalItemId(null)}
+        onCreateSupplier={onCreateSupplier}
+        onSuccess={onSuccess}
+        onError={onError}
+        onSubmit={confirmSupplierOrderRequest}
+      />
     </section>
   );
 };

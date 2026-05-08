@@ -97,3 +97,14 @@
 - If a device is used in orders/sales, `Remove` is forbidden; only deactivation is allowed.
 - `Remove` is enabled only when device is not used in orders/sales.
 - `Remove` action asks for confirmation.
+
+## Sales Flow: Shipping Status And Supplier Order Link
+
+- In `Create order` on `Sales order` tab, every product row has `Shipping status` action button.
+- Button text is dynamic:
+  - `In stock` when selected product has available warehouse quantity (`freeQuantity > 0`).
+  - `Order` when selected/matched product is not available in warehouse.
+  - `Supplier order` after user confirms supplier-order request for this row.
+- Clicking `Order` opens modal flow: `Order -> Supplier order -> Замовити у постачальника`.
+- Confirm action `Замовити у постачальника` marks row as supplier-order requested and auto-adds flag `Waiting for supply` to the order.
+- `In stock` status is informational and does not open modal.
