@@ -3109,6 +3109,16 @@ const OrderDetailCard = ({
     setComment('');
   };
 
+  const shippingStatusLabel = (() => {
+    if (productItems.length === 0) return 'Order';
+    const withLinkedProduct = productItems.filter(
+      (item) => Boolean(item.productId),
+    ).length;
+    if (withLinkedProduct === productItems.length) return 'In stock';
+    if (withLinkedProduct > 0) return 'Supplier order';
+    return 'Order';
+  })();
+
   return (
     <article className='order-detail-card' aria-label='Order card'>
       <header className='order-detail-header'>
@@ -3299,7 +3309,7 @@ const OrderDetailCard = ({
           </div>
         </section>
 
-        <section className='order-detail-panel order-detail-line-items-panel'>
+        <section className='order-detail-panel order-detail-line-items-panel order-detail-products-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
@@ -3323,6 +3333,7 @@ const OrderDetailCard = ({
               isPaidSale={isSaleCard && paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
+              shippingStatusLabel={shippingStatusLabel}
             />
           ) : null}
         </section>
@@ -3467,6 +3478,7 @@ type LineItemsPanelProps = {
   isPaidSale: boolean;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  shippingStatusLabel?: string;
 };
 
 const LineItemsPanel = ({
@@ -3480,6 +3492,7 @@ const LineItemsPanel = ({
   isPaidSale,
   onError,
   onSuccess,
+  shippingStatusLabel,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -3875,7 +3888,13 @@ const LineItemsPanel = ({
         )}
       </div>
       <div className='order-line-items-form'>
-        <div className='order-line-items-entry-row'>
+        <div
+          className={
+            kind === 'product'
+              ? 'order-line-items-entry-row order-line-items-entry-row-product'
+              : 'order-line-items-entry-row'
+          }
+        >
           <input
             value={name}
             onChange={(event) => {
@@ -3907,6 +3926,24 @@ const LineItemsPanel = ({
               </option>
             ))}
           </select>
+          {kind === 'product' ? (
+            <div className='order-line-items-shipping-inline'>
+              <button
+                type='button'
+                className='secondary-button order-shipping-status-button'
+              >
+                {shippingStatusLabel ?? 'Order'}
+              </button>
+              <button
+                type='button'
+                className='toolbar-square-button order-shipping-status-add'
+                onClick={submitItem}
+                aria-label='Add product'
+              >
+                +
+              </button>
+            </div>
+          ) : null}
           <button
             type='button'
             className='primary-button'

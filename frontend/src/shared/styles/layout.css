@@ -1246,7 +1246,7 @@
 
 .order-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(380px, 1.1fr);
   gap: 16px;
   padding: 16px;
   align-items: start;
@@ -1279,6 +1279,10 @@
   grid-column: 1;
 }
 
+.order-detail-products-panel {
+  grid-column: 1 / -1;
+}
+
 .order-detail-related-panel {
   grid-column: 1 / -1;
 }
@@ -1286,6 +1290,14 @@
 .order-detail-payment-panel {
   grid-column: 2;
   grid-row: 3 / span 3;
+}
+
+.order-shipping-status-button {
+  min-width: 140px;
+}
+
+.order-shipping-status-add {
+  flex: 0 0 auto;
 }
 
 .order-detail-panel h3 {
@@ -1570,6 +1582,16 @@
 .order-line-items-entry-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 120px 104px 130px 140px;
+  gap: 10px;
+}
+
+.order-line-items-entry-row-product {
+  grid-template-columns: minmax(0, 1fr) 120px 104px 130px 200px 140px;
+}
+
+.order-line-items-shipping-inline {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
