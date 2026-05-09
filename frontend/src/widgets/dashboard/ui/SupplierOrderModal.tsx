@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 
 export type SupplierOrderModalSubmitPayload = {
@@ -6,6 +6,7 @@ export type SupplierOrderModalSubmitPayload = {
   deliveryDate: string;
   supplyType: string;
   number: string;
+  serialNumber: string;
   productName: string;
   quantity: number;
   price: number;
@@ -33,6 +34,9 @@ export const SupplierOrderModal = ({
   onSuccess,
   onError,
 }: SupplierOrderModalProps) => {
+  const serialAutoMax = 999999;
+  const makeSerialByIndex = (value: number) =>
+    `S${Math.max(0, value).toString().padStart(6, '0')}`;
   const minSupplierSearchLength = 3;
   const supplierSearchDebounceMs = 300;
   const [supplierSearch, setSupplierSearch] = useState('');
@@ -46,10 +50,23 @@ export const SupplierOrderModal = ({
   });
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoGenerateSerial, setAutoGenerateSerial] = useState(false);
+  const [serialSeed, setSerialSeed] = useState(() =>
+    Math.floor(Math.random() * (serialAutoMax + 1)),
+  );
+  const [basketItems, setBasketItems] = useState<
+    Array<{
+      productName: string;
+      quantity: number;
+      price: number;
+      serialNumber: string;
+    }>
+  >([]);
   const [form, setForm] = useState({
     deliveryDate: '',
     supplyType: 'Локально',
     number: '',
+    serialNumber: '',
     productName: initialProductName,
     quantity: '1',
     price: '0',
@@ -63,10 +80,13 @@ export const SupplierOrderModal = ({
     setShowSupplierSuggestions(false);
     setIsCreateSupplierModalOpen(false);
     setCreateSupplierForm({ name: '', phone: '+380', note: '' });
+    setAutoGenerateSerial(false);
+    setBasketItems([]);
     setForm({
       deliveryDate: '',
       supplyType: 'Локально',
       number: '',
+      serialNumber: '',
       productName: initialProductName,
       quantity: '1',
       price: '0',
@@ -108,9 +128,15 @@ export const SupplierOrderModal = ({
 
   if (!isOpen) return null;
 
+  const currentQuantity = Math.max(1, Number(form.quantity) || 1);
+  const currentPrice = Math.max(0, Number(form.price) || 0);
+  const canAddBasketItem = !!form.productName.trim() && currentQuantity > 0;
+  const hasCurrentDraft = !!form.productName.trim();
+  const totalItemsToSubmit = basketItems.length + (hasCurrentDraft ? 1 : 0);
+
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+      <section className="catalog-edit-modal supplier-order-modal" role="dialog" aria-modal="true">
         <header className="catalog-edit-header">
           <div className="catalog-edit-title">
             <h2>Замовити у постачальника</h2>
@@ -119,7 +145,7 @@ export const SupplierOrderModal = ({
             &times;
           </button>
         </header>
-        <div className="catalog-edit-body">
+        <div className="catalog-edit-body supplier-order-modal-body">
           <div className="create-device-search">
             <label className="field">
               <span>Постачальник</span>
@@ -199,6 +225,38 @@ export const SupplierOrderModal = ({
               onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))}
             />
           </label>
+          <label className="field">
+            <span>Серійний номер</span>
+            <input
+              value={form.serialNumber}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, serialNumber: event.target.value }))
+              }
+              disabled={autoGenerateSerial}
+              placeholder="S000000"
+            />
+          </label>
+          <label className="field field-wide supplier-serial-auto-row">
+            <span className="supplier-serial-auto">
+              <input
+                type="checkbox"
+                checked={autoGenerateSerial}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAutoGenerateSerial(checked);
+                  if (checked) {
+                    const next = (serialSeed + 1) % (serialAutoMax + 1);
+                    setSerialSeed(next);
+                    setForm((current) => ({
+                      ...current,
+                      serialNumber: makeSerialByIndex(next),
+                    }));
+                  }
+                }}
+              />
+              <span>Згенерувати унікальний серійник (S000000)</span>
+            </span>
+          </label>
           <label className="field field-wide">
             <span>Примітка</span>
             <textarea
@@ -207,16 +265,53 @@ export const SupplierOrderModal = ({
               onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
             />
           </label>
-          <label className="field field-wide">
-            <span>Товар</span>
-            <input
-              value={form.productName}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, productName: event.target.value }))
-              }
-              placeholder="Введіть щоб знайти та додати"
-            />
-          </label>
+          <div className="create-device-search field-wide">
+            <label className="field">
+              <span>Товар</span>
+              <input
+                value={form.productName}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, productName: event.target.value }))
+                }
+                placeholder="Введіть щоб знайти та додати"
+              />
+            </label>
+            <button
+              type="button"
+              className="toolbar-square-button"
+              aria-label="Add product to order list"
+              disabled={!canAddBasketItem}
+              onClick={() => {
+                if (!canAddBasketItem) return;
+                setBasketItems((current) => [
+                  ...current,
+                  {
+                    productName: form.productName.trim(),
+                    quantity: currentQuantity,
+                    price: currentPrice,
+                    serialNumber: form.serialNumber.trim().toUpperCase(),
+                  },
+                ]);
+                setForm((current) => ({
+                  ...current,
+                  productName: '',
+                  quantity: '1',
+                  price: '0',
+                  serialNumber: autoGenerateSerial
+                    ? makeSerialByIndex((serialSeed + 1) % (serialAutoMax + 1))
+                    : '',
+                }));
+                if (autoGenerateSerial) {
+                  setSerialSeed((current) => (current + 1) % (serialAutoMax + 1));
+                }
+              }}
+            >
+              +
+            </button>
+          </div>
+          {basketItems.length > 0 ? (
+            <div className="supplier-order-basket-summary">Кошик: {basketItems.length} позицій</div>
+          ) : null}
           <label className="field">
             <span>Ціна (UAH)</span>
             <input
@@ -236,7 +331,7 @@ export const SupplierOrderModal = ({
           <label className="field">
             <span>Сума</span>
             <input
-              value={String(Math.max(0, Number(form.quantity) || 0) * Math.max(0, Number(form.price) || 0))}
+              value={String(currentQuantity * currentPrice)}
               readOnly
             />
           </label>
@@ -248,25 +343,39 @@ export const SupplierOrderModal = ({
             disabled={
               isSubmitting ||
               !selectedSupplier ||
-              !form.productName.trim() ||
+              totalItemsToSubmit === 0 ||
               !form.deliveryDate ||
-              Number(form.quantity) <= 0
+              (hasCurrentDraft && Number(form.quantity) <= 0)
             }
             onClick={async () => {
-              const quantity = Math.max(1, Number(form.quantity) || 1);
-              const price = Math.max(0, Number(form.price) || 0);
+              const submitItems = [
+                ...basketItems,
+                ...(hasCurrentDraft
+                  ? [
+                      {
+                        productName: form.productName.trim(),
+                        quantity: currentQuantity,
+                        price: currentPrice,
+                        serialNumber: form.serialNumber.trim().toUpperCase(),
+                      },
+                    ]
+                  : []),
+              ];
               setIsSubmitting(true);
               try {
-                await onSubmit({
-                  supplierId: selectedSupplier?.id ?? '',
-                  deliveryDate: form.deliveryDate,
-                  supplyType: form.supplyType,
-                  number: form.number,
-                  productName: form.productName.trim(),
-                  quantity,
-                  price,
-                  note: form.note,
-                });
+                for (const item of submitItems) {
+                  await onSubmit({
+                    supplierId: selectedSupplier?.id ?? '',
+                    deliveryDate: form.deliveryDate,
+                    supplyType: form.supplyType,
+                    number: form.number,
+                    serialNumber: item.serialNumber,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    price: item.price,
+                    note: form.note,
+                  });
+                }
                 onClose();
               } finally {
                 setIsSubmitting(false);
