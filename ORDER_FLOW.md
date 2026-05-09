@@ -108,3 +108,13 @@
 - Clicking `Order` opens modal flow: `Order -> Supplier order -> Замовити у постачальника`.
 - Confirm action `Замовити у постачальника` marks row as supplier-order requested and auto-adds flag `Waiting for supply` to the order.
 - `In stock` status is informational and does not open modal.
+
+## Products Suggestions Source (2026-05-09)
+
+- `Products & Services` now contains a dedicated tab `Products` (suggestion catalog in DB).
+- This list is used as a persistent suggestion source for product name lookup scenarios.
+- Records are auto-populated from:
+  - `Order card -> Products`
+  - `Sales card -> Products`
+  - `Create order (Sales flow) -> Products`
+- The list supports activity status (`active`/`inactive`) and editing via modal.

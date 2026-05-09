@@ -4,6 +4,7 @@ import type { ProductDocument } from '../../domain/product/model';
 import type { SaleDocument } from '../../domain/sale/model';
 import type { SupplierDocument } from '../../domain/supplier/model';
 import type { ClientDeviceDocument } from '../../domain/client-device/model';
+import type { CatalogProductDocument } from '../../domain/catalog-product/model';
 
 export const formatProduct = (product: ProductDocument) => {
   const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
@@ -48,6 +49,17 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   isActive: supplier.isActive,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
+});
+
+export const formatCatalogProduct = (item: CatalogProductDocument) => ({
+  id: item._id.toString(),
+  name: item.name,
+  note: item.note ?? '',
+  isActive: item.isActive ?? true,
+  sourceTags: item.sourceTags ?? [],
+  lastSeenAt: item.lastSeenAt ? item.lastSeenAt.toISOString() : item.updatedAt.toISOString(),
+  createdAt: item.createdAt.toISOString(),
+  updatedAt: item.updatedAt.toISOString(),
 });
 
 export const formatClientDevice = (device: ClientDeviceDocument, usageCount = 0) => ({

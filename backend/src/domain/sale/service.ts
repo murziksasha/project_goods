@@ -11,6 +11,7 @@ import { getNextRecordNumber } from '../sequence/service';
 import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
+import { upsertCatalogProducts } from '../catalog-product/service';
 
 const ensureFreeStock = async (
   productId: mongoose.Types.ObjectId | string,
@@ -259,6 +260,20 @@ const getDefaultLineItems = (
   ];
 };
 
+const syncCatalogProductsFromSale = async (
+  sourceTag: 'order-card' | 'sales-card' | 'sales-flow',
+  deviceName: string,
+  lineItems: Array<{ kind: string; name: string }>,
+) => {
+  const names = [
+    deviceName,
+    ...lineItems
+      .filter((item) => item.kind === 'product')
+      .map((item) => item.name),
+  ];
+  await upsertCatalogProducts(names, sourceTag);
+};
+
 const assertWorkspaceState = (
   kind: 'repair' | 'sale',
   status: string,
@@ -439,6 +454,11 @@ export const createSale = async (payloadInput: SalePayload) => {
     await sale.validate();
     sale.recordNumber = await getNextRecordNumber();
     await sale.save();
+    await syncCatalogProductsFromSale(
+      normalizedKind === 'sale' ? 'sales-flow' : 'order-card',
+      sale.productSnapshot?.name ?? '',
+      sale.lineItems,
+    );
 
     return {
       sale: formatSale(sale.toObject<SaleDocument>()),
@@ -593,6 +613,11 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     if (!updatedSale) {
       throw new Error('Sale not found.');
     }
+    await syncCatalogProductsFromSale(
+      normalizedKind === 'sale' ? 'sales-card' : 'order-card',
+      updatedSale.productSnapshot?.name ?? '',
+      updatedSale.lineItems ?? [],
+    );
     const updatedProduct = product
       ? await Product.findById(product._id).lean<ProductDocument | null>()
       : null;
@@ -725,6 +750,11 @@ export const updateSaleWorkspace = async (
   if (!updatedSale) {
     throw new Error('Sale not found.');
   }
+  await syncCatalogProductsFromSale(
+    nextKind === 'sale' ? 'sales-card' : 'order-card',
+    updatedSale.productSnapshot?.name ?? '',
+    updatedSale.lineItems ?? [],
+  );
 
   return formatSale(updatedSale);
 };

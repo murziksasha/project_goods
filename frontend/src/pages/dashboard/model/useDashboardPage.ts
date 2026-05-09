@@ -37,6 +37,14 @@ import {
 import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import {
+  getCatalogProducts,
+  updateCatalogProduct,
+} from '../../../entities/catalog-product/api/catalogProductApi';
+import type {
+  CatalogProduct,
+  CatalogProductFormValues,
+} from '../../../entities/catalog-product/model/types';
+import {
   createSale,
   deleteSale,
   getSales,
@@ -70,6 +78,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -108,6 +117,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const [isSalesLoading, setIsSalesLoading] = useState(true);
   const [isEmployeesLoading, setIsEmployeesLoading] = useState(true);
+  const [isCatalogProductsLoading, setIsCatalogProductsLoading] = useState(true);
   const [isClientHistoryLoading, setIsClientHistoryLoading] = useState(false);
   const [isProductSaving, setIsProductSaving] = useState(false);
   const [isServiceSaving, setIsServiceSaving] = useState(false);
@@ -230,6 +240,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
     },
   });
+  const updateCatalogProductMutation = useMutation({
+    mutationFn: ({ catalogProductId, payload }: { catalogProductId: string; payload: CatalogProductFormValues }) =>
+      updateCatalogProduct(catalogProductId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+    },
+  });
 
   useDashboardEffects({
     enabled,
@@ -239,6 +256,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     setSuppliers,
     setAllClients,
     setSales,
+    setCatalogProducts,
     setServices,
     setAllEmployees,
     setSettings,
@@ -250,6 +268,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     setIsSalesLoading,
     setIsServicesLoading,
     setIsEmployeesLoading,
+    setIsCatalogProductsLoading,
     setIsClientHistoryLoading,
     setError,
     setLastSyncAt,
@@ -420,6 +439,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     state: {
       allProducts: enabled ? allProducts : [],
       clientDevices: enabled ? clientDevices : [],
+      catalogProducts: enabled ? catalogProducts : [],
       suppliers: enabled ? suppliers : [],
       allClients: enabled ? allClients : [],
       sales: enabled ? sales : [],
@@ -456,6 +476,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       isClientsLoading: enabled ? isClientsLoading : false,
       isSalesLoading: enabled ? isSalesLoading : false,
       isEmployeesLoading: enabled ? isEmployeesLoading : false,
+      isCatalogProductsLoading: enabled ? isCatalogProductsLoading : false,
       isClientHistoryLoading: enabled ? isClientHistoryLoading : false,
       isProductSaving,
       isServiceSaving,
@@ -471,6 +492,35 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     },
     actions: {
       ...actions,
+      updateCatalogProductCard: async (
+        catalogProductId: string,
+        payload: CatalogProductFormValues,
+      ) => {
+        try {
+          await updateCatalogProductMutation.mutateAsync({
+            catalogProductId,
+            payload,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.catalogProducts,
+          });
+          const nextCatalogProducts = await queryClient.fetchQuery({
+            queryKey: queryKeys.catalogProducts,
+            queryFn: () => getCatalogProducts(),
+          });
+          setCatalogProducts(nextCatalogProducts);
+          setLastSyncAt(new Date().toISOString());
+          setSuccessMessage('Catalog product updated.');
+          return true;
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to update catalog product.',
+          );
+          return false;
+        }
+      },
       setStatsPeriod,
       showError: setError,
       showSuccessMessage: setSuccessMessage,

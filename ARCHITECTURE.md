@@ -146,3 +146,12 @@ Backend собран по модульному практическому пат
 - Topbar shows Last sync timestamp to visualize data freshness.
 - Full rollout plan is tracked in [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md).
 
+
+## Catalog Products Architecture Update (2026-05-09)
+
+- New backend domain: `catalog-product`.
+- New route module: `routes/catalog-product.routes.ts`.
+- New frontend entity: `entities/catalog-product`.
+- `ProductCatalogPanel` now has an additional tab: `Products`.
+- `Products` tab reads from `catalog-products` collection (MongoDB) and is independent from warehouse `products` and `client-devices`.
+- Auto-sync rule: on create/update/workspace save for sales/orders, backend extracts product-like names and upserts them into `catalog-products`.

@@ -820,7 +820,9 @@ export const DashboardPage = () => {
             <ProductCatalogPanel
               products={state.products}
               clientDevices={state.clientDevices}
+              catalogProducts={state.catalogProducts}
               isLoading={state.isProductsLoading}
+              isCatalogProductsLoading={state.isCatalogProductsLoading}
               searchQuery={state.deferredProductSearchQuery}
               currentSearchValue={state.productSearchQuery}
               productForm={state.productForm}
@@ -852,6 +854,7 @@ export const DashboardPage = () => {
               onCreateClientDevice={actions.createClientDeviceCard}
               onUpdateClientDevice={actions.updateClientDeviceCard}
               onDeleteClientDevice={actions.deleteClientDeviceCard}
+              onUpdateCatalogProduct={actions.updateCatalogProductCard}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel

@@ -12,6 +12,8 @@ import { getClientDevices } from '../../../entities/client-device/api/clientDevi
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { getSales } from '../../../entities/sale/api/saleApi';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { getSettings } from '../../../entities/settings/api/settingsApi';
@@ -29,6 +31,7 @@ type DashboardEffectsParams = {
   setSuppliers: Setter<Supplier[]>;
   setAllClients: Setter<Client[]>;
   setSales: Setter<Sale[]>;
+  setCatalogProducts: Setter<CatalogProduct[]>;
   setServices: Setter<ServiceCatalogItem[]>;
   setAllEmployees: Setter<Employee[]>;
   setSettings: Setter<AppSettings | null>;
@@ -38,6 +41,7 @@ type DashboardEffectsParams = {
   setIsSuppliersLoading: Setter<boolean>;
   setIsClientsLoading: Setter<boolean>;
   setIsSalesLoading: Setter<boolean>;
+  setIsCatalogProductsLoading: Setter<boolean>;
   setIsServicesLoading: Setter<boolean>;
   setIsEmployeesLoading: Setter<boolean>;
   setIsClientHistoryLoading: Setter<boolean>;
@@ -53,6 +57,7 @@ export const useDashboardEffects = ({
   setSuppliers,
   setAllClients,
   setSales,
+  setCatalogProducts,
   setServices,
   setAllEmployees,
   setSettings,
@@ -62,6 +67,7 @@ export const useDashboardEffects = ({
   setIsSuppliersLoading,
   setIsClientsLoading,
   setIsSalesLoading,
+  setIsCatalogProductsLoading,
   setIsServicesLoading,
   setIsEmployeesLoading,
   setIsClientHistoryLoading,
@@ -170,6 +176,12 @@ export const useDashboardEffects = ({
     enabled,
     refetchInterval: enabled ? 30000 : false,
   });
+  const catalogProductsQuery = useQuery({
+    queryKey: queryKeys.catalogProducts,
+    queryFn: () => getCatalogProducts(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
   useEffect(() => {
     if (!enabled) return;
@@ -191,6 +203,32 @@ export const useDashboardEffects = ({
     setAllProducts,
     setError,
     setIsProductsLoading,
+    setLastSyncAt,
+  ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setIsCatalogProductsLoading(catalogProductsQuery.isLoading);
+    if (catalogProductsQuery.data) {
+      setCatalogProducts(catalogProductsQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    }
+    if (catalogProductsQuery.error) {
+      setError(
+        getRequestErrorMessage(
+          catalogProductsQuery.error,
+          'Failed to load catalog products.',
+        ),
+      );
+    }
+  }, [
+    enabled,
+    catalogProductsQuery.data,
+    catalogProductsQuery.error,
+    catalogProductsQuery.isLoading,
+    setCatalogProducts,
+    setError,
+    setIsCatalogProductsLoading,
     setLastSyncAt,
   ]);
 

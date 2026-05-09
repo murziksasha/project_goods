@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
+import type {
+  CatalogProduct,
+  CatalogProductFormValues,
+} from '../../../entities/catalog-product/model/types';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import type {
   Product,
@@ -15,12 +19,14 @@ import { ServiceCatalogForm } from '../../../features/manage-service-catalog/ui/
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
-type CatalogTab = 'products' | 'services' | 'suppliers';
+type CatalogTab = 'products' | 'catalogProducts' | 'services' | 'suppliers';
 const catalogTabStorageKey = 'project-goods.catalog-tab';
 
 type ProductCatalogPanelProps = {
   products: Product[];
   clientDevices: ClientDevice[];
+  catalogProducts: CatalogProduct[];
+  isCatalogProductsLoading: boolean;
   isLoading: boolean;
   searchQuery: string;
   currentSearchValue: string;
@@ -59,10 +65,15 @@ type ProductCatalogPanelProps = {
   onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
   onUpdateClientDevice: (deviceId: string, payload: ClientDeviceFormValues) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
+  onUpdateCatalogProduct: (
+    catalogProductId: string,
+    payload: CatalogProductFormValues,
+  ) => Promise<boolean>;
 };
 
 const tabs: Array<{ key: CatalogTab; label: string }> = [
   { key: 'products', label: 'Clients goods' },
+  { key: 'catalogProducts', label: 'Products' },
   { key: 'services', label: 'Services' },
   { key: 'suppliers', label: 'Suppliers' },
 ];
@@ -70,6 +81,8 @@ const tabs: Array<{ key: CatalogTab; label: string }> = [
 export const ProductCatalogPanel = ({
   products,
   clientDevices,
+  catalogProducts,
+  isCatalogProductsLoading,
   isLoading,
   searchQuery,
   currentSearchValue,
@@ -102,6 +115,7 @@ export const ProductCatalogPanel = ({
   onCreateClientDevice,
   onUpdateClientDevice,
   onDeleteClientDevice,
+  onUpdateCatalogProduct,
 }: ProductCatalogPanelProps) => {
   void productForm;
   void isProductSaving;
@@ -114,7 +128,7 @@ export const ProductCatalogPanel = ({
 
   const [activeTab, setActiveTab] = useState<CatalogTab>(() => {
     const storedTab = window.localStorage.getItem(catalogTabStorageKey);
-    return storedTab === 'products' || storedTab === 'services' || storedTab === 'suppliers'
+    return storedTab === 'products' || storedTab === 'catalogProducts' || storedTab === 'services' || storedTab === 'suppliers'
       ? storedTab
       : 'products';
   });
@@ -125,6 +139,8 @@ export const ProductCatalogPanel = ({
   const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [selectedClientDevice, setSelectedClientDevice] = useState<ClientDevice | null>(null);
+  const [selectedCatalogProduct, setSelectedCatalogProduct] =
+    useState<CatalogProduct | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
@@ -141,6 +157,7 @@ export const ProductCatalogPanel = ({
     note: '',
   });
   const isProductsTab = activeTab === 'products';
+  const isCatalogProductsTab = activeTab === 'catalogProducts';
   const isSuppliersTab = activeTab === 'suppliers';
   const filteredClientDevices = useMemo(() => {
     const uniqueByName = new Map<string, ClientDevice>();
@@ -247,12 +264,14 @@ export const ProductCatalogPanel = ({
             placeholder={
               isProductsTab
                 ? 'Device name'
+                : isCatalogProductsTab
+                  ? 'Product name'
                 : isSuppliersTab
                   ? 'Supplier name or phone'
                   : 'Service name or note'
             }
             onChange={(event) =>
-              isProductsTab || isSuppliersTab
+              isProductsTab || isCatalogProductsTab || isSuppliersTab
                 ? (onSearchChange(event.target.value), setProductsPage(1))
                 : (onServiceSearchChange(event.target.value), setServicesPage(1))
             }
@@ -312,6 +331,13 @@ export const ProductCatalogPanel = ({
             }}
           />
         </>
+      ) : isCatalogProductsTab ? (
+        <CatalogProductsTable
+          products={catalogProducts}
+          isLoading={isCatalogProductsLoading}
+          searchQuery={searchQuery}
+          onSelectProduct={setSelectedCatalogProduct}
+        />
       ) : isSuppliersTab ? (
         <SuppliersTable suppliers={suppliers} searchQuery={searchQuery} onSelectSupplier={setSelectedSupplier} />
       ) : (
@@ -381,6 +407,17 @@ export const ProductCatalogPanel = ({
             if (!window.confirm(`Remove device \"${selectedClientDevice.name}\"?`)) return;
             const ok = await onDeleteClientDevice(selectedClientDevice.id);
             if (ok) setSelectedClientDevice(null);
+          }}
+        />
+      ) : null}
+
+      {selectedCatalogProduct ? (
+        <CatalogSuggestionProductModal
+          product={selectedCatalogProduct}
+          onClose={() => setSelectedCatalogProduct(null)}
+          onSave={async (payload) => {
+            const ok = await onUpdateCatalogProduct(selectedCatalogProduct.id, payload);
+            if (ok) setSelectedCatalogProduct(null);
           }}
         />
       ) : null}
@@ -588,6 +625,68 @@ const ProductsTable = ({
               <td>{rowStartIndex + index + 1}</td>
               <td>
                 <button type="button" className="catalog-name-button" onClick={() => onSelectDevice(product)}>
+                  {product.name}
+                </button>
+              </td>
+              <td>{product.isActive ? 'active' : 'inactive'}</td>
+              <td>{formatDate(product.createdAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const CatalogProductsTable = ({
+  products,
+  isLoading,
+  searchQuery,
+  onSelectProduct,
+}: {
+  products: CatalogProduct[];
+  isLoading: boolean;
+  searchQuery: string;
+  onSelectProduct: (product: CatalogProduct) => void;
+}) => {
+  if (isLoading) return <p className="empty-state">Loading products...</p>;
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? products.filter((product) =>
+        [product.name, product.note].join(' ').toLowerCase().includes(normalizedQuery),
+      )
+    : products;
+
+  if (filtered.length === 0) {
+    return (
+      <p className="empty-state">
+        {normalizedQuery ? 'No products found.' : 'No products yet.'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="catalog-table-wrap">
+      <table className="catalog-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Activity</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((product, index) => (
+            <tr key={product.id}>
+              <td>{index + 1}</td>
+              <td>
+                <button
+                  type="button"
+                  className="catalog-name-button"
+                  onClick={() => onSelectProduct(product)}
+                >
                   {product.name}
                 </button>
               </td>
@@ -1061,6 +1160,65 @@ const ClientDeviceModal = ({
           <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={!device.canRemove || isSaving}>
             Remove
           </button>
+          <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+};
+
+const CatalogSuggestionProductModal = ({
+  product,
+  onClose,
+  onSave,
+}: {
+  product: CatalogProduct;
+  onClose: () => void;
+  onSave: (payload: CatalogProductFormValues) => Promise<void>;
+}) => {
+  useLockBodyScroll();
+  const [name, setName] = useState(product.name);
+  const [note, setNote] = useState(product.note);
+  const [isActive, setIsActive] = useState(product.isActive);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const save = async () => {
+    setIsSaving(true);
+    await onSave({
+      name: name.trim(),
+      note: note.trim(),
+      isActive,
+    });
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+        <header className="catalog-edit-header">
+          <div className="catalog-edit-title">
+            <h2>Product</h2>
+          </div>
+          <button type="button" className="create-order-close" onClick={onClose} aria-label="Close">
+            &times;
+          </button>
+        </header>
+        <div className="catalog-edit-body">
+          <label className="field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label className="field field-wide"><span>Note</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <label className="field">
+            <span>Status</span>
+            <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </label>
+        </div>
+        <footer className="catalog-edit-footer">
           <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
             {isSaving ? 'Saving...' : 'Save'}
           </button>
