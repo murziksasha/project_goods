@@ -6,6 +6,7 @@ export const queryKeys = {
   clientDevices: ['clientDevices'] as const,
   services: ['services'] as const,
   clients: ['clients'] as const,
+  catalogProducts: ['catalogProducts'] as const,
 };
 
 export const queryClient = new QueryClient({

@@ -34,11 +34,15 @@ export const SupplierOrderModal = ({
   onError,
 }: SupplierOrderModalProps) => {
   const [supplierSearch, setSupplierSearch] = useState('');
-  const [addSupplierForm, setAddSupplierForm] = useState({ name: '', phone: '+380' });
+  const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
+  const [createSupplierForm, setCreateSupplierForm] = useState({
+    name: '',
+    phone: '+380',
+    note: '',
+  });
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
-    supplierId: '',
     deliveryDate: '',
     supplyType: 'Локально',
     number: '',
@@ -51,9 +55,9 @@ export const SupplierOrderModal = ({
   useEffect(() => {
     if (!isOpen) return;
     setSupplierSearch('');
-    setAddSupplierForm({ name: '', phone: '+380' });
+    setIsCreateSupplierModalOpen(false);
+    setCreateSupplierForm({ name: '', phone: '+380', note: '' });
     setForm({
-      supplierId: '',
       deliveryDate: '',
       supplyType: 'Локально',
       number: '',
@@ -66,12 +70,27 @@ export const SupplierOrderModal = ({
 
   const supplierOptions = useMemo(() => {
     const normalized = supplierSearch.trim().toLowerCase();
-    return normalized
+    const options = normalized
       ? suppliers.filter((supplier) =>
           [supplier.name, supplier.phone].join(' ').toLowerCase().includes(normalized),
         )
       : suppliers;
+    return options.slice(0, 8);
   }, [supplierSearch, suppliers]);
+
+  const selectedSupplier = useMemo(() => {
+    if (!supplierSearch.trim()) return null;
+
+    const normalized = supplierSearch.trim().toLowerCase();
+    const exactMatch = suppliers.find((supplier) =>
+      [supplier.name, supplier.phone].some(
+        (value) => value.trim().toLowerCase() === normalized,
+      ),
+    );
+    if (exactMatch) return exactMatch;
+
+    return supplierOptions.length === 1 ? supplierOptions[0] : null;
+  }, [supplierOptions, supplierSearch, suppliers]);
 
   if (!isOpen) return null;
 
@@ -87,30 +106,42 @@ export const SupplierOrderModal = ({
           </button>
         </header>
         <div className="catalog-edit-body">
-          <label className="field">
-            <span>Постачальник</span>
-            <input
-              value={supplierSearch}
-              onChange={(event) => setSupplierSearch(event.target.value)}
-              placeholder="Пошук"
-            />
-          </label>
-          <label className="field">
-            <span>Обрати</span>
-            <select
-              value={form.supplierId}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, supplierId: event.target.value }))
-              }
+          <div className="create-device-search">
+            <label className="field">
+              <span>Постачальник</span>
+              <input
+                value={supplierSearch}
+                onChange={(event) => setSupplierSearch(event.target.value)}
+                placeholder="Пошук"
+              />
+            </label>
+            <button
+              type="button"
+              className="toolbar-square-button"
+              aria-label="Create supplier"
+              onClick={() => {
+                setCreateSupplierForm({ name: '', phone: '+380', note: '' });
+                setIsCreateSupplierModalOpen(true);
+              }}
             >
-              <option value="">Не обрано</option>
+              +
+            </button>
+          </div>
+          {supplierOptions.length > 0 ? (
+            <div className="create-suggestions">
               {supplierOptions.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
+                <button
+                  key={supplier.id}
+                  type="button"
+                  className="create-suggestion-item"
+                  onClick={() => setSupplierSearch(supplier.name)}
+                >
+                  <strong>{supplier.name}</strong>
+                  <span>{supplier.phone}</span>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          ) : null}
           <label className="field">
             <span>Дата поставки</span>
             <input
@@ -181,62 +212,25 @@ export const SupplierOrderModal = ({
               readOnly
             />
           </label>
-          <label className="field">
-            <span>Додати постачальника</span>
-            <input
-              value={addSupplierForm.name}
-              onChange={(event) =>
-                setAddSupplierForm((current) => ({ ...current, name: event.target.value }))
-              }
-              placeholder="Назва"
-            />
-          </label>
-          <label className="field">
-            <span>Телефон</span>
-            <input
-              value={addSupplierForm.phone}
-              onChange={(event) =>
-                setAddSupplierForm((current) => ({ ...current, phone: event.target.value }))
-              }
-            />
-          </label>
         </div>
         <footer className="catalog-edit-footer">
           <button
             type="button"
-            className="secondary-button"
-            disabled={isSupplierCreating || !addSupplierForm.name.trim() || !addSupplierForm.phone.trim()}
-            onClick={async () => {
-              if (!addSupplierForm.name.trim() || !addSupplierForm.phone.trim()) return;
-              setIsSupplierCreating(true);
-              const created = await onCreateSupplier({
-                name: addSupplierForm.name.trim(),
-                phone: addSupplierForm.phone.trim(),
-                note: '',
-                isActive: true,
-              });
-              if (created) {
-                onSuccess('Постачальника додано.');
-                setAddSupplierForm({ name: '', phone: '+380' });
-              } else {
-                onError('Не вдалося створити постачальника. Перевірте телефон або дублікати.');
-              }
-              setIsSupplierCreating(false);
-            }}
-          >
-            {isSupplierCreating ? 'Створення...' : 'Додати постачальника'}
-          </button>
-          <button
-            type="button"
             className="primary-button"
-            disabled={isSubmitting || !form.productName.trim() || !form.deliveryDate || Number(form.quantity) <= 0}
+            disabled={
+              isSubmitting ||
+              !selectedSupplier ||
+              !form.productName.trim() ||
+              !form.deliveryDate ||
+              Number(form.quantity) <= 0
+            }
             onClick={async () => {
               const quantity = Math.max(1, Number(form.quantity) || 1);
               const price = Math.max(0, Number(form.price) || 0);
               setIsSubmitting(true);
               try {
                 await onSubmit({
-                  supplierId: form.supplierId,
+                  supplierId: selectedSupplier?.id ?? '',
                   deliveryDate: form.deliveryDate,
                   supplyType: form.supplyType,
                   number: form.number,
@@ -255,6 +249,96 @@ export const SupplierOrderModal = ({
           </button>
         </footer>
       </section>
+
+      {isCreateSupplierModalOpen ? (
+        <section className="catalog-edit-modal clients-modal" role="dialog" aria-modal="true">
+          <header className="catalog-edit-header">
+            <div className="catalog-edit-title">
+              <h2>Create supplier</h2>
+            </div>
+            <button
+              type="button"
+              className="create-order-close"
+              onClick={() => setIsCreateSupplierModalOpen(false)}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </header>
+          <div className="catalog-edit-body clients-modal-body">
+            <label className="field field-wide">
+              <span>Name</span>
+              <input
+                value={createSupplierForm.name}
+                onChange={(event) =>
+                  setCreateSupplierForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="field field-wide">
+              <span>Phone</span>
+              <input
+                value={createSupplierForm.phone}
+                onChange={(event) =>
+                  setCreateSupplierForm((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="field field-wide">
+              <span>Note</span>
+              <textarea
+                rows={4}
+                value={createSupplierForm.note}
+                onChange={(event) =>
+                  setCreateSupplierForm((current) => ({
+                    ...current,
+                    note: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <footer className="catalog-edit-footer">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={
+                isSupplierCreating ||
+                !createSupplierForm.name.trim() ||
+                !createSupplierForm.phone.trim()
+              }
+              onClick={async () => {
+                setIsSupplierCreating(true);
+                const created = await onCreateSupplier({
+                  name: createSupplierForm.name.trim(),
+                  phone: createSupplierForm.phone.trim(),
+                  note: createSupplierForm.note.trim(),
+                  supplierOrder: '',
+                  isActive: true,
+                });
+
+                if (created) {
+                  onSuccess('Supplier created.');
+                  setSupplierSearch(createSupplierForm.name.trim());
+                  setIsCreateSupplierModalOpen(false);
+                } else {
+                  onError('Failed to create supplier.');
+                }
+
+                setIsSupplierCreating(false);
+              }}
+            >
+              {isSupplierCreating ? 'Saving...' : 'Create'}
+            </button>
+          </footer>
+        </section>
+      ) : null}
     </div>
   );
 };

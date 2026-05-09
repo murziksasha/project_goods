@@ -113,3 +113,21 @@ frontend/
 - размещения бизнес-специфичной логики в `shared`
 - разрастания page-компонентов из-за прямого встраивания всей логики в JSX
 - дублирования HTTP-логики по нескольким frontend-модулям
+
+## Structure Update: Catalog Products (2026-05-09)
+
+### Backend
+
+- `backend/src/domain/catalog-product/model.ts`
+- `backend/src/domain/catalog-product/service.ts`
+- `backend/src/routes/catalog-product.routes.ts`
+
+### Frontend
+
+- `frontend/src/entities/catalog-product/model/types.ts`
+- `frontend/src/entities/catalog-product/api/catalogProductApi.ts`
+
+### Integration Points
+
+- `backend/src/domain/sale/service.ts` - syncs names into `catalog-products`.
+- `frontend/src/widgets/dashboard/ui/ProductCatalogPanel.tsx` - adds `Products` tab.
