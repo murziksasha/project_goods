@@ -50,6 +50,10 @@ import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  buildMissingServicePayload,
+  shouldCreateMissingServiceOnSubmit,
+} from '../model/missingService';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -3973,7 +3977,7 @@ const LineItemsPanel = ({
     }
   };
 
-  const submitItem = () => {
+  const submitItem = async () => {
     const normalizedName = name.trim();
     const normalizedPrice = Number(price);
     const normalizedQuantity = Number(quantity);
@@ -3988,6 +3992,41 @@ const LineItemsPanel = ({
       return;
     }
 
+    let nextServiceId =
+      kind === 'service'
+        ? (selectedServiceId ??
+          serviceSuggestions.find(
+            (service) => service.name === normalizedName,
+          )?.id)
+        : undefined;
+
+    if (
+      shouldCreateMissingServiceOnSubmit({
+        kind,
+        normalizedName,
+        selectedServiceId: nextServiceId,
+        suggestionNames: serviceSuggestions.map(
+          (service) => service.name,
+        ),
+      })
+    ) {
+      try {
+        const createdService = await createServiceCatalogItem(
+          buildMissingServicePayload(normalizedName, normalizedPrice),
+        );
+        nextServiceId = createdService.id;
+        setServiceSuggestions([createdService]);
+        onSuccess('Service saved to catalog.');
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to save service.',
+        );
+        return;
+      }
+    }
+
     onAddItem({
       kind,
       productId:
@@ -3999,10 +4038,7 @@ const LineItemsPanel = ({
           : undefined,
       serviceId:
         kind === 'service'
-          ? (selectedServiceId ??
-            serviceSuggestions.find(
-              (service) => service.name === normalizedName,
-            )?.id)
+          ? nextServiceId
           : undefined,
       name: normalizedName,
       price: normalizedPrice,
@@ -4147,7 +4183,7 @@ const LineItemsPanel = ({
               <button
                 type='button'
                 className='toolbar-square-button order-shipping-status-add'
-                onClick={submitItem}
+                onClick={() => void submitItem()}
                 aria-label='Add product'
               >
                 +
@@ -4157,7 +4193,7 @@ const LineItemsPanel = ({
           <button
             type='button'
             className='primary-button'
-            onClick={submitItem}
+            onClick={() => void submitItem()}
           >
             Add {kind}
           </button>

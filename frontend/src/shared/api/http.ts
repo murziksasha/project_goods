@@ -7,6 +7,19 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
+apiClient.interceptors.request.use((config) => {
+  const method = (config.method ?? 'get').toUpperCase();
+  const isReadRequest = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine && !isReadRequest) {
+    return Promise.reject(
+      new Error('No internet connection. Read-only mode is active until connection is restored.'),
+    );
+  }
+
+  return config;
+});
+
 export const setApiAuthToken = (token: string | null) => {
   if (token) {
     apiClient.defaults.headers.common[authHeaderName] = `Bearer ${token}`;

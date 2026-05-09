@@ -9,6 +9,10 @@ import {
 } from '../../../entities/auth/api/authApi';
 import type { Employee } from '../../../entities/employee/model/types';
 import { setApiAuthToken } from '../../../shared/api/http';
+import {
+  isNetworkRequestError,
+  isUnauthorizedRequestError,
+} from '../../../shared/lib/request';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/Notifications';
@@ -19,7 +23,7 @@ import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
-import { ClientsWorkspace } from '../../../widgets/dashboard/ui/ClientsWorkspace';
+import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 
@@ -47,6 +51,25 @@ const pageKeys: PageKey[] = [
 ];
 const ordersTabs: OrdersTab[] = ['orders', 'sales', 'supplierOrders'];
 const ordersTabStorageKey = 'project-goods.orders-tab';
+const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
+
+const readEmployeeSnapshot = (): Employee | null => {
+  const rawValue = window.localStorage.getItem(employeeSnapshotStorageKey);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue) as Employee;
+  } catch {
+    window.localStorage.removeItem(employeeSnapshotStorageKey);
+    return null;
+  }
+};
+
+const saveEmployeeSnapshot = (employee: Employee) => {
+  window.localStorage.setItem(employeeSnapshotStorageKey, JSON.stringify(employee));
+};
 
 const getPageFromUrl = (): PageKey => {
   const page = new URLSearchParams(window.location.search).get('page');
@@ -154,7 +177,7 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
   { key: 'employees', label: 'Employees' },
-  { key: 'clients', label: 'Clients' },
+  { key: 'clients', label: 'Clients & Supplier' },
   { key: 'accounting', label: 'Accounting' },
   { key: 'warehouse', label: 'Warehouses' },
   { key: 'catalog', label: 'Products & Services' },
@@ -180,6 +203,9 @@ const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   !event.altKey;
 
 export const DashboardPage = () => {
+  const [isOnline, setIsOnline] = useState(
+    () => (typeof navigator === 'undefined' ? true : navigator.onLine),
+  );
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(() =>
     Boolean(window.localStorage.getItem(authTokenStorageKey)),
@@ -218,6 +244,20 @@ export const DashboardPage = () => {
   const visibleInviteState = shouldShowInvitation
     ? inviteState
     : { isLoading: false, name: '', email: '', role: '' };
+  const isOffline = !isOnline;
+
+  useEffect(() => {
+    const setOnline = () => setIsOnline(true);
+    const setOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', setOnline);
+    window.addEventListener('offline', setOffline);
+
+    return () => {
+      window.removeEventListener('online', setOnline);
+      window.removeEventListener('offline', setOffline);
+    };
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -234,9 +274,33 @@ export const DashboardPage = () => {
         const employee = await getCurrentEmployee();
         if (!isActive) return;
         setCurrentEmployee(employee);
-      } catch {
+        saveEmployeeSnapshot(employee);
+      } catch (error) {
         if (!isActive) return;
+
+        if (isUnauthorizedRequestError(error)) {
+          window.localStorage.removeItem(authTokenStorageKey);
+          window.localStorage.removeItem(employeeSnapshotStorageKey);
+          setApiAuthToken(null);
+          setCurrentEmployee(null);
+          setAuthError('Session expired. Please sign in again.');
+          return;
+        }
+
+        if (isNetworkRequestError(error)) {
+          const snapshot = readEmployeeSnapshot();
+          if (snapshot) {
+            setCurrentEmployee(snapshot);
+            setAuthError('');
+          } else {
+            setCurrentEmployee(null);
+            setAuthError('No internet connection. Sign in requires network access.');
+          }
+          return;
+        }
+
         window.localStorage.removeItem(authTokenStorageKey);
+        window.localStorage.removeItem(employeeSnapshotStorageKey);
         setApiAuthToken(null);
         setCurrentEmployee(null);
       } finally {
@@ -374,6 +438,7 @@ export const DashboardPage = () => {
       window.localStorage.setItem(authTokenStorageKey, session.token);
       setApiAuthToken(session.token);
       setCurrentEmployee(session.employee);
+      saveEmployeeSnapshot(session.employee);
       setActivePage('home');
       setActiveOrdersTab('orders');
       setIsCreateOrderOpen(false);
@@ -402,6 +467,7 @@ export const DashboardPage = () => {
       window.localStorage.setItem(authTokenStorageKey, session.token);
       setApiAuthToken(session.token);
       setCurrentEmployee(session.employee);
+      saveEmployeeSnapshot(session.employee);
       setLoginForm({ username: '', password: '' });
       setInviteToken('');
       setInviteState(createEmptyInviteState());
@@ -426,6 +492,7 @@ export const DashboardPage = () => {
       // ignore logout transport errors and clear local session anyway
     } finally {
       window.localStorage.removeItem(authTokenStorageKey);
+      window.localStorage.removeItem(employeeSnapshotStorageKey);
       setApiAuthToken(null);
       setCurrentEmployee(null);
       setIsCreateOrderOpen(false);
@@ -643,7 +710,11 @@ export const DashboardPage = () => {
         </header>
 
         <div className="page-shell">
-          <Notifications error={state.error} successMessage={state.successMessage} />
+          <Notifications
+            error={state.error}
+            successMessage={state.successMessage}
+            isOffline={isOffline}
+          />
 
           {activePage === 'orders' ? (
             isCreateOrderOpen && activeOrdersTab !== 'supplierOrders' ? (
@@ -713,8 +784,9 @@ export const DashboardPage = () => {
               onDelete={actions.deleteEmployee}
             />
           ) : activePage === 'clients' ? (
-            <ClientsWorkspace
+            <ClientsSuppliersWorkspace
               clients={state.allClients}
+              suppliers={state.suppliers}
               sales={state.sales}
               selectedClientId={state.selectedClientId}
               history={state.clientHistory}
@@ -726,6 +798,8 @@ export const DashboardPage = () => {
               onCreateClient={actions.createClientCard}
               onMergeClients={actions.mergeClients}
               onUpdateClient={actions.updateClientCard}
+              onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
               onOpenSaleCard={openSaleFromClientCard}
               openClientCardRequestId={openClientCardRequestId}
               onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}
