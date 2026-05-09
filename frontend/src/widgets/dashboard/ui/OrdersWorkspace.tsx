@@ -3768,7 +3768,11 @@ const LineItemsPanel = ({
   }, [kind]);
 
   useEffect(() => {
-    if (kind !== 'product' || name.trim().length < 2) {
+    if (
+      kind !== 'product' ||
+      name.trim().length < 2 ||
+      Boolean(selectedProductId)
+    ) {
       setProductSuggestions([]);
       return;
     }
@@ -3778,7 +3782,11 @@ const LineItemsPanel = ({
       setIsProductLookupLoading(true);
       try {
         const products = await getProducts(name.trim());
-        if (isActive) setProductSuggestions(products.slice(0, 8));
+        if (isActive) {
+          setProductSuggestions(
+            products.filter((product) => product.isActive).slice(0, 8),
+          );
+        }
       } catch {
         if (isActive) setProductSuggestions([]);
       } finally {
@@ -3790,10 +3798,14 @@ const LineItemsPanel = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [kind, name]);
+  }, [kind, name, selectedProductId]);
 
   useEffect(() => {
-    if (kind !== 'service' || serviceLookupQuery.length < 2) {
+    if (
+      kind !== 'service' ||
+      serviceLookupQuery.length < 2 ||
+      Boolean(selectedServiceId)
+    ) {
       setServiceSuggestions([]);
       return;
     }
@@ -3817,7 +3829,7 @@ const LineItemsPanel = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [kind, serviceLookupQuery]);
+  }, [kind, selectedServiceId, serviceLookupQuery]);
 
   const applyServiceSuggestion = (service: ServiceCatalogItem) => {
     setName(service.name);

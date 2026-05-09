@@ -11,6 +11,7 @@ import { getNextRecordNumber } from '../sequence/service';
 import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
+import { upsertCatalogProducts } from '../catalog-product/service';
 
 const ensureFreeStock = async (
   productId: mongoose.Types.ObjectId | string,
@@ -36,7 +37,7 @@ const applyProductQuantityDelta = async (
   const product = await Product.findByIdAndUpdate(
     productId,
     { $inc: { quantity: delta } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ProductDocument | null>();
 
   if (!product) {
@@ -57,7 +58,7 @@ const receiveProductToWarehouse = async (
       $inc: { quantity },
       $set: { purchasePlace: warehouse },
     },
-    { new: false },
+    { returnDocument: 'before' },
   ).lean<ProductDocument | null>();
 
   if (!product) {
@@ -259,6 +260,16 @@ const getDefaultLineItems = (
   ];
 };
 
+const syncCatalogProductsFromSale = async (
+  sourceTag: 'order-card' | 'sales-card' | 'sales-flow',
+  lineItems: Array<{ kind: string; name: string }>,
+) => {
+  const names = lineItems
+    .filter((item) => item.kind === 'product')
+    .map((item) => item.name);
+  await upsertCatalogProducts(names, sourceTag);
+};
+
 const assertWorkspaceState = (
   kind: 'repair' | 'sale',
   status: string,
@@ -439,6 +450,10 @@ export const createSale = async (payloadInput: SalePayload) => {
     await sale.validate();
     sale.recordNumber = await getNextRecordNumber();
     await sale.save();
+    await syncCatalogProductsFromSale(
+      normalizedKind === 'sale' ? 'sales-flow' : 'order-card',
+      sale.lineItems,
+    );
 
     return {
       sale: formatSale(sale.toObject<SaleDocument>()),
@@ -587,12 +602,16 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           ? { name: issuedBy.name, role: issuedBy.role }
           : existingSale.issuedBySnapshot,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {
       throw new Error('Sale not found.');
     }
+    await syncCatalogProductsFromSale(
+      normalizedKind === 'sale' ? 'sales-card' : 'order-card',
+      updatedSale.lineItems ?? [],
+    );
     const updatedProduct = product
       ? await Product.findById(product._id).lean<ProductDocument | null>()
       : null;
@@ -719,12 +738,16 @@ export const updateSaleWorkspace = async (
             : undefined)
         : existingSale.issuedBySnapshot,
     },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<SaleDocument | null>();
 
   if (!updatedSale) {
     throw new Error('Sale not found.');
   }
+  await syncCatalogProductsFromSale(
+    nextKind === 'sale' ? 'sales-card' : 'order-card',
+    updatedSale.lineItems ?? [],
+  );
 
   return formatSale(updatedSale);
 };
@@ -868,7 +891,7 @@ export const returnSaleLineItem = async (
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {
@@ -1015,7 +1038,7 @@ export const returnSale = async (
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {

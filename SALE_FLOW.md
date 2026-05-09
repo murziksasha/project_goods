@@ -83,3 +83,14 @@
 ## Status Dropdown UX
 
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
+
+## Suggestion Catalog Source (2026-05-09)
+
+- Product suggestions are now backed by dedicated `catalog-products` storage.
+- `Products & Services -> Products` tab acts as managed DB list for suggestions.
+- On save/update of sales/orders, product row names are upserted into this list automatically.
+- Upsert source is restricted to explicit product row names (`lineItems.kind = product`) only.
+- Device names from `Clients goods` (`client-devices`) must not be copied/synced into `Products` catalog.
+- This catalog is separate from:
+  - warehouse `products` (stock cards)
+  - `Clients goods` (`client-devices`)

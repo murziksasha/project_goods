@@ -3116,6 +3116,40 @@
   font-size: 0.9rem;
 }
 
+.supplier-order-modal {
+  width: min(980px, calc(100vw - 28px));
+}
+
+.supplier-order-modal-body {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.supplier-serial-auto-row {
+  margin-top: -4px;
+}
+
+.supplier-serial-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #4f647b;
+  font-weight: 600;
+}
+
+.supplier-serial-auto input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.supplier-order-basket-summary {
+  grid-column: 1 / -1;
+  color: #5a6f86;
+  font-weight: 700;
+  margin-top: -6px;
+}
+
 .create-side-list-item {
   display: grid;
   gap: 2px;

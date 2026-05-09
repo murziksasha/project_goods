@@ -9,7 +9,7 @@ export const getNextRecordNumber = async () => {
   const sequence = await Sequence.findOneAndUpdate(
     { key: recordSequenceKey },
     { $inc: { value: 1 } },
-    { new: true, upsert: true },
+    { returnDocument: 'after', upsert: true },
   );
 
   return formatRecordNumber(sequence.value);

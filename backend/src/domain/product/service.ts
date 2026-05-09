@@ -37,7 +37,7 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
   }
 
   const product = await Product.findByIdAndUpdate(productId, normalizedPayload, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   }).lean<ProductDocument | null>();
 
@@ -91,7 +91,7 @@ export const archiveProduct = async (productId: string) => {
   const updatedProduct = await Product.findByIdAndUpdate(
     productId,
     { isActive: false },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<ProductDocument | null>();
 
   if (!updatedProduct) {

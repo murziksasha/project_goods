@@ -115,7 +115,7 @@ export const ensureDefaultCashbox = async () => {
       },
       $set: { isDefault: true, isArchived: false },
     },
-    { upsert: true, new: true, runValidators: true },
+    { upsert: true, returnDocument: 'after', runValidators: true },
   ).lean<CashboxDocument | null>();
 
   if (!created) {

@@ -66,3 +66,11 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added useMutation wrappers for critical product/sale/client-device writes; actions now execute mutations and rely on query invalidation/refresh for consistency.
 - Extended mutation wrappers to archive/delete product and delete sale flows with query invalidation.
 - Added mutation wrappers for service/client writes and switched dashboard actions to call them (query invalidation-driven consistency).
+
+## Catalog Products State Update (2026-05-09)
+
+- Added React Query key: `catalogProducts`.
+- Added dashboard state slice: `catalogProducts`.
+- Added loading flag: `isCatalogProductsLoading`.
+- Added refresh/update flow for `catalog-products` through `useDashboardPage` actions.
+- `ProductCatalogPanel` consumes `catalogProducts` and `onUpdateCatalogProduct`.
