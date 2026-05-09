@@ -58,7 +58,10 @@ export const ClientLookupFields = ({
               className="suggestion-item"
               type="button"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onPickClient(client)}
+              onClick={() => {
+                onPickClient(client);
+                onHideSuggestions();
+              }}
             >
               <strong>{client.name}</strong>
               <span>{client.phone} • {client.status}</span>

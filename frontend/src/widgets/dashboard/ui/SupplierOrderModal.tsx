@@ -33,7 +33,11 @@ export const SupplierOrderModal = ({
   onSuccess,
   onError,
 }: SupplierOrderModalProps) => {
+  const minSupplierSearchLength = 3;
+  const supplierSearchDebounceMs = 300;
   const [supplierSearch, setSupplierSearch] = useState('');
+  const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
+  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
   const [createSupplierForm, setCreateSupplierForm] = useState({
     name: '',
@@ -55,6 +59,8 @@ export const SupplierOrderModal = ({
   useEffect(() => {
     if (!isOpen) return;
     setSupplierSearch('');
+    setDebouncedSupplierSearch('');
+    setShowSupplierSuggestions(false);
     setIsCreateSupplierModalOpen(false);
     setCreateSupplierForm({ name: '', phone: '+380', note: '' });
     setForm({
@@ -68,15 +74,23 @@ export const SupplierOrderModal = ({
     });
   }, [initialProductName, isOpen]);
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSupplierSearch(supplierSearch);
+    }, supplierSearchDebounceMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [supplierSearch, supplierSearchDebounceMs]);
+
   const supplierOptions = useMemo(() => {
-    const normalized = supplierSearch.trim().toLowerCase();
-    const options = normalized
-      ? suppliers.filter((supplier) =>
-          [supplier.name, supplier.phone].join(' ').toLowerCase().includes(normalized),
-        )
-      : suppliers;
+    const normalized = debouncedSupplierSearch.trim().toLowerCase();
+    if (normalized.length < minSupplierSearchLength) return [];
+
+    const options = suppliers.filter((supplier) =>
+      [supplier.name, supplier.phone].join(' ').toLowerCase().includes(normalized),
+    );
     return options.slice(0, 8);
-  }, [supplierSearch, suppliers]);
+  }, [debouncedSupplierSearch, suppliers]);
 
   const selectedSupplier = useMemo(() => {
     if (!supplierSearch.trim()) return null;
@@ -111,7 +125,14 @@ export const SupplierOrderModal = ({
               <span>Постачальник</span>
               <input
                 value={supplierSearch}
-                onChange={(event) => setSupplierSearch(event.target.value)}
+                onFocus={() => setShowSupplierSuggestions(true)}
+                onBlur={() =>
+                  window.setTimeout(() => setShowSupplierSuggestions(false), 120)
+                }
+                onChange={(event) => {
+                  setSupplierSearch(event.target.value);
+                  setShowSupplierSuggestions(true);
+                }}
                 placeholder="Пошук"
               />
             </label>
@@ -120,21 +141,28 @@ export const SupplierOrderModal = ({
               className="toolbar-square-button"
               aria-label="Create supplier"
               onClick={() => {
-                setCreateSupplierForm({ name: '', phone: '+380', note: '' });
+                setCreateSupplierForm({
+                  name: supplierSearch.trim(),
+                  phone: '+380',
+                  note: '',
+                });
                 setIsCreateSupplierModalOpen(true);
               }}
             >
               +
             </button>
           </div>
-          {supplierOptions.length > 0 ? (
+          {showSupplierSuggestions && supplierOptions.length > 0 ? (
             <div className="create-suggestions">
               {supplierOptions.map((supplier) => (
                 <button
                   key={supplier.id}
                   type="button"
                   className="create-suggestion-item"
-                  onClick={() => setSupplierSearch(supplier.name)}
+                  onClick={() => {
+                    setSupplierSearch(supplier.name);
+                    setShowSupplierSuggestions(false);
+                  }}
                 >
                   <strong>{supplier.name}</strong>
                   <span>{supplier.phone}</span>
