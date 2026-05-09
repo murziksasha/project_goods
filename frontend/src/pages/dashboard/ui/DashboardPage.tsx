@@ -855,6 +855,7 @@ export const DashboardPage = () => {
               onUpdateClientDevice={actions.updateClientDeviceCard}
               onDeleteClientDevice={actions.deleteClientDeviceCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              onDeleteCatalogProduct={actions.deleteCatalogProductCard}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel

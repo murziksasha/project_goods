@@ -138,7 +138,7 @@ export const archiveServiceCatalogItem = async (serviceId: string) => {
   const updatedService = await ServiceCatalog.findByIdAndUpdate(
     serviceId,
     { isActive: false },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<ServiceCatalogDocument | null>();
 
   if (!updatedService) {

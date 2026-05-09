@@ -69,10 +69,11 @@ type ProductCatalogPanelProps = {
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
+  onDeleteCatalogProduct: (catalogProductId: string) => Promise<boolean>;
 };
 
 const tabs: Array<{ key: CatalogTab; label: string }> = [
-  { key: 'products', label: 'Clients goods' },
+  { key: 'products', label: 'Clients Device' },
   { key: 'catalogProducts', label: 'Products' },
   { key: 'services', label: 'Services' },
   { key: 'suppliers', label: 'Suppliers' },
@@ -116,6 +117,7 @@ export const ProductCatalogPanel = ({
   onUpdateClientDevice,
   onDeleteClientDevice,
   onUpdateCatalogProduct,
+  onDeleteCatalogProduct,
 }: ProductCatalogPanelProps) => {
   void productForm;
   void isProductSaving;
@@ -145,9 +147,6 @@ export const ProductCatalogPanel = ({
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
   const [createDeviceForm, setCreateDeviceForm] = useState({
-    clientId: '',
-    clientName: '',
-    clientPhone: '',
     name: '',
     note: '',
   });
@@ -289,7 +288,7 @@ export const ProductCatalogPanel = ({
             </button>
           ) : (
             <button type="button" className="orders-create-button" onClick={openServiceForm}>
-              Create service
+              {isCatalogProductsTab ? 'Create product' : 'Create service'}
             </button>
           )}
         </div>
@@ -419,6 +418,11 @@ export const ProductCatalogPanel = ({
             const ok = await onUpdateCatalogProduct(selectedCatalogProduct.id, payload);
             if (ok) setSelectedCatalogProduct(null);
           }}
+          onRemove={async () => {
+            if (!window.confirm(`Remove product \"${selectedCatalogProduct.name}\"?`)) return;
+            const ok = await onDeleteCatalogProduct(selectedCatalogProduct.id);
+            if (ok) setSelectedCatalogProduct(null);
+          }}
         />
       ) : null}
 
@@ -430,9 +434,6 @@ export const ProductCatalogPanel = ({
               <button type="button" className="create-order-close" onClick={() => setIsCreateDeviceModalOpen(false)} aria-label="Close">&times;</button>
             </header>
             <div className="catalog-edit-body">
-              <label className="field"><span>Client ID</span><input value={createDeviceForm.clientId} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, clientId: e.target.value }))} /></label>
-              <label className="field"><span>Client name</span><input value={createDeviceForm.clientName} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, clientName: e.target.value }))} /></label>
-              <label className="field"><span>Client phone</span><input value={createDeviceForm.clientPhone} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, clientPhone: e.target.value }))} /></label>
               <label className="field"><span>Device name</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
               <label className="field field-wide"><span>Note</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
             </div>
@@ -440,11 +441,19 @@ export const ProductCatalogPanel = ({
               <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
                 Cancel
               </button>
-              <button type="button" className="primary-button" disabled={!createDeviceForm.clientId.trim() || !createDeviceForm.clientName.trim() || !createDeviceForm.clientPhone.trim() || !createDeviceForm.name.trim()} onClick={async () => {
-                const ok = await onCreateClientDevice({ ...createDeviceForm, serialNumber: '', source: 'clientCard', isActive: true });
+              <button type="button" className="primary-button" disabled={!createDeviceForm.name.trim()} onClick={async () => {
+                const ok = await onCreateClientDevice({
+                  clientId: '',
+                  clientName: '',
+                  clientPhone: '',
+                  ...createDeviceForm,
+                  serialNumber: '',
+                  source: 'clientCard',
+                  isActive: true,
+                });
                 if (ok) {
                   setIsCreateDeviceModalOpen(false);
-                  setCreateDeviceForm({ clientId: '', clientName: '', clientPhone: '', name: '', note: '' });
+                  setCreateDeviceForm({ name: '', note: '' });
                 }
               }}>Save</button>
             </footer>
@@ -1173,10 +1182,12 @@ const CatalogSuggestionProductModal = ({
   product,
   onClose,
   onSave,
+  onRemove,
 }: {
   product: CatalogProduct;
   onClose: () => void;
   onSave: (payload: CatalogProductFormValues) => Promise<void>;
+  onRemove: () => Promise<void>;
 }) => {
   useLockBodyScroll();
   const [name, setName] = useState(product.name);
@@ -1219,6 +1230,9 @@ const CatalogSuggestionProductModal = ({
           </label>
         </div>
         <footer className="catalog-edit-footer">
+          <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={product.canRemove === false || isSaving}>
+            Remove
+          </button>
           <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
             {isSaving ? 'Saving...' : 'Save'}
           </button>

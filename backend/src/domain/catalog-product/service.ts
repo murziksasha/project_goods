@@ -2,6 +2,7 @@ import { formatCatalogProduct } from '../../shared/lib/formatters';
 import { toNonEmptyString } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { CatalogProduct, type CatalogProductDocument } from './model';
+import { Sale } from '../sale/model';
 
 export type CatalogProductPayload = {
   name?: unknown;
@@ -26,13 +27,33 @@ const mapCatalogProductError = (error: unknown) => {
 };
 
 const normalizeProductName = (value: string) => value.trim().replace(/\s+/g, ' ');
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getCatalogProductUsageCount = async (item: CatalogProductDocument) => {
+  const normalizedName = normalizeProductName(item.name);
+  if (!normalizedName) return 0;
+
+  const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
+  return Sale.countDocuments({
+    $or: [
+      { 'productSnapshot.name': { $regex: `^${normalizedNamePattern}$`, $options: 'i' } },
+      { 'lineItems.name': { $regex: `^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, $options: 'i' } },
+      { note: { $regex: escapeRegExp(normalizedName), $options: 'i' } },
+    ],
+  });
+};
 
 export const listCatalogProducts = async (queryValue: unknown) => {
   const query = getSearchQuery(queryValue);
   const items = await CatalogProduct.find(query)
     .sort({ createdAt: -1 })
     .lean<CatalogProductDocument[]>();
-  return items.map(formatCatalogProduct);
+  return Promise.all(
+    items.map(async (item) => {
+      const usageCount = await getCatalogProductUsageCount(item);
+      return formatCatalogProduct(item, usageCount);
+    }),
+  );
 };
 
 export const updateCatalogProduct = async (
@@ -44,15 +65,31 @@ export const updateCatalogProduct = async (
     const item = await CatalogProduct.findByIdAndUpdate(
       catalogProductId,
       normalizeCatalogProductPayload(payload),
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<CatalogProductDocument | null>();
 
     if (!item) throw new Error('Catalog product not found.');
 
-    return formatCatalogProduct(item);
+    const usageCount = await getCatalogProductUsageCount(item);
+    return formatCatalogProduct(item, usageCount);
   } catch (error) {
     throw mapCatalogProductError(error);
   }
+};
+
+export const deleteCatalogProduct = async (catalogProductId: string) => {
+  isValidObjectIdOrThrow(catalogProductId, 'catalogProductId');
+  const existing = await CatalogProduct.findById(catalogProductId).lean<CatalogProductDocument | null>();
+  if (!existing) throw new Error('Catalog product not found.');
+
+  const usageCount = await getCatalogProductUsageCount(existing);
+  if (usageCount > 0) {
+    throw new Error('This product is used in orders or sales and cannot be removed.');
+  }
+
+  const deleted = await CatalogProduct.findByIdAndDelete(catalogProductId).lean<CatalogProductDocument | null>();
+  if (!deleted) throw new Error('Catalog product not found.');
+  return { id: catalogProductId };
 };
 
 export const upsertCatalogProducts = async (

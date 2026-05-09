@@ -89,6 +89,8 @@
 - Product suggestions are now backed by dedicated `catalog-products` storage.
 - `Products & Services -> Products` tab acts as managed DB list for suggestions.
 - On save/update of sales/orders, product row names are upserted into this list automatically.
+- Upsert source is restricted to explicit product row names (`lineItems.kind = product`) only.
+- Device names from `Clients goods` (`client-devices`) must not be copied/synced into `Products` catalog.
 - This catalog is separate from:
   - warehouse `products` (stock cards)
   - `Clients goods` (`client-devices`)

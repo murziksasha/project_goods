@@ -1,4 +1,4 @@
-﻿import { formatSupplier } from '../../shared/lib/formatters';
+import { formatSupplier } from '../../shared/lib/formatters';
 import { normalizePhone, toNonEmptyString } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
@@ -54,7 +54,7 @@ export const updateSupplier = async (supplierId: string, payload: SupplierPayloa
     const supplier = await Supplier.findByIdAndUpdate(
       supplierId,
       normalizeSupplierPayload(payload),
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SupplierDocument | null>();
 
     if (!supplier) throw new Error('Supplier not found.');

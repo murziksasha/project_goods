@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  deleteCatalogProduct,
   listCatalogProducts,
   updateCatalogProduct,
   type CatalogProductPayload,
@@ -23,6 +24,14 @@ catalogProductRouter.put('/catalog-products/:catalogProductId', async (req, res,
         req.body as CatalogProductPayload,
       ),
     );
+  } catch (error) {
+    next(error);
+  }
+});
+
+catalogProductRouter.delete('/catalog-products/:catalogProductId', async (req, res, next) => {
+  try {
+    res.json(await deleteCatalogProduct(req.params.catalogProductId));
   } catch (error) {
     next(error);
   }

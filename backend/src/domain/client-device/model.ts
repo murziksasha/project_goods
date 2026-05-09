@@ -5,17 +5,20 @@ export const clientDeviceSchema = new mongoose.Schema(
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Client',
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
     clientName: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
       trim: true,
     },
     clientPhone: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
       trim: true,
     },
     name: {
