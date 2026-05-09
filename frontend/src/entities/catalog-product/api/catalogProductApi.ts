@@ -38,3 +38,12 @@ export const updateCatalogProduct = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const deleteCatalogProduct = async (catalogProductId: string) => {
+  try {
+    const response = await apiClient.delete<{ id: string }>(`/catalog-products/${catalogProductId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

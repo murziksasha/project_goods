@@ -3,6 +3,8 @@ export type CatalogProduct = {
   name: string;
   note: string;
   isActive: boolean;
+  usageCount?: number;
+  canRemove?: boolean;
   sourceTags: string[];
   lastSeenAt: string;
   createdAt: string;

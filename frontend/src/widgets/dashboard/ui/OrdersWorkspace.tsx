@@ -3778,7 +3778,11 @@ const LineItemsPanel = ({
       setIsProductLookupLoading(true);
       try {
         const products = await getProducts(name.trim());
-        if (isActive) setProductSuggestions(products.slice(0, 8));
+        if (isActive) {
+          setProductSuggestions(
+            products.filter((product) => product.isActive).slice(0, 8),
+          );
+        }
       } catch {
         if (isActive) setProductSuggestions([]);
       } finally {

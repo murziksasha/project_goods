@@ -381,7 +381,11 @@ export const CreateOrderCard = ({
       try {
         const products = await getProducts(saleProductLookupQuery);
         if (isActive) {
-          setSaleProductSuggestions(products.filter((product) => product.freeQuantity > 0).slice(0, 8));
+          setSaleProductSuggestions(
+            products
+              .filter((product) => product.isActive && product.freeQuantity > 0)
+              .slice(0, 8),
+          );
         }
       } catch {
         if (isActive) setSaleProductSuggestions([]);

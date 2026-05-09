@@ -37,6 +37,7 @@ import {
 import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import {
+  deleteCatalogProduct,
   getCatalogProducts,
   updateCatalogProduct,
 } from '../../../entities/catalog-product/api/catalogProductApi';
@@ -50,6 +51,7 @@ import {
   getSales,
   updateSale,
 } from '../../../entities/sale/api/saleApi';
+import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
 import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
 import type {
@@ -247,6 +249,12 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
     },
   });
+  const deleteCatalogProductMutation = useMutation({
+    mutationFn: deleteCatalogProduct,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+    },
+  });
 
   useDashboardEffects({
     enabled,
@@ -338,6 +346,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     editingEmployeeId,
     selectedClientId,
     setAllProducts,
+    setCatalogProducts,
     setSuppliers,
     setAllClients,
     setSales,
@@ -492,6 +501,28 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     },
     actions: {
       ...actions,
+      seedDemoData: async (kind: DemoSeedKind = 'all') => {
+        await actions.seedDemoData(kind);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.catalogProducts,
+        });
+        const nextCatalogProducts = await queryClient.fetchQuery({
+          queryKey: queryKeys.catalogProducts,
+          queryFn: () => getCatalogProducts(),
+        });
+        setCatalogProducts(nextCatalogProducts);
+      },
+      eraseAllData: async () => {
+        await actions.eraseAllData();
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.catalogProducts,
+        });
+        const nextCatalogProducts = await queryClient.fetchQuery({
+          queryKey: queryKeys.catalogProducts,
+          queryFn: () => getCatalogProducts(),
+        });
+        setCatalogProducts(nextCatalogProducts);
+      },
       updateCatalogProductCard: async (
         catalogProductId: string,
         payload: CatalogProductFormValues,
@@ -517,6 +548,29 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
             error instanceof Error
               ? error.message
               : 'Failed to update catalog product.',
+          );
+          return false;
+        }
+      },
+      deleteCatalogProductCard: async (catalogProductId: string) => {
+        try {
+          await deleteCatalogProductMutation.mutateAsync(catalogProductId);
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.catalogProducts,
+          });
+          const nextCatalogProducts = await queryClient.fetchQuery({
+            queryKey: queryKeys.catalogProducts,
+            queryFn: () => getCatalogProducts(),
+          });
+          setCatalogProducts(nextCatalogProducts);
+          setLastSyncAt(new Date().toISOString());
+          setSuccessMessage('Catalog product removed.');
+          return true;
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to remove catalog product.',
           );
           return false;
         }

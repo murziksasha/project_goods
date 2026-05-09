@@ -51,11 +51,13 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   updatedAt: supplier.updatedAt.toISOString(),
 });
 
-export const formatCatalogProduct = (item: CatalogProductDocument) => ({
+export const formatCatalogProduct = (item: CatalogProductDocument, usageCount = 0) => ({
   id: item._id.toString(),
   name: item.name,
   note: item.note ?? '',
   isActive: item.isActive ?? true,
+  usageCount,
+  canRemove: usageCount === 0,
   sourceTags: item.sourceTags ?? [],
   lastSeenAt: item.lastSeenAt ? item.lastSeenAt.toISOString() : item.updatedAt.toISOString(),
   createdAt: item.createdAt.toISOString(),
@@ -64,7 +66,7 @@ export const formatCatalogProduct = (item: CatalogProductDocument) => ({
 
 export const formatClientDevice = (device: ClientDeviceDocument, usageCount = 0) => ({
   id: device._id.toString(),
-  clientId: device.client.toString(),
+  clientId: device.client ? device.client.toString() : '',
   clientName: device.clientName,
   clientPhone: device.clientPhone,
   name: device.name,

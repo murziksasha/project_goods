@@ -25,7 +25,7 @@ export const updateSettings = async (payload: SettingsPayload) => {
   const normalized = normalizeSettingsPayload(payload);
   const settings = await Settings.findOneAndUpdate({}, normalized, {
     upsert: true,
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
     setDefaultsOnInsert: true,
   }).lean<SettingsDocument | null>();

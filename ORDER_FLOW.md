@@ -117,4 +117,7 @@
   - `Order card -> Products`
   - `Sales card -> Products`
   - `Create order (Sales flow) -> Products`
+- `Client device` names must never be auto-added to `Products` catalog.
+- Device name from repair context (`Device #1` / order-card main device) is stored only in `Clients goods` (`client-devices`) and order snapshots/history.
+- Only explicit product line items (`lineItems.kind = product`) participate in `Products` catalog upsert.
 - The list supports activity status (`active`/`inactive`) and editing via modal.

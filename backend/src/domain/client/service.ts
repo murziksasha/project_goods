@@ -33,7 +33,7 @@ export const updateClient = async (clientId: string, payload: ClientPayload) => 
   isValidObjectIdOrThrow(clientId, 'clientId');
 
   const client = await Client.findByIdAndUpdate(clientId, normalizeClientPayload(payload), {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   }).lean<ClientDocument | null>();
 
@@ -125,7 +125,7 @@ export const mergeClients = async (
   });
 
   const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   }).lean<ClientDocument | null>();
   if (!updatedTarget) {

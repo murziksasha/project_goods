@@ -24,6 +24,7 @@ import {
 } from '../../../entities/product/api/productApi';
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import {
@@ -74,6 +75,7 @@ type DashboardActionParams = {
   editingEmployeeId: string | null;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
+  setCatalogProducts: Setter<CatalogProduct[]>;
   setAllClients: Setter<Client[]>;
   setAllEmployees: Setter<Employee[]>;
   setSuppliers: Setter<Supplier[]>;
@@ -181,6 +183,7 @@ export const createDashboardActions = ({
   editingEmployeeId,
   selectedClientId,
   setAllProducts,
+  setCatalogProducts,
   setAllClients,
   setAllEmployees,
   setSuppliers,
@@ -937,6 +940,7 @@ export const createDashboardActions = ({
       try {
         const result = await seedDemoData(kind);
         setAllProducts(result.products);
+        setCatalogProducts([]);
         setAllClients(result.clients);
         setSales(result.sales);
         setSelectedClientId(null);
@@ -999,6 +1003,7 @@ export const createDashboardActions = ({
       try {
         const result = await eraseAllData();
         setAllProducts(result.products);
+        setCatalogProducts([]);
         setAllClients(result.clients);
         setSales(result.sales);
         setSelectedClientId(null);

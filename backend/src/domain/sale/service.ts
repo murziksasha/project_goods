@@ -37,7 +37,7 @@ const applyProductQuantityDelta = async (
   const product = await Product.findByIdAndUpdate(
     productId,
     { $inc: { quantity: delta } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ProductDocument | null>();
 
   if (!product) {
@@ -58,7 +58,7 @@ const receiveProductToWarehouse = async (
       $inc: { quantity },
       $set: { purchasePlace: warehouse },
     },
-    { new: false },
+    { returnDocument: 'before' },
   ).lean<ProductDocument | null>();
 
   if (!product) {
@@ -262,15 +262,11 @@ const getDefaultLineItems = (
 
 const syncCatalogProductsFromSale = async (
   sourceTag: 'order-card' | 'sales-card' | 'sales-flow',
-  deviceName: string,
   lineItems: Array<{ kind: string; name: string }>,
 ) => {
-  const names = [
-    deviceName,
-    ...lineItems
-      .filter((item) => item.kind === 'product')
-      .map((item) => item.name),
-  ];
+  const names = lineItems
+    .filter((item) => item.kind === 'product')
+    .map((item) => item.name);
   await upsertCatalogProducts(names, sourceTag);
 };
 
@@ -456,7 +452,6 @@ export const createSale = async (payloadInput: SalePayload) => {
     await sale.save();
     await syncCatalogProductsFromSale(
       normalizedKind === 'sale' ? 'sales-flow' : 'order-card',
-      sale.productSnapshot?.name ?? '',
       sale.lineItems,
     );
 
@@ -607,7 +602,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           ? { name: issuedBy.name, role: issuedBy.role }
           : existingSale.issuedBySnapshot,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {
@@ -615,7 +610,6 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     }
     await syncCatalogProductsFromSale(
       normalizedKind === 'sale' ? 'sales-card' : 'order-card',
-      updatedSale.productSnapshot?.name ?? '',
       updatedSale.lineItems ?? [],
     );
     const updatedProduct = product
@@ -744,7 +738,7 @@ export const updateSaleWorkspace = async (
             : undefined)
         : existingSale.issuedBySnapshot,
     },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<SaleDocument | null>();
 
   if (!updatedSale) {
@@ -752,7 +746,6 @@ export const updateSaleWorkspace = async (
   }
   await syncCatalogProductsFromSale(
     nextKind === 'sale' ? 'sales-card' : 'order-card',
-    updatedSale.productSnapshot?.name ?? '',
     updatedSale.lineItems ?? [],
   );
 
@@ -898,7 +891,7 @@ export const returnSaleLineItem = async (
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {
@@ -1045,7 +1038,7 @@ export const returnSale = async (
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
     if (!updatedSale) {

@@ -79,7 +79,7 @@ export const updateEmployee = async (employeeId: string, payload: EmployeePayloa
   const employee = await Employee.findByIdAndUpdate(
     employeeId,
     updatePayload,
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<EmployeeDocument | null>();
 
   if (!employee) {
