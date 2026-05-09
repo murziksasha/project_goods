@@ -6,6 +6,9 @@
 - `Client phone` + `Client name` perform lookup in clients.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is unique. If uniqueness fails, order creation is rejected.
+- In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
+- Clicking request number opens a new browser tab/window (`target="_blank"`).
+- The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
 
 ## Repair Order Device Behavior
 
@@ -94,3 +97,14 @@
 - If a device is used in orders/sales, `Remove` is forbidden; only deactivation is allowed.
 - `Remove` is enabled only when device is not used in orders/sales.
 - `Remove` action asks for confirmation.
+
+## Sales Flow: Shipping Status And Supplier Order Link
+
+- In `Create order` on `Sales order` tab, every product row has `Shipping status` action button.
+- Button text is dynamic:
+  - `In stock` when selected product has available warehouse quantity (`freeQuantity > 0`).
+  - `Order` when selected/matched product is not available in warehouse.
+  - `Supplier order` after user confirms supplier-order request for this row.
+- Clicking `Order` opens modal flow: `Order -> Supplier order -> Замовити у постачальника`.
+- Confirm action `Замовити у постачальника` marks row as supplier-order requested and auto-adds flag `Waiting for supply` to the order.
+- `In stock` status is informational and does not open modal.

@@ -45,3 +45,12 @@
 
 - In desktop layout, payment panel is displayed in the right column beside line-item sections.
 - In responsive layout, payment panel falls back to normal vertical flow.
+
+## Payment Discount
+
+- `Payment` panel contains editable `Discount` row under `Repair cost`.
+- `Discount` supports toggle modes:
+  - `%` for percentage discount from total sale amount
+  - `₴` for fixed discount amount
+- The same editable `Discount` control is shown in `Accept payment` modal summary.
+- Discount affects `To pay` immediately and is stored in workspace state.

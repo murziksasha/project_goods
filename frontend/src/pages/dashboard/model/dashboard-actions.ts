@@ -50,13 +50,12 @@ import {
   seedDemoData,
   type DemoSeedKind,
 } from '../../../features/demo-data/api/demoApi';
-import { getRequestErrorMessage } from '../../../shared/lib/request';
+import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardActionParams = {
-  allProducts: Product[];
   allServices: ServiceCatalogItem[];
   allClients: Client[];
   clientDevices: ClientDevice[];
@@ -164,7 +163,6 @@ type DashboardActionParams = {
 };
 
 export const createDashboardActions = ({
-  allProducts,
   allServices,
   allClients,
   clientDevices,
@@ -288,6 +286,7 @@ export const createDashboardActions = ({
     }
   };
   const isOptimisticConflict = (error: unknown) =>
+    isConflictRequestError(error) ||
     getRequestErrorMessage(error, '')
       .toLowerCase()
       .includes('modified by another user');
@@ -1090,40 +1089,12 @@ export const createDashboardActions = ({
           setAllClients((current) => [client, ...current]);
         }
 
-        const { serialNumber: fallbackSerialNumber, article } = buildProductIdentity(payload);
+        const { serialNumber: fallbackSerialNumber } = buildProductIdentity(payload);
         const repairDeviceSerialNumber = payload.deviceSerialNumber.trim().toUpperCase();
         const serialNumber =
           payload.sourceTab === 'repair'
             ? repairDeviceSerialNumber
             : fallbackSerialNumber;
-        const existingProduct =
-          payload.sourceTab === 'sale' && primarySaleItem?.productId
-            ? allProducts.find((product) => product.id === primarySaleItem.productId)
-            : null;
-
-        let product = existingProduct;
-
-        if (payload.sourceTab === 'sale' && !existingProduct) {
-          const fallbackPrice = primarySaleItem ? primarySaleItem.price : estimatedCost;
-          const fallbackQuantity = primarySaleItem ? String(primarySaleItem.quantity) : '1';
-          product = await mutateCreateProduct({
-            name: deviceName,
-            article: primarySaleItem?.article || article,
-            serialNumber: primarySaleItem?.serialNumber || serialNumber,
-            price: String(fallbackPrice),
-            salePriceOptions: String(fallbackPrice),
-            quantity: fallbackQuantity,
-            note: 'Ordered from sale request',
-            purchasePlace: '',
-            purchaseDate: '',
-            warrantyPeriod: '0',
-          });
-          setAllProducts((current) => [product!, ...current]);
-        }
-        if (payload.sourceTab === 'sale' && !product) {
-          throw new Error('Product is required for sale orders.');
-        }
-
         const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
         const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
         const createdAt = new Date().toISOString();
@@ -1144,10 +1115,10 @@ export const createDashboardActions = ({
         ].filter(Boolean);
         const lineItems =
           payload.sourceTab === 'sale' && saleItems.length > 0
-            ? saleItems.map((item, index) => ({
+            ? saleItems.map((item) => ({
                 id: item.id || crypto.randomUUID(),
                 kind: 'product' as const,
-                productId: item.productId || (index === 0 ? product!.id : ''),
+                productId: item.productId,
                 name: item.warehouse
                   ? `${item.name} (${item.warehouse})`
                   : item.name,
@@ -1160,7 +1131,8 @@ export const createDashboardActions = ({
         await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
-          productId: payload.sourceTab === 'repair' ? '' : product!.id,
+          productId:
+            payload.sourceTab === 'repair' ? '' : primarySaleItem?.productId || '',
           quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
@@ -1192,7 +1164,7 @@ export const createDashboardActions = ({
             device.clientId === client.id &&
             device.name.trim().toLowerCase() === deviceName.trim().toLowerCase(),
         );
-        if (!deviceAlreadyExists) {
+        if (payload.sourceTab === 'repair' && !deviceAlreadyExists) {
           await mutateCreateClientDevice({
             clientId: client.id,
             clientName: client.name,
@@ -1200,7 +1172,7 @@ export const createDashboardActions = ({
             name: deviceName,
             serialNumber: '',
             note: '',
-            source: payload.sourceTab === 'repair' ? 'repairOrder' : 'clientCard',
+            source: 'repairOrder',
             isActive: true,
           });
         }

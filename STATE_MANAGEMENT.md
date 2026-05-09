@@ -41,6 +41,12 @@ Support stable concurrent work for 3-5 users with minimal conflicts and stale da
 
 For any mutation that can affect shared screens (orders, sales, stock, client devices), backend is source of truth and frontend must refresh corresponding collections immediately.
 
+## Filters Persistence Rule (2026-05-08)
+
+- Filter and search settings must persist across browser reload (`F5`) for all dashboard workspaces that expose filters/search.
+- Persisted state must be restored automatically on page load and immediately applied to the list/query result.
+- This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
+
 ## Phase 2 Status (2026-05-06)
 
 - Implemented optimistic concurrency for update operations in products, sales, and client-devices using expectedUpdatedAt.
@@ -53,7 +59,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added @tanstack/react-query and QueryClientProvider in frontend root.
 - Introduced shared query keys and query client config (staleTime, focus/reconnect refetch).
 - products, sales, and client-devices are now loaded via React Query in dashboard effects.
-- Manual refresh actions now use invalidateQueries + etchQuery for consistent cache/state sync after mutations.
+- Manual refresh actions now use invalidateQueries + fetchQuery for consistent cache/state sync after mutations.
 
 - Polling configured for shared collections (products, sales, client-devices) every 30 seconds.
 - Critical mutation flows now rely less on manual local array patching and more on query-backed refresh (products/sales/client-devices).

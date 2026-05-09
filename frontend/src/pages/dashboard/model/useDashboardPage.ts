@@ -59,6 +59,11 @@ import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
 
+const productSearchStorageKey = 'project-goods.filter.product-search';
+const serviceSearchStorageKey = 'project-goods.filter.service-search';
+const clientSearchStorageKey = 'project-goods.filter.client-search';
+const clientStatusStorageKey = 'project-goods.filter.client-status';
+
 export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
@@ -85,10 +90,15 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
-  const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
-  const [clientSearchQuery, setClientSearchQuery] = useState('');
-  const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatus | 'all'>('all');
+  const [productSearchQuery, setProductSearchQuery] = useState(() => window.localStorage.getItem(productSearchStorageKey) ?? '');
+  const [serviceSearchQuery, setServiceSearchQuery] = useState(() => window.localStorage.getItem(serviceSearchStorageKey) ?? '');
+  const [clientSearchQuery, setClientSearchQuery] = useState(() => window.localStorage.getItem(clientSearchStorageKey) ?? '');
+  const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatus | 'all'>(() => {
+    const value = window.localStorage.getItem(clientStatusStorageKey);
+    return value === 'new' || value === 'vip' || value === 'opt' || value === 'blacklist' || value === 'ok' || value === 'all'
+      ? value
+      : 'all';
+  });
   const deferredProductSearchQuery = useDeferredValue(productSearchQuery.trim());
   const deferredServiceSearchQuery = useDeferredValue(serviceSearchQuery.trim());
   const deferredClientSearchQuery = useDeferredValue(clientSearchQuery.trim());
@@ -256,6 +266,22 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     return () => window.clearTimeout(notificationTimeout);
   }, [error, successMessage]);
 
+  useEffect(() => {
+    window.localStorage.setItem(productSearchStorageKey, productSearchQuery);
+  }, [productSearchQuery]);
+
+  useEffect(() => {
+    window.localStorage.setItem(serviceSearchStorageKey, serviceSearchQuery);
+  }, [serviceSearchQuery]);
+
+  useEffect(() => {
+    window.localStorage.setItem(clientSearchStorageKey, clientSearchQuery);
+  }, [clientSearchQuery]);
+
+  useEffect(() => {
+    window.localStorage.setItem(clientStatusStorageKey, clientStatusFilter);
+  }, [clientStatusFilter]);
+
   const products = filterProducts(allProducts, deferredProductSearchQuery);
   const filteredServices = services.filter((service) => {
     const query = deferredServiceSearchQuery.toLowerCase();
@@ -275,7 +301,6 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     0,
   );
   const actions = createDashboardActions({
-    allProducts,
     clientDevices,
     allServices: services,
     allClients,

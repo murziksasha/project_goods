@@ -44,6 +44,7 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   phone: supplier.phone,
   name: supplier.name,
   note: supplier.note,
+  supplierOrder: supplier.supplierOrder ?? '',
   isActive: supplier.isActive,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
@@ -115,6 +116,10 @@ export const formatSale = (sale: SaleDocument) => ({
     quantity: item.quantity,
     warrantyPeriod: item.warrantyPeriod ?? 0,
   })),
+  discount: {
+    mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',
+    value: sale.discount?.value ?? 0,
+  },
   client: {
     id: sale.client.toString(),
     ...sale.clientSnapshot,

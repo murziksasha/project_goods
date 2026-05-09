@@ -29,6 +29,13 @@
   - warranty to `None`
 - Selected suggestion binds `productId` for the line item.
 
+## Sale Creation: Product/Device Linking Rules
+
+- Creating a `Sales order` must not auto-create warehouse product cards when a catalog match is absent.
+- Sales line items may be saved without `productId` (manual item text), to avoid fake stock entries before receipt.
+- Creating a `Sales order` must not auto-create entries in `Clients goods` (`client-devices`).
+- `Clients goods` auto-link/create behavior is applied only for `Repair order` flows.
+
 ## Services In Sale Card
 
 - Services are optional for sale card.
@@ -48,3 +55,31 @@
 
 - Sale totals are based on current line items (`Products` + optional `Services`).
 - `Paid` and `To pay` are recalculated from line items total and payment history.
+
+## Status Change: Paid / Completed
+
+- For `Sales` flow, when status is changed to `paid` or `completed`, system opens `Accept payment` modal (if `To pay > 0`).
+- Payment modal is the working path for these status transitions:
+  - `Accept to cashbox` (deposit only)
+  - `Accept and mark paid` / `Accept and complete` (deposit + status change)
+  - `Mark paid without payment` / `Complete without payment` (status change without deposit)
+- Modal summary includes editable `Discount` with mode switch:
+  - `%` percent discount
+  - `₴` fixed amount discount
+- Discount is shared with sale card payment panel and affects `To pay` immediately.
+
+## Status Change: Issued In Sales List
+
+- In `Orders -> Sales` list, when user selects status `issued`, `Accept payment` modal is opened if `To pay > 0`.
+- If in this modal user clicks `Accept to cashbox` and enters full or partial payment:
+  - payment is added to cashbox
+  - sale status is auto-changed to `paid`
+- If user selected status `paid` and accepts payment, resulting status is `paid`.
+- Strict rule for sales:
+  - `issued` is not allowed when `To pay > 0`
+  - exception: `issued` is allowed when final order total is `0`
+- Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid`/`completed` with unpaid product amount.
+
+## Status Dropdown UX
+
+- Status dropdown in list is closed when user clicks outside the dropdown menu area.
