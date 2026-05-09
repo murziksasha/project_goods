@@ -370,6 +370,10 @@ export const ClientsWorkspace = ({
   });
   const [mergeTargetQuery, setMergeTargetQuery] = useState('');
   const [mergeSourceQuery, setMergeSourceQuery] = useState('');
+  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
+    useState(false);
+  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
+    useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergeSourceId, setMergeSourceId] = useState('');
   const [mainTabForm, setMainTabForm] = useState({
@@ -1314,10 +1318,12 @@ export const ClientsWorkspace = ({
                   onChange={(event) => {
                     setMergeTargetQuery(event.target.value);
                     setMergeTargetId('');
+                    setShowMergeTargetSuggestions(true);
                   }}
                 />
               </label>
-              {mergeTargetOptions.length > 0 ? (
+              {showMergeTargetSuggestions &&
+              mergeTargetOptions.length > 0 ? (
                 <div className='suggestions-panel'>
                   {mergeTargetOptions.map((client) => (
                     <button
@@ -1329,6 +1335,7 @@ export const ClientsWorkspace = ({
                         setMergeTargetQuery(
                           getClientSubtitle(client),
                         );
+                        setShowMergeTargetSuggestions(false);
                       }}
                     >
                       <strong>{client.name}</strong>
@@ -1345,10 +1352,12 @@ export const ClientsWorkspace = ({
                   onChange={(event) => {
                     setMergeSourceQuery(event.target.value);
                     setMergeSourceId('');
+                    setShowMergeSourceSuggestions(true);
                   }}
                 />
               </label>
-              {mergeSourceOptions.length > 0 ? (
+              {showMergeSourceSuggestions &&
+              mergeSourceOptions.length > 0 ? (
                 <div className='suggestions-panel'>
                   {mergeSourceOptions.map((client) => (
                     <button
@@ -1360,6 +1369,7 @@ export const ClientsWorkspace = ({
                         setMergeSourceQuery(
                           getClientSubtitle(client),
                         );
+                        setShowMergeSourceSuggestions(false);
                       }}
                     >
                       <strong>{client.name}</strong>

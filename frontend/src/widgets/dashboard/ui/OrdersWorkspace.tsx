@@ -3768,7 +3768,11 @@ const LineItemsPanel = ({
   }, [kind]);
 
   useEffect(() => {
-    if (kind !== 'product' || name.trim().length < 2) {
+    if (
+      kind !== 'product' ||
+      name.trim().length < 2 ||
+      Boolean(selectedProductId)
+    ) {
       setProductSuggestions([]);
       return;
     }
@@ -3794,10 +3798,14 @@ const LineItemsPanel = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [kind, name]);
+  }, [kind, name, selectedProductId]);
 
   useEffect(() => {
-    if (kind !== 'service' || serviceLookupQuery.length < 2) {
+    if (
+      kind !== 'service' ||
+      serviceLookupQuery.length < 2 ||
+      Boolean(selectedServiceId)
+    ) {
       setServiceSuggestions([]);
       return;
     }
@@ -3821,7 +3829,7 @@ const LineItemsPanel = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [kind, serviceLookupQuery]);
+  }, [kind, selectedServiceId, serviceLookupQuery]);
 
   const applyServiceSuggestion = (service: ServiceCatalogItem) => {
     setName(service.name);

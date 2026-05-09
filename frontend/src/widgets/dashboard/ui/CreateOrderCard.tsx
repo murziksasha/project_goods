@@ -189,6 +189,7 @@ export const CreateOrderCard = ({
   const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
   const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
+  const [selectedDeviceSuggestionId, setSelectedDeviceSuggestionId] = useState<string | null>(null);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
@@ -282,7 +283,9 @@ export const CreateOrderCard = ({
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
   const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
   const visibleSaleProductSuggestions =
-    activeTab === 'sale' && saleProductLookupQuery.length >= 2
+    activeTab === 'sale' &&
+    saleProductLookupQuery.length >= 2 &&
+    !focusedSaleItem?.product
       ? saleProductSuggestions
       : [];
   const saleItemsTotal = saleItems.reduce((total, item) => {
@@ -342,7 +345,7 @@ export const CreateOrderCard = ({
   }, [selectedClientId]);
 
   useEffect(() => {
-    if (deviceLookupQuery.length < 2) {
+    if (deviceLookupQuery.length < 2 || Boolean(selectedDeviceSuggestionId)) {
       setDeviceSuggestions([]);
       setIsDeviceLookupLoading(false);
       return;
@@ -367,10 +370,14 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [deviceLookupQuery]);
+  }, [deviceLookupQuery, selectedDeviceSuggestionId]);
 
   useEffect(() => {
-    if (activeTab !== 'sale' || saleProductLookupQuery.length < 2) {
+    if (
+      activeTab !== 'sale' ||
+      saleProductLookupQuery.length < 2 ||
+      Boolean(focusedSaleItem?.product)
+    ) {
       setSaleProductSuggestions([]);
       return;
     }
@@ -398,7 +405,7 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeTab, saleProductLookupQuery]);
+  }, [activeTab, focusedSaleItem?.product, saleProductLookupQuery]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -420,6 +427,7 @@ export const CreateOrderCard = ({
     setDeviceName(device.name);
     setDeviceSerialNumber(device.serialNumber);
     setDeviceKit(extractDeviceKit(device.note));
+    setSelectedDeviceSuggestionId(device.id);
     setDeviceSuggestions([]);
   };
 
@@ -893,7 +901,10 @@ export const CreateOrderCard = ({
                       onFocus={() => {
                         void ensureClientForDevice();
                       }}
-                      onChange={(event) => setDeviceName(event.target.value)}
+                      onChange={(event) => {
+                        setSelectedDeviceSuggestionId(null);
+                        setDeviceName(event.target.value);
+                      }}
                       placeholder="Enter device name"
                     />
                   </label>
@@ -945,7 +956,10 @@ export const CreateOrderCard = ({
                     <span>&nbsp;</span>
                     <input
                       value={deviceSerialNumber}
-                      onChange={(event) => setDeviceSerialNumber(event.target.value)}
+                      onChange={(event) => {
+                        setSelectedDeviceSuggestionId(null);
+                        setDeviceSerialNumber(event.target.value);
+                      }}
                       placeholder="Serial number"
                     />
                   </label>

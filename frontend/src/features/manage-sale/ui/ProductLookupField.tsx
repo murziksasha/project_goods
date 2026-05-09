@@ -38,7 +38,10 @@ export const ProductLookupField = ({
               className="suggestion-item"
               type="button"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onPickProduct(product)}
+              onClick={() => {
+                onPickProduct(product);
+                onHideSuggestions();
+              }}
             >
               <strong>{product.name}</strong>
               <span>

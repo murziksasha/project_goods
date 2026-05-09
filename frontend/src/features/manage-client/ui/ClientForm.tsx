@@ -158,7 +158,10 @@ export const ClientForm = ({
                   className='suggestion-item'
                   type='button'
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onPickExisting(client)}
+                  onClick={() => {
+                    onPickExisting(client);
+                    setShowRecommendations(false);
+                  }}
                 >
                   <strong>{client.name}</strong>
                   <span>

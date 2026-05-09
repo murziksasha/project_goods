@@ -203,6 +203,10 @@
     grid-template-columns: 1fr;
   }
 
+  .supplier-order-modal-body {
+    grid-template-columns: 1fr;
+  }
+
   .create-order-actions {
     justify-content: stretch;
     flex-direction: column;
