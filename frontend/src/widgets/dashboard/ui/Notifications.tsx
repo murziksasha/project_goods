@@ -51,7 +51,12 @@ export const Notifications = ({
   };
 
   useEffect(() => {
-    if (!error || error === lastErrorRef.current) {
+    if (!error) {
+      lastErrorRef.current = '';
+      return;
+    }
+
+    if (error === lastErrorRef.current) {
       return;
     }
 
@@ -70,7 +75,12 @@ export const Notifications = ({
   }, [error]);
 
   useEffect(() => {
-    if (!successMessage || successMessage === lastSuccessRef.current) {
+    if (!successMessage) {
+      lastSuccessRef.current = '';
+      return;
+    }
+
+    if (successMessage === lastSuccessRef.current) {
       return;
     }
 

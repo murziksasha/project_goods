@@ -59,7 +59,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added @tanstack/react-query and QueryClientProvider in frontend root.
 - Introduced shared query keys and query client config (staleTime, focus/reconnect refetch).
 - products, sales, and client-devices are now loaded via React Query in dashboard effects.
-- Manual refresh actions now use invalidateQueries + etchQuery for consistent cache/state sync after mutations.
+- Manual refresh actions now use invalidateQueries + fetchQuery for consistent cache/state sync after mutations.
 
 - Polling configured for shared collections (products, sales, client-devices) every 30 seconds.
 - Critical mutation flows now rely less on manual local array patching and more on query-backed refresh (products/sales/client-devices).
