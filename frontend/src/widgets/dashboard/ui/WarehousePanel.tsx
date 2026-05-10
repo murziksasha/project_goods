@@ -307,9 +307,10 @@ export const WarehousePanel = ({
   );
 
   const filteredProducts = useMemo(() => {
+    const stockProducts = products.filter((product) => product.quantity > 0);
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return products;
-    return products.filter((product) =>
+    if (!normalizedQuery) return stockProducts;
+    return stockProducts.filter((product) =>
       getSearchText(product, searchMode)
         .toLowerCase()
         .includes(normalizedQuery),

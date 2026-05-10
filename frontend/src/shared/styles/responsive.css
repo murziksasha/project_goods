@@ -207,6 +207,18 @@
     grid-template-columns: 1fr;
   }
 
+  .supplier-order-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .supplier-order-supplier-field {
+    grid-column: auto;
+  }
+
+  .supplier-order-supply-type-field select {
+    width: 100%;
+  }
+
   .create-order-actions {
     justify-content: stretch;
     flex-direction: column;

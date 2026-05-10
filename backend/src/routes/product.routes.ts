@@ -4,6 +4,7 @@ import {
   createProduct,
   deleteProduct,
   exportProductsWorkbook,
+  getNextProductSerialNumber,
   listProducts,
   updateProduct,
 } from '../domain/product/service';
@@ -22,6 +23,14 @@ productRouter.get('/products', async (req, res, next) => {
 productRouter.post('/products', async (req, res, next) => {
   try {
     res.status(201).json(await createProduct(req.body as ProductPayload));
+  } catch (error) {
+    next(error);
+  }
+});
+
+productRouter.post('/products/serial-number/next', async (_req, res, next) => {
+  try {
+    res.json(await getNextProductSerialNumber());
   } catch (error) {
     next(error);
   }

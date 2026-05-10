@@ -3125,6 +3125,42 @@
   align-items: end;
 }
 
+.supplier-order-supplier-field {
+  grid-column: 1 / span 2;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.supplier-search-field {
+  margin: 0;
+}
+
+.supplier-search-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.supplier-search-input-wrap input {
+  padding-right: 52px;
+}
+
+.supplier-search-add-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 30px;
+}
+
+.supplier-order-supply-type-field {
+  justify-self: start;
+}
+
+.supplier-order-supply-type-field select {
+  width: auto;
+  min-width: 140px;
+}
+
 .supplier-serial-auto-row {
   margin-top: -4px;
 }
@@ -3148,6 +3184,80 @@
   color: #5a6f86;
   font-weight: 700;
   margin-top: -6px;
+  display: grid;
+  gap: 6px;
+}
+
+.supplier-order-basket-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+  color: #4f647b;
+}
+
+.supplier-order-basket-table {
+  display: grid;
+  gap: 8px;
+}
+
+.supplier-order-basket-row {
+  margin: 0;
+}
+
+.supplier-order-product-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 140px 120px 140px 44px;
+  gap: 12px;
+  align-items: end;
+}
+
+.supplier-order-product-index {
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d1dae6;
+  border-radius: 8px;
+  background: #f7f9fc;
+  color: #4f647b;
+  font-weight: 700;
+}
+
+.supplier-order-product-name,
+.supplier-order-product-compact {
+  margin: 0;
+}
+
+.supplier-order-product-add {
+  align-self: end;
+}
+
+.supplier-order-inline-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(22, 31, 43, 0.52);
+}
+
+.supplier-order-create-supplier-modal {
+  width: min(700px, calc(100vw - 56px));
+}
+
+.supplier-order-total-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 12px;
+  align-items: end;
+}
+
+.supplier-order-total-row span {
+  color: #4f647b;
+  font-weight: 700;
 }
 
 .create-side-list-item {

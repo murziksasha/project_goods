@@ -88,9 +88,29 @@ Client status localization rule: keep client status values in original English (
 - Added new API resource for suggestion products used by sales/order search flows.
 - Endpoints:
   - `GET /catalog-products`
+  - `POST /catalog-products`
   - `PUT /catalog-products/:catalogProductId`
 - Data source is backend auto-sync from:
   - order card product rows
   - sales card product rows
   - sales flow create-order product rows
+- Manual create is also supported via `POST /catalog-products` (name + note + isActive).
 - Returned fields: `id`, `name`, `note`, `isActive`, `sourceTags`, `lastSeenAt`, `createdAt`, `updatedAt`.
+
+## Product Serial Number Sequence (2026-05-10)
+
+- `POST /products/serial-number/next`
+  - Reserved for Warehouse receipt flow only.
+  - Returns the next unique product serial number from DB sequence.
+  - Example response: `{ "serialNumber": "S000001", "pattern": "^S\\d+$" }`
+- `POST /products`
+  - Stock product creation/updates belong to warehouse flows.
+  - Catalogization flows must use `/catalog-products` and must not create stock entries.
+
+## Warehouse Flow Guard (2026-05-10)
+
+- Until receipt (оприходування) workflow is implemented, no flow may place items into stock balances.
+- This includes:
+  - `Products & Services -> Products` name creation/editing (catalog-only)
+  - Supplier order draft creation
+- Warehouse stock balances must contain only real received stock (`quantity > 0`).
