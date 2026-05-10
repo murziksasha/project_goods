@@ -6,6 +6,48 @@ import { normalizeProductPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { ProductPayload } from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
+import {
+  formatProductSerialNumber,
+  getNextProductSerialNumberValue,
+} from '../sequence/service';
+import { Sequence } from '../sequence/model';
+
+const productSerialSequenceKey = 'product-serial-number';
+const productSerialPattern = /^S\d+$/;
+
+const syncProductSerialSequenceWithDatabase = async () => {
+  const [lastSequence, topProduct] = await Promise.all([
+    Sequence.findOne({ key: productSerialSequenceKey }).lean<{ value: number } | null>(),
+    Product.findOne({
+      serialNumber: { $regex: '^S\\d+$' },
+    })
+      .sort({ serialNumber: -1 })
+      .select({ serialNumber: 1 })
+      .lean<{ serialNumber?: string } | null>(),
+  ]);
+
+  const serialNumericValue = Number(topProduct?.serialNumber?.slice(1) ?? 0);
+  const maxValue = Math.max(lastSequence?.value ?? 0, Number.isFinite(serialNumericValue) ? serialNumericValue : 0);
+
+  await Sequence.findOneAndUpdate(
+    { key: productSerialSequenceKey },
+    { value: maxValue },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
+};
+
+const reserveNextUniqueProductSerialNumber = async () => {
+  await syncProductSerialSequenceWithDatabase();
+
+  for (let attempts = 0; attempts < 2000; attempts += 1) {
+    const nextValue = await getNextProductSerialNumberValue();
+    const candidate = formatProductSerialNumber(nextValue);
+    const exists = await Product.exists({ serialNumber: candidate });
+    if (!exists) return candidate;
+  }
+
+  throw new Error('Failed to generate unique product serial number.');
+};
 
 export const listProducts = async (query: unknown) => {
   const products = await Product.find(getSearchQuery(query))
@@ -16,10 +58,23 @@ export const listProducts = async (query: unknown) => {
 };
 
 export const createProduct = async (payload: ProductPayload) => {
-  const product = new Product(normalizeProductPayload(payload));
+  const normalizedPayload = normalizeProductPayload(payload);
+  if (!normalizedPayload.serialNumber) {
+    normalizedPayload.serialNumber = await reserveNextUniqueProductSerialNumber();
+  }
+
+  const product = new Product(normalizedPayload);
   await product.validate();
   await product.save();
   return formatProduct(product.toObject<ProductDocument>());
+};
+
+export const getNextProductSerialNumber = async () => {
+  const serialNumber = await reserveNextUniqueProductSerialNumber();
+  return {
+    serialNumber,
+    pattern: productSerialPattern.source,
+  };
 };
 
 export const updateProduct = async (productId: string, payload: ProductPayload) => {

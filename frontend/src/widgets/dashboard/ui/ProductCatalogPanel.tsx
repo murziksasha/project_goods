@@ -69,6 +69,7 @@ type ProductCatalogPanelProps = {
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
+  onCreateCatalogProduct: (payload: CatalogProductFormValues) => Promise<boolean>;
   onDeleteCatalogProduct: (catalogProductId: string) => Promise<boolean>;
 };
 
@@ -117,6 +118,7 @@ export const ProductCatalogPanel = ({
   onUpdateClientDevice,
   onDeleteClientDevice,
   onUpdateCatalogProduct,
+  onCreateCatalogProduct,
   onDeleteCatalogProduct,
 }: ProductCatalogPanelProps) => {
   void productForm;
@@ -146,7 +148,13 @@ export const ProductCatalogPanel = ({
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
+  const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
+  const [isCreateCatalogProductSaving, setIsCreateCatalogProductSaving] = useState(false);
   const [createDeviceForm, setCreateDeviceForm] = useState({
+    name: '',
+    note: '',
+  });
+  const [createCatalogProductForm, setCreateCatalogProductForm] = useState({
     name: '',
     note: '',
   });
@@ -286,15 +294,23 @@ export const ProductCatalogPanel = ({
             <button type="button" className="orders-create-button" onClick={() => setIsCreateSupplierModalOpen(true)}>
               Create supplier
             </button>
+          ) : isCatalogProductsTab ? (
+            <button
+              type="button"
+              className="orders-create-button"
+              onClick={() => setIsCreateCatalogProductModalOpen(true)}
+            >
+              Create product
+            </button>
           ) : (
             <button type="button" className="orders-create-button" onClick={openServiceForm}>
-              {isCatalogProductsTab ? 'Create product' : 'Create service'}
+              Create service
             </button>
           )}
         </div>
       </div>
 
-      {!isProductsTab && !isSuppliersTab && isServiceFormOpen ? (
+      {!isProductsTab && !isSuppliersTab && !isCatalogProductsTab && isServiceFormOpen ? (
         <div className="catalog-inline-form">
           <ServiceCatalogForm
             form={serviceForm}
@@ -481,6 +497,95 @@ export const ProductCatalogPanel = ({
                   setCreateSupplierForm({ name: '', phone: '+380', note: '' });
                 }
               }}>Create</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {isCreateCatalogProductModalOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsCreateCatalogProductModalOpen(false);
+          }}
+        >
+          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
+            <header className="catalog-edit-header">
+              <div className="catalog-edit-title"><h2>Product</h2></div>
+              <button
+                type="button"
+                className="create-order-close"
+                onClick={() => setIsCreateCatalogProductModalOpen(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </header>
+            <div className="catalog-edit-body">
+              <label className="field">
+                <span>Product name</span>
+                <input
+                  value={createCatalogProductForm.name}
+                  onChange={(event) =>
+                    setCreateCatalogProductForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="field field-wide">
+                <span>Note</span>
+                <textarea
+                  rows={3}
+                  value={createCatalogProductForm.note}
+                  onChange={(event) =>
+                    setCreateCatalogProductForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className="catalog-edit-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setIsCreateCatalogProductModalOpen(false)}
+                disabled={isCreateCatalogProductSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={
+                  isCreateCatalogProductSaving ||
+                  createCatalogProductForm.name.trim().length < 2 ||
+                  catalogProducts.some(
+                    (item) =>
+                      item.name.trim().toLowerCase() ===
+                      createCatalogProductForm.name.trim().toLowerCase(),
+                  )
+                }
+                onClick={async () => {
+                  setIsCreateCatalogProductSaving(true);
+                  const ok = await onCreateCatalogProduct({
+                    name: createCatalogProductForm.name.trim(),
+                    note: createCatalogProductForm.note.trim(),
+                    isActive: true,
+                  });
+                  if (ok) {
+                    setCreateCatalogProductForm({ name: '', note: '' });
+                    setIsCreateCatalogProductModalOpen(false);
+                  }
+                  setIsCreateCatalogProductSaving(false);
+                }}
+              >
+                {isCreateCatalogProductSaving ? 'Saving...' : 'Save'}
+              </button>
             </footer>
           </section>
         </div>

@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import type { CatalogProduct, CatalogProductFormValues } from '../../../entities/catalog-product/model/types';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -27,8 +28,11 @@ type Props = {
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
   suppliers: Supplier[];
+  catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  onUpdateSupplier: (supplierId: string, payload: SupplierFormValues) => Promise<boolean>;
+  onUpdateCatalogProduct: (catalogProductId: string, payload: CatalogProductFormValues) => Promise<boolean>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
@@ -67,8 +71,11 @@ export const SupplierOrdersWorkspace = ({
   activeTab,
   onActiveTabChange,
   suppliers,
+  catalogProducts,
   currentEmployeeName,
   onCreateSupplier,
+  onUpdateSupplier,
+  onUpdateCatalogProduct,
   onSuccess,
   onError,
 }: Props) => {
@@ -106,6 +113,12 @@ export const SupplierOrdersWorkspace = ({
   const [statusQuery, setStatusQuery] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSupplierForEdit, setSelectedSupplierForEdit] = useState<Supplier | null>(null);
+  const [selectedCatalogProductForEdit, setSelectedCatalogProductForEdit] = useState<CatalogProduct | null>(null);
+  const [supplierEditForm, setSupplierEditForm] = useState({ name: '', phone: '', note: '', isActive: true });
+  const [productEditForm, setProductEditForm] = useState({ name: '', note: '', isActive: true });
+  const [isSupplierSaving, setIsSupplierSaving] = useState(false);
+  const [isProductSaving, setIsProductSaving] = useState(false);
 
   const filteredOrders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -150,6 +163,25 @@ export const SupplierOrdersWorkspace = ({
       }),
     );
   }, [paymentStatus, query, selectedStatuses]);
+
+  useEffect(() => {
+    if (!selectedSupplierForEdit) return;
+    setSupplierEditForm({
+      name: selectedSupplierForEdit.name,
+      phone: selectedSupplierForEdit.phone,
+      note: selectedSupplierForEdit.note,
+      isActive: selectedSupplierForEdit.isActive,
+    });
+  }, [selectedSupplierForEdit]);
+
+  useEffect(() => {
+    if (!selectedCatalogProductForEdit) return;
+    setProductEditForm({
+      name: selectedCatalogProductForEdit.name,
+      note: selectedCatalogProductForEdit.note,
+      isActive: selectedCatalogProductForEdit.isActive,
+    });
+  }, [selectedCatalogProductForEdit]);
 
   return (
     <section className='orders-page'>
@@ -242,13 +274,43 @@ export const SupplierOrdersWorkspace = ({
           <tbody>
             {paginatedOrders.map((order) => (
               <tr key={order.id}>
-                <td>{order.id}</td>
-                <td>{order.productName}</td>
+                <td><button type='button' className='catalog-name-button' onClick={() => setIsModalOpen(true)}>{order.id}</button></td>
+                <td>
+                  <button
+                    type='button'
+                    className='catalog-name-button'
+                    onClick={() => {
+                      const matchedProduct = catalogProducts.find((product) => product.name.trim().toLowerCase() === order.productName.trim().toLowerCase());
+                      if (!matchedProduct) {
+                        onError('Товар не знайдено в Products каталозі.');
+                        return;
+                      }
+                      setSelectedCatalogProductForEdit(matchedProduct);
+                    }}
+                  >
+                    {order.productName}
+                  </button>
+                </td>
                 <td>{order.quantity} шт</td>
                 <td>{formatCurrency(order.price)}</td>
                 <td>{formatCurrency(order.total)}</td>
                 <td>{formatCurrency(order.paid)}</td>
-                <td>{order.supplierName}</td>
+                <td>
+                  <button
+                    type='button'
+                    className='catalog-name-button'
+                    onClick={() => {
+                      const matchedSupplier = suppliers.find((supplier) => supplier.id === order.supplierId);
+                      if (!matchedSupplier) {
+                        onError('Постачальника не знайдено.');
+                        return;
+                      }
+                      setSelectedSupplierForEdit(matchedSupplier);
+                    }}
+                  >
+                    {order.supplierName}
+                  </button>
+                </td>
                 <td>{formatDateTime(order.deliveryDate)}</td>
                 <td>{orderStatuses.find((status) => status.key === order.status)?.label ?? order.status}</td>
                 <td>{paymentStatuses.find((status) => status.key === order.paymentStatus)?.label ?? order.paymentStatus}</td>
@@ -278,9 +340,10 @@ export const SupplierOrdersWorkspace = ({
           const supplier = suppliers.find((item) => item.id === payload.supplierId);
           const status: SupplierOrderStatus = 'request';
           const autoPaymentStatus = getAutoPaymentStatus(status);
+          const id = payload.itemIndex === 0 ? payload.orderBaseId : `${payload.orderBaseId}-${payload.itemIndex}`;
           setOrders((current) => [
             {
-              id: `SO-${Date.now()}`,
+              id,
               supplierId: supplier?.id ?? '',
               supplierName: supplier?.name ?? 'Не обрано',
               productName: payload.productName,
@@ -297,6 +360,100 @@ export const SupplierOrdersWorkspace = ({
           ]);
         }}
       />
+
+      {selectedSupplierForEdit ? (
+        <div className='modal-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedSupplierForEdit(null); }}>
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'><h2>Supplier</h2></div>
+              <button type='button' className='create-order-close' onClick={() => setSelectedSupplierForEdit(null)} aria-label='Close'>&times;</button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'><span>Name</span><input value={supplierEditForm.name} onChange={(event) => setSupplierEditForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label className='field'><span>Phone</span><input value={supplierEditForm.phone} onChange={(event) => setSupplierEditForm((current) => ({ ...current, phone: event.target.value }))} /></label>
+              <label className='field field-wide'><span>Note</span><textarea rows={3} value={supplierEditForm.note} onChange={(event) => setSupplierEditForm((current) => ({ ...current, note: event.target.value }))} /></label>
+              <label className='field'>
+                <span>Status</span>
+                <select value={supplierEditForm.isActive ? 'active' : 'inactive'} onChange={(event) => setSupplierEditForm((current) => ({ ...current, isActive: event.target.value === 'active' }))}>
+                  <option value='active'>active</option>
+                  <option value='inactive'>inactive</option>
+                </select>
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSupplierSaving || supplierEditForm.name.trim().length < 2 || supplierEditForm.phone.trim().length < 3}
+                onClick={async () => {
+                  if (!selectedSupplierForEdit) return;
+                  setIsSupplierSaving(true);
+                  const ok = await onUpdateSupplier(selectedSupplierForEdit.id, {
+                    name: supplierEditForm.name.trim(),
+                    phone: supplierEditForm.phone.trim(),
+                    note: supplierEditForm.note.trim(),
+                    supplierOrder: selectedSupplierForEdit.supplierOrder,
+                    isActive: supplierEditForm.isActive,
+                  });
+                  setIsSupplierSaving(false);
+                  if (!ok) return;
+                  onSuccess('Supplier updated.');
+                  setOrders((current) => current.map((order) => order.supplierId === selectedSupplierForEdit.id ? { ...order, supplierName: supplierEditForm.name.trim() } : order));
+                  setSelectedSupplierForEdit(null);
+                }}
+              >
+                {isSupplierSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedCatalogProductForEdit ? (
+        <div className='modal-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedCatalogProductForEdit(null); }}>
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'><h2>Product</h2></div>
+              <button type='button' className='create-order-close' onClick={() => setSelectedCatalogProductForEdit(null)} aria-label='Close'>&times;</button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'><span>Product name</span><input value={productEditForm.name} onChange={(event) => setProductEditForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label className='field field-wide'><span>Note</span><textarea rows={3} value={productEditForm.note} onChange={(event) => setProductEditForm((current) => ({ ...current, note: event.target.value }))} /></label>
+              <label className='field'>
+                <span>Status</span>
+                <select value={productEditForm.isActive ? 'active' : 'inactive'} onChange={(event) => setProductEditForm((current) => ({ ...current, isActive: event.target.value === 'active' }))}>
+                  <option value='active'>active</option>
+                  <option value='inactive'>inactive</option>
+                </select>
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isProductSaving || productEditForm.name.trim().length < 2}
+                onClick={async () => {
+                  if (!selectedCatalogProductForEdit) return;
+                  setIsProductSaving(true);
+                  const previousName = selectedCatalogProductForEdit.name;
+                  const ok = await onUpdateCatalogProduct(selectedCatalogProductForEdit.id, {
+                    name: productEditForm.name.trim(),
+                    note: productEditForm.note.trim(),
+                    isActive: productEditForm.isActive,
+                  });
+                  setIsProductSaving(false);
+                  if (!ok) return;
+                  onSuccess('Product updated.');
+                  setOrders((current) => current.map((order) => order.productName.trim().toLowerCase() === previousName.trim().toLowerCase() ? { ...order, productName: productEditForm.name.trim() } : order));
+                  setSelectedCatalogProductForEdit(null);
+                }}
+              >
+                {isProductSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };

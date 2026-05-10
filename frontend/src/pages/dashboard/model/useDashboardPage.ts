@@ -37,6 +37,7 @@ import {
 import { initialSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import {
+  createCatalogProduct,
   deleteCatalogProduct,
   getCatalogProducts,
   updateCatalogProduct,
@@ -245,6 +246,12 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const updateCatalogProductMutation = useMutation({
     mutationFn: ({ catalogProductId, payload }: { catalogProductId: string; payload: CatalogProductFormValues }) =>
       updateCatalogProduct(catalogProductId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+    },
+  });
+  const createCatalogProductMutation = useMutation({
+    mutationFn: createCatalogProduct,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
     },
@@ -548,6 +555,29 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
             error instanceof Error
               ? error.message
               : 'Failed to update catalog product.',
+          );
+          return false;
+        }
+      },
+      createCatalogProductCard: async (payload: CatalogProductFormValues) => {
+        try {
+          await createCatalogProductMutation.mutateAsync(payload);
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.catalogProducts,
+          });
+          const nextCatalogProducts = await queryClient.fetchQuery({
+            queryKey: queryKeys.catalogProducts,
+            queryFn: () => getCatalogProducts(),
+          });
+          setCatalogProducts(nextCatalogProducts);
+          setLastSyncAt(new Date().toISOString());
+          setSuccessMessage('Catalog product created.');
+          return true;
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to create catalog product.',
           );
           return false;
         }

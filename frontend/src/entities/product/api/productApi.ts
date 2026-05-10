@@ -22,6 +22,17 @@ export const createProduct = async (payload: ProductFormValues) => {
   }
 };
 
+export const getNextProductSerialNumber = async () => {
+  try {
+    const response = await apiClient.post<{ serialNumber: string }>(
+      '/products/serial-number/next',
+    );
+    return response.data.serialNumber;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const updateProduct = async (
   productId: string,
   payload: ProductFormValues,

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  createCatalogProduct,
   deleteCatalogProduct,
   listCatalogProducts,
   updateCatalogProduct,
@@ -11,6 +12,14 @@ export const catalogProductRouter = Router();
 catalogProductRouter.get('/catalog-products', async (req, res, next) => {
   try {
     res.json(await listCatalogProducts(req.query.query));
+  } catch (error) {
+    next(error);
+  }
+});
+
+catalogProductRouter.post('/catalog-products', async (req, res, next) => {
+  try {
+    res.status(201).json(await createCatalogProduct(req.body as CatalogProductPayload));
   } catch (error) {
     next(error);
   }

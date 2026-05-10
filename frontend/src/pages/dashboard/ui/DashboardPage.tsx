@@ -736,8 +736,11 @@ export const DashboardPage = () => {
                   activeTab={activeOrdersTab}
                   onActiveTabChange={changeOrdersTab}
                   suppliers={state.suppliers}
+                  catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
                   onCreateSupplier={actions.createSupplierCard}
+                  onUpdateSupplier={actions.updateSupplierCard}
+                  onUpdateCatalogProduct={actions.updateCatalogProductCard}
                   onSuccess={actions.showSuccessMessage}
                   onError={actions.showError}
                 />
@@ -855,6 +858,7 @@ export const DashboardPage = () => {
               onUpdateClientDevice={actions.updateClientDeviceCard}
               onDeleteClientDevice={actions.deleteClientDeviceCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              onCreateCatalogProduct={actions.createCatalogProductCard}
               onDeleteCatalogProduct={actions.deleteCatalogProductCard}
             />
           ) : activePage === 'warehouse' ? (
