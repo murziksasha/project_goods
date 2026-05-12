@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Client } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
@@ -11,6 +11,7 @@ import {
   formatDate,
 } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 
 type WarehouseTab =
   | 'stock'
@@ -34,7 +35,7 @@ type ServiceCenter = {
   phone: string;
 };
 type WarehouseLocation = { id: string; name: string };
-type ReceiptStatus = 'approved' | 'received';
+type ReceiptStatus = 'new' | 'approved' | 'received';
 type ReceiptRow = {
   id: string;
   number: number;
@@ -48,6 +49,7 @@ type ReceiptRow = {
   acceptedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
+  paymentStatus?: 'pending' | 'paid' | 'cancelled';
   note: string;
 };
 type WarehouseItem = {
@@ -119,24 +121,24 @@ const searchModes: Array<{
 ];
 
 const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'service-centers', label: 'Сервісні центри' },
-  { key: 'warehouses', label: 'Склади' },
-  { key: 'administrators', label: 'Адміністратори' },
+  { key: 'service-centers', label: 'РЎРµСЂРІС–СЃРЅС– С†РµРЅС‚СЂРё' },
+  { key: 'warehouses', label: 'РЎРєР»Р°РґРё' },
+  { key: 'administrators', label: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂРё' },
 ];
 
 const initialServiceCenters: ServiceCenter[] = [
   {
     id: 'sc-1',
-    name: 'Філія Ремонт Сервіс Чорноморськ',
+    name: 'Р¤С–Р»С–СЏ Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
     color: '#8b5cf6',
-    address: 'вул. Вишнева 4 м. Чорноморськ Одеська обл',
+    address: 'РІСѓР». Р’РёС€РЅРµРІР° 4 Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р»',
     phone: '+380635567090',
   },
   {
     id: 'sc-2',
-    name: 'Ремонт Сервіс Чорноморськ',
+    name: 'Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
     color: '#10b981',
-    address: 'вул. Віталія Шума 21 м. Чорноморськ Одеська обл',
+    address: 'РІСѓР». Р’С–С‚Р°Р»С–СЏ РЁСѓРјР° 21 Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р»',
     phone: '+380635567090',
   },
 ];
@@ -144,23 +146,23 @@ const initialServiceCenters: ServiceCenter[] = [
 const initialWarehouses: WarehouseItem[] = [
   {
     id: 'w-1',
-    name: 'Ремонт Сервіс Чорноморськ',
+    name: 'Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
     isActive: true,
     serviceCenterId: 'sc-2',
     receiptAddress:
-      'вул. Віталія Шума буд. 2-Б м. Чорноморськ Одеська обл.',
+      'РІСѓР». Р’С–С‚Р°Р»С–СЏ РЁСѓРјР° Р±СѓРґ. 2-Р‘ Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р».',
     receiptPhone: '063 556 70 90',
     locations: [
       { id: 'l-1', name: 'A' },
-      { id: 'l-2', name: 'Вітрина - 3' },
+      { id: 'l-2', name: 'Р’С–С‚СЂРёРЅР° - 3' },
     ],
   },
   {
     id: 'w-2',
-    name: 'Філія Основний',
+    name: 'Р¤С–Р»С–СЏ РћСЃРЅРѕРІРЅРёР№',
     isActive: true,
     serviceCenterId: 'sc-1',
-    receiptAddress: 'вул. Вишнева, буд. 4 Чорноморськ Одеська обл.',
+    receiptAddress: 'РІСѓР». Р’РёС€РЅРµРІР°, Р±СѓРґ. 4 Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р».',
     receiptPhone: '063 556 70 90',
     locations: [{ id: 'l-3', name: 'A' }],
   },
@@ -285,14 +287,49 @@ export const WarehousePanel = ({
         price: product.price,
         amount: product.price * product.quantity,
         paid: product.price * product.quantity,
-        supplierName: product.purchasePlace || 'Постачальник',
+        supplierName: product.purchasePlace || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
         createdAt: product.createdAt,
-        acceptedBy: 'Адміністратор',
+        acceptedBy: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
         acceptedAt: product.purchaseDate || product.createdAt,
         status: product.freeQuantity > 0 ? 'received' : 'approved',
-        note: product.note || 'Л',
+        paymentStatus: 'pending',
+        note: product.note || 'Р›',
       })),
   );
+
+  useEffect(() => {
+    let isActive = true;
+    void getSupplierOrders()
+      .then((orders) => {
+        if (!isActive) return;
+        const rows: ReceiptRow[] = orders.flatMap((order) =>
+          order.items.map((item) => ({
+            id: `${order.id}-${item.itemIndex}`,
+            number: Number(`${order.createdAt.slice(2, 4)}${String(item.itemIndex + 1).padStart(3, '0')}`),
+            productName: item.productName,
+            quantity: item.quantity,
+            price: item.price,
+            amount: item.price * item.quantity,
+            paid: order.paid,
+            supplierName: order.supplierName || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+            createdAt: order.createdAt,
+            acceptedBy: order.createdBy || 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
+            acceptedAt: order.updatedAt,
+            status: order.receiptStatus,
+            paymentStatus: order.paymentStatus,
+            note: order.note || '',
+          })),
+        );
+        setReceiptHistory((current) => {
+          const manualRows = current.filter((row) => !row.id.startsWith('so-'));
+          return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      isActive = false;
+    };
+  }, []);
   const activeEmployees = useMemo(
     () => employees.filter((employee) => employee.isActive),
     [employees],
@@ -500,12 +537,13 @@ export const WarehousePanel = ({
         price,
         amount,
         paid: amount,
-        supplierName: supplier?.name || 'Постачальник',
+        supplierName: supplier?.name || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
         createdAt: now,
-        acceptedBy: 'Адміністратор',
+        acceptedBy: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
         acceptedAt: now,
-        status: 'received',
-        note: receiptForm.note.trim() || 'Л',
+        status: 'new',
+        paymentStatus: 'pending',
+        note: receiptForm.note.trim() || 'Р›',
       },
       ...current,
     ]);
@@ -523,7 +561,7 @@ export const WarehousePanel = ({
     onProductChange('quantity', String(quantity));
     onProductChange(
       'purchasePlace',
-      supplier?.name || 'Постачальник',
+      supplier?.name || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
     );
     onProductChange('purchaseDate', now.slice(0, 10));
     onProductChange('note', receiptForm.note.trim());
@@ -570,7 +608,7 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Previous page'
           >
-            ‹
+            вЂ№
           </button>
           <span className='warehouse-page-number'>1</span>
           <button
@@ -578,14 +616,14 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Next page'
           >
-            ›
+            вЂє
           </button>
           <button
             type='button'
             className='toolbar-square-button'
             aria-label='Filters'
           >
-            ☷
+            в·
           </button>
           <button type='button' className='toolbar-filter-button'>
             Filter
@@ -626,14 +664,14 @@ export const WarehousePanel = ({
       {activeTab === 'receipts' ? (
         <div className='warehouse-receipt-header'>
           <p className='panel-subtitle'>
-            Замовлення постачальникам, які очікують оприбуткування
+            Р—Р°РјРѕРІР»РµРЅРЅСЏ РїРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРєР°Рј, СЏРєС– РѕС‡С–РєСѓСЋС‚СЊ РѕРїСЂРёР±СѓС‚РєСѓРІР°РЅРЅСЏ
           </p>
           <button
             type='button'
             className='orders-create-button'
             onClick={() => setIsReceiptModalOpen(true)}
           >
-            + Оприбуткувати
+            + РћРїСЂРёР±СѓС‚РєСѓРІР°С‚Рё
           </button>
         </div>
       ) : null}
@@ -708,18 +746,18 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             serviceCenterModalId === 'new'
-              ? 'Додати сервісний центр'
-              : 'Редагувати сервісний центр'
+              ? 'Р”РѕРґР°С‚Рё СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ'
+              : 'Р РµРґР°РіСѓРІР°С‚Рё СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ'
           }
           onClose={() => setServiceCenterModalId(null)}
           onSubmit={saveServiceCenter}
           submitLabel={
-            serviceCenterModalId === 'new' ? 'Створити' : 'Зберегти'
+            serviceCenterModalId === 'new' ? 'РЎС‚РІРѕСЂРёС‚Рё' : 'Р—Р±РµСЂРµРіС‚Рё'
           }
           canSubmit={serviceCenterForm.name.trim().length > 1}
         >
           <label className='field'>
-            <span>Назва:</span>
+            <span>РќР°Р·РІР°:</span>
             <input
               value={serviceCenterForm.name}
               onChange={(event) =>
@@ -728,11 +766,11 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Введіть назву'
+              placeholder='Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ'
             />
           </label>
           <label className='field'>
-            <span>Колір (#000000):</span>
+            <span>РљРѕР»С–СЂ (#000000):</span>
             <div className='warehouse-settings-color-field'>
               <input
                 value={serviceCenterForm.color}
@@ -746,7 +784,7 @@ export const WarehousePanel = ({
               />
               <input
                 type='color'
-                aria-label='Колір сервісного центру'
+                aria-label='РљРѕР»С–СЂ СЃРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ'
                 value={serviceCenterForm.color}
                 onChange={(event) =>
                   setServiceCenterForm((current) => ({
@@ -758,7 +796,7 @@ export const WarehousePanel = ({
             </div>
           </label>
           <label className='field'>
-            <span>Адреса:</span>
+            <span>РђРґСЂРµСЃР°:</span>
             <input
               value={serviceCenterForm.address}
               onChange={(event) =>
@@ -767,11 +805,11 @@ export const WarehousePanel = ({
                   address: event.target.value,
                 }))
               }
-              placeholder='Введіть адресу'
+              placeholder='Р’РІРµРґС–С‚СЊ Р°РґСЂРµСЃСѓ'
             />
           </label>
           <label className='field'>
-            <span>Телефон:</span>
+            <span>РўРµР»РµС„РѕРЅ:</span>
             <input
               value={serviceCenterForm.phone}
               onChange={(event) =>
@@ -790,13 +828,13 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             warehouseModalId === 'new'
-              ? 'Додати склад'
-              : 'Редагувати склад'
+              ? 'Р”РѕРґР°С‚Рё СЃРєР»Р°Рґ'
+              : 'Р РµРґР°РіСѓРІР°С‚Рё СЃРєР»Р°Рґ'
           }
           onClose={() => setWarehouseModalId(null)}
           onSubmit={saveWarehouse}
           submitLabel={
-            warehouseModalId === 'new' ? 'Створити' : 'Зберегти'
+            warehouseModalId === 'new' ? 'РЎС‚РІРѕСЂРёС‚Рё' : 'Р—Р±РµСЂРµРіС‚Рё'
           }
           canSubmit={
             warehouseForm.name.trim().length > 1 &&
@@ -807,7 +845,7 @@ export const WarehousePanel = ({
           }
         >
           <label className='field'>
-            <span>Назва:</span>
+            <span>РќР°Р·РІР°:</span>
             <input
               value={warehouseForm.name}
               onChange={(event) =>
@@ -816,7 +854,7 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Введіть назву'
+              placeholder='Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ'
             />
           </label>
           <label className='create-inline-checkbox'>
@@ -830,10 +868,10 @@ export const WarehousePanel = ({
                 }))
               }
             />
-            <span>Активність</span>
+            <span>РђРєС‚РёРІРЅС–СЃС‚СЊ</span>
           </label>
           <label className='field'>
-            <span>Належність до сервісного центру:</span>
+            <span>РќР°Р»РµР¶РЅС–СЃС‚СЊ РґРѕ СЃРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ:</span>
             <select
               value={warehouseForm.serviceCenterId}
               onChange={(event) =>
@@ -843,7 +881,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              <option value=''>Оберіть сервісний центр</option>
+              <option value=''>РћР±РµСЂС–С‚СЊ СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ</option>
               {serviceCenters.map((serviceCenter) => (
                 <option
                   key={serviceCenter.id}
@@ -855,7 +893,7 @@ export const WarehousePanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>Адреса для квитанції:</span>
+            <span>РђРґСЂРµСЃР° РґР»СЏ РєРІРёС‚Р°РЅС†С–С—:</span>
             <input
               value={warehouseForm.receiptAddress}
               onChange={(event) =>
@@ -867,7 +905,7 @@ export const WarehousePanel = ({
             />
           </label>
           <label className='field'>
-            <span>Телефон для квитанції:</span>
+            <span>РўРµР»РµС„РѕРЅ РґР»СЏ РєРІРёС‚Р°РЅС†С–С—:</span>
             <input
               value={warehouseForm.receiptPhone}
               onChange={(event) =>
@@ -879,7 +917,7 @@ export const WarehousePanel = ({
             />
           </label>
           <div className='field'>
-            <span>Локації:</span>
+            <span>Р›РѕРєР°С†С–С—:</span>
             <div className='warehouse-settings-locations'>
               {warehouseForm.locations.map((location, index) => (
                 <input
@@ -895,7 +933,7 @@ export const WarehousePanel = ({
                       locations: nextLocations,
                     }));
                   }}
-                  placeholder='Вкажіть назву локації'
+                  placeholder='Р’РєР°Р¶С–С‚СЊ РЅР°Р·РІСѓ Р»РѕРєР°С†С–С—'
                 />
               ))}
             </div>
@@ -909,7 +947,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              + Додати локацію
+              + Р”РѕРґР°С‚Рё Р»РѕРєР°С†С–СЋ
             </button>
           </div>
         </ModalShell>
@@ -917,11 +955,11 @@ export const WarehousePanel = ({
 
       {isReceiptModalOpen ? (
         <ModalShell
-          title='Оприходування'
+          title='РћРїСЂРёС…РѕРґСѓРІР°РЅРЅСЏ'
           onClose={() => setIsReceiptModalOpen(false)}
           onSubmit={createReceipt}
           submitLabel={
-            isProductSaving ? 'Збереження...' : 'Оприходувати'
+            isProductSaving ? 'Р—Р±РµСЂРµР¶РµРЅРЅСЏ...' : 'РћРїСЂРёС…РѕРґСѓРІР°С‚Рё'
           }
           canSubmit={Boolean(
             receiptForm.supplierId &&
@@ -931,7 +969,7 @@ export const WarehousePanel = ({
         >
           <div className='warehouse-receipt-modal-grid'>
             <label className='field'>
-              <span>Постачальник*</span>
+              <span>РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє*</span>
               <select
                 value={receiptForm.supplierId}
                 onChange={(event) =>
@@ -941,7 +979,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>Не обрано</option>
+                <option value=''>РќРµ РѕР±СЂР°РЅРѕ</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
@@ -950,7 +988,7 @@ export const WarehousePanel = ({
               </select>
             </label>
             <label className='field'>
-              <span>Товар*</span>
+              <span>РўРѕРІР°СЂ*</span>
               <input
                 value={receiptForm.productName}
                 onChange={(event) =>
@@ -959,11 +997,11 @@ export const WarehousePanel = ({
                     productName: event.target.value,
                   }))
                 }
-                placeholder='Введіть щоб знайти та додати'
+                placeholder='Р’РІРµРґС–С‚СЊ С‰РѕР± Р·РЅР°Р№С‚Рё С‚Р° РґРѕРґР°С‚Рё'
               />
             </label>
             <label className='field'>
-              <span>Ціна (UAH)*</span>
+              <span>Р¦С–РЅР° (UAH)*</span>
               <input
                 type='number'
                 min='0'
@@ -977,7 +1015,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field'>
-              <span>К-сть*</span>
+              <span>Рљ-СЃС‚СЊ*</span>
               <input
                 type='number'
                 min='1'
@@ -991,7 +1029,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field field-wide'>
-              <span>Примітка</span>
+              <span>РџСЂРёРјС–С‚РєР°</span>
               <textarea
                 rows={3}
                 value={receiptForm.note}
@@ -1012,24 +1050,25 @@ export const WarehousePanel = ({
 
 const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
   if (receipts.length === 0)
-    return <p className='empty-state'>Немає оприбуткувань.</p>;
+    return <p className='empty-state'>РќРµРјР°С” РѕРїСЂРёР±СѓС‚РєСѓРІР°РЅСЊ.</p>;
   return (
     <div className='catalog-table-wrap'>
       <table className='catalog-table warehouse-receipts-table'>
         <thead>
           <tr>
-            <th>№</th>
-            <th>Товар</th>
-            <th>К-сть</th>
-            <th>Ціна</th>
-            <th>Вартість</th>
-            <th>Сплачено</th>
-            <th>Постачальник</th>
-            <th>Дата пост.</th>
-            <th>Прийняв</th>
-            <th>Опріб.</th>
-            <th>Статус</th>
-            <th>Прим.</th>
+            <th>в„–</th>
+            <th>РўРѕРІР°СЂ</th>
+            <th>Рљ-СЃС‚СЊ</th>
+            <th>Р¦С–РЅР°</th>
+            <th>Р’Р°СЂС‚С–СЃС‚СЊ</th>
+            <th>РЎРїР»Р°С‡РµРЅРѕ</th>
+            <th>РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє</th>
+            <th>Р”Р°С‚Р° РїРѕСЃС‚.</th>
+            <th>РџСЂРёР№РЅСЏРІ</th>
+            <th>РћРїСЂС–Р±.</th>
+            <th>РЎС‚Р°С‚СѓСЃ</th>
+              <th>РћРїР»Р°С‚Р°</th>
+              <th>РџСЂРёРј.</th>
           </tr>
         </thead>
         <tbody>
@@ -1037,25 +1076,29 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
             <tr key={receipt.id}>
               <td>{receipt.number}</td>
               <td>{receipt.productName}</td>
-              <td>{receipt.quantity} шт</td>
+              <td>{receipt.quantity} С€С‚</td>
               <td>{formatCurrency(receipt.price)}</td>
               <td>{formatCurrency(receipt.amount)}</td>
               <td>{formatCurrency(receipt.paid)}</td>
               <td>{receipt.supplierName}</td>
               <td>{formatDate(receipt.createdAt)}</td>
               <td>{receipt.acceptedBy}</td>
-              <td>{receipt.quantity} шт</td>
+              <td>{receipt.quantity} С€С‚</td>
               <td>
                 <span
                   className={
                     receipt.status === 'received'
                       ? 'receipt-status receipt-status-received'
-                      : 'receipt-status receipt-status-approved'
+                      : receipt.status === 'new'
+                        ? 'receipt-status receipt-status-new'
+                        : 'receipt-status receipt-status-approved'
                   }
                 >
                   {receipt.status === 'received'
-                    ? 'Оприбутковано'
-                    : 'Затверджено'}
+                    ? 'РћРїСЂРёР±СѓС‚РєРѕРІР°РЅРѕ'
+                    : receipt.status === 'new'
+                      ? 'New'
+                      : 'Р—Р°С‚РІРµСЂРґР¶РµРЅРѕ'}
                 </span>
               </td>
               <td>{receipt.note}</td>
@@ -1183,18 +1226,18 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateServiceCenter}
             >
-              Створити
+              РЎС‚РІРѕСЂРёС‚Рё
             </button>
           </div>
           <div className='catalog-table-wrap'>
             <table className='catalog-table warehouse-settings-table'>
               <thead>
                 <tr>
-                  <th>Назва</th>
-                  <th>Колір</th>
-                  <th>Адреса</th>
-                  <th>Телефон</th>
-                  <th>Кіл-ть складів</th>
+                  <th>РќР°Р·РІР°</th>
+                  <th>РљРѕР»С–СЂ</th>
+                  <th>РђРґСЂРµСЃР°</th>
+                  <th>РўРµР»РµС„РѕРЅ</th>
+                  <th>РљС–Р»-С‚СЊ СЃРєР»Р°РґС–РІ</th>
                 </tr>
               </thead>
               <tbody>
@@ -1221,7 +1264,7 @@ const WarehouseSettings = ({
                         onClick={() =>
                           onEditServiceCenter(serviceCenter)
                         }
-                        aria-label={`Редагувати ${serviceCenter.name}`}
+                        aria-label={`Р РµРґР°РіСѓРІР°С‚Рё ${serviceCenter.name}`}
                       />
                     </td>
                     <td>
@@ -1266,7 +1309,7 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateWarehouse}
             >
-              Створити
+              РЎС‚РІРѕСЂРёС‚Рё
             </button>
           </div>
           <div className='catalog-table-wrap'>
@@ -1274,11 +1317,11 @@ const WarehouseSettings = ({
               <thead>
                 <tr>
                   <th>Id</th>
-                  <th>Назва</th>
-                  <th>Належність до Сервісного центру</th>
-                  <th>Адреса для квитанції</th>
-                  <th>Телефон для квитанції</th>
-                  <th>Локації</th>
+                  <th>РќР°Р·РІР°</th>
+                  <th>РќР°Р»РµР¶РЅС–СЃС‚СЊ РґРѕ РЎРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ</th>
+                  <th>РђРґСЂРµСЃР° РґР»СЏ РєРІРёС‚Р°РЅС†С–С—</th>
+                  <th>РўРµР»РµС„РѕРЅ РґР»СЏ РєРІРёС‚Р°РЅС†С–С—</th>
+                  <th>Р›РѕРєР°С†С–С—</th>
                 </tr>
               </thead>
               <tbody>
@@ -1304,14 +1347,14 @@ const WarehouseSettings = ({
                               color: center?.color ?? '#94a3b8',
                             }}
                           >
-                            ●
+                            в—Џ
                           </i>{' '}
                           {center?.name ?? '-'}
                         </span>
                       </td>
                       <td>{warehouse.receiptAddress || '-'}</td>
                       <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>{warehouse.locations.length} шт.</td>
+                      <td>{warehouse.locations.length} С€С‚.</td>
                     </tr>
                   );
                 })}
@@ -1327,14 +1370,14 @@ const WarehouseSettings = ({
             <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
               <thead>
                 <tr>
-                  <th>Співробітник</th>
+                  <th>РЎРїС–РІСЂРѕР±С–С‚РЅРёРє</th>
                   <th>
-                    Вкажіть склади, до яких співробітник має доступ
+                    Р’РєР°Р¶С–С‚СЊ СЃРєР»Р°РґРё, РґРѕ СЏРєРёС… СЃРїС–РІСЂРѕР±С–С‚РЅРёРє РјР°С” РґРѕСЃС‚СѓРї
                   </th>
                   <th>
-                    Вкажіть склад та локацію, на котру за
-                    замовчуванням переміщується пристрій прийнятий на
-                    ремонт цим співробітником
+                    Р’РєР°Р¶С–С‚СЊ СЃРєР»Р°Рґ С‚Р° Р»РѕРєР°С†С–СЋ, РЅР° РєРѕС‚СЂСѓ Р·Р°
+                    Р·Р°РјРѕРІС‡СѓРІР°РЅРЅСЏРј РїРµСЂРµРјС–С‰СѓС”С‚СЊСЃСЏ РїСЂРёСЃС‚СЂС–Р№ РїСЂРёР№РЅСЏС‚РёР№ РЅР°
+                    СЂРµРјРѕРЅС‚ С†РёРј СЃРїС–РІСЂРѕР±С–С‚РЅРёРєРѕРј
                   </th>
                 </tr>
               </thead>
@@ -1388,9 +1431,9 @@ const WarehouseSettings = ({
                         <details className='warehouse-admin-multiselect'>
                           <summary>
                             {isAllSelected
-                              ? `Усі вибрані (${administrator.warehouseIds.length})`
+                              ? `РЈСЃС– РІРёР±СЂР°РЅС– (${administrator.warehouseIds.length})`
                               : selectedWarehouseNames.join(', ') ||
-                                'Оберіть склади'}
+                                'РћР±РµСЂС–С‚СЊ СЃРєР»Р°РґРё'}
                           </summary>
                           <div className='warehouse-admin-multiselect-menu'>
                             <input
@@ -1404,7 +1447,7 @@ const WarehouseSettings = ({
                                   }),
                                 )
                               }
-                              placeholder='Пошук'
+                              placeholder='РџРѕС€СѓРє'
                             />
                             <label className='warehouse-admin-checkline'>
                               <input
@@ -1434,7 +1477,7 @@ const WarehouseSettings = ({
                                   );
                                 }}
                               />
-                              <span>Обрати все</span>
+                              <span>РћР±СЂР°С‚Рё РІСЃРµ</span>
                             </label>
                             <div className='warehouse-admin-options'>
                               {filteredWarehouses.map((warehouse) => (
@@ -1508,7 +1551,7 @@ const WarehouseSettings = ({
                           }}
                         >
                           {availableLocations.length === 0 ? (
-                            <option value=''>Оберіть склад</option>
+                            <option value=''>РћР±РµСЂС–С‚СЊ СЃРєР»Р°Рґ</option>
                           ) : null}
                           {availableLocations.map((location) => (
                             <option
@@ -1527,7 +1570,7 @@ const WarehouseSettings = ({
             </table>
           </div>
           <button type='button' className='secondary-button'>
-            Зберегти
+            Р—Р±РµСЂРµРіС‚Рё
           </button>
         </>
       ) : null}
@@ -1559,7 +1602,7 @@ const ModalShell = ({
           className='ghost-button'
           onClick={onClose}
         >
-          ×
+          Г—
         </button>
       </header>
       <div className='catalog-edit-body warehouse-settings-modal-body'>
@@ -1571,7 +1614,7 @@ const ModalShell = ({
           className='secondary-button'
           onClick={onClose}
         >
-          Скасувати
+          РЎРєР°СЃСѓРІР°С‚Рё
         </button>
         <button
           type='button'
@@ -1664,7 +1707,7 @@ const StockTable = ({
                     className='danger-button'
                     onClick={() => onDelete(product)}
                   >
-                    ×
+                    Г—
                   </button>
                 </div>
               </td>
@@ -1675,3 +1718,5 @@ const StockTable = ({
     </div>
   );
 };
+
+

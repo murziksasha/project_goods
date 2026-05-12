@@ -5,6 +5,7 @@ import type {
   CreateFinanceTransactionPayload,
   FinanceReport,
   FinanceTransaction,
+  SupplierOrderPaymentQueueItem,
 } from '../model/types';
 
 export const getCashboxes = async () => {
@@ -51,6 +52,24 @@ export const createFinanceTransaction = async (
 export const getFinanceReport = async () => {
   try {
     const response = await apiClient.get<FinanceReport>('/finance/report');
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getSupplierOrdersForPayment = async () => {
+  try {
+    const response = await apiClient.get<SupplierOrderPaymentQueueItem[]>('/finance/supplier-orders');
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const paySupplierOrder = async (supplierOrderId: string, payload: { cashboxId: string; note?: string }) => {
+  try {
+    const response = await apiClient.post(`/finance/supplier-orders/${supplierOrderId}/pay`, payload);
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

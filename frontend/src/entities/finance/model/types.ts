@@ -32,6 +32,16 @@ export type FinanceReport = {
   todayTurnover: Record<FinanceCurrency, number>;
 };
 
+export type SupplierOrderPaymentQueueItem = {
+  id: string;
+  orderBaseId: string;
+  number: string;
+  supplierName: string;
+  deliveryDate: string;
+  total: number;
+  createdAt: string;
+};
+
 export type CreateCashboxPayload = {
   name: string;
 };
