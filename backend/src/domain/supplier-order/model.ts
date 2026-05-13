@@ -30,7 +30,6 @@ export const supplierOrderSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
     supplier: {
       type: mongoose.Schema.Types.ObjectId,
