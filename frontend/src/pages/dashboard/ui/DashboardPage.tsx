@@ -703,9 +703,6 @@ export const DashboardPage = () => {
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
             </button>
-            <button type="button" className="topbar-icon-button" aria-label="Notifications">
-              99+
-            </button>
           </div>
         </header>
 
