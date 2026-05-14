@@ -1909,6 +1909,23 @@
   color: #fff;
   padding: 4px 12px;
   font-weight: 800;
+  border: 0;
+  cursor: pointer;
+}
+
+.payment-cash-badge:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.payment-cash-badge-non-cash {
+  background: #f6c8c8;
+  color: #8c2d2d;
+}
+
+.orders-money-non-cash {
+  color: #c73737;
+  font-weight: 700;
 }
 
 .payment-modal-form {

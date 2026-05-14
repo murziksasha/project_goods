@@ -143,12 +143,14 @@ type TimelineEntry = {
 type PaymentEntry = {
   id: string;
   type: 'deposit' | 'refund';
+  paymentMethod: 'cash' | 'non-cash';
   amount: number;
   cashboxId: string;
   cashboxName: string;
   createdAt: string;
   author: string;
 };
+type PaymentMethod = 'cash' | 'non-cash';
 type OrderLineItemKind = 'product' | 'service';
 type OrderLineItem = {
   id: string;
@@ -168,6 +170,7 @@ type OrdersFilters = {
   assigneeId: string;
   warehouse: string;
   repairType: RepairTypeFilter;
+  paymentMethod: '' | PaymentMethod;
   date: string;
   product: string;
   service: string;
@@ -307,6 +310,7 @@ const emptyOrdersFilters: OrdersFilters = {
   assigneeId: '',
   warehouse: '',
   repairType: 'all',
+  paymentMethod: '',
   date: '',
   product: '',
   service: '',
@@ -562,6 +566,20 @@ const getRemainingPayment = (
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) => Math.max(getOrderTotal(sale, lineItems) - paidAmount, 0);
+
+const getLatestDepositPaymentMethod = (
+  sale: Sale,
+): PaymentMethod | null => {
+  const entry = (sale.paymentHistory ?? []).find(
+    (item) => item.type === 'deposit',
+  );
+  if (!entry) return null;
+  return entry.paymentMethod === 'non-cash' ? 'non-cash' : 'cash';
+};
+
+const hasNonCashPayment = (sale: Sale) =>
+  (sale.paidAmount ?? 0) > 0 &&
+  getLatestDepositPaymentMethod(sale) === 'non-cash';
 
 const isClosingStatus = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
@@ -867,6 +885,8 @@ export const OrdersWorkspace = ({
     useState<PaymentTargetStatus>('issued');
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [selectedCashboxId, setSelectedCashboxId] = useState('');
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>('cash');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
     useState('');
@@ -983,6 +1003,7 @@ export const OrdersWorkspace = ({
       (appliedFilters.assigneeId ? 1 : 0) +
       (appliedFilters.warehouse ? 1 : 0) +
       (appliedFilters.repairType !== 'all' ? 1 : 0) +
+      (appliedFilters.paymentMethod ? 1 : 0) +
       (appliedFilters.date ? 1 : 0) +
       (appliedFilters.product.trim() ? 1 : 0) +
       (appliedFilters.service.trim() ? 1 : 0),
@@ -1072,6 +1093,13 @@ export const OrdersWorkspace = ({
       }
       if (appliedFilters.repairType === 'paid') {
         if (hasWarrantyService) return false;
+      }
+      if (
+        appliedFilters.paymentMethod &&
+        getLatestDepositPaymentMethod(sale) !==
+          appliedFilters.paymentMethod
+      ) {
+        return false;
       }
       if (
         appliedFilters.date &&
@@ -1679,11 +1707,25 @@ export const OrdersWorkspace = ({
           </button>
         );
       case 'price':
-        return formatCurrency(
-          getOrderTotal(sale, getLineItems(sale)),
+        return (
+          <span
+            className={
+              hasNonCashPayment(sale) ? 'orders-money-non-cash' : ''
+            }
+          >
+            {formatCurrency(getOrderTotal(sale, getLineItems(sale)))}
+          </span>
         );
       case 'paid':
-        return formatCurrency(getPaidAmount(sale));
+        return (
+          <span
+            className={
+              hasNonCashPayment(sale) ? 'orders-money-non-cash' : ''
+            }
+          >
+            {formatCurrency(getPaidAmount(sale))}
+          </span>
+        );
       case 'client':
         return (
           <div className='orders-client-cell'>
@@ -1789,6 +1831,7 @@ export const OrdersWorkspace = ({
     setPaymentSale(sale);
     setPaymentTargetStatus(targetStatus);
     setPaymentAmount(String(remainingPayment));
+    setPaymentMethod(getLatestDepositPaymentMethod(sale) ?? 'cash');
     setIsPaymentModalLoading(true);
 
     try {
@@ -2079,6 +2122,7 @@ export const OrdersWorkspace = ({
         nextPaymentHistory = [
           addPaymentHistoryEntry({
             type: 'deposit',
+            paymentMethod,
             amount: acceptedAmount,
             cashboxId: selectedCashboxId,
             cashboxName,
@@ -2087,7 +2131,7 @@ export const OrdersWorkspace = ({
         ];
         nextTimeline = [
           appendTimelineEntry(
-            `${currentEmployeeName} accepted ${formatCurrency(acceptedAmount)} to ${cashboxName}.`,
+            `${currentEmployeeName} accepted ${formatCurrency(acceptedAmount)} to ${cashboxName} (${paymentMethod}).`,
           ),
           ...nextTimeline,
         ];
@@ -2198,6 +2242,7 @@ export const OrdersWorkspace = ({
       const nextPaymentHistory = [
         addPaymentHistoryEntry({
           type: 'refund',
+          paymentMethod: 'cash',
           amount: normalizedAmount,
           cashboxId: selectedRefundCashboxId,
           cashboxName,
@@ -2815,6 +2860,23 @@ export const OrdersWorkspace = ({
           </label>
 
           <label className='orders-filter-field'>
+            <span>Payment method</span>
+            <select
+              value={draftFilters.paymentMethod}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  paymentMethod: event.target.value as '' | PaymentMethod,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              <option value='cash'>Cash</option>
+              <option value='non-cash'>Non-cash</option>
+            </select>
+          </label>
+
+          <label className='orders-filter-field'>
             <span>Product</span>
             <input
               type='text'
@@ -3038,11 +3100,13 @@ export const OrdersWorkspace = ({
           lineItems={getLineItems(paymentSale)}
           cashboxes={cashboxes}
           selectedCashboxId={selectedCashboxId}
+          paymentMethod={paymentMethod}
           amount={paymentAmount}
           paidAmount={getPaidAmount(paymentSale)}
           isLoading={isPaymentModalLoading}
           isSaving={isPaymentSaving}
           onCashboxChange={setSelectedCashboxId}
+          onPaymentMethodChange={setPaymentMethod}
           onAmountChange={setPaymentAmount}
           onDiscountChange={(discount) =>
             updateDiscount(paymentSale, discount)
@@ -4631,11 +4695,13 @@ type PaymentModalProps = {
   lineItems: OrderLineItem[];
   cashboxes: Cashbox[];
   selectedCashboxId: string;
+  paymentMethod: PaymentMethod;
   amount: string;
   paidAmount: number;
   isLoading: boolean;
   isSaving: boolean;
   onCashboxChange: (cashboxId: string) => void;
+  onPaymentMethodChange: (method: PaymentMethod) => void;
   onAmountChange: (amount: string) => void;
   onDiscountChange: (discount: {
     mode: 'percent' | 'amount';
@@ -4651,11 +4717,13 @@ const PaymentModal = ({
   lineItems,
   cashboxes,
   selectedCashboxId,
+  paymentMethod,
   amount,
   paidAmount,
   isLoading,
   isSaving,
   onCashboxChange,
+  onPaymentMethodChange,
   onAmountChange,
   onDiscountChange,
   onClose,
@@ -4873,7 +4941,22 @@ const PaymentModal = ({
               <dd>{formatCurrency(currentPaymentRemaining)}</dd>
             </div>
           </dl>
-          <span className='payment-cash-badge'>Cash</span>
+          <button
+            type='button'
+            className={
+              paymentMethod === 'non-cash'
+                ? 'payment-cash-badge payment-cash-badge-non-cash'
+                : 'payment-cash-badge'
+            }
+            onClick={() =>
+              onPaymentMethodChange(
+                paymentMethod === 'cash' ? 'non-cash' : 'cash',
+              )
+            }
+            disabled={isLoading || isSaving}
+          >
+            {paymentMethod === 'cash' ? 'Cash' : 'Non-cash'}
+          </button>
         </div>
 
         <div className='payment-modal-form'>

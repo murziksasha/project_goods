@@ -114,6 +114,7 @@ export const formatSale = (sale: SaleDocument) => ({
   paymentHistory: (sale.paymentHistory ?? []).map((entry) => ({
     id: entry.id,
     type: entry.type,
+    paymentMethod: entry.paymentMethod === 'non-cash' ? 'non-cash' : 'cash',
     amount: entry.amount,
     cashboxId: entry.cashboxId,
     cashboxName: entry.cashboxName,
