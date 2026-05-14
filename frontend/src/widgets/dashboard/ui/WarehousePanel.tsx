@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Client } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
@@ -121,56 +121,17 @@ const searchModes: Array<{
 ];
 
 const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'service-centers', label: 'РЎРµСЂРІС–СЃРЅС– С†РµРЅС‚СЂРё' },
-  { key: 'warehouses', label: 'РЎРєР»Р°РґРё' },
-  { key: 'administrators', label: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂРё' },
+  { key: 'service-centers', label: 'Service Centers' },
+  { key: 'warehouses', label: 'Warehouses' },
+  { key: 'administrators', label: 'Administrators' },
 ];
 
-const initialServiceCenters: ServiceCenter[] = [
-  {
-    id: 'sc-1',
-    name: 'Р¤С–Р»С–СЏ Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
-    color: '#8b5cf6',
-    address: 'РІСѓР». Р’РёС€РЅРµРІР° 4 Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р»',
-    phone: '+380635567090',
-  },
-  {
-    id: 'sc-2',
-    name: 'Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
-    color: '#10b981',
-    address: 'РІСѓР». Р’С–С‚Р°Р»С–СЏ РЁСѓРјР° 21 Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р»',
-    phone: '+380635567090',
-  },
-];
+const initialServiceCenters: ServiceCenter[] = [];
 
-const initialWarehouses: WarehouseItem[] = [
-  {
-    id: 'w-1',
-    name: 'Р РµРјРѕРЅС‚ РЎРµСЂРІС–СЃ Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє',
-    isActive: true,
-    serviceCenterId: 'sc-2',
-    receiptAddress:
-      'РІСѓР». Р’С–С‚Р°Р»С–СЏ РЁСѓРјР° Р±СѓРґ. 2-Р‘ Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р».',
-    receiptPhone: '063 556 70 90',
-    locations: [
-      { id: 'l-1', name: 'A' },
-      { id: 'l-2', name: 'Р’С–С‚СЂРёРЅР° - 3' },
-    ],
-  },
-  {
-    id: 'w-2',
-    name: 'Р¤С–Р»С–СЏ РћСЃРЅРѕРІРЅРёР№',
-    isActive: true,
-    serviceCenterId: 'sc-1',
-    receiptAddress: 'РІСѓР». Р’РёС€РЅРµРІР°, Р±СѓРґ. 4 Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє РћРґРµСЃСЊРєР° РѕР±Р».',
-    receiptPhone: '063 556 70 90',
-    locations: [{ id: 'l-3', name: 'A' }],
-  },
-];
+const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
-
 
 const getSearchText = (
   product: Product,
@@ -211,8 +172,14 @@ export const WarehousePanel = ({
 }: WarehousePanelProps) => {
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ activeTab: WarehouseTab }>;
-      return parsed.activeTab === 'stock' || parsed.activeTab === 'receipts' || parsed.activeTab === 'expenses' || parsed.activeTab === 'transfers' || parsed.activeTab === 'logistics' || parsed.activeTab === 'inventory' || parsed.activeTab === 'settings'
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ activeTab: WarehouseTab }>;
+      return parsed.activeTab === 'stock' ||
+        parsed.activeTab === 'receipts' ||
+        parsed.activeTab === 'transfers' ||
+        parsed.activeTab === 'settings'
         ? parsed.activeTab
         : 'stock';
     } catch {
@@ -221,39 +188,51 @@ export const WarehousePanel = ({
   });
   const [query, setQuery] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ query: string }>;
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ query: string }>;
       return parsed.query ?? '';
     } catch {
       return '';
     }
   });
-  const [searchMode, setSearchMode] =
-    useState<WarehouseSearchMode>(() => {
+  const [searchMode, setSearchMode] = useState<WarehouseSearchMode>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ searchMode: WarehouseSearchMode }>;
-        return parsed.searchMode === 'serial' || parsed.searchMode === 'name' || parsed.searchMode === 'warehouse'
+        const parsed = JSON.parse(
+          window.localStorage.getItem(warehouseFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{ searchMode: WarehouseSearchMode }>;
+        return parsed.searchMode === 'serial' ||
+          parsed.searchMode === 'name' ||
+          parsed.searchMode === 'warehouse'
           ? parsed.searchMode
           : 'serial';
       } catch {
         return 'serial';
       }
-    });
+    },
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [settingsTab, setSettingsTab] =
-    useState<SettingsTab>(() => {
-      try {
-        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ settingsTab: SettingsTab }>;
-        return parsed.settingsTab === 'service-centers' || parsed.settingsTab === 'warehouses' || parsed.settingsTab === 'administrators'
-          ? parsed.settingsTab
-          : 'service-centers';
-      } catch {
-        return 'service-centers';
-      }
-    });
-  const [serviceCenters, setServiceCenters] = useState<
-    ServiceCenter[]
-  >(initialServiceCenters);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ settingsTab: SettingsTab }>;
+      return parsed.settingsTab === 'service-centers' ||
+        parsed.settingsTab === 'warehouses' ||
+        parsed.settingsTab === 'administrators'
+        ? parsed.settingsTab
+        : 'service-centers';
+    } catch {
+      return 'service-centers';
+    }
+  });
+  const [serviceCenters, setServiceCenters] =
+    useState<ServiceCenter[]>(initialServiceCenters) || [];
   const [warehouses, setWarehouses] =
     useState<WarehouseItem[]>(initialWarehouses);
   const [administrators, setAdministrators] = useState<
@@ -287,7 +266,8 @@ export const WarehousePanel = ({
         price: product.price,
         amount: product.price * product.quantity,
         paid: product.price * product.quantity,
-        supplierName: product.purchasePlace || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+        supplierName:
+          product.purchasePlace || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
         createdAt: product.createdAt,
         acceptedBy: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
         acceptedAt: product.purchaseDate || product.createdAt,
@@ -305,15 +285,19 @@ export const WarehousePanel = ({
         const rows: ReceiptRow[] = orders.flatMap((order) =>
           order.items.map((item) => ({
             id: `${order.id}-${item.itemIndex}`,
-            number: Number(`${order.createdAt.slice(2, 4)}${String(item.itemIndex + 1).padStart(3, '0')}`),
+            number: Number(
+              `${order.createdAt.slice(2, 4)}${String(item.itemIndex + 1).padStart(3, '0')}`,
+            ),
             productName: item.productName,
             quantity: item.quantity,
             price: item.price,
             amount: item.price * item.quantity,
             paid: order.paid,
-            supplierName: order.supplierName || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+            supplierName:
+              order.supplierName || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
             createdAt: order.createdAt,
-            acceptedBy: order.createdBy || 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
+            acceptedBy:
+              order.createdBy || 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
             acceptedAt: order.updatedAt,
             status: order.receiptStatus,
             paymentStatus: order.paymentStatus,
@@ -321,8 +305,13 @@ export const WarehousePanel = ({
           })),
         );
         setReceiptHistory((current) => {
-          const manualRows = current.filter((row) => !row.id.startsWith('so-'));
-          return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+          const manualRows = current.filter(
+            (row) => !row.id.startsWith('so-'),
+          );
+          return [
+            ...rows.map((row) => ({ ...row, id: `so-${row.id}` })),
+            ...manualRows,
+          ];
         });
       })
       .catch(() => undefined);
@@ -344,7 +333,9 @@ export const WarehousePanel = ({
   );
 
   const filteredProducts = useMemo(() => {
-    const stockProducts = products.filter((product) => product.quantity > 0);
+    const stockProducts = products.filter(
+      (product) => product.quantity > 0,
+    );
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return stockProducts;
     return stockProducts.filter((product) =>
@@ -537,13 +528,13 @@ export const WarehousePanel = ({
         price,
         amount,
         paid: amount,
-        supplierName: supplier?.name || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+        supplierName: supplier?.name || 'Supplier',
         createdAt: now,
-        acceptedBy: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
+        acceptedBy: 'Administrator',
         acceptedAt: now,
         status: 'new',
         paymentStatus: 'pending',
-        note: receiptForm.note.trim() || 'Р›',
+        note: receiptForm.note.trim() || 'L',
       },
       ...current,
     ]);
@@ -608,7 +599,7 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Previous page'
           >
-            вЂ№
+            &lsaquo;
           </button>
           <span className='warehouse-page-number'>1</span>
           <button
@@ -616,14 +607,7 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Next page'
           >
-            вЂє
-          </button>
-          <button
-            type='button'
-            className='toolbar-square-button'
-            aria-label='Filters'
-          >
-            в·
+            &rsaquo;
           </button>
           <button type='button' className='toolbar-filter-button'>
             Filter
@@ -664,14 +648,15 @@ export const WarehousePanel = ({
       {activeTab === 'receipts' ? (
         <div className='warehouse-receipt-header'>
           <p className='panel-subtitle'>
-            Р—Р°РјРѕРІР»РµРЅРЅСЏ РїРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРєР°Рј, СЏРєС– РѕС‡С–РєСѓСЋС‚СЊ РѕРїСЂРёР±СѓС‚РєСѓРІР°РЅРЅСЏ
+            receipts order creation is in progress, but you can add
+            receipt manually by clicking the button below
           </p>
           <button
             type='button'
             className='orders-create-button'
             onClick={() => setIsReceiptModalOpen(true)}
           >
-            + РћРїСЂРёР±СѓС‚РєСѓРІР°С‚Рё
+            receipt order
           </button>
         </div>
       ) : null}
@@ -746,18 +731,18 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             serviceCenterModalId === 'new'
-              ? 'Р”РѕРґР°С‚Рё СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ'
-              : 'Р РµРґР°РіСѓРІР°С‚Рё СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ'
+              ? 'create service center'
+              : 'edit service center'
           }
           onClose={() => setServiceCenterModalId(null)}
           onSubmit={saveServiceCenter}
           submitLabel={
-            serviceCenterModalId === 'new' ? 'РЎС‚РІРѕСЂРёС‚Рё' : 'Р—Р±РµСЂРµРіС‚Рё'
+            serviceCenterModalId === 'new' ? 'create' : 'save'
           }
           canSubmit={serviceCenterForm.name.trim().length > 1}
         >
           <label className='field'>
-            <span>РќР°Р·РІР°:</span>
+            <span>name:</span>
             <input
               value={serviceCenterForm.name}
               onChange={(event) =>
@@ -766,11 +751,11 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ'
+              placeholder='name'
             />
           </label>
           <label className='field'>
-            <span>РљРѕР»С–СЂ (#000000):</span>
+            <span>color (#000000):</span>
             <div className='warehouse-settings-color-field'>
               <input
                 value={serviceCenterForm.color}
@@ -784,7 +769,7 @@ export const WarehousePanel = ({
               />
               <input
                 type='color'
-                aria-label='РљРѕР»С–СЂ СЃРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ'
+                aria-label='color'
                 value={serviceCenterForm.color}
                 onChange={(event) =>
                   setServiceCenterForm((current) => ({
@@ -796,7 +781,7 @@ export const WarehousePanel = ({
             </div>
           </label>
           <label className='field'>
-            <span>РђРґСЂРµСЃР°:</span>
+            <span>address:</span>
             <input
               value={serviceCenterForm.address}
               onChange={(event) =>
@@ -805,11 +790,11 @@ export const WarehousePanel = ({
                   address: event.target.value,
                 }))
               }
-              placeholder='Р’РІРµРґС–С‚СЊ Р°РґСЂРµСЃСѓ'
+              placeholder='address'
             />
           </label>
           <label className='field'>
-            <span>РўРµР»РµС„РѕРЅ:</span>
+            <span>phone:</span>
             <input
               value={serviceCenterForm.phone}
               onChange={(event) =>
@@ -828,14 +813,12 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             warehouseModalId === 'new'
-              ? 'Р”РѕРґР°С‚Рё СЃРєР»Р°Рґ'
-              : 'Р РµРґР°РіСѓРІР°С‚Рё СЃРєР»Р°Рґ'
+              ? 'create warehouse'
+              : 'edit warehouse'
           }
           onClose={() => setWarehouseModalId(null)}
           onSubmit={saveWarehouse}
-          submitLabel={
-            warehouseModalId === 'new' ? 'РЎС‚РІРѕСЂРёС‚Рё' : 'Р—Р±РµСЂРµРіС‚Рё'
-          }
+          submitLabel={warehouseModalId === 'new' ? 'create' : 'save'}
           canSubmit={
             warehouseForm.name.trim().length > 1 &&
             Boolean(warehouseForm.serviceCenterId) &&
@@ -845,7 +828,7 @@ export const WarehousePanel = ({
           }
         >
           <label className='field'>
-            <span>РќР°Р·РІР°:</span>
+            <span>name:</span>
             <input
               value={warehouseForm.name}
               onChange={(event) =>
@@ -854,7 +837,7 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ'
+              placeholder='name'
             />
           </label>
           <label className='create-inline-checkbox'>
@@ -868,10 +851,10 @@ export const WarehousePanel = ({
                 }))
               }
             />
-            <span>РђРєС‚РёРІРЅС–СЃС‚СЊ</span>
+            <span>active</span>
           </label>
           <label className='field'>
-            <span>РќР°Р»РµР¶РЅС–СЃС‚СЊ РґРѕ СЃРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ:</span>
+            <span>Location to Service Center:</span>
             <select
               value={warehouseForm.serviceCenterId}
               onChange={(event) =>
@@ -881,7 +864,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              <option value=''>РћР±РµСЂС–С‚СЊ СЃРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ</option>
+              <option value=''>select service center</option>
               {serviceCenters.map((serviceCenter) => (
                 <option
                   key={serviceCenter.id}
@@ -893,7 +876,7 @@ export const WarehousePanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>РђРґСЂРµСЃР° РґР»СЏ РєРІРёС‚Р°РЅС†С–С—:</span>
+            <span>address for suppliers:</span>
             <input
               value={warehouseForm.receiptAddress}
               onChange={(event) =>
@@ -905,7 +888,7 @@ export const WarehousePanel = ({
             />
           </label>
           <label className='field'>
-            <span>РўРµР»РµС„РѕРЅ РґР»СЏ РєРІРёС‚Р°РЅС†С–С—:</span>
+            <span>phone for suppliers:</span>
             <input
               value={warehouseForm.receiptPhone}
               onChange={(event) =>
@@ -917,7 +900,7 @@ export const WarehousePanel = ({
             />
           </label>
           <div className='field'>
-            <span>Р›РѕРєР°С†С–С—:</span>
+            <span>locations:</span>
             <div className='warehouse-settings-locations'>
               {warehouseForm.locations.map((location, index) => (
                 <input
@@ -933,7 +916,7 @@ export const WarehousePanel = ({
                       locations: nextLocations,
                     }));
                   }}
-                  placeholder='Р’РєР°Р¶С–С‚СЊ РЅР°Р·РІСѓ Р»РѕРєР°С†С–С—'
+                  placeholder='enter location name'
                 />
               ))}
             </div>
@@ -947,7 +930,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              + Р”РѕРґР°С‚Рё Р»РѕРєР°С†С–СЋ
+              location
             </button>
           </div>
         </ModalShell>
@@ -955,12 +938,10 @@ export const WarehousePanel = ({
 
       {isReceiptModalOpen ? (
         <ModalShell
-          title='РћРїСЂРёС…РѕРґСѓРІР°РЅРЅСЏ'
+          title='create receipt order'
           onClose={() => setIsReceiptModalOpen(false)}
           onSubmit={createReceipt}
-          submitLabel={
-            isProductSaving ? 'Р—Р±РµСЂРµР¶РµРЅРЅСЏ...' : 'РћРїСЂРёС…РѕРґСѓРІР°С‚Рё'
-          }
+          submitLabel={isProductSaving ? '...' : 'create'}
           canSubmit={Boolean(
             receiptForm.supplierId &&
             receiptForm.productName.trim() &&
@@ -969,7 +950,7 @@ export const WarehousePanel = ({
         >
           <div className='warehouse-receipt-modal-grid'>
             <label className='field'>
-              <span>РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє*</span>
+              <span>Supplier*</span>
               <select
                 value={receiptForm.supplierId}
                 onChange={(event) =>
@@ -979,7 +960,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>РќРµ РѕР±СЂР°РЅРѕ</option>
+                <option value=''>supplier</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
@@ -988,7 +969,7 @@ export const WarehousePanel = ({
               </select>
             </label>
             <label className='field'>
-              <span>РўРѕРІР°СЂ*</span>
+              <span>Product*</span>
               <input
                 value={receiptForm.productName}
                 onChange={(event) =>
@@ -997,11 +978,11 @@ export const WarehousePanel = ({
                     productName: event.target.value,
                   }))
                 }
-                placeholder='Р’РІРµРґС–С‚СЊ С‰РѕР± Р·РЅР°Р№С‚Рё С‚Р° РґРѕРґР°С‚Рё'
+                placeholder='enter product name'
               />
             </label>
             <label className='field'>
-              <span>Р¦С–РЅР° (UAH)*</span>
+              <span>Price (UAH)*</span>
               <input
                 type='number'
                 min='0'
@@ -1015,7 +996,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field'>
-              <span>Рљ-СЃС‚СЊ*</span>
+              <span>Quantity*</span>
               <input
                 type='number'
                 min='1'
@@ -1029,7 +1010,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field field-wide'>
-              <span>РџСЂРёРјС–С‚РєР°</span>
+              <span>Note</span>
               <textarea
                 rows={3}
                 value={receiptForm.note}
@@ -1050,25 +1031,25 @@ export const WarehousePanel = ({
 
 const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
   if (receipts.length === 0)
-    return <p className='empty-state'>РќРµРјР°С” РѕРїСЂРёР±СѓС‚РєСѓРІР°РЅСЊ.</p>;
+    return <p className='empty-state'>No receipt orders created.</p>;
   return (
     <div className='catalog-table-wrap'>
       <table className='catalog-table warehouse-receipts-table'>
         <thead>
           <tr>
-            <th>в„–</th>
-            <th>РўРѕРІР°СЂ</th>
-            <th>Рљ-СЃС‚СЊ</th>
-            <th>Р¦С–РЅР°</th>
-            <th>Р’Р°СЂС‚С–СЃС‚СЊ</th>
-            <th>РЎРїР»Р°С‡РµРЅРѕ</th>
-            <th>РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє</th>
-            <th>Р”Р°С‚Р° РїРѕСЃС‚.</th>
-            <th>РџСЂРёР№РЅСЏРІ</th>
-            <th>РћРїСЂС–Р±.</th>
-            <th>РЎС‚Р°С‚СѓСЃ</th>
-              <th>РћРїР»Р°С‚Р°</th>
-              <th>РџСЂРёРј.</th>
+            <th>&num;</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Amount</th>
+            <th>Paid</th>
+            <th>Supplier</th>
+            <th>Receipt Date</th>
+            <th>Accepted By</th>
+            <th>Approved By</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th>Note</th>
           </tr>
         </thead>
         <tbody>
@@ -1095,10 +1076,10 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
                   }
                 >
                   {receipt.status === 'received'
-                    ? 'РћРїСЂРёР±СѓС‚РєРѕРІР°РЅРѕ'
+                    ? 'Received'
                     : receipt.status === 'new'
                       ? 'New'
-                      : 'Р—Р°С‚РІРµСЂРґР¶РµРЅРѕ'}
+                      : 'Approved'}
                 </span>
               </td>
               <td>{receipt.note}</td>
@@ -1226,18 +1207,18 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateServiceCenter}
             >
-              РЎС‚РІРѕСЂРёС‚Рё
+              Create
             </button>
           </div>
           <div className='catalog-table-wrap'>
             <table className='catalog-table warehouse-settings-table'>
               <thead>
                 <tr>
-                  <th>РќР°Р·РІР°</th>
-                  <th>РљРѕР»С–СЂ</th>
-                  <th>РђРґСЂРµСЃР°</th>
-                  <th>РўРµР»РµС„РѕРЅ</th>
-                  <th>РљС–Р»-С‚СЊ СЃРєР»Р°РґС–РІ</th>
+                  <th>Name</th>
+                  <th>color</th>
+                  <th>Address</th>
+                  <th>Phone</th>
+                  <th>Number of Warehouses</th>
                 </tr>
               </thead>
               <tbody>
@@ -1264,7 +1245,7 @@ const WarehouseSettings = ({
                         onClick={() =>
                           onEditServiceCenter(serviceCenter)
                         }
-                        aria-label={`Р РµРґР°РіСѓРІР°С‚Рё ${serviceCenter.name}`}
+                        aria-label={`Edit ${serviceCenter.name}`}
                       />
                     </td>
                     <td>
@@ -1317,11 +1298,11 @@ const WarehouseSettings = ({
               <thead>
                 <tr>
                   <th>Id</th>
-                  <th>РќР°Р·РІР°</th>
-                  <th>РќР°Р»РµР¶РЅС–СЃС‚СЊ РґРѕ РЎРµСЂРІС–СЃРЅРѕРіРѕ С†РµРЅС‚СЂСѓ</th>
-                  <th>РђРґСЂРµСЃР° РґР»СЏ РєРІРёС‚Р°РЅС†С–С—</th>
-                  <th>РўРµР»РµС„РѕРЅ РґР»СЏ РєРІРёС‚Р°РЅС†С–С—</th>
-                  <th>Р›РѕРєР°С†С–С—</th>
+                  <th>Name</th>
+                  <th>Location</th>
+                  <th>Address</th>
+                  <th>Phone</th>
+                  <th>Locations</th>
                 </tr>
               </thead>
               <tbody>
@@ -1347,7 +1328,7 @@ const WarehouseSettings = ({
                               color: center?.color ?? '#94a3b8',
                             }}
                           >
-                            в—Џ
+                            &bull;
                           </i>{' '}
                           {center?.name ?? '-'}
                         </span>
@@ -1370,14 +1351,14 @@ const WarehouseSettings = ({
             <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
               <thead>
                 <tr>
-                  <th>РЎРїС–РІСЂРѕР±С–С‚РЅРёРє</th>
+                  <th>Administrator</th>
                   <th>
-                    Р’РєР°Р¶С–С‚СЊ СЃРєР»Р°РґРё, РґРѕ СЏРєРёС… СЃРїС–РІСЂРѕР±С–С‚РЅРёРє РјР°С” РґРѕСЃС‚СѓРї
+                    View Warehouses, to which the administrator has
+                    access
                   </th>
                   <th>
-                    Р’РєР°Р¶С–С‚СЊ СЃРєР»Р°Рґ С‚Р° Р»РѕРєР°С†С–СЋ, РЅР° РєРѕС‚СЂСѓ Р·Р°
-                    Р·Р°РјРѕРІС‡СѓРІР°РЅРЅСЏРј РїРµСЂРµРјС–С‰СѓС”С‚СЊСЃСЏ РїСЂРёСЃС‚СЂС–Р№ РїСЂРёР№РЅСЏС‚РёР№ РЅР°
-                    СЂРµРјРѕРЅС‚ С†РёРј СЃРїС–РІСЂРѕР±С–С‚РЅРёРєРѕРј
+                    View Warehouse and Location, to which the
+                    administrator has access
                   </th>
                 </tr>
               </thead>
@@ -1431,9 +1412,9 @@ const WarehouseSettings = ({
                         <details className='warehouse-admin-multiselect'>
                           <summary>
                             {isAllSelected
-                              ? `РЈСЃС– РІРёР±СЂР°РЅС– (${administrator.warehouseIds.length})`
+                              ? `All (${administrator.warehouseIds.length})`
                               : selectedWarehouseNames.join(', ') ||
-                                'РћР±РµСЂС–С‚СЊ СЃРєР»Р°РґРё'}
+                                'Select Warehouses'}
                           </summary>
                           <div className='warehouse-admin-multiselect-menu'>
                             <input
@@ -1447,7 +1428,7 @@ const WarehouseSettings = ({
                                   }),
                                 )
                               }
-                              placeholder='РџРѕС€СѓРє'
+                              placeholder='Search'
                             />
                             <label className='warehouse-admin-checkline'>
                               <input
@@ -1477,7 +1458,7 @@ const WarehouseSettings = ({
                                   );
                                 }}
                               />
-                              <span>РћР±СЂР°С‚Рё РІСЃРµ</span>
+                              <span>Select All</span>
                             </label>
                             <div className='warehouse-admin-options'>
                               {filteredWarehouses.map((warehouse) => (
@@ -1551,7 +1532,7 @@ const WarehouseSettings = ({
                           }}
                         >
                           {availableLocations.length === 0 ? (
-                            <option value=''>РћР±РµСЂС–С‚СЊ СЃРєР»Р°Рґ</option>
+                            <option value=''>Select Location</option>
                           ) : null}
                           {availableLocations.map((location) => (
                             <option
@@ -1570,7 +1551,7 @@ const WarehouseSettings = ({
             </table>
           </div>
           <button type='button' className='secondary-button'>
-            Р—Р±РµСЂРµРіС‚Рё
+            Save Changes
           </button>
         </>
       ) : null}
@@ -1602,7 +1583,7 @@ const ModalShell = ({
           className='ghost-button'
           onClick={onClose}
         >
-          Г—
+          &times;
         </button>
       </header>
       <div className='catalog-edit-body warehouse-settings-modal-body'>
@@ -1614,7 +1595,7 @@ const ModalShell = ({
           className='secondary-button'
           onClick={onClose}
         >
-          РЎРєР°СЃСѓРІР°С‚Рё
+          cancel
         </button>
         <button
           type='button'
@@ -1707,7 +1688,7 @@ const StockTable = ({
                     className='danger-button'
                     onClick={() => onDelete(product)}
                   >
-                    Г—
+                    &times;
                   </button>
                 </div>
               </td>
@@ -1718,5 +1699,3 @@ const StockTable = ({
     </div>
   );
 };
-
-
