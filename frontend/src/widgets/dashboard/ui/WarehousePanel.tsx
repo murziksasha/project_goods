@@ -16,10 +16,7 @@ import { getSupplierOrders } from '../../../entities/supplier-order/api/supplier
 type WarehouseTab =
   | 'stock'
   | 'receipts'
-  | 'expenses'
   | 'transfers'
-  | 'logistics'
-  | 'inventory'
   | 'settings';
 type WarehouseSearchMode = 'serial' | 'name' | 'warehouse';
 type SettingsTab =
