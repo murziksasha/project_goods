@@ -100,6 +100,12 @@ export const saleSchema = new mongoose.Schema(
           enum: ['deposit', 'refund'],
           required: true,
         },
+        paymentMethod: {
+          type: String,
+          enum: ['cash', 'non-cash'],
+          required: true,
+          default: 'cash',
+        },
         amount: { type: Number, required: true, min: 0 },
         cashboxId: { type: String, required: true },
         cashboxName: { type: String, required: true },

@@ -20,6 +20,7 @@ export type Sale = {
   paymentHistory: Array<{
     id: string;
     type: 'deposit' | 'refund';
+    paymentMethod: 'cash' | 'non-cash';
     amount: number;
     cashboxId: string;
     cashboxName: string;

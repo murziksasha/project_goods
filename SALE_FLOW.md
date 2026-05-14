@@ -55,6 +55,11 @@
 
 - Sale totals are based on current line items (`Products` + optional `Services`).
 - `Paid` and `To pay` are recalculated from line items total and payment history.
+- Payment modal supports method toggle: `Cash` <-> `Non-cash` (clickable badge near `To pay`).
+- `Non-cash` state is highlighted with light-red badge background in modal.
+- Deposit entries persist `paymentMethod` (`cash` or `non-cash`) in `paymentHistory`.
+- In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+- Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 
 ## Status Change: Paid / Completed
 

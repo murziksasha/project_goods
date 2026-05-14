@@ -58,6 +58,14 @@
   - `client rejected`
   - `issued without repair`
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
+- Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
+- If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+
+## Payment Method In Accept Payment Modal
+
+- `Cash` badge in payment modal is clickable and toggles payment method: `Cash` <-> `Non-cash`.
+- In `Non-cash` mode, badge background changes to light red.
+- Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 
 ## Order Card Editing Rules
 

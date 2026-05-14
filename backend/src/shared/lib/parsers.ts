@@ -110,6 +110,10 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
         .map((entry) => ({
           id: toNonEmptyString((entry as { id?: unknown })?.id),
           type: toNonEmptyString((entry as { type?: unknown })?.type),
+          paymentMethod:
+            toNonEmptyString((entry as { paymentMethod?: unknown })?.paymentMethod) === 'non-cash'
+              ? 'non-cash'
+              : 'cash',
           amount: toNumber((entry as { amount?: unknown })?.amount),
           cashboxId: toNonEmptyString((entry as { cashboxId?: unknown })?.cashboxId),
           cashboxName: toNonEmptyString((entry as { cashboxName?: unknown })?.cashboxName),
@@ -121,6 +125,7 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
           (entry) =>
             entry.id &&
             (entry.type === 'deposit' || entry.type === 'refund') &&
+            (entry.paymentMethod === 'cash' || entry.paymentMethod === 'non-cash') &&
             Number.isFinite(entry.amount) &&
             entry.amount >= 0 &&
             entry.cashboxId &&
