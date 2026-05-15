@@ -722,6 +722,7 @@ export const DashboardPage = () => {
                 onClose={openOrdersPage}
                 initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                 suppliers={state.suppliers}
+                products={state.allProducts}
                 onCreateSupplier={actions.createSupplierCard}
                 onSuccess={actions.showSuccessMessage}
                 onError={actions.showError}

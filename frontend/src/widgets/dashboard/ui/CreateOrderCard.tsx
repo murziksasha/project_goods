@@ -20,6 +20,7 @@ type CreateOrderCardProps = {
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   suppliers: Supplier[];
+  products: Product[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -109,6 +110,8 @@ const formatPhone = (input: string) => {
 const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
 const toNameKey = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeProductLookupKey = (value: string) =>
+  toNameKey(value).replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ');
 const toApiPhone = (input: string) => {
   const digits = phoneDigitsOnly(input);
   if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
@@ -151,12 +154,36 @@ const getOrderLink = (saleId: string, kind: 'repair' | 'sale') => {
   return `${url.pathname}${url.search}${url.hash}`;
 };
 
+const resolveSaleProduct = (item: SaleOrderItem, productsList: Product[]) => {
+  if (item.product) return item.product;
+
+  const queryKey = normalizeProductLookupKey(item.query);
+  if (!queryKey) return null;
+
+  return (
+    productsList.find((product) => {
+      const candidates = [
+        product.name,
+        product.article,
+        product.serialNumber,
+        `${product.name} ${product.article}`.trim(),
+        `${product.name} ${product.serialNumber}`.trim(),
+      ]
+        .map(normalizeProductLookupKey)
+        .filter(Boolean);
+
+      return candidates.includes(queryKey);
+    }) ?? null
+  );
+};
+
 export const CreateOrderCard = ({
   isSaving,
   employees,
   currentEmployee,
   initialTab = 'repair',
   suppliers,
+  products,
   onCreateSupplier,
   onSuccess,
   onError,
@@ -653,7 +680,17 @@ export const CreateOrderCard = ({
   };
 
   const handleSave = async () => {
-    const normalizedSaleItems = saleItems.flatMap((item) => {
+    const resolvedSaleItems = saleItems.map((item) => ({
+      ...item,
+      product: resolveSaleProduct(item, products),
+    }));
+
+    if (activeTab === 'sale' && resolvedSaleItems.some((item) => !item.product)) {
+      onError('Select a product from the catalog for every sale item.');
+      return;
+    }
+
+    const normalizedSaleItems = resolvedSaleItems.flatMap((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
       const totalPrice = Math.max(0, Number.parseFloat(item.price || '0') || 0);
       const knownUnitPrice = Math.max(0, Number.parseFloat(item.unitPrice || '0') || 0);

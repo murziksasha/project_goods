@@ -180,7 +180,11 @@ export const SupplierOrderModal = ({
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
   const currentDraftItem = productSearch.trim()
-    ? { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }
+    ? {
+        productName: productSearch.trim(),
+        quantity: currentQuantity,
+        price: currentPrice,
+      }
     : null;
 
   const canAddBasketItem = Boolean(productSearch.trim()) && currentQuantity > 0 && currentProductMatched;
@@ -322,28 +326,32 @@ export const SupplierOrderModal = ({
               <span>Сума</span>
               <input value={String(currentQuantity * currentPrice)} readOnly />
             </label>
-            <button
-              type='button'
-              className='toolbar-square-button supplier-order-product-add'
-              aria-label='Add product to order list'
-              disabled={!canAddBasketItem}
-              onClick={() => {
-                if (!canAddBasketItem) {
-                  setProductTouched(true);
-                  return;
-                }
-                setBasketItems((current) => [
-                  ...current,
-                  { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice },
-                ]);
-                setProductSearch('');
-                setShowProductSuggestions(false);
-                setProductTouched(false);
-                setForm((current) => ({ ...current, quantity: '1', price: '0' }));
-              }}
-            >
-              +
-            </button>
+              <button
+                type='button'
+                className='toolbar-square-button supplier-order-product-add'
+                aria-label='Add product to order list'
+                disabled={!canAddBasketItem}
+                onClick={() => {
+                  if (!canAddBasketItem) {
+                    setProductTouched(true);
+                    return;
+                  }
+                  setBasketItems((current) => [
+                    ...current,
+                    {
+                      productName: productSearch.trim(),
+                      quantity: currentQuantity,
+                      price: currentPrice,
+                    },
+                  ]);
+                  setProductSearch('');
+                  setShowProductSuggestions(false);
+                  setProductTouched(false);
+                  setForm((current) => ({ ...current, quantity: '1', price: '0' }));
+                }}
+              >
+                +
+              </button>
           </div>
 
           {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
