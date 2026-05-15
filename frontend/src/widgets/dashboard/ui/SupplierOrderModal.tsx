@@ -54,7 +54,6 @@ export const SupplierOrderModal = ({
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAddingItem, setIsAddingItem] = useState(false);
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -180,16 +179,14 @@ export const SupplierOrderModal = ({
   const currentProductMatched = isProductMatched(productSearch, productSuggestions);
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
+  const currentDraftItem = productSearch.trim()
+    ? { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }
+    : null;
 
   const canAddBasketItem = Boolean(productSearch.trim()) && currentQuantity > 0 && currentProductMatched;
-  const hasCurrentDraft = Boolean(productSearch.trim());
-
-  const submitItems: DraftItem[] = [
-    ...(hasCurrentDraft
-      ? [{ productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }]
-      : []),
-    ...basketItems,
-  ];
+  const submitItems: DraftItem[] = isEditing
+    ? [...(currentDraftItem ? [currentDraftItem] : []), ...basketItems]
+    : basketItems;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -284,7 +281,7 @@ export const SupplierOrderModal = ({
           </label>
 
           <div className='supplier-order-product-row field-wide'>
-            <div className='supplier-order-product-index'>{submitItems.length + 1}</div>
+            <div className='supplier-order-product-index'>{isEditing ? 1 : basketItems.length + 1}</div>
             <label className='field supplier-order-product-name'>
               <span>Товар</span>
               <span className='supplier-search-input-wrap'>
@@ -329,22 +326,20 @@ export const SupplierOrderModal = ({
               type='button'
               className='toolbar-square-button supplier-order-product-add'
               aria-label='Add product to order list'
-              disabled={!canAddBasketItem || isAddingItem}
-              onClick={async () => {
+              disabled={!canAddBasketItem}
+              onClick={() => {
                 if (!canAddBasketItem) {
                   setProductTouched(true);
                   return;
                 }
-                setIsAddingItem(true);
-                try {
-                  setBasketItems((current) => [...current, { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }]);
-                  setProductSearch('');
-                  setShowProductSuggestions(false);
-                  setProductTouched(false);
-                  setForm((current) => ({ ...current, quantity: '1', price: '0' }));
-                } finally {
-                  setIsAddingItem(false);
-                }
+                setBasketItems((current) => [
+                  ...current,
+                  { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice },
+                ]);
+                setProductSearch('');
+                setShowProductSuggestions(false);
+                setProductTouched(false);
+                setForm((current) => ({ ...current, quantity: '1', price: '0' }));
               }}
             >
               +
@@ -378,7 +373,7 @@ export const SupplierOrderModal = ({
               <div className='supplier-order-basket-table'>
                 {submitItems.map((item, index) => (
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
-                    <div className='supplier-order-product-index'>{`${form.number || 'номер'}-${index + 1}`}</div>
+                    <div className='supplier-order-product-index'>{index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.quantity)} readOnly /></div>
@@ -400,14 +395,10 @@ export const SupplierOrderModal = ({
           <button
             type='button'
             className='primary-button'
-            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || isAddingItem || submitItems.some((item) => item.quantity <= 0)}
+            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
             onClick={async () => {
               if (!selectedSupplier) {
                 setSupplierTouched(true);
-                return;
-              }
-              if (hasCurrentDraft && !currentProductMatched) {
-                setProductTouched(true);
                 return;
               }
               setIsSubmitting(true);

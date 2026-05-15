@@ -1287,7 +1287,7 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateWarehouse}
             >
-              РЎС‚РІРѕСЂРёС‚Рё
+              Create Warehouse
             </button>
           </div>
           <div className='catalog-table-wrap'>
