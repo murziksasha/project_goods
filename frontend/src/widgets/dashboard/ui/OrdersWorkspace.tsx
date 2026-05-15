@@ -9,7 +9,6 @@ import {
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
-import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
 import {
   formatCurrency,
   formatDateTime,
@@ -61,14 +60,12 @@ type OrdersWorkspaceProps = {
   isLoading: boolean;
   activeTab: OrdersTab;
   searchValue: string;
-  isSeeding: boolean;
   currentEmployee: Employee | null;
   canCreateOrders: boolean;
   onActiveTabChange: (tab: OrdersTab) => void;
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
   createOrderHref: string;
-  onSeedDemoData: (kind: DemoSeedKind) => void;
   onSaleUpdate: (sale: Sale) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -847,14 +844,12 @@ export const OrdersWorkspace = ({
   isLoading,
   activeTab,
   searchValue,
-  isSeeding,
   currentEmployee,
   canCreateOrders,
   onActiveTabChange,
   onSearchChange,
   onCreateOrder,
   createOrderHref,
-  onSeedDemoData,
   onSaleUpdate,
   onError,
   onSuccess,
@@ -2608,22 +2603,6 @@ export const OrdersWorkspace = ({
           </div>
         </div>
         <div className='orders-toolbar-actions'>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={() => onSeedDemoData('repairs')}
-            disabled={isSeeding}
-          >
-            {isSeeding ? 'Loading...' : 'Demo repairs'}
-          </button>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={() => onSeedDemoData('sales')}
-            disabled={isSeeding}
-          >
-            {isSeeding ? 'Loading...' : 'Demo sales'}
-          </button>
           <a
             className={
               canCreateOrders

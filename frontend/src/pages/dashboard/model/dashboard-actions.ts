@@ -1123,7 +1123,7 @@ export const createDashboardActions = ({
             ? saleItems.map((item) => ({
                 id: item.id || crypto.randomUUID(),
                 kind: 'product' as const,
-                productId: item.productId,
+                productId: '',
                 name: item.warehouse
                   ? `${item.name} (${item.warehouse})`
                   : item.name,
@@ -1136,8 +1136,7 @@ export const createDashboardActions = ({
         await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
-          productId:
-            payload.sourceTab === 'repair' ? '' : primarySaleItem?.productId || '',
+          productId: '',
           quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,

@@ -722,7 +722,7 @@ export const DashboardPage = () => {
                 onClose={openOrdersPage}
                 initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                 suppliers={state.suppliers}
-                products={state.allProducts}
+                catalogProducts={state.catalogProducts}
                 onCreateSupplier={actions.createSupplierCard}
                 onSuccess={actions.showSuccessMessage}
                 onError={actions.showError}
@@ -749,7 +749,6 @@ export const DashboardPage = () => {
                   isLoading={state.isSalesLoading}
                   activeTab={activeOrdersTab}
                   searchValue={state.productSearchQuery}
-                  isSeeding={state.isSeeding}
                   onActiveTabChange={changeOrdersTab}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
@@ -759,7 +758,6 @@ export const DashboardPage = () => {
                   })}
                   currentEmployee={currentEmployee}
                   canCreateOrders={canCreateOrders}
-                  onSeedDemoData={actions.seedDemoData}
                   onSaleUpdate={actions.replaceSaleInState}
                   onError={actions.showError}
                   onSuccess={actions.showSuccessMessage}

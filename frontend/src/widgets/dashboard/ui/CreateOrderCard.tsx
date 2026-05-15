@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
-import { getProducts } from '../../../entities/product/api/productApi';
 import {
   createClientDevice,
   getClientDevices,
 } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Product } from '../../../entities/product/model/types';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
@@ -20,7 +20,7 @@ type CreateOrderCardProps = {
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   suppliers: Supplier[];
-  products: Product[];
+  catalogProducts: CatalogProduct[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -64,6 +64,7 @@ const saleExtraOptionsRight = [
 type SaleOrderItem = {
   id: string;
   query: string;
+  catalogProductId: string;
   product: Product | null;
   price: string;
   unitPrice: string;
@@ -75,6 +76,7 @@ type SaleOrderItem = {
 const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
   query: '',
+  catalogProductId: '',
   product: null,
   price: '',
   unitPrice: '',
@@ -82,9 +84,6 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   warrantyPeriod: '0',
   supplierOrderRequested: false,
 });
-
-const getProductPrice = (product: Product) =>
-  product.salePriceOptions[0] ?? product.price ?? 0;
 
 const getProductWarehouse = (product: Product) =>
   product.purchasePlace.trim() || 'Main warehouse';
@@ -154,36 +153,13 @@ const getOrderLink = (saleId: string, kind: 'repair' | 'sale') => {
   return `${url.pathname}${url.search}${url.hash}`;
 };
 
-const resolveSaleProduct = (item: SaleOrderItem, productsList: Product[]) => {
-  if (item.product) return item.product;
-
-  const queryKey = normalizeProductLookupKey(item.query);
-  if (!queryKey) return null;
-
-  return (
-    productsList.find((product) => {
-      const candidates = [
-        product.name,
-        product.article,
-        product.serialNumber,
-        `${product.name} ${product.article}`.trim(),
-        `${product.name} ${product.serialNumber}`.trim(),
-      ]
-        .map(normalizeProductLookupKey)
-        .filter(Boolean);
-
-      return candidates.includes(queryKey);
-    }) ?? null
-  );
-};
-
 export const CreateOrderCard = ({
   isSaving,
   employees,
   currentEmployee,
   initialTab = 'repair',
   suppliers,
-  products,
+  catalogProducts,
   onCreateSupplier,
   onSuccess,
   onError,
@@ -215,7 +191,7 @@ export const CreateOrderCard = ({
   const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
   const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
-  const [saleProductSuggestions, setSaleProductSuggestions] = useState<Product[]>([]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<CatalogProduct[]>([]);
   const [selectedDeviceSuggestionId, setSelectedDeviceSuggestionId] = useState<string | null>(null);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
@@ -312,7 +288,7 @@ export const CreateOrderCard = ({
   const visibleSaleProductSuggestions =
     activeTab === 'sale' &&
     saleProductLookupQuery.length >= 2 &&
-    !focusedSaleItem?.product
+    !focusedSaleItem?.catalogProductId
       ? saleProductSuggestions
       : [];
   const saleItemsTotal = saleItems.reduce((total, item) => {
@@ -320,14 +296,6 @@ export const CreateOrderCard = ({
     const quantity = Number.parseInt(item.quantity || '0', 10);
     return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
-  const hasAvailableSaleSuggestion = visibleSaleProductSuggestions.some(
-    (product) => product.freeQuantity > 0,
-  );
-  const canOrderUnavailableProduct =
-    activeTab === 'sale' &&
-    saleProductLookupQuery.length >= 2 &&
-    !isSaleProductLookupLoading &&
-    !hasAvailableSaleSuggestion;
   const effectiveManagerId =
     canCurrentEmployeeManageOrders && currentEmployee ? currentEmployee.id : managerId;
 
@@ -403,9 +371,10 @@ export const CreateOrderCard = ({
     if (
       activeTab !== 'sale' ||
       saleProductLookupQuery.length < 2 ||
-      Boolean(focusedSaleItem?.product)
+      Boolean(focusedSaleItem?.catalogProductId)
     ) {
       setSaleProductSuggestions([]);
+      setIsSaleProductLookupLoading(false);
       return;
     }
 
@@ -413,11 +382,14 @@ export const CreateOrderCard = ({
     const timeoutId = window.setTimeout(async () => {
       setIsSaleProductLookupLoading(true);
       try {
-        const products = await getProducts(saleProductLookupQuery);
         if (isActive) {
           setSaleProductSuggestions(
-            products
-              .filter((product) => product.isActive && product.freeQuantity > 0)
+            catalogProducts
+              .filter((product) =>
+                normalizeProductLookupKey(product.name).includes(
+                  normalizeProductLookupKey(saleProductLookupQuery),
+                ),
+              )
               .slice(0, 8),
           );
         }
@@ -432,7 +404,7 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeTab, focusedSaleItem?.product, saleProductLookupQuery]);
+  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, saleProductLookupQuery]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -464,15 +436,11 @@ export const CreateOrderCard = ({
     );
   };
 
-  const applySaleProduct = (itemId: string, product: Product) => {
-    const unitPrice = getProductPrice(product);
+  const applySaleProduct = (itemId: string, product: CatalogProduct) => {
     updateSaleItem(itemId, {
-      query: `${product.name} / ${product.article} / ${product.serialNumber}`,
-      product,
-      price: String(unitPrice),
-      unitPrice: String(unitPrice),
-      quantity: '1',
-      warrantyPeriod: '0',
+      query: product.name,
+      catalogProductId: product.id,
+      product: null,
       supplierOrderRequested: false,
     });
     setSaleProductSuggestions([]);
@@ -565,54 +533,6 @@ export const CreateOrderCard = ({
     setSelectedClient(null);
   };
 
-  const fillRepairDemo = () => {
-    const suffix = Date.now().toString().slice(-6);
-    setActiveTab('repair');
-    setClientPhone('+380 67 111 22 33');
-    setClientName('Ivan Petrenko');
-    setSelectedClientId(null);
-    setDeviceName('Laptop Lenovo IdeaPad 5');
-    setDeviceSerialNumber(`RPR-${suffix}`);
-    setDeviceColor('Silver');
-    setDeviceKit('Laptop, charger');
-    setRepairType('Paid');
-    setIssueFromClient('Does not charge and shuts down after a few minutes.');
-    setExternalView('Small scratches on the top cover, no liquid marks.');
-    setReadyDate(new Date().toISOString().slice(0, 10));
-    setReadyTime('17:30');
-    setSelectedFlags(['Urgent repair', 'Start work without confirmation']);
-  };
-
-  const fillSaleDemo = () => {
-    const suffix = Date.now().toString().slice(-6);
-    setActiveTab('sale');
-    setClientPhone('+380 50 101 01 01');
-    setClientName('Maxim Bondar');
-    setSelectedClientId(null);
-    setDeviceName('Portable SSD Samsung T7 1TB');
-    setDeviceSerialNumber(`SAL-${suffix}`);
-    setDeviceColor('Blue');
-    setDeviceKit('Box, cable, warranty card');
-    setRepairType('Paid');
-    setIssueFromClient('Client buys a new device from stock.');
-    setExternalView('New sealed package.');
-    setReadyDate(new Date().toISOString().slice(0, 10));
-    setReadyTime('15:00');
-    setSelectedFlags(['New sale', 'Issued']);
-    setSaleItems([
-      {
-        id: crypto.randomUUID(),
-        query: 'Portable SSD Samsung T7 1TB',
-        product: null,
-        price: '3899',
-        unitPrice: '3899',
-        quantity: '1',
-        warrantyPeriod: '0',
-        supplierOrderRequested: false,
-      },
-    ]);
-  };
-
   const createDeviceFromModal = async () => {
     const name = newDeviceName.trim();
     if (name.length < 2 || isDeviceCreating || !selectedClientId || !selectedClient) return;
@@ -680,17 +600,7 @@ export const CreateOrderCard = ({
   };
 
   const handleSave = async () => {
-    const resolvedSaleItems = saleItems.map((item) => ({
-      ...item,
-      product: resolveSaleProduct(item, products),
-    }));
-
-    if (activeTab === 'sale' && resolvedSaleItems.some((item) => !item.product)) {
-      onError('Select a product from the catalog for every sale item.');
-      return;
-    }
-
-    const normalizedSaleItems = resolvedSaleItems.flatMap((item) => {
+    const normalizedSaleItems = saleItems.flatMap((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
       const totalPrice = Math.max(0, Number.parseFloat(item.price || '0') || 0);
       const knownUnitPrice = Math.max(0, Number.parseFloat(item.unitPrice || '0') || 0);
@@ -699,7 +609,7 @@ export const CreateOrderCard = ({
 
       return Array.from({ length: quantity }, (_, index) => ({
         id: `${item.id}-${index + 1}`,
-        productId: item.product?.id ?? '',
+        productId: item.catalogProductId || item.product?.id || '',
         name: item.product?.name ?? item.query.trim(),
         article: item.product?.article ?? '',
         serialNumber: item.product?.serialNumber ?? '',
@@ -760,15 +670,6 @@ export const CreateOrderCard = ({
           ))}
         </div>
 
-        <div className="create-order-test-actions">
-          <button type="button" className="toolbar-filter-button" onClick={fillRepairDemo}>
-            Autofill repair
-          </button>
-          <button type="button" className="toolbar-filter-button" onClick={fillSaleDemo}>
-            Autofill sale
-          </button>
-        </div>
-
         <div className="create-order-grid">
           <div className="create-order-left">
             <h3 className="create-section-title">Client</h3>
@@ -825,6 +726,7 @@ export const CreateOrderCard = ({
                               setFocusedSaleItemId(item.id);
                               updateSaleItem(item.id, {
                                 query: event.target.value,
+                                catalogProductId: '',
                                 product: null,
                               });
                             }}
@@ -897,9 +799,9 @@ export const CreateOrderCard = ({
                   })}
                 </div>
 
-                {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading || canOrderUnavailableProduct) ? (
+                {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading) ? (
                   <div className="create-suggestions">
-                    {isSaleProductLookupLoading ? <p>Searching products in stock...</p> : null}
+                    {isSaleProductLookupLoading ? <p>Searching products in catalog...</p> : null}
                     {visibleSaleProductSuggestions.map((product) => (
                       <button
                         key={product.id}
@@ -908,7 +810,7 @@ export const CreateOrderCard = ({
                         onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
                       >
                         <strong>{product.name}</strong>
-                        <span>{`${product.article} / ${product.serialNumber} / ${getProductWarehouse(product)} / available ${product.freeQuantity}`}</span>
+                        <span>{product.note || 'Catalog product'}</span>
                       </button>
                     ))}
                     <div className="sale-order-unavailable">
