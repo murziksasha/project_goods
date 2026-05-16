@@ -17,6 +17,12 @@ const supplierOrderItemSchema = new mongoose.Schema(
   {
     lineId: { type: String, required: true, trim: true },
     itemIndex: { type: Number, required: true, min: 0 },
+    catalogProductId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CatalogProduct',
+      required: false,
+      default: null,
+    },
     productName: { type: String, required: true, trim: true, minlength: 2, maxlength: 200 },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 },

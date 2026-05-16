@@ -25,16 +25,15 @@ type SupplierOrderModalProps = {
   onError: (message: string) => void;
 };
 
-type DraftItem = { productName: string; quantity: number; price: number };
+type DraftItem = {
+  catalogProductId?: string;
+  productName: string;
+  quantity: number;
+  price: number;
+};
 
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
-
-const isProductMatched = (name: string, suggestions: CatalogProduct[]) => {
-  const normalized = name.trim().toLowerCase();
-  if (!normalized) return false;
-  return suggestions.some((product) => product.name.trim().toLowerCase() === normalized);
-};
 
 export const SupplierOrderModal = ({
   isOpen,
@@ -64,6 +63,7 @@ export const SupplierOrderModal = ({
   const [productSuggestions, setProductSuggestions] = useState<CatalogProduct[]>([]);
   const [isProductLookupLoading, setIsProductLookupLoading] = useState(false);
   const [productTouched, setProductTouched] = useState(false);
+  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<string>('');
 
   const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
   const [isCreateCatalogProductSaving, setIsCreateCatalogProductSaving] = useState(false);
@@ -97,12 +97,14 @@ export const SupplierOrderModal = ({
 
     setProductSearch(firstItem?.productName ?? initialProductName);
     setDebouncedProductSearch(firstItem?.productName ?? initialProductName);
+    setSelectedCatalogProductId(firstItem?.catalogProductId ?? '');
     setShowProductSuggestions(false);
     setProductSuggestions([]);
     setProductTouched(false);
 
     setBasketItems(
       editingItems.slice(1).map((item) => ({
+        catalogProductId: item.catalogProductId,
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -179,11 +181,12 @@ export const SupplierOrderModal = ({
 
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
   const currentPrice = Math.max(0, Number(form.price) || 0);
-  const currentProductMatched = isProductMatched(productSearch, productSuggestions);
+  const currentProductMatched = Boolean(selectedCatalogProductId);
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
   const currentDraftItem = productSearch.trim()
     ? {
+        catalogProductId: selectedCatalogProductId || undefined,
         productName: productSearch.trim(),
         quantity: currentQuantity,
         price: currentPrice,
@@ -198,7 +201,11 @@ export const SupplierOrderModal = ({
     ? basketItems
     : submitItems;
   const hasDuplicateSubmitItems =
-    new Set(submitItems.map((item) => normalizeProductName(item.productName)))
+    new Set(
+      submitItems.map((item) =>
+        item.catalogProductId || normalizeProductName(item.productName),
+      ),
+    )
       .size !== submitItems.length;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -305,7 +312,10 @@ export const SupplierOrderModal = ({
                     setProductTouched(true);
                     window.setTimeout(() => setShowProductSuggestions(false), 120);
                   }}
-                  onChange={(event) => setProductSearch(event.target.value)}
+                  onChange={(event) => {
+                    setProductSearch(event.target.value);
+                    setSelectedCatalogProductId('');
+                  }}
                   placeholder='Введіть щоб знайти та додати'
                 />
                 <button
@@ -332,6 +342,7 @@ export const SupplierOrderModal = ({
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setProductSearch(product.name);
+                        setSelectedCatalogProductId(product.id);
                         setShowProductSuggestions(false);
                         setProductTouched(true);
                       }}
@@ -368,6 +379,8 @@ export const SupplierOrderModal = ({
                   const nextName = normalizeProductName(productSearch);
                   const duplicateExists = basketItems.some(
                     (item) =>
+                      (selectedCatalogProductId &&
+                        item.catalogProductId === selectedCatalogProductId) ||
                       normalizeProductName(item.productName) === nextName,
                   );
                   if (duplicateExists) {
@@ -377,12 +390,15 @@ export const SupplierOrderModal = ({
                   setBasketItems((current) => [
                     ...current,
                     {
+                      catalogProductId:
+                        selectedCatalogProductId || undefined,
                       productName: productSearch.trim(),
                       quantity: currentQuantity,
                       price: currentPrice,
                     },
                   ]);
                   setProductSearch('');
+                  setSelectedCatalogProductId('');
                   setShowProductSuggestions(false);
                   setProductTouched(false);
                   setForm((current) => ({ ...current, quantity: '1', price: '0' }));
@@ -440,6 +456,7 @@ export const SupplierOrderModal = ({
                   items: submitItems.map((item, index) => ({
                     lineId: `line-${index + 1}`,
                     itemIndex: index,
+                    catalogProductId: item.catalogProductId,
                     productName: item.productName,
                     quantity: item.quantity,
                     price: item.price,
@@ -475,6 +492,7 @@ export const SupplierOrderModal = ({
                   try {
                     const created = await createCatalogProduct({ name: createCatalogProductForm.name.trim(), note: createCatalogProductForm.note.trim(), isActive: true });
                     setProductSearch(created.name);
+                    setSelectedCatalogProductId(created.id);
                     setProductTouched(true);
                     setShowProductSuggestions(false);
                     setCreateCatalogProductForm({ name: '', note: '' });

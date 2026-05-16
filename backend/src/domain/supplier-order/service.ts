@@ -1,5 +1,6 @@
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { toNonEmptyString, toNumber, toOptionalDate } from '../../shared/lib/parsers';
+import mongoose from 'mongoose';
 import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
 import { SupplierOrder, supplierOrderStatuses, supplierPaymentStatuses, type SupplierOrderDocument } from './model';
@@ -7,6 +8,7 @@ import { SupplierOrder, supplierOrderStatuses, supplierPaymentStatuses, type Sup
 type SupplierOrderItemPayload = {
   lineId?: unknown;
   itemIndex?: unknown;
+  catalogProductId?: unknown;
   productName?: unknown;
   quantity?: unknown;
   price?: unknown;
@@ -38,6 +40,7 @@ const toPaymentStatus = (value: unknown) =>
 type NormalizedSupplierOrderItem = {
   lineId: string;
   itemIndex: number;
+  catalogProductId?: string;
   productName: string;
   quantity: number;
   price: number;
@@ -52,10 +55,21 @@ const normalizeItems = (items: unknown): NormalizedSupplierOrderItem[] => {
       const productName = toNonEmptyString(raw.productName);
       const quantity = toNumber(raw.quantity);
       const price = toNumber(raw.price);
+      const catalogProductIdRaw = toNonEmptyString(raw.catalogProductId);
+      const catalogProductId = mongoose.isValidObjectId(catalogProductIdRaw)
+        ? catalogProductIdRaw
+        : undefined;
       const lineId = toNonEmptyString(raw.lineId) || `line-${index + 1}`;
       const itemIndex = Number.isFinite(toNumber(raw.itemIndex)) ? Math.max(0, Math.floor(toNumber(raw.itemIndex))) : index;
 
-      return { lineId, itemIndex, productName, quantity, price };
+      return {
+        lineId,
+        itemIndex,
+        catalogProductId,
+        productName,
+        quantity,
+        price,
+      };
     })
     .filter((item) => item.productName.length >= 2 && Number.isFinite(item.quantity) && item.quantity > 0 && Number.isFinite(item.price) && item.price >= 0)
     .sort((a, b) => a.itemIndex - b.itemIndex);
@@ -79,6 +93,9 @@ const formatSupplierOrder = (order: SupplierOrderDocument & { supplierName?: str
   items: (order.items ?? []).map((item) => ({
     lineId: item.lineId,
     itemIndex: item.itemIndex,
+    catalogProductId: item.catalogProductId
+      ? item.catalogProductId.toString()
+      : undefined,
     productName: item.productName,
     quantity: item.quantity,
     price: item.price,
