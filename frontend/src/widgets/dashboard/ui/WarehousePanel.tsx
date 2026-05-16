@@ -187,6 +187,24 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
+const buildProductReceiptRows = (products: Product[]): ReceiptRow[] =>
+  products.slice(0, 8).map((product, index) => ({
+    id: `r-prod-${product.id}`,
+    number: `R-${23000 + index}`,
+    productName: product.name,
+    quantity: product.quantity,
+    price: product.price,
+    amount: product.price * product.quantity,
+    paid: product.price * product.quantity,
+    supplierName: product.purchasePlace || 'Supplier',
+    createdAt: product.createdAt,
+    acceptedBy: 'Administrator',
+    approvedBy: 'Administrator',
+    acceptedAt: product.purchaseDate || product.createdAt,
+    status: product.freeQuantity > 0 ? 'received' : 'approved',
+    paymentStatus: 'pending',
+    note: product.note || '',
+  }));
 
 export const WarehousePanel = ({
   products,
@@ -320,24 +338,7 @@ export const WarehousePanel = ({
     note: '',
   });
   const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>(
-    () =>
-      products.slice(0, 8).map((product, index) => ({
-        id: `r-${product.id}`,
-        number: `R-${23000 + index}`,
-        productName: product.name,
-        quantity: product.quantity,
-        price: product.price,
-        amount: product.price * product.quantity,
-        paid: product.price * product.quantity,
-        supplierName: product.purchasePlace || 'Supplier',
-        createdAt: product.createdAt,
-        acceptedBy: 'Administrator',
-        approvedBy: 'Administrator',
-        acceptedAt: product.purchaseDate || product.createdAt,
-        status: product.freeQuantity > 0 ? 'received' : 'approved',
-        paymentStatus: 'pending',
-        note: product.note || '',
-      })),
+    () => buildProductReceiptRows(products),
   );
 
   const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
@@ -446,6 +447,15 @@ export const WarehousePanel = ({
   useEffect(() => {
     void refreshSupplierOrders().catch(() => undefined);
   }, []);
+  useEffect(() => {
+    const productRows = buildProductReceiptRows(products);
+    setReceiptHistory((current) => {
+      const nonProductRows = current.filter(
+        (row) => !row.id.startsWith('r-prod-'),
+      );
+      return [...nonProductRows, ...productRows];
+    });
+  }, [products]);
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
@@ -656,7 +666,7 @@ export const WarehousePanel = ({
     const now = new Date().toISOString();
     setReceiptHistory((current) => [
       {
-        id: `r-${Date.now()}`,
+        id: `manual-${Date.now()}`,
         number: `R-${23000 + current.length + 1}`,
         productName: receiptForm.productName.trim(),
         quantity,
