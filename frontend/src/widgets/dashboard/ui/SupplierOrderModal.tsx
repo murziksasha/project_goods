@@ -96,7 +96,9 @@ export const SupplierOrderModal = ({
   const isTakenOnChargeLocked = Boolean(
     editingOrder &&
       (editingOrder.status === 'stocked' ||
-        editingOrder.receiptStatus === 'received'),
+        editingOrder.receiptStatus === 'received' ||
+        editingOrder.status === 'cancelled' ||
+        editingOrder.paymentStatus === 'cancelled'),
   );
   const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
 

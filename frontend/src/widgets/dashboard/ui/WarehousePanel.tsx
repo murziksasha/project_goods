@@ -46,7 +46,7 @@ type ServiceCenter = {
   phone: string;
 };
 type WarehouseLocation = { id: string; name: string };
-type ReceiptStatus = 'new' | 'approved' | 'received';
+type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
 type ReceiptRow = {
   id: string;
   number: string;
@@ -340,7 +340,11 @@ export const WarehousePanel = ({
             ? '-'
             : order.createdBy || 'Administrator',
         acceptedAt: order.updatedAt,
-        status: order.receiptStatus,
+        status:
+          order.status === 'cancelled' ||
+          order.paymentStatus === 'cancelled'
+            ? 'cancelled'
+            : order.receiptStatus,
         paymentStatus: order.paymentStatus,
         note: order.note || '',
       })),
@@ -1528,18 +1532,22 @@ const ReceiptsTable = ({
               <td>
                 <span
                   className={
-                    receipt.status === 'received'
-                      ? 'receipt-status receipt-status-received'
-                      : receipt.status === 'new'
-                        ? 'receipt-status receipt-status-new'
-                        : 'receipt-status receipt-status-approved'
+                    receipt.status === 'cancelled'
+                      ? 'receipt-status receipt-status-cancelled'
+                      : receipt.status === 'received'
+                        ? 'receipt-status receipt-status-received'
+                        : receipt.status === 'new'
+                          ? 'receipt-status receipt-status-new'
+                          : 'receipt-status receipt-status-approved'
                   }
                 >
-                  {receipt.status === 'received'
-                    ? 'Taken on charge'
-                    : receipt.status === 'new'
-                      ? 'New'
-                      : 'Approved'}
+                  {receipt.status === 'cancelled'
+                    ? 'Cancelled'
+                    : receipt.status === 'received'
+                      ? 'Taken on charge'
+                      : receipt.status === 'new'
+                        ? 'New'
+                        : 'Approved'}
                 </span>
               </td>
               <td>{receipt.status === 'new' ? '-' : receipt.paymentStatus ?? '-'}</td>

@@ -54,6 +54,8 @@ const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
   { key: 'paid', label: 'Сплачено' },
   { key: 'cancelled', label: 'Відмінені' },
 ];
+const getOrderStatusLabel = (status: SupplierOrderStatus) =>
+  orderStatuses.find((item) => item.key === status)?.label ?? status;
 
 const supplierOrdersFiltersStorageKey = 'project-goods.supplier-orders-filters';
 
@@ -300,36 +302,45 @@ export const SupplierOrdersWorkspace = ({
                   </td>
                   <td>{formatDateTime(order.deliveryDate)}</td>
                   <td>
-                    <select
-                      value={order.status}
-                      disabled={order.paymentStatus === 'paid'}
-                      onChange={async (event) => {
-                        try {
-                          await updateSupplierOrder(order.id, {
-                            orderBaseId: order.orderBaseId,
-                            supplierId: order.supplierId,
-                            deliveryDate: order.deliveryDate.slice(0, 10),
-                            supplyType: order.supplyType,
-                            number: order.number,
-                            note: order.note,
-                            createdBy: order.createdBy,
-                            paymentStatus: order.paymentStatus,
-                            status: event.target.value as SupplierOrderStatus,
-                            items: order.items,
-                          });
-                          await refreshOrders();
-                          onSuccess('Статус замовлення оновлено.');
-                        } catch (error) {
-                          onError(error instanceof Error ? error.message : 'Не вдалося оновити статус замовлення.');
-                        }
-                      }}
-                    >
-                      {orderStatuses.map((status) => (
-                        <option key={status.key} value={status.key}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
+                    {order.status === 'stocked' ||
+                    order.status === 'cancelled' ||
+                    order.paymentStatus === 'cancelled' ? (
+                      <input
+                        value={getOrderStatusLabel(order.status)}
+                        readOnly
+                      />
+                    ) : (
+                      <select
+                        value={order.status}
+                        disabled={order.paymentStatus === 'paid'}
+                        onChange={async (event) => {
+                          try {
+                            await updateSupplierOrder(order.id, {
+                              orderBaseId: order.orderBaseId,
+                              supplierId: order.supplierId,
+                              deliveryDate: order.deliveryDate.slice(0, 10),
+                              supplyType: order.supplyType,
+                              number: order.number,
+                              note: order.note,
+                              createdBy: order.createdBy,
+                              paymentStatus: order.paymentStatus,
+                              status: event.target.value as SupplierOrderStatus,
+                              items: order.items,
+                            });
+                            await refreshOrders();
+                            onSuccess('Статус замовлення оновлено.');
+                          } catch (error) {
+                            onError(error instanceof Error ? error.message : 'Не вдалося оновити статус замовлення.');
+                          }
+                        }}
+                      >
+                        {orderStatuses.map((status) => (
+                          <option key={status.key} value={status.key}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td>{paymentStatuses.find((status) => status.key === order.paymentStatus)?.label ?? order.paymentStatus}</td>
                 </tr>
@@ -347,6 +358,13 @@ export const SupplierOrdersWorkspace = ({
         isOpen={isModalOpen}
         suppliers={suppliers}
         editingOrder={editingOrder}
+        forceReadOnly={Boolean(
+          editingOrder &&
+            (editingOrder.status === 'stocked' ||
+              editingOrder.receiptStatus === 'received' ||
+              editingOrder.status === 'cancelled' ||
+              editingOrder.paymentStatus === 'cancelled'),
+        )}
         onClose={() => { setIsModalOpen(false); setEditingOrder(null); }}
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
