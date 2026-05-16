@@ -22,7 +22,10 @@ type SupplierOrderModalProps = {
   onClose: () => void;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSubmit: (payload: SupplierOrderModalSubmitPayload) => Promise<void> | void;
-  onTakeOnCharge?: () => Promise<void> | void;
+  onTakeOnCharge?: (payload: {
+    autoGenerateSerialNumbers: boolean;
+    serialNumbers: string[];
+  }) => Promise<void> | void;
   onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -63,6 +66,9 @@ export const SupplierOrderModal = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
+  const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
+  const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
+  const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -132,6 +138,9 @@ export const SupplierOrderModal = ({
       price: String(firstItem?.price ?? 0),
       note: editingOrder?.note ?? '',
     });
+    setIsSerialModalOpen(false);
+    setIsAutoSerialEnabled(true);
+    setManualSerialNumbers([]);
   }, [editingOrder, initialProductName, isOpen]);
 
   useEffect(() => {
@@ -222,6 +231,14 @@ export const SupplierOrderModal = ({
       .size !== submitItems.length;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalUnits = submitItems.reduce(
+    (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
+    0,
+  );
+  const canSubmitTakeOnCharge = isAutoSerialEnabled
+    ? true
+    : manualSerialNumbers.length === totalUnits &&
+      manualSerialNumbers.every((serial) => serial.trim().length > 0);
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -473,14 +490,10 @@ export const SupplierOrderModal = ({
               type='button'
               className='primary-button'
               disabled={isSubmitting || isActionSubmitting}
-              onClick={async () => {
-                setIsActionSubmitting(true);
-                try {
-                  await onTakeOnCharge();
-                  onClose();
-                } finally {
-                  setIsActionSubmitting(false);
-                }
+              onClick={() => {
+                setIsSerialModalOpen(true);
+                setIsAutoSerialEnabled(true);
+                setManualSerialNumbers(Array.from({ length: totalUnits }, () => ''));
               }}
               style={{ background: '#16a34a' }}
             >
@@ -567,6 +580,102 @@ export const SupplierOrderModal = ({
                 }}
               >
                 {isCreateCatalogProductSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+      {isSerialModalOpen ? (
+        <div className='supplier-order-inline-backdrop' role='presentation'>
+          <section
+            className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Оприходование</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsSerialModalOpen(false)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body clients-modal-body'>
+              <label className='supplier-serial-auto'>
+                <input
+                  type='checkbox'
+                  checked={isAutoSerialEnabled}
+                  onChange={(event) =>
+                    setIsAutoSerialEnabled(event.target.checked)
+                  }
+                />
+                <span>Автогенерация серийных номеров бекендом</span>
+              </label>
+              {!isAutoSerialEnabled ? (
+                <div className='warehouse-receipt-modal-grid'>
+                  {manualSerialNumbers.map((serialNumber, index) => (
+                    <label key={`serial-${index}`} className='field'>
+                      <span>{`#${index + 1}`}</span>
+                      <input
+                        value={serialNumber}
+                        onChange={(event) =>
+                          setManualSerialNumbers((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? event.target.value
+                                : item,
+                            ),
+                          )
+                        }
+                        placeholder='serial number'
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setIsSerialModalOpen(false)}
+                disabled={isActionSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isActionSubmitting ||
+                  totalUnits <= 0 ||
+                  !canSubmitTakeOnCharge
+                }
+                onClick={async () => {
+                  if (!onTakeOnCharge) return;
+                  setIsActionSubmitting(true);
+                  try {
+                    await onTakeOnCharge({
+                      autoGenerateSerialNumbers: isAutoSerialEnabled,
+                      serialNumbers: isAutoSerialEnabled
+                        ? []
+                        : manualSerialNumbers.map((item) =>
+                            item.trim(),
+                          ),
+                    });
+                    setIsSerialModalOpen(false);
+                    onClose();
+                  } finally {
+                    setIsActionSubmitting(false);
+                  }
+                }}
+              >
+                {isActionSubmitting ? 'Saving...' : 'Оприбуткувати'}
               </button>
             </footer>
           </section>

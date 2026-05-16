@@ -16,6 +16,10 @@ This spec defines when product serial numbers are assigned and when items are al
 4. Sequence state is persisted in DB collection `sequences` with key `product-serial-number`.
 5. If DB already contains serials in `S<digits>` format, sequence is synchronized to the max existing value before issuing the next number.
 
+## Warehouse Identity Defaults
+1. In Warehouse receipt flow, `article` default value must be empty (`''`).
+2. Warehouse flow auto-generates only `serialNumber`; `article` must not be auto-generated.
+
 ## API Contract Notes
 - `POST /api/products/serial-number/next` is reserved for warehouse receipt flow.
 - Catalog product APIs (`/api/catalog-products`) must not generate stock serials and must not create stock records.

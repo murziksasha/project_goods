@@ -187,25 +187,6 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
-const buildProductReceiptRows = (products: Product[]): ReceiptRow[] =>
-  products.slice(0, 8).map((product, index) => ({
-    id: `r-prod-${product.id}`,
-    number: `R-${23000 + index}`,
-    productName: product.name,
-    quantity: product.quantity,
-    price: product.price,
-    amount: product.price * product.quantity,
-    paid: product.price * product.quantity,
-    supplierName: product.purchasePlace || 'Supplier',
-    createdAt: product.createdAt,
-    acceptedBy: 'Administrator',
-    approvedBy: 'Administrator',
-    acceptedAt: product.purchaseDate || product.createdAt,
-    status: product.freeQuantity > 0 ? 'received' : 'approved',
-    paymentStatus: 'pending',
-    note: product.note || '',
-  }));
-
 export const WarehousePanel = ({
   products,
   catalogProducts,
@@ -337,28 +318,15 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>(
-    () => buildProductReceiptRows(products),
-  );
+  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
 
   const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
-    const orderedByCreatedAt = [...orders].sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
-    const orderBaseNumberById = orderedByCreatedAt.reduce<
-      Record<string, number>
-    >((acc, order, index) => {
-      acc[order.id] = index + 1;
-      return acc;
-    }, {});
-
     return orders.flatMap((order) =>
-      order.items.map((item, itemPosition) => ({
+      order.items.map((item) => ({
         id: `${order.id}-${item.itemIndex}`,
         supplierOrderId: order.id,
         catalogProductId: item.catalogProductId,
-        number: `${orderBaseNumberById[order.id] ?? 1}-${itemPosition + 1}`,
+        number: order.number || order.orderBaseId || order.id,
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -447,15 +415,6 @@ export const WarehousePanel = ({
   useEffect(() => {
     void refreshSupplierOrders().catch(() => undefined);
   }, []);
-  useEffect(() => {
-    const productRows = buildProductReceiptRows(products);
-    setReceiptHistory((current) => {
-      const nonProductRows = current.filter(
-        (row) => !row.id.startsWith('r-prod-'),
-      );
-      return [...nonProductRows, ...productRows];
-    });
-  }, [products]);
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
@@ -686,10 +645,7 @@ export const WarehousePanel = ({
     ]);
 
     onProductChange('name', receiptForm.productName.trim());
-    onProductChange(
-      'article',
-      `WM-${Date.now().toString().slice(-4)}`,
-    );
+    onProductChange('article', '');
     onProductChange(
       'serialNumber',
       `REC-${Date.now().toString().slice(-6)}`,
@@ -1235,9 +1191,12 @@ export const WarehousePanel = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
-        onTakeOnCharge={async () => {
+        onTakeOnCharge={async ({ autoGenerateSerialNumbers, serialNumbers }) => {
           if (!editingSupplierOrder) return;
-          await takeOnChargeSupplierOrder(editingSupplierOrder.id);
+          await takeOnChargeSupplierOrder(editingSupplierOrder.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+          });
           onSuccess('Order taken on charge.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
