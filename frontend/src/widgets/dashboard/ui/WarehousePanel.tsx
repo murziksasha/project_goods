@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Client } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
@@ -12,12 +11,22 @@ import {
 } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from './SupplierOrderModal';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../entities/supplier/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderFormValues,
+} from '../../../entities/supplier-order/model/types';
 
-type WarehouseTab =
-  | 'stock'
-  | 'receipts'
-  | 'transfers'
-  | 'settings';
+type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseSearchMode = 'serial' | 'name' | 'warehouse';
 type SettingsTab =
   | 'service-centers'
@@ -35,7 +44,8 @@ type WarehouseLocation = { id: string; name: string };
 type ReceiptStatus = 'new' | 'approved' | 'received';
 type ReceiptRow = {
   id: string;
-  number: number;
+  number: string;
+  supplierOrderId?: string;
   productName: string;
   quantity: number;
   price: number;
@@ -44,6 +54,7 @@ type ReceiptRow = {
   supplierName: string;
   createdAt: string;
   acceptedBy: string;
+  approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
   paymentStatus?: 'pending' | 'paid' | 'cancelled';
@@ -81,7 +92,6 @@ type WarehouseFormState = {
 
 type WarehousePanelProps = {
   products: Product[];
-  clients: Client[];
   employees: Employee[];
   isLoading: boolean;
   productForm: ProductFormValues;
@@ -95,6 +105,11 @@ type WarehousePanelProps = {
   onProductCancelEdit: () => void;
   onProductEdit: (product: Product) => void;
   onProductDelete: (product: Product) => void;
+  suppliers: Supplier[];
+  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  currentEmployeeName: string;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
 };
 
 const tabs: Array<{
@@ -158,7 +173,6 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 
 export const WarehousePanel = ({
   products,
-  clients,
   employees,
   isLoading,
   isProductSaving,
@@ -166,6 +180,11 @@ export const WarehousePanel = ({
   onProductSubmit,
   onProductEdit,
   onProductDelete,
+  suppliers,
+  onCreateSupplier,
+  currentEmployeeName,
+  onSuccess,
+  onError,
 }: WarehousePanelProps) => {
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
@@ -246,6 +265,13 @@ export const WarehousePanel = ({
   const [warehouseForm, setWarehouseForm] =
     useState<WarehouseFormState>(toWarehouseForm());
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
+    useState(false);
+  const [editingSupplierOrder, setEditingSupplierOrder] =
+    useState<SupplierOrder | null>(null);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
+    [],
+  );
   const [receiptForm, setReceiptForm] = useState({
     supplierId: '',
     productName: '',
@@ -257,78 +283,68 @@ export const WarehousePanel = ({
     () =>
       products.slice(0, 8).map((product, index) => ({
         id: `r-${product.id}`,
-        number: 23000 + index,
+        number: `R-${23000 + index}`,
         productName: product.name,
         quantity: product.quantity,
         price: product.price,
         amount: product.price * product.quantity,
         paid: product.price * product.quantity,
-        supplierName:
-          product.purchasePlace || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+        supplierName: product.purchasePlace || 'Supplier',
         createdAt: product.createdAt,
-        acceptedBy: 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
+        acceptedBy: 'Administrator',
+        approvedBy: 'Administrator',
         acceptedAt: product.purchaseDate || product.createdAt,
         status: product.freeQuantity > 0 ? 'received' : 'approved',
         paymentStatus: 'pending',
-        note: product.note || 'Р›',
+        note: product.note || '',
       })),
   );
 
+  const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] =>
+    orders.flatMap((order) =>
+      order.items.map((item) => ({
+        id: `${order.id}-${item.itemIndex}`,
+        supplierOrderId: order.id,
+        number:
+          order.number.trim().length > 0
+            ? `${order.number}-${item.itemIndex + 1}`
+            : `${order.orderBaseId}-${item.itemIndex + 1}`,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        amount: item.price * item.quantity,
+        paid: order.paid,
+        supplierName: order.supplierName || 'Supplier',
+        createdAt: order.createdAt,
+        acceptedBy: order.createdBy || 'Administrator',
+        approvedBy:
+          order.receiptStatus === 'new'
+            ? '-'
+            : order.createdBy || 'Administrator',
+        acceptedAt: order.updatedAt,
+        status: order.receiptStatus,
+        paymentStatus: order.paymentStatus,
+        note: order.note || '',
+      })),
+    );
+
+  const refreshSupplierOrders = async () => {
+    const orders = await getSupplierOrders();
+    setSupplierOrders(orders);
+    const rows = buildReceiptRows(orders);
+    setReceiptHistory((current) => {
+      const manualRows = current.filter((row) => !row.id.startsWith('so-'));
+      return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+    });
+  };
+
   useEffect(() => {
-    let isActive = true;
-    void getSupplierOrders()
-      .then((orders) => {
-        if (!isActive) return;
-        const rows: ReceiptRow[] = orders.flatMap((order) =>
-          order.items.map((item) => ({
-            id: `${order.id}-${item.itemIndex}`,
-            number: Number(
-              `${order.createdAt.slice(2, 4)}${String(item.itemIndex + 1).padStart(3, '0')}`,
-            ),
-            productName: item.productName,
-            quantity: item.quantity,
-            price: item.price,
-            amount: item.price * item.quantity,
-            paid: order.paid,
-            supplierName:
-              order.supplierName || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
-            createdAt: order.createdAt,
-            acceptedBy:
-              order.createdBy || 'РђРґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂ',
-            acceptedAt: order.updatedAt,
-            status: order.receiptStatus,
-            paymentStatus: order.paymentStatus,
-            note: order.note || '',
-          })),
-        );
-        setReceiptHistory((current) => {
-          const manualRows = current.filter(
-            (row) => !row.id.startsWith('so-'),
-          );
-          return [
-            ...rows.map((row) => ({ ...row, id: `so-${row.id}` })),
-            ...manualRows,
-          ];
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      isActive = false;
-    };
+    void refreshSupplierOrders().catch(() => undefined);
   }, []);
   const activeEmployees = useMemo(
     () => employees.filter((employee) => employee.isActive),
     [employees],
   );
-  const suppliers = useMemo(
-    () =>
-      clients.map((client) => ({
-        id: client.id,
-        name: client.name,
-      })),
-    [clients],
-  );
-
   const filteredProducts = useMemo(() => {
     const stockProducts = products.filter(
       (product) => product.quantity > 0,
@@ -519,7 +535,7 @@ export const WarehousePanel = ({
     setReceiptHistory((current) => [
       {
         id: `r-${Date.now()}`,
-        number: 23000 + current.length + 1,
+        number: `R-${23000 + current.length + 1}`,
         productName: receiptForm.productName.trim(),
         quantity,
         price,
@@ -528,6 +544,7 @@ export const WarehousePanel = ({
         supplierName: supplier?.name || 'Supplier',
         createdAt: now,
         acceptedBy: 'Administrator',
+        approvedBy: '-',
         acceptedAt: now,
         status: 'new',
         paymentStatus: 'pending',
@@ -651,7 +668,10 @@ export const WarehousePanel = ({
           <button
             type='button'
             className='orders-create-button'
-            onClick={() => setIsReceiptModalOpen(true)}
+            onClick={() => {
+              setEditingSupplierOrder(null);
+              setIsSupplierOrderModalOpen(true);
+            }}
           >
             receipt order
           </button>
@@ -706,7 +726,18 @@ export const WarehousePanel = ({
         </>
       ) : activeTab === 'receipts' ? (
         <>
-          <ReceiptsTable receipts={paginatedReceipts} />
+          <ReceiptsTable
+            receipts={paginatedReceipts}
+            onOpenOrder={(receipt) => {
+              if (!receipt.supplierOrderId) return;
+              const matchedOrder = supplierOrders.find(
+                (order) => order.id === receipt.supplierOrderId,
+              );
+              if (!matchedOrder) return;
+              setEditingSupplierOrder(matchedOrder);
+              setIsSupplierOrderModalOpen(true);
+            }}
+          />
           <PaginationPanel
             totalItems={filteredReceipts.length}
             page={currentPage}
@@ -1022,11 +1053,73 @@ export const WarehousePanel = ({
           </div>
         </ModalShell>
       ) : null}
+
+      <SupplierOrderModal
+        isOpen={isSupplierOrderModalOpen}
+        suppliers={suppliers}
+        editingOrder={editingSupplierOrder}
+        onClose={() => {
+          setIsSupplierOrderModalOpen(false);
+          setEditingSupplierOrder(null);
+        }}
+        onCreateSupplier={onCreateSupplier}
+        onSuccess={onSuccess}
+        onError={onError}
+        onSubmit={async (
+          payload: SupplierOrderModalSubmitPayload,
+        ) => {
+          try {
+            const supplierOrderPayload: SupplierOrderFormValues = {
+              supplierId: payload.supplierId,
+              deliveryDate: payload.deliveryDate,
+              supplyType: payload.supplyType,
+              number: payload.number,
+              note: payload.note,
+              createdBy: currentEmployeeName || 'Administrator',
+              status: editingSupplierOrder
+                ? editingSupplierOrder.status
+                : 'stocked',
+              paymentStatus: editingSupplierOrder?.paymentStatus,
+              items: payload.items,
+            };
+            if (editingSupplierOrder) {
+              await updateSupplierOrder(editingSupplierOrder.id, {
+                ...supplierOrderPayload,
+                orderBaseId: editingSupplierOrder.orderBaseId,
+              });
+              onSuccess('Receipt order updated.');
+            } else {
+              await createSupplierOrder({
+                ...supplierOrderPayload,
+                orderBaseId: `SO-${Date.now()}`,
+              });
+              onSuccess(
+                'Receipt order created and added to warehouse receipts.',
+              );
+            }
+            setIsSupplierOrderModalOpen(false);
+            setEditingSupplierOrder(null);
+            await refreshSupplierOrders();
+          } catch (error) {
+            onError(
+              error instanceof Error
+                ? error.message
+                : 'Failed to create receipt order.',
+            );
+          }
+        }}
+      />
     </section>
   );
 };
 
-const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
+const ReceiptsTable = ({
+  receipts,
+  onOpenOrder,
+}: {
+  receipts: ReceiptRow[];
+  onOpenOrder: (receipt: ReceiptRow) => void;
+}) => {
   if (receipts.length === 0)
     return <p className='empty-state'>No receipt orders created.</p>;
   return (
@@ -1034,7 +1127,7 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
       <table className='catalog-table warehouse-receipts-table'>
         <thead>
           <tr>
-            <th>&num;</th>
+            <th>#</th>
             <th>Product</th>
             <th>Quantity</th>
             <th>Price</th>
@@ -1046,22 +1139,41 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
             <th>Approved By</th>
             <th>Status</th>
             <th>Payment</th>
-            <th>Note</th>
           </tr>
         </thead>
         <tbody>
           {receipts.map((receipt) => (
             <tr key={receipt.id}>
-              <td>{receipt.number}</td>
-              <td>{receipt.productName}</td>
-              <td>{receipt.quantity} С€С‚</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.number}
+                </button>
+              </td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.productName}
+                </button>
+              </td>
+              <td>{receipt.quantity} pcs</td>
               <td>{formatCurrency(receipt.price)}</td>
               <td>{formatCurrency(receipt.amount)}</td>
               <td>{formatCurrency(receipt.paid)}</td>
-              <td>{receipt.supplierName}</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.supplierName}
+                </button>
+              </td>
               <td>{formatDate(receipt.createdAt)}</td>
-              <td>{receipt.acceptedBy}</td>
-              <td>{receipt.quantity} С€С‚</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.acceptedBy}
+                </button>
+              </td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.approvedBy}
+                </button>
+              </td>
               <td>
                 <span
                   className={
@@ -1079,7 +1191,7 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
                       : 'Approved'}
                 </span>
               </td>
-              <td>{receipt.note}</td>
+              <td>{receipt.status === 'new' ? '-' : receipt.paymentStatus ?? '-'}</td>
             </tr>
           ))}
         </tbody>
@@ -1087,7 +1199,6 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
     </div>
   );
 };
-
 const WarehouseSettings = ({
   tab,
   onTabChange,

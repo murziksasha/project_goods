@@ -13,6 +13,9 @@ import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import { SupplierOrderModal } from './SupplierOrderModal';
+import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
+import type { SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
@@ -507,14 +510,42 @@ export const CreateOrderCard = ({
     setSupplierOrderModalItemId(item.id);
   };
 
-  const confirmSupplierOrderRequest = () => {
+  const confirmSupplierOrderRequest = async (
+    payload: SupplierOrderModalSubmitPayload,
+  ) => {
     if (!supplierOrderModalItemId) return;
 
-    updateSaleItem(supplierOrderModalItemId, { supplierOrderRequested: true });
-    setSelectedFlags((current) =>
-      current.includes('Waiting for supply') ? current : [...current, 'Waiting for supply'],
-    );
-    setSupplierOrderModalItemId(null);
+    try {
+      const supplierOrderPayload: SupplierOrderFormValues = {
+        supplierId: payload.supplierId,
+        deliveryDate: payload.deliveryDate,
+        supplyType: payload.supplyType,
+        number: payload.number,
+        note: payload.note,
+        createdBy: currentEmployee?.name?.trim() || 'Administrator',
+        orderBaseId: `SO-${Date.now()}`,
+        items: payload.items,
+      };
+      await createSupplierOrder(supplierOrderPayload);
+      updateSaleItem(supplierOrderModalItemId, {
+        supplierOrderRequested: true,
+      });
+      setSelectedFlags((current) =>
+        current.includes('Waiting for supply')
+          ? current
+          : [...current, 'Waiting for supply'],
+      );
+      onSuccess(
+        'Supplier order created. It is now available in Warehouse Receipts and Accounting orders queue.',
+      );
+      setSupplierOrderModalItemId(null);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create supplier order.',
+      );
+    }
   };
 
   const onClientPhoneChange = (value: string) => {
