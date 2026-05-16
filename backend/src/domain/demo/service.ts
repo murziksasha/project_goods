@@ -7,6 +7,7 @@ import { Sequence } from '../sequence/model';
 import { ServiceCatalog } from '../service-catalog/model';
 import { Settings } from '../settings/model';
 import { Supplier } from '../supplier/model';
+import { SupplierOrder } from '../supplier-order/model';
 import { CatalogProduct } from '../catalog-product/model';
 import { formatClient, formatProduct, formatSale } from '../../shared/lib/formatters';
 import { demoClients } from '../../shared/data/demo-clients';
@@ -145,6 +146,7 @@ export const eraseAllDataExceptEmployees = async () => {
     Product.deleteMany({}),
     CatalogProduct.deleteMany({}),
     Supplier.deleteMany({}),
+    SupplierOrder.deleteMany({}),
     ServiceCatalog.deleteMany({}),
     ClientDevice.deleteMany({}),
     Cashbox.deleteMany({}),

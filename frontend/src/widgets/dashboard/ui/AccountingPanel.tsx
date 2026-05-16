@@ -8,6 +8,7 @@ import {
   getSupplierOrdersForPayment,
   paySupplierOrder,
 } from '../../../entities/finance/api/financeApi';
+import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   Cashbox,
   CreateFinanceTransactionPayload,
@@ -17,6 +18,8 @@ import type {
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import { SupplierOrderModal } from './SupplierOrderModal';
 import { formatDateTime } from '../../../shared/lib/format';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
@@ -26,6 +29,7 @@ type AccountingPanelProps = {
 };
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
+const accountingTabStorageKey = 'project-goods.accounting-tab';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -50,11 +54,25 @@ const initialTransactionForm: CreateFinanceTransactionPayload = {
 };
 
 export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) => {
-  const [activeTab, setActiveTab] = useState<AccountingTab>('cashboxes');
+  const [activeTab, setActiveTab] = useState<AccountingTab>(() => {
+    try {
+      const storedTab = window.localStorage.getItem(accountingTabStorageKey);
+      return storedTab === 'cashboxes' ||
+        storedTab === 'transactions' ||
+        storedTab === 'orders' ||
+        storedTab === 'reports'
+        ? storedTab
+        : 'cashboxes';
+    } catch {
+      return 'cashboxes';
+    }
+  });
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [report, setReport] = useState<FinanceReport | null>(null);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
   const [supplierOrdersQueue, setSupplierOrdersQueue] = useState<SupplierOrderPaymentQueueItem[]>([]);
+  const [selectedSupplierOrder, setSelectedSupplierOrder] = useState<SupplierOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newCashboxName, setNewCashboxName] = useState('');
@@ -72,10 +90,12 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
         getFinanceReport(),
         getSupplierOrdersForPayment(),
       ]);
+      const allSupplierOrders = await getSupplierOrders();
       setCashboxes(cashboxesData);
       setTransactions(transactionsData);
       setReport(reportData);
       setSupplierOrdersQueue(supplierOrdersData);
+      setSupplierOrders(allSupplierOrders);
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Failed to load finance data.');
     } finally {
@@ -98,6 +118,10 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
       window.removeEventListener('project-goods:finance-updated', refreshOnOrderPayment);
     };
   }, [refreshFinance]);
+
+  useEffect(() => {
+    window.localStorage.setItem(accountingTabStorageKey, activeTab);
+  }, [activeTab]);
 
   const totals = useMemo(
     () =>
@@ -259,7 +283,27 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
                 <td>{formatMoney(transaction.amount, transaction.currency)}</td>
                 <td>{transaction.fromCashbox?.name ?? '-'}</td>
                 <td>{transaction.toCashbox?.name ?? '-'}</td>
-                <td>{transaction.note || '-'}</td>
+                <td>
+                  {(() => {
+                    const parsedOrderNumber =
+                      transaction.note.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                    const matchedOrder = supplierOrders.find(
+                      (order) =>
+                        order.number === parsedOrderNumber ||
+                        order.orderBaseId === parsedOrderNumber,
+                    );
+                    if (!matchedOrder) return transaction.note || '-';
+                    return (
+                      <button
+                        type='button'
+                        className='catalog-name-button'
+                        onClick={() => setSelectedSupplierOrder(matchedOrder)}
+                      >
+                        {transaction.note}
+                      </button>
+                    );
+                  })()}
+                </td>
               </tr>
             ))
           )}
@@ -361,6 +405,17 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
       ) : (
         renderCashboxes()
       )}
+      <SupplierOrderModal
+        isOpen={Boolean(selectedSupplierOrder)}
+        suppliers={[]}
+        editingOrder={selectedSupplierOrder}
+        forceReadOnly
+        onClose={() => setSelectedSupplierOrder(null)}
+        onCreateSupplier={async () => false}
+        onSubmit={async () => undefined}
+        onSuccess={onSuccess}
+        onError={onError}
+      />
     </section>
   );
 };

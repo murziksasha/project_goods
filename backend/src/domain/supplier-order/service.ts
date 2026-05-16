@@ -1,12 +1,16 @@
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { toNonEmptyString, toNumber, toOptionalDate } from '../../shared/lib/parsers';
+import mongoose from 'mongoose';
 import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
+import { Product } from '../product/model';
+import { CatalogProduct } from '../catalog-product/model';
 import { SupplierOrder, supplierOrderStatuses, supplierPaymentStatuses, type SupplierOrderDocument } from './model';
 
 type SupplierOrderItemPayload = {
   lineId?: unknown;
   itemIndex?: unknown;
+  catalogProductId?: unknown;
   productName?: unknown;
   quantity?: unknown;
   price?: unknown;
@@ -38,6 +42,7 @@ const toPaymentStatus = (value: unknown) =>
 type NormalizedSupplierOrderItem = {
   lineId: string;
   itemIndex: number;
+  catalogProductId?: string;
   productName: string;
   quantity: number;
   price: number;
@@ -52,10 +57,21 @@ const normalizeItems = (items: unknown): NormalizedSupplierOrderItem[] => {
       const productName = toNonEmptyString(raw.productName);
       const quantity = toNumber(raw.quantity);
       const price = toNumber(raw.price);
+      const catalogProductIdRaw = toNonEmptyString(raw.catalogProductId);
+      const catalogProductId = mongoose.isValidObjectId(catalogProductIdRaw)
+        ? catalogProductIdRaw
+        : undefined;
       const lineId = toNonEmptyString(raw.lineId) || `line-${index + 1}`;
       const itemIndex = Number.isFinite(toNumber(raw.itemIndex)) ? Math.max(0, Math.floor(toNumber(raw.itemIndex))) : index;
 
-      return { lineId, itemIndex, productName, quantity, price };
+      return {
+        lineId,
+        itemIndex,
+        catalogProductId,
+        productName,
+        quantity,
+        price,
+      };
     })
     .filter((item) => item.productName.length >= 2 && Number.isFinite(item.quantity) && item.quantity > 0 && Number.isFinite(item.price) && item.price >= 0)
     .sort((a, b) => a.itemIndex - b.itemIndex);
@@ -79,6 +95,9 @@ const formatSupplierOrder = (order: SupplierOrderDocument & { supplierName?: str
   items: (order.items ?? []).map((item) => ({
     lineId: item.lineId,
     itemIndex: item.itemIndex,
+    catalogProductId: item.catalogProductId
+      ? item.catalogProductId.toString()
+      : undefined,
     productName: item.productName,
     quantity: item.quantity,
     price: item.price,
@@ -165,7 +184,7 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
 
 export const listSupplierOrdersForAccounting = async () => {
   const orders = await SupplierOrder.find({
-    status: 'approved',
+    status: { $in: ['approved', 'stocked'] },
     paymentStatus: 'pending',
   })
     .sort({ deliveryDate: 1, createdAt: 1 })
@@ -195,8 +214,8 @@ export const paySupplierOrder = async (
   const existing = await SupplierOrder.findById(supplierOrderId);
   if (!existing) throw new Error('Supplier order not found.');
   if (existing.paymentStatus === 'paid') throw new Error('Замовлення вже сплачено.');
-  if (existing.status !== 'approved') {
-    throw new Error('Оплата доступна тільки для замовлень зі статусом approved.');
+  if (existing.status !== 'approved' && existing.status !== 'stocked') {
+    throw new Error('Оплата доступна тільки для замовлень зі статусом approved або stocked.');
   }
 
   const cashboxId = toNonEmptyString(payload.cashboxId);
@@ -217,5 +236,79 @@ export const paySupplierOrder = async (
   await existing.validate();
   await existing.save();
 
+  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+};
+
+const toReceiptArticle = (orderBaseId: string, itemIndex: number) =>
+  `SO-${orderBaseId.replace(/[^A-Za-z0-9]/g, '').slice(-8)}-${itemIndex + 1}`;
+
+const toReceiptSerial = (orderId: string, itemIndex: number) =>
+  `SO-${orderId.slice(-6).toUpperCase()}-${String(itemIndex + 1).padStart(2, '0')}`;
+
+export const cancelSupplierOrder = async (supplierOrderId: string) => {
+  isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
+  const existing = await SupplierOrder.findById(supplierOrderId);
+  if (!existing) throw new Error('Supplier order not found.');
+  if (existing.paymentStatus === 'paid') throw new Error('Оплачений заказ не можна скасувати.');
+
+  existing.status = 'cancelled';
+  existing.paymentStatus = 'cancelled';
+  await existing.validate();
+  await existing.save();
+  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+};
+
+export const takeOnChargeSupplierOrder = async (supplierOrderId: string) => {
+  isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
+  const existing = await SupplierOrder.findById(supplierOrderId);
+  if (!existing) throw new Error('Supplier order not found.');
+  if (existing.status === 'cancelled') throw new Error('Скасований заказ не можна оприбуткувати.');
+
+  const supplier = await Supplier.findById(existing.supplier).lean();
+  for (const item of existing.items ?? []) {
+    const catalogName = item.catalogProductId
+      ? (
+          await CatalogProduct.findById(item.catalogProductId)
+            .select({ name: 1 })
+            .lean<{ name?: string } | null>()
+        )?.name
+      : undefined;
+    const normalizedName = toNonEmptyString(catalogName || item.productName);
+    if (!normalizedName) continue;
+
+    const existingProduct = await Product.findOne({ name: normalizedName });
+    if (existingProduct) {
+      existingProduct.quantity = (existingProduct.quantity ?? 0) + item.quantity;
+      existingProduct.price = item.price;
+      existingProduct.purchasePlace = supplier?.name ?? existingProduct.purchasePlace;
+      existingProduct.purchaseDate = new Date();
+      await existingProduct.validate();
+      await existingProduct.save();
+      continue;
+    }
+
+    const newProduct = new Product({
+      name: normalizedName,
+      article: toReceiptArticle(existing.orderBaseId, item.itemIndex),
+      serialNumber: toReceiptSerial(existing.id, item.itemIndex),
+      price: item.price,
+      salePriceOptions: [],
+      note: existing.note ?? '',
+      quantity: item.quantity,
+      reservedQuantity: 0,
+      purchasePlace: supplier?.name ?? '',
+      purchaseDate: new Date(),
+      warrantyPeriod: 0,
+      isActive: true,
+    });
+    await newProduct.validate();
+    await newProduct.save();
+  }
+
+  existing.status = 'stocked';
+  existing.receiptStatus = 'received';
+  if (existing.paymentStatus !== 'paid') existing.paymentStatus = 'pending';
+  await existing.validate();
+  await existing.save();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };

@@ -13,6 +13,7 @@ export type SupplierReceiptStatus = 'new' | 'approved' | 'received';
 export type SupplierOrderItem = {
   lineId: string;
   itemIndex: number;
+  catalogProductId?: string;
   productName: string;
   quantity: number;
   price: number;

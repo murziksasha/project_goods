@@ -29,3 +29,32 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const cancelSupplierOrder = async (supplierOrderId: string) => {
+  try {
+    const response = await apiClient.post<SupplierOrder>(`/supplier-orders/${supplierOrderId}/cancel`);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export type TakeOnChargePayload = {
+  autoGenerateSerialNumbers?: boolean;
+  serialNumbers?: string[];
+};
+
+export const takeOnChargeSupplierOrder = async (
+  supplierOrderId: string,
+  payload?: TakeOnChargePayload,
+) => {
+  try {
+    const response = await apiClient.post<SupplierOrder>(
+      `/supplier-orders/${supplierOrderId}/take-on-charge`,
+      payload ?? {},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

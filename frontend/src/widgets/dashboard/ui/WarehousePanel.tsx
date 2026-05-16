@@ -17,6 +17,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { cancelSupplierOrder, takeOnChargeSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
@@ -50,6 +51,7 @@ type ReceiptRow = {
   id: string;
   number: string;
   supplierOrderId?: string;
+  catalogProductId?: string;
   productName: string;
   quantity: number;
   price: number;
@@ -183,7 +185,8 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
   receiptPhone: w?.receiptPhone ?? '',
   locations: w?.locations.map((x) => x.name) ?? [''],
 });
-
+const normalizeProductName = (value: string) =>
+  value.trim().toLowerCase();
 export const WarehousePanel = ({
   products,
   catalogProducts,
@@ -315,44 +318,15 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>(
-    () =>
-      products.slice(0, 8).map((product, index) => ({
-        id: `r-${product.id}`,
-        number: `R-${23000 + index}`,
-        productName: product.name,
-        quantity: product.quantity,
-        price: product.price,
-        amount: product.price * product.quantity,
-        paid: product.price * product.quantity,
-        supplierName: product.purchasePlace || 'Supplier',
-        createdAt: product.createdAt,
-        acceptedBy: 'Administrator',
-        approvedBy: 'Administrator',
-        acceptedAt: product.purchaseDate || product.createdAt,
-        status: product.freeQuantity > 0 ? 'received' : 'approved',
-        paymentStatus: 'pending',
-        note: product.note || '',
-      })),
-  );
+  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
 
   const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
-    const orderedByCreatedAt = [...orders].sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
-    const orderBaseNumberById = orderedByCreatedAt.reduce<
-      Record<string, number>
-    >((acc, order, index) => {
-      acc[order.id] = index + 1;
-      return acc;
-    }, {});
-
     return orders.flatMap((order) =>
-      order.items.map((item, itemPosition) => ({
+      order.items.map((item) => ({
         id: `${order.id}-${item.itemIndex}`,
         supplierOrderId: order.id,
-        number: `${orderBaseNumberById[order.id] ?? 1}-${itemPosition + 1}`,
+        catalogProductId: item.catalogProductId,
+        number: order.number || order.orderBaseId || order.id,
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -380,6 +354,61 @@ export const WarehousePanel = ({
     setReceiptHistory((current) => {
       const manualRows = current.filter((row) => !row.id.startsWith('so-'));
       return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+    });
+  };
+  const syncCatalogRenameToSupplierOrders = async (
+    catalogProductId: string,
+    nextName: string,
+  ) => {
+    const nextNormalized = normalizeProductName(nextName);
+    if (!catalogProductId || !nextNormalized) return;
+
+    const ordersToUpdate = supplierOrders.filter((order) =>
+      order.items.some(
+        (item) => item.catalogProductId === catalogProductId,
+      ),
+    );
+    if (ordersToUpdate.length === 0) return;
+
+    await Promise.all(
+      ordersToUpdate.map((order) =>
+        updateSupplierOrder(order.id, {
+          orderBaseId: order.orderBaseId,
+          supplierId: order.supplierId,
+          deliveryDate: order.deliveryDate,
+          supplyType: order.supplyType,
+          number: order.number,
+          note: order.note,
+          createdBy: order.createdBy,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          items: order.items.map((item) =>
+            item.catalogProductId === catalogProductId
+              ? { ...item, productName: nextName }
+              : item,
+          ),
+        }),
+      ),
+    );
+  };
+  const syncSupplierOrderRenameToCatalog = async (
+    catalogProductId: string | undefined,
+    nextName: string,
+  ) => {
+    const nextNormalized = normalizeProductName(nextName);
+    if (!catalogProductId || !nextNormalized) return;
+
+    const catalogProduct = catalogProducts.find(
+      (item) => item.id === catalogProductId,
+    );
+    if (!catalogProduct) return;
+    if (normalizeProductName(catalogProduct.name) === nextNormalized)
+      return;
+
+    await onUpdateCatalogProduct(catalogProduct.id, {
+      name: nextName,
+      note: catalogProduct.note,
+      isActive: catalogProduct.isActive,
     });
   };
 
@@ -596,7 +625,7 @@ export const WarehousePanel = ({
     const now = new Date().toISOString();
     setReceiptHistory((current) => [
       {
-        id: `r-${Date.now()}`,
+        id: `manual-${Date.now()}`,
         number: `R-${23000 + current.length + 1}`,
         productName: receiptForm.productName.trim(),
         quantity,
@@ -616,10 +645,7 @@ export const WarehousePanel = ({
     ]);
 
     onProductChange('name', receiptForm.productName.trim());
-    onProductChange(
-      'article',
-      `WM-${Date.now().toString().slice(-4)}`,
-    );
+    onProductChange('article', '');
     onProductChange(
       'serialNumber',
       `REC-${Date.now().toString().slice(-6)}`,
@@ -800,11 +826,16 @@ export const WarehousePanel = ({
               setIsSupplierOrderModalOpen(true);
             }}
             onOpenProduct={(receipt) => {
-              const matchedProduct = catalogProducts.find(
-                (product) =>
-                  product.name.trim().toLowerCase() ===
-                  receipt.productName.trim().toLowerCase(),
-              );
+              const matchedProduct = receipt.catalogProductId
+                ? catalogProducts.find(
+                    (product) =>
+                      product.id === receipt.catalogProductId,
+                  )
+                : catalogProducts.find(
+                    (product) =>
+                      product.name.trim().toLowerCase() ===
+                      receipt.productName.trim().toLowerCase(),
+                  );
               if (!matchedProduct) {
                 onError('Product not found in Products catalog.');
                 return;
@@ -1160,10 +1191,42 @@ export const WarehousePanel = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
+        onTakeOnCharge={async ({ autoGenerateSerialNumbers, serialNumbers }) => {
+          if (!editingSupplierOrder) return;
+          await takeOnChargeSupplierOrder(editingSupplierOrder.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+          });
+          onSuccess('Order taken on charge.');
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          window.dispatchEvent(new Event('project-goods:products-updated'));
+          await refreshSupplierOrders();
+        }}
+        onCancelOrder={async () => {
+          if (!editingSupplierOrder) return;
+          await cancelSupplierOrder(editingSupplierOrder.id);
+          onSuccess('Order cancelled.');
+          await refreshSupplierOrders();
+        }}
         onSubmit={async (
           payload: SupplierOrderModalSubmitPayload,
         ) => {
           try {
+            if (editingSupplierOrder) {
+              await Promise.all(
+                payload.items.map((item) => {
+                  const previousItem = editingSupplierOrder.items.find(
+                    (currentItem) =>
+                      currentItem.itemIndex === item.itemIndex,
+                  );
+                  if (!previousItem) return Promise.resolve();
+                  return syncSupplierOrderRenameToCatalog(
+                    previousItem.catalogProductId,
+                    item.productName.trim(),
+                  );
+                }),
+              );
+            }
             const supplierOrderPayload: SupplierOrderFormValues = {
               supplierId: payload.supplierId,
               deliveryDate: payload.deliveryDate,
@@ -1364,17 +1427,24 @@ export const WarehousePanel = ({
                 }
                 onClick={async () => {
                   if (!selectedCatalogProductForEdit) return;
+                  const catalogProductId =
+                    selectedCatalogProductForEdit.id;
+                  const nextName = productEditForm.name.trim();
                   setIsProductSavingInline(true);
                   const ok = await onUpdateCatalogProduct(
                     selectedCatalogProductForEdit.id,
                     {
-                      name: productEditForm.name.trim(),
+                      name: nextName,
                       note: productEditForm.note.trim(),
                       isActive: productEditForm.isActive,
                     },
                   );
                   setIsProductSavingInline(false);
                   if (!ok) return;
+                  await syncCatalogRenameToSupplierOrders(
+                    catalogProductId,
+                    nextName,
+                  );
                   onSuccess('Product updated.');
                   await refreshSupplierOrders();
                   setSelectedCatalogProductForEdit(null);
@@ -1466,7 +1536,7 @@ const ReceiptsTable = ({
                   }
                 >
                   {receipt.status === 'received'
-                    ? 'Received'
+                    ? 'Taken on charge'
                     : receipt.status === 'new'
                       ? 'New'
                       : 'Approved'}

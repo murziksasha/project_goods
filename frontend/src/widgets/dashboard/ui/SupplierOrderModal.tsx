@@ -18,32 +18,40 @@ type SupplierOrderModalProps = {
   suppliers: Supplier[];
   initialProductName?: string;
   editingOrder?: SupplierOrder | null;
+  forceReadOnly?: boolean;
   onClose: () => void;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSubmit: (payload: SupplierOrderModalSubmitPayload) => Promise<void> | void;
+  onTakeOnCharge?: (payload: {
+    autoGenerateSerialNumbers: boolean;
+    serialNumbers: string[];
+  }) => Promise<void> | void;
+  onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
 
-type DraftItem = { productName: string; quantity: number; price: number };
+type DraftItem = {
+  catalogProductId?: string;
+  productName: string;
+  quantity: number;
+  price: number;
+};
 
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
-
-const isProductMatched = (name: string, suggestions: CatalogProduct[]) => {
-  const normalized = name.trim().toLowerCase();
-  if (!normalized) return false;
-  return suggestions.some((product) => product.name.trim().toLowerCase() === normalized);
-};
 
 export const SupplierOrderModal = ({
   isOpen,
   suppliers,
   initialProductName = '',
   editingOrder,
+  forceReadOnly = false,
   onClose,
   onCreateSupplier,
   onSubmit,
+  onTakeOnCharge,
+  onCancelOrder,
   onSuccess,
   onError,
 }: SupplierOrderModalProps) => {
@@ -57,6 +65,10 @@ export const SupplierOrderModal = ({
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isActionSubmitting, setIsActionSubmitting] = useState(false);
+  const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
+  const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
+  const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -64,6 +76,7 @@ export const SupplierOrderModal = ({
   const [productSuggestions, setProductSuggestions] = useState<CatalogProduct[]>([]);
   const [isProductLookupLoading, setIsProductLookupLoading] = useState(false);
   const [productTouched, setProductTouched] = useState(false);
+  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<string>('');
 
   const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
   const [isCreateCatalogProductSaving, setIsCreateCatalogProductSaving] = useState(false);
@@ -80,6 +93,12 @@ export const SupplierOrderModal = ({
   });
 
   const isEditing = Boolean(editingOrder);
+  const isTakenOnChargeLocked = Boolean(
+    editingOrder &&
+      (editingOrder.status === 'stocked' ||
+        editingOrder.receiptStatus === 'received'),
+  );
+  const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,12 +116,14 @@ export const SupplierOrderModal = ({
 
     setProductSearch(firstItem?.productName ?? initialProductName);
     setDebouncedProductSearch(firstItem?.productName ?? initialProductName);
+    setSelectedCatalogProductId(firstItem?.catalogProductId ?? '');
     setShowProductSuggestions(false);
     setProductSuggestions([]);
     setProductTouched(false);
 
     setBasketItems(
       editingItems.slice(1).map((item) => ({
+        catalogProductId: item.catalogProductId,
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -117,6 +138,9 @@ export const SupplierOrderModal = ({
       price: String(firstItem?.price ?? 0),
       note: editingOrder?.note ?? '',
     });
+    setIsSerialModalOpen(false);
+    setIsAutoSerialEnabled(true);
+    setManualSerialNumbers([]);
   }, [editingOrder, initialProductName, isOpen]);
 
   useEffect(() => {
@@ -179,11 +203,12 @@ export const SupplierOrderModal = ({
 
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
   const currentPrice = Math.max(0, Number(form.price) || 0);
-  const currentProductMatched = isProductMatched(productSearch, productSuggestions);
+  const currentProductMatched = Boolean(selectedCatalogProductId);
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
   const currentDraftItem = productSearch.trim()
     ? {
+        catalogProductId: selectedCatalogProductId || undefined,
         productName: productSearch.trim(),
         quantity: currentQuantity,
         price: currentPrice,
@@ -198,10 +223,22 @@ export const SupplierOrderModal = ({
     ? basketItems
     : submitItems;
   const hasDuplicateSubmitItems =
-    new Set(submitItems.map((item) => normalizeProductName(item.productName)))
+    new Set(
+      submitItems.map((item) =>
+        item.catalogProductId || normalizeProductName(item.productName),
+      ),
+    )
       .size !== submitItems.length;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalUnits = submitItems.reduce(
+    (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
+    0,
+  );
+  const canSubmitTakeOnCharge = isAutoSerialEnabled
+    ? true
+    : manualSerialNumbers.length === totalUnits &&
+      manualSerialNumbers.every((serial) => serial.trim().length > 0);
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -210,6 +247,25 @@ export const SupplierOrderModal = ({
           <div className='catalog-edit-title'>
             <h2>Замовити у постачальника</h2>
           </div>
+          {isEditing && onCancelOrder ? (
+            <button
+              type='button'
+              className='danger-button'
+              disabled={isActionSubmitting || isReadOnly}
+              onClick={async () => {
+                setIsActionSubmitting(true);
+                try {
+                  await onCancelOrder();
+                  onClose();
+                } finally {
+                  setIsActionSubmitting(false);
+                }
+              }}
+              style={{ marginLeft: 'auto', marginRight: 12 }}
+            >
+              Удалить
+            </button>
+          ) : null}
           <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
             &times;
           </button>
@@ -222,6 +278,7 @@ export const SupplierOrderModal = ({
                 <input
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
+                  disabled={isReadOnly}
                   onFocus={() => setShowSupplierSuggestions(true)}
                   onBlur={() => {
                     setSupplierTouched(true);
@@ -237,6 +294,7 @@ export const SupplierOrderModal = ({
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label='Create supplier'
+                  disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateSupplierForm({ name: supplierSearch.trim(), phone: '+380', note: '' });
@@ -271,12 +329,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>Дата поставки</span>
-            <input type='date' value={form.deliveryDate} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
+            <input type='date' value={form.deliveryDate} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
           </label>
 
           <label className='field supplier-order-supply-type-field'>
             <span>Тип поставки</span>
-            <select value={form.supplyType} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
+            <select value={form.supplyType} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
               <option>Локально</option>
               <option>Закордон</option>
             </select>
@@ -284,12 +342,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>Номер</span>
-            <input value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
+            <input value={form.number} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
           </label>
 
           <label className='field field-wide'>
             <span>Примітка</span>
-            <textarea rows={2} value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+            <textarea rows={2} value={form.note} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
 
           <div className='supplier-order-product-row field-wide'>
@@ -300,18 +358,23 @@ export const SupplierOrderModal = ({
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
                   value={productSearch}
+                  disabled={isReadOnly}
                   onFocus={() => setShowProductSuggestions(true)}
                   onBlur={() => {
                     setProductTouched(true);
                     window.setTimeout(() => setShowProductSuggestions(false), 120);
                   }}
-                  onChange={(event) => setProductSearch(event.target.value)}
+                  onChange={(event) => {
+                    setProductSearch(event.target.value);
+                    setSelectedCatalogProductId('');
+                  }}
                   placeholder='Введіть щоб знайти та додати'
                 />
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label='Create catalog product'
+                  disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateCatalogProductForm({ name: productSearch.trim(), note: '' });
@@ -332,6 +395,7 @@ export const SupplierOrderModal = ({
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setProductSearch(product.name);
+                        setSelectedCatalogProductId(product.id);
                         setShowProductSuggestions(false);
                         setProductTouched(true);
                       }}
@@ -345,11 +409,11 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Ціна (UAH)</span>
-              <input value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} />
+              <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>К-сть</span>
-              <input value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
+              <input value={form.quantity} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Сума</span>
@@ -359,7 +423,7 @@ export const SupplierOrderModal = ({
                 type='button'
                 className='toolbar-square-button supplier-order-product-add'
                 aria-label='Add product to order list'
-                disabled={!canAddBasketItem}
+                disabled={!canAddBasketItem || isReadOnly}
                 onClick={() => {
                   if (!canAddBasketItem) {
                     setProductTouched(true);
@@ -368,6 +432,8 @@ export const SupplierOrderModal = ({
                   const nextName = normalizeProductName(productSearch);
                   const duplicateExists = basketItems.some(
                     (item) =>
+                      (selectedCatalogProductId &&
+                        item.catalogProductId === selectedCatalogProductId) ||
                       normalizeProductName(item.productName) === nextName,
                   );
                   if (duplicateExists) {
@@ -377,12 +443,15 @@ export const SupplierOrderModal = ({
                   setBasketItems((current) => [
                     ...current,
                     {
+                      catalogProductId:
+                        selectedCatalogProductId || undefined,
                       productName: productSearch.trim(),
                       quantity: currentQuantity,
                       price: currentPrice,
                     },
                   ]);
                   setProductSearch('');
+                  setSelectedCatalogProductId('');
                   setShowProductSuggestions(false);
                   setProductTouched(false);
                   setForm((current) => ({ ...current, quantity: '1', price: '0' }));
@@ -416,43 +485,65 @@ export const SupplierOrderModal = ({
         </div>
 
         <footer className='catalog-edit-footer'>
-          <button
-            type='button'
-            className='primary-button'
-            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
-            onClick={async () => {
-              if (!selectedSupplier) {
-                setSupplierTouched(true);
-                return;
-              }
-              if (hasDuplicateSubmitItems) {
-                onError('В замовленні не може бути двох однакових товарів.');
-                return;
-              }
-              setIsSubmitting(true);
-              try {
-                await onSubmit({
-                  supplierId: selectedSupplier.id,
-                  deliveryDate: form.deliveryDate,
-                  supplyType: form.supplyType,
-                  number: form.number,
-                  note: form.note,
-                  items: submitItems.map((item, index) => ({
-                    lineId: `line-${index + 1}`,
-                    itemIndex: index,
-                    productName: item.productName,
-                    quantity: item.quantity,
-                    price: item.price,
-                  })),
-                });
-                onClose();
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-          >
-            {isSubmitting ? 'Збереження...' : isEditing ? 'Зберегти' : 'Створити'}
-          </button>
+          {isEditing && onTakeOnCharge && !isReadOnly ? (
+            <button
+              type='button'
+              className='primary-button'
+              disabled={isSubmitting || isActionSubmitting}
+              onClick={() => {
+                setIsSerialModalOpen(true);
+                setIsAutoSerialEnabled(true);
+                setManualSerialNumbers(Array.from({ length: totalUnits }, () => ''));
+              }}
+              style={{ background: '#16a34a' }}
+            >
+              Оприбуткувати
+            </button>
+          ) : null}
+          {isReadOnly ? (
+            <button type='button' className='secondary-button' onClick={onClose}>
+              Close
+            </button>
+          ) : (
+            <button
+              type='button'
+              className='primary-button'
+              disabled={isSubmitting || isActionSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
+              onClick={async () => {
+                if (!selectedSupplier) {
+                  setSupplierTouched(true);
+                  return;
+                }
+                if (hasDuplicateSubmitItems) {
+                  onError('В замовленні не може бути двох однакових товарів.');
+                  return;
+                }
+                setIsSubmitting(true);
+                try {
+                  await onSubmit({
+                    supplierId: selectedSupplier.id,
+                    deliveryDate: form.deliveryDate,
+                    supplyType: form.supplyType,
+                    number: form.number,
+                    note: form.note,
+                    items: submitItems.map((item, index) => ({
+                      lineId: `line-${index + 1}`,
+                      itemIndex: index,
+                      catalogProductId: item.catalogProductId,
+                      productName: item.productName,
+                      quantity: item.quantity,
+                      price: item.price,
+                    })),
+                  });
+                  onClose();
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+            >
+              {isSubmitting ? 'Збереження...' : isEditing ? 'Зберегти' : 'Створити'}
+            </button>
+          )}
         </footer>
       </section>
 
@@ -475,6 +566,7 @@ export const SupplierOrderModal = ({
                   try {
                     const created = await createCatalogProduct({ name: createCatalogProductForm.name.trim(), note: createCatalogProductForm.note.trim(), isActive: true });
                     setProductSearch(created.name);
+                    setSelectedCatalogProductId(created.id);
                     setProductTouched(true);
                     setShowProductSuggestions(false);
                     setCreateCatalogProductForm({ name: '', note: '' });
@@ -488,6 +580,102 @@ export const SupplierOrderModal = ({
                 }}
               >
                 {isCreateCatalogProductSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+      {isSerialModalOpen ? (
+        <div className='supplier-order-inline-backdrop' role='presentation'>
+          <section
+            className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Оприходование</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsSerialModalOpen(false)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body clients-modal-body'>
+              <label className='supplier-serial-auto'>
+                <input
+                  type='checkbox'
+                  checked={isAutoSerialEnabled}
+                  onChange={(event) =>
+                    setIsAutoSerialEnabled(event.target.checked)
+                  }
+                />
+                <span>Автогенерация серийных номеров бекендом</span>
+              </label>
+              {!isAutoSerialEnabled ? (
+                <div className='warehouse-receipt-modal-grid'>
+                  {manualSerialNumbers.map((serialNumber, index) => (
+                    <label key={`serial-${index}`} className='field'>
+                      <span>{`#${index + 1}`}</span>
+                      <input
+                        value={serialNumber}
+                        onChange={(event) =>
+                          setManualSerialNumbers((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? event.target.value
+                                : item,
+                            ),
+                          )
+                        }
+                        placeholder='serial number'
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setIsSerialModalOpen(false)}
+                disabled={isActionSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isActionSubmitting ||
+                  totalUnits <= 0 ||
+                  !canSubmitTakeOnCharge
+                }
+                onClick={async () => {
+                  if (!onTakeOnCharge) return;
+                  setIsActionSubmitting(true);
+                  try {
+                    await onTakeOnCharge({
+                      autoGenerateSerialNumbers: isAutoSerialEnabled,
+                      serialNumbers: isAutoSerialEnabled
+                        ? []
+                        : manualSerialNumbers.map((item) =>
+                            item.trim(),
+                          ),
+                    });
+                    setIsSerialModalOpen(false);
+                    onClose();
+                  } finally {
+                    setIsActionSubmitting(false);
+                  }
+                }}
+              >
+                {isActionSubmitting ? 'Saving...' : 'Оприбуткувати'}
               </button>
             </footer>
           </section>

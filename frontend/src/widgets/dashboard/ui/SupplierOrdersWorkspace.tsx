@@ -2,8 +2,10 @@
 import type { CatalogProduct, CatalogProductFormValues } from '../../../entities/catalog-product/model/types';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import {
+  cancelSupplierOrder,
   createSupplierOrder,
   getSupplierOrders,
+  takeOnChargeSupplierOrder,
   updateSupplierOrder,
 } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
@@ -269,7 +271,12 @@ export const SupplierOrdersWorkspace = ({
                   <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
                   <td>
                     <button type='button' className='catalog-name-button' onClick={() => {
-                      const matchedProduct = catalogProducts.find((product) => product.name.trim().toLowerCase() === item.productName.trim().toLowerCase());
+                      const matchedProduct = item.catalogProductId
+                        ? catalogProducts.find(
+                            (product) =>
+                              product.id === item.catalogProductId,
+                          )
+                        : catalogProducts.find((product) => product.name.trim().toLowerCase() === item.productName.trim().toLowerCase());
                       if (!matchedProduct) {
                         onError('Товар не знайдено в Products каталозі.');
                         return;
@@ -344,6 +351,20 @@ export const SupplierOrdersWorkspace = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
+        onTakeOnCharge={async () => {
+          if (!editingOrder) return;
+          await takeOnChargeSupplierOrder(editingOrder.id);
+          onSuccess('Замовлення оприбутковано.');
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          window.dispatchEvent(new Event('project-goods:products-updated'));
+          await refreshOrders();
+        }}
+        onCancelOrder={async () => {
+          if (!editingOrder) return;
+          await cancelSupplierOrder(editingOrder.id);
+          onSuccess('Замовлення скасовано.');
+          await refreshOrders();
+        }}
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
           try {
             const basePayload: SupplierOrderFormValues = {
