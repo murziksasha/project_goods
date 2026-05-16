@@ -40,6 +40,18 @@ We keep current behavior here and extend it as new rules appear.
 - Receipt order creation/edit flow remains unchanged.
 - Only click outcomes for `Product` and `Supplier` fields were adjusted.
 
+### 7) Cancel From Receipt Modal (Delete action)
+- In `Warehouse -> Receipts`, clicking `Delete` inside supplier-order modal cancels the linked supplier order through API cancel action.
+- After cancel:
+1. Receipt row status is projected as `Cancelled` (red badge) in Receipts table.
+2. Projection rule: if supplier order has `status = cancelled` OR `paymentStatus = cancelled`, receipt row must be shown as `cancelled` regardless of previous `receiptStatus`.
+- In `Orders -> Supplier Order`:
+1. Order status field becomes read-only for cancelled orders (same UX pattern as `Оприбутковано`).
+2. Read-only label must be `Скасований`.
+- In supplier-order modal:
+1. Cancelled orders open in read-only mode (inputs/actions for editing disabled).
+2. This lock is equivalent in behavior to already received/stocked lock.
+
 ## Next Additions
 - Add edge-case decisions (duplicate names, archived catalog items, deleted suppliers).
 - Add validation standards for procurement edits.

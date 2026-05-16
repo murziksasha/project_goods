@@ -502,6 +502,10 @@
   background: #f59e0b;
 }
 
+.receipt-status-cancelled {
+  background: #dc2626;
+}
+
 .receipt-payment-badge {
   display: inline-flex;
   justify-content: center;
