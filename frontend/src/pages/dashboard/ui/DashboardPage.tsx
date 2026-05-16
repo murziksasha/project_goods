@@ -860,6 +860,7 @@ export const DashboardPage = () => {
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
+              catalogProducts={state.catalogProducts}
               employees={state.allEmployees}
               suppliers={state.suppliers}
               isLoading={state.isProductsLoading}
@@ -872,6 +873,8 @@ export const DashboardPage = () => {
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
               onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
+              onUpdateCatalogProduct={actions.updateCatalogProductCard}
               currentEmployeeName={currentEmployee.name}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}

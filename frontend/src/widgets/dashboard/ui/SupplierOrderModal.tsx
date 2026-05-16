@@ -194,6 +194,9 @@ export const SupplierOrderModal = ({
   const submitItems: DraftItem[] = isEditing
     ? [...(currentDraftItem ? [currentDraftItem] : []), ...basketItems]
     : basketItems;
+  const basketSummaryItems: DraftItem[] = isEditing
+    ? basketItems
+    : submitItems;
   const hasDuplicateSubmitItems =
     new Set(submitItems.map((item) => normalizeProductName(item.productName)))
       .size !== submitItems.length;
@@ -389,12 +392,12 @@ export const SupplierOrderModal = ({
               </button>
           </div>
 
-          {submitItems.length > 0 ? (
+          {basketSummaryItems.length > 0 ? (
             <div className='supplier-order-basket-summary'>
               <div className='supplier-order-basket-table'>
-                {submitItems.map((item, index) => (
+                {basketSummaryItems.map((item, index) => (
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
-                    <div className='supplier-order-product-index'>{index + 1}</div>
+                    <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.quantity)} readOnly /></div>

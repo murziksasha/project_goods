@@ -5,6 +5,10 @@ import type {
   Product,
   ProductFormValues,
 } from '../../../entities/product/model/types';
+import type {
+  CatalogProduct,
+  CatalogProductFormValues,
+} from '../../../entities/catalog-product/model/types';
 import {
   formatCurrency,
   formatDate,
@@ -92,6 +96,7 @@ type WarehouseFormState = {
 
 type WarehousePanelProps = {
   products: Product[];
+  catalogProducts: CatalogProduct[];
   employees: Employee[];
   isLoading: boolean;
   productForm: ProductFormValues;
@@ -107,6 +112,14 @@ type WarehousePanelProps = {
   onProductDelete: (product: Product) => void;
   suppliers: Supplier[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  onUpdateSupplier: (
+    supplierId: string,
+    payload: SupplierFormValues,
+  ) => Promise<boolean>;
+  onUpdateCatalogProduct: (
+    catalogProductId: string,
+    payload: CatalogProductFormValues,
+  ) => Promise<boolean>;
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -173,6 +186,7 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 
 export const WarehousePanel = ({
   products,
+  catalogProducts,
   employees,
   isLoading,
   isProductSaving,
@@ -182,6 +196,8 @@ export const WarehousePanel = ({
   onProductDelete,
   suppliers,
   onCreateSupplier,
+  onUpdateSupplier,
+  onUpdateCatalogProduct,
   currentEmployeeName,
   onSuccess,
   onError,
@@ -272,6 +288,26 @@ export const WarehousePanel = ({
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
     [],
   );
+  const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
+    useState<Supplier | null>(null);
+  const [
+    selectedCatalogProductForEdit,
+    setSelectedCatalogProductForEdit,
+  ] = useState<CatalogProduct | null>(null);
+  const [supplierEditForm, setSupplierEditForm] = useState({
+    name: '',
+    phone: '',
+    note: '',
+    isActive: true,
+  });
+  const [productEditForm, setProductEditForm] = useState({
+    name: '',
+    note: '',
+    isActive: true,
+  });
+  const [isSupplierSaving, setIsSupplierSaving] = useState(false);
+  const [isProductSavingInline, setIsProductSavingInline] =
+    useState(false);
   const [receiptForm, setReceiptForm] = useState({
     supplierId: '',
     productName: '',
@@ -350,6 +386,23 @@ export const WarehousePanel = ({
   useEffect(() => {
     void refreshSupplierOrders().catch(() => undefined);
   }, []);
+  useEffect(() => {
+    if (!selectedSupplierForEdit) return;
+    setSupplierEditForm({
+      name: selectedSupplierForEdit.name,
+      phone: selectedSupplierForEdit.phone,
+      note: selectedSupplierForEdit.note,
+      isActive: selectedSupplierForEdit.isActive,
+    });
+  }, [selectedSupplierForEdit]);
+  useEffect(() => {
+    if (!selectedCatalogProductForEdit) return;
+    setProductEditForm({
+      name: selectedCatalogProductForEdit.name,
+      note: selectedCatalogProductForEdit.note,
+      isActive: selectedCatalogProductForEdit.isActive,
+    });
+  }, [selectedCatalogProductForEdit]);
   const activeEmployees = useMemo(
     () => employees.filter((employee) => employee.isActive),
     [employees],
@@ -746,6 +799,39 @@ export const WarehousePanel = ({
               setEditingSupplierOrder(matchedOrder);
               setIsSupplierOrderModalOpen(true);
             }}
+            onOpenProduct={(receipt) => {
+              const matchedProduct = catalogProducts.find(
+                (product) =>
+                  product.name.trim().toLowerCase() ===
+                  receipt.productName.trim().toLowerCase(),
+              );
+              if (!matchedProduct) {
+                onError('Product not found in Products catalog.');
+                return;
+              }
+              setSelectedCatalogProductForEdit(matchedProduct);
+            }}
+            onOpenSupplier={(receipt) => {
+              const supplierIdFromOrder = receipt.supplierOrderId
+                ? supplierOrders.find(
+                    (order) => order.id === receipt.supplierOrderId,
+                  )?.supplierId
+                : undefined;
+              const matchedSupplier =
+                suppliers.find(
+                  (supplier) =>
+                    supplier.name.trim().toLowerCase() ===
+                    receipt.supplierName.trim().toLowerCase(),
+                ) ??
+                suppliers.find(
+                  (supplier) => supplier.id === supplierIdFromOrder,
+                );
+              if (!matchedSupplier) {
+                onError('Supplier not found in Suppliers catalog.');
+                return;
+              }
+              setSelectedSupplierForEdit(matchedSupplier);
+            }}
           />
           <PaginationPanel
             totalItems={filteredReceipts.length}
@@ -1118,6 +1204,188 @@ export const WarehousePanel = ({
           }
         }}
       />
+
+      {selectedSupplierForEdit ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setSelectedSupplierForEdit(null);
+          }}
+        >
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Supplier</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setSelectedSupplierForEdit(null)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Name</span>
+                <input
+                  value={supplierEditForm.name}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field'>
+                <span>Phone</span>
+                <input
+                  value={supplierEditForm.phone}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>Note</span>
+                <textarea
+                  rows={3}
+                  value={supplierEditForm.note}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isSupplierSaving ||
+                  supplierEditForm.name.trim().length < 2 ||
+                  supplierEditForm.phone.trim().length < 3
+                }
+                onClick={async () => {
+                  if (!selectedSupplierForEdit) return;
+                  setIsSupplierSaving(true);
+                  const ok = await onUpdateSupplier(
+                    selectedSupplierForEdit.id,
+                    {
+                      name: supplierEditForm.name.trim(),
+                      phone: supplierEditForm.phone.trim(),
+                      note: supplierEditForm.note.trim(),
+                      supplierOrder:
+                        selectedSupplierForEdit.supplierOrder,
+                      isActive: supplierEditForm.isActive,
+                    },
+                  );
+                  setIsSupplierSaving(false);
+                  if (!ok) return;
+                  onSuccess('Supplier updated.');
+                  await refreshSupplierOrders();
+                  setSelectedSupplierForEdit(null);
+                }}
+              >
+                {isSupplierSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedCatalogProductForEdit ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setSelectedCatalogProductForEdit(null);
+          }}
+        >
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Product</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setSelectedCatalogProductForEdit(null)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Product name</span>
+                <input
+                  value={productEditForm.name}
+                  onChange={(event) =>
+                    setProductEditForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>Note</span>
+                <textarea
+                  rows={3}
+                  value={productEditForm.note}
+                  onChange={(event) =>
+                    setProductEditForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isProductSavingInline ||
+                  productEditForm.name.trim().length < 2
+                }
+                onClick={async () => {
+                  if (!selectedCatalogProductForEdit) return;
+                  setIsProductSavingInline(true);
+                  const ok = await onUpdateCatalogProduct(
+                    selectedCatalogProductForEdit.id,
+                    {
+                      name: productEditForm.name.trim(),
+                      note: productEditForm.note.trim(),
+                      isActive: productEditForm.isActive,
+                    },
+                  );
+                  setIsProductSavingInline(false);
+                  if (!ok) return;
+                  onSuccess('Product updated.');
+                  await refreshSupplierOrders();
+                  setSelectedCatalogProductForEdit(null);
+                }}
+              >
+                {isProductSavingInline ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };
@@ -1125,9 +1393,13 @@ export const WarehousePanel = ({
 const ReceiptsTable = ({
   receipts,
   onOpenOrder,
+  onOpenProduct,
+  onOpenSupplier,
 }: {
   receipts: ReceiptRow[];
   onOpenOrder: (receipt: ReceiptRow) => void;
+  onOpenProduct: (receipt: ReceiptRow) => void;
+  onOpenSupplier: (receipt: ReceiptRow) => void;
 }) => {
   if (receipts.length === 0)
     return <p className='empty-state'>No receipt orders created.</p>;
@@ -1159,7 +1431,7 @@ const ReceiptsTable = ({
                 </button>
               </td>
               <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
                   {receipt.productName}
                 </button>
               </td>
@@ -1168,7 +1440,7 @@ const ReceiptsTable = ({
               <td>{formatCurrency(receipt.amount)}</td>
               <td>{formatCurrency(receipt.paid)}</td>
               <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenSupplier(receipt)}>
                   {receipt.supplierName}
                 </button>
               </td>
