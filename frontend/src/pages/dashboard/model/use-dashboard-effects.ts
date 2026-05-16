@@ -185,6 +185,23 @@ export const useDashboardEffects = ({
 
   useEffect(() => {
     if (!enabled) return;
+    const handleProductsUpdated = () => {
+      void productsQuery.refetch();
+    };
+    window.addEventListener(
+      'project-goods:products-updated',
+      handleProductsUpdated,
+    );
+    return () => {
+      window.removeEventListener(
+        'project-goods:products-updated',
+        handleProductsUpdated,
+      );
+    };
+  }, [enabled, productsQuery]);
+
+  useEffect(() => {
+    if (!enabled) return;
     setIsProductsLoading(productsQuery.isLoading);
     if (productsQuery.data) {
       setAllProducts(productsQuery.data);

@@ -17,6 +17,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { cancelSupplierOrder, takeOnChargeSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
@@ -1224,6 +1225,20 @@ export const WarehousePanel = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
+        onTakeOnCharge={async () => {
+          if (!editingSupplierOrder) return;
+          await takeOnChargeSupplierOrder(editingSupplierOrder.id);
+          onSuccess('Order taken on charge.');
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          window.dispatchEvent(new Event('project-goods:products-updated'));
+          await refreshSupplierOrders();
+        }}
+        onCancelOrder={async () => {
+          if (!editingSupplierOrder) return;
+          await cancelSupplierOrder(editingSupplierOrder.id);
+          onSuccess('Order cancelled.');
+          await refreshSupplierOrders();
+        }}
         onSubmit={async (
           payload: SupplierOrderModalSubmitPayload,
         ) => {
@@ -1552,7 +1567,7 @@ const ReceiptsTable = ({
                   }
                 >
                   {receipt.status === 'received'
-                    ? 'Received'
+                    ? 'Taken on charge'
                     : receipt.status === 'new'
                       ? 'New'
                       : 'Approved'}

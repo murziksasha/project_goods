@@ -18,9 +18,12 @@ type SupplierOrderModalProps = {
   suppliers: Supplier[];
   initialProductName?: string;
   editingOrder?: SupplierOrder | null;
+  forceReadOnly?: boolean;
   onClose: () => void;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSubmit: (payload: SupplierOrderModalSubmitPayload) => Promise<void> | void;
+  onTakeOnCharge?: () => Promise<void> | void;
+  onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
@@ -40,9 +43,12 @@ export const SupplierOrderModal = ({
   suppliers,
   initialProductName = '',
   editingOrder,
+  forceReadOnly = false,
   onClose,
   onCreateSupplier,
   onSubmit,
+  onTakeOnCharge,
+  onCancelOrder,
   onSuccess,
   onError,
 }: SupplierOrderModalProps) => {
@@ -56,6 +62,7 @@ export const SupplierOrderModal = ({
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isActionSubmitting, setIsActionSubmitting] = useState(false);
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -80,6 +87,12 @@ export const SupplierOrderModal = ({
   });
 
   const isEditing = Boolean(editingOrder);
+  const isTakenOnChargeLocked = Boolean(
+    editingOrder &&
+      (editingOrder.status === 'stocked' ||
+        editingOrder.receiptStatus === 'received'),
+  );
+  const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -217,6 +230,25 @@ export const SupplierOrderModal = ({
           <div className='catalog-edit-title'>
             <h2>Замовити у постачальника</h2>
           </div>
+          {isEditing && onCancelOrder ? (
+            <button
+              type='button'
+              className='danger-button'
+              disabled={isActionSubmitting || isReadOnly}
+              onClick={async () => {
+                setIsActionSubmitting(true);
+                try {
+                  await onCancelOrder();
+                  onClose();
+                } finally {
+                  setIsActionSubmitting(false);
+                }
+              }}
+              style={{ marginLeft: 'auto', marginRight: 12 }}
+            >
+              Удалить
+            </button>
+          ) : null}
           <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
             &times;
           </button>
@@ -229,6 +261,7 @@ export const SupplierOrderModal = ({
                 <input
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
+                  disabled={isReadOnly}
                   onFocus={() => setShowSupplierSuggestions(true)}
                   onBlur={() => {
                     setSupplierTouched(true);
@@ -244,6 +277,7 @@ export const SupplierOrderModal = ({
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label='Create supplier'
+                  disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateSupplierForm({ name: supplierSearch.trim(), phone: '+380', note: '' });
@@ -278,12 +312,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>Дата поставки</span>
-            <input type='date' value={form.deliveryDate} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
+            <input type='date' value={form.deliveryDate} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
           </label>
 
           <label className='field supplier-order-supply-type-field'>
             <span>Тип поставки</span>
-            <select value={form.supplyType} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
+            <select value={form.supplyType} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
               <option>Локально</option>
               <option>Закордон</option>
             </select>
@@ -291,12 +325,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>Номер</span>
-            <input value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
+            <input value={form.number} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
           </label>
 
           <label className='field field-wide'>
             <span>Примітка</span>
-            <textarea rows={2} value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+            <textarea rows={2} value={form.note} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
 
           <div className='supplier-order-product-row field-wide'>
@@ -307,6 +341,7 @@ export const SupplierOrderModal = ({
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
                   value={productSearch}
+                  disabled={isReadOnly}
                   onFocus={() => setShowProductSuggestions(true)}
                   onBlur={() => {
                     setProductTouched(true);
@@ -322,6 +357,7 @@ export const SupplierOrderModal = ({
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label='Create catalog product'
+                  disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateCatalogProductForm({ name: productSearch.trim(), note: '' });
@@ -356,11 +392,11 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Ціна (UAH)</span>
-              <input value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} />
+              <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>К-сть</span>
-              <input value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
+              <input value={form.quantity} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Сума</span>
@@ -370,7 +406,7 @@ export const SupplierOrderModal = ({
                 type='button'
                 className='toolbar-square-button supplier-order-product-add'
                 aria-label='Add product to order list'
-                disabled={!canAddBasketItem}
+                disabled={!canAddBasketItem || isReadOnly}
                 onClick={() => {
                   if (!canAddBasketItem) {
                     setProductTouched(true);
@@ -432,44 +468,69 @@ export const SupplierOrderModal = ({
         </div>
 
         <footer className='catalog-edit-footer'>
-          <button
-            type='button'
-            className='primary-button'
-            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
-            onClick={async () => {
-              if (!selectedSupplier) {
-                setSupplierTouched(true);
-                return;
-              }
-              if (hasDuplicateSubmitItems) {
-                onError('В замовленні не може бути двох однакових товарів.');
-                return;
-              }
-              setIsSubmitting(true);
-              try {
-                await onSubmit({
-                  supplierId: selectedSupplier.id,
-                  deliveryDate: form.deliveryDate,
-                  supplyType: form.supplyType,
-                  number: form.number,
-                  note: form.note,
-                  items: submitItems.map((item, index) => ({
-                    lineId: `line-${index + 1}`,
-                    itemIndex: index,
-                    catalogProductId: item.catalogProductId,
-                    productName: item.productName,
-                    quantity: item.quantity,
-                    price: item.price,
-                  })),
-                });
-                onClose();
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-          >
-            {isSubmitting ? 'Збереження...' : isEditing ? 'Зберегти' : 'Створити'}
-          </button>
+          {isEditing && onTakeOnCharge && !isReadOnly ? (
+            <button
+              type='button'
+              className='primary-button'
+              disabled={isSubmitting || isActionSubmitting}
+              onClick={async () => {
+                setIsActionSubmitting(true);
+                try {
+                  await onTakeOnCharge();
+                  onClose();
+                } finally {
+                  setIsActionSubmitting(false);
+                }
+              }}
+              style={{ background: '#16a34a' }}
+            >
+              Оприбуткувати
+            </button>
+          ) : null}
+          {isReadOnly ? (
+            <button type='button' className='secondary-button' onClick={onClose}>
+              Close
+            </button>
+          ) : (
+            <button
+              type='button'
+              className='primary-button'
+              disabled={isSubmitting || isActionSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
+              onClick={async () => {
+                if (!selectedSupplier) {
+                  setSupplierTouched(true);
+                  return;
+                }
+                if (hasDuplicateSubmitItems) {
+                  onError('В замовленні не може бути двох однакових товарів.');
+                  return;
+                }
+                setIsSubmitting(true);
+                try {
+                  await onSubmit({
+                    supplierId: selectedSupplier.id,
+                    deliveryDate: form.deliveryDate,
+                    supplyType: form.supplyType,
+                    number: form.number,
+                    note: form.note,
+                    items: submitItems.map((item, index) => ({
+                      lineId: `line-${index + 1}`,
+                      itemIndex: index,
+                      catalogProductId: item.catalogProductId,
+                      productName: item.productName,
+                      quantity: item.quantity,
+                      price: item.price,
+                    })),
+                  });
+                  onClose();
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+            >
+              {isSubmitting ? 'Збереження...' : isEditing ? 'Зберегти' : 'Створити'}
+            </button>
+          )}
         </footer>
       </section>
 
