@@ -1310,7 +1310,7 @@ export const ClientsWorkspace = ({
                 будуть обʼєднані в клієнта 1, після чого клієнта 2
                 буде видалено.
               </p>
-              <label className='field field-wide'>
+              <label className='field field-wide modal-suggestions-anchor'>
                 <span>Клієнт 1</span>
                 <input
                   value={mergeTargetQuery}
@@ -1322,29 +1322,29 @@ export const ClientsWorkspace = ({
                   }}
                 />
               </label>
-              {showMergeTargetSuggestions &&
-              mergeTargetOptions.length > 0 ? (
-                <div className='suggestions-panel'>
-                  {mergeTargetOptions.map((client) => (
-                    <button
-                      key={client.id}
-                      type='button'
-                      className='suggestion-item'
-                      onClick={() => {
-                        setMergeTargetId(client.id);
-                        setMergeTargetQuery(
-                          getClientSubtitle(client),
-                        );
-                        setShowMergeTargetSuggestions(false);
-                      }}
-                    >
-                      <strong>{client.name}</strong>
-                      <span>{client.phone}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <label className='field field-wide'>
+                {showMergeTargetSuggestions &&
+                mergeTargetOptions.length > 0 ? (
+                  <div className='suggestions-panel'>
+                    {mergeTargetOptions.map((client) => (
+                      <button
+                        key={client.id}
+                        type='button'
+                        className='suggestion-item'
+                        onClick={() => {
+                          setMergeTargetId(client.id);
+                          setMergeTargetQuery(
+                            getClientSubtitle(client),
+                          );
+                          setShowMergeTargetSuggestions(false);
+                        }}
+                      >
+                        <strong>{client.name}</strong>
+                        <span>{client.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              <label className='field field-wide modal-suggestions-anchor'>
                 <span>Клієнт 2</span>
                 <input
                   value={mergeSourceQuery}
@@ -1356,28 +1356,28 @@ export const ClientsWorkspace = ({
                   }}
                 />
               </label>
-              {showMergeSourceSuggestions &&
-              mergeSourceOptions.length > 0 ? (
-                <div className='suggestions-panel'>
-                  {mergeSourceOptions.map((client) => (
-                    <button
-                      key={client.id}
-                      type='button'
-                      className='suggestion-item'
-                      onClick={() => {
-                        setMergeSourceId(client.id);
-                        setMergeSourceQuery(
-                          getClientSubtitle(client),
-                        );
-                        setShowMergeSourceSuggestions(false);
-                      }}
-                    >
-                      <strong>{client.name}</strong>
-                      <span>{client.phone}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+                {showMergeSourceSuggestions &&
+                mergeSourceOptions.length > 0 ? (
+                  <div className='suggestions-panel'>
+                    {mergeSourceOptions.map((client) => (
+                      <button
+                        key={client.id}
+                        type='button'
+                        className='suggestion-item'
+                        onClick={() => {
+                          setMergeSourceId(client.id);
+                          setMergeSourceQuery(
+                            getClientSubtitle(client),
+                          );
+                          setShowMergeSourceSuggestions(false);
+                        }}
+                      >
+                        <strong>{client.name}</strong>
+                        <span>{client.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
             </div>
             <footer className='catalog-edit-footer'>
               <button

@@ -27,6 +27,9 @@ type SupplierOrderModalProps = {
 
 type DraftItem = { productName: string; quantity: number; price: number };
 
+const normalizeProductName = (value: string) =>
+  value.trim().toLowerCase();
+
 const isProductMatched = (name: string, suggestions: CatalogProduct[]) => {
   const normalized = name.trim().toLowerCase();
   if (!normalized) return false;
@@ -54,7 +57,6 @@ export const SupplierOrderModal = ({
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAddingItem, setIsAddingItem] = useState(false);
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -180,16 +182,24 @@ export const SupplierOrderModal = ({
   const currentProductMatched = isProductMatched(productSearch, productSuggestions);
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
+  const currentDraftItem = productSearch.trim()
+    ? {
+        productName: productSearch.trim(),
+        quantity: currentQuantity,
+        price: currentPrice,
+      }
+    : null;
 
   const canAddBasketItem = Boolean(productSearch.trim()) && currentQuantity > 0 && currentProductMatched;
-  const hasCurrentDraft = Boolean(productSearch.trim());
-
-  const submitItems: DraftItem[] = [
-    ...(hasCurrentDraft
-      ? [{ productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }]
-      : []),
-    ...basketItems,
-  ];
+  const submitItems: DraftItem[] = isEditing
+    ? [...(currentDraftItem ? [currentDraftItem] : []), ...basketItems]
+    : basketItems;
+  const basketSummaryItems: DraftItem[] = isEditing
+    ? basketItems
+    : submitItems;
+  const hasDuplicateSubmitItems =
+    new Set(submitItems.map((item) => normalizeProductName(item.productName)))
+      .size !== submitItems.length;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -205,7 +215,7 @@ export const SupplierOrderModal = ({
           </button>
         </header>
         <div className='catalog-edit-body supplier-order-modal-body'>
-          <div className='create-device-search supplier-order-supplier-field'>
+          <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
             <label className='field supplier-search-field'>
               <span>Постачальник</span>
               <span className='supplier-search-input-wrap'>
@@ -237,28 +247,27 @@ export const SupplierOrderModal = ({
                 </button>
               </span>
             </label>
+            {showSupplierSuggestions && supplierOptions.length > 0 ? (
+              <div className='create-suggestions field-wide'>
+                {supplierOptions.map((supplier) => (
+                  <button
+                    key={supplier.id}
+                    type='button'
+                    className='create-suggestion-item'
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setSupplierSearch(supplier.name);
+                      setSupplierTouched(true);
+                      setShowSupplierSuggestions(false);
+                    }}
+                  >
+                    <strong>{supplier.name}</strong>
+                    <span>{supplier.phone}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {showSupplierSuggestions && supplierOptions.length > 0 ? (
-            <div className='create-suggestions field-wide'>
-              {supplierOptions.map((supplier) => (
-                <button
-                  key={supplier.id}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setSupplierSearch(supplier.name);
-                    setSupplierTouched(true);
-                    setShowSupplierSuggestions(false);
-                  }}
-                >
-                  <strong>{supplier.name}</strong>
-                  <span>{supplier.phone}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           <label className='field'>
             <span>Дата поставки</span>
@@ -284,8 +293,8 @@ export const SupplierOrderModal = ({
           </label>
 
           <div className='supplier-order-product-row field-wide'>
-            <div className='supplier-order-product-index'>{submitItems.length + 1}</div>
-            <label className='field supplier-order-product-name'>
+            <div className='supplier-order-product-index'>{isEditing ? 1 : basketItems.length + 1}</div>
+            <label className='field supplier-order-product-name modal-suggestions-anchor'>
               <span>Товар</span>
               <span className='supplier-search-input-wrap'>
                 <input
@@ -312,6 +321,27 @@ export const SupplierOrderModal = ({
                   +
                 </button>
               </span>
+              {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
+                <div className='create-suggestions field-wide'>
+                  {isProductLookupLoading ? <p>Пошук товарів...</p> : null}
+                  {productSuggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      type='button'
+                      className='create-suggestion-item'
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        setProductSearch(product.name);
+                        setShowProductSuggestions(false);
+                        setProductTouched(true);
+                      }}
+                    >
+                      <strong>{product.name}</strong>
+                      <span>{product.note || 'Product from catalog'}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Ціна (UAH)</span>
@@ -325,60 +355,49 @@ export const SupplierOrderModal = ({
               <span>Сума</span>
               <input value={String(currentQuantity * currentPrice)} readOnly />
             </label>
-            <button
-              type='button'
-              className='toolbar-square-button supplier-order-product-add'
-              aria-label='Add product to order list'
-              disabled={!canAddBasketItem || isAddingItem}
-              onClick={async () => {
-                if (!canAddBasketItem) {
-                  setProductTouched(true);
-                  return;
-                }
-                setIsAddingItem(true);
-                try {
-                  setBasketItems((current) => [...current, { productName: productSearch.trim(), quantity: currentQuantity, price: currentPrice }]);
+              <button
+                type='button'
+                className='toolbar-square-button supplier-order-product-add'
+                aria-label='Add product to order list'
+                disabled={!canAddBasketItem}
+                onClick={() => {
+                  if (!canAddBasketItem) {
+                    setProductTouched(true);
+                    return;
+                  }
+                  const nextName = normalizeProductName(productSearch);
+                  const duplicateExists = basketItems.some(
+                    (item) =>
+                      normalizeProductName(item.productName) === nextName,
+                  );
+                  if (duplicateExists) {
+                    onError('Товар з такою назвою вже додано в замовлення.');
+                    return;
+                  }
+                  setBasketItems((current) => [
+                    ...current,
+                    {
+                      productName: productSearch.trim(),
+                      quantity: currentQuantity,
+                      price: currentPrice,
+                    },
+                  ]);
                   setProductSearch('');
                   setShowProductSuggestions(false);
                   setProductTouched(false);
                   setForm((current) => ({ ...current, quantity: '1', price: '0' }));
-                } finally {
-                  setIsAddingItem(false);
-                }
-              }}
-            >
-              +
-            </button>
+                }}
+              >
+                +
+              </button>
           </div>
 
-          {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
-            <div className='create-suggestions field-wide'>
-              {isProductLookupLoading ? <p>Пошук товарів...</p> : null}
-              {productSuggestions.map((product) => (
-                <button
-                  key={product.id}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setProductSearch(product.name);
-                    setShowProductSuggestions(false);
-                    setProductTouched(true);
-                  }}
-                >
-                  <strong>{product.name}</strong>
-                  <span>{product.note || 'Product from catalog'}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {submitItems.length > 0 ? (
+          {basketSummaryItems.length > 0 ? (
             <div className='supplier-order-basket-summary'>
               <div className='supplier-order-basket-table'>
-                {submitItems.map((item, index) => (
+                {basketSummaryItems.map((item, index) => (
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
-                    <div className='supplier-order-product-index'>{`${form.number || 'номер'}-${index + 1}`}</div>
+                    <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.quantity)} readOnly /></div>
@@ -400,14 +419,14 @@ export const SupplierOrderModal = ({
           <button
             type='button'
             className='primary-button'
-            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || isAddingItem || submitItems.some((item) => item.quantity <= 0)}
+            disabled={isSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
             onClick={async () => {
               if (!selectedSupplier) {
                 setSupplierTouched(true);
                 return;
               }
-              if (hasCurrentDraft && !currentProductMatched) {
-                setProductTouched(true);
+              if (hasDuplicateSubmitItems) {
+                onError('В замовленні не може бути двох однакових товарів.');
                 return;
               }
               setIsSubmitting(true);

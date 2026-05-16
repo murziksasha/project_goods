@@ -21,3 +21,8 @@
 2. Avoid repeating user prompt.
 3. Use markdown symbols (e.g., "->" instead of "leads to").
 4. Core logic first for complex tasks.
+
+## Build Discipline
+
+- If build fails, fix it immediately in the same task until build passes.
+- Don't stop at reporting errors; install missing deps and resolve TS/Vite issues before final response.

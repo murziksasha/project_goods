@@ -722,6 +722,7 @@ export const DashboardPage = () => {
                 onClose={openOrdersPage}
                 initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                 suppliers={state.suppliers}
+                catalogProducts={state.catalogProducts}
                 onCreateSupplier={actions.createSupplierCard}
                 onSuccess={actions.showSuccessMessage}
                 onError={actions.showError}
@@ -748,7 +749,6 @@ export const DashboardPage = () => {
                   isLoading={state.isSalesLoading}
                   activeTab={activeOrdersTab}
                   searchValue={state.productSearchQuery}
-                  isSeeding={state.isSeeding}
                   onActiveTabChange={changeOrdersTab}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
@@ -758,7 +758,6 @@ export const DashboardPage = () => {
                   })}
                   currentEmployee={currentEmployee}
                   canCreateOrders={canCreateOrders}
-                  onSeedDemoData={actions.seedDemoData}
                   onSaleUpdate={actions.replaceSaleInState}
                   onError={actions.showError}
                   onSuccess={actions.showSuccessMessage}
@@ -861,8 +860,9 @@ export const DashboardPage = () => {
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
-              clients={state.allClients}
+              catalogProducts={state.catalogProducts}
               employees={state.allEmployees}
+              suppliers={state.suppliers}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}
               isProductSaving={state.isProductSaving}
@@ -872,6 +872,12 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
+              onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
+              onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              currentEmployeeName={currentEmployee.name}
+              onError={actions.showError}
+              onSuccess={actions.showSuccessMessage}
             />
           ) : (
             <AnalyticsHeroSection

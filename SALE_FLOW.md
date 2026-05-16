@@ -17,6 +17,7 @@
 - Search suggestions are rendered in a separate block below the entry row.
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
+- In `Sales order`, `Product search` looks up records from `Products & Services -> Products` (`catalog-products`), not from warehouse `products`.
 
 ## Product Suggestions
 
@@ -27,7 +28,7 @@
   - suggested price from product sale price (fallback to base price)
   - quantity to `1`
   - warranty to `None`
-- Selected suggestion binds `productId` for the line item.
+- Selected suggestion binds `catalog-products.id` and sends that value to backend as `productId` for the sale line item.
 
 ## Sale Creation: Product/Device Linking Rules
 
