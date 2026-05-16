@@ -27,6 +27,9 @@ type SupplierOrderModalProps = {
 
 type DraftItem = { productName: string; quantity: number; price: number };
 
+const normalizeProductName = (value: string) =>
+  value.trim().toLowerCase();
+
 const isProductMatched = (name: string, suggestions: CatalogProduct[]) => {
   const normalized = name.trim().toLowerCase();
   if (!normalized) return false;
@@ -191,6 +194,9 @@ export const SupplierOrderModal = ({
   const submitItems: DraftItem[] = isEditing
     ? [...(currentDraftItem ? [currentDraftItem] : []), ...basketItems]
     : basketItems;
+  const hasDuplicateSubmitItems =
+    new Set(submitItems.map((item) => normalizeProductName(item.productName)))
+      .size !== submitItems.length;
 
   const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -206,7 +212,7 @@ export const SupplierOrderModal = ({
           </button>
         </header>
         <div className='catalog-edit-body supplier-order-modal-body'>
-          <div className='create-device-search supplier-order-supplier-field'>
+          <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
             <label className='field supplier-search-field'>
               <span>Постачальник</span>
               <span className='supplier-search-input-wrap'>
@@ -238,28 +244,27 @@ export const SupplierOrderModal = ({
                 </button>
               </span>
             </label>
+            {showSupplierSuggestions && supplierOptions.length > 0 ? (
+              <div className='create-suggestions field-wide'>
+                {supplierOptions.map((supplier) => (
+                  <button
+                    key={supplier.id}
+                    type='button'
+                    className='create-suggestion-item'
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setSupplierSearch(supplier.name);
+                      setSupplierTouched(true);
+                      setShowSupplierSuggestions(false);
+                    }}
+                  >
+                    <strong>{supplier.name}</strong>
+                    <span>{supplier.phone}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {showSupplierSuggestions && supplierOptions.length > 0 ? (
-            <div className='create-suggestions field-wide'>
-              {supplierOptions.map((supplier) => (
-                <button
-                  key={supplier.id}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setSupplierSearch(supplier.name);
-                    setSupplierTouched(true);
-                    setShowSupplierSuggestions(false);
-                  }}
-                >
-                  <strong>{supplier.name}</strong>
-                  <span>{supplier.phone}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           <label className='field'>
             <span>Дата поставки</span>
@@ -286,7 +291,7 @@ export const SupplierOrderModal = ({
 
           <div className='supplier-order-product-row field-wide'>
             <div className='supplier-order-product-index'>{isEditing ? 1 : basketItems.length + 1}</div>
-            <label className='field supplier-order-product-name'>
+            <label className='field supplier-order-product-name modal-suggestions-anchor'>
               <span>Товар</span>
               <span className='supplier-search-input-wrap'>
                 <input
@@ -313,6 +318,27 @@ export const SupplierOrderModal = ({
                   +
                 </button>
               </span>
+              {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
+                <div className='create-suggestions field-wide'>
+                  {isProductLookupLoading ? <p>Пошук товарів...</p> : null}
+                  {productSuggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      type='button'
+                      className='create-suggestion-item'
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        setProductSearch(product.name);
+                        setShowProductSuggestions(false);
+                        setProductTouched(true);
+                      }}
+                    >
+                      <strong>{product.name}</strong>
+                      <span>{product.note || 'Product from catalog'}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Ціна (UAH)</span>
@@ -336,6 +362,15 @@ export const SupplierOrderModal = ({
                     setProductTouched(true);
                     return;
                   }
+                  const nextName = normalizeProductName(productSearch);
+                  const duplicateExists = basketItems.some(
+                    (item) =>
+                      normalizeProductName(item.productName) === nextName,
+                  );
+                  if (duplicateExists) {
+                    onError('Товар з такою назвою вже додано в замовлення.');
+                    return;
+                  }
                   setBasketItems((current) => [
                     ...current,
                     {
@@ -353,28 +388,6 @@ export const SupplierOrderModal = ({
                 +
               </button>
           </div>
-
-          {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
-            <div className='create-suggestions field-wide'>
-              {isProductLookupLoading ? <p>Пошук товарів...</p> : null}
-              {productSuggestions.map((product) => (
-                <button
-                  key={product.id}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setProductSearch(product.name);
-                    setShowProductSuggestions(false);
-                    setProductTouched(true);
-                  }}
-                >
-                  <strong>{product.name}</strong>
-                  <span>{product.note || 'Product from catalog'}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           {submitItems.length > 0 ? (
             <div className='supplier-order-basket-summary'>
@@ -407,6 +420,10 @@ export const SupplierOrderModal = ({
             onClick={async () => {
               if (!selectedSupplier) {
                 setSupplierTouched(true);
+                return;
+              }
+              if (hasDuplicateSubmitItems) {
+                onError('В замовленні не може бути двох однакових товарів.');
                 return;
               }
               setIsSubmitting(true);

@@ -23,7 +23,7 @@ export const ClientLookupFields = ({
   onShowSuggestions,
   onHideSuggestions,
 }: ClientLookupFieldsProps) => (
-  <div className="field field-wide">
+  <div className="field field-wide modal-suggestions-anchor">
     <span>Client</span>
     <div className="form-grid compact-form-grid">
       <label className="field">

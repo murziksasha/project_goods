@@ -300,15 +300,23 @@ export const WarehousePanel = ({
       })),
   );
 
-  const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] =>
-    orders.flatMap((order) =>
-      order.items.map((item) => ({
+  const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
+    const orderedByCreatedAt = [...orders].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    const orderBaseNumberById = orderedByCreatedAt.reduce<
+      Record<string, number>
+    >((acc, order, index) => {
+      acc[order.id] = index + 1;
+      return acc;
+    }, {});
+
+    return orders.flatMap((order) =>
+      order.items.map((item, itemPosition) => ({
         id: `${order.id}-${item.itemIndex}`,
         supplierOrderId: order.id,
-        number:
-          order.number.trim().length > 0
-            ? `${order.number}-${item.itemIndex + 1}`
-            : `${order.orderBaseId}-${item.itemIndex + 1}`,
+        number: `${orderBaseNumberById[order.id] ?? 1}-${itemPosition + 1}`,
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -327,6 +335,7 @@ export const WarehousePanel = ({
         note: order.note || '',
       })),
     );
+  };
 
   const refreshSupplierOrders = async () => {
     const orders = await getSupplierOrders();
