@@ -5,6 +5,7 @@ import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
 import { Product } from '../product/model';
 import { CatalogProduct } from '../catalog-product/model';
+import { WarehouseSettings } from '../warehouse-settings/model';
 import {
   formatProductSerialNumber,
   getNextProductSerialNumberValue,
@@ -36,6 +37,8 @@ export type SupplierOrderPayload = {
 type SupplierOrderTakeOnChargePayload = {
   autoGenerateSerialNumbers?: unknown;
   serialNumbers?: unknown;
+  warehouseId?: unknown;
+  locationId?: unknown;
 };
 
 const toOrderStatus = (value: unknown) =>
@@ -326,6 +329,17 @@ export const takeOnChargeSupplierOrder = async (
   }
 
   const supplier = await Supplier.findById(existing.supplier).lean();
+  const warehouseSettings = await WarehouseSettings.findOne().lean();
+  const configuredWarehouses = warehouseSettings?.warehouses ?? [];
+  const defaultWarehouse = configuredWarehouses[0];
+  const requestedWarehouseId = toNonEmptyString(payload?.warehouseId);
+  const matchedWarehouse =
+    configuredWarehouses.find((warehouse) => warehouse.id === requestedWarehouseId) ??
+    defaultWarehouse;
+  const requestedLocationId = toNonEmptyString(payload?.locationId);
+  const matchedLocation =
+    (matchedWarehouse?.locations ?? []).find((location) => location.id === requestedLocationId) ??
+    matchedWarehouse?.locations?.[0];
   let serialCursor = 0;
 
   for (const item of existing.items ?? []) {
@@ -355,7 +369,9 @@ export const takeOnChargeSupplierOrder = async (
         note: existing.note ?? '',
         quantity: 1,
         reservedQuantity: 0,
-        purchasePlace: supplier?.name ?? '',
+        purchasePlace: matchedWarehouse?.name ?? supplier?.name ?? '',
+        warehouseId: matchedWarehouse?.id ?? '',
+        locationId: matchedLocation?.id ?? '',
         purchaseDate: new Date(),
         warrantyPeriod: 0,
         isActive: true,

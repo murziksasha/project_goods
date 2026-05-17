@@ -7,6 +7,8 @@ export type ProductPayload = {
   quantity?: unknown;
   note?: unknown;
   purchasePlace?: unknown;
+  warehouseId?: unknown;
+  locationId?: unknown;
   purchaseDate?: unknown;
   warrantyPeriod?: unknown;
   reservedQuantity?: unknown;

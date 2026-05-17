@@ -4,6 +4,7 @@ import type {
   Sale,
   SaleFormValues,
   SaleLineItemReturnPayload,
+  SaleLineItemSerialReturnPayload,
   SaleReturnPayload,
   SaleWorkspacePayload,
 } from '../model/types';
@@ -74,6 +75,21 @@ export const returnSaleLineItem = async (
   try {
     const response = await apiClient.patch<Sale>(
       `/sales/${saleId}/return-line-item`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const returnSaleLineItemBySerials = async (
+  saleId: string,
+  payload: SaleLineItemSerialReturnPayload,
+) => {
+  try {
+    const response = await apiClient.patch<Sale>(
+      `/sales/${saleId}/return-line-item-serials`,
       payload,
     );
     return response.data;

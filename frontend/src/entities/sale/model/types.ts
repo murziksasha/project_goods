@@ -36,6 +36,7 @@ export type Sale = {
     price: number;
     quantity: number;
     warrantyPeriod: number;
+    serialNumbers?: string[];
   }>;
   discount?: {
     mode: 'percent' | 'amount';
@@ -111,6 +112,15 @@ export type SaleWorkspacePayload = {
 
 export type SaleLineItemReturnPayload = {
   lineItemId: string;
+  cashboxId: string;
+  refundAmount: string;
+  warehouse: string;
+  author: string;
+};
+
+export type SaleLineItemSerialReturnPayload = {
+  lineItemId: string;
+  serialNumbers: string[];
   cashboxId: string;
   refundAmount: string;
   warehouse: string;

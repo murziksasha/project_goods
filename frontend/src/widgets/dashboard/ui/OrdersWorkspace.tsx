@@ -158,6 +158,7 @@ type OrderLineItem = {
   price: number;
   quantity: number;
   warrantyPeriod: number;
+  serialNumbers?: string[];
 };
 type RepairTypeFilter = 'all' | 'paid' | 'warranty';
 type OrdersFilters = {
@@ -1997,10 +1998,17 @@ export const OrdersWorkspace = ({
     });
   };
 
-  const removeLineItem = (sale: Sale, itemId: string) => {
+  const removeLineItem = (
+    sale: Sale,
+    itemId: string,
+    itemIndex?: number,
+  ) => {
     const currentItems = getLineItems(sale);
-    const nextItems = currentItems.filter(
-      (item) => item.id !== itemId,
+    const removedItem = currentItems.find((item, index) =>
+      index === itemIndex ? true : item.id === itemId,
+    );
+    const nextItems = currentItems.filter((item, index) =>
+      index === itemIndex ? false : item.id !== itemId,
     );
     if (nextItems.length === 0) {
       void persistSaleWorkspace(sale, {
@@ -2010,12 +2018,21 @@ export const OrdersWorkspace = ({
     }
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
+      timeline: removedItem
+        ? [
+            appendTimelineEntry(
+              `${currentEmployeeName} unlinked ${removedItem.kind} "${removedItem.name}" from order and moved it back to stock.`,
+            ),
+            ...sale.timeline,
+          ]
+        : sale.timeline,
     });
   };
 
   const updateLineItem = (
     sale: Sale,
     itemId: string,
+    itemIndex: number | undefined,
     patch: Partial<
       Pick<
         OrderLineItem,
@@ -2025,12 +2042,29 @@ export const OrdersWorkspace = ({
         | 'price'
         | 'quantity'
         | 'warrantyPeriod'
+        | 'serialNumbers'
       >
     >,
   ) => {
-    const nextItems = getLineItems(sale).map((item) =>
-      item.id === itemId ? { ...item, ...patch } : item,
-    );
+    const nextItems = getLineItems(sale).map((item, index) => {
+      if (itemIndex === index) {
+        return {
+          ...item,
+          ...patch,
+          serialNumbers:
+            patch.quantity !== undefined
+              ? (patch.serialNumbers ?? item.serialNumbers)?.slice(
+                  0,
+                  patch.quantity,
+                )
+              : patch.serialNumbers ?? item.serialNumbers,
+        };
+      }
+      if (itemIndex === undefined && item.id === itemId) {
+        return { ...item, ...patch };
+      }
+      return item;
+    });
 
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
@@ -2488,11 +2522,11 @@ export const OrdersWorkspace = ({
             addComment(selectedSale, comment)
           }
           onAddLineItem={(item) => addLineItem(selectedSale, item)}
-          onRemoveLineItem={(itemId) =>
-            removeLineItem(selectedSale, itemId)
+          onRemoveLineItem={(itemId, itemIndex) =>
+            removeLineItem(selectedSale, itemId, itemIndex)
           }
-          onUpdateLineItem={(itemId, patch) =>
-            updateLineItem(selectedSale, itemId, patch)
+          onUpdateLineItem={(itemId, itemIndex, patch) =>
+            updateLineItem(selectedSale, itemId, itemIndex, patch)
           }
           onReturnLineItem={(item) =>
             openReturnLineItemModal(selectedSale, item)
@@ -3194,9 +3228,13 @@ type OrderDetailCardProps = {
   onClose: () => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
-  onRemoveLineItem: (itemId: string) => void;
+  onRemoveLineItem: (
+    itemId: string,
+    itemIndex?: number,
+  ) => void;
   onUpdateLineItem: (
     itemId: string,
+    itemIndex: number | undefined,
     patch: Partial<
       Pick<
         OrderLineItem,
@@ -3206,6 +3244,7 @@ type OrderDetailCardProps = {
         | 'price'
         | 'quantity'
         | 'warrantyPeriod'
+        | 'serialNumbers'
       >
     >,
   ) => void;
@@ -3734,9 +3773,10 @@ type LineItemsPanelProps = {
   kind: OrderLineItemKind;
   items: OrderLineItem[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
-  onRemoveItem: (itemId: string) => void;
+  onRemoveItem: (itemId: string, itemIndex?: number) => void;
   onUpdateItem: (
     itemId: string,
+    itemIndex: number | undefined,
     patch: Partial<
       Pick<
         OrderLineItem,
@@ -3746,6 +3786,7 @@ type LineItemsPanelProps = {
         | 'price'
         | 'quantity'
         | 'warrantyPeriod'
+        | 'serialNumbers'
       >
     >,
   ) => void;
@@ -3811,6 +3852,9 @@ const LineItemsPanel = ({
   );
   const [isCreateServiceSaving, setIsCreateServiceSaving] =
     useState(false);
+  const [serialsEditingItem, setSerialsEditingItem] =
+    useState<OrderLineItem | null>(null);
+  const [serialsInput, setSerialsInput] = useState('');
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
   const hasExactServiceSuggestion = serviceSuggestions.some(
     (service) =>
@@ -4015,7 +4059,7 @@ const LineItemsPanel = ({
       );
       setSelectedProduct(updatedProduct);
       setProductForm(toProductForm(updatedProduct));
-      onUpdateItem(editingItemId, {
+      onUpdateItem(editingItemId, undefined, {
         name: updatedProduct.name,
         productId: updatedProduct.id,
         price:
@@ -4046,7 +4090,7 @@ const LineItemsPanel = ({
       );
       setSelectedService(updatedService);
       setServiceForm(toServiceCatalogForm(updatedService));
-      onUpdateItem(editingItemId, {
+      onUpdateItem(editingItemId, undefined, {
         name: updatedService.name,
         serviceId: updatedService.id,
         price: updatedService.price,
@@ -4154,8 +4198,11 @@ const LineItemsPanel = ({
         {items.length === 0 ? (
           <div className='order-line-items-empty'>{`No ${title.toLowerCase()} added.`}</div>
         ) : (
-          items.map((item) => (
-            <div key={item.id} className='order-detail-table-row'>
+          items.map((item, itemIndex) => (
+            <div
+              key={`${item.id || 'line-item'}-${itemIndex}`}
+              className='order-detail-table-row'
+            >
               <div key={`${item.id}-name`}>
                 <button
                   type='button'
@@ -4171,7 +4218,9 @@ const LineItemsPanel = ({
                   min={0}
                   value={String(item.price)}
                   onChange={(value) =>
-                    onUpdateItem(item.id, { price: Number(value) })
+                    onUpdateItem(item.id, itemIndex, {
+                      price: Number(value),
+                    })
                   }
                 />
               </div>
@@ -4181,7 +4230,9 @@ const LineItemsPanel = ({
                   min={1}
                   value={String(item.quantity)}
                   onChange={(value) =>
-                    onUpdateItem(item.id, { quantity: Number(value) })
+                    onUpdateItem(item.id, itemIndex, {
+                      quantity: Math.max(1, Number(value) || 1),
+                    })
                   }
                 />
               </div>
@@ -4190,7 +4241,7 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   value={item.warrantyPeriod}
                   onChange={(event) =>
-                    onUpdateItem(item.id, {
+                    onUpdateItem(item.id, itemIndex, {
                       warrantyPeriod: Number(event.target.value),
                     })
                   }
@@ -4203,13 +4254,27 @@ const LineItemsPanel = ({
                 </select>
               </div>
               <div key={`${item.id}-action`}>
+                {item.kind === 'product' ? (
+                  <button
+                    type='button'
+                    className='line-item-remove-button'
+                    onClick={() => {
+                      setSerialsEditingItem(item);
+                      setSerialsInput(
+                        (item.serialNumbers ?? []).join('\n'),
+                      );
+                    }}
+                  >
+                    {`Serials ${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                  </button>
+                ) : null}
                 <button
                   type='button'
                   className='line-item-remove-button'
                   onClick={() =>
                     isPaidSale && item.kind === 'product'
                       ? onReturnItem(item)
-                      : onRemoveItem(item.id)
+                      : onRemoveItem(item.id, itemIndex)
                   }
                 >
                   {isPaidSale && item.kind === 'product'
@@ -4380,6 +4445,69 @@ const LineItemsPanel = ({
           onSubmit={() => void saveSelectedService()}
           onClose={() => setSelectedService(null)}
         />
+      ) : null}
+      {serialsEditingItem ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSerialsEditingItem(null);
+            }
+          }}
+        >
+          <section className='payment-modal payment-modal-message'>
+            <h3>Bind serial numbers</h3>
+            <p>{`One serial per line, max ${serialsEditingItem.quantity}.`}</p>
+            <textarea
+              rows={8}
+              value={serialsInput}
+              onChange={(event) => setSerialsInput(event.target.value)}
+              placeholder={'SN-001\nSN-002'}
+            />
+            <div className='modal-actions'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setSerialsEditingItem(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                onClick={() => {
+                  const serials = serialsInput
+                    .split('\n')
+                    .map((value) => value.trim().toUpperCase())
+                    .filter(Boolean);
+                  const uniqueSerials = Array.from(new Set(serials));
+                  if (
+                    uniqueSerials.length >
+                    serialsEditingItem.quantity
+                  ) {
+                    onError(
+                      'Serial count cannot exceed line quantity.',
+                    );
+                    return;
+                  }
+                  const itemIndex = items.findIndex(
+                    (candidate) => candidate.id === serialsEditingItem.id,
+                  );
+                  onUpdateItem(
+                    serialsEditingItem.id,
+                    itemIndex >= 0 ? itemIndex : undefined,
+                    { serialNumbers: uniqueSerials },
+                  );
+                  onSuccess('Serial numbers updated.');
+                  setSerialsEditingItem(null);
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </div>
   );

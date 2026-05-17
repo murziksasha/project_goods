@@ -83,6 +83,7 @@ type SaleLineItem = {
   price: number;
   quantity: number;
   warrantyPeriod?: number;
+  serialNumbers?: string[];
 };
 
 const addStockQuantity = (
@@ -938,6 +939,185 @@ export const returnSaleLineItem = async (
   } catch (error) {
     await Product.findByIdAndUpdate(productId, {
       $inc: { quantity: -lineItem.quantity },
+      $set: { purchasePlace: previousProduct.purchasePlace },
+    });
+    throw error;
+  }
+};
+
+export const returnSaleLineItemBySerials = async (
+  saleId: string,
+  payload: {
+    lineItemId?: unknown;
+    serialNumbers?: unknown;
+    cashboxId?: unknown;
+    refundAmount?: unknown;
+    warehouse?: unknown;
+    author?: unknown;
+  },
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+
+  const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
+  if (!sale) {
+    throw new Error('Sale not found.');
+  }
+  if (sale.kind !== 'sale') {
+    throw new Error('Only product sales can be returned this way.');
+  }
+
+  const lineItemId = String(payload.lineItemId ?? '').trim();
+  const lineItemIndex = (sale.lineItems ?? []).findIndex(
+    (item) => item.id === lineItemId && item.kind === 'product',
+  );
+  if (lineItemIndex < 0) {
+    throw new Error('Product line item not found.');
+  }
+  const lineItem = (sale.lineItems ?? [])[lineItemIndex];
+  if (!lineItem) {
+    throw new Error('Product line item not found.');
+  }
+  const productId = lineItem.productId?.toString();
+  if (!productId) {
+    throw new Error('Line item is not linked to a stock product.');
+  }
+  isValidObjectIdOrThrow(productId, 'lineItems.productId');
+
+  const requestedSerialNumbers = Array.isArray(payload.serialNumbers)
+    ? Array.from(
+        new Set(
+          payload.serialNumbers
+            .map((value) => String(value ?? '').trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      )
+    : [];
+  if (requestedSerialNumbers.length === 0) {
+    throw new Error('At least one serial number is required.');
+  }
+
+  const lineItemSerials = Array.isArray(lineItem.serialNumbers)
+    ? lineItem.serialNumbers
+        .map((value) => String(value ?? '').trim().toUpperCase())
+        .filter(Boolean)
+    : [];
+  if (lineItemSerials.length === 0) {
+    throw new Error('Line item has no bound serial numbers.');
+  }
+
+  const missingSerials = requestedSerialNumbers.filter(
+    (serial) => !lineItemSerials.includes(serial),
+  );
+  if (missingSerials.length > 0) {
+    throw new Error(`Serial numbers are not bound to this line item: ${missingSerials.join(', ')}`);
+  }
+
+  const returnQuantity = requestedSerialNumbers.length;
+  if (returnQuantity > lineItem.quantity) {
+    throw new Error('Serial count cannot exceed line item quantity.');
+  }
+
+  const unitPrice = lineItem.quantity > 0 ? lineItem.price : 0;
+  const maxRefundForSelection =
+    Math.round(unitPrice * returnQuantity * 100) / 100;
+  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  if (
+    !Number.isFinite(refundAmount) ||
+    refundAmount <= 0 ||
+    refundAmount > maxRefundForSelection ||
+    refundAmount > (sale.paidAmount ?? 0)
+  ) {
+    throw new Error('Refund amount cannot exceed selected serials total or paid amount.');
+  }
+
+  const cashboxId = String(payload.cashboxId ?? '').trim();
+  const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
+  const author = String(payload.author ?? '').trim() || 'System';
+  const createdAt = new Date();
+  const nextPaidAmount = Math.max(
+    Math.round(((sale.paidAmount ?? 0) - refundAmount) * 100) / 100,
+    0,
+  );
+
+  const nextLineItems =
+    returnQuantity === lineItem.quantity
+      ? (sale.lineItems ?? []).filter((_, index) => index !== lineItemIndex)
+      : (sale.lineItems ?? []).map((item, index) =>
+          index !== lineItemIndex
+            ? item
+            : {
+                ...item,
+                quantity: lineItem.quantity - returnQuantity,
+                serialNumbers: lineItemSerials.filter(
+                  (serial) => !requestedSerialNumbers.includes(serial),
+                ),
+              },
+        );
+
+  const previousProduct = await receiveProductToWarehouse(
+    productId,
+    returnQuantity,
+    warehouse,
+  );
+
+  try {
+    const transaction = await createFinanceTransaction({
+      type: 'withdraw',
+      amount: String(refundAmount),
+      currency: 'UAH',
+      fromCashboxId: cashboxId,
+      note: `Serial return for sale ${sale.recordNumber ?? sale._id.toString()}: ${lineItem.name}`,
+    });
+    const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
+    const nextPaymentHistory = [
+      {
+        id: randomUUID(),
+        type: 'refund' as const,
+        amount: refundAmount,
+        cashboxId,
+        cashboxName,
+        author,
+        createdAt,
+      },
+      ...(sale.paymentHistory ?? []),
+    ];
+    const nextTimeline = [
+      {
+        id: randomUUID(),
+        author,
+        message: `Returned serials [${requestedSerialNumbers.join(', ')}] for "${lineItem.name}" to ${warehouse}; refunded ${refundAmount} UAH from ${cashboxName}.`,
+        createdAt,
+      },
+      ...(sale.timeline ?? []),
+    ];
+
+    assertWorkspaceState(
+      sale.kind,
+      sale.status,
+      nextPaidAmount,
+      nextLineItems,
+      sale.discount,
+    );
+
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        paidAmount: nextPaidAmount,
+        lineItems: nextLineItems,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new Error('Sale not found.');
+    }
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    await Product.findByIdAndUpdate(productId, {
+      $inc: { quantity: -returnQuantity },
       $set: { purchasePlace: previousProduct.purchasePlace },
     });
     throw error;

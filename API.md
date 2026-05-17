@@ -107,6 +107,23 @@ Client status localization rule: keep client status values in original English (
   - Stock product creation/updates belong to warehouse flows.
   - Catalogization flows must use `/catalog-products` and must not create stock entries.
 
+## Sale Serial Returns (2026-05-17)
+
+- `PATCH /sales/:saleId/return-line-item-serials`
+  - Partial return for a product line item by selected serial numbers.
+  - Request body:
+    - `lineItemId: string`
+    - `serialNumbers: string[]` (one or more, unique, must be bound to line item)
+    - `cashboxId: string`
+    - `refundAmount: string`
+    - `warehouse: string`
+    - `author: string`
+  - Behavior:
+    - returns selected quantity to stock (`serialNumbers.length`)
+    - deducts `paidAmount` by `refundAmount`
+    - appends refund transaction and timeline entry
+    - keeps non-returned serials in the line item
+
 ## Warehouse Flow Guard (2026-05-10)
 
 - Until receipt (оприходування) workflow is implemented, no flow may place items into stock balances.

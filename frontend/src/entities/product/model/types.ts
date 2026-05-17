@@ -11,6 +11,8 @@ export type Product = {
   freeQuantity: number;
   isInStock: boolean;
   purchasePlace: string;
+  warehouseId?: string;
+  locationId?: string;
   purchaseDate: string | null;
   warrantyPeriod: number;
   isActive: boolean;
@@ -27,6 +29,8 @@ export type ProductFormValues = {
   quantity: string;
   note: string;
   purchasePlace: string;
+  warehouseId?: string;
+  locationId?: string;
   purchaseDate: string;
   warrantyPeriod: string;
   isActive?: boolean;
