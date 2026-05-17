@@ -23,6 +23,7 @@ type CreateOrderCardProps = {
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   suppliers: Supplier[];
+  products: Product[];
   catalogProducts: CatalogProduct[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onSuccess: (message: string) => void;
@@ -74,6 +75,13 @@ type SaleOrderItem = {
   quantity: string;
   warrantyPeriod: string;
   supplierOrderRequested: boolean;
+};
+type SaleProductSuggestion = {
+  id: string;
+  name: string;
+  note: string;
+  product: Product | null;
+  catalogProductId: string;
 };
 
 const createSaleOrderItem = (): SaleOrderItem => ({
@@ -162,6 +170,7 @@ export const CreateOrderCard = ({
   currentEmployee,
   initialTab = 'repair',
   suppliers,
+  products,
   catalogProducts,
   onCreateSupplier,
   onSuccess,
@@ -194,7 +203,7 @@ export const CreateOrderCard = ({
   const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
   const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
-  const [saleProductSuggestions, setSaleProductSuggestions] = useState<CatalogProduct[]>([]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<SaleProductSuggestion[]>([]);
   const [selectedDeviceSuggestionId, setSelectedDeviceSuggestionId] = useState<string | null>(null);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
@@ -386,14 +395,46 @@ export const CreateOrderCard = ({
       setIsSaleProductLookupLoading(true);
       try {
         if (isActive) {
-          setSaleProductSuggestions(
-            catalogProducts
-              .filter((product) =>
-                normalizeProductLookupKey(product.name).includes(
-                  normalizeProductLookupKey(saleProductLookupQuery),
+          const normalizedLookupQuery =
+            normalizeProductLookupKey(saleProductLookupQuery);
+          const stockMatches = products
+            .filter((product) => {
+              if (!product.isActive) return false;
+              const lookupFields = [
+                product.name,
+                product.article,
+                product.serialNumber,
+              ];
+              return lookupFields.some((field) =>
+                normalizeProductLookupKey(field).includes(
+                  normalizedLookupQuery,
                 ),
-              )
-              .slice(0, 8),
+              );
+            })
+            .slice(0, 8)
+            .map((product) => ({
+              id: `stock-${product.id}`,
+              name: product.name,
+              note: `${product.serialNumber} / ${product.article}`,
+              product,
+              catalogProductId: '',
+            }));
+          const catalogMatches = catalogProducts
+            .filter((product) =>
+              normalizeProductLookupKey(product.name).includes(
+                normalizedLookupQuery,
+              ),
+            )
+            .slice(0, 8)
+            .map((product) => ({
+              id: `catalog-${product.id}`,
+              name: product.name,
+              note: product.note || 'Catalog product',
+              product: null,
+              catalogProductId: product.id,
+            }));
+          setSaleProductSuggestions(
+            [...stockMatches, ...catalogMatches].slice(0, 8),
           );
         }
       } catch {
@@ -407,7 +448,7 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, saleProductLookupQuery]);
+  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, products, saleProductLookupQuery]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -439,11 +480,14 @@ export const CreateOrderCard = ({
     );
   };
 
-  const applySaleProduct = (itemId: string, product: CatalogProduct) => {
+  const applySaleProduct = (
+    itemId: string,
+    suggestion: SaleProductSuggestion,
+  ) => {
     updateSaleItem(itemId, {
-      query: product.name,
-      catalogProductId: product.id,
-      product: null,
+      query: suggestion.name,
+      catalogProductId: suggestion.catalogProductId,
+      product: suggestion.product,
       supplierOrderRequested: false,
     });
     setSaleProductSuggestions([]);
@@ -841,7 +885,7 @@ export const CreateOrderCard = ({
                         onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
                       >
                         <strong>{product.name}</strong>
-                        <span>{product.note || 'Catalog product'}</span>
+                        <span>{product.note}</span>
                       </button>
                     ))}
                     <div className="sale-order-unavailable">

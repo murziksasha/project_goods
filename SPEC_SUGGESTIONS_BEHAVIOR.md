@@ -9,6 +9,13 @@ When a user selects an entity from suggestions:
 2. The suggestion list must hide immediately in UI.
 3. Suggestions may appear again only after user starts a new manual edit in the related input.
 
+## Product Lookup Rule
+For product suggestion fields in sales flows:
+1. Lookup must match by `name`, `article`, and `serialNumber`.
+2. This applies to both:
+3. `Create order` -> `Sales order` product field.
+4. Product search in existing sales card line-item editor.
+
 ## Modal Layout Rule
 In modal forms with lookup fields (supplier/client/product/service/device):
 1. Suggestion dropdowns must be rendered out of document flow (overlay/absolute layer).
