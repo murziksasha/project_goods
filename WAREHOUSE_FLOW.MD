@@ -72,6 +72,26 @@ We keep current behavior here and extend it as new rules appear.
 3. Reopen same order
 4. Click `Оприбуткувати` and complete serial-number modal flow
 
+### 10) Per-Unit Stock Materialization
+- Take-on-charge (`Оприбуткувати`) must materialize stock per unit, not as an aggregated quantity line.
+- If supplier-order item has `quantity = N`, warehouse stock must receive `N` separate product rows.
+- Each created row must have:
+1. `quantity = 1`
+2. its own unique `serialNumber`
+3. common item metadata copied from receipt context (name, price, supplier/purchase place, note, purchase date)
+- Rows with identical product name are allowed and expected in stock.
+
+### 11) Take-On-Charge UX/Error Behavior
+- On successful take-on-charge:
+1. serial modal closes
+2. supplier-order modal closes
+3. receipts list refreshes
+4. stock balances reflect created rows
+- On failed take-on-charge:
+1. modal remains open
+2. explicit error toast/message is shown
+3. no partial success should be presented as completed action
+
 ## Next Additions
 - Add edge-case decisions (duplicate names, archived catalog items, deleted suppliers).
 - Add validation standards for procurement edits.
