@@ -8,7 +8,6 @@ export const productSchema = new mongoose.Schema(
       trim: true,
       minlength: [2, 'Product name must contain at least 2 characters'],
       maxlength: [120, 'Product name must contain no more than 120 characters'],
-      unique: [true, 'Product with this name is exist']
     },
     article: {
       type: String,

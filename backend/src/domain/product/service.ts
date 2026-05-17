@@ -193,3 +193,14 @@ export const exportProductsWorkbook = async () => {
     bookType: 'xlsx',
   });
 };
+
+export const ensureProductNameIsNotUnique = async () => {
+  const indexes = await Product.collection.indexes();
+  const nameIndex = indexes.find(
+    (index) =>
+      index.name === 'name_1' &&
+      (index as { unique?: boolean }).unique === true,
+  );
+  if (!nameIndex) return;
+  await Product.collection.dropIndex('name_1');
+};
