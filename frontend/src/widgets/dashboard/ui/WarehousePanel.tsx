@@ -207,7 +207,52 @@ const initialWarehouseFilters: WarehouseFilters = {
   buyer: '',
   location: '',
 };
-const warehouseFilterIconOptions = ['*', '#', '@', '$', '%', '+'];
+const warehouseFilterIconOptions = [
+  '*',
+  '#',
+  '@',
+  '$',
+  '%',
+  '+',
+  '\u2753',
+  '\u2702\ufe0f',
+  '\ud83e\udd16',
+  '\ud83d\udcc8',
+  '\ud83e\ude9f',
+  '\ud83d\udc26',
+  '\u2733\ufe0f',
+  '\u00a9\ufe0f',
+  '\ud83d\udd07',
+  '\u2795',
+  '\ud83d\udc19',
+  '\u2195\ufe0f',
+  '\u2716\ufe0f',
+  '\ud83d\udc4d',
+  '\ud83d\udc4e',
+  '\u261d\ufe0f',
+  '\ud83d\udcde',
+  '\ud83d\udd2d',
+  '\ud83d\udd12',
+  'VISA',
+  '\ud83d\udd17',
+  '\ud83c\udf4e',
+  '\ud83d\udcb2',
+  '\u21a9\ufe0f',
+  '\ud83e\uddee',
+  '\u2620\ufe0f',
+  '\ud83d\udd0c',
+  '\u2796',
+  '\ud83d\udcbc',
+  '\ud83d\ude97',
+  '\ud83d\ude80',
+  '\u2708\ufe0f',
+  '\ud83d\udeb4',
+  '\u267f\ufe0f',
+  '\u2194\ufe0f',
+  '\u2605',
+  '\u2606',
+  '\u2728',
+];
 
 const getSearchText = (
   product: Product,
@@ -583,6 +628,18 @@ export const WarehousePanel = ({
         ),
       ).sort((a, b) => a.localeCompare(b)),
     [employees],
+  );
+  const supplierOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          suppliers
+            .filter((supplier) => supplier.isActive)
+            .map((supplier) => supplier.name.trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [suppliers],
   );
   const buyersByProductName = useMemo(() => {
     return receiptHistory.reduce<Record<string, string[]>>(
@@ -1251,7 +1308,27 @@ export const WarehousePanel = ({
               }}
               placeholder='Search stock'
             />
-            <button type='button'>Find</button>
+            {query ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='warehouse-search-clear'
+                aria-label='Clear search text'
+                onClick={() => {
+                  setQuery('');
+                  setCurrentPage(1);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setQuery('');
+                    setCurrentPage(1);
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
           </div>
           <div className='warehouse-search-modes'>
             {searchModes.map((mode) => (
@@ -1386,6 +1463,7 @@ export const WarehousePanel = ({
             <label className='orders-filter-field'>
               <span>Supplier</span>
               <input
+                list='warehouse-supplier-options'
                 type='text'
                 value={draftFilters.supplier}
                 onChange={(event) =>
@@ -1396,6 +1474,11 @@ export const WarehousePanel = ({
                 }
                 placeholder='Supplier name'
               />
+              <datalist id='warehouse-supplier-options'>
+                {supplierOptions.map((supplierName) => (
+                  <option key={supplierName} value={supplierName} />
+                ))}
+              </datalist>
             </label>
             <label className='orders-filter-field'>
               <span>Buyer</span>
