@@ -100,3 +100,22 @@
 - This catalog is separate from:
   - warehouse `products` (stock cards)
   - `Clients goods` (`client-devices`)
+
+## Sales Card Return Workflow Baseline (2026-05-18)
+
+- This section is normative for `Orders -> Sales -> opened sale card`.
+- Status in sale card must match list status (including `issued`).
+- Editing is allowed only in statuses:
+  - `new`
+  - `reserved`
+  - `paid`
+- For non-editable statuses (`issued`, `completed`, `returned`, etc.), card is read-only.
+
+### Return Sequence
+
+- Product return is split into two separate operations:
+  1. `Refund to client` (money)
+  2. `Return` in product row (stock)
+- `Return` opens stock-return modal only (warehouse destination), without refund fields.
+- If required refund has not been completed, `Return` must be blocked with toast error.
+- Required refund amount is discount-aware (based on line-item share in discounted order total).

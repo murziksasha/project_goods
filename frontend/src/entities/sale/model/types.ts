@@ -126,6 +126,11 @@ export type SaleLineItemSerialReturnPayload = {
   warehouse: string;
   author: string;
 };
+export type SaleLineItemStockReturnPayload = {
+  lineItemId: string;
+  warehouse: string;
+  author: string;
+};
 
 export type SaleReturnPayload = {
   cashboxId: string;

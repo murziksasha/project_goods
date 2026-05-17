@@ -237,6 +237,20 @@ const calculateTotalAfterDiscount = (
   const discountAmount = calculateDiscountAmount(total, discount);
   return Math.max(Math.round((total - discountAmount) * 100) / 100, 0);
 };
+const calculateLineItemRefundableAmount = (
+  sale: SaleDocument,
+  lineItem: { price: number; quantity: number },
+  lineItems: Array<{ price: number; quantity: number }>,
+) => {
+  const baseTotal = calculateLineItemsTotal(lineItems);
+  const itemTotal =
+    Math.round(lineItem.price * lineItem.quantity * 100) / 100;
+  if (baseTotal <= 0 || itemTotal <= 0) return 0;
+  const orderTotal = calculateTotalAfterDiscount(lineItems, sale.discount);
+  const ratio = itemTotal / baseTotal;
+  const discountedItemTotal = Math.round(orderTotal * ratio * 100) / 100;
+  return Math.max(Math.min(discountedItemTotal, itemTotal), 0);
+};
 
 const getDefaultLineItems = (
   payload: {
@@ -1118,6 +1132,106 @@ export const returnSaleLineItemBySerials = async (
   } catch (error) {
     await Product.findByIdAndUpdate(productId, {
       $inc: { quantity: -returnQuantity },
+      $set: { purchasePlace: previousProduct.purchasePlace },
+    });
+    throw error;
+  }
+};
+
+export const returnSaleLineItemToStock = async (
+  saleId: string,
+  payload: {
+    lineItemId?: unknown;
+    warehouse?: unknown;
+    author?: unknown;
+  },
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+  const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
+  if (!sale) throw new Error('Sale not found.');
+  if (sale.kind !== 'sale') {
+    throw new Error('Only product sales can be returned this way.');
+  }
+
+  const lineItemId = String(payload.lineItemId ?? '').trim();
+  const lineItemIndex = (sale.lineItems ?? []).findIndex(
+    (item) => item.id === lineItemId && item.kind === 'product',
+  );
+  if (lineItemIndex < 0) {
+    throw new Error('Product line item not found.');
+  }
+  const lineItem = (sale.lineItems ?? [])[lineItemIndex];
+  if (!lineItem) {
+    throw new Error('Product line item not found.');
+  }
+  const productId = lineItem.productId?.toString();
+  if (!productId) {
+    throw new Error('Line item is not linked to a stock product.');
+  }
+  isValidObjectIdOrThrow(productId, 'lineItems.productId');
+
+  const currentLineItems = sale.lineItems ?? [];
+  const refundableAmount = calculateLineItemRefundableAmount(
+    sale,
+    lineItem,
+    currentLineItems,
+  );
+  const maxPaidAfterReturn = Math.max(
+    Math.round(
+      (calculateTotalAfterDiscount(currentLineItems, sale.discount) -
+        refundableAmount) *
+        100,
+    ) / 100,
+    0,
+  );
+  const currentPaidAmount = sale.paidAmount ?? 0;
+  if (currentPaidAmount > maxPaidAfterReturn) {
+    throw new Error(
+      `Refund ${refundableAmount} UAH to client before returning product to stock.`,
+    );
+  }
+
+  const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
+  const author = String(payload.author ?? '').trim() || 'System';
+  const createdAt = new Date();
+  const nextLineItems = currentLineItems.filter(
+    (_, index) => index !== lineItemIndex,
+  );
+  const previousProduct = await receiveProductToWarehouse(
+    productId,
+    lineItem.quantity,
+    warehouse,
+  );
+
+  try {
+    assertWorkspaceState(
+      sale.kind,
+      sale.status,
+      currentPaidAmount,
+      nextLineItems,
+      sale.discount,
+    );
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        lineItems: nextLineItems,
+        timeline: [
+          {
+            id: randomUUID(),
+            author,
+            message: `Returned "${lineItem.name}" to ${warehouse} (stock only).`,
+            createdAt,
+          },
+          ...(sale.timeline ?? []),
+        ],
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SaleDocument | null>();
+    if (!updatedSale) throw new Error('Sale not found.');
+    return formatSale(updatedSale);
+  } catch (error) {
+    await Product.findByIdAndUpdate(productId, {
+      $inc: { quantity: -lineItem.quantity },
       $set: { purchasePlace: previousProduct.purchasePlace },
     });
     throw error;

@@ -19,7 +19,7 @@ import {
 } from '../../../entities/finance/api/financeApi';
 import {
   returnSale as returnSaleRequest,
-  returnSaleLineItem,
+  returnSaleLineItemToStock,
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
@@ -114,6 +114,7 @@ type SaleStatus =
   | 'new'
   | 'reserved'
   | 'paid'
+  | 'issued'
   | 'completed'
   | 'returned';
 type OrderStatus = RepairStatus | SaleStatus;
@@ -293,6 +294,7 @@ const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
   { key: 'new', label: 'New sale' },
   { key: 'reserved', label: 'Reserved' },
   { key: 'paid', label: 'Paid' },
+  { key: 'issued', label: 'Issued' },
   { key: 'completed', label: 'Completed' },
   { key: 'returned', label: 'Returned' },
 ];
@@ -418,6 +420,7 @@ const normalizeOrderStatus = (
     new: 'new',
     reserved: 'reserved',
     paid: 'paid',
+    issued: 'issued',
     completed: 'completed',
     returned: 'returned',
   };
@@ -556,6 +559,25 @@ const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
     (total, item) => total + item.price * item.quantity,
     0,
   );
+const getLineItemRefundableAmount = (
+  sale: Sale,
+  lineItem: OrderLineItem,
+  lineItems: OrderLineItem[] = sale.lineItems?.length
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
+) => {
+  const baseTotal = getOrderBaseTotal(sale, lineItems);
+  const itemTotal = Math.round(lineItem.price * lineItem.quantity * 100) / 100;
+  if (baseTotal <= 0 || itemTotal <= 0) return 0;
+  const orderTotal = getOrderTotal(sale, lineItems);
+  const ratio = itemTotal / baseTotal;
+  const discountedItemTotal =
+    Math.round(orderTotal * ratio * 100) / 100;
+  return Math.max(
+    Math.min(discountedItemTotal, itemTotal),
+    0,
+  );
+};
 const normalizeProductLookupValue = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -611,6 +633,11 @@ const getRepairCompletionDate = (sale: Sale) => {
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid' || status === 'completed';
+const saleEditableStatuses = new Set<OrderStatus>([
+  'new',
+  'reserved',
+  'paid',
+]);
 
 const escapeHtml = (value: string) =>
   value
@@ -1887,41 +1914,27 @@ export const OrdersWorkspace = ({
     sale: Sale,
     item: OrderLineItem,
   ) => {
-    const lastDepositCashboxId =
-      (sale.paymentHistory ?? []).find(
-        (entry) => entry.type === 'deposit',
-      )?.cashboxId ?? '';
+    const itemRefundableTotal = getLineItemRefundableAmount(
+      sale,
+      item,
+      getLineItems(sale),
+    );
+    const currentPaidAmount = getPaidAmount(sale);
+    const maxPaidAfterReturn = Math.max(
+      getOrderTotal(sale, getLineItems(sale)) - itemRefundableTotal,
+      0,
+    );
+    if (currentPaidAmount > maxPaidAfterReturn) {
+      onError(
+        `Refund ${formatCurrency(itemRefundableTotal)} to client first, then return "${item.name}" to stock.`,
+      );
+      return;
+    }
 
     setReturnSale(sale);
     setReturnLineItem(item);
-    setReturnRefundAmount(
-      String(
-        Math.min(item.price * item.quantity, getPaidAmount(sale)),
-      ),
-    );
     setReturnWarehouse('Service center');
-    setIsReturnModalLoading(true);
-
-    try {
-      const cashboxData = await getCashboxes();
-      setCashboxes(cashboxData);
-      setSelectedRefundCashboxId(
-        lastDepositCashboxId ||
-          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
-          cashboxData[0]?.id ||
-          '',
-      );
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to load cashboxes.',
-      );
-      setReturnSale(null);
-      setReturnLineItem(null);
-    } finally {
-      setIsReturnModalLoading(false);
-    }
+    setIsReturnModalLoading(false);
   };
 
   const openReturnSaleModal = async (sale: Sale) => {
@@ -2316,32 +2329,17 @@ export const OrdersWorkspace = ({
   };
 
   const returnLineItemToStock = async () => {
-    if (!returnSale || !returnLineItem || !selectedRefundCashboxId)
-      return;
-
-    const refundAmountValue =
-      Math.round(Number(returnRefundAmount) * 100) / 100;
-
-    if (
-      !Number.isFinite(refundAmountValue) ||
-      refundAmountValue <= 0 ||
-      refundAmountValue >
-        returnLineItem.price * returnLineItem.quantity ||
-      refundAmountValue > getPaidAmount(returnSale)
-    ) {
-      onError(
-        'Refund amount cannot exceed item total or paid amount.',
-      );
+    if (!returnSale || !returnLineItem) return;
+    if (!returnWarehouse.trim()) {
+      onError('Warehouse is required.');
       return;
     }
 
     setIsReturnSaving(true);
 
     try {
-      const updatedSale = await returnSaleLineItem(returnSale.id, {
+      const updatedSale = await returnSaleLineItemToStock(returnSale.id, {
         lineItemId: returnLineItem.id,
-        cashboxId: selectedRefundCashboxId,
-        refundAmount: String(refundAmountValue),
         warehouse: returnWarehouse,
         author: currentEmployeeName,
       });
@@ -2350,11 +2348,7 @@ export const OrdersWorkspace = ({
         updatedSale,
         updatedSale.status as OrderStatus,
       );
-      setCashboxes(await getCashboxes());
-      window.dispatchEvent(
-        new CustomEvent('project-goods:finance-updated'),
-      );
-      onSuccess('Product returned to stock and refund completed.');
+      onSuccess('Product returned to stock.');
       setReturnSale(null);
       setReturnLineItem(null);
     } catch (error) {
@@ -2517,6 +2511,12 @@ export const OrdersWorkspace = ({
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
           paidAmount={getPaidAmount(selectedSale)}
+          isReadOnly={
+            !isRepairOrder(selectedSale) &&
+            !saleEditableStatuses.has(
+              normalizeOrderStatus(selectedSale.status),
+            )
+          }
           onClose={() => setSelectedSaleId(null)}
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
@@ -3168,15 +3168,9 @@ export const OrdersWorkspace = ({
         <ReturnLineItemModal
           sale={returnSale}
           item={returnLineItem}
-          cashboxes={cashboxes}
-          selectedCashboxId={selectedRefundCashboxId}
-          amount={returnRefundAmount}
           warehouse={returnWarehouse}
-          paidAmount={getPaidAmount(returnSale)}
           isLoading={isReturnModalLoading}
           isSaving={isReturnSaving}
-          onCashboxChange={setSelectedRefundCashboxId}
-          onAmountChange={setReturnRefundAmount}
           onWarehouseChange={setReturnWarehouse}
           onClose={() => {
             setReturnSale(null);
@@ -3225,6 +3219,7 @@ type OrderDetailCardProps = {
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   paidAmount: number;
+  isReadOnly: boolean;
   onClose: () => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
@@ -3275,6 +3270,7 @@ const OrderDetailCard = ({
   comments,
   lineItems,
   paidAmount,
+  isReadOnly,
   onClose,
   onAddComment,
   onAddLineItem,
@@ -3401,6 +3397,7 @@ const OrderDetailCard = ({
               setStatusDraft(event.target.value as OrderStatus);
             }}
             aria-label='Repair status'
+            disabled={isReadOnly}
           >
             {statusOptions.map((statusOption) => (
               <option key={statusOption.key} value={statusOption.key}>
@@ -3505,7 +3502,7 @@ const OrderDetailCard = ({
                     type='button'
                     className='primary-button'
                     disabled={
-                      isSavingMainInfo
+                      isSavingMainInfo || isReadOnly
                     }
                     onClick={async () => {
                       setIsSavingMainInfo(true);
@@ -3564,12 +3561,13 @@ const OrderDetailCard = ({
               rows={2}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
+              disabled={isReadOnly}
             />
             <button
               type='button'
               className='primary-button'
               onClick={submitComment}
-              disabled={!comment.trim()}
+              disabled={!comment.trim() || isReadOnly}
             >
               Add
             </button>
@@ -3598,10 +3596,11 @@ const OrderDetailCard = ({
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isPaidSale={isSaleCard && paidAmount > 0}
+              isPaidSale={isSaleCard}
               onError={onError}
               onSuccess={onSuccess}
               shippingStatusLabel={shippingStatusLabel}
+              isReadOnly={isReadOnly}
             />
           ) : null}
         </section>
@@ -3630,6 +3629,7 @@ const OrderDetailCard = ({
               isPaidSale={false}
               onError={onError}
               onSuccess={onSuccess}
+              isReadOnly={isReadOnly}
             />
           ) : null}
         </section>
@@ -3667,6 +3667,7 @@ const OrderDetailCard = ({
                             : 0,
                       });
                     }}
+                    disabled={isReadOnly}
                   />
                   <button
                     type='button'
@@ -3681,6 +3682,7 @@ const OrderDetailCard = ({
                       })
                     }
                     aria-label='Toggle discount mode'
+                    disabled={isReadOnly}
                   >
                     {discount.mode === 'percent' ? '%' : '₴'}
                   </button>
@@ -3700,7 +3702,7 @@ const OrderDetailCard = ({
             type='button'
             className='primary-button'
             onClick={onAcceptPayment}
-            disabled={remainingPayment <= 0}
+            disabled={remainingPayment <= 0 || isReadOnly}
           >
             {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
           </button>
@@ -3709,6 +3711,7 @@ const OrderDetailCard = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
+              disabled={isReadOnly}
             >
               Refund to client
             </button>
@@ -3792,6 +3795,7 @@ type LineItemsPanelProps = {
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
   isPaidSale: boolean;
+  isReadOnly: boolean;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   shippingStatusLabel?: string;
@@ -3806,6 +3810,7 @@ const LineItemsPanel = ({
   onUpdateItem,
   onReturnItem,
   isPaidSale,
+  isReadOnly,
   onError,
   onSuccess,
   shippingStatusLabel,
@@ -3855,6 +3860,10 @@ const LineItemsPanel = ({
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialsInput, setSerialsInput] = useState('');
+  const [availableSerialProducts, setAvailableSerialProducts] =
+    useState<Product[]>([]);
+  const [isSerialLookupLoading, setIsSerialLookupLoading] =
+    useState(false);
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
   const hasExactServiceSuggestion = serviceSuggestions.some(
     (service) =>
@@ -3867,6 +3876,104 @@ const LineItemsPanel = ({
     !isServiceLookupLoading &&
     serviceSuggestions.length === 0 &&
     !hasExactServiceSuggestion;
+  const selectedSerials = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          serialsInput
+            .split('\n')
+            .map((value) => value.trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      ),
+    [serialsInput],
+  );
+
+  useEffect(() => {
+    if (!serialsEditingItem) return;
+
+    let isActive = true;
+    const normalizeNameForMatch = (value: string) =>
+      normalizeProductLookupValue(value)
+        .replace(/\([^)]*\)/g, '')
+        .replace(/[^a-z0-9\u0400-\u04ff\s-]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const isSameProductName = (left: string, right: string) => {
+      const leftNormalized = normalizeNameForMatch(left);
+      const rightNormalized = normalizeNameForMatch(right);
+      if (!leftNormalized || !rightNormalized) return false;
+      return (
+        leftNormalized === rightNormalized ||
+        leftNormalized.includes(rightNormalized) ||
+        rightNormalized.includes(leftNormalized)
+      );
+    };
+    const loadAvailableSerials = async () => {
+      setIsSerialLookupLoading(true);
+      try {
+        const products = await getProducts(serialsEditingItem.name);
+        if (!isActive) return;
+
+        const normalizedLineName = serialsEditingItem.name;
+        const lineProductId = serialsEditingItem.productId ?? '';
+        let filtered = products.filter((product) => {
+          if (!product.isActive) return false;
+          if (!product.serialNumber?.trim()) return false;
+          if (product.freeQuantity <= 0) return false;
+          if (
+            lineProductId &&
+            product.id === lineProductId
+          ) {
+            return true;
+          }
+
+          return isSameProductName(product.name, normalizedLineName);
+        });
+
+        if (filtered.length === 0) {
+          const allProducts = await getProducts('');
+          if (!isActive) return;
+          filtered = allProducts.filter((product) => {
+            if (!product.isActive) return false;
+            if (!product.serialNumber?.trim()) return false;
+            if (product.freeQuantity <= 0) return false;
+            if (
+              lineProductId &&
+              product.id === lineProductId
+            ) {
+              return true;
+            }
+            return isSameProductName(
+              product.name,
+              normalizedLineName,
+            );
+          });
+        }
+
+        const sorted = [...filtered].sort((first, second) => {
+          const firstTime = new Date(
+            first.purchaseDate ?? first.createdAt,
+          ).getTime();
+          const secondTime = new Date(
+            second.purchaseDate ?? second.createdAt,
+          ).getTime();
+          return firstTime - secondTime;
+        });
+        setAvailableSerialProducts(sorted);
+      } catch {
+        if (isActive) setAvailableSerialProducts([]);
+      } finally {
+        if (isActive) setIsSerialLookupLoading(false);
+      }
+    };
+
+    void loadAvailableSerials();
+
+    return () => {
+      isActive = false;
+    };
+  }, [serialsEditingItem]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
@@ -4208,6 +4315,7 @@ const LineItemsPanel = ({
                   type='button'
                   className='order-line-item-name-button'
                   onClick={() => void openLineItemModal(item)}
+                  disabled={isReadOnly}
                 >
                   {item.name}
                 </button>
@@ -4222,6 +4330,7 @@ const LineItemsPanel = ({
                       price: Number(value),
                     })
                   }
+                  disabled={isReadOnly}
                 />
               </div>
               <div key={`${item.id}-qty`}>
@@ -4234,6 +4343,7 @@ const LineItemsPanel = ({
                       quantity: Math.max(1, Number(value) || 1),
                     })
                   }
+                  disabled={isReadOnly}
                 />
               </div>
               <div key={`${item.id}-warranty`}>
@@ -4245,6 +4355,7 @@ const LineItemsPanel = ({
                       warrantyPeriod: Number(event.target.value),
                     })
                   }
+                  disabled={isReadOnly}
                 >
                   {warrantyOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -4264,6 +4375,7 @@ const LineItemsPanel = ({
                         (item.serialNumbers ?? []).join('\n'),
                       );
                     }}
+                    disabled={isReadOnly}
                   >
                     {`Serials ${(item.serialNumbers ?? []).length}/${item.quantity}`}
                   </button>
@@ -4276,6 +4388,7 @@ const LineItemsPanel = ({
                       ? onReturnItem(item)
                       : onRemoveItem(item.id, itemIndex)
                   }
+                  disabled={isReadOnly}
                 >
                   {isPaidSale && item.kind === 'product'
                     ? 'Return'
@@ -4302,22 +4415,26 @@ const LineItemsPanel = ({
               setSelectedProductId(undefined);
             }}
             placeholder={`Add ${kind}`}
+            disabled={isReadOnly}
           />
           <NumberStepper
             min={0}
             value={price}
             onChange={setPrice}
             placeholder='Price'
+            disabled={isReadOnly}
           />
           <NumberStepper
             min={1}
             value={quantity}
             onChange={setQuantity}
             placeholder='Qty'
+            disabled={isReadOnly}
           />
           <select
             value={warrantyPeriod}
             onChange={(event) => setWarrantyPeriod(event.target.value)}
+            disabled={isReadOnly}
           >
             {warrantyOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -4338,6 +4455,7 @@ const LineItemsPanel = ({
                 className='toolbar-square-button order-shipping-status-add'
                 onClick={() => void submitItem()}
                 aria-label='Add product'
+                disabled={isReadOnly}
               >
                 +
               </button>
@@ -4347,6 +4465,7 @@ const LineItemsPanel = ({
             type='button'
             className='primary-button'
             onClick={() => void submitItem()}
+            disabled={isReadOnly}
           >
             Add {kind}
           </button>
@@ -4363,6 +4482,7 @@ const LineItemsPanel = ({
                 type='button'
                 className='create-suggestion-item'
                 onClick={() => applyProductSuggestion(product)}
+                disabled={isReadOnly}
               >
                 <strong>{product.name}</strong>
                 <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber}`}</span>
@@ -4382,6 +4502,7 @@ const LineItemsPanel = ({
                 type='button'
                 className='create-suggestion-item'
                 onClick={() => applyServiceSuggestion(service)}
+                disabled={isReadOnly}
               >
                 <strong>{service.name}</strong>
                 <span>{`${formatCurrency(service.price)}${service.note ? ` / ${service.note}` : ''}`}</span>
@@ -4394,6 +4515,7 @@ const LineItemsPanel = ({
             type='button'
             className='secondary-button line-item-create-service-button'
             onClick={openCreateServiceModal}
+            disabled={isReadOnly}
           >
             Add service
           </button>
@@ -4459,6 +4581,75 @@ const LineItemsPanel = ({
           <section className='payment-modal payment-modal-message'>
             <h3>Bind serial numbers</h3>
             <p>{`One serial per line, max ${serialsEditingItem.quantity}.`}</p>
+            <div className='modal-actions'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => {
+                  const oldestSerials = availableSerialProducts
+                    .map((product) =>
+                      product.serialNumber.trim().toUpperCase(),
+                    )
+                    .filter(Boolean)
+                    .slice(0, serialsEditingItem.quantity);
+                  setSerialsInput(oldestSerials.join('\n'));
+                }}
+                disabled={
+                  isSerialLookupLoading ||
+                  availableSerialProducts.length === 0
+                }
+              >
+                Auto-select oldest
+              </button>
+            </div>
+            <div className='create-suggestions line-item-suggestions'>
+              {isSerialLookupLoading ? (
+                <p>Loading available serials...</p>
+              ) : null}
+              {!isSerialLookupLoading &&
+              availableSerialProducts.length === 0 ? (
+                <p>No available serials found in stock.</p>
+              ) : null}
+              {availableSerialProducts.map((product) => {
+                const serial = product.serialNumber
+                  .trim()
+                  .toUpperCase();
+                const isSelected = selectedSerials.includes(serial);
+                return (
+                  <button
+                    key={product.id}
+                    type='button'
+                    className='create-suggestion-item'
+                    onClick={() => {
+                      const nextSet = new Set(selectedSerials);
+                      if (nextSet.has(serial)) {
+                        nextSet.delete(serial);
+                      } else if (
+                        nextSet.size < serialsEditingItem.quantity
+                      ) {
+                        nextSet.add(serial);
+                      } else {
+                        onError(
+                          'Serial count cannot exceed line quantity.',
+                        );
+                        return;
+                      }
+                      setSerialsInput(Array.from(nextSet).join('\n'));
+                    }}
+                  >
+                    <strong>
+                      {isSelected ? '[x] ' : '[ ] '}
+                      {serial}
+                    </strong>
+                    <span>
+                      {`Date: ${formatDateTime(
+                        product.purchaseDate ?? product.createdAt,
+                      )}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             <textarea
               rows={8}
               value={serialsInput}
@@ -5359,15 +5550,9 @@ const RefundModal = ({
 type ReturnLineItemModalProps = {
   sale: Sale;
   item: OrderLineItem;
-  cashboxes: Cashbox[];
-  selectedCashboxId: string;
-  amount: string;
   warehouse: string;
-  paidAmount: number;
   isLoading: boolean;
   isSaving: boolean;
-  onCashboxChange: (cashboxId: string) => void;
-  onAmountChange: (amount: string) => void;
   onWarehouseChange: (warehouse: string) => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -5541,33 +5726,18 @@ const ReturnSaleModal = ({
 const ReturnLineItemModal = ({
   sale,
   item,
-  cashboxes,
-  selectedCashboxId,
-  amount,
   warehouse,
-  paidAmount,
   isLoading,
   isSaving,
-  onCashboxChange,
-  onAmountChange,
   onWarehouseChange,
   onClose,
   onSubmit,
 }: ReturnLineItemModalProps) => {
   const itemTotal = item.price * item.quantity;
-  const numericAmount = Number(amount);
-  const suggestedCashboxName =
-    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
-      ?.name ?? 'Cashbox';
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
-    !selectedCashboxId ||
-    !warehouse.trim() ||
-    !Number.isFinite(numericAmount) ||
-    numericAmount <= 0 ||
-    numericAmount > itemTotal ||
-    numericAmount > paidAmount;
+    !warehouse.trim();
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -5600,10 +5770,6 @@ const ReturnLineItemModal = ({
               <dt>Item total</dt>
               <dd>{formatCurrency(itemTotal)}</dd>
             </div>
-            <div>
-              <dt>Paid</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
           </dl>
           <span className='payment-cash-badge'>Return</span>
         </div>
@@ -5619,36 +5785,12 @@ const ReturnLineItemModal = ({
               disabled={isLoading || isSaving}
             />
           </label>
-          <label className='field payment-cashbox-field'>
-            <span>Refund from cashbox</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>Amount</span>
-            <NumberStepper
-              min={0}
-              max={Math.min(itemTotal, paidAmount)}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
         </div>
 
         <footer className='payment-modal-footer'>
-          <p className='muted-copy'>{`Suggested cashbox: ${suggestedCashboxName}`}</p>
+          <p className='muted-copy'>
+            Refund must be completed via "Refund to client" before stock return.
+          </p>
           <div className='payment-modal-actions'>
             <button
               type='button'

@@ -131,3 +131,28 @@ Client status localization rule: keep client status values in original English (
   - `Products & Services -> Products` name creation/editing (catalog-only)
   - Supplier order draft creation
 - Warehouse stock balances must contain only real received stock (`quantity > 0`).
+
+## Supplier Order Take-On-Charge Warehouse/Location (2026-05-17)
+
+- `POST /supplier-orders/:supplierOrderId/take-on-charge`
+  - Request body supports:
+    - `autoGenerateSerialNumbers?: boolean`
+    - `serialNumbers?: string[]`
+    - `warehouseId?: string`
+    - `locationId?: string`
+  - Behavior:
+    - creates stock products per unit (`quantity=1` rows)
+    - persists `warehouseId` and `locationId` on each created product
+    - sets `purchasePlace` to selected warehouse name
+  - Defaults (if IDs are not passed or invalid):
+    - warehouse -> first warehouse from `warehouse-settings`
+    - location -> first location of selected/default warehouse
+
+## Product Warehouse Fields (2026-05-17)
+
+- Product API shape now includes optional location metadata fields:
+  - `warehouseId?: string`
+  - `locationId?: string`
+- Legacy compatibility:
+  - old products may have only `purchasePlace`
+  - consumers must support fallback mapping from `purchasePlace` when IDs are empty
