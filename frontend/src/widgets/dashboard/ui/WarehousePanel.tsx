@@ -535,21 +535,64 @@ export const WarehousePanel = ({
     return filteredReceipts.slice(start, start + pageSize);
   }, [currentPage, filteredReceipts, pageSize]);
   const salesByProductId = useMemo(() => {
+    const bySerial = new Map<string, string[]>();
+    const byArticle = new Map<string, string[]>();
+    const byName = new Map<string, string[]>();
+
+    products.forEach((product) => {
+      const serial = product.serialNumber.trim().toLowerCase();
+      const article = product.article.trim().toLowerCase();
+      const name = product.name.trim().toLowerCase();
+
+      if (serial) {
+        bySerial.set(serial, [...(bySerial.get(serial) ?? []), product.id]);
+      }
+      if (article) {
+        byArticle.set(article, [...(byArticle.get(article) ?? []), product.id]);
+      }
+      if (name) {
+        byName.set(name, [...(byName.get(name) ?? []), product.id]);
+      }
+    });
+
     return sales.reduce<Record<string, Sale[]>>((acc, sale) => {
       const linkedProductIds = new Set<string>();
+
       if (sale.product?.id) linkedProductIds.add(sale.product.id);
+
       (sale.lineItems ?? []).forEach((item) => {
         if (item.kind === 'product' && item.productId) {
           linkedProductIds.add(item.productId);
         }
+        if (item.kind === 'product') {
+          const itemName = item.name.trim().toLowerCase();
+          (byName.get(itemName) ?? []).forEach((productId) =>
+            linkedProductIds.add(productId),
+          );
+        }
       });
+
+      const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
+      const saleArticle = sale.product?.article?.trim().toLowerCase();
+      const saleName = sale.product?.name?.trim().toLowerCase();
+
+      (saleSerial ? (bySerial.get(saleSerial) ?? []) : []).forEach((productId) =>
+        linkedProductIds.add(productId),
+      );
+      (saleArticle ? (byArticle.get(saleArticle) ?? []) : []).forEach(
+        (productId) => linkedProductIds.add(productId),
+      );
+      (saleName ? (byName.get(saleName) ?? []) : []).forEach((productId) =>
+        linkedProductIds.add(productId),
+      );
 
       linkedProductIds.forEach((productId) => {
         acc[productId] = [...(acc[productId] ?? []), sale];
       });
+
       return acc;
     }, {});
-  }, [sales]);
+  }, [products, sales]);
   const supplierOrdersByProductId = useMemo(() => {
     const byCatalogProductName = catalogProducts.reduce<
       Record<string, string[]>
@@ -1373,7 +1416,7 @@ export const WarehousePanel = ({
               createdBy: currentEmployeeName || 'Administrator',
               status: editingSupplierOrder
                 ? editingSupplierOrder.status
-                : 'stocked',
+                : 'approved',
               paymentStatus: editingSupplierOrder?.paymentStatus,
               items: payload.items,
             };

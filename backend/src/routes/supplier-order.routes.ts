@@ -44,7 +44,12 @@ supplierOrderRouter.post('/supplier-orders/:supplierOrderId/cancel', async (req,
 
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', async (req, res, next) => {
   try {
-    res.json(await takeOnChargeSupplierOrder(req.params.supplierOrderId));
+    res.json(
+      await takeOnChargeSupplierOrder(
+        req.params.supplierOrderId,
+        req.body as { autoGenerateSerialNumbers?: unknown; serialNumbers?: unknown },
+      ),
+    );
   } catch (error) {
     next(error);
   }

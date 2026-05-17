@@ -95,8 +95,7 @@ export const SupplierOrderModal = ({
   const isEditing = Boolean(editingOrder);
   const isTakenOnChargeLocked = Boolean(
     editingOrder &&
-      (editingOrder.status === 'stocked' ||
-        editingOrder.receiptStatus === 'received' ||
+      (editingOrder.receiptStatus === 'received' ||
         editingOrder.status === 'cancelled' ||
         editingOrder.paymentStatus === 'cancelled'),
   );
@@ -236,6 +235,12 @@ export const SupplierOrderModal = ({
   const totalUnits = submitItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
+  );
+  const serialUnitLabels = submitItems.flatMap((item) =>
+    Array.from(
+      { length: Math.max(0, Math.floor(item.quantity)) },
+      () => item.productName,
+    ),
   );
   const canSubmitTakeOnCharge = isAutoSerialEnabled
     ? true
@@ -622,7 +627,15 @@ export const SupplierOrderModal = ({
                 <div className='warehouse-receipt-modal-grid'>
                   {manualSerialNumbers.map((serialNumber, index) => (
                     <label key={`serial-${index}`} className='field'>
-                      <span>{`#${index + 1}`}</span>
+                      <span className='supplier-serial-label'>
+                        <span className='supplier-serial-index'>{`#${index + 1}`}</span>
+                        <span
+                          className='supplier-serial-product'
+                          title={serialUnitLabels[index] ?? ''}
+                        >
+                          {serialUnitLabels[index] ?? ''}
+                        </span>
+                      </span>
                       <input
                         value={serialNumber}
                         onChange={(event) =>
@@ -672,6 +685,12 @@ export const SupplierOrderModal = ({
                     });
                     setIsSerialModalOpen(false);
                     onClose();
+                  } catch (error) {
+                    onError(
+                      error instanceof Error
+                        ? error.message
+                        : 'Failed to take order on charge.',
+                    );
                   } finally {
                     setIsActionSubmitting(false);
                   }

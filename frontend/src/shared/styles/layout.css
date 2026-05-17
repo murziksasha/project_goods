@@ -3232,6 +3232,25 @@
   margin: 0;
 }
 
+.supplier-serial-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.supplier-serial-index {
+  flex: 0 0 auto;
+}
+
+.supplier-serial-product {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .supplier-order-basket-summary {
   grid-column: 1 / -1;
   color: #5a6f86;

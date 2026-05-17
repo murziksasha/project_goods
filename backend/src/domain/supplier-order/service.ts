@@ -5,6 +5,10 @@ import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
 import { Product } from '../product/model';
 import { CatalogProduct } from '../catalog-product/model';
+import {
+  formatProductSerialNumber,
+  getNextProductSerialNumberValue,
+} from '../sequence/service';
 import { SupplierOrder, supplierOrderStatuses, supplierPaymentStatuses, type SupplierOrderDocument } from './model';
 
 type SupplierOrderItemPayload = {
@@ -27,6 +31,11 @@ export type SupplierOrderPayload = {
   status?: unknown;
   paymentStatus?: unknown;
   items?: unknown;
+};
+
+type SupplierOrderTakeOnChargePayload = {
+  autoGenerateSerialNumbers?: unknown;
+  serialNumbers?: unknown;
 };
 
 const toOrderStatus = (value: unknown) =>
@@ -242,8 +251,17 @@ export const paySupplierOrder = async (
 const toReceiptArticle = (orderBaseId: string, itemIndex: number) =>
   `SO-${orderBaseId.replace(/[^A-Za-z0-9]/g, '').slice(-8)}-${itemIndex + 1}`;
 
-const toReceiptSerial = (orderId: string, itemIndex: number) =>
-  `SO-${orderId.slice(-6).toUpperCase()}-${String(itemIndex + 1).padStart(2, '0')}`;
+const reserveNextUniqueProductSerialNumber = async () => {
+  for (let attempts = 0; attempts < 2000; attempts += 1) {
+    const candidate = formatProductSerialNumber(
+      await getNextProductSerialNumberValue(),
+    );
+    const exists = await Product.exists({ serialNumber: candidate });
+    if (!exists) return candidate;
+  }
+
+  throw new Error('Failed to generate unique product serial number.');
+};
 
 export const cancelSupplierOrder = async (supplierOrderId: string) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
@@ -258,13 +276,58 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };
 
-export const takeOnChargeSupplierOrder = async (supplierOrderId: string) => {
+export const takeOnChargeSupplierOrder = async (
+  supplierOrderId: string,
+  payload?: SupplierOrderTakeOnChargePayload,
+) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
   const existing = await SupplierOrder.findById(supplierOrderId);
   if (!existing) throw new Error('Supplier order not found.');
-  if (existing.status === 'cancelled') throw new Error('Скасований заказ не можна оприбуткувати.');
+  if (existing.status === 'cancelled') {
+    throw new Error('Cancelled supplier order cannot be taken on charge.');
+  }
+
+  const autoGenerateSerialNumbers =
+    payload?.autoGenerateSerialNumbers !== false;
+  const totalUnits = (existing.items ?? []).reduce(
+    (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
+    0,
+  );
+  const manualSerialNumbers = Array.isArray(payload?.serialNumbers)
+    ? payload.serialNumbers
+        .map((value) => toNonEmptyString(value).toUpperCase())
+        .filter(Boolean)
+    : [];
+
+  if (
+    !autoGenerateSerialNumbers &&
+    manualSerialNumbers.length !== totalUnits
+  ) {
+    throw new Error('Serial numbers count must match total units.');
+  }
+
+  if (!autoGenerateSerialNumbers) {
+    const hasDuplicateManualSerial = manualSerialNumbers.some(
+      (serial, index) => manualSerialNumbers.indexOf(serial) !== index,
+    );
+    if (hasDuplicateManualSerial) {
+      throw new Error('Serial numbers must be unique.');
+    }
+    const existingSerialProduct = await Product.findOne({
+      serialNumber: { $in: manualSerialNumbers },
+    })
+      .select({ serialNumber: 1 })
+      .lean<{ serialNumber?: string } | null>();
+    if (existingSerialProduct?.serialNumber) {
+      throw new Error(
+        `Product serial number already exists: ${existingSerialProduct.serialNumber}`,
+      );
+    }
+  }
 
   const supplier = await Supplier.findById(existing.supplier).lean();
+  let serialCursor = 0;
+
   for (const item of existing.items ?? []) {
     const catalogName = item.catalogProductId
       ? (
@@ -276,33 +339,30 @@ export const takeOnChargeSupplierOrder = async (supplierOrderId: string) => {
     const normalizedName = toNonEmptyString(catalogName || item.productName);
     if (!normalizedName) continue;
 
-    const existingProduct = await Product.findOne({ name: normalizedName });
-    if (existingProduct) {
-      existingProduct.quantity = (existingProduct.quantity ?? 0) + item.quantity;
-      existingProduct.price = item.price;
-      existingProduct.purchasePlace = supplier?.name ?? existingProduct.purchasePlace;
-      existingProduct.purchaseDate = new Date();
-      await existingProduct.validate();
-      await existingProduct.save();
-      continue;
-    }
+    const quantity = Math.max(0, Math.floor(item.quantity));
+    for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
+      const serialNumber = autoGenerateSerialNumbers
+        ? await reserveNextUniqueProductSerialNumber()
+        : manualSerialNumbers[serialCursor] ?? '';
+      serialCursor += 1;
 
-    const newProduct = new Product({
-      name: normalizedName,
-      article: toReceiptArticle(existing.orderBaseId, item.itemIndex),
-      serialNumber: toReceiptSerial(existing.id, item.itemIndex),
-      price: item.price,
-      salePriceOptions: [],
-      note: existing.note ?? '',
-      quantity: item.quantity,
-      reservedQuantity: 0,
-      purchasePlace: supplier?.name ?? '',
-      purchaseDate: new Date(),
-      warrantyPeriod: 0,
-      isActive: true,
-    });
-    await newProduct.validate();
-    await newProduct.save();
+      const newProduct = new Product({
+        name: normalizedName,
+        article: `${toReceiptArticle(existing.orderBaseId, item.itemIndex)}-${unitIndex + 1}`,
+        serialNumber,
+        price: item.price,
+        salePriceOptions: [],
+        note: existing.note ?? '',
+        quantity: 1,
+        reservedQuantity: 0,
+        purchasePlace: supplier?.name ?? '',
+        purchaseDate: new Date(),
+        warrantyPeriod: 0,
+        isActive: true,
+      });
+      await newProduct.validate();
+      await newProduct.save();
+    }
   }
 
   existing.status = 'stocked';

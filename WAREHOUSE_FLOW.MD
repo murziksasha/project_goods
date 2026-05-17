@@ -52,6 +52,26 @@ We keep current behavior here and extend it as new rules appear.
 1. Cancelled orders open in read-only mode (inputs/actions for editing disabled).
 2. This lock is equivalent in behavior to already received/stocked lock.
 
+### 8) Take-On-Charge Availability From Receipts Modal
+- Entry point: `Warehouse -> Receipts -> receipt row (#) -> SupplierOrderModal`.
+- For an existing supplier order opened from Receipts, action button `Оприбуткувати` must be available regardless of payment state (`pending` or `paid`).
+- Payment state must not block warehouse receiving action.
+- Order may be edited and then received later in a separate open/reopen cycle.
+- Lock conditions for take-on-charge button and edit actions:
+1. `receiptStatus = received` (already received)
+2. `status = cancelled`
+3. `paymentStatus = cancelled`
+- `status = stocked` alone is not a lock condition for `Оприбуткувати`.
+
+### 9) New Receipt Order Initial State
+- When receipt order is created from `Warehouse -> Receipts -> receipt order`, it must stay receivable later.
+- Initial status for a newly created supplier order in this flow is `approved` (not auto-`stocked`).
+- Expected operator flow:
+1. Create receipt order
+2. See row in Receipts with `new/approved` progression
+3. Reopen same order
+4. Click `Оприбуткувати` and complete serial-number modal flow
+
 ## Next Additions
 - Add edge-case decisions (duplicate names, archived catalog items, deleted suppliers).
 - Add validation standards for procurement edits.
