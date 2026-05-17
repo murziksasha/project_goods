@@ -30,6 +30,11 @@ import type {
   SupplierOrder,
   SupplierOrderFormValues,
 } from '../../../entities/supplier-order/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
+import {
+  getWarehouseSettings,
+  updateWarehouseSettings,
+} from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseSearchMode = 'serial' | 'name' | 'warehouse';
@@ -98,6 +103,7 @@ type WarehouseFormState = {
 
 type WarehousePanelProps = {
   products: Product[];
+  sales: Sale[];
   catalogProducts: CatalogProduct[];
   employees: Employee[];
   isLoading: boolean;
@@ -189,6 +195,7 @@ const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
 export const WarehousePanel = ({
   products,
+  sales,
   catalogProducts,
   employees,
   isLoading,
@@ -205,6 +212,8 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
+  const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
+    useState(false);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -319,6 +328,39 @@ export const WarehousePanel = ({
     note: '',
   });
   const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
+  const persistWarehouseSettings = async (payload?: {
+    serviceCenters?: ServiceCenter[];
+    warehouses?: WarehouseItem[];
+    administrators?: Administrator[];
+    successMessage?: string;
+  }) => {
+    const nextServiceCenters = payload?.serviceCenters ?? serviceCenters;
+    const nextWarehouses = payload?.warehouses ?? warehouses;
+    const nextAdministrators = payload?.administrators ?? administrators;
+
+    setIsWarehouseSettingsSaving(true);
+    try {
+      const saved = await updateWarehouseSettings({
+        serviceCenters: nextServiceCenters,
+        warehouses: nextWarehouses,
+        administrators: nextAdministrators,
+      });
+      setServiceCenters(saved.serviceCenters);
+      setWarehouses(saved.warehouses);
+      setAdministrators(saved.administrators);
+      if (payload?.successMessage) {
+        onSuccess(payload.successMessage);
+      }
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save warehouse settings.',
+      );
+    } finally {
+      setIsWarehouseSettingsSaving(false);
+    }
+  };
 
   const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
     return orders.flatMap((order) =>
@@ -420,6 +462,22 @@ export const WarehousePanel = ({
     void refreshSupplierOrders().catch(() => undefined);
   }, []);
   useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await getWarehouseSettings();
+        setServiceCenters(settings.serviceCenters);
+        setWarehouses(settings.warehouses);
+        setAdministrators(settings.administrators);
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load warehouse settings.',
+        );
+      }
+    })();
+  }, [onError]);
+  useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
       name: selectedSupplierForEdit.name,
@@ -476,6 +534,61 @@ export const WarehousePanel = ({
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
   }, [currentPage, filteredReceipts, pageSize]);
+  const salesByProductId = useMemo(() => {
+    return sales.reduce<Record<string, Sale[]>>((acc, sale) => {
+      const linkedProductIds = new Set<string>();
+      if (sale.product?.id) linkedProductIds.add(sale.product.id);
+      (sale.lineItems ?? []).forEach((item) => {
+        if (item.kind === 'product' && item.productId) {
+          linkedProductIds.add(item.productId);
+        }
+      });
+
+      linkedProductIds.forEach((productId) => {
+        acc[productId] = [...(acc[productId] ?? []), sale];
+      });
+      return acc;
+    }, {});
+  }, [sales]);
+  const supplierOrdersByProductId = useMemo(() => {
+    const byCatalogProductName = catalogProducts.reduce<
+      Record<string, string[]>
+    >((acc, catalogProduct) => {
+      const key = catalogProduct.name.trim().toLowerCase();
+      if (!key) return acc;
+      acc[key] = [...(acc[key] ?? []), catalogProduct.id];
+      return acc;
+    }, {});
+
+    const byCatalogProductId = supplierOrders.reduce<
+      Record<string, SupplierOrder[]>
+    >((acc, order) => {
+      order.items.forEach((item) => {
+        if (!item.catalogProductId) return;
+        acc[item.catalogProductId] = [
+          ...(acc[item.catalogProductId] ?? []),
+          order,
+        ];
+      });
+      return acc;
+    }, {});
+
+    return products.reduce<Record<string, SupplierOrder[]>>(
+      (acc, product) => {
+        const matchedCatalogIds =
+          byCatalogProductName[product.name.trim().toLowerCase()] ?? [];
+        const orderMap = new Map<string, SupplierOrder>();
+        matchedCatalogIds.forEach((catalogId) => {
+          (byCatalogProductId[catalogId] ?? []).forEach((order) =>
+            orderMap.set(order.id, order),
+          );
+        });
+        acc[product.id] = Array.from(orderMap.values());
+        return acc;
+      },
+      {},
+    );
+  }, [catalogProducts, products, supplierOrders]);
 
   const warehousesByServiceCenter = useMemo(
     () =>
@@ -539,33 +652,35 @@ export const WarehousePanel = ({
   const saveServiceCenter = () => {
     const normalizedName = serviceCenterForm.name.trim();
     if (!normalizedName) return;
-    if (serviceCenterModalId === 'new') {
-      setServiceCenters((current) => [
-        ...current,
-        {
-          id: `sc-${Date.now()}`,
-          name: normalizedName,
-          color: serviceCenterForm.color,
-          address: serviceCenterForm.address.trim(),
-          phone: serviceCenterForm.phone.trim(),
-        },
-      ]);
-    } else {
-      setServiceCenters((current) =>
-        current.map((x) =>
-          x.id === serviceCenterModalId
-            ? {
-                ...x,
-                name: normalizedName,
-                color: serviceCenterForm.color,
-                address: serviceCenterForm.address.trim(),
-                phone: serviceCenterForm.phone.trim(),
-              }
-            : x,
-        ),
-      );
-    }
+    const nextServiceCenters =
+      serviceCenterModalId === 'new'
+        ? [
+            ...serviceCenters,
+            {
+              id: `sc-${Date.now()}`,
+              name: normalizedName,
+              color: serviceCenterForm.color,
+              address: serviceCenterForm.address.trim(),
+              phone: serviceCenterForm.phone.trim(),
+            },
+          ]
+        : serviceCenters.map((x) =>
+            x.id === serviceCenterModalId
+              ? {
+                  ...x,
+                  name: normalizedName,
+                  color: serviceCenterForm.color,
+                  address: serviceCenterForm.address.trim(),
+                  phone: serviceCenterForm.phone.trim(),
+                }
+              : x,
+          );
+    setServiceCenters(nextServiceCenters);
     setServiceCenterModalId(null);
+    void persistWarehouseSettings({
+      serviceCenters: nextServiceCenters,
+      successMessage: 'Service center settings saved.',
+    });
   };
 
   const saveWarehouse = () => {
@@ -583,37 +698,39 @@ export const WarehousePanel = ({
       id: `l-${Date.now()}-${index}`,
       name,
     }));
-    if (warehouseModalId === 'new') {
-      setWarehouses((current) => [
-        ...current,
-        {
-          id: `w-${Date.now()}`,
-          name: normalizedName,
-          isActive: warehouseForm.isActive,
-          serviceCenterId: warehouseForm.serviceCenterId,
-          receiptAddress: warehouseForm.receiptAddress.trim(),
-          receiptPhone: warehouseForm.receiptPhone.trim(),
-          locations,
-        },
-      ]);
-    } else {
-      setWarehouses((current) =>
-        current.map((x) =>
-          x.id === warehouseModalId
-            ? {
-                ...x,
-                name: normalizedName,
-                isActive: warehouseForm.isActive,
-                serviceCenterId: warehouseForm.serviceCenterId,
-                receiptAddress: warehouseForm.receiptAddress.trim(),
-                receiptPhone: warehouseForm.receiptPhone.trim(),
-                locations,
-              }
-            : x,
-        ),
-      );
-    }
+    const nextWarehouses =
+      warehouseModalId === 'new'
+        ? [
+            ...warehouses,
+            {
+              id: `w-${Date.now()}`,
+              name: normalizedName,
+              isActive: warehouseForm.isActive,
+              serviceCenterId: warehouseForm.serviceCenterId,
+              receiptAddress: warehouseForm.receiptAddress.trim(),
+              receiptPhone: warehouseForm.receiptPhone.trim(),
+              locations,
+            },
+          ]
+        : warehouses.map((x) =>
+            x.id === warehouseModalId
+              ? {
+                  ...x,
+                  name: normalizedName,
+                  isActive: warehouseForm.isActive,
+                  serviceCenterId: warehouseForm.serviceCenterId,
+                  receiptAddress: warehouseForm.receiptAddress.trim(),
+                  receiptPhone: warehouseForm.receiptPhone.trim(),
+                  locations,
+                }
+              : x,
+          );
+    setWarehouses(nextWarehouses);
     setWarehouseModalId(null);
+    void persistWarehouseSettings({
+      warehouses: nextWarehouses,
+      successMessage: 'Warehouse settings saved.',
+    });
   };
   const createReceipt = () => {
     if (!receiptForm.supplierId || !receiptForm.productName.trim())
@@ -796,14 +913,30 @@ export const WarehousePanel = ({
             setWarehouseForm(toWarehouseForm(warehouse));
           }}
           onAdministratorChange={setAdministrators}
+          onSaveAdministrators={() =>
+            void persistWarehouseSettings({
+              successMessage: 'Administrator access saved.',
+            })
+          }
+          isSaving={isWarehouseSettingsSaving}
         />
       ) : activeTab === 'stock' ? (
         <>
           <StockTable
             products={paginatedProducts}
             isLoading={isLoading}
+            salesByProductId={salesByProductId}
+            supplierOrdersByProductId={supplierOrdersByProductId}
             onEdit={onProductEdit}
             onDelete={onProductDelete}
+            onOpenSupplierOrder={(supplierOrderId) => {
+              const matchedOrder = supplierOrders.find(
+                (order) => order.id === supplierOrderId,
+              );
+              if (!matchedOrder) return;
+              setEditingSupplierOrder(matchedOrder);
+              setIsSupplierOrderModalOpen(true);
+            }}
           />
           <PaginationPanel
             totalItems={filteredProducts.length}
@@ -1571,6 +1704,8 @@ const WarehouseSettings = ({
   onCreateWarehouse,
   onEditWarehouse,
   onAdministratorChange,
+  onSaveAdministrators,
+  isSaving,
 }: {
   tab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
@@ -1588,6 +1723,8 @@ const WarehouseSettings = ({
       | Administrator[]
       | ((current: Administrator[]) => Administrator[]),
   ) => void;
+  onSaveAdministrators: () => void;
+  isSaving: boolean;
 }) => {
   const serviceCenterMap = useMemo(
     () =>
@@ -2017,8 +2154,13 @@ const WarehouseSettings = ({
               </tbody>
             </table>
           </div>
-          <button type='button' className='secondary-button'>
-            Save Changes
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={onSaveAdministrators}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </>
       ) : null}
@@ -2080,13 +2222,19 @@ const ModalShell = ({
 const StockTable = ({
   products,
   isLoading,
+  salesByProductId,
+  supplierOrdersByProductId,
   onEdit,
   onDelete,
+  onOpenSupplierOrder,
 }: {
   products: Product[];
   isLoading: boolean;
+  salesByProductId: Record<string, Sale[]>;
+  supplierOrdersByProductId: Record<string, SupplierOrder[]>;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onOpenSupplierOrder: (supplierOrderId: string) => void;
 }) => {
   if (isLoading)
     return <p className='empty-state'>Loading warehouse stock...</p>;
@@ -2122,6 +2270,24 @@ const StockTable = ({
         <tbody>
           {products.map((product) => (
             <tr key={product.id}>
+              {(() => {
+                const linkedSales = salesByProductId[product.id] ?? [];
+                const linkedSupplierOrders =
+                  supplierOrdersByProductId[product.id] ?? [];
+                const getOrderHref = (
+                  sale: Sale,
+                  tab: 'orders' | 'sales',
+                ) => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('page', 'orders');
+                  url.searchParams.set('ordersTab', tab);
+                  url.searchParams.set('saleId', sale.id);
+                  url.searchParams.delete('createOrder');
+                  return `${url.pathname}${url.search}${url.hash}`;
+                };
+
+                return (
+                  <>
               <td>
                 <input
                   type='checkbox'
@@ -2137,8 +2303,40 @@ const StockTable = ({
               <td>{product.price}</td>
               <td>{product.purchasePlace || 'Main warehouse'}</td>
               <td>{product.freeQuantity > 0 ? 'A' : '-'}</td>
-              <td>-</td>
-              <td>-</td>
+              <td>
+                {linkedSales.length === 0
+                  ? '-'
+                  : linkedSales.map((sale, index) => (
+                      <span key={`${product.id}-sale-${sale.id}`}>
+                        {index > 0 ? ', ' : null}
+                        <a
+                          className='settings-link-button'
+                          href={getOrderHref(
+                            sale,
+                            sale.kind === 'sale' ? 'sales' : 'orders',
+                          )}
+                        >
+                          {sale.recordNumber || sale.id.slice(0, 8)}
+                        </a>
+                      </span>
+                    ))}
+              </td>
+              <td>
+                {linkedSupplierOrders.length === 0
+                  ? '-'
+                  : linkedSupplierOrders.map((order, index) => (
+                      <span key={`${product.id}-supplier-${order.id}`}>
+                        {index > 0 ? ', ' : null}
+                        <button
+                          type='button'
+                          className='settings-link-button'
+                          onClick={() => onOpenSupplierOrder(order.id)}
+                        >
+                          {order.number || order.orderBaseId || order.id}
+                        </button>
+                      </span>
+                    ))}
+              </td>
               <td>{product.purchasePlace || '-'}</td>
               <td>{product.note || '-'}</td>
               <td>
@@ -2159,6 +2357,9 @@ const StockTable = ({
                   </button>
                 </div>
               </td>
+                  </>
+                );
+              })()}
             </tr>
           ))}
         </tbody>

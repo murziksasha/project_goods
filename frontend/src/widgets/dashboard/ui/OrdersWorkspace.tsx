@@ -555,6 +555,8 @@ const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
     (total, item) => total + item.price * item.quantity,
     0,
   );
+const normalizeProductLookupValue = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const getRemainingPayment = (
   sale: Sale,
@@ -3826,8 +3828,23 @@ const LineItemsPanel = ({
       try {
         const products = await getProducts(name.trim());
         if (isActive) {
+          const normalizedQuery = normalizeProductLookupValue(name);
           setProductSuggestions(
-            products.filter((product) => product.isActive).slice(0, 8),
+            products
+              .filter((product) => {
+                if (!product.isActive) return false;
+                const lookupFields = [
+                  product.name,
+                  product.article,
+                  product.serialNumber,
+                ];
+                return lookupFields.some((field) =>
+                  normalizeProductLookupValue(field).includes(
+                    normalizedQuery,
+                  ),
+                );
+              })
+              .slice(0, 8),
           );
         }
       } catch {

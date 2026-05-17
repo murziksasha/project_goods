@@ -715,18 +715,19 @@ export const DashboardPage = () => {
 
           {activePage === 'orders' ? (
             isCreateOrderOpen && activeOrdersTab !== 'supplierOrders' ? (
-              <CreateOrderCard
-                isSaving={state.isSaleSaving}
-                employees={state.allEmployees}
-                currentEmployee={currentEmployee}
-                onClose={openOrdersPage}
-                initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
-                suppliers={state.suppliers}
-                catalogProducts={state.catalogProducts}
-                onCreateSupplier={actions.createSupplierCard}
-                onSuccess={actions.showSuccessMessage}
-                onError={actions.showError}
-                onSave={actions.saveOrderRequest}
+                <CreateOrderCard
+                  isSaving={state.isSaleSaving}
+                  employees={state.allEmployees}
+                  currentEmployee={currentEmployee}
+                  onClose={openOrdersPage}
+                  initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
+                  suppliers={state.suppliers}
+                  products={state.allProducts}
+                  catalogProducts={state.catalogProducts}
+                  onCreateSupplier={actions.createSupplierCard}
+                  onSuccess={actions.showSuccessMessage}
+                  onError={actions.showError}
+                  onSave={actions.saveOrderRequest}
               />
             ) : (
               activeOrdersTab === 'supplierOrders' ? (
@@ -860,6 +861,7 @@ export const DashboardPage = () => {
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
+              sales={state.sales}
               catalogProducts={state.catalogProducts}
               employees={state.allEmployees}
               suppliers={state.suppliers}
