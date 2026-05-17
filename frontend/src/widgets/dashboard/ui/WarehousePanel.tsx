@@ -37,7 +37,30 @@ import {
 } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
-type WarehouseSearchMode = 'serial' | 'name' | 'warehouse';
+type WarehouseSearchMode =
+  | 'serial'
+  | 'name'
+  | 'article'
+  | 'warehouse'
+  | 'supplier';
+type WarehouseFilters = {
+  name: string;
+  serial: string;
+  article: string;
+  warehouse: string;
+  supplier: string;
+  buyer: string;
+  location: string;
+};
+type SavedWarehouseFilter = {
+  id: string;
+  employeeName: string;
+  name: string;
+  icon: string;
+  tab: WarehouseTab;
+  filters: WarehouseFilters;
+  createdAt: string;
+};
 type SettingsTab =
   | 'service-centers'
   | 'warehouses'
@@ -100,6 +123,12 @@ type WarehouseFormState = {
   receiptPhone: string;
   locations: string[];
 };
+type ProductWarehouseMeta = {
+  warehouseId: string;
+  warehouseName: string;
+  locationId: string;
+  locationName: string;
+};
 
 type WarehousePanelProps = {
   products: Product[];
@@ -150,7 +179,9 @@ const searchModes: Array<{
 }> = [
   { key: 'serial', label: 'By serial #' },
   { key: 'name', label: 'By name' },
+  { key: 'article', label: 'By article' },
   { key: 'warehouse', label: 'By warehouse' },
+  { key: 'supplier', label: 'By supplier' },
 ];
 
 const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
@@ -165,6 +196,18 @@ const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
+const savedWarehouseFiltersStorageKey =
+  'project-goods.saved-warehouse-filters';
+const initialWarehouseFilters: WarehouseFilters = {
+  name: '',
+  serial: '',
+  article: '',
+  warehouse: '',
+  supplier: '',
+  buyer: '',
+  location: '',
+};
+const warehouseFilterIconOptions = ['*', '#', '@', '$', '%', '+'];
 
 const getSearchText = (
   product: Product,
@@ -172,7 +215,11 @@ const getSearchText = (
 ) =>
   mode === 'serial'
     ? product.serialNumber
+    : mode === 'article'
+      ? product.article
     : mode === 'warehouse'
+      ? 'Main warehouse'
+      : mode === 'supplier'
       ? product.purchasePlace
       : [product.name, product.article, product.note].join(' ');
 const toServiceCenterForm = (
@@ -250,6 +297,8 @@ export const WarehousePanel = ({
         ) as Partial<{ searchMode: WarehouseSearchMode }>;
         return parsed.searchMode === 'serial' ||
           parsed.searchMode === 'name' ||
+          parsed.searchMode === 'article' ||
+          parsed.searchMode === 'supplier' ||
           parsed.searchMode === 'warehouse'
           ? parsed.searchMode
           : 'serial';
@@ -259,7 +308,33 @@ export const WarehousePanel = ({
     },
   );
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(30);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
+    useState(false);
+  const [draftFilters, setDraftFilters] = useState<WarehouseFilters>(
+    initialWarehouseFilters,
+  );
+  const [appliedFilters, setAppliedFilters] = useState<WarehouseFilters>(
+    initialWarehouseFilters,
+  );
+  const [savedFilters, setSavedFilters] = useState<
+    SavedWarehouseFilter[]
+  >(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(savedWarehouseFiltersStorageKey) ??
+          '[]',
+      ) as SavedWarehouseFilter[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newFilterName, setNewFilterName] = useState('My filter');
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    warehouseFilterIconOptions[0],
+  );
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -498,18 +573,187 @@ export const WarehousePanel = ({
     () => employees.filter((employee) => employee.isActive),
     [employees],
   );
+  const buyerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          employees
+            .map((employee) => employee.name.trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [employees],
+  );
+  const buyersByProductName = useMemo(() => {
+    return receiptHistory.reduce<Record<string, string[]>>(
+      (acc, receipt) => {
+        const key = receipt.productName.trim().toLowerCase();
+        if (!key) return acc;
+        const current = acc[key] ?? [];
+        if (!current.includes(receipt.acceptedBy)) {
+          acc[key] = [...current, receipt.acceptedBy];
+        }
+        return acc;
+      },
+      {},
+    );
+  }, [receiptHistory]);
+  const warehouseOptions = useMemo(
+    () =>
+      warehouses
+        .filter((warehouse) => warehouse.isActive)
+        .map((warehouse) => ({
+          id: warehouse.id,
+          name: warehouse.name,
+        })),
+    [warehouses],
+  );
+  const locationOptionsByWarehouseId = useMemo(
+    () =>
+      warehouses.reduce<Record<string, Array<{ id: string; name: string }>>>(
+        (acc, warehouse) => {
+          acc[warehouse.id] = warehouse.locations.map((location) => ({
+            id: location.id,
+            name: location.name,
+          }));
+          return acc;
+        },
+        {},
+      ),
+    [warehouses],
+  );
+  const availableLocationOptions = useMemo(() => {
+    const selectedWarehouse = warehouseOptions.find(
+      (option) => option.name === draftFilters.warehouse,
+    );
+    if (selectedWarehouse) {
+      return locationOptionsByWarehouseId[selectedWarehouse.id] ?? [];
+    }
+    return Array.from(
+      new Map(
+        warehouseOptions.flatMap((warehouse) =>
+          (locationOptionsByWarehouseId[warehouse.id] ?? []).map(
+            (location) => [location.name, location] as const,
+          ),
+        ),
+      ).values(),
+    );
+  }, [
+    draftFilters.warehouse,
+    locationOptionsByWarehouseId,
+    warehouseOptions,
+  ]);
+  const productWarehouseMetaById = useMemo(() => {
+    const byName = new Map(
+      warehouses.map((warehouse) => [
+        warehouse.name.trim().toLowerCase(),
+        warehouse,
+      ]),
+    );
+    const fallbackWarehouse = warehouses[0];
+    return products.reduce<Record<string, ProductWarehouseMeta>>(
+      (acc, product) => {
+        const matchedWarehouse =
+          byName.get(product.purchasePlace.trim().toLowerCase()) ??
+          fallbackWarehouse;
+        const firstLocation = matchedWarehouse?.locations[0];
+        acc[product.id] = {
+          warehouseId: matchedWarehouse?.id ?? '',
+          warehouseName: matchedWarehouse?.name ?? '-',
+          locationId: firstLocation?.id ?? '',
+          locationName: firstLocation?.name ?? '-',
+        };
+        return acc;
+      },
+      {},
+    );
+  }, [products, warehouses]);
   const filteredProducts = useMemo(() => {
     const stockProducts = products.filter(
       (product) => product.quantity > 0,
     );
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return stockProducts;
-    return stockProducts.filter((product) =>
-      getSearchText(product, searchMode)
-        .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [products, query, searchMode]);
+    return stockProducts.filter((product) => {
+      const productMeta = productWarehouseMetaById[product.id];
+      const warehouseName = productMeta?.warehouseName ?? '-';
+      const locationName = productMeta?.locationName ?? '-';
+      const matchesQuery =
+        !normalizedQuery ||
+        getSearchText(product, searchMode)
+          .toLowerCase()
+          .includes(normalizedQuery);
+      if (!matchesQuery) return false;
+      if (
+        appliedFilters.name.trim() &&
+        !product.name
+          .toLowerCase()
+          .includes(appliedFilters.name.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.serial.trim() &&
+        !product.serialNumber
+          .toLowerCase()
+          .includes(appliedFilters.serial.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.article.trim() &&
+        !product.article
+          .toLowerCase()
+          .includes(appliedFilters.article.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.warehouse.trim() &&
+        !warehouseName
+          .toLowerCase()
+          .includes(appliedFilters.warehouse.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      const supplier = appliedFilters.supplier.trim().toLowerCase();
+      if (
+        supplier &&
+        !(product.purchasePlace || '')
+          .toLowerCase()
+          .includes(supplier)
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.location &&
+        locationName.toLowerCase() !==
+          appliedFilters.location.toLowerCase()
+      ) {
+        return false;
+      }
+      if (appliedFilters.buyer.trim()) {
+        const productBuyers =
+          buyersByProductName[product.name.trim().toLowerCase()] ?? [];
+        if (
+          !productBuyers.some(
+            (buyer) =>
+              buyer.toLowerCase() ===
+              appliedFilters.buyer.trim().toLowerCase(),
+          )
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [
+    appliedFilters,
+    buyersByProductName,
+    productWarehouseMetaById,
+    products,
+    query,
+    searchMode,
+  ]);
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -517,19 +761,58 @@ export const WarehousePanel = ({
   }, [currentPage, filteredProducts, pageSize]);
   const filteredReceipts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return receiptHistory;
-    return receiptHistory.filter((receipt) =>
-      [
-        String(receipt.number),
-        receipt.productName,
-        receipt.supplierName,
-        receipt.status,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [query, receiptHistory]);
+    return receiptHistory.filter((receipt) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        [
+          String(receipt.number),
+          receipt.productName,
+          receipt.supplierName,
+          receipt.status,
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedQuery);
+      if (!matchesQuery) return false;
+      if (
+        appliedFilters.name.trim() &&
+        !receipt.productName
+          .toLowerCase()
+          .includes(appliedFilters.name.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      const supplier = appliedFilters.supplier.trim().toLowerCase();
+      if (
+        supplier &&
+        !receipt.supplierName.toLowerCase().includes(supplier)
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.buyer.trim() &&
+        receipt.acceptedBy.toLowerCase() !==
+          appliedFilters.buyer.trim().toLowerCase()
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedFilters, query, receiptHistory]);
+  const employeeSavedFilters = useMemo(
+    () =>
+      savedFilters.filter(
+        (savedFilter) =>
+          savedFilter.employeeName === currentEmployeeName &&
+          savedFilter.tab === activeTab,
+      ),
+    [activeTab, currentEmployeeName, savedFilters],
+  );
+  const totalItems =
+    activeTab === 'receipts'
+      ? filteredReceipts.length
+      : filteredProducts.length;
+  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
@@ -659,6 +942,24 @@ export const WarehousePanel = ({
   ]);
 
   useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
+  useEffect(() => {
+    if (!draftFilters.warehouse || !draftFilters.location) return;
+    const hasLocation = availableLocationOptions.some(
+      (location) => location.name === draftFilters.location,
+    );
+    if (hasLocation) return;
+    setDraftFilters((current) => ({ ...current, location: '' }));
+  }, [
+    availableLocationOptions,
+    draftFilters.location,
+    draftFilters.warehouse,
+  ]);
+  useEffect(() => {
+    window.localStorage.setItem(
+      savedWarehouseFiltersStorageKey,
+      JSON.stringify(savedFilters),
+    );
+  }, [savedFilters]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -833,6 +1134,61 @@ export const WarehousePanel = ({
     });
     setIsReceiptModalOpen(false);
   };
+  const applyFilters = () => {
+    setAppliedFilters({
+      ...draftFilters,
+      name: draftFilters.name.trim(),
+      serial: draftFilters.serial.trim(),
+      article: draftFilters.article.trim(),
+      warehouse: draftFilters.warehouse.trim(),
+      supplier: draftFilters.supplier.trim(),
+      buyer: draftFilters.buyer.trim(),
+    });
+    setCurrentPage(1);
+    setIsFilterPanelOpen(false);
+  };
+  const resetFilters = () => {
+    setDraftFilters(initialWarehouseFilters);
+    setAppliedFilters(initialWarehouseFilters);
+    setCurrentPage(1);
+  };
+  const saveCurrentFilter = () => {
+    const filterName = newFilterName.trim();
+    if (!filterName || !currentEmployeeName.trim()) return;
+    const nextFilter: SavedWarehouseFilter = {
+      id: `wf-${Date.now()}`,
+      employeeName: currentEmployeeName.trim(),
+      name: filterName,
+      icon: newFilterIcon,
+      tab: activeTab,
+      filters: {
+        ...draftFilters,
+        name: draftFilters.name.trim(),
+        serial: draftFilters.serial.trim(),
+        article: draftFilters.article.trim(),
+        warehouse: draftFilters.warehouse.trim(),
+        supplier: draftFilters.supplier.trim(),
+        buyer: draftFilters.buyer.trim(),
+      },
+      createdAt: new Date().toISOString(),
+    };
+    setSavedFilters((current) => [nextFilter, ...current]);
+    setIsSaveFilterDrawerOpen(false);
+    setNewFilterName('My filter');
+    setNewFilterIcon(warehouseFilterIconOptions[0]);
+  };
+  const applySavedFilter = (savedFilter: SavedWarehouseFilter) => {
+    setDraftFilters(savedFilter.filters);
+    setAppliedFilters(savedFilter.filters);
+    setCurrentPage(1);
+    setIsSaveFilterDrawerOpen(false);
+    setIsFilterPanelOpen(false);
+  };
+  const removeSavedFilter = (filterId: string) => {
+    setSavedFilters((current) =>
+      current.filter((item) => item.id !== filterId),
+    );
+  };
 
   return (
     <section className='panel warehouse-panel'>
@@ -864,18 +1220,26 @@ export const WarehousePanel = ({
             type='button'
             className='toolbar-square-button'
             aria-label='Previous page'
+            onClick={() => setCurrentPage((current) => current - 1)}
+            disabled={currentPage <= 1}
           >
             &lsaquo;
           </button>
-          <span className='warehouse-page-number'>1</span>
+          <span className='warehouse-page-number'>{currentPage}</span>
           <button
             type='button'
             className='toolbar-square-button'
             aria-label='Next page'
+            onClick={() => setCurrentPage((current) => current + 1)}
+            disabled={currentPage >= pageCount}
           >
             &rsaquo;
           </button>
-          <button type='button' className='toolbar-filter-button'>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={() => setIsFilterPanelOpen((current) => !current)}
+          >
             Filter
           </button>
           <div className='orders-search-group warehouse-search-group'>
@@ -908,6 +1272,284 @@ export const WarehousePanel = ({
               </button>
             ))}
           </div>
+        </div>
+      ) : null}
+      {activeTab !== 'settings' ? (
+        <section
+          className={
+            isFilterPanelOpen
+              ? 'orders-filter-panel orders-filter-panel-open'
+              : 'orders-filter-panel'
+          }
+        >
+          <div className='orders-filter-saved-row'>
+            <strong>Saved filters:</strong>
+            <div className='orders-filter-saved-list'>
+              {employeeSavedFilters.length > 0 ? (
+                employeeSavedFilters.map((savedFilter) => (
+                  <div
+                    key={savedFilter.id}
+                    className='orders-filter-saved-item'
+                  >
+                    <button
+                      type='button'
+                      className='orders-filter-saved-button'
+                      onClick={() => applySavedFilter(savedFilter)}
+                    >
+                      {`${savedFilter.icon} ${savedFilter.name}`}
+                    </button>
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button'
+                      onClick={() => removeSavedFilter(savedFilter.id)}
+                      aria-label={`Delete ${savedFilter.name}`}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <small>No saved filters for this tab.</small>
+              )}
+            </div>
+            <button
+              type='button'
+              className='toolbar-square-button'
+              aria-label='Save filter'
+              onClick={() => setIsSaveFilterDrawerOpen(true)}
+            >
+              +
+            </button>
+          </div>
+          <div className='orders-filter-grid'>
+            <label className='orders-filter-field'>
+              <span>By name</span>
+              <input
+                type='text'
+                value={draftFilters.name}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder='Product name'
+              />
+            </label>
+            <label className='orders-filter-field'>
+              <span>By serial #</span>
+              <input
+                type='text'
+                value={draftFilters.serial}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    serial: event.target.value,
+                  }))
+                }
+                placeholder='Serial number'
+              />
+            </label>
+            <label className='orders-filter-field'>
+              <span>By article</span>
+              <input
+                type='text'
+                value={draftFilters.article}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    article: event.target.value,
+                  }))
+                }
+                placeholder='Article'
+              />
+            </label>
+            <label className='orders-filter-field'>
+              <span>Warehouse</span>
+              <select
+                value={draftFilters.warehouse}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    warehouse: event.target.value,
+                  }))
+                }
+              >
+                <option value=''>All</option>
+                {warehouseOptions.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.name}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className='orders-filter-field'>
+              <span>Supplier</span>
+              <input
+                type='text'
+                value={draftFilters.supplier}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    supplier: event.target.value,
+                  }))
+                }
+                placeholder='Supplier name'
+              />
+            </label>
+            <label className='orders-filter-field'>
+              <span>Buyer</span>
+              <select
+                value={draftFilters.buyer}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    buyer: event.target.value,
+                  }))
+                }
+              >
+                <option value=''>All</option>
+                {buyerOptions.map((buyer) => (
+                  <option key={buyer} value={buyer}>
+                    {buyer}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {activeTab === 'stock' ? (
+              <label className='orders-filter-field'>
+                <span>Location</span>
+                <select
+                  value={draftFilters.location}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      location: event.target.value,
+                    }))
+                  }
+                >
+                  <option value=''>All</option>
+                  {availableLocationOptions.map((location) => (
+                    <option key={location.id} value={location.name}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <div className='orders-filter-actions'>
+            <button
+              type='button'
+              className='toolbar-filter-button orders-filter-apply'
+              onClick={applyFilters}
+            >
+              Apply
+            </button>
+            <button
+              type='button'
+              className='toolbar-filter-button'
+              onClick={resetFilters}
+            >
+              Clear
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {isSaveFilterDrawerOpen ? (
+        <div
+          className='orders-filter-drawer-backdrop'
+          onClick={() => setIsSaveFilterDrawerOpen(false)}
+        >
+          <aside
+            className='orders-filter-drawer'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <h3>Save filter</h3>
+              <button
+                type='button'
+                aria-label='Close save filter panel'
+                onClick={() => setIsSaveFilterDrawerOpen(false)}
+              >
+                x
+              </button>
+            </header>
+            <label className='orders-filter-field'>
+              <span>Filter name</span>
+              <input
+                type='text'
+                value={newFilterName}
+                onChange={(event) =>
+                  setNewFilterName(event.target.value)
+                }
+                placeholder='My filter'
+              />
+            </label>
+            <div className='orders-filter-icons'>
+              <span>Choose icon</span>
+              <div className='orders-filter-icons-grid'>
+                {warehouseFilterIconOptions.map((icon) => (
+                  <button
+                    key={icon}
+                    type='button'
+                    className={
+                      icon === newFilterIcon
+                        ? 'orders-filter-icon-button orders-filter-icon-button-active'
+                        : 'orders-filter-icon-button'
+                    }
+                    onClick={() => setNewFilterIcon(icon)}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className='orders-filter-drawer-list'>
+              <span>Your saved filters</span>
+              {employeeSavedFilters.length > 0 ? (
+                employeeSavedFilters.map((savedFilter) => (
+                  <div
+                    key={savedFilter.id}
+                    className='orders-filter-drawer-item'
+                  >
+                    <button
+                      type='button'
+                      onClick={() => applySavedFilter(savedFilter)}
+                    >
+                      {`${savedFilter.icon} ${savedFilter.name}`}
+                    </button>
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button'
+                      onClick={() => removeSavedFilter(savedFilter.id)}
+                      aria-label={`Delete ${savedFilter.name}`}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <small>No filters yet.</small>
+              )}
+            </div>
+            <footer>
+              <button
+                type='button'
+                className='toolbar-filter-button orders-filter-apply'
+                onClick={saveCurrentFilter}
+              >
+                Save
+              </button>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsSaveFilterDrawerOpen(false)}
+              >
+                Cancel
+              </button>
+            </footer>
+          </aside>
         </div>
       ) : null}
 
@@ -970,6 +1612,7 @@ export const WarehousePanel = ({
             isLoading={isLoading}
             salesByProductId={salesByProductId}
             supplierOrdersByProductId={supplierOrdersByProductId}
+            productWarehouseMetaById={productWarehouseMetaById}
             onEdit={onProductEdit}
             onDelete={onProductDelete}
             onOpenSupplierOrder={(supplierOrderId) => {
@@ -1982,7 +2625,7 @@ const WarehouseSettings = ({
                       </td>
                       <td>{warehouse.receiptAddress || '-'}</td>
                       <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>{warehouse.locations.length} С€С‚.</td>
+                      <td>{warehouse.locations.length} pcs</td>
                     </tr>
                   );
                 })}
@@ -2267,6 +2910,7 @@ const StockTable = ({
   isLoading,
   salesByProductId,
   supplierOrdersByProductId,
+  productWarehouseMetaById,
   onEdit,
   onDelete,
   onOpenSupplierOrder,
@@ -2275,6 +2919,7 @@ const StockTable = ({
   isLoading: boolean;
   salesByProductId: Record<string, Sale[]>;
   supplierOrdersByProductId: Record<string, SupplierOrder[]>;
+  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   onOpenSupplierOrder: (supplierOrderId: string) => void;
@@ -2344,8 +2989,14 @@ const StockTable = ({
               <td>{product.quantity} pcs</td>
               <td>{product.salePriceOptions[0] ?? product.price}</td>
               <td>{product.price}</td>
-              <td>{product.purchasePlace || 'Main warehouse'}</td>
-              <td>{product.freeQuantity > 0 ? 'A' : '-'}</td>
+              <td>
+                {productWarehouseMetaById[product.id]?.warehouseName ??
+                  '-'}
+              </td>
+              <td>
+                {productWarehouseMetaById[product.id]?.locationName ??
+                  '-'}
+              </td>
               <td>
                 {linkedSales.length === 0
                   ? '-'
