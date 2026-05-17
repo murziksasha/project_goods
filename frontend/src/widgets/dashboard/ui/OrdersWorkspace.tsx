@@ -2594,14 +2594,30 @@ export const OrdersWorkspace = ({
               </div>
             ) : null}
           </div>
-          <div className='orders-search-group'>
+          <div className='orders-search-group orders-search-group-clearable'>
             <input
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={getOrdersSearchPlaceholder(activeTab)}
               aria-label='Search orders'
             />
-            <button type='button'>Find</button>
+            {searchValue ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label='Clear search text'
+                onClick={() => onSearchChange('')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSearchChange('');
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
           </div>
         </div>
         <div className='orders-toolbar-actions'>

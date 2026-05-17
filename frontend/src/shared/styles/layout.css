@@ -2540,6 +2540,32 @@
   cursor: pointer;
 }
 
+.orders-search-group-clearable {
+  position: relative;
+  display: block;
+}
+
+.orders-search-group-clearable input {
+  width: 100%;
+  padding-right: 24px;
+}
+
+.orders-search-clear {
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  line-height: 1;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.orders-search-clear:hover {
+  color: #64748b;
+}
+
 .orders-create-button {
   display: inline-flex;
   align-items: center;

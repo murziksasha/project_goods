@@ -207,13 +207,29 @@ export const ClientsSuppliersWorkspace = ({
         <>
           <div className='orders-toolbar clients-toolbar'>
             <div className='orders-toolbar-left'>
-              <div className='orders-search-group clients-search-group'>
+              <div className='orders-search-group orders-search-group-clearable clients-search-group'>
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder='Search by name, phone or supplier order'
                 />
-                <button type='button'>Find</button>
+                {query ? (
+                  <span
+                    role='button'
+                    tabIndex={0}
+                    className='orders-search-clear'
+                    aria-label='Clear search text'
+                    onClick={() => setQuery('')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setQuery('');
+                      }
+                    }}
+                  >
+                    x
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className='orders-toolbar-actions clients-toolbar-actions'>
