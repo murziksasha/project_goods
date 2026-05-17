@@ -703,9 +703,6 @@ export const DashboardPage = () => {
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
             </button>
-            <button type="button" className="topbar-icon-button" aria-label="Notifications">
-              99+
-            </button>
           </div>
         </header>
 
@@ -718,17 +715,19 @@ export const DashboardPage = () => {
 
           {activePage === 'orders' ? (
             isCreateOrderOpen && activeOrdersTab !== 'supplierOrders' ? (
-              <CreateOrderCard
-                isSaving={state.isSaleSaving}
-                employees={state.allEmployees}
-                currentEmployee={currentEmployee}
-                onClose={openOrdersPage}
-                initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
-                suppliers={state.suppliers}
-                onCreateSupplier={actions.createSupplierCard}
-                onSuccess={actions.showSuccessMessage}
-                onError={actions.showError}
-                onSave={actions.saveOrderRequest}
+                <CreateOrderCard
+                  isSaving={state.isSaleSaving}
+                  employees={state.allEmployees}
+                  currentEmployee={currentEmployee}
+                  onClose={openOrdersPage}
+                  initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
+                  suppliers={state.suppliers}
+                  products={state.allProducts}
+                  catalogProducts={state.catalogProducts}
+                  onCreateSupplier={actions.createSupplierCard}
+                  onSuccess={actions.showSuccessMessage}
+                  onError={actions.showError}
+                  onSave={actions.saveOrderRequest}
               />
             ) : (
               activeOrdersTab === 'supplierOrders' ? (
@@ -736,8 +735,11 @@ export const DashboardPage = () => {
                   activeTab={activeOrdersTab}
                   onActiveTabChange={changeOrdersTab}
                   suppliers={state.suppliers}
+                  catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
                   onCreateSupplier={actions.createSupplierCard}
+                  onUpdateSupplier={actions.updateSupplierCard}
+                  onUpdateCatalogProduct={actions.updateCatalogProductCard}
                   onSuccess={actions.showSuccessMessage}
                   onError={actions.showError}
                 />
@@ -748,7 +750,6 @@ export const DashboardPage = () => {
                   isLoading={state.isSalesLoading}
                   activeTab={activeOrdersTab}
                   searchValue={state.productSearchQuery}
-                  isSeeding={state.isSeeding}
                   onActiveTabChange={changeOrdersTab}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
@@ -758,7 +759,6 @@ export const DashboardPage = () => {
                   })}
                   currentEmployee={currentEmployee}
                   canCreateOrders={canCreateOrders}
-                  onSeedDemoData={actions.seedDemoData}
                   onSaleUpdate={actions.replaceSaleInState}
                   onError={actions.showError}
                   onSuccess={actions.showSuccessMessage}
@@ -855,13 +855,16 @@ export const DashboardPage = () => {
               onUpdateClientDevice={actions.updateClientDeviceCard}
               onDeleteClientDevice={actions.deleteClientDeviceCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              onCreateCatalogProduct={actions.createCatalogProductCard}
               onDeleteCatalogProduct={actions.deleteCatalogProductCard}
             />
           ) : activePage === 'warehouse' ? (
             <WarehousePanel
               products={state.allProducts}
-              clients={state.allClients}
+              sales={state.sales}
+              catalogProducts={state.catalogProducts}
               employees={state.allEmployees}
+              suppliers={state.suppliers}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}
               isProductSaving={state.isProductSaving}
@@ -871,6 +874,12 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
+              onCreateSupplier={actions.createSupplierCard}
+              onUpdateSupplier={actions.updateSupplierCard}
+              onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              currentEmployeeName={currentEmployee.name}
+              onError={actions.showError}
+              onSuccess={actions.showSuccessMessage}
             />
           ) : (
             <AnalyticsHeroSection

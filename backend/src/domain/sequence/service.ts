@@ -1,9 +1,13 @@
 import { Sequence } from './model';
 
 const recordSequenceKey = 'sale-record-number';
+const productSerialSequenceKey = 'product-serial-number';
 
 export const formatRecordNumber = (value: number) =>
   `r${String(value).padStart(6, '0')}`;
+
+export const formatProductSerialNumber = (value: number) =>
+  `S${String(Math.max(1, value)).padStart(6, '0')}`;
 
 export const getNextRecordNumber = async () => {
   const sequence = await Sequence.findOneAndUpdate(
@@ -21,4 +25,18 @@ export const resetRecordNumberSequence = async (value: number) => {
     { value },
     { upsert: true },
   );
+};
+
+export const getNextProductSerialNumberValue = async () => {
+  const sequence = await Sequence.findOneAndUpdate(
+    { key: productSerialSequenceKey },
+    { $inc: { value: 1 } },
+    {
+      returnDocument: 'after',
+      upsert: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  return Math.max(sequence.value, 1);
 };

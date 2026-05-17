@@ -63,6 +63,12 @@ export type SettingsPayload = {
   serviceName?: unknown;
 };
 
+export type WarehouseSettingsPayload = {
+  serviceCenters?: unknown;
+  warehouses?: unknown;
+  administrators?: unknown;
+};
+
 export type ServiceCatalogPayload = {
   name?: unknown;
   price?: unknown;

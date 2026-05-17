@@ -144,6 +144,23 @@
   background: #f4f7fb;
 }
 
+.modal-suggestions-anchor {
+  position: relative;
+}
+
+.modal-suggestions-anchor > .suggestions-panel,
+.modal-suggestions-anchor > .create-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin-top: 0;
+  z-index: 60;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .suggestion-item {
   border: 0;
   border-radius: 8px;

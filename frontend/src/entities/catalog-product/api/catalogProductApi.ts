@@ -39,6 +39,15 @@ export const updateCatalogProduct = async (
   }
 };
 
+export const createCatalogProduct = async (payload: CatalogProductFormValues) => {
+  try {
+    const response = await apiClient.post<CatalogProduct>('/catalog-products', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const deleteCatalogProduct = async (catalogProductId: string) => {
   try {
     const response = await apiClient.delete<{ id: string }>(`/catalog-products/${catalogProductId}`);

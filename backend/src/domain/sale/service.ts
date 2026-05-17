@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { randomUUID } from 'crypto';
 import { Client, type ClientDocument } from '../client/model';
 import { Employee, type EmployeeDocument } from '../employee/model';
+import { CatalogProduct, type CatalogProductDocument } from '../catalog-product/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from './model';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
@@ -95,8 +96,8 @@ const addStockQuantity = (
 const getStockLines = (
   kind: 'repair' | 'sale',
   lineItems: SaleLineItem[],
-  fallbackProductId: mongoose.Types.ObjectId | string,
   fallbackQuantity: number,
+  fallbackProductId?: mongoose.Types.ObjectId | string | null,
 ): StockLine[] => {
   if (kind !== 'sale') {
     return [];
@@ -112,8 +113,9 @@ const getStockLines = (
     }
   });
 
-  if (stockMap.size === 0) {
-    addStockQuantity(stockMap, fallbackProductId.toString(), fallbackQuantity);
+  const normalizedFallbackProductId = fallbackProductId?.toString().trim();
+  if (stockMap.size === 0 && normalizedFallbackProductId) {
+    addStockQuantity(stockMap, normalizedFallbackProductId, fallbackQuantity);
   }
 
   return Array.from(stockMap.entries()).map(([productId, quantity]) => ({
@@ -352,7 +354,7 @@ export const createSale = async (payloadInput: SalePayload) => {
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
   const hasProductId = Boolean(payload.productId);
-  if (normalizedKind === 'sale') {
+  if (hasProductId) {
     isValidObjectIdOrThrow(payload.productId, 'productId');
   }
   assertSalePayload(payload.quantity, payload.salePrice);
@@ -364,6 +366,10 @@ export const createSale = async (payloadInput: SalePayload) => {
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
     resolveActiveEmployee(payload.issuedById, 'issuedById'),
   ]);
+  const catalogProduct =
+    hasProductId && !product
+      ? await CatalogProduct.findById(payload.productId).lean<CatalogProductDocument | null>()
+      : null;
 
   if (!client) {
     throw new Error('Client not found.');
@@ -371,27 +377,33 @@ export const createSale = async (payloadInput: SalePayload) => {
   if (client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
-  if (normalizedKind === 'sale' && !product) {
+  if (normalizedKind === 'sale' && hasProductId && !product && !catalogProduct) {
     throw new Error('Product not found.');
   }
 
+  const fallbackProduct = product ?? catalogProduct;
   const lineItems =
     payload.lineItems.length > 0
       ? payload.lineItems
-      : product
+      : fallbackProduct
         ? getFallbackLineItems(
             normalizedKind,
             payload.salePrice,
             payload.quantity,
-            product,
+            fallbackProduct,
           )
         : [];
-  const stockDeltas = getStockLines(
-    normalizedKind,
-    lineItems,
-    product?._id ?? payload.productId,
-    payload.quantity,
-  );
+  const primaryLineItemName =
+    lineItems.find((item) => item.kind === 'product')?.name?.trim() ?? '';
+  const stockDeltas =
+    normalizedKind === 'sale' && !product
+      ? []
+      : getStockLines(
+          normalizedKind,
+          lineItems,
+          payload.quantity,
+          product?._id ?? payload.productId,
+        );
 
   let stockDeltasApplied = false;
 
@@ -420,8 +432,13 @@ export const createSale = async (payloadInput: SalePayload) => {
       lineItems,
       discount: normalizeDiscount(payload.discount),
       productSnapshot: {
-        article: product?.article || 'REPAIR',
-        name: payload.deviceName || product?.name || 'Repair',
+        article: product?.article || (normalizedKind === 'sale' ? 'SALE' : 'REPAIR'),
+        name:
+          payload.deviceName ||
+          product?.name ||
+          catalogProduct?.name ||
+          primaryLineItemName ||
+          (normalizedKind === 'sale' ? 'Sale' : 'Repair'),
         serialNumber: payload.serialNumber || product?.serialNumber || '',
       },
       clientSnapshot: {
@@ -479,7 +496,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
   const hasProductId = Boolean(payload.productId);
-  if (normalizedKind === 'sale') {
+  if (hasProductId) {
     isValidObjectIdOrThrow(payload.productId, 'productId');
   }
   assertSalePayload(payload.quantity, payload.salePrice);
@@ -497,6 +514,10 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
     resolveActiveEmployee(payload.issuedById, 'issuedById'),
   ]);
+  const catalogProduct =
+    hasProductId && !product
+      ? await CatalogProduct.findById(payload.productId).lean<CatalogProductDocument | null>()
+      : null;
 
   if (!client) {
     throw new Error('Client not found.');
@@ -504,7 +525,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   if (client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
-  if (normalizedKind === 'sale' && !product) {
+  if (normalizedKind === 'sale' && hasProductId && !product && !catalogProduct) {
     throw new Error('Product not found.');
   }
 
@@ -520,31 +541,37 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
             name: existingSale.productSnapshot?.name ?? 'Item',
           },
         );
+  const fallbackProduct = product ?? catalogProduct;
   const nextLineItems =
     payload.lineItems.length > 0
       ? payload.lineItems
-      : product
+      : fallbackProduct
         ? getFallbackLineItems(
             normalizedKind,
             payload.salePrice,
             payload.quantity,
-            product,
+            fallbackProduct,
           )
         : [];
-  const stockDeltas = getStockDeltas(
-    getStockLines(
-      existingSale.kind === 'sale' ? 'sale' : 'repair',
-      currentLineItems,
-      existingSale.product ?? '',
-      existingSale.quantity,
-    ),
-    getStockLines(
-      normalizedKind,
-      nextLineItems,
-      product?._id ?? payload.productId,
-      payload.quantity,
-    ),
-  );
+  const nextPrimaryLineItemName =
+    nextLineItems.find((item) => item.kind === 'product')?.name?.trim() ?? '';
+  const stockDeltas =
+    normalizedKind === 'sale' && !product
+      ? []
+      : getStockDeltas(
+          getStockLines(
+            existingSale.kind === 'sale' ? 'sale' : 'repair',
+            currentLineItems,
+            existingSale.quantity,
+            existingSale.product ?? '',
+          ),
+          getStockLines(
+            normalizedKind,
+            nextLineItems,
+            payload.quantity,
+            product?._id ?? payload.productId,
+          ),
+        );
 
   let stockDeltasApplied = false;
 
@@ -579,8 +606,17 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         lineItems: nextLineItems,
         discount: normalizeDiscount(payload.discount),
         productSnapshot: {
-          article: product?.article || existingSale.productSnapshot?.article || 'REPAIR',
-          name: payload.deviceName || product?.name || existingSale.productSnapshot?.name || 'Repair',
+          article:
+            product?.article ||
+            existingSale.productSnapshot?.article ||
+            (normalizedKind === 'sale' ? 'SALE' : 'REPAIR'),
+          name:
+            payload.deviceName ||
+            product?.name ||
+            catalogProduct?.name ||
+            nextPrimaryLineItemName ||
+            existingSale.productSnapshot?.name ||
+            (normalizedKind === 'sale' ? 'Sale' : 'Repair'),
           serialNumber:
             payload.serialNumber ||
             product?.serialNumber ||
@@ -775,8 +811,8 @@ export const deleteSale = async (saleId: string) => {
   const stockDeltas = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
     lineItems,
-    existingSale.product ?? '',
     existingSale.quantity,
+    existingSale.product ?? '',
   ).map((line) => ({
     ...line,
     quantity: -line.quantity,

@@ -17,6 +17,7 @@
 - Search suggestions are rendered in a separate block below the entry row.
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
+- In `Sales order`, `Product search` looks up records from `Products & Services -> Products` (`catalog-products`), not from warehouse `products`.
 
 ## Product Suggestions
 
@@ -27,7 +28,7 @@
   - suggested price from product sale price (fallback to base price)
   - quantity to `1`
   - warranty to `None`
-- Selected suggestion binds `productId` for the line item.
+- Selected suggestion binds `catalog-products.id` and sends that value to backend as `productId` for the sale line item.
 
 ## Sale Creation: Product/Device Linking Rules
 
@@ -55,6 +56,11 @@
 
 - Sale totals are based on current line items (`Products` + optional `Services`).
 - `Paid` and `To pay` are recalculated from line items total and payment history.
+- Payment modal supports method toggle: `Cash` <-> `Non-cash` (clickable badge near `To pay`).
+- `Non-cash` state is highlighted with light-red badge background in modal.
+- Deposit entries persist `paymentMethod` (`cash` or `non-cash`) in `paymentHistory`.
+- In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+- Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 
 ## Status Change: Paid / Completed
 

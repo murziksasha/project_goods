@@ -19,7 +19,7 @@ export const ProductLookupField = ({
   onShowSuggestions,
   onHideSuggestions,
 }: ProductLookupFieldProps) => (
-  <div className="field field-wide">
+  <div className="field field-wide modal-suggestions-anchor">
     <span>Product</span>
     <input
       value={productInput}

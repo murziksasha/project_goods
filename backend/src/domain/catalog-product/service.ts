@@ -56,6 +56,24 @@ export const listCatalogProducts = async (queryValue: unknown) => {
   );
 };
 
+export const createCatalogProduct = async (payload: CatalogProductPayload) => {
+  try {
+    const normalized = normalizeCatalogProductPayload(payload);
+    const item = new CatalogProduct({
+      ...normalized,
+      lastSeenAt: new Date(),
+      sourceTags: ['manual'],
+    });
+    await item.validate();
+    await item.save();
+    const plain = item.toObject<CatalogProductDocument>();
+    const usageCount = await getCatalogProductUsageCount(plain);
+    return formatCatalogProduct(plain, usageCount);
+  } catch (error) {
+    throw mapCatalogProductError(error);
+  }
+};
+
 export const updateCatalogProduct = async (
   catalogProductId: string,
   payload: CatalogProductPayload,

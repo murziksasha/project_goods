@@ -1,25 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Client } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
   ProductFormValues,
 } from '../../../entities/product/model/types';
+import type {
+  CatalogProduct,
+  CatalogProductFormValues,
+} from '../../../entities/catalog-product/model/types';
 import {
   formatCurrency,
   formatDate,
 } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { cancelSupplierOrder, takeOnChargeSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from './SupplierOrderModal';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../entities/supplier/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderFormValues,
+} from '../../../entities/supplier-order/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
+import {
+  getWarehouseSettings,
+  updateWarehouseSettings,
+} from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 
-type WarehouseTab =
-  | 'stock'
-  | 'receipts'
-  | 'expenses'
-  | 'transfers'
-  | 'logistics'
-  | 'inventory'
-  | 'settings';
+type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseSearchMode = 'serial' | 'name' | 'warehouse';
 type SettingsTab =
   | 'service-centers'
@@ -34,10 +51,12 @@ type ServiceCenter = {
   phone: string;
 };
 type WarehouseLocation = { id: string; name: string };
-type ReceiptStatus = 'approved' | 'received';
+type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
 type ReceiptRow = {
   id: string;
-  number: number;
+  number: string;
+  supplierOrderId?: string;
+  catalogProductId?: string;
   productName: string;
   quantity: number;
   price: number;
@@ -46,8 +65,10 @@ type ReceiptRow = {
   supplierName: string;
   createdAt: string;
   acceptedBy: string;
+  approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
+  paymentStatus?: 'pending' | 'paid' | 'cancelled';
   note: string;
 };
 type WarehouseItem = {
@@ -82,7 +103,8 @@ type WarehouseFormState = {
 
 type WarehousePanelProps = {
   products: Product[];
-  clients: Client[];
+  sales: Sale[];
+  catalogProducts: CatalogProduct[];
   employees: Employee[];
   isLoading: boolean;
   productForm: ProductFormValues;
@@ -96,6 +118,19 @@ type WarehousePanelProps = {
   onProductCancelEdit: () => void;
   onProductEdit: (product: Product) => void;
   onProductDelete: (product: Product) => void;
+  suppliers: Supplier[];
+  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
+  onUpdateSupplier: (
+    supplierId: string,
+    payload: SupplierFormValues,
+  ) => Promise<boolean>;
+  onUpdateCatalogProduct: (
+    catalogProductId: string,
+    payload: CatalogProductFormValues,
+  ) => Promise<boolean>;
+  currentEmployeeName: string;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
 };
 
 const tabs: Array<{
@@ -119,56 +154,17 @@ const searchModes: Array<{
 ];
 
 const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'service-centers', label: 'Сервісні центри' },
-  { key: 'warehouses', label: 'Склади' },
-  { key: 'administrators', label: 'Адміністратори' },
+  { key: 'service-centers', label: 'Service Centers' },
+  { key: 'warehouses', label: 'Warehouses' },
+  { key: 'administrators', label: 'Administrators' },
 ];
 
-const initialServiceCenters: ServiceCenter[] = [
-  {
-    id: 'sc-1',
-    name: 'Філія Ремонт Сервіс Чорноморськ',
-    color: '#8b5cf6',
-    address: 'вул. Вишнева 4 м. Чорноморськ Одеська обл',
-    phone: '+380635567090',
-  },
-  {
-    id: 'sc-2',
-    name: 'Ремонт Сервіс Чорноморськ',
-    color: '#10b981',
-    address: 'вул. Віталія Шума 21 м. Чорноморськ Одеська обл',
-    phone: '+380635567090',
-  },
-];
+const initialServiceCenters: ServiceCenter[] = [];
 
-const initialWarehouses: WarehouseItem[] = [
-  {
-    id: 'w-1',
-    name: 'Ремонт Сервіс Чорноморськ',
-    isActive: true,
-    serviceCenterId: 'sc-2',
-    receiptAddress:
-      'вул. Віталія Шума буд. 2-Б м. Чорноморськ Одеська обл.',
-    receiptPhone: '063 556 70 90',
-    locations: [
-      { id: 'l-1', name: 'A' },
-      { id: 'l-2', name: 'Вітрина - 3' },
-    ],
-  },
-  {
-    id: 'w-2',
-    name: 'Філія Основний',
-    isActive: true,
-    serviceCenterId: 'sc-1',
-    receiptAddress: 'вул. Вишнева, буд. 4 Чорноморськ Одеська обл.',
-    receiptPhone: '063 556 70 90',
-    locations: [{ id: 'l-3', name: 'A' }],
-  },
-];
+const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
-
 
 const getSearchText = (
   product: Product,
@@ -195,10 +191,12 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
   receiptPhone: w?.receiptPhone ?? '',
   locations: w?.locations.map((x) => x.name) ?? [''],
 });
-
+const normalizeProductName = (value: string) =>
+  value.trim().toLowerCase();
 export const WarehousePanel = ({
   products,
-  clients,
+  sales,
+  catalogProducts,
   employees,
   isLoading,
   isProductSaving,
@@ -206,11 +204,26 @@ export const WarehousePanel = ({
   onProductSubmit,
   onProductEdit,
   onProductDelete,
+  suppliers,
+  onCreateSupplier,
+  onUpdateSupplier,
+  onUpdateCatalogProduct,
+  currentEmployeeName,
+  onSuccess,
+  onError,
 }: WarehousePanelProps) => {
+  const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
+    useState(false);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ activeTab: WarehouseTab }>;
-      return parsed.activeTab === 'stock' || parsed.activeTab === 'receipts' || parsed.activeTab === 'expenses' || parsed.activeTab === 'transfers' || parsed.activeTab === 'logistics' || parsed.activeTab === 'inventory' || parsed.activeTab === 'settings'
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ activeTab: WarehouseTab }>;
+      return parsed.activeTab === 'stock' ||
+        parsed.activeTab === 'receipts' ||
+        parsed.activeTab === 'transfers' ||
+        parsed.activeTab === 'settings'
         ? parsed.activeTab
         : 'stock';
     } catch {
@@ -219,39 +232,51 @@ export const WarehousePanel = ({
   });
   const [query, setQuery] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ query: string }>;
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ query: string }>;
       return parsed.query ?? '';
     } catch {
       return '';
     }
   });
-  const [searchMode, setSearchMode] =
-    useState<WarehouseSearchMode>(() => {
+  const [searchMode, setSearchMode] = useState<WarehouseSearchMode>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ searchMode: WarehouseSearchMode }>;
-        return parsed.searchMode === 'serial' || parsed.searchMode === 'name' || parsed.searchMode === 'warehouse'
+        const parsed = JSON.parse(
+          window.localStorage.getItem(warehouseFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{ searchMode: WarehouseSearchMode }>;
+        return parsed.searchMode === 'serial' ||
+          parsed.searchMode === 'name' ||
+          parsed.searchMode === 'warehouse'
           ? parsed.searchMode
           : 'serial';
       } catch {
         return 'serial';
       }
-    });
+    },
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [settingsTab, setSettingsTab] =
-    useState<SettingsTab>(() => {
-      try {
-        const parsed = JSON.parse(window.localStorage.getItem(warehouseFiltersStorageKey) ?? '{}') as Partial<{ settingsTab: SettingsTab }>;
-        return parsed.settingsTab === 'service-centers' || parsed.settingsTab === 'warehouses' || parsed.settingsTab === 'administrators'
-          ? parsed.settingsTab
-          : 'service-centers';
-      } catch {
-        return 'service-centers';
-      }
-    });
-  const [serviceCenters, setServiceCenters] = useState<
-    ServiceCenter[]
-  >(initialServiceCenters);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ settingsTab: SettingsTab }>;
+      return parsed.settingsTab === 'service-centers' ||
+        parsed.settingsTab === 'warehouses' ||
+        parsed.settingsTab === 'administrators'
+        ? parsed.settingsTab
+        : 'service-centers';
+    } catch {
+      return 'service-centers';
+    }
+  });
+  const [serviceCenters, setServiceCenters] =
+    useState<ServiceCenter[]>(initialServiceCenters) || [];
   const [warehouses, setWarehouses] =
     useState<WarehouseItem[]>(initialWarehouses);
   const [administrators, setAdministrators] = useState<
@@ -268,6 +293,33 @@ export const WarehousePanel = ({
   const [warehouseForm, setWarehouseForm] =
     useState<WarehouseFormState>(toWarehouseForm());
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
+    useState(false);
+  const [editingSupplierOrder, setEditingSupplierOrder] =
+    useState<SupplierOrder | null>(null);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
+    [],
+  );
+  const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
+    useState<Supplier | null>(null);
+  const [
+    selectedCatalogProductForEdit,
+    setSelectedCatalogProductForEdit,
+  ] = useState<CatalogProduct | null>(null);
+  const [supplierEditForm, setSupplierEditForm] = useState({
+    name: '',
+    phone: '',
+    note: '',
+    isActive: true,
+  });
+  const [productEditForm, setProductEditForm] = useState({
+    name: '',
+    note: '',
+    isActive: true,
+  });
+  const [isSupplierSaving, setIsSupplierSaving] = useState(false);
+  const [isProductSavingInline, setIsProductSavingInline] =
+    useState(false);
   const [receiptForm, setReceiptForm] = useState({
     supplierId: '',
     productName: '',
@@ -275,41 +327,184 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>(
-    () =>
-      products.slice(0, 8).map((product, index) => ({
-        id: `r-${product.id}`,
-        number: 23000 + index,
-        productName: product.name,
-        quantity: product.quantity,
-        price: product.price,
-        amount: product.price * product.quantity,
-        paid: product.price * product.quantity,
-        supplierName: product.purchasePlace || 'Постачальник',
-        createdAt: product.createdAt,
-        acceptedBy: 'Адміністратор',
-        acceptedAt: product.purchaseDate || product.createdAt,
-        status: product.freeQuantity > 0 ? 'received' : 'approved',
-        note: product.note || 'Л',
+  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
+  const persistWarehouseSettings = async (payload?: {
+    serviceCenters?: ServiceCenter[];
+    warehouses?: WarehouseItem[];
+    administrators?: Administrator[];
+    successMessage?: string;
+  }) => {
+    const nextServiceCenters = payload?.serviceCenters ?? serviceCenters;
+    const nextWarehouses = payload?.warehouses ?? warehouses;
+    const nextAdministrators = payload?.administrators ?? administrators;
+
+    setIsWarehouseSettingsSaving(true);
+    try {
+      const saved = await updateWarehouseSettings({
+        serviceCenters: nextServiceCenters,
+        warehouses: nextWarehouses,
+        administrators: nextAdministrators,
+      });
+      setServiceCenters(saved.serviceCenters);
+      setWarehouses(saved.warehouses);
+      setAdministrators(saved.administrators);
+      if (payload?.successMessage) {
+        onSuccess(payload.successMessage);
+      }
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save warehouse settings.',
+      );
+    } finally {
+      setIsWarehouseSettingsSaving(false);
+    }
+  };
+
+  const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
+    return orders.flatMap((order) =>
+      order.items.map((item) => ({
+        id: `${order.id}-${item.itemIndex}`,
+        supplierOrderId: order.id,
+        catalogProductId: item.catalogProductId,
+        number: order.number || order.orderBaseId || order.id,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        amount: item.price * item.quantity,
+        paid: order.paid,
+        supplierName: order.supplierName || 'Supplier',
+        createdAt: order.createdAt,
+        acceptedBy: order.createdBy || 'Administrator',
+        approvedBy:
+          order.receiptStatus === 'new'
+            ? '-'
+            : order.createdBy || 'Administrator',
+        acceptedAt: order.updatedAt,
+        status:
+          order.status === 'cancelled' ||
+          order.paymentStatus === 'cancelled'
+            ? 'cancelled'
+            : order.receiptStatus,
+        paymentStatus: order.paymentStatus,
+        note: order.note || '',
       })),
-  );
+    );
+  };
+
+  const refreshSupplierOrders = async () => {
+    const orders = await getSupplierOrders();
+    setSupplierOrders(orders);
+    const rows = buildReceiptRows(orders);
+    setReceiptHistory((current) => {
+      const manualRows = current.filter((row) => !row.id.startsWith('so-'));
+      return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+    });
+  };
+  const syncCatalogRenameToSupplierOrders = async (
+    catalogProductId: string,
+    nextName: string,
+  ) => {
+    const nextNormalized = normalizeProductName(nextName);
+    if (!catalogProductId || !nextNormalized) return;
+
+    const ordersToUpdate = supplierOrders.filter((order) =>
+      order.items.some(
+        (item) => item.catalogProductId === catalogProductId,
+      ),
+    );
+    if (ordersToUpdate.length === 0) return;
+
+    await Promise.all(
+      ordersToUpdate.map((order) =>
+        updateSupplierOrder(order.id, {
+          orderBaseId: order.orderBaseId,
+          supplierId: order.supplierId,
+          deliveryDate: order.deliveryDate,
+          supplyType: order.supplyType,
+          number: order.number,
+          note: order.note,
+          createdBy: order.createdBy,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          items: order.items.map((item) =>
+            item.catalogProductId === catalogProductId
+              ? { ...item, productName: nextName }
+              : item,
+          ),
+        }),
+      ),
+    );
+  };
+  const syncSupplierOrderRenameToCatalog = async (
+    catalogProductId: string | undefined,
+    nextName: string,
+  ) => {
+    const nextNormalized = normalizeProductName(nextName);
+    if (!catalogProductId || !nextNormalized) return;
+
+    const catalogProduct = catalogProducts.find(
+      (item) => item.id === catalogProductId,
+    );
+    if (!catalogProduct) return;
+    if (normalizeProductName(catalogProduct.name) === nextNormalized)
+      return;
+
+    await onUpdateCatalogProduct(catalogProduct.id, {
+      name: nextName,
+      note: catalogProduct.note,
+      isActive: catalogProduct.isActive,
+    });
+  };
+
+  useEffect(() => {
+    void refreshSupplierOrders().catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await getWarehouseSettings();
+        setServiceCenters(settings.serviceCenters);
+        setWarehouses(settings.warehouses);
+        setAdministrators(settings.administrators);
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load warehouse settings.',
+        );
+      }
+    })();
+  }, [onError]);
+  useEffect(() => {
+    if (!selectedSupplierForEdit) return;
+    setSupplierEditForm({
+      name: selectedSupplierForEdit.name,
+      phone: selectedSupplierForEdit.phone,
+      note: selectedSupplierForEdit.note,
+      isActive: selectedSupplierForEdit.isActive,
+    });
+  }, [selectedSupplierForEdit]);
+  useEffect(() => {
+    if (!selectedCatalogProductForEdit) return;
+    setProductEditForm({
+      name: selectedCatalogProductForEdit.name,
+      note: selectedCatalogProductForEdit.note,
+      isActive: selectedCatalogProductForEdit.isActive,
+    });
+  }, [selectedCatalogProductForEdit]);
   const activeEmployees = useMemo(
     () => employees.filter((employee) => employee.isActive),
     [employees],
   );
-  const suppliers = useMemo(
-    () =>
-      clients.map((client) => ({
-        id: client.id,
-        name: client.name,
-      })),
-    [clients],
-  );
-
   const filteredProducts = useMemo(() => {
+    const stockProducts = products.filter(
+      (product) => product.quantity > 0,
+    );
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return products;
-    return products.filter((product) =>
+    if (!normalizedQuery) return stockProducts;
+    return stockProducts.filter((product) =>
       getSearchText(product, searchMode)
         .toLowerCase()
         .includes(normalizedQuery),
@@ -339,6 +534,61 @@ export const WarehousePanel = ({
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
   }, [currentPage, filteredReceipts, pageSize]);
+  const salesByProductId = useMemo(() => {
+    return sales.reduce<Record<string, Sale[]>>((acc, sale) => {
+      const linkedProductIds = new Set<string>();
+      if (sale.product?.id) linkedProductIds.add(sale.product.id);
+      (sale.lineItems ?? []).forEach((item) => {
+        if (item.kind === 'product' && item.productId) {
+          linkedProductIds.add(item.productId);
+        }
+      });
+
+      linkedProductIds.forEach((productId) => {
+        acc[productId] = [...(acc[productId] ?? []), sale];
+      });
+      return acc;
+    }, {});
+  }, [sales]);
+  const supplierOrdersByProductId = useMemo(() => {
+    const byCatalogProductName = catalogProducts.reduce<
+      Record<string, string[]>
+    >((acc, catalogProduct) => {
+      const key = catalogProduct.name.trim().toLowerCase();
+      if (!key) return acc;
+      acc[key] = [...(acc[key] ?? []), catalogProduct.id];
+      return acc;
+    }, {});
+
+    const byCatalogProductId = supplierOrders.reduce<
+      Record<string, SupplierOrder[]>
+    >((acc, order) => {
+      order.items.forEach((item) => {
+        if (!item.catalogProductId) return;
+        acc[item.catalogProductId] = [
+          ...(acc[item.catalogProductId] ?? []),
+          order,
+        ];
+      });
+      return acc;
+    }, {});
+
+    return products.reduce<Record<string, SupplierOrder[]>>(
+      (acc, product) => {
+        const matchedCatalogIds =
+          byCatalogProductName[product.name.trim().toLowerCase()] ?? [];
+        const orderMap = new Map<string, SupplierOrder>();
+        matchedCatalogIds.forEach((catalogId) => {
+          (byCatalogProductId[catalogId] ?? []).forEach((order) =>
+            orderMap.set(order.id, order),
+          );
+        });
+        acc[product.id] = Array.from(orderMap.values());
+        return acc;
+      },
+      {},
+    );
+  }, [catalogProducts, products, supplierOrders]);
 
   const warehousesByServiceCenter = useMemo(
     () =>
@@ -402,33 +652,35 @@ export const WarehousePanel = ({
   const saveServiceCenter = () => {
     const normalizedName = serviceCenterForm.name.trim();
     if (!normalizedName) return;
-    if (serviceCenterModalId === 'new') {
-      setServiceCenters((current) => [
-        ...current,
-        {
-          id: `sc-${Date.now()}`,
-          name: normalizedName,
-          color: serviceCenterForm.color,
-          address: serviceCenterForm.address.trim(),
-          phone: serviceCenterForm.phone.trim(),
-        },
-      ]);
-    } else {
-      setServiceCenters((current) =>
-        current.map((x) =>
-          x.id === serviceCenterModalId
-            ? {
-                ...x,
-                name: normalizedName,
-                color: serviceCenterForm.color,
-                address: serviceCenterForm.address.trim(),
-                phone: serviceCenterForm.phone.trim(),
-              }
-            : x,
-        ),
-      );
-    }
+    const nextServiceCenters =
+      serviceCenterModalId === 'new'
+        ? [
+            ...serviceCenters,
+            {
+              id: `sc-${Date.now()}`,
+              name: normalizedName,
+              color: serviceCenterForm.color,
+              address: serviceCenterForm.address.trim(),
+              phone: serviceCenterForm.phone.trim(),
+            },
+          ]
+        : serviceCenters.map((x) =>
+            x.id === serviceCenterModalId
+              ? {
+                  ...x,
+                  name: normalizedName,
+                  color: serviceCenterForm.color,
+                  address: serviceCenterForm.address.trim(),
+                  phone: serviceCenterForm.phone.trim(),
+                }
+              : x,
+          );
+    setServiceCenters(nextServiceCenters);
     setServiceCenterModalId(null);
+    void persistWarehouseSettings({
+      serviceCenters: nextServiceCenters,
+      successMessage: 'Service center settings saved.',
+    });
   };
 
   const saveWarehouse = () => {
@@ -446,37 +698,39 @@ export const WarehousePanel = ({
       id: `l-${Date.now()}-${index}`,
       name,
     }));
-    if (warehouseModalId === 'new') {
-      setWarehouses((current) => [
-        ...current,
-        {
-          id: `w-${Date.now()}`,
-          name: normalizedName,
-          isActive: warehouseForm.isActive,
-          serviceCenterId: warehouseForm.serviceCenterId,
-          receiptAddress: warehouseForm.receiptAddress.trim(),
-          receiptPhone: warehouseForm.receiptPhone.trim(),
-          locations,
-        },
-      ]);
-    } else {
-      setWarehouses((current) =>
-        current.map((x) =>
-          x.id === warehouseModalId
-            ? {
-                ...x,
-                name: normalizedName,
-                isActive: warehouseForm.isActive,
-                serviceCenterId: warehouseForm.serviceCenterId,
-                receiptAddress: warehouseForm.receiptAddress.trim(),
-                receiptPhone: warehouseForm.receiptPhone.trim(),
-                locations,
-              }
-            : x,
-        ),
-      );
-    }
+    const nextWarehouses =
+      warehouseModalId === 'new'
+        ? [
+            ...warehouses,
+            {
+              id: `w-${Date.now()}`,
+              name: normalizedName,
+              isActive: warehouseForm.isActive,
+              serviceCenterId: warehouseForm.serviceCenterId,
+              receiptAddress: warehouseForm.receiptAddress.trim(),
+              receiptPhone: warehouseForm.receiptPhone.trim(),
+              locations,
+            },
+          ]
+        : warehouses.map((x) =>
+            x.id === warehouseModalId
+              ? {
+                  ...x,
+                  name: normalizedName,
+                  isActive: warehouseForm.isActive,
+                  serviceCenterId: warehouseForm.serviceCenterId,
+                  receiptAddress: warehouseForm.receiptAddress.trim(),
+                  receiptPhone: warehouseForm.receiptPhone.trim(),
+                  locations,
+                }
+              : x,
+          );
+    setWarehouses(nextWarehouses);
     setWarehouseModalId(null);
+    void persistWarehouseSettings({
+      warehouses: nextWarehouses,
+      successMessage: 'Warehouse settings saved.',
+    });
   };
   const createReceipt = () => {
     if (!receiptForm.supplierId || !receiptForm.productName.trim())
@@ -492,28 +746,27 @@ export const WarehousePanel = ({
     const now = new Date().toISOString();
     setReceiptHistory((current) => [
       {
-        id: `r-${Date.now()}`,
-        number: 23000 + current.length + 1,
+        id: `manual-${Date.now()}`,
+        number: `R-${23000 + current.length + 1}`,
         productName: receiptForm.productName.trim(),
         quantity,
         price,
         amount,
         paid: amount,
-        supplierName: supplier?.name || 'Постачальник',
+        supplierName: supplier?.name || 'Supplier',
         createdAt: now,
-        acceptedBy: 'Адміністратор',
+        acceptedBy: 'Administrator',
+        approvedBy: '-',
         acceptedAt: now,
-        status: 'received',
-        note: receiptForm.note.trim() || 'Л',
+        status: 'new',
+        paymentStatus: 'pending',
+        note: receiptForm.note.trim() || 'L',
       },
       ...current,
     ]);
 
     onProductChange('name', receiptForm.productName.trim());
-    onProductChange(
-      'article',
-      `WM-${Date.now().toString().slice(-4)}`,
-    );
+    onProductChange('article', '');
     onProductChange(
       'serialNumber',
       `REC-${Date.now().toString().slice(-6)}`,
@@ -522,7 +775,7 @@ export const WarehousePanel = ({
     onProductChange('quantity', String(quantity));
     onProductChange(
       'purchasePlace',
-      supplier?.name || 'Постачальник',
+      supplier?.name || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
     );
     onProductChange('purchaseDate', now.slice(0, 10));
     onProductChange('note', receiptForm.note.trim());
@@ -569,7 +822,7 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Previous page'
           >
-            ‹
+            &lsaquo;
           </button>
           <span className='warehouse-page-number'>1</span>
           <button
@@ -577,14 +830,7 @@ export const WarehousePanel = ({
             className='toolbar-square-button'
             aria-label='Next page'
           >
-            ›
-          </button>
-          <button
-            type='button'
-            className='toolbar-square-button'
-            aria-label='Filters'
-          >
-            ☷
+            &rsaquo;
           </button>
           <button type='button' className='toolbar-filter-button'>
             Filter
@@ -625,14 +871,18 @@ export const WarehousePanel = ({
       {activeTab === 'receipts' ? (
         <div className='warehouse-receipt-header'>
           <p className='panel-subtitle'>
-            Замовлення постачальникам, які очікують оприбуткування
+            receipts order creation is in progress, but you can add
+            receipt manually by clicking the button below
           </p>
           <button
             type='button'
             className='orders-create-button'
-            onClick={() => setIsReceiptModalOpen(true)}
+            onClick={() => {
+              setEditingSupplierOrder(null);
+              setIsSupplierOrderModalOpen(true);
+            }}
           >
-            + Оприбуткувати
+            receipt order
           </button>
         </div>
       ) : null}
@@ -663,14 +913,30 @@ export const WarehousePanel = ({
             setWarehouseForm(toWarehouseForm(warehouse));
           }}
           onAdministratorChange={setAdministrators}
+          onSaveAdministrators={() =>
+            void persistWarehouseSettings({
+              successMessage: 'Administrator access saved.',
+            })
+          }
+          isSaving={isWarehouseSettingsSaving}
         />
       ) : activeTab === 'stock' ? (
         <>
           <StockTable
             products={paginatedProducts}
             isLoading={isLoading}
+            salesByProductId={salesByProductId}
+            supplierOrdersByProductId={supplierOrdersByProductId}
             onEdit={onProductEdit}
             onDelete={onProductDelete}
+            onOpenSupplierOrder={(supplierOrderId) => {
+              const matchedOrder = supplierOrders.find(
+                (order) => order.id === supplierOrderId,
+              );
+              if (!matchedOrder) return;
+              setEditingSupplierOrder(matchedOrder);
+              setIsSupplierOrderModalOpen(true);
+            }}
           />
           <PaginationPanel
             totalItems={filteredProducts.length}
@@ -685,7 +951,56 @@ export const WarehousePanel = ({
         </>
       ) : activeTab === 'receipts' ? (
         <>
-          <ReceiptsTable receipts={paginatedReceipts} />
+          <ReceiptsTable
+            receipts={paginatedReceipts}
+            onOpenOrder={(receipt) => {
+              if (!receipt.supplierOrderId) return;
+              const matchedOrder = supplierOrders.find(
+                (order) => order.id === receipt.supplierOrderId,
+              );
+              if (!matchedOrder) return;
+              setEditingSupplierOrder(matchedOrder);
+              setIsSupplierOrderModalOpen(true);
+            }}
+            onOpenProduct={(receipt) => {
+              const matchedProduct = receipt.catalogProductId
+                ? catalogProducts.find(
+                    (product) =>
+                      product.id === receipt.catalogProductId,
+                  )
+                : catalogProducts.find(
+                    (product) =>
+                      product.name.trim().toLowerCase() ===
+                      receipt.productName.trim().toLowerCase(),
+                  );
+              if (!matchedProduct) {
+                onError('Product not found in Products catalog.');
+                return;
+              }
+              setSelectedCatalogProductForEdit(matchedProduct);
+            }}
+            onOpenSupplier={(receipt) => {
+              const supplierIdFromOrder = receipt.supplierOrderId
+                ? supplierOrders.find(
+                    (order) => order.id === receipt.supplierOrderId,
+                  )?.supplierId
+                : undefined;
+              const matchedSupplier =
+                suppliers.find(
+                  (supplier) =>
+                    supplier.name.trim().toLowerCase() ===
+                    receipt.supplierName.trim().toLowerCase(),
+                ) ??
+                suppliers.find(
+                  (supplier) => supplier.id === supplierIdFromOrder,
+                );
+              if (!matchedSupplier) {
+                onError('Supplier not found in Suppliers catalog.');
+                return;
+              }
+              setSelectedSupplierForEdit(matchedSupplier);
+            }}
+          />
           <PaginationPanel
             totalItems={filteredReceipts.length}
             page={currentPage}
@@ -707,18 +1022,18 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             serviceCenterModalId === 'new'
-              ? 'Додати сервісний центр'
-              : 'Редагувати сервісний центр'
+              ? 'create service center'
+              : 'edit service center'
           }
           onClose={() => setServiceCenterModalId(null)}
           onSubmit={saveServiceCenter}
           submitLabel={
-            serviceCenterModalId === 'new' ? 'Створити' : 'Зберегти'
+            serviceCenterModalId === 'new' ? 'create' : 'save'
           }
           canSubmit={serviceCenterForm.name.trim().length > 1}
         >
           <label className='field'>
-            <span>Назва:</span>
+            <span>name:</span>
             <input
               value={serviceCenterForm.name}
               onChange={(event) =>
@@ -727,11 +1042,11 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Введіть назву'
+              placeholder='name'
             />
           </label>
           <label className='field'>
-            <span>Колір (#000000):</span>
+            <span>color (#000000):</span>
             <div className='warehouse-settings-color-field'>
               <input
                 value={serviceCenterForm.color}
@@ -745,7 +1060,7 @@ export const WarehousePanel = ({
               />
               <input
                 type='color'
-                aria-label='Колір сервісного центру'
+                aria-label='color'
                 value={serviceCenterForm.color}
                 onChange={(event) =>
                   setServiceCenterForm((current) => ({
@@ -757,7 +1072,7 @@ export const WarehousePanel = ({
             </div>
           </label>
           <label className='field'>
-            <span>Адреса:</span>
+            <span>address:</span>
             <input
               value={serviceCenterForm.address}
               onChange={(event) =>
@@ -766,11 +1081,11 @@ export const WarehousePanel = ({
                   address: event.target.value,
                 }))
               }
-              placeholder='Введіть адресу'
+              placeholder='address'
             />
           </label>
           <label className='field'>
-            <span>Телефон:</span>
+            <span>phone:</span>
             <input
               value={serviceCenterForm.phone}
               onChange={(event) =>
@@ -789,14 +1104,12 @@ export const WarehousePanel = ({
         <ModalShell
           title={
             warehouseModalId === 'new'
-              ? 'Додати склад'
-              : 'Редагувати склад'
+              ? 'create warehouse'
+              : 'edit warehouse'
           }
           onClose={() => setWarehouseModalId(null)}
           onSubmit={saveWarehouse}
-          submitLabel={
-            warehouseModalId === 'new' ? 'Створити' : 'Зберегти'
-          }
+          submitLabel={warehouseModalId === 'new' ? 'create' : 'save'}
           canSubmit={
             warehouseForm.name.trim().length > 1 &&
             Boolean(warehouseForm.serviceCenterId) &&
@@ -806,7 +1119,7 @@ export const WarehousePanel = ({
           }
         >
           <label className='field'>
-            <span>Назва:</span>
+            <span>name:</span>
             <input
               value={warehouseForm.name}
               onChange={(event) =>
@@ -815,7 +1128,7 @@ export const WarehousePanel = ({
                   name: event.target.value,
                 }))
               }
-              placeholder='Введіть назву'
+              placeholder='name'
             />
           </label>
           <label className='create-inline-checkbox'>
@@ -829,10 +1142,10 @@ export const WarehousePanel = ({
                 }))
               }
             />
-            <span>Активність</span>
+            <span>active</span>
           </label>
           <label className='field'>
-            <span>Належність до сервісного центру:</span>
+            <span>Location to Service Center:</span>
             <select
               value={warehouseForm.serviceCenterId}
               onChange={(event) =>
@@ -842,7 +1155,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              <option value=''>Оберіть сервісний центр</option>
+              <option value=''>select service center</option>
               {serviceCenters.map((serviceCenter) => (
                 <option
                   key={serviceCenter.id}
@@ -854,7 +1167,7 @@ export const WarehousePanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>Адреса для квитанції:</span>
+            <span>address for suppliers:</span>
             <input
               value={warehouseForm.receiptAddress}
               onChange={(event) =>
@@ -866,7 +1179,7 @@ export const WarehousePanel = ({
             />
           </label>
           <label className='field'>
-            <span>Телефон для квитанції:</span>
+            <span>phone for suppliers:</span>
             <input
               value={warehouseForm.receiptPhone}
               onChange={(event) =>
@@ -878,7 +1191,7 @@ export const WarehousePanel = ({
             />
           </label>
           <div className='field'>
-            <span>Локації:</span>
+            <span>locations:</span>
             <div className='warehouse-settings-locations'>
               {warehouseForm.locations.map((location, index) => (
                 <input
@@ -894,7 +1207,7 @@ export const WarehousePanel = ({
                       locations: nextLocations,
                     }));
                   }}
-                  placeholder='Вкажіть назву локації'
+                  placeholder='enter location name'
                 />
               ))}
             </div>
@@ -908,7 +1221,7 @@ export const WarehousePanel = ({
                 }))
               }
             >
-              + Додати локацію
+              location
             </button>
           </div>
         </ModalShell>
@@ -916,12 +1229,10 @@ export const WarehousePanel = ({
 
       {isReceiptModalOpen ? (
         <ModalShell
-          title='Оприходування'
+          title='create receipt order'
           onClose={() => setIsReceiptModalOpen(false)}
           onSubmit={createReceipt}
-          submitLabel={
-            isProductSaving ? 'Збереження...' : 'Оприходувати'
-          }
+          submitLabel={isProductSaving ? '...' : 'create'}
           canSubmit={Boolean(
             receiptForm.supplierId &&
             receiptForm.productName.trim() &&
@@ -930,7 +1241,7 @@ export const WarehousePanel = ({
         >
           <div className='warehouse-receipt-modal-grid'>
             <label className='field'>
-              <span>Постачальник*</span>
+              <span>Supplier*</span>
               <select
                 value={receiptForm.supplierId}
                 onChange={(event) =>
@@ -940,7 +1251,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>Не обрано</option>
+                <option value=''>supplier</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
@@ -949,7 +1260,7 @@ export const WarehousePanel = ({
               </select>
             </label>
             <label className='field'>
-              <span>Товар*</span>
+              <span>Product*</span>
               <input
                 value={receiptForm.productName}
                 onChange={(event) =>
@@ -958,11 +1269,11 @@ export const WarehousePanel = ({
                     productName: event.target.value,
                   }))
                 }
-                placeholder='Введіть щоб знайти та додати'
+                placeholder='enter product name'
               />
             </label>
             <label className='field'>
-              <span>Ціна (UAH)*</span>
+              <span>Price (UAH)*</span>
               <input
                 type='number'
                 min='0'
@@ -976,7 +1287,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field'>
-              <span>К-сть*</span>
+              <span>Quantity*</span>
               <input
                 type='number'
                 min='1'
@@ -990,7 +1301,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field field-wide'>
-              <span>Примітка</span>
+              <span>Note</span>
               <textarea
                 rows={3}
                 value={receiptForm.note}
@@ -1005,59 +1316,374 @@ export const WarehousePanel = ({
           </div>
         </ModalShell>
       ) : null}
+
+      <SupplierOrderModal
+        isOpen={isSupplierOrderModalOpen}
+        suppliers={suppliers}
+        editingOrder={editingSupplierOrder}
+        onClose={() => {
+          setIsSupplierOrderModalOpen(false);
+          setEditingSupplierOrder(null);
+        }}
+        onCreateSupplier={onCreateSupplier}
+        onSuccess={onSuccess}
+        onError={onError}
+        onTakeOnCharge={async ({ autoGenerateSerialNumbers, serialNumbers }) => {
+          if (!editingSupplierOrder) return;
+          await takeOnChargeSupplierOrder(editingSupplierOrder.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+          });
+          onSuccess('Order taken on charge.');
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          window.dispatchEvent(new Event('project-goods:products-updated'));
+          await refreshSupplierOrders();
+        }}
+        onCancelOrder={async () => {
+          if (!editingSupplierOrder) return;
+          await cancelSupplierOrder(editingSupplierOrder.id);
+          onSuccess('Order cancelled.');
+          await refreshSupplierOrders();
+        }}
+        onSubmit={async (
+          payload: SupplierOrderModalSubmitPayload,
+        ) => {
+          try {
+            if (editingSupplierOrder) {
+              await Promise.all(
+                payload.items.map((item) => {
+                  const previousItem = editingSupplierOrder.items.find(
+                    (currentItem) =>
+                      currentItem.itemIndex === item.itemIndex,
+                  );
+                  if (!previousItem) return Promise.resolve();
+                  return syncSupplierOrderRenameToCatalog(
+                    previousItem.catalogProductId,
+                    item.productName.trim(),
+                  );
+                }),
+              );
+            }
+            const supplierOrderPayload: SupplierOrderFormValues = {
+              supplierId: payload.supplierId,
+              deliveryDate: payload.deliveryDate,
+              supplyType: payload.supplyType,
+              number: payload.number,
+              note: payload.note,
+              createdBy: currentEmployeeName || 'Administrator',
+              status: editingSupplierOrder
+                ? editingSupplierOrder.status
+                : 'stocked',
+              paymentStatus: editingSupplierOrder?.paymentStatus,
+              items: payload.items,
+            };
+            if (editingSupplierOrder) {
+              await updateSupplierOrder(editingSupplierOrder.id, {
+                ...supplierOrderPayload,
+                orderBaseId: editingSupplierOrder.orderBaseId,
+              });
+              onSuccess('Receipt order updated.');
+            } else {
+              await createSupplierOrder({
+                ...supplierOrderPayload,
+                orderBaseId: `SO-${Date.now()}`,
+              });
+              onSuccess(
+                'Receipt order created and added to warehouse receipts.',
+              );
+            }
+            setIsSupplierOrderModalOpen(false);
+            setEditingSupplierOrder(null);
+            await refreshSupplierOrders();
+          } catch (error) {
+            onError(
+              error instanceof Error
+                ? error.message
+                : 'Failed to create receipt order.',
+            );
+          }
+        }}
+      />
+
+      {selectedSupplierForEdit ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setSelectedSupplierForEdit(null);
+          }}
+        >
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Supplier</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setSelectedSupplierForEdit(null)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Name</span>
+                <input
+                  value={supplierEditForm.name}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field'>
+                <span>Phone</span>
+                <input
+                  value={supplierEditForm.phone}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>Note</span>
+                <textarea
+                  rows={3}
+                  value={supplierEditForm.note}
+                  onChange={(event) =>
+                    setSupplierEditForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isSupplierSaving ||
+                  supplierEditForm.name.trim().length < 2 ||
+                  supplierEditForm.phone.trim().length < 3
+                }
+                onClick={async () => {
+                  if (!selectedSupplierForEdit) return;
+                  setIsSupplierSaving(true);
+                  const ok = await onUpdateSupplier(
+                    selectedSupplierForEdit.id,
+                    {
+                      name: supplierEditForm.name.trim(),
+                      phone: supplierEditForm.phone.trim(),
+                      note: supplierEditForm.note.trim(),
+                      supplierOrder:
+                        selectedSupplierForEdit.supplierOrder,
+                      isActive: supplierEditForm.isActive,
+                    },
+                  );
+                  setIsSupplierSaving(false);
+                  if (!ok) return;
+                  onSuccess('Supplier updated.');
+                  await refreshSupplierOrders();
+                  setSelectedSupplierForEdit(null);
+                }}
+              >
+                {isSupplierSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedCatalogProductForEdit ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setSelectedCatalogProductForEdit(null);
+          }}
+        >
+          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Product</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setSelectedCatalogProductForEdit(null)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Product name</span>
+                <input
+                  value={productEditForm.name}
+                  onChange={(event) =>
+                    setProductEditForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>Note</span>
+                <textarea
+                  rows={3}
+                  value={productEditForm.note}
+                  onChange={(event) =>
+                    setProductEditForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isProductSavingInline ||
+                  productEditForm.name.trim().length < 2
+                }
+                onClick={async () => {
+                  if (!selectedCatalogProductForEdit) return;
+                  const catalogProductId =
+                    selectedCatalogProductForEdit.id;
+                  const nextName = productEditForm.name.trim();
+                  setIsProductSavingInline(true);
+                  const ok = await onUpdateCatalogProduct(
+                    selectedCatalogProductForEdit.id,
+                    {
+                      name: nextName,
+                      note: productEditForm.note.trim(),
+                      isActive: productEditForm.isActive,
+                    },
+                  );
+                  setIsProductSavingInline(false);
+                  if (!ok) return;
+                  await syncCatalogRenameToSupplierOrders(
+                    catalogProductId,
+                    nextName,
+                  );
+                  onSuccess('Product updated.');
+                  await refreshSupplierOrders();
+                  setSelectedCatalogProductForEdit(null);
+                }}
+              >
+                {isProductSavingInline ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 };
 
-const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
+const ReceiptsTable = ({
+  receipts,
+  onOpenOrder,
+  onOpenProduct,
+  onOpenSupplier,
+}: {
+  receipts: ReceiptRow[];
+  onOpenOrder: (receipt: ReceiptRow) => void;
+  onOpenProduct: (receipt: ReceiptRow) => void;
+  onOpenSupplier: (receipt: ReceiptRow) => void;
+}) => {
   if (receipts.length === 0)
-    return <p className='empty-state'>Немає оприбуткувань.</p>;
+    return <p className='empty-state'>No receipt orders created.</p>;
   return (
     <div className='catalog-table-wrap'>
       <table className='catalog-table warehouse-receipts-table'>
         <thead>
           <tr>
-            <th>№</th>
-            <th>Товар</th>
-            <th>К-сть</th>
-            <th>Ціна</th>
-            <th>Вартість</th>
-            <th>Сплачено</th>
-            <th>Постачальник</th>
-            <th>Дата пост.</th>
-            <th>Прийняв</th>
-            <th>Опріб.</th>
-            <th>Статус</th>
-            <th>Прим.</th>
+            <th>#</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Amount</th>
+            <th>Paid</th>
+            <th>Supplier</th>
+            <th>Receipt Date</th>
+            <th>Accepted By</th>
+            <th>Approved By</th>
+            <th>Status</th>
+            <th>Payment</th>
           </tr>
         </thead>
         <tbody>
           {receipts.map((receipt) => (
             <tr key={receipt.id}>
-              <td>{receipt.number}</td>
-              <td>{receipt.productName}</td>
-              <td>{receipt.quantity} шт</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.number}
+                </button>
+              </td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
+                  {receipt.productName}
+                </button>
+              </td>
+              <td>{receipt.quantity} pcs</td>
               <td>{formatCurrency(receipt.price)}</td>
               <td>{formatCurrency(receipt.amount)}</td>
               <td>{formatCurrency(receipt.paid)}</td>
-              <td>{receipt.supplierName}</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenSupplier(receipt)}>
+                  {receipt.supplierName}
+                </button>
+              </td>
               <td>{formatDate(receipt.createdAt)}</td>
-              <td>{receipt.acceptedBy}</td>
-              <td>{receipt.quantity} шт</td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.acceptedBy}
+                </button>
+              </td>
+              <td>
+                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                  {receipt.approvedBy}
+                </button>
+              </td>
               <td>
                 <span
                   className={
-                    receipt.status === 'received'
-                      ? 'receipt-status receipt-status-received'
-                      : 'receipt-status receipt-status-approved'
+                    receipt.status === 'cancelled'
+                      ? 'receipt-status receipt-status-cancelled'
+                      : receipt.status === 'received'
+                        ? 'receipt-status receipt-status-received'
+                        : receipt.status === 'new'
+                          ? 'receipt-status receipt-status-new'
+                          : 'receipt-status receipt-status-approved'
                   }
                 >
-                  {receipt.status === 'received'
-                    ? 'Оприбутковано'
-                    : 'Затверджено'}
+                  {receipt.status === 'cancelled'
+                    ? 'Cancelled'
+                    : receipt.status === 'received'
+                      ? 'Taken on charge'
+                      : receipt.status === 'new'
+                        ? 'New'
+                        : 'Approved'}
                 </span>
               </td>
-              <td>{receipt.note}</td>
+              <td>{receipt.status === 'new' ? '-' : receipt.paymentStatus ?? '-'}</td>
             </tr>
           ))}
         </tbody>
@@ -1065,7 +1691,6 @@ const ReceiptsTable = ({ receipts }: { receipts: ReceiptRow[] }) => {
     </div>
   );
 };
-
 const WarehouseSettings = ({
   tab,
   onTabChange,
@@ -1079,6 +1704,8 @@ const WarehouseSettings = ({
   onCreateWarehouse,
   onEditWarehouse,
   onAdministratorChange,
+  onSaveAdministrators,
+  isSaving,
 }: {
   tab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
@@ -1096,6 +1723,8 @@ const WarehouseSettings = ({
       | Administrator[]
       | ((current: Administrator[]) => Administrator[]),
   ) => void;
+  onSaveAdministrators: () => void;
+  isSaving: boolean;
 }) => {
   const serviceCenterMap = useMemo(
     () =>
@@ -1182,18 +1811,18 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateServiceCenter}
             >
-              Створити
+              Create
             </button>
           </div>
           <div className='catalog-table-wrap'>
             <table className='catalog-table warehouse-settings-table'>
               <thead>
                 <tr>
-                  <th>Назва</th>
-                  <th>Колір</th>
-                  <th>Адреса</th>
-                  <th>Телефон</th>
-                  <th>Кіл-ть складів</th>
+                  <th>Name</th>
+                  <th>color</th>
+                  <th>Address</th>
+                  <th>Phone</th>
+                  <th>Number of Warehouses</th>
                 </tr>
               </thead>
               <tbody>
@@ -1220,7 +1849,7 @@ const WarehouseSettings = ({
                         onClick={() =>
                           onEditServiceCenter(serviceCenter)
                         }
-                        aria-label={`Редагувати ${serviceCenter.name}`}
+                        aria-label={`Edit ${serviceCenter.name}`}
                       />
                     </td>
                     <td>
@@ -1265,7 +1894,7 @@ const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateWarehouse}
             >
-              Створити
+              Create Warehouse
             </button>
           </div>
           <div className='catalog-table-wrap'>
@@ -1273,11 +1902,11 @@ const WarehouseSettings = ({
               <thead>
                 <tr>
                   <th>Id</th>
-                  <th>Назва</th>
-                  <th>Належність до Сервісного центру</th>
-                  <th>Адреса для квитанції</th>
-                  <th>Телефон для квитанції</th>
-                  <th>Локації</th>
+                  <th>Name</th>
+                  <th>Location</th>
+                  <th>Address</th>
+                  <th>Phone</th>
+                  <th>Locations</th>
                 </tr>
               </thead>
               <tbody>
@@ -1303,14 +1932,14 @@ const WarehouseSettings = ({
                               color: center?.color ?? '#94a3b8',
                             }}
                           >
-                            ●
+                            &bull;
                           </i>{' '}
                           {center?.name ?? '-'}
                         </span>
                       </td>
                       <td>{warehouse.receiptAddress || '-'}</td>
                       <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>{warehouse.locations.length} шт.</td>
+                      <td>{warehouse.locations.length} С€С‚.</td>
                     </tr>
                   );
                 })}
@@ -1326,14 +1955,14 @@ const WarehouseSettings = ({
             <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
               <thead>
                 <tr>
-                  <th>Співробітник</th>
+                  <th>Administrator</th>
                   <th>
-                    Вкажіть склади, до яких співробітник має доступ
+                    View Warehouses, to which the administrator has
+                    access
                   </th>
                   <th>
-                    Вкажіть склад та локацію, на котру за
-                    замовчуванням переміщується пристрій прийнятий на
-                    ремонт цим співробітником
+                    View Warehouse and Location, to which the
+                    administrator has access
                   </th>
                 </tr>
               </thead>
@@ -1387,9 +2016,9 @@ const WarehouseSettings = ({
                         <details className='warehouse-admin-multiselect'>
                           <summary>
                             {isAllSelected
-                              ? `Усі вибрані (${administrator.warehouseIds.length})`
+                              ? `All (${administrator.warehouseIds.length})`
                               : selectedWarehouseNames.join(', ') ||
-                                'Оберіть склади'}
+                                'Select Warehouses'}
                           </summary>
                           <div className='warehouse-admin-multiselect-menu'>
                             <input
@@ -1403,7 +2032,7 @@ const WarehouseSettings = ({
                                   }),
                                 )
                               }
-                              placeholder='Пошук'
+                              placeholder='Search'
                             />
                             <label className='warehouse-admin-checkline'>
                               <input
@@ -1433,7 +2062,7 @@ const WarehouseSettings = ({
                                   );
                                 }}
                               />
-                              <span>Обрати все</span>
+                              <span>Select All</span>
                             </label>
                             <div className='warehouse-admin-options'>
                               {filteredWarehouses.map((warehouse) => (
@@ -1507,7 +2136,7 @@ const WarehouseSettings = ({
                           }}
                         >
                           {availableLocations.length === 0 ? (
-                            <option value=''>Оберіть склад</option>
+                            <option value=''>Select Location</option>
                           ) : null}
                           {availableLocations.map((location) => (
                             <option
@@ -1525,8 +2154,13 @@ const WarehouseSettings = ({
               </tbody>
             </table>
           </div>
-          <button type='button' className='secondary-button'>
-            Зберегти
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={onSaveAdministrators}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </>
       ) : null}
@@ -1558,7 +2192,7 @@ const ModalShell = ({
           className='ghost-button'
           onClick={onClose}
         >
-          ×
+          &times;
         </button>
       </header>
       <div className='catalog-edit-body warehouse-settings-modal-body'>
@@ -1570,7 +2204,7 @@ const ModalShell = ({
           className='secondary-button'
           onClick={onClose}
         >
-          Скасувати
+          cancel
         </button>
         <button
           type='button'
@@ -1588,13 +2222,19 @@ const ModalShell = ({
 const StockTable = ({
   products,
   isLoading,
+  salesByProductId,
+  supplierOrdersByProductId,
   onEdit,
   onDelete,
+  onOpenSupplierOrder,
 }: {
   products: Product[];
   isLoading: boolean;
+  salesByProductId: Record<string, Sale[]>;
+  supplierOrdersByProductId: Record<string, SupplierOrder[]>;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onOpenSupplierOrder: (supplierOrderId: string) => void;
 }) => {
   if (isLoading)
     return <p className='empty-state'>Loading warehouse stock...</p>;
@@ -1630,6 +2270,24 @@ const StockTable = ({
         <tbody>
           {products.map((product) => (
             <tr key={product.id}>
+              {(() => {
+                const linkedSales = salesByProductId[product.id] ?? [];
+                const linkedSupplierOrders =
+                  supplierOrdersByProductId[product.id] ?? [];
+                const getOrderHref = (
+                  sale: Sale,
+                  tab: 'orders' | 'sales',
+                ) => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('page', 'orders');
+                  url.searchParams.set('ordersTab', tab);
+                  url.searchParams.set('saleId', sale.id);
+                  url.searchParams.delete('createOrder');
+                  return `${url.pathname}${url.search}${url.hash}`;
+                };
+
+                return (
+                  <>
               <td>
                 <input
                   type='checkbox'
@@ -1645,8 +2303,40 @@ const StockTable = ({
               <td>{product.price}</td>
               <td>{product.purchasePlace || 'Main warehouse'}</td>
               <td>{product.freeQuantity > 0 ? 'A' : '-'}</td>
-              <td>-</td>
-              <td>-</td>
+              <td>
+                {linkedSales.length === 0
+                  ? '-'
+                  : linkedSales.map((sale, index) => (
+                      <span key={`${product.id}-sale-${sale.id}`}>
+                        {index > 0 ? ', ' : null}
+                        <a
+                          className='settings-link-button'
+                          href={getOrderHref(
+                            sale,
+                            sale.kind === 'sale' ? 'sales' : 'orders',
+                          )}
+                        >
+                          {sale.recordNumber || sale.id.slice(0, 8)}
+                        </a>
+                      </span>
+                    ))}
+              </td>
+              <td>
+                {linkedSupplierOrders.length === 0
+                  ? '-'
+                  : linkedSupplierOrders.map((order, index) => (
+                      <span key={`${product.id}-supplier-${order.id}`}>
+                        {index > 0 ? ', ' : null}
+                        <button
+                          type='button'
+                          className='settings-link-button'
+                          onClick={() => onOpenSupplierOrder(order.id)}
+                        >
+                          {order.number || order.orderBaseId || order.id}
+                        </button>
+                      </span>
+                    ))}
+              </td>
               <td>{product.purchasePlace || '-'}</td>
               <td>{product.note || '-'}</td>
               <td>
@@ -1663,10 +2353,13 @@ const StockTable = ({
                     className='danger-button'
                     onClick={() => onDelete(product)}
                   >
-                    ×
+                    &times;
                   </button>
                 </div>
               </td>
+                  </>
+                );
+              })()}
             </tr>
           ))}
         </tbody>
