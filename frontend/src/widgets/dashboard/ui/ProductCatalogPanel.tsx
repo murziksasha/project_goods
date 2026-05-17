@@ -265,7 +265,7 @@ export const ProductCatalogPanel = ({
         <button type="button" className="toolbar-filter-button">
           Filter
         </button>
-        <div className="orders-search-group catalog-search-group">
+        <div className="orders-search-group orders-search-group-clearable catalog-search-group">
           <input
             value={isProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
             placeholder={
@@ -283,7 +283,33 @@ export const ProductCatalogPanel = ({
                 : (onServiceSearchChange(event.target.value), setServicesPage(1))
             }
           />
-          <button type="button">Find</button>
+          {(isProductsTab || isCatalogProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue) ? (
+            <span
+              role='button'
+              tabIndex={0}
+              className='orders-search-clear'
+              aria-label='Clear search text'
+              onClick={() =>
+                isProductsTab || isCatalogProductsTab || isSuppliersTab
+                  ? (onSearchChange(''), setProductsPage(1))
+                  : (onServiceSearchChange(''), setServicesPage(1))
+              }
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  if (isProductsTab || isCatalogProductsTab || isSuppliersTab) {
+                    onSearchChange('');
+                    setProductsPage(1);
+                  } else {
+                    onServiceSearchChange('');
+                    setServicesPage(1);
+                  }
+                }
+              }}
+            >
+              x
+            </span>
+          ) : null}
         </div>
         <div className="catalog-toolbar-actions">
           {isProductsTab ? (

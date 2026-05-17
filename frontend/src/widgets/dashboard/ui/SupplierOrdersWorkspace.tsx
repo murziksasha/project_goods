@@ -213,9 +213,26 @@ export const SupplierOrdersWorkspace = ({
 
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left'>
-          <div className='orders-search-group'>
+          <div className='orders-search-group orders-search-group-clearable'>
             <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Пошук' />
-            <button type='button'>Find</button>
+            {query ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label='Clear search text'
+                onClick={() => { setQuery(''); setPage(1); }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setQuery('');
+                    setPage(1);
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
           </div>
 
           <div className='orders-filter-field orders-filter-status-field'>

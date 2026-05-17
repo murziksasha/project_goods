@@ -580,16 +580,6 @@ export const ClientsWorkspace = ({
     setClientsPage(1);
   };
 
-  const submitSearch = () => {
-    const nextQuery = searchValue.trim();
-    setDraftFilters((current) => ({ ...current, query: nextQuery }));
-    setAppliedFilters((current) => ({
-      ...current,
-      query: nextQuery,
-    }));
-    setClientsPage(1);
-  };
-
   useEffect(() => {
     const pageCount = Math.max(
       1,
@@ -737,16 +727,62 @@ export const ClientsWorkspace = ({
               </span>
             ) : null}
           </button>
-          <div className='orders-search-group clients-search-group'>
+          <div className='orders-search-group orders-search-group-clearable clients-search-group'>
             <input
               value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
+              onChange={(event) => {
+                const nextQuery = event.target.value;
+                setSearchValue(nextQuery);
+                setDraftFilters((current) => ({
+                  ...current,
+                  query: nextQuery.trim(),
+                }));
+                setAppliedFilters((current) => ({
+                  ...current,
+                  query: nextQuery.trim(),
+                }));
+                setClientsPage(1);
+              }}
               placeholder='Пошук за імʼям або телефоном'
               aria-label='Пошук клієнта'
             />
-            <button type='button' onClick={submitSearch}>
-              Знайти
-            </button>
+            {searchValue ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label='Clear search text'
+                onClick={() => {
+                  setSearchValue('');
+                  setDraftFilters((current) => ({
+                    ...current,
+                    query: '',
+                  }));
+                  setAppliedFilters((current) => ({
+                    ...current,
+                    query: '',
+                  }));
+                  setClientsPage(1);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSearchValue('');
+                    setDraftFilters((current) => ({
+                      ...current,
+                      query: '',
+                    }));
+                    setAppliedFilters((current) => ({
+                      ...current,
+                      query: '',
+                    }));
+                    setClientsPage(1);
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
           </div>
         </div>
         <div className='orders-toolbar-actions clients-toolbar-actions'>
@@ -1665,5 +1701,9 @@ export const ClientsWorkspace = ({
     </section>
   );
 };
+
+
+
+
 
 
