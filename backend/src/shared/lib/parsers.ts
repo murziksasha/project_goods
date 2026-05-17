@@ -65,6 +65,8 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
       ? 0
       : toNumber(payload.reservedQuantity),
   purchasePlace: toNonEmptyString(payload.purchasePlace),
+  warehouseId: toNonEmptyString(payload.warehouseId),
+  locationId: toNonEmptyString(payload.locationId),
   purchaseDate: toOptionalDate(payload.purchaseDate),
   warrantyPeriod:
     payload.warrantyPeriod === '' || payload.warrantyPeriod === undefined
@@ -152,6 +154,17 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
             (item as { warrantyPeriod?: unknown })?.warrantyPeriod === undefined
               ? 0
               : toNumber((item as { warrantyPeriod?: unknown })?.warrantyPeriod),
+          serialNumbers: Array.isArray(
+            (item as { serialNumbers?: unknown })?.serialNumbers,
+          )
+            ? Array.from(
+                new Set(
+                  ((item as { serialNumbers?: unknown[] }).serialNumbers ?? [])
+                    .map((value) => toNonEmptyString(value).toUpperCase())
+                    .filter(Boolean),
+                ),
+              )
+            : [],
         }))
         .filter(
           (item) =>

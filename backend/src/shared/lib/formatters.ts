@@ -22,6 +22,8 @@ export const formatProduct = (product: ProductDocument) => {
     freeQuantity,
     isInStock: freeQuantity > 0,
     purchasePlace: product.purchasePlace,
+    warehouseId: product.warehouseId ?? '',
+    locationId: product.locationId ?? '',
     purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,
@@ -130,6 +132,7 @@ export const formatSale = (sale: SaleDocument) => ({
     price: item.price,
     quantity: item.quantity,
     warrantyPeriod: item.warrantyPeriod ?? 0,
+    serialNumbers: (item.serialNumbers ?? []).map((serial) => String(serial)),
   })),
   discount: {
     mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',

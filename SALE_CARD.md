@@ -54,3 +54,40 @@
   - `₴` for fixed discount amount
 - The same editable `Discount` control is shown in `Accept payment` modal summary.
 - Discount affects `To pay` immediately and is stored in workspace state.
+
+## Sale Status Mapping
+
+- In `Orders -> Sales` list and inside opened sale card, status label must stay consistent.
+- If record has status `issued`, card status selector must show `Issued` (must not fallback to `New sale`).
+- Sales status set includes:
+  - `New sale`
+  - `Reserved`
+  - `Paid`
+  - `Issued`
+  - `Completed`
+  - `Returned`
+
+## Read-Only Lock For Sales Card
+
+- Sales card is editable only when status is one of:
+  - `new`
+  - `reserved`
+  - `paid`
+- For any other sales status (`issued`, `completed`, `returned`, etc.) card becomes read-only.
+- In read-only mode, block:
+  - status change in card header
+  - line item add/edit/remove
+  - serial binding changes
+  - comments add
+  - payment/refund actions
+  - main info save actions
+
+## Product Return Separation (Money vs Stock)
+
+- In sales card, product return is split into two distinct steps:
+  1. `Refund to client` (finance operation)
+  2. `Return` on product row (stock operation)
+- Product `Return` action must open stock-return modal (warehouse destination only).
+- Product `Return` action must NOT open refund modal.
+- If required refund has not been completed yet, `Return` is blocked and error toast is shown.
+- Required refund amount for a returned product row is calculated from row share of discounted order total (discount-aware), not raw row price.

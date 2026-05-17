@@ -679,6 +679,19 @@ export const WarehousePanel = ({
       ),
     [warehouses],
   );
+  const takeOnChargeWarehouseOptions = useMemo(
+    () =>
+      warehouses
+        .map((warehouse) => ({
+          id: warehouse.id,
+          name: warehouse.name,
+          locations: warehouse.locations.map((location) => ({
+            id: location.id,
+            name: location.name,
+          })),
+        })),
+    [warehouses],
+  );
   const availableLocationOptions = useMemo(() => {
     const selectedWarehouse = warehouseOptions.find(
       (option) => option.name === draftFilters.warehouse,
@@ -701,6 +714,9 @@ export const WarehousePanel = ({
     warehouseOptions,
   ]);
   const productWarehouseMetaById = useMemo(() => {
+    const byId = new Map(
+      warehouses.map((warehouse) => [warehouse.id, warehouse]),
+    );
     const byName = new Map(
       warehouses.map((warehouse) => [
         warehouse.name.trim().toLowerCase(),
@@ -710,10 +726,20 @@ export const WarehousePanel = ({
     const fallbackWarehouse = warehouses[0];
     return products.reduce<Record<string, ProductWarehouseMeta>>(
       (acc, product) => {
+        const matchedWarehouseById = product.warehouseId
+          ? byId.get(product.warehouseId)
+          : undefined;
         const matchedWarehouse =
+          matchedWarehouseById ??
           byName.get(product.purchasePlace.trim().toLowerCase()) ??
           fallbackWarehouse;
-        const firstLocation = matchedWarehouse?.locations[0];
+        const matchedLocation =
+          product.locationId && matchedWarehouse
+            ? matchedWarehouse.locations.find(
+                (location) => location.id === product.locationId,
+              )
+            : undefined;
+        const firstLocation = matchedLocation ?? matchedWarehouse?.locations[0];
         acc[product.id] = {
           warehouseId: matchedWarehouse?.id ?? '',
           warehouseName: matchedWarehouse?.name ?? '-',
@@ -2097,11 +2123,18 @@ export const WarehousePanel = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
-        onTakeOnCharge={async ({ autoGenerateSerialNumbers, serialNumbers }) => {
+        onTakeOnCharge={async ({
+          autoGenerateSerialNumbers,
+          serialNumbers,
+          warehouseId,
+          locationId,
+        }) => {
           if (!editingSupplierOrder) return;
           await takeOnChargeSupplierOrder(editingSupplierOrder.id, {
             autoGenerateSerialNumbers,
             serialNumbers,
+            warehouseId,
+            locationId,
           });
           onSuccess('Order taken on charge.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
@@ -2172,6 +2205,7 @@ export const WarehousePanel = ({
             );
           }
         }}
+        warehouseOptions={takeOnChargeWarehouseOptions}
       />
 
       {selectedSupplierForEdit ? (

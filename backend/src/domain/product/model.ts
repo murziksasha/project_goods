@@ -62,6 +62,16 @@ export const productSchema = new mongoose.Schema(
       maxlength: [120, 'Purchase place must contain no more than 120 characters'],
       default: '',
     },
+    warehouseId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    locationId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     purchaseDate: {
       type: Date,
       default: null,

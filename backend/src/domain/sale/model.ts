@@ -138,6 +138,7 @@ export const saleSchema = new mongoose.Schema(
         price: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },
         warrantyPeriod: { type: Number, min: 0, default: 0 },
+        serialNumbers: [{ type: String, trim: true, uppercase: true }],
       },
     ],
     discount: {

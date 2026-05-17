@@ -92,6 +92,30 @@ We keep current behavior here and extend it as new rules appear.
 2. explicit error toast/message is shown
 3. no partial success should be presented as completed action
 
+### 12) Warehouse/Location Required On Take-On-Charge
+- Entry point: `Warehouse -> Receipts -> receipt row (#) -> SupplierOrderModal -> Оприбуткувати`.
+- During take-on-charge, operator must select:
+1. `warehouse`
+2. `location`
+- Default selection source:
+1. `Warehouses -> Settings -> Warehouses` list
+2. default warehouse = first configured warehouse (index `0`, "warehouse #1" in current UX order)
+3. default location = first location of that warehouse
+- API payload for take-on-charge must include `warehouseId` and `locationId`.
+- Product materialization must persist both IDs in stock product entity.
+
+### 13) Product Warehouse Mapping Priority
+- Stock display mapping (`Warehouse -> Stock balances`) priority:
+1. resolve by `product.warehouseId` / `product.locationId`
+2. fallback to legacy `purchasePlace` (warehouse name text match)
+3. fallback to first configured warehouse/location
+- Display must stay backward-compatible for legacy products that don't have stored IDs.
+
+### 14) Unbind From Order -> Return To Original Place
+- When product is unlinked from order and returned to stock, it must be returned to the same warehouse/location where it was before linking.
+- Source of truth is product stored warehouse metadata (`warehouseId`, `locationId`, `purchasePlace` fallback), not ad-hoc modal selection.
+- Return/unbind must not overwrite product warehouse metadata with a different location unless explicit transfer/return action says so.
+
 ## Next Additions
 - Add edge-case decisions (duplicate names, archived catalog items, deleted suppliers).
 - Add validation standards for procurement edits.

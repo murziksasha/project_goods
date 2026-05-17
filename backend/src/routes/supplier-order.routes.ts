@@ -47,7 +47,12 @@ supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', asy
     res.json(
       await takeOnChargeSupplierOrder(
         req.params.supplierOrderId,
-        req.body as { autoGenerateSerialNumbers?: unknown; serialNumbers?: unknown },
+        req.body as {
+          autoGenerateSerialNumbers?: unknown;
+          serialNumbers?: unknown;
+          warehouseId?: unknown;
+          locationId?: unknown;
+        },
       ),
     );
   } catch (error) {

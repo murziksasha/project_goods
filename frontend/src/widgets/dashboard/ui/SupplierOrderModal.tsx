@@ -25,10 +25,17 @@ type SupplierOrderModalProps = {
   onTakeOnCharge?: (payload: {
     autoGenerateSerialNumbers: boolean;
     serialNumbers: string[];
+    warehouseId: string;
+    locationId: string;
   }) => Promise<void> | void;
   onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  warehouseOptions?: Array<{
+    id: string;
+    name: string;
+    locations: Array<{ id: string; name: string }>;
+  }>;
 };
 
 type DraftItem = {
@@ -54,6 +61,7 @@ export const SupplierOrderModal = ({
   onCancelOrder,
   onSuccess,
   onError,
+  warehouseOptions = [],
 }: SupplierOrderModalProps) => {
   const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
@@ -69,6 +77,8 @@ export const SupplierOrderModal = ({
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
+  const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] = useState('');
+  const [takeOnChargeLocationId, setTakeOnChargeLocationId] = useState('');
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -142,7 +152,10 @@ export const SupplierOrderModal = ({
     setIsSerialModalOpen(false);
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
-  }, [editingOrder, initialProductName, isOpen]);
+    const defaultWarehouse = warehouseOptions[0];
+    setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
+    setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
+  }, [editingOrder, initialProductName, isOpen, warehouseOptions]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);
@@ -200,8 +213,6 @@ export const SupplierOrderModal = ({
     );
   }, [supplierSearch, suppliers]);
 
-  if (!isOpen) return null;
-
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
   const currentPrice = Math.max(0, Number(form.price) || 0);
   const currentProductMatched = Boolean(selectedCatalogProductId);
@@ -246,6 +257,26 @@ export const SupplierOrderModal = ({
     ? true
     : manualSerialNumbers.length === totalUnits &&
       manualSerialNumbers.every((serial) => serial.trim().length > 0);
+  const selectedTakeOnChargeWarehouse = warehouseOptions.find(
+    (warehouse) => warehouse.id === takeOnChargeWarehouseId,
+  );
+  const selectedTakeOnChargeLocations =
+    selectedTakeOnChargeWarehouse?.locations ?? [];
+
+  useEffect(() => {
+    if (selectedTakeOnChargeLocations.length === 0) {
+      setTakeOnChargeLocationId('');
+      return;
+    }
+    const isLocationExists = selectedTakeOnChargeLocations.some(
+      (location) => location.id === takeOnChargeLocationId,
+    );
+    if (!isLocationExists) {
+      setTakeOnChargeLocationId(selectedTakeOnChargeLocations[0]?.id ?? '');
+    }
+  }, [selectedTakeOnChargeLocations, takeOnChargeLocationId]);
+
+  if (!isOpen) return null;
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -653,6 +684,37 @@ export const SupplierOrderModal = ({
                   ))}
                 </div>
               ) : null}
+              <label className='field field-wide'>
+                <span>Warehouse</span>
+                <select
+                  value={takeOnChargeWarehouseId}
+                  onChange={(event) =>
+                    setTakeOnChargeWarehouseId(event.target.value)
+                  }
+                >
+                  {warehouseOptions.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className='field field-wide'>
+                <span>Location</span>
+                <select
+                  value={takeOnChargeLocationId}
+                  onChange={(event) =>
+                    setTakeOnChargeLocationId(event.target.value)
+                  }
+                  disabled={selectedTakeOnChargeLocations.length === 0}
+                >
+                  {selectedTakeOnChargeLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <footer className='catalog-edit-footer'>
               <button
@@ -669,7 +731,9 @@ export const SupplierOrderModal = ({
                 disabled={
                   isActionSubmitting ||
                   totalUnits <= 0 ||
-                  !canSubmitTakeOnCharge
+                  !canSubmitTakeOnCharge ||
+                  !takeOnChargeWarehouseId ||
+                  !takeOnChargeLocationId
                 }
                 onClick={async () => {
                   if (!onTakeOnCharge) return;
@@ -682,6 +746,8 @@ export const SupplierOrderModal = ({
                         : manualSerialNumbers.map((item) =>
                             item.trim(),
                           ),
+                      warehouseId: takeOnChargeWarehouseId,
+                      locationId: takeOnChargeLocationId,
                     });
                     setIsSerialModalOpen(false);
                     onClose();
