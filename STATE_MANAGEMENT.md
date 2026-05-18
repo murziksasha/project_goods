@@ -47,6 +47,11 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 
+## Sidebar UI Persistence Rule (2026-05-19)
+
+- Dashboard main menu collapsed/expanded state must persist across browser reload (`F5`).
+- On page load, sidebar must restore to the last user-selected state without extra user action.
+
 ## Phase 2 Status (2026-05-06)
 
 - Implemented optimistic concurrency for update operations in products, sales, and client-devices using expectedUpdatedAt.
