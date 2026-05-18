@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
@@ -37,6 +37,40 @@ import {
 } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
+type WarehouseColumnsTab = 'stock' | 'receipts';
+type StockColumnKey =
+  | 'select'
+  | 'name'
+  | 'serial'
+  | 'article'
+  | 'date'
+  | 'qty'
+  | 'retail'
+  | 'purchase'
+  | 'warehouse'
+  | 'location'
+  | 'clientOrder'
+  | 'supplierOrder'
+  | 'supplier'
+  | 'note'
+  | 'action';
+type ReceiptsColumnKey =
+  | 'number'
+  | 'product'
+  | 'quantity'
+  | 'price'
+  | 'amount'
+  | 'paid'
+  | 'supplier'
+  | 'receiptDate'
+  | 'acceptedBy'
+  | 'approvedBy'
+  | 'status'
+  | 'payment';
+type WarehouseColumnVisibility = {
+  stock: StockColumnKey[];
+  receipts: ReceiptsColumnKey[];
+};
 type WarehouseSearchMode =
   | 'serial'
   | 'name'
@@ -196,6 +230,7 @@ const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
+const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
 const savedWarehouseFiltersStorageKey =
   'project-goods.saved-warehouse-filters';
 const initialWarehouseFilters: WarehouseFilters = {
@@ -253,6 +288,53 @@ const warehouseFilterIconOptions = [
   '\u2606',
   '\u2728',
 ];
+const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
+  stock: [
+    'select',
+    'name',
+    'serial',
+    'article',
+    'date',
+    'qty',
+    'retail',
+    'purchase',
+    'warehouse',
+    'location',
+    'clientOrder',
+    'supplierOrder',
+    'supplier',
+    'note',
+    'action',
+  ],
+  receipts: [
+    'number',
+    'product',
+    'quantity',
+    'price',
+    'amount',
+    'paid',
+    'supplier',
+    'receiptDate',
+    'acceptedBy',
+    'approvedBy',
+    'status',
+    'payment',
+  ],
+};
+const availableWarehouseColumns: {
+  stock: StockColumnKey[];
+  receipts: ReceiptsColumnKey[];
+} = {
+  stock: [...defaultWarehouseVisibleColumns.stock],
+  receipts: [...defaultWarehouseVisibleColumns.receipts],
+};
+const lockedWarehouseColumns: {
+  stock: StockColumnKey[];
+  receipts: ReceiptsColumnKey[];
+} = {
+  stock: ['select'],
+  receipts: ['number'],
+};
 
 const getSearchText = (
   product: Product,
@@ -355,8 +437,40 @@ export const WarehousePanel = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
+  const [visibleColumns, setVisibleColumns] =
+    useState<WarehouseColumnVisibility>(() => {
+      try {
+        const parsed = JSON.parse(
+          window.localStorage.getItem(warehouseColumnsStorageKey) ??
+            '{}',
+        ) as Partial<WarehouseColumnVisibility>;
+        const normalizeStock = Array.isArray(parsed.stock)
+          ? availableWarehouseColumns.stock.filter((columnKey) =>
+              parsed.stock?.includes(columnKey),
+            )
+          : defaultWarehouseVisibleColumns.stock;
+        const normalizeReceipts = Array.isArray(parsed.receipts)
+          ? availableWarehouseColumns.receipts.filter((columnKey) =>
+              parsed.receipts?.includes(columnKey),
+            )
+          : defaultWarehouseVisibleColumns.receipts;
+        return {
+          stock:
+            normalizeStock.length > 0
+              ? normalizeStock
+              : defaultWarehouseVisibleColumns.stock,
+          receipts:
+            normalizeReceipts.length > 0
+              ? normalizeReceipts
+              : defaultWarehouseVisibleColumns.receipts,
+        };
+      } catch {
+        return defaultWarehouseVisibleColumns;
+      }
+    });
   const [draftFilters, setDraftFilters] = useState<WarehouseFilters>(
     initialWarehouseFilters,
   );
@@ -420,6 +534,7 @@ export const WarehousePanel = ({
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
     [],
   );
+  const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
   const [
@@ -895,6 +1010,19 @@ export const WarehousePanel = ({
     activeTab === 'receipts'
       ? filteredReceipts.length
       : filteredProducts.length;
+  const activeColumnsTab: WarehouseColumnsTab | null =
+    activeTab === 'stock' || activeTab === 'receipts'
+      ? activeTab
+      : null;
+  const visibleColumnKeys =
+    activeColumnsTab === 'stock'
+      ? visibleColumns.stock
+      : activeColumnsTab === 'receipts'
+        ? visibleColumns.receipts
+        : [];
+  const visibleColumnKeySet = new Set<string>(
+    visibleColumnKeys as string[],
+  );
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -1025,6 +1153,26 @@ export const WarehousePanel = ({
   ]);
 
   useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
+  useEffect(() => {
+    window.localStorage.setItem(
+      warehouseColumnsStorageKey,
+      JSON.stringify(visibleColumns),
+    );
+  }, [visibleColumns]);
+  useEffect(() => {
+    if (!isColumnsMenuOpen) return;
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        columnsMenuRef.current &&
+        !columnsMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsColumnsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () =>
+      document.removeEventListener('mousedown', handleDocumentClick);
+  }, [isColumnsMenuOpen]);
   useEffect(() => {
     if (!draftFilters.warehouse || !draftFilters.location) return;
     const hasLocation = availableLocationOptions.some(
@@ -1272,6 +1420,102 @@ export const WarehousePanel = ({
       current.filter((item) => item.id !== filterId),
     );
   };
+  const getWarehouseColumnLabel = (
+    columnKey: StockColumnKey | ReceiptsColumnKey,
+  ) => {
+    switch (columnKey) {
+      case 'select':
+        return 'Select';
+      case 'name':
+        return 'Name';
+      case 'serial':
+        return 'Serial #';
+      case 'article':
+        return 'Article';
+      case 'date':
+        return 'Date';
+      case 'qty':
+        return 'Qty';
+      case 'retail':
+        return 'Retail';
+      case 'purchase':
+        return 'Purchase';
+      case 'warehouse':
+        return 'Warehouse';
+      case 'location':
+        return 'Location';
+      case 'clientOrder':
+        return 'Client order';
+      case 'supplierOrder':
+        return 'Supplier order';
+      case 'supplier':
+        return 'Supplier';
+      case 'note':
+        return 'Note';
+      case 'action':
+        return 'Action';
+      case 'number':
+        return '#';
+      case 'product':
+        return 'Product';
+      case 'quantity':
+        return 'Quantity';
+      case 'price':
+        return 'Price';
+      case 'amount':
+        return 'Amount';
+      case 'paid':
+        return 'Paid';
+      case 'receiptDate':
+        return 'Receipt Date';
+      case 'acceptedBy':
+        return 'Accepted By';
+      case 'approvedBy':
+        return 'Approved By';
+      case 'status':
+        return 'Status';
+      case 'payment':
+        return 'Payment';
+      default:
+        return '';
+    }
+  };
+  const toggleColumnVisibility = (
+    columnKey: StockColumnKey | ReceiptsColumnKey,
+  ) => {
+    if (!activeColumnsTab) return;
+    const availableColumns = availableWarehouseColumns[activeColumnsTab];
+    const lockedColumns = lockedWarehouseColumns[activeColumnsTab];
+    if (
+      !availableColumns.includes(
+        columnKey as never,
+      ) ||
+      lockedColumns.includes(columnKey as never)
+    ) {
+      return;
+    }
+    setVisibleColumns((current) => {
+      const currentColumns = current[activeColumnsTab];
+      const currentColumnsSet = new Set<string>(
+        currentColumns as string[],
+      );
+      if (
+        currentColumnsSet.has(columnKey) &&
+        currentColumns.length <= 1
+      ) {
+        return current;
+      }
+      const nextColumns = currentColumnsSet.has(columnKey)
+        ? currentColumns.filter((key) => key !== columnKey)
+        : availableColumns.filter(
+            (key) => key === columnKey || currentColumnsSet.has(key),
+          );
+      return {
+        ...current,
+        [activeColumnsTab]: nextColumns,
+      };
+    });
+  };
 
   return (
     <section className='panel warehouse-panel'>
@@ -1318,6 +1562,81 @@ export const WarehousePanel = ({
           >
             &rsaquo;
           </button>
+          {activeColumnsTab ? (
+            <div className='toolbar-settings' ref={columnsMenuRef}>
+              <button
+                type='button'
+                className='toolbar-square-button'
+                aria-label='Toggle table columns'
+                aria-expanded={isColumnsMenuOpen}
+                onClick={() =>
+                  setIsColumnsMenuOpen((current) => !current)
+                }
+              >
+                <svg
+                  xmlns='http://www.w3.org/2000/svg'
+                  viewBox='0 0 24 24'
+                  className='toolbar-square-button-icon'
+                  fill='currentColor'
+                >
+                  <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
+                </svg>
+              </button>
+              {isColumnsMenuOpen ? (
+                <div className='toolbar-settings-menu'>
+                  {activeColumnsTab === 'stock'
+                    ? availableWarehouseColumns.stock.map(
+                        (columnKey) => (
+                          <label
+                            key={`${activeTab}-${columnKey}`}
+                            className='toolbar-settings-option'
+                          >
+                            <input
+                              type='checkbox'
+                              checked={visibleColumnKeySet.has(
+                                columnKey,
+                              )}
+                              disabled={lockedWarehouseColumns.stock.includes(
+                                columnKey,
+                              )}
+                              onChange={() =>
+                                toggleColumnVisibility(columnKey)
+                              }
+                            />
+                            <span>
+                              {getWarehouseColumnLabel(columnKey)}
+                            </span>
+                          </label>
+                        ),
+                      )
+                    : availableWarehouseColumns.receipts.map(
+                        (columnKey) => (
+                          <label
+                            key={`${activeTab}-${columnKey}`}
+                            className='toolbar-settings-option'
+                          >
+                            <input
+                              type='checkbox'
+                              checked={visibleColumnKeySet.has(
+                                columnKey,
+                              )}
+                              disabled={lockedWarehouseColumns.receipts.includes(
+                                columnKey,
+                              )}
+                              onChange={() =>
+                                toggleColumnVisibility(columnKey)
+                              }
+                            />
+                            <span>
+                              {getWarehouseColumnLabel(columnKey)}
+                            </span>
+                          </label>
+                        ),
+                      )}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <button
             type='button'
             className='toolbar-filter-button'
@@ -1719,6 +2038,7 @@ export const WarehousePanel = ({
           <StockTable
             products={paginatedProducts}
             isLoading={isLoading}
+            visibleColumns={visibleColumns.stock}
             salesByProductId={salesByProductId}
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
@@ -1748,6 +2068,7 @@ export const WarehousePanel = ({
         <>
           <ReceiptsTable
             receipts={paginatedReceipts}
+            visibleColumns={visibleColumns.receipts}
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
               const matchedOrder = supplierOrders.find(
@@ -2402,11 +2723,13 @@ export const WarehousePanel = ({
 
 const ReceiptsTable = ({
   receipts,
+  visibleColumns,
   onOpenOrder,
   onOpenProduct,
   onOpenSupplier,
 }: {
   receipts: ReceiptRow[];
+  visibleColumns: ReceiptsColumnKey[];
   onOpenOrder: (receipt: ReceiptRow) => void;
   onOpenProduct: (receipt: ReceiptRow) => void;
   onOpenSupplier: (receipt: ReceiptRow) => void;
@@ -2418,75 +2741,97 @@ const ReceiptsTable = ({
       <table className='catalog-table warehouse-receipts-table'>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Product</th>
-            <th>Quantity</th>
-            <th>Price</th>
-            <th>Amount</th>
-            <th>Paid</th>
-            <th>Supplier</th>
-            <th>Receipt Date</th>
-            <th>Accepted By</th>
-            <th>Approved By</th>
-            <th>Status</th>
-            <th>Payment</th>
+            {visibleColumns.map((columnKey) => (
+              <th key={columnKey}>
+                {columnKey === 'number'
+                  ? '#'
+                  : columnKey === 'product'
+                    ? 'Product'
+                    : columnKey === 'quantity'
+                      ? 'Quantity'
+                      : columnKey === 'price'
+                        ? 'Price'
+                        : columnKey === 'amount'
+                          ? 'Amount'
+                          : columnKey === 'paid'
+                            ? 'Paid'
+                            : columnKey === 'supplier'
+                              ? 'Supplier'
+                              : columnKey === 'receiptDate'
+                                ? 'Receipt Date'
+                                : columnKey === 'acceptedBy'
+                                  ? 'Accepted By'
+                                  : columnKey === 'approvedBy'
+                                    ? 'Approved By'
+                                    : columnKey === 'status'
+                                      ? 'Status'
+                                      : 'Payment'}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {receipts.map((receipt) => (
             <tr key={receipt.id}>
-              <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                  {receipt.number}
-                </button>
-              </td>
-              <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
-                  {receipt.productName}
-                </button>
-              </td>
-              <td>{receipt.quantity} pcs</td>
-              <td>{formatCurrency(receipt.price)}</td>
-              <td>{formatCurrency(receipt.amount)}</td>
-              <td>{formatCurrency(receipt.paid)}</td>
-              <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenSupplier(receipt)}>
-                  {receipt.supplierName}
-                </button>
-              </td>
-              <td>{formatDate(receipt.createdAt)}</td>
-              <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                  {receipt.acceptedBy}
-                </button>
-              </td>
-              <td>
-                <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                  {receipt.approvedBy}
-                </button>
-              </td>
-              <td>
-                <span
-                  className={
-                    receipt.status === 'cancelled'
-                      ? 'receipt-status receipt-status-cancelled'
-                      : receipt.status === 'received'
-                        ? 'receipt-status receipt-status-received'
-                        : receipt.status === 'new'
-                          ? 'receipt-status receipt-status-new'
-                          : 'receipt-status receipt-status-approved'
-                  }
-                >
-                  {receipt.status === 'cancelled'
-                    ? 'Cancelled'
-                    : receipt.status === 'received'
-                      ? 'Taken on charge'
-                      : receipt.status === 'new'
-                        ? 'New'
-                        : 'Approved'}
-                </span>
-              </td>
-              <td>{receipt.status === 'new' ? '-' : receipt.paymentStatus ?? '-'}</td>
+              {visibleColumns.map((columnKey) => (
+                <td key={`${receipt.id}-${columnKey}`}>
+                  {columnKey === 'number' ? (
+                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                      {receipt.number}
+                    </button>
+                  ) : columnKey === 'product' ? (
+                    <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
+                      {receipt.productName}
+                    </button>
+                  ) : columnKey === 'quantity' ? (
+                    `${receipt.quantity} pcs`
+                  ) : columnKey === 'price' ? (
+                    formatCurrency(receipt.price)
+                  ) : columnKey === 'amount' ? (
+                    formatCurrency(receipt.amount)
+                  ) : columnKey === 'paid' ? (
+                    formatCurrency(receipt.paid)
+                  ) : columnKey === 'supplier' ? (
+                    <button type='button' className='catalog-name-button' onClick={() => onOpenSupplier(receipt)}>
+                      {receipt.supplierName}
+                    </button>
+                  ) : columnKey === 'receiptDate' ? (
+                    formatDate(receipt.createdAt)
+                  ) : columnKey === 'acceptedBy' ? (
+                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                      {receipt.acceptedBy}
+                    </button>
+                  ) : columnKey === 'approvedBy' ? (
+                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                      {receipt.approvedBy}
+                    </button>
+                  ) : columnKey === 'status' ? (
+                    <span
+                      className={
+                        receipt.status === 'cancelled'
+                          ? 'receipt-status receipt-status-cancelled'
+                          : receipt.status === 'received'
+                            ? 'receipt-status receipt-status-received'
+                            : receipt.status === 'new'
+                              ? 'receipt-status receipt-status-new'
+                              : 'receipt-status receipt-status-approved'
+                      }
+                    >
+                      {receipt.status === 'cancelled'
+                        ? 'Cancelled'
+                        : receipt.status === 'received'
+                          ? 'Taken on charge'
+                          : receipt.status === 'new'
+                            ? 'New'
+                            : 'Approved'}
+                    </span>
+                  ) : receipt.status === 'new' ? (
+                    '-'
+                  ) : (
+                    receipt.paymentStatus ?? '-'
+                  )}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -3025,6 +3370,7 @@ const ModalShell = ({
 const StockTable = ({
   products,
   isLoading,
+  visibleColumns,
   salesByProductId,
   supplierOrdersByProductId,
   productWarehouseMetaById,
@@ -3034,6 +3380,7 @@ const StockTable = ({
 }: {
   products: Product[];
   isLoading: boolean;
+  visibleColumns: StockColumnKey[];
   salesByProductId: Record<string, Sale[]>;
   supplierOrdersByProductId: Record<string, SupplierOrder[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
@@ -3050,26 +3397,44 @@ const StockTable = ({
       <table className='catalog-table warehouse-stock-table'>
         <thead>
           <tr>
-            <th>
-              <input
-                type='checkbox'
-                aria-label='Select all stock rows'
-              />
-            </th>
-            <th>Name</th>
-            <th>Serial #</th>
-            <th>Article</th>
-            <th>Date</th>
-            <th>Qty</th>
-            <th>Retail</th>
-            <th>Purchase</th>
-            <th>Warehouse</th>
-            <th>Location</th>
-            <th>Client order</th>
-            <th>Supplier order</th>
-            <th>Supplier</th>
-            <th>Note</th>
-            <th>Action</th>
+            {visibleColumns.map((columnKey) => (
+              <th key={columnKey}>
+                {columnKey === 'select' ? (
+                  <input
+                    type='checkbox'
+                    aria-label='Select all stock rows'
+                  />
+                ) : columnKey === 'name' ? (
+                  'Name'
+                ) : columnKey === 'serial' ? (
+                  'Serial #'
+                ) : columnKey === 'article' ? (
+                  'Article'
+                ) : columnKey === 'date' ? (
+                  'Date'
+                ) : columnKey === 'qty' ? (
+                  'Qty'
+                ) : columnKey === 'retail' ? (
+                  'Retail'
+                ) : columnKey === 'purchase' ? (
+                  'Purchase'
+                ) : columnKey === 'warehouse' ? (
+                  'Warehouse'
+                ) : columnKey === 'location' ? (
+                  'Location'
+                ) : columnKey === 'clientOrder' ? (
+                  'Client order'
+                ) : columnKey === 'supplierOrder' ? (
+                  'Supplier order'
+                ) : columnKey === 'supplier' ? (
+                  'Supplier'
+                ) : columnKey === 'note' ? (
+                  'Note'
+                ) : (
+                  'Action'
+                )}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -3093,81 +3458,100 @@ const StockTable = ({
 
                 return (
                   <>
-              <td>
-                <input
-                  type='checkbox'
-                  aria-label={`Select ${product.name}`}
-                />
-              </td>
-              <td className='catalog-name-cell'>{product.name}</td>
-              <td>{product.serialNumber}</td>
-              <td>{product.article}</td>
-              <td>{formatDate(product.purchaseDate)}</td>
-              <td>{product.quantity} pcs</td>
-              <td>{product.salePriceOptions[0] ?? product.price}</td>
-              <td>{product.price}</td>
-              <td>
-                {productWarehouseMetaById[product.id]?.warehouseName ??
-                  '-'}
-              </td>
-              <td>
-                {productWarehouseMetaById[product.id]?.locationName ??
-                  '-'}
-              </td>
-              <td>
-                {linkedSales.length === 0
-                  ? '-'
-                  : linkedSales.map((sale, index) => (
-                      <span key={`${product.id}-sale-${sale.id}`}>
-                        {index > 0 ? ', ' : null}
-                        <a
-                          className='settings-link-button'
-                          href={getOrderHref(
-                            sale,
-                            sale.kind === 'sale' ? 'sales' : 'orders',
-                          )}
-                        >
-                          {sale.recordNumber || sale.id.slice(0, 8)}
-                        </a>
-                      </span>
+                    {visibleColumns.map((columnKey) => (
+                      <td key={`${product.id}-${columnKey}`} className={columnKey === 'name' ? 'catalog-name-cell' : undefined}>
+                        {columnKey === 'select' ? (
+                          <input
+                            type='checkbox'
+                            aria-label={`Select ${product.name}`}
+                          />
+                        ) : columnKey === 'name' ? (
+                          product.name
+                        ) : columnKey === 'serial' ? (
+                          product.serialNumber
+                        ) : columnKey === 'article' ? (
+                          product.article
+                        ) : columnKey === 'date' ? (
+                          formatDate(product.purchaseDate)
+                        ) : columnKey === 'qty' ? (
+                          `${product.quantity} pcs`
+                        ) : columnKey === 'retail' ? (
+                          product.salePriceOptions[0] ?? product.price
+                        ) : columnKey === 'purchase' ? (
+                          product.price
+                        ) : columnKey === 'warehouse' ? (
+                          productWarehouseMetaById[product.id]
+                            ?.warehouseName ?? '-'
+                        ) : columnKey === 'location' ? (
+                          productWarehouseMetaById[product.id]
+                            ?.locationName ?? '-'
+                        ) : columnKey === 'clientOrder' ? (
+                          linkedSales.length === 0
+                            ? '-'
+                            : linkedSales.map((sale, index) => (
+                                <span key={`${product.id}-sale-${sale.id}`}>
+                                  {index > 0 ? ', ' : null}
+                                  <a
+                                    className='settings-link-button'
+                                    href={getOrderHref(
+                                      sale,
+                                      sale.kind === 'sale'
+                                        ? 'sales'
+                                        : 'orders',
+                                    )}
+                                  >
+                                    {sale.recordNumber ||
+                                      sale.id.slice(0, 8)}
+                                  </a>
+                                </span>
+                              ))
+                        ) : columnKey === 'supplierOrder' ? (
+                          linkedSupplierOrders.length === 0
+                            ? '-'
+                            : linkedSupplierOrders.map(
+                                (order, index) => (
+                                  <span
+                                    key={`${product.id}-supplier-${order.id}`}
+                                  >
+                                    {index > 0 ? ', ' : null}
+                                    <button
+                                      type='button'
+                                      className='settings-link-button'
+                                      onClick={() =>
+                                        onOpenSupplierOrder(order.id)
+                                      }
+                                    >
+                                      {order.number ||
+                                        order.orderBaseId ||
+                                        order.id}
+                                    </button>
+                                  </span>
+                                ),
+                              )
+                        ) : columnKey === 'supplier' ? (
+                          product.purchasePlace || '-'
+                        ) : columnKey === 'note' ? (
+                          product.note || '-'
+                        ) : (
+                          <div className='catalog-row-actions'>
+                            <button
+                              type='button'
+                              className='ghost-button'
+                              onClick={() => onEdit(product)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type='button'
+                              className='danger-button'
+                              onClick={() => onDelete(product)}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        )}
+                      </td>
                     ))}
-              </td>
-              <td>
-                {linkedSupplierOrders.length === 0
-                  ? '-'
-                  : linkedSupplierOrders.map((order, index) => (
-                      <span key={`${product.id}-supplier-${order.id}`}>
-                        {index > 0 ? ', ' : null}
-                        <button
-                          type='button'
-                          className='settings-link-button'
-                          onClick={() => onOpenSupplierOrder(order.id)}
-                        >
-                          {order.number || order.orderBaseId || order.id}
-                        </button>
-                      </span>
-                    ))}
-              </td>
-              <td>{product.purchasePlace || '-'}</td>
-              <td>{product.note || '-'}</td>
-              <td>
-                <div className='catalog-row-actions'>
-                  <button
-                    type='button'
-                    className='ghost-button'
-                    onClick={() => onEdit(product)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type='button'
-                    className='danger-button'
-                    onClick={() => onDelete(product)}
-                  >
-                    &times;
-                  </button>
-                </div>
-              </td>
                   </>
                 );
               })()}
