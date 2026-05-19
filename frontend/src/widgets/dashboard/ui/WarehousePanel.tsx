@@ -626,7 +626,7 @@ export const WarehousePanel = ({
         createdAt: order.createdAt,
         acceptedBy: order.createdBy || 'Administrator',
         approvedBy:
-          order.receiptStatus === 'new'
+          (item.receiptStatus ?? 'new') === 'new'
             ? '-'
             : order.createdBy || 'Administrator',
         acceptedAt: order.updatedAt,
@@ -634,7 +634,7 @@ export const WarehousePanel = ({
           order.status === 'cancelled' ||
           order.paymentStatus === 'cancelled'
             ? 'cancelled'
-            : order.receiptStatus,
+            : item.receiptStatus ?? 'new',
         paymentStatus: order.paymentStatus,
         note: order.note || '',
       })),
@@ -2071,6 +2071,7 @@ export const WarehousePanel = ({
               if (!matchedItem) return;
               setEditingSupplierOrder({
                 ...matchedOrder,
+                receiptStatus: matchedItem.receiptStatus ?? 'new',
                 number: buildSupplierOrderItemNumber(
                   matchedOrder,
                   matchedItem.itemIndex,
@@ -2112,6 +2113,7 @@ export const WarehousePanel = ({
               if (!matchedItem) return;
               setEditingSupplierOrder({
                 ...matchedOrder,
+                receiptStatus: matchedItem.receiptStatus ?? 'new',
                 number: buildSupplierOrderItemNumber(
                   matchedOrder,
                   matchedItem.itemIndex,
@@ -2501,6 +2503,10 @@ export const WarehousePanel = ({
           await takeOnChargeSupplierOrder(orderId, {
             autoGenerateSerialNumbers,
             serialNumbers,
+            itemIndex:
+              editingSupplierOrderItemIndex === null
+                ? undefined
+                : editingSupplierOrderItemIndex,
             warehouseId,
             locationId,
           });

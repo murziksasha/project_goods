@@ -10,7 +10,13 @@ import {
   formatProductSerialNumber,
   getNextProductSerialNumberValue,
 } from '../sequence/service';
-import { SupplierOrder, supplierOrderStatuses, supplierPaymentStatuses, type SupplierOrderDocument } from './model';
+import {
+  SupplierOrder,
+  receiptStatuses,
+  supplierOrderStatuses,
+  supplierPaymentStatuses,
+  type SupplierOrderDocument,
+} from './model';
 
 type SupplierOrderItemPayload = {
   lineId?: unknown;
@@ -19,6 +25,7 @@ type SupplierOrderItemPayload = {
   productName?: unknown;
   quantity?: unknown;
   price?: unknown;
+  receiptStatus?: unknown;
 };
 
 export type SupplierOrderPayload = {
@@ -37,6 +44,7 @@ export type SupplierOrderPayload = {
 type SupplierOrderTakeOnChargePayload = {
   autoGenerateSerialNumbers?: unknown;
   serialNumbers?: unknown;
+  itemIndex?: unknown;
   warehouseId?: unknown;
   locationId?: unknown;
 };
@@ -58,9 +66,23 @@ type NormalizedSupplierOrderItem = {
   productName: string;
   quantity: number;
   price: number;
+  receiptStatus: 'new' | 'approved' | 'received';
 };
 
-const normalizeItems = (items: unknown): NormalizedSupplierOrderItem[] => {
+const toReceiptStatus = (
+  value: unknown,
+): 'new' | 'approved' | 'received' =>
+  receiptStatuses.includes(String(value ?? '') as (typeof receiptStatuses)[number])
+    ? (value as 'new' | 'approved' | 'received')
+    : 'new';
+
+const normalizeItems = (
+  items: unknown,
+  existingItems?: Array<{
+    itemIndex: number;
+    receiptStatus?: 'new' | 'approved' | 'received';
+  }>,
+): NormalizedSupplierOrderItem[] => {
   if (!Array.isArray(items)) return [];
 
   return items
@@ -75,6 +97,19 @@ const normalizeItems = (items: unknown): NormalizedSupplierOrderItem[] => {
         : undefined;
       const lineId = toNonEmptyString(raw.lineId) || `line-${index + 1}`;
       const itemIndex = Number.isFinite(toNumber(raw.itemIndex)) ? Math.max(0, Math.floor(toNumber(raw.itemIndex))) : index;
+      const existingItem = existingItems?.find(
+        (currentItem) => currentItem.itemIndex === itemIndex,
+      );
+      const receiptStatus =
+        raw && typeof raw === 'object' && 'receiptStatus' in raw
+          ? toReceiptStatus(
+              (
+                raw as SupplierOrderItemPayload & {
+                  receiptStatus?: unknown;
+                }
+              ).receiptStatus,
+            )
+          : existingItem?.receiptStatus ?? 'new';
 
       return {
         lineId,
@@ -83,6 +118,7 @@ const normalizeItems = (items: unknown): NormalizedSupplierOrderItem[] => {
         productName,
         quantity,
         price,
+        receiptStatus,
       };
     })
     .filter((item) => item.productName.length >= 2 && Number.isFinite(item.quantity) && item.quantity > 0 && Number.isFinite(item.price) && item.price >= 0)
@@ -113,6 +149,7 @@ const formatSupplierOrder = (order: SupplierOrderDocument & { supplierName?: str
     productName: item.productName,
     quantity: item.quantity,
     price: item.price,
+    receiptStatus: item.receiptStatus ?? 'new',
   })),
   createdAt: order.createdAt.toISOString(),
   updatedAt: order.updatedAt.toISOString(),
@@ -169,7 +206,10 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   const nextSupplierId = toNonEmptyString(payload.supplierId) || existing.supplier.toString();
   isValidObjectIdOrThrow(nextSupplierId, 'supplierId');
   const nextDeliveryDate = toOptionalDate(payload.deliveryDate) ?? existing.deliveryDate;
-  const nextItems = payload.items === undefined ? existing.items : normalizeItems(payload.items);
+  const nextItems =
+    payload.items === undefined
+      ? existing.items
+      : normalizeItems(payload.items, existing.items);
   if (!nextItems.length) throw new Error('At least one product item is required.');
 
   existing.supplier = nextSupplierId as unknown as SupplierOrderDocument['supplier'];
@@ -290,9 +330,24 @@ export const takeOnChargeSupplierOrder = async (
     throw new Error('Cancelled supplier order cannot be taken on charge.');
   }
 
+  const requestedItemIndexRaw = toNumber(payload?.itemIndex);
+  const hasRequestedItemIndex = Number.isFinite(requestedItemIndexRaw);
+  const requestedItemIndex = hasRequestedItemIndex
+    ? Math.max(0, Math.floor(requestedItemIndexRaw))
+    : undefined;
+  const targetItems =
+    requestedItemIndex === undefined
+      ? existing.items ?? []
+      : (existing.items ?? []).filter(
+          (item) => item.itemIndex === requestedItemIndex,
+        );
+  if (targetItems.length === 0) {
+    throw new Error('Selected supplier order item not found.');
+  }
+
   const autoGenerateSerialNumbers =
     payload?.autoGenerateSerialNumbers !== false;
-  const totalUnits = (existing.items ?? []).reduce(
+  const totalUnits = targetItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
   );
@@ -342,7 +397,7 @@ export const takeOnChargeSupplierOrder = async (
     matchedWarehouse?.locations?.[0];
   let serialCursor = 0;
 
-  for (const item of existing.items ?? []) {
+  for (const item of targetItems) {
     const catalogName = item.catalogProductId
       ? (
           await CatalogProduct.findById(item.catalogProductId)
@@ -379,10 +434,33 @@ export const takeOnChargeSupplierOrder = async (
       await newProduct.validate();
       await newProduct.save();
     }
+    item.receiptStatus = 'received';
   }
 
-  existing.status = 'stocked';
-  existing.receiptStatus = 'received';
+  const isItemFullyReceived = async (itemIndex: number, quantity: number) => {
+    const expectedQuantity = Math.max(0, Math.floor(quantity));
+    if (expectedQuantity === 0) return true;
+    const receiptArticlePrefix = `${toReceiptArticle(
+      existing.orderBaseId,
+      itemIndex,
+    )}-`;
+    const receivedCount = await Product.countDocuments({
+      article: { $regex: `^${receiptArticlePrefix}` },
+    });
+    return receivedCount >= expectedQuantity;
+  };
+
+  const allItemsReceived = (
+    await Promise.all(
+      (existing.items ?? []).map(async (item) => {
+        if (item.receiptStatus === 'received') return true;
+        return isItemFullyReceived(item.itemIndex, item.quantity);
+      }),
+    )
+  ).every(Boolean);
+
+  existing.status = allItemsReceived ? 'stocked' : 'approved';
+  existing.receiptStatus = allItemsReceived ? 'received' : 'approved';
   if (existing.paymentStatus !== 'paid') existing.paymentStatus = 'pending';
   await existing.validate();
   await existing.save();

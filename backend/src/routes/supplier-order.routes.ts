@@ -50,6 +50,7 @@ supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', asy
         req.body as {
           autoGenerateSerialNumbers?: unknown;
           serialNumbers?: unknown;
+          itemIndex?: unknown;
           warehouseId?: unknown;
           locationId?: unknown;
         },
