@@ -3,6 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
+import { getSupplierSuggestions } from './supplier-suggestions';
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
@@ -44,6 +45,11 @@ type DraftItem = {
   quantity: number;
   price: number;
 };
+const EMPTY_WAREHOUSE_OPTIONS: Array<{
+  id: string;
+  name: string;
+  locations: Array<{ id: string; name: string }>;
+}> = [];
 
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
@@ -61,8 +67,10 @@ export const SupplierOrderModal = ({
   onCancelOrder,
   onSuccess,
   onError,
-  warehouseOptions = [],
+  warehouseOptions,
 }: SupplierOrderModalProps) => {
+  const resolvedWarehouseOptions =
+    warehouseOptions ?? EMPTY_WAREHOUSE_OPTIONS;
   const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
@@ -152,10 +160,10 @@ export const SupplierOrderModal = ({
     setIsSerialModalOpen(false);
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
-    const defaultWarehouse = warehouseOptions[0];
+    const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
     setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
-  }, [editingOrder, initialProductName, isOpen, warehouseOptions]);
+  }, [editingOrder, initialProductName, isOpen, resolvedWarehouseOptions]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);
@@ -196,11 +204,10 @@ export const SupplierOrderModal = ({
   }, [debouncedProductSearch]);
 
   const supplierOptions = useMemo(() => {
-    const normalized = debouncedSupplierSearch.trim().toLowerCase();
-    if (normalized.length < 2) return [];
-    return suppliers
-      .filter((supplier) => [supplier.name, supplier.phone].join(' ').toLowerCase().includes(normalized))
-      .slice(0, 8);
+    return getSupplierSuggestions(
+      suppliers,
+      debouncedSupplierSearch,
+    );
   }, [debouncedSupplierSearch, suppliers]);
 
   const selectedSupplier = useMemo(() => {
@@ -257,7 +264,7 @@ export const SupplierOrderModal = ({
     ? true
     : manualSerialNumbers.length === totalUnits &&
       manualSerialNumbers.every((serial) => serial.trim().length > 0);
-  const selectedTakeOnChargeWarehouse = warehouseOptions.find(
+  const selectedTakeOnChargeWarehouse = resolvedWarehouseOptions.find(
     (warehouse) => warehouse.id === takeOnChargeWarehouseId,
   );
   const selectedTakeOnChargeLocations =
@@ -692,7 +699,7 @@ export const SupplierOrderModal = ({
                     setTakeOnChargeWarehouseId(event.target.value)
                   }
                 >
-                  {warehouseOptions.map((warehouse) => (
+                    {resolvedWarehouseOptions.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </option>

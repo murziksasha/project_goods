@@ -1,16 +1,42 @@
-# Project Goods
+﻿# Project Goods
 
 Project Goods - full-stack приложение для учета товаров, клиентов, сотрудников, продаж и финансовых операций.
 
 ## Карта документации
 
-- [DEVELOPMENT.md](./DEVELOPMENT.md) - локальный запуск, переменные окружения и рабочие команды
-- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - структура репозитория и назначение директорий
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - техническая архитектура и поток данных
-- [API.md](./API.md) - обзор backend API и маршрутов
+### Базовая документация
+- [DEVELOPMENT.md](./DEVELOPMENT.md) - локальный запуск, окружение, команды
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - структура репозитория
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - архитектура и поток данных
+- [API.md](./API.md) - backend API и маршруты
+- [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
+
+### Flow-документы
+- [ORDER_FLOW.md](./ORDER_FLOW.md) - flow заказов
+- [SALE_FLOW.md](./SALE_FLOW.md) - flow продаж
+- [WAREHOUSE_FLOW.MD](./WAREHOUSE_FLOW.MD) - flow склада
+- [ACCOUNTING.MD](./ACCOUNTING.MD) - flow финансов/касс
+
+### Карточки и предметные спецификации
+- [ORDER_CARD.md](./ORDER_CARD.md) - требования к карточке заказа
+- [SALE_CARD.md](./SALE_CARD.md) - требования к карточке продажи
+- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
+- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
+- [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
+
+### Служебная и проектная документация
+- [DEMO_DATA.MD](./DEMO_DATA.MD) - демо-данные
+- [AGENTS.MD](./AGENTS.MD) - правила/контекст для агентов
+
+## UI Infrastructure Notes
+- Global fixed horizontal scrollbar is implemented via shared component:
+  - `frontend/src/shared/ui/GlobalHorizontalScrollbar.tsx`
+- It is mounted in:
+  - `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
+- Scope:
+  - works for all table wrappers with class `.catalog-table-wrap` when horizontal overflow exists.
 
 ## Технологии
-
 - Frontend: React, TypeScript, Vite, Axios, Bootstrap
 - Backend: Node.js, Express, TypeScript, Mongoose
 - Database: MongoDB
@@ -26,7 +52,7 @@ project_goods/
 |- package.json  # корневые команды для локальной разработки
 ```
 
-Подробности вынесены в [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
+Подробности: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
 
 ## Быстрый старт
 
@@ -39,7 +65,6 @@ npm run install:all
 ### 2. Подготовить переменные окружения
 
 Создайте локальные `.env` файлы на основе:
-
 - `backend/.env.example`
 - `frontend/.env.example`
 
@@ -56,7 +81,6 @@ npm run dev
 ```
 
 ### 5. Открыть приложение
-
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:5000/api`
 - Health check: `http://localhost:5000/api/health`
@@ -72,37 +96,6 @@ npm run db:down
 npm run install:all
 ```
 
-## Текущие функциональные области
-
-- каталог товаров и работа с остатками
-- управление клиентами и история клиента
-- продажи и сервисные заказы
-- управление сотрудниками
-- настройки компании
-- финансовые операции и кассы
-- наполнение демо-данными
-- экспорт товаров в Excel
-
-## Текущие ограничения
-
-- endpoint импорта товаров из Excel уже объявлен, но пока возвращает `501 Not Implemented`
-- автоматические тесты еще не настроены
-- frontend и backend пока управляются как отдельные пакеты, без workspace-инструмента
-
-## Принципы документации
-
-- корневые документы должны быстро вводить в проект и объяснять архитектуру
-- детали API лучше хранить в одном месте, без дублирования
-- при изменении структуры, скриптов или окружения документация обновляется в той же задаче
-- документация должна описывать реальные договоренности проекта, а не абстрактный идеал
-
 ## Client Status Localization Rule
-
 - Keep client status values in original English.
 - Do not translate client status enums in UI labels, API payloads, or documentation.
-
-## Additional Docs
-
-- [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) - state management and multi-user roadmap
-- [ORDER_FLOW.md](./ORDER_FLOW.md) - order creation and clients goods rules
-

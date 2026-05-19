@@ -26,6 +26,7 @@ import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
 import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
+import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 
 type PageKey =
   | 'home'
@@ -52,6 +53,7 @@ const pageKeys: PageKey[] = [
 const ordersTabs: OrdersTab[] = ['orders', 'sales', 'supplierOrders'];
 const ordersTabStorageKey = 'project-goods.orders-tab';
 const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
+const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
 
 const readEmployeeSnapshot = (): Employee | null => {
   const rawValue = window.localStorage.getItem(employeeSnapshotStorageKey);
@@ -99,6 +101,12 @@ const getStoredOrdersTab = (): OrdersTab => {
   const tab = window.localStorage.getItem(ordersTabStorageKey);
 
   return ordersTabs.includes(tab as OrdersTab) ? (tab as OrdersTab) : 'orders';
+};
+
+const getStoredSidebarCollapsed = (): boolean => {
+  const rawValue = window.localStorage.getItem(sidebarCollapsedStorageKey);
+
+  return rawValue === 'true';
 };
 
 const createEmptyInviteState = () => ({
@@ -227,7 +235,7 @@ export const DashboardPage = () => {
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getStoredSidebarCollapsed);
   const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(
     () => getSaleIdFromUrl() || null,
   );
@@ -325,6 +333,10 @@ export const DashboardPage = () => {
         : null,
     );
   }, [activeOrdersTab, activePage, isCreateOrderOpen]);
+
+  useEffect(() => {
+    window.localStorage.setItem(sidebarCollapsedStorageKey, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     const syncInviteToken = () => {
@@ -899,6 +911,7 @@ export const DashboardPage = () => {
             />
           )}
         </div>
+        <GlobalHorizontalScrollbar />
       </section>
     </main>
   );
