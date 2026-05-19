@@ -44,8 +44,6 @@ type StockColumnKey =
   | 'serial'
   | 'article'
   | 'date'
-  | 'qty'
-  | 'retail'
   | 'purchase'
   | 'warehouse'
   | 'location'
@@ -295,8 +293,6 @@ const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
     'serial',
     'article',
     'date',
-    'qty',
-    'retail',
     'purchase',
     'warehouse',
     'location',
@@ -1434,10 +1430,6 @@ export const WarehousePanel = ({
         return 'Article';
       case 'date':
         return 'Date';
-      case 'qty':
-        return 'Qty';
-      case 'retail':
-        return 'Retail';
       case 'purchase':
         return 'Purchase';
       case 'warehouse':
@@ -2133,7 +2125,6 @@ export const WarehousePanel = ({
           This warehouse section is ready for the next workflow.
         </p>
       )}
-
       {serviceCenterModalId ? (
         <ModalShell
           title={
@@ -3412,10 +3403,6 @@ const StockTable = ({
                   'Article'
                 ) : columnKey === 'date' ? (
                   'Date'
-                ) : columnKey === 'qty' ? (
-                  'Qty'
-                ) : columnKey === 'retail' ? (
-                  'Retail'
                 ) : columnKey === 'purchase' ? (
                   'Purchase'
                 ) : columnKey === 'warehouse' ? (
@@ -3473,10 +3460,6 @@ const StockTable = ({
                           product.article
                         ) : columnKey === 'date' ? (
                           formatDate(product.purchaseDate)
-                        ) : columnKey === 'qty' ? (
-                          `${product.quantity} pcs`
-                        ) : columnKey === 'retail' ? (
-                          product.salePriceOptions[0] ?? product.price
                         ) : columnKey === 'purchase' ? (
                           product.price
                         ) : columnKey === 'warehouse' ? (
@@ -3529,7 +3512,9 @@ const StockTable = ({
                                 ),
                               )
                         ) : columnKey === 'supplier' ? (
-                          product.purchasePlace || '-'
+                          linkedSupplierOrders[0]?.supplierName ||
+                          product.purchasePlace ||
+                          '-'
                         ) : columnKey === 'note' ? (
                           product.note || '-'
                         ) : (

@@ -183,6 +183,7 @@
 
 .catalog-table-wrap {
   overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
 .catalog-table {
@@ -457,6 +458,22 @@
 
 .warehouse-search-clear:hover {
   color: #64748b;
+}
+
+.global-fixed-h-scrollbar {
+  position: fixed;
+  bottom: 0;
+  height: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  z-index: 70;
+  background: rgba(238, 242, 246, 0.95);
+  border-top: 1px solid #d3dbe6;
+  pointer-events: auto;
+}
+
+.global-fixed-h-scrollbar-inner {
+  height: 1px;
 }
 
 .warehouse-search-modes {

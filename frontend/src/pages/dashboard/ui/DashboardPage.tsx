@@ -26,6 +26,7 @@ import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
 import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
+import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 
 type PageKey =
   | 'home'
@@ -910,6 +911,7 @@ export const DashboardPage = () => {
             />
           )}
         </div>
+        <GlobalHorizontalScrollbar />
       </section>
     </main>
   );
