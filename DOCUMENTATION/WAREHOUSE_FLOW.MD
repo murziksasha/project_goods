@@ -52,10 +52,15 @@ This document defines current warehouse requirements for stock balances, receipt
 - One supplier order with multiple items is rendered as multiple receipt rows.
 
 ### 6) Row Click Behavior
-- Click `#` -> open `SupplierOrderModal` by `supplierOrderId`.
+- Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
 - Click `Product` -> open product editor from catalog.
 - Click `Supplier` -> open supplier editor from suppliers catalog.
 - If catalog/supplier entity is not found, show explicit error toast.
+
+### 6.1) Supplier Order Item Numbering
+- Receipt row number must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
+- `N` is 1-based item index in supplier order (`itemIndex + 1`), examples: `SO-1779142808517-1`, `SO-1779142808517-2`.
+- Click by number with postfix must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
 
 ### 7) Status/Cancel Projection
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.

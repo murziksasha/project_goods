@@ -5,28 +5,29 @@ Project Goods - full-stack приложение для учета товаров
 ## Карта документации
 
 ### Базовая документация
-- [DEVELOPMENT.md](./DEVELOPMENT.md) - локальный запуск, окружение, команды
-- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - структура репозитория
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - архитектура и поток данных
-- [API.md](./API.md) - backend API и маршруты
-- [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
+- [DEVELOPMENT.md](./DOCUMENTATION/DEVELOPMENT.md) - локальный запуск, окружение, команды
+- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория
+- [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
+- [API.md](./DOCUMENTATION/API.md) - backend API и маршруты
+- [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
 
 ### Flow-документы
-- [ORDER_FLOW.md](./ORDER_FLOW.md) - flow заказов
-- [SALE_FLOW.md](./SALE_FLOW.md) - flow продаж
-- [WAREHOUSE_FLOW.MD](./WAREHOUSE_FLOW.MD) - flow склада
-- [ACCOUNTING.MD](./ACCOUNTING.MD) - flow финансов/касс
+- [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
+- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж
+- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая правило номера позиции поставки: `SO-...-N`)
+- [ACCOUNTING.MD](./DOCUMENTATION/ACCOUNTING.MD) - flow финансов/касс
 
 ### Карточки и предметные спецификации
-- [ORDER_CARD.md](./ORDER_CARD.md) - требования к карточке заказа
-- [SALE_CARD.md](./SALE_CARD.md) - требования к карточке продажи
-- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
-- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
-- [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
+- [ORDER_CARD.md](./DOCUMENTATION/ORDER_CARD.md) - требования к карточке заказа
+- [SALE_CARD.md](./DOCUMENTATION/SALE_CARD.md) - требования к карточке продажи
+- [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - правила по клиентам и статусам
+- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
+- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
+- [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
 
 ### Служебная и проектная документация
-- [DEMO_DATA.MD](./DEMO_DATA.MD) - демо-данные
-- [AGENTS.MD](./AGENTS.MD) - правила/контекст для агентов
+- [DEMO_DATA.MD](./DOCUMENTATION/DEMO_DATA.MD) - демо-данные
+- [AGENTS.MD](./DOCUMENTATION/AGENTS.MD) - правила/контекст для агентов
 
 ## UI Infrastructure Notes
 - Global fixed horizontal scrollbar is implemented via shared component:
@@ -52,7 +53,7 @@ project_goods/
 |- package.json  # корневые команды для локальной разработки
 ```
 
-Подробности: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
+Подробности: [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md).
 
 ## Быстрый старт
 
@@ -96,6 +97,3 @@ npm run db:down
 npm run install:all
 ```
 
-## Client Status Localization Rule
-- Keep client status values in original English.
-- Do not translate client status enums in UI labels, API payloads, or documentation.

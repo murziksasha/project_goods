@@ -3,7 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
-import { getSupplierSuggestions } from './supplier-suggestions';
+import { getSupplierSuggestions } from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
