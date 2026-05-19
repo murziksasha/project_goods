@@ -7,7 +7,9 @@ import { Product } from '../product/model';
 import { CatalogProduct } from '../catalog-product/model';
 import { WarehouseSettings } from '../warehouse-settings/model';
 import {
+  formatProductArticle,
   formatProductSerialNumber,
+  getNextProductArticleValue,
   getNextProductSerialNumberValue,
 } from '../sequence/service';
 import {
@@ -44,6 +46,8 @@ export type SupplierOrderPayload = {
 type SupplierOrderTakeOnChargePayload = {
   autoGenerateSerialNumbers?: unknown;
   serialNumbers?: unknown;
+  autoGenerateArticles?: unknown;
+  articleBase?: unknown;
   itemIndex?: unknown;
   warehouseId?: unknown;
   locationId?: unknown;
@@ -291,9 +295,6 @@ export const paySupplierOrder = async (
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };
 
-const toReceiptArticle = (orderBaseId: string, itemIndex: number) =>
-  `SO-${orderBaseId.replace(/[^A-Za-z0-9]/g, '').slice(-8)}-${itemIndex + 1}`;
-
 const reserveNextUniqueProductSerialNumber = async () => {
   for (let attempts = 0; attempts < 2000; attempts += 1) {
     const candidate = formatProductSerialNumber(
@@ -305,6 +306,9 @@ const reserveNextUniqueProductSerialNumber = async () => {
 
   throw new Error('Failed to generate unique product serial number.');
 };
+
+const reserveNextProductArticle = async () =>
+  formatProductArticle(await getNextProductArticleValue());
 
 export const cancelSupplierOrder = async (supplierOrderId: string) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
@@ -347,6 +351,7 @@ export const takeOnChargeSupplierOrder = async (
 
   const autoGenerateSerialNumbers =
     payload?.autoGenerateSerialNumbers !== false;
+  const autoGenerateArticles = payload?.autoGenerateArticles !== false;
   const totalUnits = targetItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
@@ -356,6 +361,8 @@ export const takeOnChargeSupplierOrder = async (
         .map((value) => toNonEmptyString(value).toUpperCase())
         .filter(Boolean)
     : [];
+  const manualArticleBase = toNonEmptyString(payload?.articleBase).toUpperCase();
+  const useManualArticle = !autoGenerateArticles;
 
   if (
     !autoGenerateSerialNumbers &&
@@ -382,7 +389,6 @@ export const takeOnChargeSupplierOrder = async (
       );
     }
   }
-
   const supplier = await Supplier.findById(existing.supplier).lean();
   const warehouseSettings = await WarehouseSettings.findOne().lean();
   const configuredWarehouses = warehouseSettings?.warehouses ?? [];
@@ -407,6 +413,9 @@ export const takeOnChargeSupplierOrder = async (
       : undefined;
     const normalizedName = toNonEmptyString(catalogName || item.productName);
     if (!normalizedName) continue;
+    const articleForItem = useManualArticle
+      ? manualArticleBase
+      : await reserveNextProductArticle();
 
     const quantity = Math.max(0, Math.floor(item.quantity));
     for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
@@ -417,7 +426,7 @@ export const takeOnChargeSupplierOrder = async (
 
       const newProduct = new Product({
         name: normalizedName,
-        article: `${toReceiptArticle(existing.orderBaseId, item.itemIndex)}-${unitIndex + 1}`,
+        article: articleForItem,
         serialNumber,
         price: item.price,
         salePriceOptions: [],
@@ -437,27 +446,9 @@ export const takeOnChargeSupplierOrder = async (
     item.receiptStatus = 'received';
   }
 
-  const isItemFullyReceived = async (itemIndex: number, quantity: number) => {
-    const expectedQuantity = Math.max(0, Math.floor(quantity));
-    if (expectedQuantity === 0) return true;
-    const receiptArticlePrefix = `${toReceiptArticle(
-      existing.orderBaseId,
-      itemIndex,
-    )}-`;
-    const receivedCount = await Product.countDocuments({
-      article: { $regex: `^${receiptArticlePrefix}` },
-    });
-    return receivedCount >= expectedQuantity;
-  };
-
-  const allItemsReceived = (
-    await Promise.all(
-      (existing.items ?? []).map(async (item) => {
-        if (item.receiptStatus === 'received') return true;
-        return isItemFullyReceived(item.itemIndex, item.quantity);
-      }),
-    )
-  ).every(Boolean);
+  const allItemsReceived = (existing.items ?? []).every(
+    (item) => item.receiptStatus === 'received',
+  );
 
   existing.status = allItemsReceived ? 'stocked' : 'approved';
   existing.receiptStatus = allItemsReceived ? 'received' : 'approved';

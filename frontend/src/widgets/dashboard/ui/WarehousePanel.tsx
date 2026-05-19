@@ -2494,6 +2494,8 @@ export const WarehousePanel = ({
         onTakeOnCharge={async ({
           autoGenerateSerialNumbers,
           serialNumbers,
+          autoGenerateArticles,
+          articleBase,
           warehouseId,
           locationId,
         }) => {
@@ -2503,6 +2505,8 @@ export const WarehousePanel = ({
           await takeOnChargeSupplierOrder(orderId, {
             autoGenerateSerialNumbers,
             serialNumbers,
+            autoGenerateArticles,
+            articleBase: articleBase.trim().toUpperCase(),
             itemIndex:
               editingSupplierOrderItemIndex === null
                 ? undefined

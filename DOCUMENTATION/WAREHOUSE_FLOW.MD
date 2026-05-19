@@ -88,10 +88,19 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 10) Per-Unit Materialization
 - Take-on-charge creates one product row per unit (`quantity = 1` each), each with unique `serialNumber`.
+- For one item/suborder (`...-N`) all created units must share the same `article`.
 
 ### 11) Warehouse/Location Required On Take-On-Charge
 - Operator must select `warehouse` and `location`.
 - API payload must include `warehouseId` and `locationId`.
+
+### 11.1) Article Behavior In Take-On-Charge Modal
+- In `Оприходование` modal, checkbox `Автогенерация артикулов` is disabled by default.
+- When enabled: backend generates one article for the selected item (suborder) in sequence `A000001`, `A000002`, ... and applies this single article to all units of that item quantity.
+- When disabled: UI shows one manual `article` input; entered value is applied as-is to all units of that item quantity.
+- When disabled and input is empty: take-on-charge is still allowed, and products are stored with empty `article`.
+- Article is not required to be globally unique.
+- `SO-*` pattern is not used for article generation anymore (legacy branch removed).
 
 ## Global UI Requirement
 

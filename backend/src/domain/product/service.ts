@@ -204,3 +204,17 @@ export const ensureProductNameIsNotUnique = async () => {
   if (!nameIndex) return;
   await Product.collection.dropIndex('name_1');
 };
+
+export const ensureProductArticleIsNotUnique = async () => {
+  const indexes = await Product.collection.indexes();
+  const articleUniqueIndex = indexes.find((index) => {
+    const keys = (index as { key?: Record<string, unknown> }).key ?? {};
+    return (
+      (index as { unique?: boolean }).unique === true &&
+      Object.keys(keys).length === 1 &&
+      Object.prototype.hasOwnProperty.call(keys, 'article')
+    );
+  });
+  if (!articleUniqueIndex?.name) return;
+  await Product.collection.dropIndex(articleUniqueIndex.name);
+};

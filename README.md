@@ -14,7 +14,7 @@ Project Goods - full-stack приложение для учета товаров
 ### Flow-документы
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
 - [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж
-- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая правило номера позиции поставки: `SO-...-N`)
+- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая актуальные правила артикула: `A000001+`, без `SO-*` генерации артикула)
 - [ACCOUNTING.MD](./DOCUMENTATION/ACCOUNTING.MD) - flow финансов/касс
 
 ### Карточки и предметные спецификации

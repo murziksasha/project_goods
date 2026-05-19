@@ -42,6 +42,8 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
 export type TakeOnChargePayload = {
   autoGenerateSerialNumbers?: boolean;
   serialNumbers?: string[];
+  autoGenerateArticles?: boolean;
+  articleBase?: string;
   itemIndex?: number;
   warehouseId?: string;
   locationId?: string;

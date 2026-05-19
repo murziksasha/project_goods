@@ -386,9 +386,23 @@ export const SupplierOrdersWorkspace = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
-        onTakeOnCharge={async () => {
+        onTakeOnCharge={async ({
+          autoGenerateSerialNumbers,
+          serialNumbers,
+          autoGenerateArticles,
+          articleBase,
+          warehouseId,
+          locationId,
+        }) => {
           if (!editingOrder) return;
-          await takeOnChargeSupplierOrder(editingOrder.id);
+          await takeOnChargeSupplierOrder(editingOrder.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+            autoGenerateArticles,
+            articleBase: articleBase.trim().toUpperCase(),
+            warehouseId,
+            locationId,
+          });
           onSuccess('Замовлення оприбутковано.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
