@@ -3,7 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
-import { getSupplierSuggestions } from './supplier-suggestions';
+import { getSupplierSuggestions } from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
@@ -26,6 +26,8 @@ type SupplierOrderModalProps = {
   onTakeOnCharge?: (payload: {
     autoGenerateSerialNumbers: boolean;
     serialNumbers: string[];
+    autoGenerateArticles: boolean;
+    articleBase: string;
     warehouseId: string;
     locationId: string;
   }) => Promise<void> | void;
@@ -85,6 +87,8 @@ export const SupplierOrderModal = ({
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
+  const [isAutoArticleEnabled, setIsAutoArticleEnabled] = useState(false);
+  const [manualArticleBase, setManualArticleBase] = useState('');
   const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] = useState('');
   const [takeOnChargeLocationId, setTakeOnChargeLocationId] = useState('');
 
@@ -160,6 +164,8 @@ export const SupplierOrderModal = ({
     setIsSerialModalOpen(false);
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
+    setIsAutoArticleEnabled(false);
+    setManualArticleBase('');
     const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
     setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
@@ -539,6 +545,8 @@ export const SupplierOrderModal = ({
                 setIsSerialModalOpen(true);
                 setIsAutoSerialEnabled(true);
                 setManualSerialNumbers(Array.from({ length: totalUnits }, () => ''));
+                setIsAutoArticleEnabled(false);
+                setManualArticleBase('');
               }}
               style={{ background: '#16a34a' }}
             >
@@ -659,7 +667,7 @@ export const SupplierOrderModal = ({
                     setIsAutoSerialEnabled(event.target.checked)
                   }
                 />
-                <span>Автогенерация серийных номеров бекендом</span>
+                <span>Автогенерация серийных номеров</span>
               </label>
               {!isAutoSerialEnabled ? (
                 <div className='warehouse-receipt-modal-grid'>
@@ -690,6 +698,28 @@ export const SupplierOrderModal = ({
                     </label>
                   ))}
                 </div>
+              ) : null}
+              <label className='supplier-serial-auto'>
+                <input
+                  type='checkbox'
+                  checked={isAutoArticleEnabled}
+                  onChange={(event) =>
+                    setIsAutoArticleEnabled(event.target.checked)
+                  }
+                />
+                <span>Автогенерация артикулов</span>
+              </label>
+              {!isAutoArticleEnabled ? (
+                <label className='field field-wide'>
+                  <span>Артикул для всего количества</span>
+                  <input
+                    value={manualArticleBase}
+                    onChange={(event) =>
+                      setManualArticleBase(event.target.value.toUpperCase())
+                    }
+                    placeholder='Например: SSD-KINGSTON'
+                  />
+                </label>
               ) : null}
               <label className='field field-wide'>
                 <span>Warehouse</span>
@@ -744,6 +774,9 @@ export const SupplierOrderModal = ({
                 }
                 onClick={async () => {
                   if (!onTakeOnCharge) return;
+                  const normalizedArticleBase = manualArticleBase
+                    .trim()
+                    .toUpperCase();
                   setIsActionSubmitting(true);
                   try {
                     await onTakeOnCharge({
@@ -753,6 +786,10 @@ export const SupplierOrderModal = ({
                         : manualSerialNumbers.map((item) =>
                             item.trim(),
                           ),
+                      autoGenerateArticles: isAutoArticleEnabled,
+                      articleBase: isAutoArticleEnabled
+                        ? ''
+                        : normalizedArticleBase,
                       warehouseId: takeOnChargeWarehouseId,
                       locationId: takeOnChargeLocationId,
                     });

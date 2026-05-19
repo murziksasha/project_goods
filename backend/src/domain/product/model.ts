@@ -15,7 +15,6 @@ export const productSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
       maxlength: [50, 'Article must contain no more than 50 characters'],
-      unique: true,
     },
     serialNumber: {
       type: String,

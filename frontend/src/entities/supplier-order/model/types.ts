@@ -17,6 +17,7 @@ export type SupplierOrderItem = {
   productName: string;
   quantity: number;
   price: number;
+  receiptStatus?: SupplierReceiptStatus;
 };
 
 export type SupplierOrder = {

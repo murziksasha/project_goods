@@ -26,6 +26,11 @@ const supplierOrderItemSchema = new mongoose.Schema(
     productName: { type: String, required: true, trim: true, minlength: 2, maxlength: 200 },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 },
+    receiptStatus: {
+      type: String,
+      enum: receiptStatuses,
+      default: 'new',
+    },
   },
   { _id: false },
 );

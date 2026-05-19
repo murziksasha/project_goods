@@ -52,10 +52,25 @@ This document defines current warehouse requirements for stock balances, receipt
 - One supplier order with multiple items is rendered as multiple receipt rows.
 
 ### 6) Row Click Behavior
-- Click `#` -> open `SupplierOrderModal` by `supplierOrderId`.
+- Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
 - Click `Product` -> open product editor from catalog.
 - Click `Supplier` -> open supplier editor from suppliers catalog.
 - If catalog/supplier entity is not found, show explicit error toast.
+
+### 6.1) Supplier Order Item Numbering
+- Receipt row number must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
+- `N` is 1-based item index in supplier order (`itemIndex + 1`), examples: `SO-1779142808517-1`, `SO-1779142808517-2`.
+- Click by number with postfix must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
+
+### 6.2) Item-Level Suborder Status Model
+- Supplier order with multiple items is treated in warehouse receipts as independent item-level suborders.
+- Source of truth for receipt row status is `order.items[].receiptStatus`, not global `order.receiptStatus`.
+- Initial status for each item is `new`.
+- When operator takes on charge `...-N`, only selected `itemIndex` changes to `received`.
+- Other items in the same supplier order (`...-2`, `...-3`, etc.) keep `new` until they are taken on charge individually.
+- Receipt row status projection priority:
+1. if `order.status = cancelled` OR `order.paymentStatus = cancelled` -> row status `cancelled`
+2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
 
 ### 7) Status/Cancel Projection
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.
@@ -64,7 +79,7 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 8) Take-On-Charge Availability
 - Action `Оприбуткувати` in receipt-linked supplier order is allowed regardless of payment state (`pending` / `paid`).
 - Locks for action/edit:
-1. `receiptStatus = received`
+1. selected item `receiptStatus = received`
 2. `status = cancelled`
 3. `paymentStatus = cancelled`
 
@@ -73,10 +88,19 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 10) Per-Unit Materialization
 - Take-on-charge creates one product row per unit (`quantity = 1` each), each with unique `serialNumber`.
+- For one item/suborder (`...-N`) all created units must share the same `article`.
 
 ### 11) Warehouse/Location Required On Take-On-Charge
 - Operator must select `warehouse` and `location`.
 - API payload must include `warehouseId` and `locationId`.
+
+### 11.1) Article Behavior In Take-On-Charge Modal
+- In `Оприходование` modal, checkbox `Автогенерация артикулов` is disabled by default.
+- When enabled: backend generates one article for the selected item (suborder) in sequence `A000001`, `A000002`, ... and applies this single article to all units of that item quantity.
+- When disabled: UI shows one manual `article` input; entered value is applied as-is to all units of that item quantity.
+- When disabled and input is empty: take-on-charge is still allowed, and products are stored with empty `article`.
+- Article is not required to be globally unique.
+- `SO-*` pattern is not used for article generation anymore (legacy branch removed).
 
 ## Global UI Requirement
 

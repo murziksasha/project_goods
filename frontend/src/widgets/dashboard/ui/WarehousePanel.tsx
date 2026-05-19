@@ -35,6 +35,10 @@ import {
   getWarehouseSettings,
   updateWarehouseSettings,
 } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import {
+  buildSupplierOrderItemNumber,
+  mergeSupplierOrderItemUpdate,
+} from '../model/supplier-order-utils';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseColumnsTab = 'stock' | 'receipts';
@@ -111,6 +115,7 @@ type ReceiptRow = {
   id: string;
   number: string;
   supplierOrderId?: string;
+  supplierOrderItemIndex?: number;
   catalogProductId?: string;
   productName: string;
   quantity: number;
@@ -125,6 +130,11 @@ type ReceiptRow = {
   status: ReceiptStatus;
   paymentStatus?: 'pending' | 'paid' | 'cancelled';
   note: string;
+};
+type SupplierOrderLink = {
+  order: SupplierOrder;
+  itemIndex: number;
+  displayNumber: string;
 };
 type WarehouseItem = {
   id: string;
@@ -527,6 +537,12 @@ export const WarehousePanel = ({
     useState(false);
   const [editingSupplierOrder, setEditingSupplierOrder] =
     useState<SupplierOrder | null>(null);
+  const [editingSupplierOrderSource, setEditingSupplierOrderSource] =
+    useState<SupplierOrder | null>(null);
+  const [
+    editingSupplierOrderItemIndex,
+    setEditingSupplierOrderItemIndex,
+  ] = useState<number | null>(null);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
     [],
   );
@@ -598,8 +614,9 @@ export const WarehousePanel = ({
       order.items.map((item) => ({
         id: `${order.id}-${item.itemIndex}`,
         supplierOrderId: order.id,
+        supplierOrderItemIndex: item.itemIndex,
         catalogProductId: item.catalogProductId,
-        number: order.number || order.orderBaseId || order.id,
+        number: buildSupplierOrderItemNumber(order, item.itemIndex),
         productName: item.productName,
         quantity: item.quantity,
         price: item.price,
@@ -609,7 +626,7 @@ export const WarehousePanel = ({
         createdAt: order.createdAt,
         acceptedBy: order.createdBy || 'Administrator',
         approvedBy:
-          order.receiptStatus === 'new'
+          (item.receiptStatus ?? 'new') === 'new'
             ? '-'
             : order.createdBy || 'Administrator',
         acceptedAt: order.updatedAt,
@@ -617,7 +634,7 @@ export const WarehousePanel = ({
           order.status === 'cancelled' ||
           order.paymentStatus === 'cancelled'
             ? 'cancelled'
-            : order.receiptStatus,
+            : item.receiptStatus ?? 'new',
         paymentStatus: order.paymentStatus,
         note: order.note || '',
       })),
@@ -1094,26 +1111,33 @@ export const WarehousePanel = ({
     }, {});
 
     const byCatalogProductId = supplierOrders.reduce<
-      Record<string, SupplierOrder[]>
+      Record<string, SupplierOrderLink[]>
     >((acc, order) => {
       order.items.forEach((item) => {
         if (!item.catalogProductId) return;
         acc[item.catalogProductId] = [
           ...(acc[item.catalogProductId] ?? []),
-          order,
+          {
+            order,
+            itemIndex: item.itemIndex,
+            displayNumber: buildSupplierOrderItemNumber(
+              order,
+              item.itemIndex,
+            ),
+          },
         ];
       });
       return acc;
     }, {});
 
-    return products.reduce<Record<string, SupplierOrder[]>>(
+    return products.reduce<Record<string, SupplierOrderLink[]>>(
       (acc, product) => {
         const matchedCatalogIds =
           byCatalogProductName[product.name.trim().toLowerCase()] ?? [];
-        const orderMap = new Map<string, SupplierOrder>();
+        const orderMap = new Map<string, SupplierOrderLink>();
         matchedCatalogIds.forEach((catalogId) => {
-          (byCatalogProductId[catalogId] ?? []).forEach((order) =>
-            orderMap.set(order.id, order),
+          (byCatalogProductId[catalogId] ?? []).forEach((link) =>
+            orderMap.set(`${link.order.id}-${link.itemIndex}`, link),
           );
         });
         acc[product.id] = Array.from(orderMap.values());
@@ -2036,12 +2060,26 @@ export const WarehousePanel = ({
             productWarehouseMetaById={productWarehouseMetaById}
             onEdit={onProductEdit}
             onDelete={onProductDelete}
-            onOpenSupplierOrder={(supplierOrderId) => {
+            onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
                 (order) => order.id === supplierOrderId,
               );
               if (!matchedOrder) return;
-              setEditingSupplierOrder(matchedOrder);
+              const matchedItem = matchedOrder.items.find(
+                (item) => item.itemIndex === itemIndex,
+              );
+              if (!matchedItem) return;
+              setEditingSupplierOrder({
+                ...matchedOrder,
+                receiptStatus: matchedItem.receiptStatus ?? 'new',
+                number: buildSupplierOrderItemNumber(
+                  matchedOrder,
+                  matchedItem.itemIndex,
+                ),
+                items: [matchedItem],
+              });
+              setEditingSupplierOrderSource(matchedOrder);
+              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
               setIsSupplierOrderModalOpen(true);
             }}
           />
@@ -2067,7 +2105,23 @@ export const WarehousePanel = ({
                 (order) => order.id === receipt.supplierOrderId,
               );
               if (!matchedOrder) return;
-              setEditingSupplierOrder(matchedOrder);
+              const itemIndex = receipt.supplierOrderItemIndex;
+              if (itemIndex === undefined) return;
+              const matchedItem = matchedOrder.items.find(
+                (item) => item.itemIndex === itemIndex,
+              );
+              if (!matchedItem) return;
+              setEditingSupplierOrder({
+                ...matchedOrder,
+                receiptStatus: matchedItem.receiptStatus ?? 'new',
+                number: buildSupplierOrderItemNumber(
+                  matchedOrder,
+                  matchedItem.itemIndex,
+                ),
+                items: [matchedItem],
+              });
+              setEditingSupplierOrderSource(matchedOrder);
+              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
               setIsSupplierOrderModalOpen(true);
             }}
             onOpenProduct={(receipt) => {
@@ -2431,6 +2485,8 @@ export const WarehousePanel = ({
         onClose={() => {
           setIsSupplierOrderModalOpen(false);
           setEditingSupplierOrder(null);
+          setEditingSupplierOrderSource(null);
+          setEditingSupplierOrderItemIndex(null);
         }}
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
@@ -2438,13 +2494,23 @@ export const WarehousePanel = ({
         onTakeOnCharge={async ({
           autoGenerateSerialNumbers,
           serialNumbers,
+          autoGenerateArticles,
+          articleBase,
           warehouseId,
           locationId,
         }) => {
           if (!editingSupplierOrder) return;
-          await takeOnChargeSupplierOrder(editingSupplierOrder.id, {
+          const orderId =
+            editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
+          await takeOnChargeSupplierOrder(orderId, {
             autoGenerateSerialNumbers,
             serialNumbers,
+            autoGenerateArticles,
+            articleBase: articleBase.trim().toUpperCase(),
+            itemIndex:
+              editingSupplierOrderItemIndex === null
+                ? undefined
+                : editingSupplierOrderItemIndex,
             warehouseId,
             locationId,
           });
@@ -2455,7 +2521,9 @@ export const WarehousePanel = ({
         }}
         onCancelOrder={async () => {
           if (!editingSupplierOrder) return;
-          await cancelSupplierOrder(editingSupplierOrder.id);
+          const orderId =
+            editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
+          await cancelSupplierOrder(orderId);
           onSuccess('Order cancelled.');
           await refreshSupplierOrders();
         }}
@@ -2464,12 +2532,21 @@ export const WarehousePanel = ({
         ) => {
           try {
             if (editingSupplierOrder) {
+              const sourceOrder =
+                editingSupplierOrderSource ?? editingSupplierOrder;
               await Promise.all(
                 payload.items.map((item) => {
-                  const previousItem = editingSupplierOrder.items.find(
-                    (currentItem) =>
-                      currentItem.itemIndex === item.itemIndex,
-                  );
+                  const previousItem =
+                    editingSupplierOrderItemIndex === null
+                      ? sourceOrder.items.find(
+                          (currentItem) =>
+                            currentItem.itemIndex === item.itemIndex,
+                        )
+                      : sourceOrder.items.find(
+                          (currentItem) =>
+                            currentItem.itemIndex ===
+                            editingSupplierOrderItemIndex,
+                        );
                   if (!previousItem) return Promise.resolve();
                   return syncSupplierOrderRenameToCatalog(
                     previousItem.catalogProductId,
@@ -2492,9 +2569,21 @@ export const WarehousePanel = ({
               items: payload.items,
             };
             if (editingSupplierOrder) {
-              await updateSupplierOrder(editingSupplierOrder.id, {
+              const orderSource =
+                editingSupplierOrderSource ?? editingSupplierOrder;
+              const mergedItems =
+                editingSupplierOrderItemIndex === null
+                  ? payload.items
+                  : mergeSupplierOrderItemUpdate({
+                      sourceOrder: orderSource,
+                      selectedItemIndex: editingSupplierOrderItemIndex,
+                      updatedItem: payload.items[0],
+                    });
+              await updateSupplierOrder(orderSource.id, {
                 ...supplierOrderPayload,
-                orderBaseId: editingSupplierOrder.orderBaseId,
+                number: orderSource.number,
+                orderBaseId: orderSource.orderBaseId,
+                items: mergedItems,
               });
               onSuccess('Receipt order updated.');
             } else {
@@ -2508,6 +2597,8 @@ export const WarehousePanel = ({
             }
             setIsSupplierOrderModalOpen(false);
             setEditingSupplierOrder(null);
+            setEditingSupplierOrderSource(null);
+            setEditingSupplierOrderItemIndex(null);
             await refreshSupplierOrders();
           } catch (error) {
             onError(
@@ -3373,11 +3464,14 @@ const StockTable = ({
   isLoading: boolean;
   visibleColumns: StockColumnKey[];
   salesByProductId: Record<string, Sale[]>;
-  supplierOrdersByProductId: Record<string, SupplierOrder[]>;
+  supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
-  onOpenSupplierOrder: (supplierOrderId: string) => void;
+  onOpenSupplierOrder: (
+    supplierOrderId: string,
+    itemIndex: number,
+  ) => void;
 }) => {
   if (isLoading)
     return <p className='empty-state'>Loading warehouse stock...</p>;
@@ -3494,25 +3588,26 @@ const StockTable = ({
                             : linkedSupplierOrders.map(
                                 (order, index) => (
                                   <span
-                                    key={`${product.id}-supplier-${order.id}`}
+                                    key={`${product.id}-supplier-${order.order.id}-${order.itemIndex}`}
                                   >
                                     {index > 0 ? ', ' : null}
                                     <button
                                       type='button'
                                       className='settings-link-button'
                                       onClick={() =>
-                                        onOpenSupplierOrder(order.id)
+                                        onOpenSupplierOrder(
+                                          order.order.id,
+                                          order.itemIndex,
+                                        )
                                       }
                                     >
-                                      {order.number ||
-                                        order.orderBaseId ||
-                                        order.id}
+                                      {order.displayNumber}
                                     </button>
                                   </span>
                                 ),
                               )
                         ) : columnKey === 'supplier' ? (
-                          linkedSupplierOrders[0]?.supplierName ||
+                          linkedSupplierOrders[0]?.order.supplierName ||
                           product.purchasePlace ||
                           '-'
                         ) : columnKey === 'note' ? (

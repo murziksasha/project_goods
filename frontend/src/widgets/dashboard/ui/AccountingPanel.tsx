@@ -22,6 +22,7 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import { SupplierOrderModal } from './SupplierOrderModal';
 import { formatDateTime } from '../../../shared/lib/format';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 
 type AccountingPanelProps = {
   onError: (message: string) => void;
@@ -30,6 +31,7 @@ type AccountingPanelProps = {
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
 const accountingTabStorageKey = 'project-goods.accounting-tab';
+const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -51,6 +53,40 @@ const initialTransactionForm: CreateFinanceTransactionPayload = {
   fromCashboxId: '',
   toCashboxId: '',
   note: '',
+};
+
+type TransactionFilters = {
+  type: '' | FinanceTransactionType;
+  currency: '' | FinanceCurrency;
+  fromCashboxId: string;
+  toCashboxId: string;
+  note: string;
+  dateFrom: string;
+  dateTo: string;
+  sortBy: 'date' | 'type' | 'amount' | 'currency' | 'from' | 'to';
+  sortDirection: 'asc' | 'desc';
+};
+
+const initialTransactionFilters: TransactionFilters = {
+  type: '',
+  currency: '',
+  fromCashboxId: '',
+  toCashboxId: '',
+  note: '',
+  dateFrom: '',
+  dateTo: '',
+  sortBy: 'date',
+  sortDirection: 'desc',
+};
+
+const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
+  if (orderedIds.length === 0) return items;
+  const byId = new Map(items.map((cashbox) => [cashbox.id, cashbox]));
+  const ordered = orderedIds
+    .map((id) => byId.get(id))
+    .filter((cashbox): cashbox is Cashbox => Boolean(cashbox));
+  const unordered = items.filter((cashbox) => !orderedIds.includes(cashbox.id));
+  return [...ordered, ...unordered];
 };
 
 export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) => {
@@ -77,6 +113,15 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [isSaving, setIsSaving] = useState(false);
   const [newCashboxName, setNewCashboxName] = useState('');
   const [transactionForm, setTransactionForm] = useState(initialTransactionForm);
+  const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] = useState(false);
+  const [draftTransactionFilters, setDraftTransactionFilters] =
+    useState<TransactionFilters>(initialTransactionFilters);
+  const [appliedTransactionFilters, setAppliedTransactionFilters] =
+    useState<TransactionFilters>(initialTransactionFilters);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [transactionsPageSize, setTransactionsPageSize] = useState(30);
+  const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
+  const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
 
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
@@ -91,7 +136,19 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
         getSupplierOrdersForPayment(),
       ]);
       const allSupplierOrders = await getSupplierOrders();
-      setCashboxes(cashboxesData);
+      let orderedCashboxes = cashboxesData;
+      try {
+        const storedOrder = JSON.parse(
+          window.localStorage.getItem(accountingCashboxOrderStorageKey) ?? '[]',
+        ) as string[];
+        if (Array.isArray(storedOrder)) {
+          orderedCashboxes = applyCashboxOrder(cashboxesData, storedOrder);
+        }
+      } catch {
+        orderedCashboxes = cashboxesData;
+      }
+      setCashboxes(orderedCashboxes);
+      setIsCashboxesOrderHydrated(true);
       setTransactions(transactionsData);
       setReport(reportData);
       setSupplierOrdersQueue(supplierOrdersData);
@@ -122,6 +179,19 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   useEffect(() => {
     window.localStorage.setItem(accountingTabStorageKey, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!isCashboxesOrderHydrated || cashboxes.length === 0) return;
+    try {
+      const order = cashboxes.map((cashbox) => cashbox.id);
+      window.localStorage.setItem(
+        accountingCashboxOrderStorageKey,
+        JSON.stringify(order),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [cashboxes, isCashboxesOrderHydrated]);
 
   const totals = useMemo(
     () =>
@@ -191,7 +261,32 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
 
       <div className='finance-cashbox-grid'>
         {cashboxes.map((cashbox) => (
-          <article key={cashbox.id} className='finance-cashbox-card'>
+          <article
+            key={cashbox.id}
+            className='finance-cashbox-card'
+            draggable
+            onDragStart={() => setDraggedCashboxId(cashbox.id)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={() => {
+              if (!draggedCashboxId || draggedCashboxId === cashbox.id) {
+                setDraggedCashboxId(null);
+                return;
+              }
+              setCashboxes((current) => {
+                const fromIndex = current.findIndex((item) => item.id === draggedCashboxId);
+                const toIndex = current.findIndex((item) => item.id === cashbox.id);
+                if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+                  return current;
+                }
+                const next = [...current];
+                const [moved] = next.splice(fromIndex, 1);
+                next.splice(toIndex, 0, moved);
+                return next;
+              });
+              setDraggedCashboxId(null);
+            }}
+            onDragEnd={() => setDraggedCashboxId(null)}
+          >
             <div className='finance-cashbox-heading'>
               <h3>{cashbox.name}</h3>
               {cashbox.isDefault ? <span>Default</span> : null}
@@ -266,50 +361,363 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     </>
   );
 
+  const filteredTransactions = useMemo(() => {
+    const normalizedNote = appliedTransactionFilters.note.trim().toLowerCase();
+    const filtered = transactions.filter((transaction) => {
+      if (
+        appliedTransactionFilters.type &&
+        transaction.type !== appliedTransactionFilters.type
+      ) {
+        return false;
+      }
+      if (
+        appliedTransactionFilters.currency &&
+        transaction.currency !== appliedTransactionFilters.currency
+      ) {
+        return false;
+      }
+      if (
+        appliedTransactionFilters.fromCashboxId &&
+        transaction.fromCashbox?.id !== appliedTransactionFilters.fromCashboxId
+      ) {
+        return false;
+      }
+      if (
+        appliedTransactionFilters.toCashboxId &&
+        transaction.toCashbox?.id !== appliedTransactionFilters.toCashboxId
+      ) {
+        return false;
+      }
+      if (normalizedNote) {
+        const transactionNote = transaction.note.trim().toLowerCase();
+        if (!transactionNote.includes(normalizedNote)) {
+          return false;
+        }
+      }
+      if (appliedTransactionFilters.dateFrom) {
+        const txDate = transaction.transactionDate.slice(0, 10);
+        if (txDate < appliedTransactionFilters.dateFrom) {
+          return false;
+        }
+      }
+      if (appliedTransactionFilters.dateTo) {
+        const txDate = transaction.transactionDate.slice(0, 10);
+        if (txDate > appliedTransactionFilters.dateTo) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    const sorted = [...filtered].sort((first, second) => {
+      const direction = appliedTransactionFilters.sortDirection === 'asc' ? 1 : -1;
+      switch (appliedTransactionFilters.sortBy) {
+        case 'type':
+          return first.type.localeCompare(second.type) * direction;
+        case 'amount':
+          return (first.amount - second.amount) * direction;
+        case 'currency':
+          return first.currency.localeCompare(second.currency) * direction;
+        case 'from':
+          return (
+            (first.fromCashbox?.name ?? '').localeCompare(second.fromCashbox?.name ?? '') *
+            direction
+          );
+        case 'to':
+          return (
+            (first.toCashbox?.name ?? '').localeCompare(second.toCashbox?.name ?? '') *
+            direction
+          );
+        case 'date':
+        default:
+          return first.transactionDate.localeCompare(second.transactionDate) * direction;
+      }
+    });
+
+    return sorted;
+  }, [appliedTransactionFilters, transactions]);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (transactionsPage - 1) * transactionsPageSize;
+    return filteredTransactions.slice(start, start + transactionsPageSize);
+  }, [filteredTransactions, transactionsPage, transactionsPageSize]);
+
+  const activeTransactionFiltersCount = useMemo(
+    () =>
+      (appliedTransactionFilters.type ? 1 : 0) +
+      (appliedTransactionFilters.currency ? 1 : 0) +
+      (appliedTransactionFilters.fromCashboxId ? 1 : 0) +
+      (appliedTransactionFilters.toCashboxId ? 1 : 0) +
+      (appliedTransactionFilters.note.trim() ? 1 : 0) +
+      (appliedTransactionFilters.dateFrom ? 1 : 0) +
+      (appliedTransactionFilters.dateTo ? 1 : 0),
+    [appliedTransactionFilters],
+  );
+
+  useEffect(() => {
+    const pageCount = Math.max(1, Math.ceil(filteredTransactions.length / transactionsPageSize));
+    if (transactionsPage > pageCount) {
+      setTransactionsPage(pageCount);
+    }
+  }, [filteredTransactions.length, transactionsPage, transactionsPageSize]);
+
   const renderTransactions = () => (
-    <div className='finance-table-wrap'>
-      <table className='orders-table'>
-        <thead>
-          <tr><th>Date</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Note</th></tr>
-        </thead>
-        <tbody>
-          {transactions.length === 0 ? (
-            <tr><td colSpan={6} className='orders-empty'>Transactions not found.</td></tr>
-          ) : (
-            transactions.map((transaction) => (
-              <tr key={transaction.id}>
-                <td>{formatDateTime(transaction.transactionDate)}</td>
-                <td>{transactionLabels[transaction.type]}</td>
-                <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                <td>{transaction.fromCashbox?.name ?? '-'}</td>
-                <td>{transaction.toCashbox?.name ?? '-'}</td>
-                <td>
-                  {(() => {
-                    const parsedOrderNumber =
-                      transaction.note.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
-                    const matchedOrder = supplierOrders.find(
-                      (order) =>
-                        order.number === parsedOrderNumber ||
-                        order.orderBaseId === parsedOrderNumber,
-                    );
-                    if (!matchedOrder) return transaction.note || '-';
-                    return (
-                      <button
-                        type='button'
-                        className='catalog-name-button'
-                        onClick={() => setSelectedSupplierOrder(matchedOrder)}
-                      >
-                        {transaction.note}
-                      </button>
-                    );
-                  })()}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className='orders-toolbar'>
+        <div className='orders-toolbar-left'>
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isTransactionsFilterOpen}
+            onClick={() => setIsTransactionsFilterOpen((current) => !current)}
+          >
+            Filter
+            {activeTransactionFiltersCount > 0 ? (
+              <span className='toolbar-filter-count'>{activeTransactionFiltersCount}</span>
+            ) : null}
+          </button>
+        </div>
+      </div>
+
+      <section
+        className={
+          isTransactionsFilterOpen
+            ? 'orders-filter-panel orders-filter-panel-open'
+            : 'orders-filter-panel'
+        }
+      >
+        <div className='orders-filter-grid'>
+          <label className='orders-filter-field'>
+            <span>Type</span>
+            <select
+              value={draftTransactionFilters.type}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  type: event.target.value as '' | FinanceTransactionType,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              <option value='deposit'>Внесення</option>
+              <option value='withdraw'>Видача</option>
+              <option value='transfer'>Переміщення</option>
+            </select>
+          </label>
+          <label className='orders-filter-field'>
+            <span>Currency</span>
+            <select
+              value={draftTransactionFilters.currency}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  currency: event.target.value as '' | FinanceCurrency,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              {currencyOptions.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='orders-filter-field'>
+            <span>From cashbox</span>
+            <select
+              value={draftTransactionFilters.fromCashboxId}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  fromCashboxId: event.target.value,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='orders-filter-field'>
+            <span>To cashbox</span>
+            <select
+              value={draftTransactionFilters.toCashboxId}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  toCashboxId: event.target.value,
+                }))
+              }
+            >
+              <option value=''>All</option>
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='orders-filter-field'>
+            <span>Date from</span>
+            <input
+              type='date'
+              value={draftTransactionFilters.dateFrom}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  dateFrom: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='orders-filter-field'>
+            <span>Date to</span>
+            <input
+              type='date'
+              value={draftTransactionFilters.dateTo}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  dateTo: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='orders-filter-field'>
+            <span>Note</span>
+            <input
+              type='text'
+              value={draftTransactionFilters.note}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+              placeholder='Order note'
+            />
+          </label>
+          <label className='orders-filter-field'>
+            <span>Sort by</span>
+            <select
+              value={draftTransactionFilters.sortBy}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  sortBy: event.target.value as TransactionFilters['sortBy'],
+                }))
+              }
+            >
+              <option value='date'>Date</option>
+              <option value='type'>Type</option>
+              <option value='amount'>Amount</option>
+              <option value='currency'>Currency</option>
+              <option value='from'>From cashbox</option>
+              <option value='to'>To cashbox</option>
+            </select>
+          </label>
+          <label className='orders-filter-field'>
+            <span>Direction</span>
+            <select
+              value={draftTransactionFilters.sortDirection}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  sortDirection: event.target.value as TransactionFilters['sortDirection'],
+                }))
+              }
+            >
+              <option value='desc'>Descending</option>
+              <option value='asc'>Ascending</option>
+            </select>
+          </label>
+        </div>
+        <div className='orders-filter-actions'>
+          <button
+            type='button'
+            className='toolbar-filter-button orders-filter-apply'
+            onClick={() => {
+              setAppliedTransactionFilters({
+                ...draftTransactionFilters,
+                note: draftTransactionFilters.note.trim(),
+              });
+              setTransactionsPage(1);
+            }}
+          >
+            Apply
+          </button>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={() => {
+              setDraftTransactionFilters(initialTransactionFilters);
+              setAppliedTransactionFilters(initialTransactionFilters);
+              setTransactionsPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <div className='finance-table-wrap'>
+        <table className='orders-table'>
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Note</th></tr>
+          </thead>
+          <tbody>
+            {filteredTransactions.length === 0 ? (
+              <tr><td colSpan={6} className='orders-empty'>Transactions not found.</td></tr>
+            ) : (
+              paginatedTransactions.map((transaction) => (
+                <tr key={transaction.id}>
+                  <td>{formatDateTime(transaction.transactionDate)}</td>
+                  <td>{transactionLabels[transaction.type]}</td>
+                  <td>{formatMoney(transaction.amount, transaction.currency)}</td>
+                  <td>{transaction.fromCashbox?.name ?? '-'}</td>
+                  <td>{transaction.toCashbox?.name ?? '-'}</td>
+                  <td>
+                    {(() => {
+                      const parsedOrderNumber =
+                        transaction.note.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                      const matchedOrder = supplierOrders.find(
+                        (order) =>
+                          order.number === parsedOrderNumber ||
+                          order.orderBaseId === parsedOrderNumber,
+                      );
+                      if (!matchedOrder) return transaction.note || '-';
+                      return (
+                        <button
+                          type='button'
+                          className='catalog-name-button'
+                          onClick={() => setSelectedSupplierOrder(matchedOrder)}
+                        >
+                          {transaction.note}
+                        </button>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <PaginationPanel
+        totalItems={filteredTransactions.length}
+        page={transactionsPage}
+        pageSize={transactionsPageSize}
+        onPageChange={setTransactionsPage}
+        onPageSizeChange={(nextPageSize) => {
+          setTransactionsPageSize(nextPageSize);
+          setTransactionsPage(1);
+        }}
+      />
+    </>
   );
 
   const renderSupplierOrdersQueue = () => (
