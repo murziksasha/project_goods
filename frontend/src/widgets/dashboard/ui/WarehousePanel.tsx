@@ -440,8 +440,34 @@ export const WarehousePanel = ({
       }
     },
   );
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ currentPage: number }>;
+      return Number.isFinite(parsed.currentPage) &&
+        (parsed.currentPage ?? 0) > 0
+        ? Math.floor(parsed.currentPage as number)
+        : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ pageSize: number }>;
+      return Number.isFinite(parsed.pageSize) &&
+        (parsed.pageSize ?? 0) > 0
+        ? Math.floor(parsed.pageSize as number)
+        : 30;
+    } catch {
+      return 30;
+    }
+  });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
@@ -547,6 +573,7 @@ export const WarehousePanel = ({
     [],
   );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
   const [
@@ -1072,6 +1099,16 @@ export const WarehousePanel = ({
           linkedProductIds.add(item.productId);
         }
         if (item.kind === 'product') {
+          (item.serialNumbers ?? [])
+            .map((serial) => serial.trim().toLowerCase())
+            .filter(Boolean)
+            .forEach((serial) =>
+              (bySerial.get(serial) ?? []).forEach((productId) =>
+                linkedProductIds.add(productId),
+              ),
+            );
+        }
+        if (item.kind === 'product') {
           const itemName = item.name.trim().toLowerCase();
           (byName.get(itemName) ?? []).forEach((productId) =>
             linkedProductIds.add(productId),
@@ -1158,6 +1195,7 @@ export const WarehousePanel = ({
   );
 
   useEffect(() => {
+    if (isLoading) return;
     const totalItems =
       activeTab === 'receipts'
         ? filteredReceipts.length
@@ -1169,10 +1207,17 @@ export const WarehousePanel = ({
     currentPage,
     filteredProducts.length,
     filteredReceipts.length,
+    isLoading,
     pageSize,
   ]);
 
-  useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
+  useEffect(() => {
+    if (!didInitPaginationRef.current) {
+      didInitPaginationRef.current = true;
+      return;
+    }
+    setCurrentPage(1);
+  }, [activeTab, searchMode]);
   useEffect(() => {
     window.localStorage.setItem(
       warehouseColumnsStorageKey,
@@ -1220,9 +1265,18 @@ export const WarehousePanel = ({
         query,
         searchMode,
         settingsTab,
+        currentPage,
+        pageSize,
       }),
     );
-  }, [activeTab, query, searchMode, settingsTab]);
+  }, [
+    activeTab,
+    currentPage,
+    pageSize,
+    query,
+    searchMode,
+    settingsTab,
+  ]);
 
   useEffect(() => {
     setAdministrators((current) => {
@@ -3547,11 +3601,29 @@ const StockTable = ({
                             aria-label={`Select ${product.name}`}
                           />
                         ) : columnKey === 'name' ? (
-                          product.name
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.name}
+                          </button>
                         ) : columnKey === 'serial' ? (
-                          product.serialNumber
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.serialNumber}
+                          </button>
                         ) : columnKey === 'article' ? (
-                          product.article
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.article}
+                          </button>
                         ) : columnKey === 'date' ? (
                           formatDate(product.purchaseDate)
                         ) : columnKey === 'purchase' ? (
@@ -3607,11 +3679,24 @@ const StockTable = ({
                                 ),
                               )
                         ) : columnKey === 'supplier' ? (
-                          linkedSupplierOrders[0]?.order.supplierName ||
-                          product.purchasePlace ||
-                          '-'
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {linkedSupplierOrders[0]?.order
+                              .supplierName ||
+                              product.purchasePlace ||
+                              '-'}
+                          </button>
                         ) : columnKey === 'note' ? (
-                          product.note || '-'
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.note || '-'}
+                          </button>
                         ) : (
                           <div className='catalog-row-actions'>
                             <button

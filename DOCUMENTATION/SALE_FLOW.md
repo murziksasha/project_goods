@@ -62,13 +62,13 @@
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 
-## Status Change: Paid / Completed
+## Status Change: Paid
 
-- For `Sales` flow, when status is changed to `paid` or `completed`, system opens `Accept payment` modal (if `To pay > 0`).
+- For `Sales` flow, when status is changed to `paid`, system opens `Accept payment` modal (if `To pay > 0`).
 - Payment modal is the working path for these status transitions:
   - `Accept to cashbox` (deposit only)
-  - `Accept and mark paid` / `Accept and complete` (deposit + status change)
-  - `Mark paid without payment` / `Complete without payment` (status change without deposit)
+  - `Accept and mark paid` (deposit + status change)
+  - `Mark paid without payment` (status change without deposit)
 - Modal summary includes editable `Discount` with mode switch:
   - `%` percent discount
   - `₴` fixed amount discount
@@ -84,7 +84,7 @@
 - Strict rule for sales:
   - `issued` is not allowed when `To pay > 0`
   - exception: `issued` is allowed when final order total is `0`
-- Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid`/`completed` with unpaid product amount.
+- Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid` with unpaid product amount.
 
 ## Status Dropdown UX
 
@@ -109,13 +109,29 @@
   - `new`
   - `reserved`
   - `paid`
-- For non-editable statuses (`issued`, `completed`, `returned`, etc.), card is read-only.
+- For non-editable statuses (`issued`, `returned`, etc.), card is read-only.
 
 ### Return Sequence
 
 - Product return is split into two separate operations:
   1. `Refund to client` (money)
-  2. `Return` in product row (stock)
-- `Return` opens stock-return modal only (warehouse destination), without refund fields.
-- If required refund has not been completed, `Return` must be blocked with toast error.
+  2. `Remove` in product row (stock)
+- `Remove` opens stock-return modal only (warehouse destination), without refund fields.
+- If required refund has not been completed, product stock remove/return must be blocked with toast error.
 - Required refund amount is discount-aware (based on line-item share in discounted order total).
+
+### Remove Availability Rules
+
+- `Remove` for product line is enabled only when:
+  - order is not paid (`paidAmount = 0`)
+  - status is editable (`new`, `reserved`, `paid`)
+  - no serial number is bound to that line item
+- When enabled, `Remove` performs pure line deletion from order card (no stock receive modal).
+- `Remove` for service line is enabled only when:
+  - order is not paid (`paidAmount = 0`)
+  - status is editable (`new`, `reserved`, `paid`)
+- If action is blocked, UI keeps `Remove` disabled and shows tooltip with exact reason.
+- For `issued` sale:
+  - product row action is `Return` (not `Remove`)
+  - `Return` requires bound sold serial and opens warehouse receive modal
+  - this flow is used when customer returns product after issuance

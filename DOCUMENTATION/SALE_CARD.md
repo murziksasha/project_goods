@@ -22,7 +22,8 @@
   - `Qty`
   - `Warranty`
   - `Action`
-- Product rows can be returned (instead of remove) when paid-sale conditions are met.
+- Product and service rows use unified `Remove` action label.
+- Exception: for `issued` sale with bound serials, product row action switches to `Return`.
 
 ## Add Line Item UX
 
@@ -73,7 +74,7 @@
   - `new`
   - `reserved`
   - `paid`
-- For any other sales status (`issued`, `completed`, `returned`, etc.) card becomes read-only.
+- For any other sales status (`issued`, `returned`, etc.) card becomes read-only.
 - In read-only mode, block:
   - status change in card header
   - line item add/edit/remove
@@ -82,12 +83,25 @@
   - payment/refund actions
   - main info save actions
 
-## Product Return Separation (Money vs Stock)
+## Product Remove/Return Rules (Money vs Stock)
 
 - In sales card, product return is split into two distinct steps:
   1. `Refund to client` (finance operation)
-  2. `Return` on product row (stock operation)
-- Product `Return` action must open stock-return modal (warehouse destination only).
-- Product `Return` action must NOT open refund modal.
-- If required refund has not been completed yet, `Return` is blocked and error toast is shown.
-- Required refund amount for a returned product row is calculated from row share of discounted order total (discount-aware), not raw row price.
+  2. `Remove` on product row (stock operation via return-to-warehouse modal)
+- Product `Remove` opens stock-return modal (warehouse destination only).
+- Product `Remove` must NOT open refund modal.
+- Product `Remove` is enabled only when all conditions are true:
+  - order is not paid (`paidAmount = 0`)
+  - card status is editable (`new`, `reserved`, `paid`)
+  - line item has no bound serial numbers
+- If any condition is not met, `Remove` is disabled and shows tooltip with block reason.
+- Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
+- `Remove` deletes line item from sale card only (no warehouse receive modal and no stock movement).
+- For `issued` sale, product stock acceptance must use `Return` action and warehouse modal.
+
+## Service Remove Rules
+
+- Service line `Remove` is enabled only when:
+  - order is not paid (`paidAmount = 0`)
+  - card status is editable (`new`, `reserved`, `paid`)
+- In paid orders, service removal is blocked until refund is completed.

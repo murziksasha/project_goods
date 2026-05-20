@@ -45,6 +45,15 @@ const formatMoney = (value: number, currency: FinanceCurrency) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)} ${currency}`;
+const formatDateDdMmYyyy = (value: string) => {
+  if (!value) return '-';
+  const normalized = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return formatDateTime(value);
+  }
+  const [year, month, day] = normalized.split('-');
+  return `${day}.${month}.${year}`;
+};
 
 const initialTransactionForm: CreateFinanceTransactionPayload = {
   type: 'deposit',
@@ -114,6 +123,8 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [newCashboxName, setNewCashboxName] = useState('');
   const [transactionForm, setTransactionForm] = useState(initialTransactionForm);
   const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] = useState(false);
+  const [isTransactionsDateFilterOpen, setIsTransactionsDateFilterOpen] = useState(false);
+  const [transactionSearch, setTransactionSearch] = useState('');
   const [draftTransactionFilters, setDraftTransactionFilters] =
     useState<TransactionFilters>(initialTransactionFilters);
   const [appliedTransactionFilters, setAppliedTransactionFilters] =
@@ -361,8 +372,49 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     </>
   );
 
+  const senderBalanceAfterByTransactionId = useMemo(() => {
+    const balancesByCashboxCurrency = new Map<string, number>();
+    cashboxes.forEach((cashbox) => {
+      currencyOptions.forEach((currency) => {
+        balancesByCashboxCurrency.set(
+          `${cashbox.id}:${currency}`,
+          cashbox.balances[currency],
+        );
+      });
+    });
+
+    const chronologicalDesc = [...transactions].sort((first, second) =>
+      second.transactionDate.localeCompare(first.transactionDate),
+    );
+    const result: Record<string, number | null> = {};
+    chronologicalDesc.forEach((transaction) => {
+      if (transaction.fromCashbox?.id) {
+        const key = `${transaction.fromCashbox.id}:${transaction.currency}`;
+        const senderBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
+        result[transaction.id] = senderBalanceAfter;
+        balancesByCashboxCurrency.set(
+          key,
+          senderBalanceAfter + transaction.amount,
+        );
+      } else {
+        result[transaction.id] = null;
+      }
+
+      if (transaction.toCashbox?.id) {
+        const key = `${transaction.toCashbox.id}:${transaction.currency}`;
+        const recipientBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
+        balancesByCashboxCurrency.set(
+          key,
+          recipientBalanceAfter - transaction.amount,
+        );
+      }
+    });
+    return result;
+  }, [cashboxes, transactions]);
+
   const filteredTransactions = useMemo(() => {
     const normalizedNote = appliedTransactionFilters.note.trim().toLowerCase();
+    const normalizedSearch = transactionSearch.trim().toLowerCase();
     const filtered = transactions.filter((transaction) => {
       if (
         appliedTransactionFilters.type &&
@@ -391,6 +443,22 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
       if (normalizedNote) {
         const transactionNote = transaction.note.trim().toLowerCase();
         if (!transactionNote.includes(normalizedNote)) {
+          return false;
+        }
+      }
+      if (normalizedSearch) {
+        const searchableText = [
+          transaction.note,
+          transactionLabels[transaction.type],
+          transaction.fromCashbox?.name ?? '',
+          transaction.toCashbox?.name ?? '',
+          transaction.currency,
+          String(transaction.amount),
+          formatDateDdMmYyyy(transaction.transactionDate),
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!searchableText.includes(normalizedSearch)) {
           return false;
         }
       }
@@ -435,7 +503,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     });
 
     return sorted;
-  }, [appliedTransactionFilters, transactions]);
+  }, [appliedTransactionFilters, transactionSearch, transactions]);
 
   const paginatedTransactions = useMemo(() => {
     const start = (transactionsPage - 1) * transactionsPageSize;
@@ -467,6 +535,49 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
         <div className='orders-toolbar-left'>
           <button
             type='button'
+            className='toolbar-square-button'
+            aria-label='Previous page'
+            onClick={() =>
+              setTransactionsPage((current) => Math.max(1, current - 1))
+            }
+            disabled={transactionsPage <= 1}
+          >
+            &lsaquo;
+          </button>
+          <div className='finance-transactions-page-chip'>{transactionsPage}</div>
+          <button
+            type='button'
+            className='toolbar-square-button'
+            aria-label='Next page'
+            onClick={() => {
+              const pageCount = Math.max(
+                1,
+                Math.ceil(filteredTransactions.length / transactionsPageSize),
+              );
+              setTransactionsPage((current) =>
+                Math.min(pageCount, current + 1),
+              );
+            }}
+            disabled={
+              transactionsPage >=
+              Math.max(
+                1,
+                Math.ceil(filteredTransactions.length / transactionsPageSize),
+              )
+            }
+          >
+            &rsaquo;
+          </button>
+          <button
+            type='button'
+            className='toolbar-square-button'
+            aria-label='Filter settings'
+            onClick={() => setIsTransactionsFilterOpen((current) => !current)}
+          >
+            ⚙
+          </button>
+          <button
+            type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isTransactionsFilterOpen}
             onClick={() => setIsTransactionsFilterOpen((current) => !current)}
@@ -476,6 +587,56 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
               <span className='toolbar-filter-count'>{activeTransactionFiltersCount}</span>
             ) : null}
           </button>
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isTransactionsDateFilterOpen}
+            onClick={() =>
+              setIsTransactionsDateFilterOpen((current) => !current)
+            }
+          >
+            Date
+            {appliedTransactionFilters.dateFrom || appliedTransactionFilters.dateTo ? (
+              <span className='toolbar-filter-count'>
+                {appliedTransactionFilters.dateFrom &&
+                appliedTransactionFilters.dateTo
+                  ? '2'
+                  : '1'}
+              </span>
+            ) : null}
+          </button>
+          <div className='orders-search-group orders-search-group-clearable finance-transactions-search'>
+            <input
+              value={transactionSearch}
+              onChange={(event) => {
+                setTransactionSearch(event.target.value);
+                setTransactionsPage(1);
+              }}
+              placeholder='S000003'
+              aria-label='Search transactions'
+            />
+            {transactionSearch ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label='Clear search text'
+                onClick={() => {
+                  setTransactionSearch('');
+                  setTransactionsPage(1);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setTransactionSearch('');
+                    setTransactionsPage(1);
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -562,32 +723,6 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             </select>
           </label>
           <label className='orders-filter-field'>
-            <span>Date from</span>
-            <input
-              type='date'
-              value={draftTransactionFilters.dateFrom}
-              onChange={(event) =>
-                setDraftTransactionFilters((current) => ({
-                  ...current,
-                  dateFrom: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Date to</span>
-            <input
-              type='date'
-              value={draftTransactionFilters.dateTo}
-              onChange={(event) =>
-                setDraftTransactionFilters((current) => ({
-                  ...current,
-                  dateTo: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='orders-filter-field'>
             <span>Note</span>
             <input
               type='text'
@@ -663,21 +798,103 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           </button>
         </div>
       </section>
+      <section
+        className={
+          isTransactionsDateFilterOpen
+            ? 'orders-filter-panel orders-filter-panel-open'
+            : 'orders-filter-panel'
+        }
+      >
+        <div className='orders-filter-grid'>
+          <label className='orders-filter-field'>
+            <span>Date from</span>
+            <input
+              type='date'
+              value={draftTransactionFilters.dateFrom}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  dateFrom: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='orders-filter-field'>
+            <span>Date to</span>
+            <input
+              type='date'
+              value={draftTransactionFilters.dateTo}
+              onChange={(event) =>
+                setDraftTransactionFilters((current) => ({
+                  ...current,
+                  dateTo: event.target.value,
+                }))
+              }
+            />
+          </label>
+        </div>
+        <div className='orders-filter-actions'>
+          <button
+            type='button'
+            className='toolbar-filter-button orders-filter-apply'
+            onClick={() => {
+              setAppliedTransactionFilters((current) => ({
+                ...current,
+                dateFrom: draftTransactionFilters.dateFrom,
+                dateTo: draftTransactionFilters.dateTo,
+              }));
+              setTransactionsPage(1);
+            }}
+          >
+            Apply
+          </button>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={() => {
+              setDraftTransactionFilters((current) => ({
+                ...current,
+                dateFrom: '',
+                dateTo: '',
+              }));
+              setAppliedTransactionFilters((current) => ({
+                ...current,
+                dateFrom: '',
+                dateTo: '',
+              }));
+              setTransactionsPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      </section>
 
       <div className='finance-table-wrap'>
         <table className='orders-table'>
           <thead>
-            <tr><th>Date</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Note</th></tr>
+            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Total</th><th>From</th><th>To</th><th>Note</th></tr>
           </thead>
           <tbody>
             {filteredTransactions.length === 0 ? (
-              <tr><td colSpan={6} className='orders-empty'>Transactions not found.</td></tr>
+              <tr><td colSpan={7} className='orders-empty'>Transactions not found.</td></tr>
             ) : (
               paginatedTransactions.map((transaction) => (
                 <tr key={transaction.id}>
-                  <td>{formatDateTime(transaction.transactionDate)}</td>
+                  <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
                   <td>{transactionLabels[transaction.type]}</td>
                   <td>{formatMoney(transaction.amount, transaction.currency)}</td>
+                  <td>
+                    {senderBalanceAfterByTransactionId[transaction.id] === null ||
+                    senderBalanceAfterByTransactionId[transaction.id] === undefined
+                      ? '-'
+                      : formatMoney(
+                          senderBalanceAfterByTransactionId[
+                            transaction.id
+                          ] as number,
+                          transaction.currency,
+                        )}
+                  </td>
                   <td>{transaction.fromCashbox?.name ?? '-'}</td>
                   <td>{transaction.toCashbox?.name ?? '-'}</td>
                   <td>
