@@ -7,7 +7,7 @@ export type SupplierOrderStatus =
   | 'cancelled'
   | 'unavailable';
 
-export type SupplierPaymentStatus = 'pending' | 'paid' | 'cancelled';
+export type SupplierPaymentStatus = 'pending' | 'paid' | 'without_payment' | 'cancelled';
 export type SupplierReceiptStatus = 'new' | 'approved' | 'received';
 
 export type SupplierOrderItem = {

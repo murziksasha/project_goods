@@ -6,6 +6,7 @@ import {
   getFinanceReport,
   getFinanceTransactions,
   getSupplierOrdersForPayment,
+  issueSupplierOrderWithoutPayment,
   paySupplierOrder,
 } from '../../../entities/finance/api/financeApi';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
@@ -124,7 +125,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [transactionForm, setTransactionForm] = useState(initialTransactionForm);
   const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] = useState(false);
   const [isTransactionsDateFilterOpen, setIsTransactionsDateFilterOpen] = useState(false);
-  const [transactionSearch, setTransactionSearch] = useState('');
+  const [selectedTransactionCashboxId, setSelectedTransactionCashboxId] = useState('');
   const [draftTransactionFilters, setDraftTransactionFilters] =
     useState<TransactionFilters>(initialTransactionFilters);
   const [appliedTransactionFilters, setAppliedTransactionFilters] =
@@ -133,6 +134,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [transactionsPageSize, setTransactionsPageSize] = useState(30);
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
+  const [withoutPaymentOrder, setWithoutPaymentOrder] = useState<SupplierOrderPaymentQueueItem | null>(null);
 
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
@@ -414,7 +416,6 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
 
   const filteredTransactions = useMemo(() => {
     const normalizedNote = appliedTransactionFilters.note.trim().toLowerCase();
-    const normalizedSearch = transactionSearch.trim().toLowerCase();
     const filtered = transactions.filter((transaction) => {
       if (
         appliedTransactionFilters.type &&
@@ -446,21 +447,12 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           return false;
         }
       }
-      if (normalizedSearch) {
-        const searchableText = [
-          transaction.note,
-          transactionLabels[transaction.type],
-          transaction.fromCashbox?.name ?? '',
-          transaction.toCashbox?.name ?? '',
-          transaction.currency,
-          String(transaction.amount),
-          formatDateDdMmYyyy(transaction.transactionDate),
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!searchableText.includes(normalizedSearch)) {
-          return false;
-        }
+      if (
+        selectedTransactionCashboxId &&
+        transaction.fromCashbox?.id !== selectedTransactionCashboxId &&
+        transaction.toCashbox?.id !== selectedTransactionCashboxId
+      ) {
+        return false;
       }
       if (appliedTransactionFilters.dateFrom) {
         const txDate = transaction.transactionDate.slice(0, 10);
@@ -503,7 +495,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     });
 
     return sorted;
-  }, [appliedTransactionFilters, transactionSearch, transactions]);
+  }, [appliedTransactionFilters, selectedTransactionCashboxId, transactions]);
 
   const paginatedTransactions = useMemo(() => {
     const start = (transactionsPage - 1) * transactionsPageSize;
@@ -532,7 +524,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const renderTransactions = () => (
     <>
       <div className='orders-toolbar'>
-        <div className='orders-toolbar-left'>
+        <div className='orders-toolbar-left finance-transactions-toolbar-left'>
           <button
             type='button'
             className='toolbar-square-button'
@@ -570,14 +562,6 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           </button>
           <button
             type='button'
-            className='toolbar-square-button'
-            aria-label='Filter settings'
-            onClick={() => setIsTransactionsFilterOpen((current) => !current)}
-          >
-            ⚙
-          </button>
-          <button
-            type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isTransactionsFilterOpen}
             onClick={() => setIsTransactionsFilterOpen((current) => !current)}
@@ -605,37 +589,22 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
               </span>
             ) : null}
           </button>
-          <div className='orders-search-group orders-search-group-clearable finance-transactions-search'>
-            <input
-              value={transactionSearch}
+          <div className='finance-transactions-cashbox-select'>
+            <select
+              value={selectedTransactionCashboxId}
               onChange={(event) => {
-                setTransactionSearch(event.target.value);
+                setSelectedTransactionCashboxId(event.target.value);
                 setTransactionsPage(1);
               }}
-              placeholder='S000003'
-              aria-label='Search transactions'
-            />
-            {transactionSearch ? (
-              <span
-                role='button'
-                tabIndex={0}
-                className='orders-search-clear'
-                aria-label='Clear search text'
-                onClick={() => {
-                  setTransactionSearch('');
-                  setTransactionsPage(1);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setTransactionSearch('');
-                    setTransactionsPage(1);
-                  }
-                }}
-              >
-                x
-              </span>
-            ) : null}
+              aria-label='Filter transactions by cashbox'
+            >
+              <option value=''>All cashboxes</option>
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -647,6 +616,14 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             : 'orders-filter-panel'
         }
       >
+        <button
+          type='button'
+          className='orders-filter-panel-close'
+          aria-label='Close filters panel'
+          onClick={() => setIsTransactionsFilterOpen(false)}
+        >
+          &times;
+        </button>
         <div className='orders-filter-grid'>
           <label className='orders-filter-field'>
             <span>Type</span>
@@ -805,6 +782,14 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             : 'orders-filter-panel'
         }
       >
+        <button
+          type='button'
+          className='orders-filter-panel-close'
+          aria-label='Close date filters panel'
+          onClick={() => setIsTransactionsDateFilterOpen(false)}
+        >
+          &times;
+        </button>
         <div className='orders-filter-grid'>
           <label className='orders-filter-field'>
             <span>Date from</span>
@@ -983,6 +968,14 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
                       >
                         Оплатити
                       </button>
+                      <button
+                        type='button'
+                        className='secondary-button'
+                        disabled={isSaving}
+                        onClick={() => setWithoutPaymentOrder(order)}
+                      >
+                        Видати без оплати
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1041,6 +1034,60 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
         onSuccess={onSuccess}
         onError={onError}
       />
+      {withoutPaymentOrder ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setWithoutPaymentOrder(null);
+            }
+          }}
+        >
+          <div className='catalog-edit-modal finance-without-payment-modal' role='dialog' aria-modal='true' aria-labelledby='issue-without-payment-title'>
+            <header className='catalog-edit-header'>
+              <h2 id='issue-without-payment-title'>Підтвердити видачу без оплати</h2>
+              <button type='button' className='ghost-button' onClick={() => setWithoutPaymentOrder(null)}>
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>
+                Замовлення <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> буде
+                позначено як <strong>видано без оплати</strong>.
+              </p>
+              <p>Фінансова транзакція створена не буде. Продовжити?</p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button type='button' className='secondary-button' onClick={() => setWithoutPaymentOrder(null)}>
+                Скасувати
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSaving}
+                onClick={async () => {
+                  if (!withoutPaymentOrder) return;
+                  setIsSaving(true);
+                  try {
+                    await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
+                    onSuccess('Замовлення видано без оплати.');
+                    window.dispatchEvent(new Event('project-goods:finance-updated'));
+                    setWithoutPaymentOrder(null);
+                    await refreshFinance();
+                  } catch (error) {
+                    onError(error instanceof Error ? error.message : 'Не вдалося видати замовлення без оплати.');
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+              >
+                Підтвердити
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

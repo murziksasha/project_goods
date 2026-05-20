@@ -52,6 +52,7 @@ const orderStatuses: Array<{ key: SupplierOrderStatus; label: string }> = [
 const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
   { key: 'pending', label: 'Очікують оплати' },
   { key: 'paid', label: 'Сплачено' },
+  { key: 'without_payment', label: 'Видано без оплати' },
   { key: 'cancelled', label: 'Відмінені' },
 ];
 const getOrderStatusLabel = (status: SupplierOrderStatus) =>
@@ -94,7 +95,7 @@ export const SupplierOrdersWorkspace = ({
   const [paymentStatus, setPaymentStatus] = useState<SupplierPaymentStatus | 'all'>(() => {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ paymentStatus: SupplierPaymentStatus | 'all' }>;
-      return parsed.paymentStatus === 'pending' || parsed.paymentStatus === 'paid' || parsed.paymentStatus === 'cancelled' || parsed.paymentStatus === 'all'
+      return parsed.paymentStatus === 'pending' || parsed.paymentStatus === 'paid' || parsed.paymentStatus === 'without_payment' || parsed.paymentStatus === 'cancelled' || parsed.paymentStatus === 'all'
         ? parsed.paymentStatus
         : 'all';
     } catch {
@@ -287,7 +288,7 @@ export const SupplierOrdersWorkspace = ({
             {paginatedOrders.flatMap((order) =>
               groupedOrderView(order).map(({ id, item }) => (
                 <tr key={id}>
-                  <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
+                  <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
                   <td>
                     <button type='button' className='catalog-name-button' onClick={() => {
                       const matchedProduct = item.catalogProductId
@@ -329,7 +330,7 @@ export const SupplierOrdersWorkspace = ({
                     ) : (
                       <select
                         value={order.status}
-                        disabled={order.paymentStatus === 'paid'}
+                        disabled={order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment'}
                         onChange={async (event) => {
                           try {
                             await updateSupplierOrder(order.id, {
