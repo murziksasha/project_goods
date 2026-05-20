@@ -113,6 +113,17 @@
     width: 100%;
   }
 
+  .finance-transactions-toolbar-left {
+    flex-wrap: wrap;
+  }
+
+  .finance-transactions-cashbox-select {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
   .orders-search-group {
     grid-template-columns: 1fr 100px;
     width: 100%;

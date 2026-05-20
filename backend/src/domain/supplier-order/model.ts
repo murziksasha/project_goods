@@ -10,7 +10,7 @@ export const supplierOrderStatuses = [
   'unavailable',
 ] as const;
 
-export const supplierPaymentStatuses = ['pending', 'paid', 'cancelled'] as const;
+export const supplierPaymentStatuses = ['pending', 'paid', 'without_payment', 'cancelled'] as const;
 export const receiptStatuses = ['new', 'approved', 'received'] as const;
 
 const supplierOrderItemSchema = new mongoose.Schema(

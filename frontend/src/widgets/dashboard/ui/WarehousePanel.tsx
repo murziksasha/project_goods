@@ -128,7 +128,7 @@ type ReceiptRow = {
   approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
-  paymentStatus?: 'pending' | 'paid' | 'cancelled';
+  paymentStatus?: 'pending' | 'paid' | 'without_payment' | 'cancelled';
   note: string;
 };
 type SupplierOrderLink = {
@@ -735,6 +735,15 @@ export const WarehousePanel = ({
 
   useEffect(() => {
     void refreshSupplierOrders().catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    const refreshOnFinanceUpdate = () => {
+      void refreshSupplierOrders().catch(() => undefined);
+    };
+    window.addEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
+    return () => {
+      window.removeEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
+    };
   }, []);
   useEffect(() => {
     void (async () => {
@@ -2963,6 +2972,8 @@ const ReceiptsTable = ({
                     </span>
                   ) : receipt.status === 'new' ? (
                     '-'
+                  ) : receipt.paymentStatus === 'without_payment' ? (
+                    <span className='receipt-payment-without-payment'>without payment</span>
                   ) : (
                     receipt.paymentStatus ?? '-'
                   )}

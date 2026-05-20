@@ -6,7 +6,11 @@ import {
   listCashboxes,
   listFinanceTransactions,
 } from '../domain/finance/service';
-import { listSupplierOrdersForAccounting, paySupplierOrder } from '../domain/supplier-order/service';
+import {
+  issueSupplierOrderWithoutPayment,
+  listSupplierOrdersForAccounting,
+  paySupplierOrder,
+} from '../domain/supplier-order/service';
 
 export const financeRouter = Router();
 
@@ -61,6 +65,14 @@ financeRouter.get('/finance/supplier-orders', async (_req, res, next) => {
 financeRouter.post('/finance/supplier-orders/:supplierOrderId/pay', async (req, res, next) => {
   try {
     res.json(await paySupplierOrder(req.params.supplierOrderId, req.body as { cashboxId?: unknown; note?: unknown; transactionDate?: unknown }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+financeRouter.post('/finance/supplier-orders/:supplierOrderId/issue-without-payment', async (req, res, next) => {
+  try {
+    res.json(await issueSupplierOrderWithoutPayment(req.params.supplierOrderId));
   } catch (error) {
     next(error);
   }

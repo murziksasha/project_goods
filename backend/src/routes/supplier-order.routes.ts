@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   cancelSupplierOrder,
   createSupplierOrder,
+  issueSupplierOrderWithoutPayment,
   listSupplierOrders,
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
@@ -58,6 +59,14 @@ supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', asy
         },
       ),
     );
+  } catch (error) {
+    next(error);
+  }
+});
+
+supplierOrderRouter.post('/supplier-orders/:supplierOrderId/issue-without-payment', async (req, res, next) => {
+  try {
+    res.json(await issueSupplierOrderWithoutPayment(req.params.supplierOrderId));
   } catch (error) {
     next(error);
   }
