@@ -1914,6 +1914,33 @@ export const OrdersWorkspace = ({
     sale: Sale,
     item: OrderLineItem,
   ) => {
+    if (item.kind !== 'product') {
+      onError('Only product items can be received back to warehouse.');
+      return;
+    }
+    if (getPaidAmount(sale) > 0) {
+      onError(
+        'Cannot remove product or service from a paid order before refund.',
+      );
+      return;
+    }
+    if (
+      !saleEditableStatuses.has(
+        normalizeOrderStatus(sale.status),
+      )
+    ) {
+      onError(
+        'This order status does not allow line item removal.',
+      );
+      return;
+    }
+    if ((item.serialNumbers ?? []).length > 0) {
+      onError(
+        'Cannot remove product with bound serial numbers. Unbind serials first.',
+      );
+      return;
+    }
+
     const itemRefundableTotal = getLineItemRefundableAmount(
       sale,
       item,
@@ -2020,6 +2047,23 @@ export const OrdersWorkspace = ({
     const removedItem = currentItems.find((item, index) =>
       index === itemIndex ? true : item.id === itemId,
     );
+    if (!removedItem) return;
+    if (getPaidAmount(sale) > 0) {
+      onError(
+        'Cannot remove product or service from a paid order before refund.',
+      );
+      return;
+    }
+    if (
+      !saleEditableStatuses.has(
+        normalizeOrderStatus(sale.status),
+      )
+    ) {
+      onError(
+        'This order status does not allow line item removal.',
+      );
+      return;
+    }
     const nextItems = currentItems.filter((item, index) =>
       index === itemIndex ? false : item.id !== itemId,
     );
@@ -2031,14 +2075,14 @@ export const OrdersWorkspace = ({
     }
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
-      timeline: removedItem
-        ? [
-            appendTimelineEntry(
-              `${currentEmployeeName} unlinked ${removedItem.kind} "${removedItem.name}" from order and moved it back to stock.`,
-            ),
-            ...sale.timeline,
-          ]
-        : sale.timeline,
+      timeline: [
+        appendTimelineEntry(
+          removedItem.kind === 'product'
+            ? `${currentEmployeeName} unlinked product "${removedItem.name}" from order and moved it back to stock.`
+            : `${currentEmployeeName} removed service "${removedItem.name}" from order.`,
+        ),
+        ...sale.timeline,
+      ],
     });
   };
 
@@ -3591,12 +3635,14 @@ const OrderDetailCard = ({
             <LineItemsPanel
               title='Products'
               kind='product'
+              sales={sales}
+              currentSaleId={sale.id}
               items={productItems}
               onAddItem={onAddLineItem}
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isPaidSale={isSaleCard}
+              isOrderPaid={paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
               shippingStatusLabel={shippingStatusLabel}
@@ -3621,12 +3667,14 @@ const OrderDetailCard = ({
             <LineItemsPanel
               title='Services'
               kind='service'
+              sales={sales}
+              currentSaleId={sale.id}
               items={serviceItems}
               onAddItem={onAddLineItem}
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isPaidSale={false}
+              isOrderPaid={paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
               isReadOnly={isReadOnly}
@@ -3774,6 +3822,8 @@ const OrderDetailCard = ({
 type LineItemsPanelProps = {
   title: string;
   kind: OrderLineItemKind;
+  sales: Sale[];
+  currentSaleId: string;
   items: OrderLineItem[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveItem: (itemId: string, itemIndex?: number) => void;
@@ -3794,7 +3844,7 @@ type LineItemsPanelProps = {
     >,
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
-  isPaidSale: boolean;
+  isOrderPaid: boolean;
   isReadOnly: boolean;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -3804,12 +3854,14 @@ type LineItemsPanelProps = {
 const LineItemsPanel = ({
   title,
   kind,
+  sales,
+  currentSaleId,
   items,
   onAddItem,
   onRemoveItem,
   onUpdateItem,
   onReturnItem,
-  isPaidSale,
+  isOrderPaid,
   isReadOnly,
   onError,
   onSuccess,
@@ -3888,6 +3940,51 @@ const LineItemsPanel = ({
       ),
     [serialsInput],
   );
+  const occupiedSerials = useMemo(() => {
+    const occupied = new Set<string>();
+
+    sales.forEach((candidateSale) => {
+      (candidateSale.lineItems ?? []).forEach((lineItem) => {
+        if (lineItem.kind !== 'product') return;
+
+        const isCurrentEditingLine =
+          serialsEditingItem &&
+          candidateSale.id === currentSaleId &&
+          lineItem.id === serialsEditingItem.id;
+        if (isCurrentEditingLine) return;
+
+        (lineItem.serialNumbers ?? [])
+          .map((serial) => serial.trim().toUpperCase())
+          .filter(Boolean)
+          .forEach((serial) => occupied.add(serial));
+      });
+    });
+
+    return occupied;
+  }, [currentSaleId, sales, serialsEditingItem]);
+  const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
+  const canOpenProductReturnModal = (
+    item: OrderLineItem,
+  ) =>
+    !isReadOnly &&
+    !isOrderPaid &&
+    item.kind === 'product' &&
+    (item.serialNumbers ?? []).length === 0;
+  const getRemoveBlockedReason = (item: OrderLineItem) => {
+    if (isReadOnly) {
+      return 'Editing is blocked for current order status.';
+    }
+    if (isOrderPaid) {
+      return 'Refund is required before removing items.';
+    }
+    if (
+      item.kind === 'product' &&
+      (item.serialNumbers ?? []).length > 0
+    ) {
+      return 'Unbind serial numbers before removing this product.';
+    }
+    return '';
+  };
 
   useEffect(() => {
     if (!serialsEditingItem) return;
@@ -3951,7 +4048,13 @@ const LineItemsPanel = ({
           });
         }
 
-        const sorted = [...filtered].sort((first, second) => {
+        const sorted = [...filtered]
+          .filter((product) => {
+            const serial = product.serialNumber.trim().toUpperCase();
+            if (!serial) return false;
+            return !occupiedSerials.has(serial);
+          })
+          .sort((first, second) => {
           const firstTime = new Date(
             first.purchaseDate ?? first.createdAt,
           ).getTime();
@@ -3973,7 +4076,7 @@ const LineItemsPanel = ({
     return () => {
       isActive = false;
     };
-  }, [serialsEditingItem]);
+  }, [occupiedSerials, serialsEditingItem]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
@@ -4319,6 +4422,12 @@ const LineItemsPanel = ({
                 >
                   {item.name}
                 </button>
+                {item.kind === 'product' &&
+                (item.serialNumbers ?? []).length > 0 ? (
+                  <p className='muted-copy'>
+                    {`S/N: ${(item.serialNumbers ?? []).join(', ')}`}
+                  </p>
+                ) : null}
               </div>
               <div key={`${item.id}-price`}>
                 <NumberStepper
@@ -4365,6 +4474,16 @@ const LineItemsPanel = ({
                 </select>
               </div>
               <div key={`${item.id}-action`}>
+                {(() => {
+                  const removeDisabled =
+                    item.kind === 'product'
+                      ? !canOpenProductReturnModal(item)
+                      : !canRemoveServiceItem;
+                  const removeBlockedReason = removeDisabled
+                    ? getRemoveBlockedReason(item)
+                    : '';
+                  return (
+                    <>
                 {item.kind === 'product' ? (
                   <button
                     type='button'
@@ -4384,16 +4503,18 @@ const LineItemsPanel = ({
                   type='button'
                   className='line-item-remove-button'
                   onClick={() =>
-                    isPaidSale && item.kind === 'product'
+                    item.kind === 'product'
                       ? onReturnItem(item)
                       : onRemoveItem(item.id, itemIndex)
                   }
-                  disabled={isReadOnly}
+                  disabled={removeDisabled}
+                  title={removeBlockedReason || undefined}
                 >
-                  {isPaidSale && item.kind === 'product'
-                    ? 'Return'
-                    : 'Remove'}
+                  Remove
                 </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ))
@@ -4578,10 +4699,11 @@ const LineItemsPanel = ({
             }
           }}
         >
-          <section className='payment-modal payment-modal-message'>
-            <h3>Bind serial numbers</h3>
-            <p>{`One serial per line, max ${serialsEditingItem.quantity}.`}</p>
-            <div className='modal-actions'>
+          <section className='payment-modal payment-modal-message serial-bind-modal'>
+            <div className='serial-bind-modal-scroll'>
+              <h3>Bind serial numbers</h3>
+              <p>{`One serial per line, max ${serialsEditingItem.quantity}.`}</p>
+              <div className='modal-actions'>
               <button
                 type='button'
                 className='secondary-button'
@@ -4601,8 +4723,8 @@ const LineItemsPanel = ({
               >
                 Auto-select oldest
               </button>
-            </div>
-            <div className='create-suggestions line-item-suggestions'>
+              </div>
+              <div className='create-suggestions line-item-suggestions'>
               {isSerialLookupLoading ? (
                 <p>Loading available serials...</p>
               ) : null}
@@ -4649,14 +4771,52 @@ const LineItemsPanel = ({
                   </button>
                 );
               })}
+              </div>
+              {selectedSerials.length > 0 ? (
+                <div className='modal-actions'>
+                  <span>{`Selected: ${selectedSerials.length}`}</span>
+                  <button
+                    type='button'
+                    className='secondary-button'
+                    onClick={() => setSerialsInput('')}
+                  >
+                    Clear selected
+                  </button>
+                </div>
+              ) : null}
+              {selectedSerials.length > 0 ? (
+                <div className='create-suggestions line-item-suggestions'>
+                  {selectedSerials.map((serial) => (
+                    <div
+                      key={`selected-${serial}`}
+                      className='create-suggestion-item'
+                    >
+                      <strong>{serial}</strong>
+                      <button
+                        type='button'
+                        className='line-item-remove-button'
+                        onClick={() =>
+                          setSerialsInput(
+                            selectedSerials
+                              .filter((candidate) => candidate !== serial)
+                              .join('\n'),
+                          )
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <textarea
+                rows={8}
+                value={serialsInput}
+                onChange={(event) => setSerialsInput(event.target.value)}
+                placeholder={'SN-001\nSN-002'}
+              />
             </div>
-            <textarea
-              rows={8}
-              value={serialsInput}
-              onChange={(event) => setSerialsInput(event.target.value)}
-              placeholder={'SN-001\nSN-002'}
-            />
-            <div className='modal-actions'>
+            <div className='modal-actions serial-bind-modal-footer'>
               <button
                 type='button'
                 className='secondary-button'

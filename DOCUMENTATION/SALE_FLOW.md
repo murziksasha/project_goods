@@ -115,7 +115,18 @@
 
 - Product return is split into two separate operations:
   1. `Refund to client` (money)
-  2. `Return` in product row (stock)
-- `Return` opens stock-return modal only (warehouse destination), without refund fields.
-- If required refund has not been completed, `Return` must be blocked with toast error.
+  2. `Remove` in product row (stock)
+- `Remove` opens stock-return modal only (warehouse destination), without refund fields.
+- If required refund has not been completed, product stock remove/return must be blocked with toast error.
 - Required refund amount is discount-aware (based on line-item share in discounted order total).
+
+### Remove Availability Rules
+
+- `Remove` for product line is enabled only when:
+  - order is not paid (`paidAmount = 0`)
+  - status is editable (`new`, `reserved`, `paid`)
+  - no serial number is bound to that line item
+- `Remove` for service line is enabled only when:
+  - order is not paid (`paidAmount = 0`)
+  - status is editable (`new`, `reserved`, `paid`)
+- If action is blocked, UI keeps `Remove` disabled and shows tooltip with exact reason.

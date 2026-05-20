@@ -1072,6 +1072,16 @@ export const WarehousePanel = ({
           linkedProductIds.add(item.productId);
         }
         if (item.kind === 'product') {
+          (item.serialNumbers ?? [])
+            .map((serial) => serial.trim().toLowerCase())
+            .filter(Boolean)
+            .forEach((serial) =>
+              (bySerial.get(serial) ?? []).forEach((productId) =>
+                linkedProductIds.add(productId),
+              ),
+            );
+        }
+        if (item.kind === 'product') {
           const itemName = item.name.trim().toLowerCase();
           (byName.get(itemName) ?? []).forEach((productId) =>
             linkedProductIds.add(productId),
@@ -3547,11 +3557,29 @@ const StockTable = ({
                             aria-label={`Select ${product.name}`}
                           />
                         ) : columnKey === 'name' ? (
-                          product.name
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.name}
+                          </button>
                         ) : columnKey === 'serial' ? (
-                          product.serialNumber
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.serialNumber}
+                          </button>
                         ) : columnKey === 'article' ? (
-                          product.article
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.article}
+                          </button>
                         ) : columnKey === 'date' ? (
                           formatDate(product.purchaseDate)
                         ) : columnKey === 'purchase' ? (
@@ -3607,11 +3635,24 @@ const StockTable = ({
                                 ),
                               )
                         ) : columnKey === 'supplier' ? (
-                          linkedSupplierOrders[0]?.order.supplierName ||
-                          product.purchasePlace ||
-                          '-'
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {linkedSupplierOrders[0]?.order
+                              .supplierName ||
+                              product.purchasePlace ||
+                              '-'}
+                          </button>
                         ) : columnKey === 'note' ? (
-                          product.note || '-'
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEdit(product)}
+                          >
+                            {product.note || '-'}
+                          </button>
                         ) : (
                           <div className='catalog-row-actions'>
                             <button
