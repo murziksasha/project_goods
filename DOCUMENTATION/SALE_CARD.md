@@ -23,7 +23,7 @@
   - `Warranty`
   - `Action`
 - Product and service rows use unified `Remove` action label.
-- Exception: for `issued`/`completed` sale with bound serials, product row action switches to `Return`.
+- Exception: for `issued` sale with bound serials, product row action switches to `Return`.
 
 ## Add Line Item UX
 
@@ -74,7 +74,7 @@
   - `new`
   - `reserved`
   - `paid`
-- For any other sales status (`issued`, `completed`, `returned`, etc.) card becomes read-only.
+- For any other sales status (`issued`, `returned`, etc.) card becomes read-only.
 - In read-only mode, block:
   - status change in card header
   - line item add/edit/remove
@@ -97,7 +97,7 @@
 - If any condition is not met, `Remove` is disabled and shows tooltip with block reason.
 - Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
 - `Remove` deletes line item from sale card only (no warehouse receive modal and no stock movement).
-- For `issued`/`completed` sale, product stock acceptance must use `Return` action and warehouse modal.
+- For `issued` sale, product stock acceptance must use `Return` action and warehouse modal.
 
 ## Service Remove Rules
 

@@ -115,7 +115,6 @@ type SaleStatus =
   | 'reserved'
   | 'paid'
   | 'issued'
-  | 'completed'
   | 'returned';
 type OrderStatus = RepairStatus | SaleStatus;
 type PaymentAction =
@@ -125,8 +124,7 @@ type PaymentAction =
 type PaymentTargetStatus =
   | 'issued'
   | 'issuedWithoutRepair'
-  | 'paid'
-  | 'completed';
+  | 'paid';
 type PrintForm = {
   id: string;
   title: string;
@@ -295,7 +293,6 @@ const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
   { key: 'reserved', label: 'Reserved' },
   { key: 'paid', label: 'Paid' },
   { key: 'issued', label: 'Issued' },
-  { key: 'completed', label: 'Completed' },
   { key: 'returned', label: 'Returned' },
 ];
 const finalRepairStatuses: RepairStatus[] = [
@@ -421,7 +418,6 @@ const normalizeOrderStatus = (
     reserved: 'reserved',
     paid: 'paid',
     issued: 'issued',
-    completed: 'completed',
     returned: 'returned',
   };
   const compact = normalized.replace(/[\s_-]+/g, '');
@@ -606,14 +602,13 @@ const hasNonCashPayment = (sale: Sale) =>
 const isClosingStatus = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
     ? status === 'issued' || status === 'issuedWithoutRepair'
-    : status === 'paid' || status === 'completed';
+    : status === 'paid';
 
 const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
     ? finalRepairStatuses.includes(status as RepairStatus)
     : status === 'reserved' ||
       status === 'paid' ||
-      status === 'completed' ||
       status === 'returned';
 
 const getRepairCompletionDate = (sale: Sale) => {
@@ -632,7 +627,7 @@ const getRepairCompletionDate = (sale: Sale) => {
 };
 
 const isSalePaymentStatus = (status: OrderStatus) =>
-  status === 'paid' || status === 'completed';
+  status === 'paid';
 const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
@@ -1919,21 +1914,20 @@ export const OrdersWorkspace = ({
       return;
     }
     const saleStatus = normalizeOrderStatus(sale.status);
-    const isIssuedOrCompleted =
-      saleStatus === 'issued' || saleStatus === 'completed';
+    const isIssuedStatus = saleStatus === 'issued';
     const canEditAndRemove =
       saleEditableStatuses.has(saleStatus) &&
       getPaidAmount(sale) <= 0 &&
       (item.serialNumbers ?? []).length === 0;
 
-    if (!isIssuedOrCompleted && !canEditAndRemove) {
+    if (!isIssuedStatus && !canEditAndRemove) {
       onError('This product cannot be returned to stock from current status.');
       return;
     }
 
-    if (isIssuedOrCompleted && (item.serialNumbers ?? []).length === 0) {
+    if (isIssuedStatus && (item.serialNumbers ?? []).length === 0) {
       onError(
-        'Bind sold serial number before return to stock for issued/completed sale.',
+        'Bind sold serial number before return to stock for issued sale.',
       );
       return;
     }
@@ -2279,11 +2273,9 @@ export const OrdersWorkspace = ({
           ? 'Payment accepted to cashbox.'
           : paymentTargetStatus === 'paid'
             ? 'Sale marked as paid successfully.'
-            : paymentTargetStatus === 'completed'
-              ? 'Sale completed successfully.'
-              : paymentTargetStatus === 'issuedWithoutRepair'
-                ? 'Order issued without repair successfully.'
-                : 'Order issued successfully.',
+            : paymentTargetStatus === 'issuedWithoutRepair'
+              ? 'Order issued without repair successfully.'
+              : 'Order issued successfully.',
       );
       setPaymentSale(null);
     } catch (error) {
@@ -3964,8 +3956,7 @@ const LineItemsPanel = ({
     return occupied;
   }, [currentSaleId, sales, serialsEditingItem]);
   const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
-  const isIssuedOrCompletedSale =
-    currentStatus === 'issued' || currentStatus === 'completed';
+  const isIssuedSale = currentStatus === 'issued';
   const canDirectRemoveProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
     !isReadOnly &&
@@ -3973,19 +3964,19 @@ const LineItemsPanel = ({
     (item.serialNumbers ?? []).length === 0;
   const canReturnIssuedProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
-    isIssuedOrCompletedSale &&
+    isIssuedSale &&
     (item.serialNumbers ?? []).length > 0;
   const getProductActionBlockedReason = (item: OrderLineItem) => {
     if (canDirectRemoveProductItem(item)) return '';
     if (canReturnIssuedProductItem(item)) return '';
     if (
-      isIssuedOrCompletedSale &&
+      isIssuedSale &&
       (item.serialNumbers ?? []).length === 0
     ) {
       return 'Bind sold serial number before stock return.';
     }
     if (isReadOnly) {
-      return 'Use Return flow for issued/completed sale.';
+      return 'Use Return flow for issued sale.';
     }
     if (isOrderPaid) {
       return 'Refund is required before removing items.';
@@ -5259,17 +5250,13 @@ const PaymentModal = ({
   );
   const orderNumber = sale.recordNumber ?? 'r------';
   const submitWithStatusLabel =
-    paymentTargetStatus === 'completed'
-      ? 'Accept and complete'
-      : paymentTargetStatus === 'paid'
-        ? 'Accept and mark paid'
-        : 'Accept and issue';
+    paymentTargetStatus === 'paid'
+      ? 'Accept and mark paid'
+      : 'Accept and issue';
   const submitWithoutPaymentLabel =
-    paymentTargetStatus === 'completed'
-      ? 'Complete without payment'
-      : paymentTargetStatus === 'paid'
-        ? 'Mark paid without payment'
-        : 'Issue without payment';
+    paymentTargetStatus === 'paid'
+      ? 'Mark paid without payment'
+      : 'Issue without payment';
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
   const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
     [],

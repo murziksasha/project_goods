@@ -86,6 +86,14 @@ type SaleLineItem = {
   serialNumbers?: string[];
 };
 
+const isStockCommittedSaleStatus = (status: string) => {
+  const normalized = status.trim().toLowerCase();
+  return (
+    normalized === 'paid' ||
+    normalized === 'issued'
+  );
+};
+
 const addStockQuantity = (
   stockMap: Map<string, number>,
   productId: string,
@@ -96,11 +104,12 @@ const addStockQuantity = (
 
 const getStockLines = (
   kind: 'repair' | 'sale',
+  status: string,
   lineItems: SaleLineItem[],
   fallbackQuantity: number,
   fallbackProductId?: mongoose.Types.ObjectId | string | null,
 ): StockLine[] => {
-  if (kind !== 'sale') {
+  if (kind !== 'sale' || !isStockCommittedSaleStatus(status)) {
     return [];
   }
 
@@ -123,6 +132,50 @@ const getStockLines = (
     productId,
     quantity,
   }));
+};
+
+const assertSerialNumbersNotBoundToOtherSales = async (
+  saleId: string,
+  lineItems: SaleLineItem[],
+) => {
+  const requestedSerials = Array.from(
+    new Set(
+      lineItems
+        .filter((item) => item.kind === 'product')
+        .flatMap((item) => item.serialNumbers ?? [])
+        .map((serial) => String(serial ?? '').trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
+
+  if (requestedSerials.length === 0) return;
+
+  const otherSales = await Sale.find({
+    _id: { $ne: saleId },
+    'lineItems.serialNumbers.0': { $exists: true },
+  })
+    .select({ lineItems: 1 })
+    .lean<SaleDocument[]>();
+
+  const occupied = new Set<string>();
+  otherSales.forEach((sale) => {
+    (sale.lineItems ?? []).forEach((item) => {
+      if (item.kind !== 'product') return;
+      (item.serialNumbers ?? [])
+        .map((serial) => String(serial ?? '').trim().toUpperCase())
+        .filter(Boolean)
+        .forEach((serial) => occupied.add(serial));
+    });
+  });
+
+  const duplicates = requestedSerials.filter((serial) =>
+    occupied.has(serial),
+  );
+  if (duplicates.length > 0) {
+    throw new Error(
+      `Serial numbers are already bound to another order: ${duplicates.join(', ')}`,
+    );
+  }
 };
 
 const getStockDeltas = (
@@ -307,7 +360,7 @@ const assertWorkspaceState = (
   const isClosingStatus =
     kind === 'repair'
       ? status === 'issued' || status === 'issuedWithoutRepair'
-      : status === 'issued' || status === 'paid' || status === 'completed';
+      : status === 'issued' || status === 'paid';
 
   if (hasAttachedProducts && isClosingStatus && paidAmount < total) {
     throw new Error('Product shipped but payment has not been received.');
@@ -415,6 +468,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       ? []
       : getStockLines(
           normalizedKind,
+          payload.status || 'new',
           lineItems,
           payload.quantity,
           product?._id ?? payload.productId,
@@ -576,12 +630,14 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
       : getStockDeltas(
           getStockLines(
             existingSale.kind === 'sale' ? 'sale' : 'repair',
+            existingSale.status || 'new',
             currentLineItems,
             existingSale.quantity,
             existingSale.product ?? '',
           ),
           getStockLines(
             normalizedKind,
+            payload.status || existingSale.status || 'new',
             nextLineItems,
             payload.quantity,
             product?._id ?? payload.productId,
@@ -761,46 +817,95 @@ export const updateSaleWorkspace = async (
     nextDiscount,
   );
 
-  const updatedSale = await Sale.findByIdAndUpdate(
+  await assertSerialNumbersNotBoundToOtherSales(
     saleId,
-    {
-      kind: nextKind,
-      status: nextStatus,
-      paidAmount: nextPaidAmount,
-      master: master?._id ?? existingSale.master ?? null,
-      issuedBy: hasIssuedByUpdate
-        ? issuedBy?._id ?? null
-        : existingSale.issuedBy ?? null,
-      timeline: nextTimeline,
-      paymentHistory: nextPaymentHistory,
-      lineItems: normalizedLineItems,
-      discount: nextDiscount,
-      productSnapshot: {
-        article: existingSale.productSnapshot?.article ?? '',
-        name: nextDeviceName || existingSale.productSnapshot?.name || '',
-        serialNumber: nextSerialNumber ?? '',
-      },
-      masterSnapshot: master
-        ? { name: master.name, role: master.role }
-        : existingSale.masterSnapshot,
-      issuedBySnapshot: hasIssuedByUpdate
-        ? (issuedBy
-            ? { name: issuedBy.name, role: issuedBy.role }
-            : undefined)
-        : existingSale.issuedBySnapshot,
-    },
-    { returnDocument: 'after', runValidators: true },
-  ).lean<SaleDocument | null>();
-
-  if (!updatedSale) {
-    throw new Error('Sale not found.');
-  }
-  await syncCatalogProductsFromSale(
-    nextKind === 'sale' ? 'sales-card' : 'order-card',
-    updatedSale.lineItems ?? [],
+    normalizedLineItems,
   );
 
-  return formatSale(updatedSale);
+  const currentStockLines = getStockLines(
+    existingSale.kind === 'sale' ? 'sale' : 'repair',
+    existingSale.status || 'new',
+    (existingSale.lineItems?.length
+      ? existingSale.lineItems
+      : getDefaultLineItems(
+          {
+            kind: existingSale.kind === 'sale' ? 'sale' : 'repair',
+            salePrice: existingSale.salePrice,
+            quantity: existingSale.quantity,
+          },
+          {
+            _id: existingSale.product ?? '',
+            name: existingSale.productSnapshot?.name ?? 'Item',
+          },
+        )) as SaleLineItem[],
+    existingSale.quantity,
+    existingSale.product ?? '',
+  );
+  const nextStockLines = getStockLines(
+    nextKind,
+    nextStatus,
+    normalizedLineItems,
+    existingSale.quantity,
+    existingSale.product ?? '',
+  );
+  const stockDeltas = getStockDeltas(currentStockLines, nextStockLines);
+  let stockDeltasApplied = false;
+
+  try {
+    await applyStockDeltas(stockDeltas);
+    stockDeltasApplied = true;
+
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        kind: nextKind,
+        status: nextStatus,
+        paidAmount: nextPaidAmount,
+        master: master?._id ?? existingSale.master ?? null,
+        issuedBy: hasIssuedByUpdate
+          ? issuedBy?._id ?? null
+          : existingSale.issuedBy ?? null,
+        timeline: nextTimeline,
+        paymentHistory: nextPaymentHistory,
+        lineItems: normalizedLineItems,
+        discount: nextDiscount,
+        productSnapshot: {
+          article: existingSale.productSnapshot?.article ?? '',
+          name: nextDeviceName || existingSale.productSnapshot?.name || '',
+          serialNumber: nextSerialNumber ?? '',
+        },
+        masterSnapshot: master
+          ? { name: master.name, role: master.role }
+          : existingSale.masterSnapshot,
+        issuedBySnapshot: hasIssuedByUpdate
+          ? (issuedBy
+              ? { name: issuedBy.name, role: issuedBy.role }
+              : undefined)
+          : existingSale.issuedBySnapshot,
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new Error('Sale not found.');
+    }
+    await syncCatalogProductsFromSale(
+      nextKind === 'sale' ? 'sales-card' : 'order-card',
+      updatedSale.lineItems ?? [],
+    );
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    if (stockDeltasApplied) {
+      await applyStockDeltas(
+        stockDeltas.map((delta) => ({
+          ...delta,
+          quantity: -delta.quantity,
+        })),
+      );
+    }
+    throw error;
+  }
 };
 
 export const deleteSale = async (saleId: string) => {
@@ -825,6 +930,7 @@ export const deleteSale = async (saleId: string) => {
         );
   const stockDeltas = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
+    existingSale.status || 'new',
     lineItems,
     existingSale.quantity,
     existingSale.product ?? '',
