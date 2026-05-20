@@ -126,7 +126,12 @@
   - order is not paid (`paidAmount = 0`)
   - status is editable (`new`, `reserved`, `paid`)
   - no serial number is bound to that line item
+- When enabled, `Remove` performs pure line deletion from order card (no stock receive modal).
 - `Remove` for service line is enabled only when:
   - order is not paid (`paidAmount = 0`)
   - status is editable (`new`, `reserved`, `paid`)
 - If action is blocked, UI keeps `Remove` disabled and shows tooltip with exact reason.
+- For `issued`/`completed` sale:
+  - product row action is `Return` (not `Remove`)
+  - `Return` requires bound sold serial and opens warehouse receive modal
+  - this flow is used when customer returns product after issuance

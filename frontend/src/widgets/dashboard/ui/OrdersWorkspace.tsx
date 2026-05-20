@@ -1918,25 +1918,22 @@ export const OrdersWorkspace = ({
       onError('Only product items can be received back to warehouse.');
       return;
     }
-    if (getPaidAmount(sale) > 0) {
-      onError(
-        'Cannot remove product or service from a paid order before refund.',
-      );
+    const saleStatus = normalizeOrderStatus(sale.status);
+    const isIssuedOrCompleted =
+      saleStatus === 'issued' || saleStatus === 'completed';
+    const canEditAndRemove =
+      saleEditableStatuses.has(saleStatus) &&
+      getPaidAmount(sale) <= 0 &&
+      (item.serialNumbers ?? []).length === 0;
+
+    if (!isIssuedOrCompleted && !canEditAndRemove) {
+      onError('This product cannot be returned to stock from current status.');
       return;
     }
-    if (
-      !saleEditableStatuses.has(
-        normalizeOrderStatus(sale.status),
-      )
-    ) {
+
+    if (isIssuedOrCompleted && (item.serialNumbers ?? []).length === 0) {
       onError(
-        'This order status does not allow line item removal.',
-      );
-      return;
-    }
-    if ((item.serialNumbers ?? []).length > 0) {
-      onError(
-        'Cannot remove product with bound serial numbers. Unbind serials first.',
+        'Bind sold serial number before return to stock for issued/completed sale.',
       );
       return;
     }
@@ -2078,7 +2075,7 @@ export const OrdersWorkspace = ({
       timeline: [
         appendTimelineEntry(
           removedItem.kind === 'product'
-            ? `${currentEmployeeName} unlinked product "${removedItem.name}" from order and moved it back to stock.`
+            ? `${currentEmployeeName} removed product "${removedItem.name}" from order.`
             : `${currentEmployeeName} removed service "${removedItem.name}" from order.`,
         ),
         ...sale.timeline,
@@ -3637,6 +3634,7 @@ const OrderDetailCard = ({
               kind='product'
               sales={sales}
               currentSaleId={sale.id}
+              currentStatus={status}
               items={productItems}
               onAddItem={onAddLineItem}
               onRemoveItem={onRemoveLineItem}
@@ -3669,6 +3667,7 @@ const OrderDetailCard = ({
               kind='service'
               sales={sales}
               currentSaleId={sale.id}
+              currentStatus={status}
               items={serviceItems}
               onAddItem={onAddLineItem}
               onRemoveItem={onRemoveLineItem}
@@ -3824,6 +3823,7 @@ type LineItemsPanelProps = {
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
+  currentStatus: OrderStatus;
   items: OrderLineItem[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onRemoveItem: (itemId: string, itemIndex?: number) => void;
@@ -3856,6 +3856,7 @@ const LineItemsPanel = ({
   kind,
   sales,
   currentSaleId,
+  currentStatus,
   items,
   onAddItem,
   onRemoveItem,
@@ -3963,27 +3964,36 @@ const LineItemsPanel = ({
     return occupied;
   }, [currentSaleId, sales, serialsEditingItem]);
   const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
-  const canOpenProductReturnModal = (
-    item: OrderLineItem,
-  ) =>
+  const isIssuedOrCompletedSale =
+    currentStatus === 'issued' || currentStatus === 'completed';
+  const canDirectRemoveProductItem = (item: OrderLineItem) =>
+    item.kind === 'product' &&
     !isReadOnly &&
     !isOrderPaid &&
-    item.kind === 'product' &&
     (item.serialNumbers ?? []).length === 0;
-  const getRemoveBlockedReason = (item: OrderLineItem) => {
+  const canReturnIssuedProductItem = (item: OrderLineItem) =>
+    item.kind === 'product' &&
+    isIssuedOrCompletedSale &&
+    (item.serialNumbers ?? []).length > 0;
+  const getProductActionBlockedReason = (item: OrderLineItem) => {
+    if (canDirectRemoveProductItem(item)) return '';
+    if (canReturnIssuedProductItem(item)) return '';
+    if (
+      isIssuedOrCompletedSale &&
+      (item.serialNumbers ?? []).length === 0
+    ) {
+      return 'Bind sold serial number before stock return.';
+    }
     if (isReadOnly) {
-      return 'Editing is blocked for current order status.';
+      return 'Use Return flow for issued/completed sale.';
     }
     if (isOrderPaid) {
       return 'Refund is required before removing items.';
     }
-    if (
-      item.kind === 'product' &&
-      (item.serialNumbers ?? []).length > 0
-    ) {
+    if ((item.serialNumbers ?? []).length > 0) {
       return 'Unbind serial numbers before removing this product.';
     }
-    return '';
+    return 'Action is unavailable for this item.';
   };
 
   useEffect(() => {
@@ -4475,13 +4485,25 @@ const LineItemsPanel = ({
               </div>
               <div key={`${item.id}-action`}>
                 {(() => {
-                  const removeDisabled =
-                    item.kind === 'product'
-                      ? !canOpenProductReturnModal(item)
-                      : !canRemoveServiceItem;
-                  const removeBlockedReason = removeDisabled
-                    ? getRemoveBlockedReason(item)
-                    : '';
+                  const isProduct = item.kind === 'product';
+                  const canDirectRemove = canDirectRemoveProductItem(item);
+                  const canReturnIssued = canReturnIssuedProductItem(item);
+                  const actionDisabled = isProduct
+                    ? !canDirectRemove && !canReturnIssued
+                    : !canRemoveServiceItem;
+                  const actionLabel = isProduct
+                    ? canReturnIssued
+                      ? 'Return'
+                      : 'Remove'
+                    : 'Remove';
+                  const actionBlockedReason =
+                    isProduct && actionDisabled
+                      ? getProductActionBlockedReason(item)
+                      : !isProduct && actionDisabled
+                        ? isReadOnly
+                          ? 'Editing is blocked for current order status.'
+                          : 'Refund is required before removing items.'
+                        : '';
                   return (
                     <>
                 {item.kind === 'product' ? (
@@ -4503,14 +4525,16 @@ const LineItemsPanel = ({
                   type='button'
                   className='line-item-remove-button'
                   onClick={() =>
-                    item.kind === 'product'
-                      ? onReturnItem(item)
+                    isProduct
+                      ? canDirectRemove
+                        ? onRemoveItem(item.id, itemIndex)
+                        : onReturnItem(item)
                       : onRemoveItem(item.id, itemIndex)
                   }
-                  disabled={removeDisabled}
-                  title={removeBlockedReason || undefined}
+                  disabled={actionDisabled}
+                  title={actionBlockedReason || undefined}
                 >
-                  Remove
+                  {actionLabel}
                 </button>
                     </>
                   );

@@ -440,8 +440,34 @@ export const WarehousePanel = ({
       }
     },
   );
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ currentPage: number }>;
+      return Number.isFinite(parsed.currentPage) &&
+        (parsed.currentPage ?? 0) > 0
+        ? Math.floor(parsed.currentPage as number)
+        : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ pageSize: number }>;
+      return Number.isFinite(parsed.pageSize) &&
+        (parsed.pageSize ?? 0) > 0
+        ? Math.floor(parsed.pageSize as number)
+        : 30;
+    } catch {
+      return 30;
+    }
+  });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
@@ -547,6 +573,7 @@ export const WarehousePanel = ({
     [],
   );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
   const [
@@ -1168,6 +1195,7 @@ export const WarehousePanel = ({
   );
 
   useEffect(() => {
+    if (isLoading) return;
     const totalItems =
       activeTab === 'receipts'
         ? filteredReceipts.length
@@ -1179,10 +1207,17 @@ export const WarehousePanel = ({
     currentPage,
     filteredProducts.length,
     filteredReceipts.length,
+    isLoading,
     pageSize,
   ]);
 
-  useEffect(() => setCurrentPage(1), [activeTab, searchMode]);
+  useEffect(() => {
+    if (!didInitPaginationRef.current) {
+      didInitPaginationRef.current = true;
+      return;
+    }
+    setCurrentPage(1);
+  }, [activeTab, searchMode]);
   useEffect(() => {
     window.localStorage.setItem(
       warehouseColumnsStorageKey,
@@ -1230,9 +1265,18 @@ export const WarehousePanel = ({
         query,
         searchMode,
         settingsTab,
+        currentPage,
+        pageSize,
       }),
     );
-  }, [activeTab, query, searchMode, settingsTab]);
+  }, [
+    activeTab,
+    currentPage,
+    pageSize,
+    query,
+    searchMode,
+    settingsTab,
+  ]);
 
   useEffect(() => {
     setAdministrators((current) => {
