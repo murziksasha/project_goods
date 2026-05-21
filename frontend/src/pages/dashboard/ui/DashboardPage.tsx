@@ -827,6 +827,8 @@ export const DashboardPage = () => {
             <AccountingPanel
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
+              sales={state.sales}
+              onOpenSaleCard={openSaleFromClientCard}
             />
           ) : activePage === 'catalog' ? (
             <ProductCatalogPanel

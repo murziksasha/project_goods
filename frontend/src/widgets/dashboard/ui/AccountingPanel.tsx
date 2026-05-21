@@ -19,6 +19,7 @@ import type {
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { SupplierOrderModal } from './SupplierOrderModal';
 import { formatDateTime } from '../../../shared/lib/format';
@@ -28,6 +29,8 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 type AccountingPanelProps = {
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  sales: Sale[];
+  onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
 };
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
@@ -99,7 +102,12 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
-export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) => {
+export const AccountingPanel = ({
+  onError,
+  onSuccess,
+  sales,
+  onOpenSaleCard,
+}: AccountingPanelProps) => {
   const [activeTab, setActiveTab] = useState<AccountingTab>(() => {
     try {
       const storedTab = window.localStorage.getItem(accountingTabStorageKey);
@@ -884,8 +892,28 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
                   <td>{transaction.toCashbox?.name ?? '-'}</td>
                   <td>
                     {(() => {
+                      const normalizedNote = transaction.note.trim();
                       const parsedOrderNumber =
-                        transaction.note.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                        normalizedNote.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                      const parsedOrderNumberNormalized = parsedOrderNumber.toLowerCase();
+                      const matchedSale = sales.find(
+                        (sale) =>
+                          (sale.recordNumber ?? '').toLowerCase() === parsedOrderNumberNormalized ||
+                          sale.id.toLowerCase() === parsedOrderNumberNormalized,
+                      );
+                      if (matchedSale) {
+                        return (
+                          <button
+                            type='button'
+                            className='catalog-name-button'
+                            onClick={() =>
+                              onOpenSaleCard({ id: matchedSale.id, kind: matchedSale.kind })
+                            }
+                          >
+                            {transaction.note}
+                          </button>
+                        );
+                      }
                       const matchedOrder = supplierOrders.find(
                         (order) =>
                           order.number === parsedOrderNumber ||
