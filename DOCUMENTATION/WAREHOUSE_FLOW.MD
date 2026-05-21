@@ -45,6 +45,11 @@ This document defines current warehouse requirements for stock balances, receipt
 - When product is unlinked from order and returned to stock, it must return to original warehouse/location.
 - Source of truth: stored product warehouse metadata, not transient modal selection.
 
+### 4.1) Issued Sale Visibility Rule
+- Product linked to `Sales order` with status `issued` must not be shown in `Stock balances`.
+- Matching is resolved by product linkage data (`productId`) and fallback identifiers (`serial`, `article`, `name`).
+- After customer return flow is completed (refund + stock receive), sale status becomes `returned` and product may appear in stock balances again by regular stock rules.
+
 ## Receipts Requirements
 
 ### 5) Receipts Source

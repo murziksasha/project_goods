@@ -733,12 +733,7 @@ export const DashboardPage = () => {
                   currentEmployee={currentEmployee}
                   onClose={openOrdersPage}
                   initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
-                  suppliers={state.suppliers}
-                  products={state.allProducts}
                   catalogProducts={state.catalogProducts}
-                  onCreateSupplier={actions.createSupplierCard}
-                  onSuccess={actions.showSuccessMessage}
-                  onError={actions.showError}
                   onSave={actions.saveOrderRequest}
               />
             ) : (

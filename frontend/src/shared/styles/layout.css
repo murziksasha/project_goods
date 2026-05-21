@@ -1790,6 +1790,22 @@
   font-weight: 700;
 }
 
+.line-item-serials-button {
+  border: 0;
+  background: transparent;
+  color: #2d8ae3;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.line-item-serials-count {
+  color: #2d8ae3;
+  font-weight: 700;
+}
+
 .line-item-inline-input {
   width: 100%;
   min-width: 0;
