@@ -3809,3 +3809,31 @@
   border-bottom: 1px solid #d9e8fa;
   padding: 8px 10px;
 }
+
+.finance-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-settings-panel {
+  margin-top: 12px;
+}
+
+.finance-settings-body {
+  display: grid;
+  gap: 12px;
+}
+
+.finance-settings-card {
+  margin: 0;
+}
+
+.finance-settings-cashbox {
+  margin: 0;
+}
+
+.finance-settings-cashbox-archived {
+  opacity: 0.52;
+}

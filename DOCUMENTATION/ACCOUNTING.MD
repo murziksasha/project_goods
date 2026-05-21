@@ -65,3 +65,22 @@ This document defines financial behavior for supplier-order related operations i
 - `Total` column shows post-transaction balance for the affected side:
   - `Withdraw` and `Transfer`: balance of source cashbox (`From`) after transaction.
   - `Deposit`: balance of destination cashbox (`To`) after transaction.
+
+## Accounting Settings Access
+- In `Accounting`, a gear button is shown on the right side of the tabs row.
+- Clicking gear opens `Accounting settings` panel without leaving the page.
+- Top tab label is `Information` (renamed from `Reports`).
+
+## Cashbox Settings Rules
+- `Cashboxes` settings section supports:
+  - create cashbox,
+  - rename cashbox,
+  - deactivate/reactivate cashbox.
+- Cashbox delete is not supported.
+- Default cashbox cannot be deactivated.
+- Deactivated cashboxes stay visible in settings and are rendered in muted/greyed style.
+- Transactions/cashbox runtime lists continue to use active cashboxes only.
+
+## Currency Settings Rules
+- `Currencies` settings section supports adding/removing custom currency codes for planning/configuration storage.
+- System transaction currencies remain fixed to backend-supported currencies.
