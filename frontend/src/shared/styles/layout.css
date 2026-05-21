@@ -357,6 +357,16 @@
   background: #f8fafc;
 }
 
+.finance-without-payment-modal .catalog-edit-body {
+  gap: 10px;
+}
+
+.finance-without-payment-modal .catalog-edit-body p {
+  margin: 0;
+  color: #516579;
+  line-height: 1.45;
+}
+
 .catalog-danger-wide {
   background: #dc2626;
   color: #fff;
@@ -567,6 +577,12 @@
 
 .receipt-payment-badge-cancelled {
   background: #dc2626;
+}
+
+.receipt-payment-without-payment {
+  color: #ff1f1f;
+  font-weight: 900;
+  text-transform: lowercase;
 }
 
 .warehouse-receipt-modal-grid {
@@ -2150,6 +2166,15 @@
   display: none;
 }
 
+.finance-transactions-toolbar-left {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.finance-transactions-toolbar-left > .toolbar-square-button {
+  display: inline-flex;
+}
+
 .orders-toolbar-actions {
   display: flex;
   align-items: center;
@@ -2253,6 +2278,7 @@
 }
 
 .orders-filter-panel {
+  position: relative;
   max-height: 0;
   opacity: 0;
   transform: translateY(-8px);
@@ -2271,6 +2297,31 @@
   padding: 0 14px;
 }
 
+.orders-filter-panel-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #cad4e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #4d627a;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.orders-filter-panel-close:hover {
+  border-color: #9eb6cf;
+  color: #2f4b68;
+}
+
+.orders-filter-panel-close:focus-visible {
+  outline: 2px solid #2d8ae3;
+  outline-offset: 1px;
+}
+
 .orders-filter-panel-open {
   max-height: 1200px;
   opacity: 1;
@@ -2278,7 +2329,7 @@
   pointer-events: auto;
   overflow: visible;
   border-color: #d5dfeb;
-  padding: 14px;
+  padding: 14px 48px 14px 14px;
 }
 
 .orders-filter-saved-row {
@@ -2672,6 +2723,18 @@
   font-size: 0.95rem;
 }
 
+.finance-transaction-type {
+  font-weight: 700;
+}
+
+.orders-table td.finance-transaction-type-deposit {
+  color: #1e8e3e;
+}
+
+.orders-table td.finance-transaction-type-withdraw {
+  color: #d64545;
+}
+
 .orders-term-urgent {
   color: #dc6b6b;
   font-weight: 600;
@@ -2875,19 +2938,42 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
+  min-width: 20px;
   height: 36px;
-  border: 1px solid #cad4e0;
-  border-radius: 10px;
-  background: #fff;
   color: #35516f;
   font-weight: 700;
+  padding: 0 2px;
 }
 
 .finance-transactions-search {
   grid-template-columns: minmax(320px, 1fr);
   min-width: min(320px, 100%);
   flex: 1 1 420px;
+}
+
+.finance-transactions-cashbox-select {
+  min-width: 260px;
+  max-width: 420px;
+  flex: 1 1 340px;
+  margin-left: auto;
+  border: 1px solid #4ea0e8;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.finance-transactions-cashbox-select select {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  padding: 8px 12px;
+  color: #4a5f77;
+  font-size: 1rem;
+  background: #fff;
+}
+
+.finance-transactions-cashbox-select select:focus {
+  outline: none;
 }
 
 .clients-table tbody tr {
@@ -3728,4 +3814,42 @@
   color: #a0afbf;
   cursor: not-allowed;
   background: #f8fafc;
+}
+
+.finance-day-separator-row td.finance-day-separator-cell {
+  color: #2d7dca;
+  font-weight: 700;
+  font-size: 0.92rem;
+  background: #f4f9ff;
+  border-top: 1px solid #d9e8fa;
+  border-bottom: 1px solid #d9e8fa;
+  padding: 8px 10px;
+}
+
+.finance-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-settings-panel {
+  margin-top: 12px;
+}
+
+.finance-settings-body {
+  display: grid;
+  gap: 12px;
+}
+
+.finance-settings-card {
+  margin: 0;
+}
+
+.finance-settings-cashbox {
+  margin: 0;
+}
+
+.finance-settings-cashbox-archived {
+  opacity: 0.52;
 }

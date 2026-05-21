@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCashbox,
   createFinanceTransaction,
@@ -6,7 +6,9 @@ import {
   getFinanceReport,
   getFinanceTransactions,
   getSupplierOrdersForPayment,
+  issueSupplierOrderWithoutPayment,
   paySupplierOrder,
+  updateCashbox,
 } from '../../../entities/finance/api/financeApi';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
@@ -18,6 +20,7 @@ import type {
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { SupplierOrderModal } from './SupplierOrderModal';
 import { formatDateTime } from '../../../shared/lib/format';
@@ -27,17 +30,20 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 type AccountingPanelProps = {
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  sales: Sale[];
+  onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
 };
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
 const accountingTabStorageKey = 'project-goods.accounting-tab';
 const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
+const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
-  withdraw: 'Видача',
-  deposit: 'Внесення',
-  transfer: 'Переміщення',
+  withdraw: 'Withdraw',
+  deposit: 'Deposit',
+  transfer: 'Transfer',
 };
 
 const formatMoney = (value: number, currency: FinanceCurrency) =>
@@ -53,6 +59,19 @@ const formatDateDdMmYyyy = (value: string) => {
   }
   const [year, month, day] = normalized.split('-');
   return `${day}.${month}.${year}`;
+};
+
+const formatTransactionDayLabel = (value: string) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDateDdMmYyyy(value);
+  const label = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+  return label.slice(0, 1).toUpperCase() + label.slice(1);
 };
 
 const initialTransactionForm: CreateFinanceTransactionPayload = {
@@ -98,7 +117,12 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
-export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) => {
+export const AccountingPanel = ({
+  onError,
+  onSuccess,
+  sales,
+  onOpenSaleCard,
+}: AccountingPanelProps) => {
   const [activeTab, setActiveTab] = useState<AccountingTab>(() => {
     try {
       const storedTab = window.localStorage.getItem(accountingTabStorageKey);
@@ -113,6 +137,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     }
   });
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
+  const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [report, setReport] = useState<FinanceReport | null>(null);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
@@ -124,7 +149,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [transactionForm, setTransactionForm] = useState(initialTransactionForm);
   const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] = useState(false);
   const [isTransactionsDateFilterOpen, setIsTransactionsDateFilterOpen] = useState(false);
-  const [transactionSearch, setTransactionSearch] = useState('');
+  const [selectedTransactionCashboxId, setSelectedTransactionCashboxId] = useState('');
   const [draftTransactionFilters, setDraftTransactionFilters] =
     useState<TransactionFilters>(initialTransactionFilters);
   const [appliedTransactionFilters, setAppliedTransactionFilters] =
@@ -133,6 +158,22 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const [transactionsPageSize, setTransactionsPageSize] = useState(30);
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
+  const [withoutPaymentOrder, setWithoutPaymentOrder] = useState<SupplierOrderPaymentQueueItem | null>(null);
+  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(false);
+  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>('cashboxes');
+  const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
+  const [editingCashboxName, setEditingCashboxName] = useState('');
+  const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(accountingCurrenciesStorageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as string[];
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newCurrencyCode, setNewCurrencyCode] = useState('');
 
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
@@ -140,25 +181,27 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const refreshFinance = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [cashboxesData, transactionsData, reportData, supplierOrdersData] = await Promise.all([
+      const [activeCashboxesData, allCashboxesData, transactionsData, reportData, supplierOrdersData] = await Promise.all([
         getCashboxes(),
+        getCashboxes({ includeArchived: true }),
         getFinanceTransactions(),
         getFinanceReport(),
         getSupplierOrdersForPayment(),
       ]);
       const allSupplierOrders = await getSupplierOrders();
-      let orderedCashboxes = cashboxesData;
+      let orderedCashboxes = activeCashboxesData;
       try {
         const storedOrder = JSON.parse(
           window.localStorage.getItem(accountingCashboxOrderStorageKey) ?? '[]',
         ) as string[];
         if (Array.isArray(storedOrder)) {
-          orderedCashboxes = applyCashboxOrder(cashboxesData, storedOrder);
+          orderedCashboxes = applyCashboxOrder(activeCashboxesData, storedOrder);
         }
       } catch {
-        orderedCashboxes = cashboxesData;
+        orderedCashboxes = activeCashboxesData;
       }
       setCashboxes(orderedCashboxes);
+      setAllCashboxes(allCashboxesData);
       setIsCashboxesOrderHydrated(true);
       setTransactions(transactionsData);
       setReport(reportData);
@@ -204,6 +247,17 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     }
   }, [cashboxes, isCashboxesOrderHydrated]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingCurrenciesStorageKey,
+        JSON.stringify(customCurrencies),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [customCurrencies]);
+
   const totals = useMemo(
     () =>
       cashboxes.reduce(
@@ -224,6 +278,64 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
       fromCashboxId: type === 'withdraw' || type === 'transfer' ? cashbox.id : '',
       toCashboxId: type === 'deposit' ? cashbox.id : secondCashboxId,
     });
+  };
+
+  const openCashboxTransactions = (cashbox: Cashbox) => {
+    setActiveTab('transactions');
+    setSelectedTransactionCashboxId(cashbox.id);
+    setTransactionsPage(1);
+  };
+
+  const startEditCashbox = (cashbox: Cashbox) => {
+    setEditingCashboxId(cashbox.id);
+    setEditingCashboxName(cashbox.name);
+  };
+
+  const saveCashbox = async () => {
+    if (!editingCashboxId) return;
+    setIsSaving(true);
+    try {
+      await updateCashbox(editingCashboxId, { name: editingCashboxName.trim() });
+      onSuccess('Cashbox updated.');
+      setEditingCashboxId(null);
+      setEditingCashboxName('');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update cashbox.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleCashboxArchived = async (cashbox: Cashbox) => {
+    setIsSaving(true);
+    try {
+      await updateCashbox(cashbox.id, { isArchived: !cashbox.isArchived });
+      onSuccess(cashbox.isArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update cashbox status.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addCurrencyCode = () => {
+    const normalized = newCurrencyCode.trim().toUpperCase();
+    if (!/^[A-Z]{3,6}$/.test(normalized)) {
+      onError('Currency code must be 3-6 latin letters.');
+      return;
+    }
+    if (currencyOptions.includes(normalized as FinanceCurrency) || customCurrencies.includes(normalized)) {
+      onError('Currency already exists.');
+      return;
+    }
+    setCustomCurrencies((current) => [...current, normalized]);
+    setNewCurrencyCode('');
+  };
+
+  const removeCurrencyCode = (code: string) => {
+    setCustomCurrencies((current) => current.filter((item) => item !== code));
   };
 
   const handleCreateCashbox = async () => {
@@ -263,9 +375,9 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           <span>{formatMoney(totals.USD, 'USD')}</span>
         </div>
         <div className='finance-add-cashbox'>
-          <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='Нова каса' />
+          <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='New cashbox' />
           <button type='button' className='orders-create-button' onClick={handleCreateCashbox} disabled={isSaving}>
-            Додати касу
+            Add cashbox
           </button>
         </div>
       </div>
@@ -305,10 +417,10 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             <strong>{formatMoney(cashbox.balances.UAH, 'UAH')}</strong>
             <p>{formatMoney(cashbox.balances.USD, 'USD')}</p>
             <div className='finance-cashbox-actions'>
-              <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Видача</button>
-              <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Внесення</button>
-              <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Переміщення</button>
-              <button type='button' onClick={() => setActiveTab('reports')}>Звіти</button>
+              <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Withdraw</button>
+              <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Deposit</button>
+              <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Transfer</button>
+              <button type='button' onClick={() => openCashboxTransactions(cashbox)}>Transactions</button>
             </div>
           </article>
         ))}
@@ -317,25 +429,25 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
       <section className='finance-operation-panel'>
         <div className='panel-header'>
           <div>
-            <p className='section-label'>Операція</p>
+            <p className='section-label'>Operation</p>
             <h2>{transactionLabels[transactionForm.type]}</h2>
           </div>
         </div>
         <div className='finance-operation-grid'>
           <label className='field'>
-            <span>Тип</span>
+            <span>Type</span>
             <select value={transactionForm.type} onChange={(event) => setTransactionForm((current) => ({ ...current, type: event.target.value as FinanceTransactionType }))}>
-              <option value='deposit'>Внесення</option>
-              <option value='withdraw'>Видача</option>
-              <option value='transfer'>Переміщення</option>
+              <option value='deposit'>Deposit</option>
+              <option value='withdraw'>Withdraw</option>
+              <option value='transfer'>Transfer</option>
             </select>
           </label>
           <label className='field'>
-            <span>Сума</span>
+            <span>Amount</span>
             <NumberStepper min={0} value={transactionForm.amount} onChange={(value) => setTransactionForm((current) => ({ ...current, amount: value }))} />
           </label>
           <label className='field'>
-            <span>Валюта</span>
+            <span>Currency</span>
             <select value={transactionForm.currency} onChange={(event) => setTransactionForm((current) => ({ ...current, currency: event.target.value as FinanceCurrency }))}>
               {currencyOptions.map((currency) => (
                 <option key={currency} value={currency}>{currency}</option>
@@ -343,7 +455,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             </select>
           </label>
           <label className='field'>
-            <span>Із каси</span>
+            <span>From cashbox</span>
             <select value={transactionForm.fromCashboxId} disabled={transactionForm.type === 'deposit'} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
               <option value=''>-</option>
               {cashboxes.map((cashbox) => (
@@ -352,7 +464,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             </select>
           </label>
           <label className='field'>
-            <span>В касу</span>
+            <span>To cashbox</span>
             <select value={transactionForm.toCashboxId} disabled={transactionForm.type === 'withdraw'} onChange={(event) => setTransactionForm((current) => ({ ...current, toCashboxId: event.target.value }))}>
               <option value=''>-</option>
               {cashboxes.map((cashbox) => (
@@ -361,7 +473,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             </select>
           </label>
           <label className='field'>
-            <span>Коментар</span>
+            <span>Comment</span>
             <input value={transactionForm.note} onChange={(event) => setTransactionForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
         </div>
@@ -372,7 +484,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     </>
   );
 
-  const senderBalanceAfterByTransactionId = useMemo(() => {
+  const balanceAfterByTransactionId = useMemo(() => {
     const balancesByCashboxCurrency = new Map<string, number>();
     cashboxes.forEach((cashbox) => {
       currencyOptions.forEach((currency) => {
@@ -388,24 +500,39 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     );
     const result: Record<string, number | null> = {};
     chronologicalDesc.forEach((transaction) => {
-      if (transaction.fromCashbox?.id) {
-        const key = `${transaction.fromCashbox.id}:${transaction.currency}`;
-        const senderBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
-        result[transaction.id] = senderBalanceAfter;
-        balancesByCashboxCurrency.set(
-          key,
-          senderBalanceAfter + transaction.amount,
-        );
+      const fromKey = transaction.fromCashbox?.id
+        ? `${transaction.fromCashbox.id}:${transaction.currency}`
+        : '';
+      const toKey = transaction.toCashbox?.id
+        ? `${transaction.toCashbox.id}:${transaction.currency}`
+        : '';
+
+      const senderBalanceAfter =
+        fromKey.length > 0
+          ? (balancesByCashboxCurrency.get(fromKey) ?? 0)
+          : null;
+      const recipientBalanceAfter =
+        toKey.length > 0
+          ? (balancesByCashboxCurrency.get(toKey) ?? 0)
+          : null;
+
+      if (transaction.type === 'deposit') {
+        result[transaction.id] = recipientBalanceAfter;
       } else {
-        result[transaction.id] = null;
+        result[transaction.id] = senderBalanceAfter;
+      }
+
+      if (transaction.fromCashbox?.id) {
+        balancesByCashboxCurrency.set(
+          fromKey,
+          (senderBalanceAfter ?? 0) + transaction.amount,
+        );
       }
 
       if (transaction.toCashbox?.id) {
-        const key = `${transaction.toCashbox.id}:${transaction.currency}`;
-        const recipientBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
         balancesByCashboxCurrency.set(
-          key,
-          recipientBalanceAfter - transaction.amount,
+          toKey,
+          (recipientBalanceAfter ?? 0) - transaction.amount,
         );
       }
     });
@@ -414,7 +541,6 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
 
   const filteredTransactions = useMemo(() => {
     const normalizedNote = appliedTransactionFilters.note.trim().toLowerCase();
-    const normalizedSearch = transactionSearch.trim().toLowerCase();
     const filtered = transactions.filter((transaction) => {
       if (
         appliedTransactionFilters.type &&
@@ -446,21 +572,12 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           return false;
         }
       }
-      if (normalizedSearch) {
-        const searchableText = [
-          transaction.note,
-          transactionLabels[transaction.type],
-          transaction.fromCashbox?.name ?? '',
-          transaction.toCashbox?.name ?? '',
-          transaction.currency,
-          String(transaction.amount),
-          formatDateDdMmYyyy(transaction.transactionDate),
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!searchableText.includes(normalizedSearch)) {
-          return false;
-        }
+      if (
+        selectedTransactionCashboxId &&
+        transaction.fromCashbox?.id !== selectedTransactionCashboxId &&
+        transaction.toCashbox?.id !== selectedTransactionCashboxId
+      ) {
+        return false;
       }
       if (appliedTransactionFilters.dateFrom) {
         const txDate = transaction.transactionDate.slice(0, 10);
@@ -503,7 +620,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     });
 
     return sorted;
-  }, [appliedTransactionFilters, transactionSearch, transactions]);
+  }, [appliedTransactionFilters, selectedTransactionCashboxId, transactions]);
 
   const paginatedTransactions = useMemo(() => {
     const start = (transactionsPage - 1) * transactionsPageSize;
@@ -532,7 +649,7 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
   const renderTransactions = () => (
     <>
       <div className='orders-toolbar'>
-        <div className='orders-toolbar-left'>
+        <div className='orders-toolbar-left finance-transactions-toolbar-left'>
           <button
             type='button'
             className='toolbar-square-button'
@@ -570,14 +687,6 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
           </button>
           <button
             type='button'
-            className='toolbar-square-button'
-            aria-label='Filter settings'
-            onClick={() => setIsTransactionsFilterOpen((current) => !current)}
-          >
-            ⚙
-          </button>
-          <button
-            type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
             aria-expanded={isTransactionsFilterOpen}
             onClick={() => setIsTransactionsFilterOpen((current) => !current)}
@@ -605,37 +714,22 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
               </span>
             ) : null}
           </button>
-          <div className='orders-search-group orders-search-group-clearable finance-transactions-search'>
-            <input
-              value={transactionSearch}
+          <div className='finance-transactions-cashbox-select'>
+            <select
+              value={selectedTransactionCashboxId}
               onChange={(event) => {
-                setTransactionSearch(event.target.value);
+                setSelectedTransactionCashboxId(event.target.value);
                 setTransactionsPage(1);
               }}
-              placeholder='S000003'
-              aria-label='Search transactions'
-            />
-            {transactionSearch ? (
-              <span
-                role='button'
-                tabIndex={0}
-                className='orders-search-clear'
-                aria-label='Clear search text'
-                onClick={() => {
-                  setTransactionSearch('');
-                  setTransactionsPage(1);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setTransactionSearch('');
-                    setTransactionsPage(1);
-                  }
-                }}
-              >
-                x
-              </span>
-            ) : null}
+              aria-label='Filter transactions by cashbox'
+            >
+              <option value=''>All cashboxes</option>
+              {cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -647,6 +741,14 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             : 'orders-filter-panel'
         }
       >
+        <button
+          type='button'
+          className='orders-filter-panel-close'
+          aria-label='Close filters panel'
+          onClick={() => setIsTransactionsFilterOpen(false)}
+        >
+          &times;
+        </button>
         <div className='orders-filter-grid'>
           <label className='orders-filter-field'>
             <span>Type</span>
@@ -660,9 +762,9 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
               }
             >
               <option value=''>All</option>
-              <option value='deposit'>Внесення</option>
-              <option value='withdraw'>Видача</option>
-              <option value='transfer'>Переміщення</option>
+              <option value='deposit'>Deposit</option>
+              <option value='withdraw'>Withdraw</option>
+              <option value='transfer'>Transfer</option>
             </select>
           </label>
           <label className='orders-filter-field'>
@@ -805,6 +907,14 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             : 'orders-filter-panel'
         }
       >
+        <button
+          type='button'
+          className='orders-filter-panel-close'
+          aria-label='Close date filters panel'
+          onClick={() => setIsTransactionsDateFilterOpen(false)}
+        >
+          &times;
+        </button>
         <div className='orders-filter-grid'>
           <label className='orders-filter-field'>
             <span>Date from</span>
@@ -879,48 +989,83 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
             {filteredTransactions.length === 0 ? (
               <tr><td colSpan={7} className='orders-empty'>Transactions not found.</td></tr>
             ) : (
-              paginatedTransactions.map((transaction) => (
-                <tr key={transaction.id}>
-                  <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
-                  <td>{transactionLabels[transaction.type]}</td>
-                  <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                  <td>
-                    {senderBalanceAfterByTransactionId[transaction.id] === null ||
-                    senderBalanceAfterByTransactionId[transaction.id] === undefined
-                      ? '-'
-                      : formatMoney(
-                          senderBalanceAfterByTransactionId[
-                            transaction.id
-                          ] as number,
-                          transaction.currency,
-                        )}
-                  </td>
-                  <td>{transaction.fromCashbox?.name ?? '-'}</td>
-                  <td>{transaction.toCashbox?.name ?? '-'}</td>
-                  <td>
-                    {(() => {
-                      const parsedOrderNumber =
-                        transaction.note.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
-                      const matchedOrder = supplierOrders.find(
-                        (order) =>
-                          order.number === parsedOrderNumber ||
-                          order.orderBaseId === parsedOrderNumber,
-                      );
-                      if (!matchedOrder) return transaction.note || '-';
-                      return (
-                        <button
-                          type='button'
-                          className='catalog-name-button'
-                          onClick={() => setSelectedSupplierOrder(matchedOrder)}
-                        >
-                          {transaction.note}
-                        </button>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              ))
-            )}
+                            paginatedTransactions.map((transaction, index) => {
+                const currentDay = transaction.transactionDate.slice(0, 10);
+                const previousDay = paginatedTransactions[index - 1]?.transactionDate.slice(0, 10);
+                const isNewDay = index === 0 || currentDay !== previousDay;
+                return (
+                  <Fragment key={transaction.id}>
+                    {isNewDay ? (
+                      <tr className='finance-day-separator-row'>
+                        <td colSpan={7} className='finance-day-separator-cell'>
+                          {formatTransactionDayLabel(transaction.transactionDate)}
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
+                      <td className={`finance-transaction-type finance-transaction-type-${transaction.type}`}>
+                        {transactionLabels[transaction.type]}
+                      </td>
+                      <td>{formatMoney(transaction.amount, transaction.currency)}</td>
+                      <td>
+                        {balanceAfterByTransactionId[transaction.id] === null ||
+                        balanceAfterByTransactionId[transaction.id] === undefined
+                          ? '-'
+                          : formatMoney(
+                              balanceAfterByTransactionId[
+                                transaction.id
+                              ] as number,
+                              transaction.currency,
+                            )}
+                      </td>
+                      <td>{transaction.fromCashbox?.name ?? '-'}</td>
+                      <td>{transaction.toCashbox?.name ?? '-'}</td>
+                      <td>
+                        {(() => {
+                          const normalizedNote = transaction.note.trim();
+                          const parsedOrderNumber =
+                            normalizedNote.match(/order\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                          const parsedOrderNumberNormalized = parsedOrderNumber.toLowerCase();
+                          const matchedSale = sales.find(
+                            (sale) =>
+                              (sale.recordNumber ?? '').toLowerCase() === parsedOrderNumberNormalized ||
+                              sale.id.toLowerCase() === parsedOrderNumberNormalized,
+                          );
+                          if (matchedSale) {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() =>
+                                  onOpenSaleCard({ id: matchedSale.id, kind: matchedSale.kind })
+                                }
+                              >
+                                {transaction.note}
+                              </button>
+                            );
+                          }
+                          const matchedOrder = supplierOrders.find(
+                            (order) =>
+                              order.number === parsedOrderNumber ||
+                              order.orderBaseId === parsedOrderNumber,
+                          );
+                          if (!matchedOrder) return transaction.note || '-';
+                          return (
+                            <button
+                              type='button'
+                              className='catalog-name-button'
+                              onClick={() => setSelectedSupplierOrder(matchedOrder)}
+                            >
+                              {transaction.note}
+                            </button>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  </Fragment>
+                );
+              })            )}
           </tbody>
         </table>
       </div>
@@ -941,11 +1086,11 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
     <div className='finance-table-wrap'>
       <table className='orders-table'>
         <thead>
-          <tr><th>Номер</th><th>Дата</th><th>Постачальник</th><th>Сума</th><th>Оплата</th></tr>
+          <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Amount</th><th>Payment</th></tr>
         </thead>
         <tbody>
           {supplierOrdersQueue.length === 0 ? (
-            <tr><td colSpan={5} className='orders-empty'>Немає замовлень, що очікують оплату.</td></tr>
+            <tr><td colSpan={5} className='orders-empty'>No orders are waiting for payment.</td></tr>
           ) : (
             supplierOrdersQueue.map((order) => {
               const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
@@ -970,18 +1115,26 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
                           if (!cashboxId) return;
                           setIsSaving(true);
                           try {
-                            await paySupplierOrder(order.id, { cashboxId, note: `Оплата замовлення ${order.number || order.orderBaseId}` });
-                            onSuccess('Замовлення сплачено.');
+                            await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
+                            onSuccess('Order has been paid.');
                             window.dispatchEvent(new Event('project-goods:finance-updated'));
                             await refreshFinance();
                           } catch (error) {
-                            onError(error instanceof Error ? error.message : 'Не вдалося оплатити замовлення.');
+                            onError(error instanceof Error ? error.message : 'Failed to pay order.');
                           } finally {
                             setIsSaving(false);
                           }
                         }}
                       >
-                        Оплатити
+                        Pay
+                      </button>
+                      <button
+                        type='button'
+                        className='secondary-button'
+                        disabled={isSaving}
+                        onClick={() => setWithoutPaymentOrder(order)}
+                      >
+                        Issue without payment
                       </button>
                     </div>
                   </td>
@@ -996,31 +1149,238 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
 
   const renderReports = () => (
     <div className='finance-report-grid'>
-      <article className='analytics-summary-card'><span className='metric-label'>Всього кас</span><strong>{report?.cashboxCount ?? cashboxes.length}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Баланс UAH</span><strong>{formatMoney(report?.totals.UAH ?? totals.UAH, 'UAH')}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Баланс USD</span><strong>{formatMoney(report?.totals.USD ?? totals.USD, 'USD')}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Операцій сьогодні</span><strong>{report?.todayTransactionCount ?? 0}</strong></article>
-      <article className='finance-wide-report'><h3>Сьогоднішній оборот</h3><p>{formatMoney(report?.todayTurnover.UAH ?? 0, 'UAH')}</p><p>{formatMoney(report?.todayTurnover.USD ?? 0, 'USD')}</p></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Total cashboxes</span><strong>{report?.cashboxCount ?? cashboxes.length}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Balance UAH</span><strong>{formatMoney(report?.totals.UAH ?? totals.UAH, 'UAH')}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Balance USD</span><strong>{formatMoney(report?.totals.USD ?? totals.USD, 'USD')}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Operations today</span><strong>{report?.todayTransactionCount ?? 0}</strong></article>
+      <article className='finance-wide-report'><h3>Today turnover</h3><p>{formatMoney(report?.todayTurnover.UAH ?? 0, 'UAH')}</p><p>{formatMoney(report?.todayTurnover.USD ?? 0, 'USD')}</p></article>
     </div>
+  );
+
+  const renderFinanceSettings = () => (
+    <section className='warehouse-settings-panel finance-settings-panel'>
+      <div className='warehouse-settings-tabs'>
+        <button
+          type='button'
+          className={
+            financeSettingsTab === 'cashboxes'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => setFinanceSettingsTab('cashboxes')}
+        >
+          Cashboxes
+        </button>
+        <button
+          type='button'
+          className={
+            financeSettingsTab === 'currencies'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => setFinanceSettingsTab('currencies')}
+        >
+          Currencies
+        </button>
+      </div>
+
+      {financeSettingsTab === 'cashboxes' ? (
+        <div className='finance-settings-body'>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Create cashbox</h2></header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Name</span>
+                <input
+                  value={newCashboxName}
+                  onChange={(event) => setNewCashboxName(event.target.value)}
+                  placeholder='Enter cashbox name'
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSaving || newCashboxName.trim().length < 2}
+                onClick={handleCreateCashbox}
+              >
+                Create
+              </button>
+            </footer>
+          </article>
+
+          {allCashboxes.map((cashbox) => (
+            <article
+              key={`settings-${cashbox.id}`}
+              className={
+                cashbox.isArchived
+                  ? 'catalog-edit-modal finance-settings-cashbox finance-settings-cashbox-archived'
+                  : 'catalog-edit-modal finance-settings-cashbox'
+              }
+            >
+              <header className='catalog-edit-header'>
+                <h2>{editingCashboxId === cashbox.id ? `Edit cashbox ${cashbox.name}` : `Edit cashbox ${cashbox.name}`}</h2>
+              </header>
+              <div className='catalog-edit-body'>
+                <label className='field'>
+                  <span>Name</span>
+                  <input
+                    disabled={editingCashboxId !== cashbox.id || isSaving}
+                    value={editingCashboxId === cashbox.id ? editingCashboxName : cashbox.name}
+                    onChange={(event) => setEditingCashboxName(event.target.value)}
+                  />
+                </label>
+                <label className='field-inline'>
+                  <input
+                    type='checkbox'
+                    checked={!cashbox.isArchived}
+                    disabled={cashbox.isDefault || isSaving}
+                    onChange={() => toggleCashboxArchived(cashbox)}
+                  />
+                  <span>{cashbox.isDefault ? 'Active (default)' : 'Active'}</span>
+                </label>
+              </div>
+              <footer className='catalog-edit-footer'>
+                {editingCashboxId === cashbox.id ? (
+                  <>
+                    <button
+                      type='button'
+                      className='primary-button'
+                      disabled={isSaving || editingCashboxName.trim().length < 2}
+                      onClick={saveCashbox}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type='button'
+                      className='secondary-button'
+                      disabled={isSaving}
+                      onClick={() => {
+                        setEditingCashboxId(null);
+                        setEditingCashboxName('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type='button'
+                    className='toolbar-filter-button'
+                    onClick={() => startEditCashbox(cashbox)}
+                  >
+                    Edit cashbox
+                  </button>
+                )}
+              </footer>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className='finance-settings-body'>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Create currency</h2></header>
+            <div className='catalog-edit-body'>
+              <p className='section-label'>
+                System currencies are fixed in transaction engine. Added currencies are stored for planning.
+              </p>
+              <label className='field'>
+                <span>Currency code</span>
+                <input
+                  value={newCurrencyCode}
+                  onChange={(event) => setNewCurrencyCode(event.target.value)}
+                  placeholder='EUR'
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                onClick={addCurrencyCode}
+                disabled={newCurrencyCode.trim().length < 3}
+              >
+                Add currency
+              </button>
+            </footer>
+          </article>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Available currencies</h2></header>
+            <div className='catalog-edit-body'>
+              <div className='orders-filter-saved-list'>
+                {currencyOptions.map((currency) => (
+                  <span key={`system-${currency}`} className='warehouse-settings-center-chip'>
+                    {currency} (system)
+                  </span>
+                ))}
+                {customCurrencies.map((currency) => (
+                  <span key={`custom-${currency}`} className='warehouse-settings-center-chip'>
+                    {currency}
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button'
+                      onClick={() => removeCurrencyCode(currency)}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </article>
+        </div>
+      )}
+    </section>
   );
 
   return (
     <section className='orders-page finance-page'>
-      <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
-        {[
-          ['cashboxes', 'Каси'],
-          ['transactions', 'Транзакції'],
-          ['orders', 'Замовлення'],
-          ['reports', 'Звіти'],
-        ].map(([key, label]) => (
-          <button key={key} type='button' className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'} onClick={() => setActiveTab(key as AccountingTab)}>
-            {label}
+      <div className='finance-tabs-row'>
+        <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
+          {[
+            ['cashboxes', 'Cashboxes'],
+            ['transactions', 'Transactions'],
+            ['orders', 'Orders'],
+            ['reports', 'Information'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type='button'
+              className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
+              onClick={() => {
+                setIsFinanceSettingsOpen(false);
+                setActiveTab(key as AccountingTab);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className='toolbar-settings'>
+          <button
+            type='button'
+            className='toolbar-square-button'
+            aria-label='Accounting settings'
+            aria-expanded={isFinanceSettingsOpen}
+            onClick={() => setIsFinanceSettingsOpen((current) => !current)}
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              viewBox='0 0 24 24'
+              className='toolbar-square-button-icon'
+              fill='currentColor'
+            >
+              <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
+            </svg>
           </button>
-        ))}
+        </div>
       </div>
 
       {isLoading ? (
         <p className='empty-state'>Loading finance data...</p>
+      ) : isFinanceSettingsOpen ? (
+        renderFinanceSettings()
       ) : activeTab === 'transactions' ? (
         renderTransactions()
       ) : activeTab === 'orders' ? (
@@ -1041,6 +1401,60 @@ export const AccountingPanel = ({ onError, onSuccess }: AccountingPanelProps) =>
         onSuccess={onSuccess}
         onError={onError}
       />
+      {withoutPaymentOrder ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setWithoutPaymentOrder(null);
+            }
+          }}
+        >
+          <div className='catalog-edit-modal finance-without-payment-modal' role='dialog' aria-modal='true' aria-labelledby='issue-without-payment-title'>
+            <header className='catalog-edit-header'>
+              <h2 id='issue-without-payment-title'>Confirm issue without payment</h2>
+              <button type='button' className='ghost-button' onClick={() => setWithoutPaymentOrder(null)}>
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>
+                Order <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> will be
+                marked as <strong>issued without payment</strong>.
+              </p>
+              <p>No finance transaction will be created. Continue?</p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button type='button' className='secondary-button' onClick={() => setWithoutPaymentOrder(null)}>
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSaving}
+                onClick={async () => {
+                  if (!withoutPaymentOrder) return;
+                  setIsSaving(true);
+                  try {
+                    await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
+                    onSuccess('Order issued without payment.');
+                    window.dispatchEvent(new Event('project-goods:finance-updated'));
+                    setWithoutPaymentOrder(null);
+                    await refreshFinance();
+                  } catch (error) {
+                    onError(error instanceof Error ? error.message : 'Failed to issue order without payment.');
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+              >
+                Confirm
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

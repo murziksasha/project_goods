@@ -14,6 +14,10 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 type CashboxPayload = {
   name?: unknown;
 };
+type UpdateCashboxPayload = {
+  name?: unknown;
+  isArchived?: unknown;
+};
 
 type TransactionPayload = {
   type?: unknown;
@@ -125,9 +129,10 @@ export const ensureDefaultCashbox = async () => {
   return created;
 };
 
-export const listCashboxes = async () => {
+export const listCashboxes = async (options: { includeArchived?: boolean } = {}) => {
   await ensureDefaultCashbox();
-  const cashboxes = await Cashbox.find({ isArchived: false })
+  const query = options.includeArchived ? {} : { isArchived: false };
+  const cashboxes = await Cashbox.find(query)
     .sort({ isDefault: -1, createdAt: 1 })
     .lean<CashboxDocument[]>();
 
@@ -148,6 +153,47 @@ export const createCashbox = async (payload: CashboxPayload) => {
   await cashbox.save();
 
   return formatCashbox(cashbox.toObject<CashboxDocument>());
+};
+
+export const updateCashbox = async (
+  cashboxId: string,
+  payload: UpdateCashboxPayload,
+) => {
+  isValidObjectIdOrThrow(cashboxId, 'cashboxId');
+  const existing = await Cashbox.findById(cashboxId).lean<CashboxDocument | null>();
+  if (!existing) {
+    throw new Error('Cashbox not found.');
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    const nextName = normalizeName(payload.name);
+    if (nextName.length < 2) {
+      throw new Error('Cashbox name must contain at least 2 characters.');
+    }
+    patch.name = nextName;
+  }
+  if (payload.isArchived !== undefined) {
+    const nextArchived = Boolean(payload.isArchived);
+    if (existing.isDefault && nextArchived) {
+      throw new Error('Default cashbox cannot be deactivated.');
+    }
+    patch.isArchived = nextArchived;
+  }
+  if (Object.keys(patch).length === 0) {
+    return formatCashbox(existing);
+  }
+
+  const updated = await Cashbox.findByIdAndUpdate(
+    cashboxId,
+    { $set: patch },
+    { returnDocument: 'after', runValidators: true },
+  ).lean<CashboxDocument | null>();
+  if (!updated) {
+    throw new Error('Cashbox not found.');
+  }
+
+  return formatCashbox(updated);
 };
 
 const getCashboxOrThrow = async (cashboxId: unknown, field: string) => {
