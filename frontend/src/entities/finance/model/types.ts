@@ -46,6 +46,11 @@ export type CreateCashboxPayload = {
   name: string;
 };
 
+export type UpdateCashboxPayload = {
+  name?: string;
+  isArchived?: boolean;
+};
+
 export type CreateFinanceTransactionPayload = {
   type: FinanceTransactionType;
   amount: string;

@@ -5,6 +5,7 @@ import {
   getFinanceReport,
   listCashboxes,
   listFinanceTransactions,
+  updateCashbox,
 } from '../domain/finance/service';
 import {
   issueSupplierOrderWithoutPayment,
@@ -14,9 +15,10 @@ import {
 
 export const financeRouter = Router();
 
-financeRouter.get('/finance/cashboxes', async (_req, res, next) => {
+financeRouter.get('/finance/cashboxes', async (req, res, next) => {
   try {
-    res.json(await listCashboxes());
+    const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
+    res.json(await listCashboxes({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
   } catch (error) {
     next(error);
   }
@@ -25,6 +27,14 @@ financeRouter.get('/finance/cashboxes', async (_req, res, next) => {
 financeRouter.post('/finance/cashboxes', async (req, res, next) => {
   try {
     res.status(201).json(await createCashbox(req.body));
+  } catch (error) {
+    next(error);
+  }
+});
+
+financeRouter.patch('/finance/cashboxes/:cashboxId', async (req, res, next) => {
+  try {
+    res.json(await updateCashbox(req.params.cashboxId, req.body as { name?: unknown; isArchived?: unknown }));
   } catch (error) {
     next(error);
   }

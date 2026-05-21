@@ -8,6 +8,7 @@ import {
   getSupplierOrdersForPayment,
   issueSupplierOrderWithoutPayment,
   paySupplierOrder,
+  updateCashbox,
 } from '../../../entities/finance/api/financeApi';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
@@ -36,6 +37,7 @@ type AccountingPanelProps = {
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
 const accountingTabStorageKey = 'project-goods.accounting-tab';
 const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
+const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -135,6 +137,7 @@ export const AccountingPanel = ({
     }
   });
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
+  const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [report, setReport] = useState<FinanceReport | null>(null);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
@@ -156,6 +159,21 @@ export const AccountingPanel = ({
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
   const [withoutPaymentOrder, setWithoutPaymentOrder] = useState<SupplierOrderPaymentQueueItem | null>(null);
+  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(false);
+  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>('cashboxes');
+  const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
+  const [editingCashboxName, setEditingCashboxName] = useState('');
+  const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(accountingCurrenciesStorageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as string[];
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newCurrencyCode, setNewCurrencyCode] = useState('');
 
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
@@ -163,25 +181,27 @@ export const AccountingPanel = ({
   const refreshFinance = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [cashboxesData, transactionsData, reportData, supplierOrdersData] = await Promise.all([
+      const [activeCashboxesData, allCashboxesData, transactionsData, reportData, supplierOrdersData] = await Promise.all([
         getCashboxes(),
+        getCashboxes({ includeArchived: true }),
         getFinanceTransactions(),
         getFinanceReport(),
         getSupplierOrdersForPayment(),
       ]);
       const allSupplierOrders = await getSupplierOrders();
-      let orderedCashboxes = cashboxesData;
+      let orderedCashboxes = activeCashboxesData;
       try {
         const storedOrder = JSON.parse(
           window.localStorage.getItem(accountingCashboxOrderStorageKey) ?? '[]',
         ) as string[];
         if (Array.isArray(storedOrder)) {
-          orderedCashboxes = applyCashboxOrder(cashboxesData, storedOrder);
+          orderedCashboxes = applyCashboxOrder(activeCashboxesData, storedOrder);
         }
       } catch {
-        orderedCashboxes = cashboxesData;
+        orderedCashboxes = activeCashboxesData;
       }
       setCashboxes(orderedCashboxes);
+      setAllCashboxes(allCashboxesData);
       setIsCashboxesOrderHydrated(true);
       setTransactions(transactionsData);
       setReport(reportData);
@@ -227,6 +247,17 @@ export const AccountingPanel = ({
     }
   }, [cashboxes, isCashboxesOrderHydrated]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingCurrenciesStorageKey,
+        JSON.stringify(customCurrencies),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [customCurrencies]);
+
   const totals = useMemo(
     () =>
       cashboxes.reduce(
@@ -247,6 +278,64 @@ export const AccountingPanel = ({
       fromCashboxId: type === 'withdraw' || type === 'transfer' ? cashbox.id : '',
       toCashboxId: type === 'deposit' ? cashbox.id : secondCashboxId,
     });
+  };
+
+  const openCashboxTransactions = (cashbox: Cashbox) => {
+    setActiveTab('transactions');
+    setSelectedTransactionCashboxId(cashbox.id);
+    setTransactionsPage(1);
+  };
+
+  const startEditCashbox = (cashbox: Cashbox) => {
+    setEditingCashboxId(cashbox.id);
+    setEditingCashboxName(cashbox.name);
+  };
+
+  const saveCashbox = async () => {
+    if (!editingCashboxId) return;
+    setIsSaving(true);
+    try {
+      await updateCashbox(editingCashboxId, { name: editingCashboxName.trim() });
+      onSuccess('Cashbox updated.');
+      setEditingCashboxId(null);
+      setEditingCashboxName('');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update cashbox.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleCashboxArchived = async (cashbox: Cashbox) => {
+    setIsSaving(true);
+    try {
+      await updateCashbox(cashbox.id, { isArchived: !cashbox.isArchived });
+      onSuccess(cashbox.isArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update cashbox status.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addCurrencyCode = () => {
+    const normalized = newCurrencyCode.trim().toUpperCase();
+    if (!/^[A-Z]{3,6}$/.test(normalized)) {
+      onError('Currency code must be 3-6 latin letters.');
+      return;
+    }
+    if (currencyOptions.includes(normalized as FinanceCurrency) || customCurrencies.includes(normalized)) {
+      onError('Currency already exists.');
+      return;
+    }
+    setCustomCurrencies((current) => [...current, normalized]);
+    setNewCurrencyCode('');
+  };
+
+  const removeCurrencyCode = (code: string) => {
+    setCustomCurrencies((current) => current.filter((item) => item !== code));
   };
 
   const handleCreateCashbox = async () => {
@@ -331,7 +420,7 @@ export const AccountingPanel = ({
               <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Withdraw</button>
               <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Deposit</button>
               <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Transfer</button>
-              <button type='button' onClick={() => setActiveTab('reports')}>Reports</button>
+              <button type='button' onClick={() => openCashboxTransactions(cashbox)}>Transactions</button>
             </div>
           </article>
         ))}
@@ -1068,23 +1157,230 @@ export const AccountingPanel = ({
     </div>
   );
 
+  const renderFinanceSettings = () => (
+    <section className='warehouse-settings-panel finance-settings-panel'>
+      <div className='warehouse-settings-tabs'>
+        <button
+          type='button'
+          className={
+            financeSettingsTab === 'cashboxes'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => setFinanceSettingsTab('cashboxes')}
+        >
+          Cashboxes
+        </button>
+        <button
+          type='button'
+          className={
+            financeSettingsTab === 'currencies'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => setFinanceSettingsTab('currencies')}
+        >
+          Currencies
+        </button>
+      </div>
+
+      {financeSettingsTab === 'cashboxes' ? (
+        <div className='finance-settings-body'>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Create cashbox</h2></header>
+            <div className='catalog-edit-body'>
+              <label className='field'>
+                <span>Name</span>
+                <input
+                  value={newCashboxName}
+                  onChange={(event) => setNewCashboxName(event.target.value)}
+                  placeholder='Enter cashbox name'
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSaving || newCashboxName.trim().length < 2}
+                onClick={handleCreateCashbox}
+              >
+                Create
+              </button>
+            </footer>
+          </article>
+
+          {allCashboxes.map((cashbox) => (
+            <article
+              key={`settings-${cashbox.id}`}
+              className={
+                cashbox.isArchived
+                  ? 'catalog-edit-modal finance-settings-cashbox finance-settings-cashbox-archived'
+                  : 'catalog-edit-modal finance-settings-cashbox'
+              }
+            >
+              <header className='catalog-edit-header'>
+                <h2>{editingCashboxId === cashbox.id ? `Edit cashbox ${cashbox.name}` : `Edit cashbox ${cashbox.name}`}</h2>
+              </header>
+              <div className='catalog-edit-body'>
+                <label className='field'>
+                  <span>Name</span>
+                  <input
+                    disabled={editingCashboxId !== cashbox.id || isSaving}
+                    value={editingCashboxId === cashbox.id ? editingCashboxName : cashbox.name}
+                    onChange={(event) => setEditingCashboxName(event.target.value)}
+                  />
+                </label>
+                <label className='field-inline'>
+                  <input
+                    type='checkbox'
+                    checked={!cashbox.isArchived}
+                    disabled={cashbox.isDefault || isSaving}
+                    onChange={() => toggleCashboxArchived(cashbox)}
+                  />
+                  <span>{cashbox.isDefault ? 'Active (default)' : 'Active'}</span>
+                </label>
+              </div>
+              <footer className='catalog-edit-footer'>
+                {editingCashboxId === cashbox.id ? (
+                  <>
+                    <button
+                      type='button'
+                      className='primary-button'
+                      disabled={isSaving || editingCashboxName.trim().length < 2}
+                      onClick={saveCashbox}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type='button'
+                      className='secondary-button'
+                      disabled={isSaving}
+                      onClick={() => {
+                        setEditingCashboxId(null);
+                        setEditingCashboxName('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type='button'
+                    className='toolbar-filter-button'
+                    onClick={() => startEditCashbox(cashbox)}
+                  >
+                    Edit cashbox
+                  </button>
+                )}
+              </footer>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className='finance-settings-body'>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Create currency</h2></header>
+            <div className='catalog-edit-body'>
+              <p className='section-label'>
+                System currencies are fixed in transaction engine. Added currencies are stored for planning.
+              </p>
+              <label className='field'>
+                <span>Currency code</span>
+                <input
+                  value={newCurrencyCode}
+                  onChange={(event) => setNewCurrencyCode(event.target.value)}
+                  placeholder='EUR'
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                onClick={addCurrencyCode}
+                disabled={newCurrencyCode.trim().length < 3}
+              >
+                Add currency
+              </button>
+            </footer>
+          </article>
+          <article className='catalog-edit-modal finance-settings-card'>
+            <header className='catalog-edit-header'><h2>Available currencies</h2></header>
+            <div className='catalog-edit-body'>
+              <div className='orders-filter-saved-list'>
+                {currencyOptions.map((currency) => (
+                  <span key={`system-${currency}`} className='warehouse-settings-center-chip'>
+                    {currency} (system)
+                  </span>
+                ))}
+                {customCurrencies.map((currency) => (
+                  <span key={`custom-${currency}`} className='warehouse-settings-center-chip'>
+                    {currency}
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button'
+                      onClick={() => removeCurrencyCode(currency)}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </article>
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <section className='orders-page finance-page'>
-      <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
-        {[
-          ['cashboxes', 'Cashboxes'],
-          ['transactions', 'Transactions'],
-          ['orders', 'Orders'],
-          ['reports', 'Reports'],
-        ].map(([key, label]) => (
-          <button key={key} type='button' className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'} onClick={() => setActiveTab(key as AccountingTab)}>
-            {label}
+      <div className='finance-tabs-row'>
+        <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
+          {[
+            ['cashboxes', 'Cashboxes'],
+            ['transactions', 'Transactions'],
+            ['orders', 'Orders'],
+            ['reports', 'Information'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type='button'
+              className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
+              onClick={() => {
+                setIsFinanceSettingsOpen(false);
+                setActiveTab(key as AccountingTab);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className='toolbar-settings'>
+          <button
+            type='button'
+            className='toolbar-square-button'
+            aria-label='Accounting settings'
+            aria-expanded={isFinanceSettingsOpen}
+            onClick={() => setIsFinanceSettingsOpen((current) => !current)}
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              viewBox='0 0 24 24'
+              className='toolbar-square-button-icon'
+              fill='currentColor'
+            >
+              <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
+            </svg>
           </button>
-        ))}
+        </div>
       </div>
 
       {isLoading ? (
         <p className='empty-state'>Loading finance data...</p>
+      ) : isFinanceSettingsOpen ? (
+        renderFinanceSettings()
       ) : activeTab === 'transactions' ? (
         renderTransactions()
       ) : activeTab === 'orders' ? (
