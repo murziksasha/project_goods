@@ -1,4 +1,5 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import axios from 'axios';
 import type {
   Cashbox,
   CreateCashboxPayload,
@@ -72,6 +73,23 @@ export const paySupplierOrder = async (supplierOrderId: string, payload: { cashb
     const response = await apiClient.post(`/finance/supplier-orders/${supplierOrderId}/pay`, payload);
     return response.data;
   } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const issueSupplierOrderWithoutPayment = async (supplierOrderId: string) => {
+  try {
+    const response = await apiClient.post(`/finance/supplier-orders/${supplierOrderId}/issue-without-payment`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      try {
+        const fallbackResponse = await apiClient.post(`/supplier-orders/${supplierOrderId}/issue-without-payment`);
+        return fallbackResponse.data;
+      } catch (fallbackError) {
+        throw new Error(getApiErrorMessage(fallbackError));
+      }
+    }
     throw new Error(getApiErrorMessage(error));
   }
 };

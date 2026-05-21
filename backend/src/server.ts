@@ -1,6 +1,10 @@
 import { connectDatabase } from './config/database';
 import { env } from './config/env';
 import { app } from './app';
+import {
+  ensureProductArticleIsNotUnique,
+  ensureProductNameIsNotUnique,
+} from './domain/product/service';
 
 const getStartupErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -13,6 +17,8 @@ const getStartupErrorMessage = (error: unknown) => {
 const startServer = async () => {
   try {
     await connectDatabase();
+    await ensureProductNameIsNotUnique();
+    await ensureProductArticleIsNotUnique();
     app.listen(env.port, () => {
       console.log(`Backend started on http://localhost:${env.port}`);
     });

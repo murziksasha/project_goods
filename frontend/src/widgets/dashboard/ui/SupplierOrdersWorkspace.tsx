@@ -52,6 +52,7 @@ const orderStatuses: Array<{ key: SupplierOrderStatus; label: string }> = [
 const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
   { key: 'pending', label: 'Очікують оплати' },
   { key: 'paid', label: 'Сплачено' },
+  { key: 'without_payment', label: 'Видано без оплати' },
   { key: 'cancelled', label: 'Відмінені' },
 ];
 const getOrderStatusLabel = (status: SupplierOrderStatus) =>
@@ -94,7 +95,7 @@ export const SupplierOrdersWorkspace = ({
   const [paymentStatus, setPaymentStatus] = useState<SupplierPaymentStatus | 'all'>(() => {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ paymentStatus: SupplierPaymentStatus | 'all' }>;
-      return parsed.paymentStatus === 'pending' || parsed.paymentStatus === 'paid' || parsed.paymentStatus === 'cancelled' || parsed.paymentStatus === 'all'
+      return parsed.paymentStatus === 'pending' || parsed.paymentStatus === 'paid' || parsed.paymentStatus === 'without_payment' || parsed.paymentStatus === 'cancelled' || parsed.paymentStatus === 'all'
         ? parsed.paymentStatus
         : 'all';
     } catch {
@@ -213,9 +214,26 @@ export const SupplierOrdersWorkspace = ({
 
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left'>
-          <div className='orders-search-group'>
+          <div className='orders-search-group orders-search-group-clearable'>
             <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Пошук' />
-            <button type='button'>Find</button>
+            {query ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label='Clear search text'
+                onClick={() => { setQuery(''); setPage(1); }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setQuery('');
+                    setPage(1);
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
           </div>
 
           <div className='orders-filter-field orders-filter-status-field'>
@@ -270,7 +288,7 @@ export const SupplierOrdersWorkspace = ({
             {paginatedOrders.flatMap((order) =>
               groupedOrderView(order).map(({ id, item }) => (
                 <tr key={id}>
-                  <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
+                  <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
                   <td>
                     <button type='button' className='catalog-name-button' onClick={() => {
                       const matchedProduct = item.catalogProductId
@@ -312,7 +330,7 @@ export const SupplierOrdersWorkspace = ({
                     ) : (
                       <select
                         value={order.status}
-                        disabled={order.paymentStatus === 'paid'}
+                        disabled={order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment'}
                         onChange={async (event) => {
                           try {
                             await updateSupplierOrder(order.id, {
@@ -369,9 +387,23 @@ export const SupplierOrdersWorkspace = ({
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
         onError={onError}
-        onTakeOnCharge={async () => {
+        onTakeOnCharge={async ({
+          autoGenerateSerialNumbers,
+          serialNumbers,
+          autoGenerateArticles,
+          articleBase,
+          warehouseId,
+          locationId,
+        }) => {
           if (!editingOrder) return;
-          await takeOnChargeSupplierOrder(editingOrder.id);
+          await takeOnChargeSupplierOrder(editingOrder.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+            autoGenerateArticles,
+            articleBase: articleBase.trim().toUpperCase(),
+            warehouseId,
+            locationId,
+          });
           onSuccess('Замовлення оприбутковано.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));

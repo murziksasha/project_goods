@@ -107,6 +107,23 @@ Client status localization rule: keep client status values in original English (
   - Stock product creation/updates belong to warehouse flows.
   - Catalogization flows must use `/catalog-products` and must not create stock entries.
 
+## Sale Serial Returns (2026-05-17)
+
+- `PATCH /sales/:saleId/return-line-item-serials`
+  - Partial return for a product line item by selected serial numbers.
+  - Request body:
+    - `lineItemId: string`
+    - `serialNumbers: string[]` (one or more, unique, must be bound to line item)
+    - `cashboxId: string`
+    - `refundAmount: string`
+    - `warehouse: string`
+    - `author: string`
+  - Behavior:
+    - returns selected quantity to stock (`serialNumbers.length`)
+    - deducts `paidAmount` by `refundAmount`
+    - appends refund transaction and timeline entry
+    - keeps non-returned serials in the line item
+
 ## Warehouse Flow Guard (2026-05-10)
 
 - Until receipt (оприходування) workflow is implemented, no flow may place items into stock balances.
@@ -114,3 +131,28 @@ Client status localization rule: keep client status values in original English (
   - `Products & Services -> Products` name creation/editing (catalog-only)
   - Supplier order draft creation
 - Warehouse stock balances must contain only real received stock (`quantity > 0`).
+
+## Supplier Order Take-On-Charge Warehouse/Location (2026-05-17)
+
+- `POST /supplier-orders/:supplierOrderId/take-on-charge`
+  - Request body supports:
+    - `autoGenerateSerialNumbers?: boolean`
+    - `serialNumbers?: string[]`
+    - `warehouseId?: string`
+    - `locationId?: string`
+  - Behavior:
+    - creates stock products per unit (`quantity=1` rows)
+    - persists `warehouseId` and `locationId` on each created product
+    - sets `purchasePlace` to selected warehouse name
+  - Defaults (if IDs are not passed or invalid):
+    - warehouse -> first warehouse from `warehouse-settings`
+    - location -> first location of selected/default warehouse
+
+## Product Warehouse Fields (2026-05-17)
+
+- Product API shape now includes optional location metadata fields:
+  - `warehouseId?: string`
+  - `locationId?: string`
+- Legacy compatibility:
+  - old products may have only `purchasePlace`
+  - consumers must support fallback mapping from `purchasePlace` when IDs are empty

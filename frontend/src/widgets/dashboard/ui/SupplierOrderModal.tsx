@@ -3,6 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
+import { getSupplierSuggestions } from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
@@ -25,10 +26,19 @@ type SupplierOrderModalProps = {
   onTakeOnCharge?: (payload: {
     autoGenerateSerialNumbers: boolean;
     serialNumbers: string[];
+    autoGenerateArticles: boolean;
+    articleBase: string;
+    warehouseId: string;
+    locationId: string;
   }) => Promise<void> | void;
   onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  warehouseOptions?: Array<{
+    id: string;
+    name: string;
+    locations: Array<{ id: string; name: string }>;
+  }>;
 };
 
 type DraftItem = {
@@ -37,6 +47,11 @@ type DraftItem = {
   quantity: number;
   price: number;
 };
+const EMPTY_WAREHOUSE_OPTIONS: Array<{
+  id: string;
+  name: string;
+  locations: Array<{ id: string; name: string }>;
+}> = [];
 
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
@@ -54,7 +69,10 @@ export const SupplierOrderModal = ({
   onCancelOrder,
   onSuccess,
   onError,
+  warehouseOptions,
 }: SupplierOrderModalProps) => {
+  const resolvedWarehouseOptions =
+    warehouseOptions ?? EMPTY_WAREHOUSE_OPTIONS;
   const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
@@ -69,6 +87,10 @@ export const SupplierOrderModal = ({
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
+  const [isAutoArticleEnabled, setIsAutoArticleEnabled] = useState(false);
+  const [manualArticleBase, setManualArticleBase] = useState('');
+  const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] = useState('');
+  const [takeOnChargeLocationId, setTakeOnChargeLocationId] = useState('');
 
   const [productSearch, setProductSearch] = useState(initialProductName);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
@@ -95,8 +117,7 @@ export const SupplierOrderModal = ({
   const isEditing = Boolean(editingOrder);
   const isTakenOnChargeLocked = Boolean(
     editingOrder &&
-      (editingOrder.status === 'stocked' ||
-        editingOrder.receiptStatus === 'received' ||
+      (editingOrder.receiptStatus === 'received' ||
         editingOrder.status === 'cancelled' ||
         editingOrder.paymentStatus === 'cancelled'),
   );
@@ -143,7 +164,12 @@ export const SupplierOrderModal = ({
     setIsSerialModalOpen(false);
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
-  }, [editingOrder, initialProductName, isOpen]);
+    setIsAutoArticleEnabled(false);
+    setManualArticleBase('');
+    const defaultWarehouse = resolvedWarehouseOptions[0];
+    setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
+    setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
+  }, [editingOrder, initialProductName, isOpen, resolvedWarehouseOptions]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);
@@ -184,11 +210,10 @@ export const SupplierOrderModal = ({
   }, [debouncedProductSearch]);
 
   const supplierOptions = useMemo(() => {
-    const normalized = debouncedSupplierSearch.trim().toLowerCase();
-    if (normalized.length < 2) return [];
-    return suppliers
-      .filter((supplier) => [supplier.name, supplier.phone].join(' ').toLowerCase().includes(normalized))
-      .slice(0, 8);
+    return getSupplierSuggestions(
+      suppliers,
+      debouncedSupplierSearch,
+    );
   }, [debouncedSupplierSearch, suppliers]);
 
   const selectedSupplier = useMemo(() => {
@@ -200,8 +225,6 @@ export const SupplierOrderModal = ({
       ) ?? null
     );
   }, [supplierSearch, suppliers]);
-
-  if (!isOpen) return null;
 
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
   const currentPrice = Math.max(0, Number(form.price) || 0);
@@ -237,10 +260,36 @@ export const SupplierOrderModal = ({
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
   );
+  const serialUnitLabels = submitItems.flatMap((item) =>
+    Array.from(
+      { length: Math.max(0, Math.floor(item.quantity)) },
+      () => item.productName,
+    ),
+  );
   const canSubmitTakeOnCharge = isAutoSerialEnabled
     ? true
     : manualSerialNumbers.length === totalUnits &&
       manualSerialNumbers.every((serial) => serial.trim().length > 0);
+  const selectedTakeOnChargeWarehouse = resolvedWarehouseOptions.find(
+    (warehouse) => warehouse.id === takeOnChargeWarehouseId,
+  );
+  const selectedTakeOnChargeLocations =
+    selectedTakeOnChargeWarehouse?.locations ?? [];
+
+  useEffect(() => {
+    if (selectedTakeOnChargeLocations.length === 0) {
+      setTakeOnChargeLocationId('');
+      return;
+    }
+    const isLocationExists = selectedTakeOnChargeLocations.some(
+      (location) => location.id === takeOnChargeLocationId,
+    );
+    if (!isLocationExists) {
+      setTakeOnChargeLocationId(selectedTakeOnChargeLocations[0]?.id ?? '');
+    }
+  }, [selectedTakeOnChargeLocations, takeOnChargeLocationId]);
+
+  if (!isOpen) return null;
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -496,6 +545,8 @@ export const SupplierOrderModal = ({
                 setIsSerialModalOpen(true);
                 setIsAutoSerialEnabled(true);
                 setManualSerialNumbers(Array.from({ length: totalUnits }, () => ''));
+                setIsAutoArticleEnabled(false);
+                setManualArticleBase('');
               }}
               style={{ background: '#16a34a' }}
             >
@@ -616,13 +667,21 @@ export const SupplierOrderModal = ({
                     setIsAutoSerialEnabled(event.target.checked)
                   }
                 />
-                <span>Автогенерация серийных номеров бекендом</span>
+                <span>Автогенерация серийных номеров</span>
               </label>
               {!isAutoSerialEnabled ? (
                 <div className='warehouse-receipt-modal-grid'>
                   {manualSerialNumbers.map((serialNumber, index) => (
                     <label key={`serial-${index}`} className='field'>
-                      <span>{`#${index + 1}`}</span>
+                      <span className='supplier-serial-label'>
+                        <span className='supplier-serial-index'>{`#${index + 1}`}</span>
+                        <span
+                          className='supplier-serial-product'
+                          title={serialUnitLabels[index] ?? ''}
+                        >
+                          {serialUnitLabels[index] ?? ''}
+                        </span>
+                      </span>
                       <input
                         value={serialNumber}
                         onChange={(event) =>
@@ -640,6 +699,59 @@ export const SupplierOrderModal = ({
                   ))}
                 </div>
               ) : null}
+              <label className='supplier-serial-auto'>
+                <input
+                  type='checkbox'
+                  checked={isAutoArticleEnabled}
+                  onChange={(event) =>
+                    setIsAutoArticleEnabled(event.target.checked)
+                  }
+                />
+                <span>Автогенерация артикулов</span>
+              </label>
+              {!isAutoArticleEnabled ? (
+                <label className='field field-wide'>
+                  <span>Артикул для всего количества</span>
+                  <input
+                    value={manualArticleBase}
+                    onChange={(event) =>
+                      setManualArticleBase(event.target.value.toUpperCase())
+                    }
+                    placeholder='Например: SSD-KINGSTON'
+                  />
+                </label>
+              ) : null}
+              <label className='field field-wide'>
+                <span>Warehouse</span>
+                <select
+                  value={takeOnChargeWarehouseId}
+                  onChange={(event) =>
+                    setTakeOnChargeWarehouseId(event.target.value)
+                  }
+                >
+                    {resolvedWarehouseOptions.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className='field field-wide'>
+                <span>Location</span>
+                <select
+                  value={takeOnChargeLocationId}
+                  onChange={(event) =>
+                    setTakeOnChargeLocationId(event.target.value)
+                  }
+                  disabled={selectedTakeOnChargeLocations.length === 0}
+                >
+                  {selectedTakeOnChargeLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <footer className='catalog-edit-footer'>
               <button
@@ -656,10 +768,15 @@ export const SupplierOrderModal = ({
                 disabled={
                   isActionSubmitting ||
                   totalUnits <= 0 ||
-                  !canSubmitTakeOnCharge
+                  !canSubmitTakeOnCharge ||
+                  !takeOnChargeWarehouseId ||
+                  !takeOnChargeLocationId
                 }
                 onClick={async () => {
                   if (!onTakeOnCharge) return;
+                  const normalizedArticleBase = manualArticleBase
+                    .trim()
+                    .toUpperCase();
                   setIsActionSubmitting(true);
                   try {
                     await onTakeOnCharge({
@@ -669,9 +786,21 @@ export const SupplierOrderModal = ({
                         : manualSerialNumbers.map((item) =>
                             item.trim(),
                           ),
+                      autoGenerateArticles: isAutoArticleEnabled,
+                      articleBase: isAutoArticleEnabled
+                        ? ''
+                        : normalizedArticleBase,
+                      warehouseId: takeOnChargeWarehouseId,
+                      locationId: takeOnChargeLocationId,
                     });
                     setIsSerialModalOpen(false);
                     onClose();
+                  } catch (error) {
+                    onError(
+                      error instanceof Error
+                        ? error.message
+                        : 'Failed to take order on charge.',
+                    );
                   } finally {
                     setIsActionSubmitting(false);
                   }

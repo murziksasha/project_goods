@@ -580,7 +580,7 @@ export const CreateOrderCard = ({
           : [...current, 'Waiting for supply'],
       );
       onSuccess(
-        'Supplier order created. It is now available in Warehouse Receipts and Accounting orders queue.',
+        'Supplier order created. It is now available in Warehouse Receipts and in Accounting orders queue when total is greater than 0.',
       );
       setSupplierOrderModalItemId(null);
     } catch (error) {
