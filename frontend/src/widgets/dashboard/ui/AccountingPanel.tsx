@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCashbox,
   createFinanceTransaction,
@@ -39,9 +39,9 @@ const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
-  withdraw: 'Видача',
-  deposit: 'Внесення',
-  transfer: 'Переміщення',
+  withdraw: 'Withdraw',
+  deposit: 'Deposit',
+  transfer: 'Transfer',
 };
 
 const formatMoney = (value: number, currency: FinanceCurrency) =>
@@ -57,6 +57,19 @@ const formatDateDdMmYyyy = (value: string) => {
   }
   const [year, month, day] = normalized.split('-');
   return `${day}.${month}.${year}`;
+};
+
+const formatTransactionDayLabel = (value: string) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDateDdMmYyyy(value);
+  const label = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+  return label.slice(0, 1).toUpperCase() + label.slice(1);
 };
 
 const initialTransactionForm: CreateFinanceTransactionPayload = {
@@ -273,9 +286,9 @@ export const AccountingPanel = ({
           <span>{formatMoney(totals.USD, 'USD')}</span>
         </div>
         <div className='finance-add-cashbox'>
-          <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='Нова каса' />
+          <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='New cashbox' />
           <button type='button' className='orders-create-button' onClick={handleCreateCashbox} disabled={isSaving}>
-            Додати касу
+            Add cashbox
           </button>
         </div>
       </div>
@@ -315,10 +328,10 @@ export const AccountingPanel = ({
             <strong>{formatMoney(cashbox.balances.UAH, 'UAH')}</strong>
             <p>{formatMoney(cashbox.balances.USD, 'USD')}</p>
             <div className='finance-cashbox-actions'>
-              <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Видача</button>
-              <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Внесення</button>
-              <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Переміщення</button>
-              <button type='button' onClick={() => setActiveTab('reports')}>Звіти</button>
+              <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Withdraw</button>
+              <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Deposit</button>
+              <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Transfer</button>
+              <button type='button' onClick={() => setActiveTab('reports')}>Reports</button>
             </div>
           </article>
         ))}
@@ -327,25 +340,25 @@ export const AccountingPanel = ({
       <section className='finance-operation-panel'>
         <div className='panel-header'>
           <div>
-            <p className='section-label'>Операція</p>
+            <p className='section-label'>Operation</p>
             <h2>{transactionLabels[transactionForm.type]}</h2>
           </div>
         </div>
         <div className='finance-operation-grid'>
           <label className='field'>
-            <span>Тип</span>
+            <span>Type</span>
             <select value={transactionForm.type} onChange={(event) => setTransactionForm((current) => ({ ...current, type: event.target.value as FinanceTransactionType }))}>
-              <option value='deposit'>Внесення</option>
-              <option value='withdraw'>Видача</option>
-              <option value='transfer'>Переміщення</option>
+              <option value='deposit'>Deposit</option>
+              <option value='withdraw'>Withdraw</option>
+              <option value='transfer'>Transfer</option>
             </select>
           </label>
           <label className='field'>
-            <span>Сума</span>
+            <span>Amount</span>
             <NumberStepper min={0} value={transactionForm.amount} onChange={(value) => setTransactionForm((current) => ({ ...current, amount: value }))} />
           </label>
           <label className='field'>
-            <span>Валюта</span>
+            <span>Currency</span>
             <select value={transactionForm.currency} onChange={(event) => setTransactionForm((current) => ({ ...current, currency: event.target.value as FinanceCurrency }))}>
               {currencyOptions.map((currency) => (
                 <option key={currency} value={currency}>{currency}</option>
@@ -353,7 +366,7 @@ export const AccountingPanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>Із каси</span>
+            <span>From cashbox</span>
             <select value={transactionForm.fromCashboxId} disabled={transactionForm.type === 'deposit'} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
               <option value=''>-</option>
               {cashboxes.map((cashbox) => (
@@ -362,7 +375,7 @@ export const AccountingPanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>В касу</span>
+            <span>To cashbox</span>
             <select value={transactionForm.toCashboxId} disabled={transactionForm.type === 'withdraw'} onChange={(event) => setTransactionForm((current) => ({ ...current, toCashboxId: event.target.value }))}>
               <option value=''>-</option>
               {cashboxes.map((cashbox) => (
@@ -371,7 +384,7 @@ export const AccountingPanel = ({
             </select>
           </label>
           <label className='field'>
-            <span>Коментар</span>
+            <span>Comment</span>
             <input value={transactionForm.note} onChange={(event) => setTransactionForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
         </div>
@@ -382,7 +395,7 @@ export const AccountingPanel = ({
     </>
   );
 
-  const senderBalanceAfterByTransactionId = useMemo(() => {
+  const balanceAfterByTransactionId = useMemo(() => {
     const balancesByCashboxCurrency = new Map<string, number>();
     cashboxes.forEach((cashbox) => {
       currencyOptions.forEach((currency) => {
@@ -398,24 +411,39 @@ export const AccountingPanel = ({
     );
     const result: Record<string, number | null> = {};
     chronologicalDesc.forEach((transaction) => {
-      if (transaction.fromCashbox?.id) {
-        const key = `${transaction.fromCashbox.id}:${transaction.currency}`;
-        const senderBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
-        result[transaction.id] = senderBalanceAfter;
-        balancesByCashboxCurrency.set(
-          key,
-          senderBalanceAfter + transaction.amount,
-        );
+      const fromKey = transaction.fromCashbox?.id
+        ? `${transaction.fromCashbox.id}:${transaction.currency}`
+        : '';
+      const toKey = transaction.toCashbox?.id
+        ? `${transaction.toCashbox.id}:${transaction.currency}`
+        : '';
+
+      const senderBalanceAfter =
+        fromKey.length > 0
+          ? (balancesByCashboxCurrency.get(fromKey) ?? 0)
+          : null;
+      const recipientBalanceAfter =
+        toKey.length > 0
+          ? (balancesByCashboxCurrency.get(toKey) ?? 0)
+          : null;
+
+      if (transaction.type === 'deposit') {
+        result[transaction.id] = recipientBalanceAfter;
       } else {
-        result[transaction.id] = null;
+        result[transaction.id] = senderBalanceAfter;
+      }
+
+      if (transaction.fromCashbox?.id) {
+        balancesByCashboxCurrency.set(
+          fromKey,
+          (senderBalanceAfter ?? 0) + transaction.amount,
+        );
       }
 
       if (transaction.toCashbox?.id) {
-        const key = `${transaction.toCashbox.id}:${transaction.currency}`;
-        const recipientBalanceAfter = balancesByCashboxCurrency.get(key) ?? 0;
         balancesByCashboxCurrency.set(
-          key,
-          recipientBalanceAfter - transaction.amount,
+          toKey,
+          (recipientBalanceAfter ?? 0) - transaction.amount,
         );
       }
     });
@@ -645,9 +673,9 @@ export const AccountingPanel = ({
               }
             >
               <option value=''>All</option>
-              <option value='deposit'>Внесення</option>
-              <option value='withdraw'>Видача</option>
-              <option value='transfer'>Переміщення</option>
+              <option value='deposit'>Deposit</option>
+              <option value='withdraw'>Withdraw</option>
+              <option value='transfer'>Transfer</option>
             </select>
           </label>
           <label className='orders-filter-field'>
@@ -872,68 +900,83 @@ export const AccountingPanel = ({
             {filteredTransactions.length === 0 ? (
               <tr><td colSpan={7} className='orders-empty'>Transactions not found.</td></tr>
             ) : (
-              paginatedTransactions.map((transaction) => (
-                <tr key={transaction.id}>
-                  <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
-                  <td>{transactionLabels[transaction.type]}</td>
-                  <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                  <td>
-                    {senderBalanceAfterByTransactionId[transaction.id] === null ||
-                    senderBalanceAfterByTransactionId[transaction.id] === undefined
-                      ? '-'
-                      : formatMoney(
-                          senderBalanceAfterByTransactionId[
-                            transaction.id
-                          ] as number,
-                          transaction.currency,
-                        )}
-                  </td>
-                  <td>{transaction.fromCashbox?.name ?? '-'}</td>
-                  <td>{transaction.toCashbox?.name ?? '-'}</td>
-                  <td>
-                    {(() => {
-                      const normalizedNote = transaction.note.trim();
-                      const parsedOrderNumber =
-                        normalizedNote.match(/(?:замовлення|order)\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
-                      const parsedOrderNumberNormalized = parsedOrderNumber.toLowerCase();
-                      const matchedSale = sales.find(
-                        (sale) =>
-                          (sale.recordNumber ?? '').toLowerCase() === parsedOrderNumberNormalized ||
-                          sale.id.toLowerCase() === parsedOrderNumberNormalized,
-                      );
-                      if (matchedSale) {
-                        return (
-                          <button
-                            type='button'
-                            className='catalog-name-button'
-                            onClick={() =>
-                              onOpenSaleCard({ id: matchedSale.id, kind: matchedSale.kind })
-                            }
-                          >
-                            {transaction.note}
-                          </button>
-                        );
-                      }
-                      const matchedOrder = supplierOrders.find(
-                        (order) =>
-                          order.number === parsedOrderNumber ||
-                          order.orderBaseId === parsedOrderNumber,
-                      );
-                      if (!matchedOrder) return transaction.note || '-';
-                      return (
-                        <button
-                          type='button'
-                          className='catalog-name-button'
-                          onClick={() => setSelectedSupplierOrder(matchedOrder)}
-                        >
-                          {transaction.note}
-                        </button>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              ))
-            )}
+                            paginatedTransactions.map((transaction, index) => {
+                const currentDay = transaction.transactionDate.slice(0, 10);
+                const previousDay = paginatedTransactions[index - 1]?.transactionDate.slice(0, 10);
+                const isNewDay = index === 0 || currentDay !== previousDay;
+                return (
+                  <Fragment key={transaction.id}>
+                    {isNewDay ? (
+                      <tr className='finance-day-separator-row'>
+                        <td colSpan={7} className='finance-day-separator-cell'>
+                          {formatTransactionDayLabel(transaction.transactionDate)}
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
+                      <td className={`finance-transaction-type finance-transaction-type-${transaction.type}`}>
+                        {transactionLabels[transaction.type]}
+                      </td>
+                      <td>{formatMoney(transaction.amount, transaction.currency)}</td>
+                      <td>
+                        {balanceAfterByTransactionId[transaction.id] === null ||
+                        balanceAfterByTransactionId[transaction.id] === undefined
+                          ? '-'
+                          : formatMoney(
+                              balanceAfterByTransactionId[
+                                transaction.id
+                              ] as number,
+                              transaction.currency,
+                            )}
+                      </td>
+                      <td>{transaction.fromCashbox?.name ?? '-'}</td>
+                      <td>{transaction.toCashbox?.name ?? '-'}</td>
+                      <td>
+                        {(() => {
+                          const normalizedNote = transaction.note.trim();
+                          const parsedOrderNumber =
+                            normalizedNote.match(/order\s+([A-Za-z0-9-]+)/i)?.[1] ?? '';
+                          const parsedOrderNumberNormalized = parsedOrderNumber.toLowerCase();
+                          const matchedSale = sales.find(
+                            (sale) =>
+                              (sale.recordNumber ?? '').toLowerCase() === parsedOrderNumberNormalized ||
+                              sale.id.toLowerCase() === parsedOrderNumberNormalized,
+                          );
+                          if (matchedSale) {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() =>
+                                  onOpenSaleCard({ id: matchedSale.id, kind: matchedSale.kind })
+                                }
+                              >
+                                {transaction.note}
+                              </button>
+                            );
+                          }
+                          const matchedOrder = supplierOrders.find(
+                            (order) =>
+                              order.number === parsedOrderNumber ||
+                              order.orderBaseId === parsedOrderNumber,
+                          );
+                          if (!matchedOrder) return transaction.note || '-';
+                          return (
+                            <button
+                              type='button'
+                              className='catalog-name-button'
+                              onClick={() => setSelectedSupplierOrder(matchedOrder)}
+                            >
+                              {transaction.note}
+                            </button>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  </Fragment>
+                );
+              })            )}
           </tbody>
         </table>
       </div>
@@ -954,11 +997,11 @@ export const AccountingPanel = ({
     <div className='finance-table-wrap'>
       <table className='orders-table'>
         <thead>
-          <tr><th>Номер</th><th>Дата</th><th>Постачальник</th><th>Сума</th><th>Оплата</th></tr>
+          <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Amount</th><th>Payment</th></tr>
         </thead>
         <tbody>
           {supplierOrdersQueue.length === 0 ? (
-            <tr><td colSpan={5} className='orders-empty'>Немає замовлень, що очікують оплату.</td></tr>
+            <tr><td colSpan={5} className='orders-empty'>No orders are waiting for payment.</td></tr>
           ) : (
             supplierOrdersQueue.map((order) => {
               const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
@@ -983,18 +1026,18 @@ export const AccountingPanel = ({
                           if (!cashboxId) return;
                           setIsSaving(true);
                           try {
-                            await paySupplierOrder(order.id, { cashboxId, note: `Оплата замовлення ${order.number || order.orderBaseId}` });
-                            onSuccess('Замовлення сплачено.');
+                            await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
+                            onSuccess('Order has been paid.');
                             window.dispatchEvent(new Event('project-goods:finance-updated'));
                             await refreshFinance();
                           } catch (error) {
-                            onError(error instanceof Error ? error.message : 'Не вдалося оплатити замовлення.');
+                            onError(error instanceof Error ? error.message : 'Failed to pay order.');
                           } finally {
                             setIsSaving(false);
                           }
                         }}
                       >
-                        Оплатити
+                        Pay
                       </button>
                       <button
                         type='button'
@@ -1002,7 +1045,7 @@ export const AccountingPanel = ({
                         disabled={isSaving}
                         onClick={() => setWithoutPaymentOrder(order)}
                       >
-                        Видати без оплати
+                        Issue without payment
                       </button>
                     </div>
                   </td>
@@ -1017,11 +1060,11 @@ export const AccountingPanel = ({
 
   const renderReports = () => (
     <div className='finance-report-grid'>
-      <article className='analytics-summary-card'><span className='metric-label'>Всього кас</span><strong>{report?.cashboxCount ?? cashboxes.length}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Баланс UAH</span><strong>{formatMoney(report?.totals.UAH ?? totals.UAH, 'UAH')}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Баланс USD</span><strong>{formatMoney(report?.totals.USD ?? totals.USD, 'USD')}</strong></article>
-      <article className='analytics-summary-card'><span className='metric-label'>Операцій сьогодні</span><strong>{report?.todayTransactionCount ?? 0}</strong></article>
-      <article className='finance-wide-report'><h3>Сьогоднішній оборот</h3><p>{formatMoney(report?.todayTurnover.UAH ?? 0, 'UAH')}</p><p>{formatMoney(report?.todayTurnover.USD ?? 0, 'USD')}</p></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Total cashboxes</span><strong>{report?.cashboxCount ?? cashboxes.length}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Balance UAH</span><strong>{formatMoney(report?.totals.UAH ?? totals.UAH, 'UAH')}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Balance USD</span><strong>{formatMoney(report?.totals.USD ?? totals.USD, 'USD')}</strong></article>
+      <article className='analytics-summary-card'><span className='metric-label'>Operations today</span><strong>{report?.todayTransactionCount ?? 0}</strong></article>
+      <article className='finance-wide-report'><h3>Today turnover</h3><p>{formatMoney(report?.todayTurnover.UAH ?? 0, 'UAH')}</p><p>{formatMoney(report?.todayTurnover.USD ?? 0, 'USD')}</p></article>
     </div>
   );
 
@@ -1029,10 +1072,10 @@ export const AccountingPanel = ({
     <section className='orders-page finance-page'>
       <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
         {[
-          ['cashboxes', 'Каси'],
-          ['transactions', 'Транзакції'],
-          ['orders', 'Замовлення'],
-          ['reports', 'Звіти'],
+          ['cashboxes', 'Cashboxes'],
+          ['transactions', 'Transactions'],
+          ['orders', 'Orders'],
+          ['reports', 'Reports'],
         ].map(([key, label]) => (
           <button key={key} type='button' className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'} onClick={() => setActiveTab(key as AccountingTab)}>
             {label}
@@ -1074,21 +1117,21 @@ export const AccountingPanel = ({
         >
           <div className='catalog-edit-modal finance-without-payment-modal' role='dialog' aria-modal='true' aria-labelledby='issue-without-payment-title'>
             <header className='catalog-edit-header'>
-              <h2 id='issue-without-payment-title'>Підтвердити видачу без оплати</h2>
+              <h2 id='issue-without-payment-title'>Confirm issue without payment</h2>
               <button type='button' className='ghost-button' onClick={() => setWithoutPaymentOrder(null)}>
                 &times;
               </button>
             </header>
             <div className='catalog-edit-body'>
               <p>
-                Замовлення <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> буде
-                позначено як <strong>видано без оплати</strong>.
+                Order <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> will be
+                marked as <strong>issued without payment</strong>.
               </p>
-              <p>Фінансова транзакція створена не буде. Продовжити?</p>
+              <p>No finance transaction will be created. Continue?</p>
             </div>
             <footer className='catalog-edit-footer'>
               <button type='button' className='secondary-button' onClick={() => setWithoutPaymentOrder(null)}>
-                Скасувати
+                Cancel
               </button>
               <button
                 type='button'
@@ -1099,18 +1142,18 @@ export const AccountingPanel = ({
                   setIsSaving(true);
                   try {
                     await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
-                    onSuccess('Замовлення видано без оплати.');
+                    onSuccess('Order issued without payment.');
                     window.dispatchEvent(new Event('project-goods:finance-updated'));
                     setWithoutPaymentOrder(null);
                     await refreshFinance();
                   } catch (error) {
-                    onError(error instanceof Error ? error.message : 'Не вдалося видати замовлення без оплати.');
+                    onError(error instanceof Error ? error.message : 'Failed to issue order without payment.');
                   } finally {
                     setIsSaving(false);
                   }
                 }}
               >
-                Підтвердити
+                Confirm
               </button>
             </footer>
           </div>

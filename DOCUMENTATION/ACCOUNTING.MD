@@ -57,3 +57,11 @@ This document defines financial behavior for supplier-order related operations i
 - Click behavior:
   - If sales/service order is resolved: open that order card in `Orders` workspace.
   - If supplier order is resolved: open supplier order modal in read-only mode.
+
+## Transactions Table Visual + Total Rules
+- Type color coding:
+  - `Deposit` is shown in green.
+  - `Withdraw` is shown in red.
+- `Total` column shows post-transaction balance for the affected side:
+  - `Withdraw` and `Transfer`: balance of source cashbox (`From`) after transaction.
+  - `Deposit`: balance of destination cashbox (`To`) after transaction.
