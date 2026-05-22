@@ -151,6 +151,17 @@
     width: 100%;
   }
 
+  .orders-table th,
+  .orders-table td {
+    padding: 9px 8px;
+    font-size: 0.88rem;
+  }
+
+  .order-status {
+    min-width: 120px;
+    font-size: 0.76rem;
+  }
+
   .orders-toolbar-actions {
     width: 100%;
   }
