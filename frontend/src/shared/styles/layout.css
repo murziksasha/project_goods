@@ -3156,7 +3156,7 @@
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   color: #28435f;
   width: 100%;
   max-width: 220px;
@@ -3168,11 +3168,36 @@
   margin: 0;
 }
 
+.finance-cashbox-balance-value {
+  font-size: 1.06rem;
+  line-height: 1.08;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 .finance-cashbox-balance-value-uah {
   color: #00a98f;
 }
 
-.finance-cashbox-balance-row span {
+.finance-cashbox-balance-amount,
+.finance-cashbox-balance-currency-code {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.finance-cashbox-balance-currency-code {
+  margin-left: 0.2em;
+}
+
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-amount,
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-currency-code {
+  color: #00a98f;
+}
+
+.finance-cashbox-balance-row > span {
   color: #6b7c91;
   font-size: 0.78rem;
   font-weight: 800;

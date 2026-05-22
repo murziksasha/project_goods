@@ -40,6 +40,7 @@ const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order
 const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
 const accountingCurrencyActivityStorageKey = 'project-goods.accounting-currency-activity';
 const accountingCashboxCurrencyActivityStorageKey = 'project-goods.accounting-cashbox-currency-activity';
+const accountingLastTargetCashboxByTypeStorageKey = 'project-goods.accounting-last-target-cashbox-by-type';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -84,6 +85,8 @@ const initialTransactionForm: CreateFinanceTransactionPayload = {
   toCashboxId: '',
   note: '',
 };
+
+type TransactionTargetMemory = Partial<Record<'deposit' | 'transfer', string>>;
 
 type TransactionFilters = {
   type: '' | FinanceTransactionType;
@@ -208,6 +211,23 @@ export const AccountingPanel = ({
       return {};
     }
   });
+  const [lastTargetCashboxByType, setLastTargetCashboxByType] = useState<TransactionTargetMemory>(() => {
+    try {
+      const raw = window.localStorage.getItem(accountingLastTargetCashboxByTypeStorageKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const next: TransactionTargetMemory = {};
+      if (typeof parsed.deposit === 'string') {
+        next.deposit = parsed.deposit;
+      }
+      if (typeof parsed.transfer === 'string') {
+        next.transfer = parsed.transfer;
+      }
+      return next;
+    } catch {
+      return {};
+    }
+  });
 
   const allCurrencyCodes = useMemo(
     () =>
@@ -255,6 +275,29 @@ export const AccountingPanel = ({
 
   const firstCashboxId = cashboxes[0]?.id ?? '';
   const secondCashboxId = cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
+  const resolvePreferredTargetCashboxId = useCallback(
+    (type: FinanceTransactionType, fromCashboxId: string, fallbackCashboxId: string) => {
+      if (type === 'withdraw') return '';
+      const remembered = type === 'deposit' || type === 'transfer'
+        ? lastTargetCashboxByType[type]
+        : undefined;
+      if (remembered && cashboxes.some((cashbox) => cashbox.id === remembered)) {
+        if (type !== 'transfer' || remembered !== fromCashboxId) {
+          return remembered;
+        }
+      }
+      if (fallbackCashboxId && cashboxes.some((cashbox) => cashbox.id === fallbackCashboxId)) {
+        if (type !== 'transfer' || fallbackCashboxId !== fromCashboxId) {
+          return fallbackCashboxId;
+        }
+      }
+      if (type === 'transfer') {
+        return cashboxes.find((cashbox) => cashbox.id !== fromCashboxId)?.id ?? '';
+      }
+      return firstCashboxId;
+    },
+    [cashboxes, firstCashboxId, lastTargetCashboxByType],
+  );
 
   const refreshFinance = useCallback(async () => {
     setIsLoading(true);
@@ -408,6 +451,16 @@ export const AccountingPanel = ({
       // Ignore localStorage write errors.
     }
   }, [cashboxCurrencyActivity]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingLastTargetCashboxByTypeStorageKey,
+        JSON.stringify(lastTargetCashboxByType),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [lastTargetCashboxByType]);
 
   const totals = useMemo(
     () =>
@@ -422,8 +475,9 @@ export const AccountingPanel = ({
   );
 
   const startTransaction = (type: FinanceTransactionType, cashbox: Cashbox) => {
-    const nextToCashboxId = type === 'deposit' ? cashbox.id : secondCashboxId;
     const nextFromCashboxId = type === 'withdraw' || type === 'transfer' ? cashbox.id : '';
+    const fallbackToCashboxId = type === 'deposit' ? cashbox.id : secondCashboxId;
+    const nextToCashboxId = resolvePreferredTargetCashboxId(type, nextFromCashboxId, fallbackToCashboxId);
     const availableCurrencies = getAllowedTransactionCurrencies(
       type,
       nextFromCashboxId,
@@ -436,6 +490,30 @@ export const AccountingPanel = ({
       fromCashboxId: nextFromCashboxId,
       toCashboxId: nextToCashboxId,
       currency: availableCurrencies[0] ?? initialTransactionForm.currency,
+    });
+  };
+
+  const handleTransactionTypeChange = (nextType: FinanceTransactionType) => {
+    setTransactionForm((current) => {
+      const nextFromCashboxId =
+        nextType === 'deposit'
+          ? ''
+          : current.fromCashboxId || firstCashboxId;
+      const fallbackToCashboxId =
+        nextType === 'deposit'
+          ? (current.toCashboxId || firstCashboxId)
+          : secondCashboxId;
+      const nextToCashboxId = resolvePreferredTargetCashboxId(
+        nextType,
+        nextFromCashboxId,
+        fallbackToCashboxId,
+      );
+      return {
+        ...current,
+        type: nextType,
+        fromCashboxId: nextFromCashboxId,
+        toCashboxId: nextToCashboxId,
+      };
     });
   };
 
@@ -623,14 +701,37 @@ export const AccountingPanel = ({
   };
 
   const handleCreateTransaction = async () => {
+    const normalizedAmount = transactionForm.amount.replace(',', '.').trim();
     if (!allowedTransactionCurrencies.includes(transactionForm.currency)) {
       onError('Selected currency is not available for this operation.');
       return;
     }
+    if (!Number.isFinite(Number(normalizedAmount)) || Number(normalizedAmount) <= 0) {
+      onError('Transaction amount must be greater than 0.');
+      return;
+    }
     setIsSaving(true);
     try {
-      await createFinanceTransaction(transactionForm);
-      setTransactionForm({ ...initialTransactionForm, toCashboxId: firstCashboxId });
+      await createFinanceTransaction({
+        ...transactionForm,
+        amount: normalizedAmount,
+      });
+      if (
+        (transactionForm.type === 'deposit' || transactionForm.type === 'transfer') &&
+        transactionForm.toCashboxId
+      ) {
+        setLastTargetCashboxByType((current) => ({
+          ...current,
+          [transactionForm.type]: transactionForm.toCashboxId,
+        }));
+      }
+      const nextInitialType: FinanceTransactionType = 'deposit';
+      const nextToCashboxId = resolvePreferredTargetCashboxId(
+        nextInitialType,
+        '',
+        firstCashboxId,
+      );
+      setTransactionForm({ ...initialTransactionForm, type: nextInitialType, toCashboxId: nextToCashboxId });
       onSuccess('Finance transaction saved.');
       await refreshFinance();
     } catch (error) {
@@ -709,7 +810,19 @@ export const AccountingPanel = ({
                           : 'finance-cashbox-balance-value'
                       }
                     >
-                      {formatMoney(balance, currency)}
+                      {currency === 'UAH' ? (
+                        <>
+                          <span className='finance-cashbox-balance-amount'>
+                            {new Intl.NumberFormat('en-US', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(balance)}
+                          </span>
+                          <span className='finance-cashbox-balance-currency-code'>UAH</span>
+                        </>
+                      ) : (
+                        formatMoney(balance, currency)
+                      )}
                     </strong>
                     {canAccept ? null : <span title='Currency is inactive for receiving. You can only withdraw existing balance.'>Withdraw only</span>}
                   </div>
@@ -736,7 +849,7 @@ export const AccountingPanel = ({
         <div className='finance-operation-grid'>
           <label className='field'>
             <span>Type</span>
-            <select value={transactionForm.type} onChange={(event) => setTransactionForm((current) => ({ ...current, type: event.target.value as FinanceTransactionType }))}>
+            <select value={transactionForm.type} onChange={(event) => handleTransactionTypeChange(event.target.value as FinanceTransactionType)}>
               <option value='deposit'>Deposit</option>
               <option value='withdraw'>Withdraw</option>
               <option value='transfer'>Transfer</option>
