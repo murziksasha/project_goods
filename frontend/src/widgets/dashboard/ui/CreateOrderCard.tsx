@@ -495,59 +495,6 @@ export const CreateOrderCard = ({
           : item.unitPrice,
     });
   };
-<<<<<<< HEAD
-=======
-
-  const getShippingStatusLabel = (item: SaleOrderItem) => {
-    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return 'In stock';
-    if (item.supplierOrderRequested) return 'Supplier order';
-    return 'Order';
-  };
-
-  const handleShippingStatusClick = (item: SaleOrderItem) => {
-    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return;
-    setSupplierOrderModalItemId(item.id);
-  };
-
-  const confirmSupplierOrderRequest = async (
-    payload: SupplierOrderModalSubmitPayload,
-  ) => {
-    if (!supplierOrderModalItemId) return;
-
-    try {
-      const supplierOrderPayload: SupplierOrderFormValues = {
-        supplierId: payload.supplierId,
-        deliveryDate: payload.deliveryDate,
-        supplyType: payload.supplyType,
-        number: payload.number,
-        note: payload.note,
-        createdBy: currentEmployee?.name?.trim() || 'Administrator',
-        orderBaseId: `SO-${Date.now()}`,
-        items: payload.items,
-      };
-      await createSupplierOrder(supplierOrderPayload);
-      updateSaleItem(supplierOrderModalItemId, {
-        supplierOrderRequested: true,
-      });
-      setSelectedFlags((current) =>
-        current.includes('Waiting for supply')
-          ? current
-          : [...current, 'Waiting for supply'],
-      );
-      onSuccess(
-        'Supplier order created. It is now available in Warehouse Receipts and in Accounting orders queue when total is greater than 0.',
-      );
-      setSupplierOrderModalItemId(null);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to create supplier order.',
-      );
-    }
-  };
-
->>>>>>> dev
   const onClientPhoneChange = (value: string) => {
     setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
     setSelectedClientId(null);
