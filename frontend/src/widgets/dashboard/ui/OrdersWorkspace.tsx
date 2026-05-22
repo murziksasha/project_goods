@@ -736,6 +736,34 @@ const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
     ? 'Search by order, client or device'
     : 'Search by order, client or manager';
 
+const ORDERS_CELL_MAX_LENGTH = 15;
+
+const truncateOrdersCellText = (
+  value: string,
+  maxLength: number = ORDERS_CELL_MAX_LENGTH,
+) => {
+  const normalizedValue = value.trim();
+  if (normalizedValue.length <= maxLength) {
+    return normalizedValue;
+  }
+  return `${normalizedValue.slice(0, maxLength)}...`;
+};
+
+const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
+  switch (columnKey) {
+    case 'orderNumber':
+      return 'orders-col-order-number';
+    case 'client':
+      return 'orders-col-client';
+    case 'status':
+      return 'orders-col-status';
+    case 'primaryItem':
+      return 'orders-col-primary-item';
+    default:
+      return '';
+  }
+};
+
 const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   activeTab === 'orders' ? 'Device' : 'Service center';
 
@@ -990,7 +1018,7 @@ export const OrdersWorkspace = ({
     [activeTab, employeeSavedFilters],
   );
   const visibleColumnKeys = visibleColumns[activeTab];
-  const tableMinWidth = Math.max(840, visibleColumnKeys.length * 118);
+  const tableMinWidth = Math.max(720, visibleColumnKeys.length * 104);
   const tabSales = useMemo(
     () =>
       sales.filter((sale) =>
@@ -1686,9 +1714,23 @@ export const OrdersWorkspace = ({
           </button>
         );
       case 'manager':
-        return sale.manager?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.manager?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.manager?.name || '-')}
+          </span>
+        );
       case 'received':
-        return sale.issuedBy?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.issuedBy?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.issuedBy?.name || '-')}
+          </span>
+        );
       case 'status':
         return (
           <div className='order-status-menu'>
@@ -1725,23 +1767,32 @@ export const OrdersWorkspace = ({
             ) : null}
           </div>
         );
-      case 'primaryItem':
+      case 'primaryItem': {
+        const primaryItemText = getPrimaryItemCellContent(
+          sale,
+          activeTab,
+        );
+        const primaryDeviceSerial = getPrimaryDeviceSerial(sale);
         return (
           <button
             type='button'
             className='order-device-button'
-            onClick={() => openSaleCard(sale)}
-          >
-            <span>{getPrimaryItemCellContent(sale, activeTab)}</span>
+          onClick={() => openSaleCard(sale)}
+          title={primaryItemText}
+        >
+            <span>{primaryItemText}</span>
             {activeTab === 'orders' ? (
-              getPrimaryDeviceSerial(sale) ? (
-                <small>{`S/N: ${getPrimaryDeviceSerial(sale)}`}</small>
+              primaryDeviceSerial ? (
+                <small title={primaryDeviceSerial}>
+                  {`S/N: ${primaryDeviceSerial}`}
+                </small>
               ) : null
             ) : (
               <small>Warehouse: Service center</small>
             )}
           </button>
         );
+      }
       case 'price':
         return (
           <span
@@ -1769,11 +1820,14 @@ export const OrdersWorkspace = ({
               type='button'
               className='orders-client-link'
               onClick={() => onOpenClientCard(sale.client.id)}
+              title={sale.client.name}
             >
               {sale.client.name}
             </button>
             <small>
-              <PhoneNumber value={sale.client.phone} />
+              <span title={sale.client.phone}>
+                <PhoneNumber value={sale.client.phone} />
+              </span>
               <span
                 className={`client-status-badge ${getClientStatusClass(
                   String(sale.client.status || ''),
@@ -1792,9 +1846,23 @@ export const OrdersWorkspace = ({
           'Non-urgent'
         );
       case 'warehouse':
-        return getWarehouseLabel(sale);
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={getWarehouseLabel(sale)}
+          >
+            {truncateOrdersCellText(getWarehouseLabel(sale))}
+          </span>
+        );
       case 'master':
-        return sale.master?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.master?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.master?.name || '-')}
+          </span>
+        );
       case 'createdAt':
         return formatReadyDate(sale.createdAt);
       case 'readyDate':
@@ -3168,7 +3236,10 @@ export const OrdersWorkspace = ({
           <thead>
             <tr>
               {visibleColumnKeys.map((columnKey) => (
-                <th key={columnKey}>
+                <th
+                  key={columnKey}
+                  className={getOrdersColumnClassName(columnKey)}
+                >
                   {getColumnLabel(columnKey, activeTab)}
                 </th>
               ))}
@@ -3199,7 +3270,10 @@ export const OrdersWorkspace = ({
               paginatedOrders.map((sale) => (
                 <tr key={sale.id}>
                   {visibleColumnKeys.map((columnKey) => (
-                    <td key={`${sale.id}-${columnKey}`}>
+                    <td
+                      key={`${sale.id}-${columnKey}`}
+                      className={getOrdersColumnClassName(columnKey)}
+                    >
                       {renderOrdersCell(sale, columnKey)}
                     </td>
                   ))}

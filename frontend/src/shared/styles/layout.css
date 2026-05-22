@@ -2696,11 +2696,14 @@
   border: 1px solid #d0d8e3;
   border-radius: 8px;
   background: #fff;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .orders-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .orders-table th,
@@ -2710,6 +2713,7 @@
   vertical-align: middle;
   padding: 11px 10px;
   color: #4d637a;
+  overflow: hidden;
 }
 
 .orders-table th {
@@ -2721,6 +2725,36 @@
 
 .orders-table td {
   font-size: 0.95rem;
+}
+
+.orders-table .orders-col-order-number {
+  width: 124px;
+  min-width: 124px;
+  white-space: nowrap;
+}
+
+.orders-table .orders-col-client {
+  width: 170px;
+  min-width: 170px;
+}
+
+.orders-table .orders-col-status {
+  width: 160px;
+  min-width: 160px;
+}
+
+.orders-table .orders-col-primary-item {
+  width: 220px;
+  min-width: 220px;
+}
+
+.orders-table-cell-truncate {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .finance-transaction-type {
@@ -2743,6 +2777,7 @@
 .orders-client-cell {
   display: grid;
   gap: 1px;
+  min-width: 0;
 }
 
 .orders-client-cell small {
@@ -2762,6 +2797,11 @@
   font-weight: 700;
   cursor: pointer;
   text-align: left;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .orders-client-link:hover {
@@ -2796,11 +2836,19 @@
   display: grid;
   gap: 2px;
   font-weight: 700;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .order-device-button small {
   color: #7f91a7;
   font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .order-status-menu {
@@ -2819,6 +2867,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .order-status-new {
