@@ -7,27 +7,16 @@ import {
   getClientDevices,
 } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
-import type { Product } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
-import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
-import { SupplierOrderModal } from './SupplierOrderModal';
-import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
-import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
-import type { SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
   currentEmployee: Employee | null;
   initialTab?: CreateOrderRequestPayload['sourceTab'];
-  suppliers: Supplier[];
-  products: Product[];
   catalogProducts: CatalogProduct[];
-  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
 };
@@ -69,18 +58,15 @@ type SaleOrderItem = {
   id: string;
   query: string;
   catalogProductId: string;
-  product: Product | null;
   price: string;
   unitPrice: string;
   quantity: string;
   warrantyPeriod: string;
-  supplierOrderRequested: boolean;
 };
 type SaleProductSuggestion = {
   id: string;
   name: string;
   note: string;
-  product: Product | null;
   catalogProductId: string;
 };
 
@@ -88,16 +74,11 @@ const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
   query: '',
   catalogProductId: '',
-  product: null,
   price: '',
   unitPrice: '',
   quantity: '1',
   warrantyPeriod: '0',
-  supplierOrderRequested: false,
 });
-
-const getProductWarehouse = (product: Product) =>
-  product.purchasePlace.trim() || 'Main warehouse';
 
 const formatPhone = (input: string) => {
   const digitsOnly = input.replace(/\D/g, '');
@@ -122,6 +103,11 @@ const toNameKey = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
 const normalizeProductLookupKey = (value: string) =>
   toNameKey(value).replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ');
+const parseDecimalInput = (value: string) => {
+  const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
+  const numeric = Number.parseFloat(normalized || '0');
+  return Number.isFinite(numeric) ? numeric : 0;
+};
 const toApiPhone = (input: string) => {
   const digits = phoneDigitsOnly(input);
   if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
@@ -169,12 +155,7 @@ export const CreateOrderCard = ({
   employees,
   currentEmployee,
   initialTab = 'repair',
-  suppliers,
-  products,
   catalogProducts,
-  onCreateSupplier,
-  onSuccess,
-  onError,
   onClose,
   onSave,
 }: CreateOrderCardProps) => {
@@ -210,7 +191,6 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
-  const [supplierOrderModalItemId, setSupplierOrderModalItemId] = useState<string | null>(null);
 
   const managers = employees.filter(
     (employee) =>
@@ -304,7 +284,7 @@ export const CreateOrderCard = ({
       ? saleProductSuggestions
       : [];
   const saleItemsTotal = saleItems.reduce((total, item) => {
-    const price = Number.parseFloat(item.price || '0');
+    const price = parseDecimalInput(item.price);
     const quantity = Number.parseInt(item.quantity || '0', 10);
     return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
@@ -397,28 +377,6 @@ export const CreateOrderCard = ({
         if (isActive) {
           const normalizedLookupQuery =
             normalizeProductLookupKey(saleProductLookupQuery);
-          const stockMatches = products
-            .filter((product) => {
-              if (!product.isActive) return false;
-              const lookupFields = [
-                product.name,
-                product.article,
-                product.serialNumber,
-              ];
-              return lookupFields.some((field) =>
-                normalizeProductLookupKey(field).includes(
-                  normalizedLookupQuery,
-                ),
-              );
-            })
-            .slice(0, 8)
-            .map((product) => ({
-              id: `stock-${product.id}`,
-              name: product.name,
-              note: `${product.serialNumber} / ${product.article}`,
-              product,
-              catalogProductId: '',
-            }));
           const catalogMatches = catalogProducts
             .filter((product) =>
               normalizeProductLookupKey(product.name).includes(
@@ -430,12 +388,9 @@ export const CreateOrderCard = ({
               id: `catalog-${product.id}`,
               name: product.name,
               note: product.note || 'Catalog product',
-              product: null,
               catalogProductId: product.id,
             }));
-          setSaleProductSuggestions(
-            [...stockMatches, ...catalogMatches].slice(0, 8),
-          );
+          setSaleProductSuggestions(catalogMatches);
         }
       } catch {
         if (isActive) setSaleProductSuggestions([]);
@@ -448,7 +403,7 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, products, saleProductLookupQuery]);
+  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, saleProductLookupQuery]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -487,8 +442,6 @@ export const CreateOrderCard = ({
     updateSaleItem(itemId, {
       query: suggestion.name,
       catalogProductId: suggestion.catalogProductId,
-      product: suggestion.product,
-      supplierOrderRequested: false,
     });
     setSaleProductSuggestions([]);
   };
@@ -508,8 +461,8 @@ export const CreateOrderCard = ({
   const handleSaleItemQuantityChange = (item: SaleOrderItem, value: string) => {
     const nextQuantity = Math.max(1, Number.parseInt(value || '1', 10) || 1);
     const previousQuantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
-    const currentPrice = Number.parseFloat(item.price || '0');
-    const knownUnitPrice = Number.parseFloat(item.unitPrice || '0');
+    const currentPrice = parseDecimalInput(item.price);
+    const knownUnitPrice = parseDecimalInput(item.unitPrice);
     const resolvedUnitPrice =
       Number.isFinite(knownUnitPrice) && knownUnitPrice > 0
         ? knownUnitPrice
@@ -530,7 +483,7 @@ export const CreateOrderCard = ({
   const handleSaleItemPriceChange = (item: SaleOrderItem, value: string) => {
     const normalizedPrice = value.trim();
     const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
-    const numericPrice = Number.parseFloat(normalizedPrice || '0');
+    const numericPrice = parseDecimalInput(normalizedPrice);
     const resolvedUnitPrice =
       Number.isFinite(numericPrice) && numericPrice >= 0 ? numericPrice / quantity : 0;
 
@@ -542,56 +495,6 @@ export const CreateOrderCard = ({
           : item.unitPrice,
     });
   };
-
-  const getShippingStatusLabel = (item: SaleOrderItem) => {
-    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return 'In stock';
-    if (item.supplierOrderRequested) return 'Supplier order';
-    return 'Order';
-  };
-
-  const handleShippingStatusClick = (item: SaleOrderItem) => {
-    if (item.product?.freeQuantity && item.product.freeQuantity > 0) return;
-    setSupplierOrderModalItemId(item.id);
-  };
-
-  const confirmSupplierOrderRequest = async (
-    payload: SupplierOrderModalSubmitPayload,
-  ) => {
-    if (!supplierOrderModalItemId) return;
-
-    try {
-      const supplierOrderPayload: SupplierOrderFormValues = {
-        supplierId: payload.supplierId,
-        deliveryDate: payload.deliveryDate,
-        supplyType: payload.supplyType,
-        number: payload.number,
-        note: payload.note,
-        createdBy: currentEmployee?.name?.trim() || 'Administrator',
-        orderBaseId: `SO-${Date.now()}`,
-        items: payload.items,
-      };
-      await createSupplierOrder(supplierOrderPayload);
-      updateSaleItem(supplierOrderModalItemId, {
-        supplierOrderRequested: true,
-      });
-      setSelectedFlags((current) =>
-        current.includes('Waiting for supply')
-          ? current
-          : [...current, 'Waiting for supply'],
-      );
-      onSuccess(
-        'Supplier order created. It is now available in Warehouse Receipts and in Accounting orders queue when total is greater than 0.',
-      );
-      setSupplierOrderModalItemId(null);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to create supplier order.',
-      );
-    }
-  };
-
   const onClientPhoneChange = (value: string) => {
     setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
     setSelectedClientId(null);
@@ -677,21 +580,21 @@ export const CreateOrderCard = ({
   const handleSave = async () => {
     const normalizedSaleItems = saleItems.flatMap((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
-      const totalPrice = Math.max(0, Number.parseFloat(item.price || '0') || 0);
-      const knownUnitPrice = Math.max(0, Number.parseFloat(item.unitPrice || '0') || 0);
+      const totalPrice = Math.max(0, parseDecimalInput(item.price) || 0);
+      const knownUnitPrice = Math.max(0, parseDecimalInput(item.unitPrice) || 0);
       const resolvedUnitPrice = knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
       const normalizedUnitPrice = String(Math.round(resolvedUnitPrice * 100) / 100);
 
       return Array.from({ length: quantity }, (_, index) => ({
         id: `${item.id}-${index + 1}`,
-        productId: item.catalogProductId || item.product?.id || '',
-        name: item.product?.name ?? item.query.trim(),
-        article: item.product?.article ?? '',
-        serialNumber: item.product?.serialNumber ?? '',
+        productId: item.catalogProductId || '',
+        name: item.query.trim(),
+        article: '',
+        serialNumber: '',
         price: normalizedUnitPrice,
         quantity: '1',
         warrantyPeriod: item.warrantyPeriod,
-        warehouse: item.product ? getProductWarehouse(item.product) : '',
+        warehouse: '',
       }));
     });
 
@@ -789,7 +692,6 @@ export const CreateOrderCard = ({
                 <h3 className="create-section-title">Products</h3>
                 <div className="sale-items-list">
                   {saleItems.map((item, index) => {
-                    const availableQuantity = item.product?.freeQuantity ?? 0;
                     return (
                       <div key={item.id} className="sale-item-row">
                         <label className="field sale-item-product">
@@ -802,7 +704,6 @@ export const CreateOrderCard = ({
                               updateSaleItem(item.id, {
                                 query: event.target.value,
                                 catalogProductId: '',
-                                product: null,
                               });
                             }}
                             placeholder="Name, serial or article"
@@ -812,7 +713,6 @@ export const CreateOrderCard = ({
                           <span>Qty</span>
                           <NumberStepper
                             min={1}
-                            max={availableQuantity || undefined}
                             value={item.quantity}
                             onChange={(value) => handleSaleItemQuantityChange(item, value)}
                           />
@@ -846,16 +746,8 @@ export const CreateOrderCard = ({
                           </select>
                         </label>
                         <label className="field">
-                          <span>Shipping status</span>
+                          <span>&nbsp;</span>
                           <button
-                            type="button"
-                            className="secondary-button sale-item-status-button"
-                            onClick={() => handleShippingStatusClick(item)}
-                          >
-                            {getShippingStatusLabel(item)}
-                          </button>
-                        </label>
-                        <button
                           type="button"
                           className="toolbar-square-button sale-item-add-button"
                           onClick={index === saleItems.length - 1 ? addSaleItem : () => removeSaleItem(item.id)}
@@ -863,12 +755,7 @@ export const CreateOrderCard = ({
                         >
                           {index === saleItems.length - 1 ? '+' : '-'}
                         </button>
-                        {item.product ? (
-                          <div className="sale-item-stock">
-                            <span>{getProductWarehouse(item.product)}</span>
-                            <span>{`${item.product.serialNumber} / available ${item.product.freeQuantity}`}</span>
-                          </div>
-                        ) : null}
+                        </label>
                       </div>
                     );
                   })}
@@ -1236,20 +1123,6 @@ export const CreateOrderCard = ({
           </section>
         </div>
       ) : null}
-      <SupplierOrderModal
-        isOpen={Boolean(supplierOrderModalItemId)}
-        suppliers={suppliers}
-        initialProductName={
-          supplierOrderModalItemId
-            ? saleItems.find((item) => item.id === supplierOrderModalItemId)?.query ?? ''
-            : ''
-        }
-        onClose={() => setSupplierOrderModalItemId(null)}
-        onCreateSupplier={onCreateSupplier}
-        onSuccess={onSuccess}
-        onError={onError}
-        onSubmit={confirmSupplierOrderRequest}
-      />
     </section>
   );
 };

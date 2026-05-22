@@ -1806,6 +1806,22 @@
   font-weight: 700;
 }
 
+.line-item-serials-button {
+  border: 0;
+  background: transparent;
+  color: #2d8ae3;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.line-item-serials-count {
+  color: #2d8ae3;
+  font-weight: 700;
+}
+
 .line-item-inline-input {
   width: 100%;
   min-width: 0;
@@ -3130,6 +3146,69 @@
   margin: 0;
 }
 
+.finance-cashbox-balances {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.finance-cashbox-balance-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  color: #28435f;
+  width: 100%;
+  max-width: 220px;
+}
+
+.finance-cashbox-balance-row strong {
+  text-align: center;
+  color: inherit;
+  margin: 0;
+}
+
+.finance-cashbox-balance-value {
+  font-size: 1.06rem;
+  line-height: 1.08;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.finance-cashbox-balance-value-uah {
+  color: #00a98f;
+}
+
+.finance-cashbox-balance-amount,
+.finance-cashbox-balance-currency-code {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.finance-cashbox-balance-currency-code {
+  margin-left: 0.2em;
+}
+
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-amount,
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-currency-code {
+  color: #00a98f;
+}
+
+.finance-cashbox-balance-row > span {
+  color: #6b7c91;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finance-cashbox-balance-row-inactive {
+  color: #7b8796;
+}
+
 .finance-cashbox-actions {
   display: grid;
   gap: 7px;
@@ -3836,4 +3915,104 @@
 
 .finance-settings-cashbox-archived {
   opacity: 0.52;
+}
+
+.finance-currency-activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-currency-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d8e1ec;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px 12px;
+}
+
+.finance-currency-activity-toggle {
+  flex: 1 1 auto;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.finance-currency-activity-toggle span {
+  flex: 0 0 auto;
+}
+
+.finance-currency-activity-badge {
+  border-radius: 999px;
+  background: #e7f1ff;
+  color: #24528a;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.finance-currency-activity-badge-off {
+  background: #eef2f7;
+  color: #728197;
+}
+
+.finance-currency-activity-item .orders-filter-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.finance-currency-remove-button {
+  min-width: 86px;
+  border-radius: 10px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.finance-settings-accordion-header {
+  padding: 0;
+}
+
+.finance-settings-accordion-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  text-align: left;
+  font: inherit;
+}
+
+.finance-settings-accordion-toggle h2 {
+  margin: 0;
+}
+
+.finance-currency-cashbox-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.finance-currency-cashbox-card {
+  border: 1px solid #d6e0ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  background: #f8fbff;
+}
+
+.finance-currency-cashbox-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #39506b;
 }

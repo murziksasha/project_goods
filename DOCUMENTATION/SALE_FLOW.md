@@ -14,6 +14,7 @@
   - `Qty`
   - `Warranty`
   - `Add product`
+- `Shipping status` control is removed from `Create order -> Sales order`.
 - Search suggestions are rendered in a separate block below the entry row.
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
@@ -36,6 +37,15 @@
 - Sales line items may be saved without `productId` (manual item text), to avoid fake stock entries before receipt.
 - Creating a `Sales order` must not auto-create entries in `Clients goods` (`client-devices`).
 - `Clients goods` auto-link/create behavior is applied only for `Repair order` flows.
+
+## Price Transfer From Create Form To Sale Card (2026-05-20)
+
+- For `Create order -> Sales order`, entered product price is source-of-truth for created sale line items.
+- Price normalization must accept user decimal formats with spaces/comma and convert to numeric value before save.
+- On save:
+  - each sale line item receives normalized unit `price`,
+  - sale header `salePrice` is calculated from sum of sale items.
+- Opened sale card must display the same effective item price values that were entered during creation.
 
 ## Services In Sale Card
 
@@ -110,6 +120,7 @@
   - `reserved`
   - `paid`
 - For non-editable statuses (`issued`, `returned`, etc.), card is read-only.
+- Exception for `issued` sale: `Refund to client` action stays available to unblock return workflow.
 
 ### Return Sequence
 
@@ -135,3 +146,16 @@
   - product row action is `Return` (not `Remove`)
   - `Return` requires bound sold serial and opens warehouse receive modal
   - this flow is used when customer returns product after issuance
+
+## Sales Card Return Workflow Update (2026-05-20)
+
+- For `issued` sale, if user receives product back to warehouse and no product line items remain in order:
+  - and `paidAmount = 0` after refund,
+  - system auto-sets sale status to `returned`.
+- This removes deadlock scenario:
+  - `Return` asks for refund first,
+  - while status remains non-editable.
+- Practical sequence for issued return:
+  1. `Refund to client` (allowed in `issued` card despite read-only mode).
+  2. `Return` in product row -> stock receive modal.
+  3. Status auto-switches to `returned` when product part is fully reverted and money is refunded.

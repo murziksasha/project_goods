@@ -41,6 +41,18 @@ import {
   getProducts,
   updateProduct,
 } from '../../../entities/product/api/productApi';
+import {
+  createSupplierOrder,
+} from '../../../entities/supplier-order/api/supplierOrderApi';
+import {
+  createSupplier,
+  getSuppliers,
+} from '../../../entities/supplier/api/supplierApi';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../entities/supplier/model/types';
+import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
 import type {
   Product,
   ProductFormValues,
@@ -49,6 +61,10 @@ import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from './SupplierOrderModal';
 import {
   buildMissingServicePayload,
   shouldCreateMissingServiceOnSubmit,
@@ -1875,6 +1891,11 @@ export const OrdersWorkspace = ({
   };
 
   const openRefundModal = async (sale: Sale) => {
+    if (getPaidAmount(sale) <= 0) {
+      onError('No paid amount is available for refund.');
+      return;
+    }
+
     const paymentHistory = sale.paymentHistory ?? [];
     const lastDepositCashboxId =
       paymentHistory.find((entry) => entry.type === 'deposit')
@@ -2308,6 +2329,12 @@ export const OrdersWorkspace = ({
     setIsRefundSaving(true);
 
     try {
+      const lineItems = getLineItems(refundSale);
+      const orderTotal = getOrderTotal(refundSale, lineItems);
+      const currentStatus = normalizeOrderStatus(refundSale.status);
+      const hasProducts = lineItems.some(
+        (item) => item.kind === 'product' && item.quantity > 0,
+      );
       const cashboxName =
         cashboxes.find(
           (cashbox) => cashbox.id === selectedRefundCashboxId,
@@ -2316,6 +2343,14 @@ export const OrdersWorkspace = ({
         currentPaidAmount - normalizedAmount,
         0,
       );
+      const shouldDowngradeIssuedStatus =
+        !isRepairOrder(refundSale) &&
+        currentStatus === 'issued' &&
+        hasProducts &&
+        nextPaidAmount < orderTotal;
+      const nextStatus: OrderStatus = shouldDowngradeIssuedStatus
+        ? 'reserved'
+        : currentStatus;
       const nextPaymentHistory = [
         addPaymentHistoryEntry({
           type: 'refund',
@@ -2327,6 +2362,13 @@ export const OrdersWorkspace = ({
         ...(refundSale.paymentHistory ?? []),
       ];
       const nextTimeline = [
+        ...(shouldDowngradeIssuedStatus
+          ? [
+              appendTimelineEntry(
+                `${currentEmployeeName} changed status to "${getStatusLabel(refundSale, nextStatus)}".`,
+              ),
+            ]
+          : []),
         appendTimelineEntry(
           `${currentEmployeeName} refunded ${formatCurrency(normalizedAmount)} from ${cashboxName}.`,
         ),
@@ -2340,7 +2382,11 @@ export const OrdersWorkspace = ({
         note: `Refund for order ${refundSale.recordNumber ?? refundSale.id}`,
       });
       await persistSaleWorkspace(refundSale, {
+        status: nextStatus,
         paidAmount: nextPaidAmount,
+        issuedById: shouldCaptureReceivedBy(refundSale, nextStatus)
+          ? currentEmployee?.id ?? ''
+          : '',
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       });
@@ -2371,11 +2417,36 @@ export const OrdersWorkspace = ({
     setIsReturnSaving(true);
 
     try {
-      const updatedSale = await returnSaleLineItemToStock(returnSale.id, {
+      let updatedSale = await returnSaleLineItemToStock(returnSale.id, {
         lineItemId: returnLineItem.id,
         warehouse: returnWarehouse,
         author: currentEmployeeName,
       });
+
+      const hasRemainingProductItems = getLineItems(updatedSale).some(
+        (item) => item.kind === 'product' && item.quantity > 0,
+      );
+      const canAutoMarkReturned =
+        !isRepairOrder(updatedSale) &&
+        normalizeOrderStatus(updatedSale.status) === 'issued' &&
+        getPaidAmount(updatedSale) <= 0 &&
+        !hasRemainingProductItems;
+
+      if (canAutoMarkReturned) {
+        updatedSale = await persistSaleWorkspace(updatedSale, {
+          status: 'returned',
+          issuedById: shouldCaptureReceivedBy(updatedSale, 'returned')
+            ? currentEmployee?.id ?? ''
+            : '',
+          timeline: [
+            appendTimelineEntry(
+              `${currentEmployeeName} changed status to "${getStatusLabel(updatedSale, 'returned')}".`,
+            ),
+            ...(updatedSale.timeline ?? []),
+          ],
+        });
+      }
+
       onSaleUpdate(updatedSale);
       await syncReceivedBy(
         updatedSale,
@@ -3406,16 +3477,6 @@ const OrderDetailCard = ({
     setComment('');
   };
 
-  const shippingStatusLabel = (() => {
-    if (productItems.length === 0) return 'Order';
-    const withLinkedProduct = productItems.filter(
-      (item) => Boolean(item.productId),
-    ).length;
-    if (withLinkedProduct === productItems.length) return 'In stock';
-    if (withLinkedProduct > 0) return 'Supplier order';
-    return 'Order';
-  })();
-
   return (
     <article className='order-detail-card' aria-label='Order card'>
       <header className='order-detail-header'>
@@ -3635,7 +3696,6 @@ const OrderDetailCard = ({
               isOrderPaid={paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
-              shippingStatusLabel={shippingStatusLabel}
               isReadOnly={isReadOnly}
             />
           ) : null}
@@ -3750,7 +3810,7 @@ const OrderDetailCard = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
-              disabled={isReadOnly}
+              disabled={isReadOnly && status !== 'issued'}
             >
               Refund to client
             </button>
@@ -3840,7 +3900,6 @@ type LineItemsPanelProps = {
   isReadOnly: boolean;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-  shippingStatusLabel?: string;
 };
 
 const LineItemsPanel = ({
@@ -3858,7 +3917,6 @@ const LineItemsPanel = ({
   isReadOnly,
   onError,
   onSuccess,
-  shippingStatusLabel,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -3905,6 +3963,12 @@ const LineItemsPanel = ({
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialsInput, setSerialsInput] = useState('');
+  const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
+    useState(false);
+  const [supplierOrderProductName, setSupplierOrderProductName] =
+    useState('');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
     useState<Product[]>([]);
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
@@ -3985,6 +4049,63 @@ const LineItemsPanel = ({
       return 'Unbind serial numbers before removing this product.';
     }
     return 'Action is unavailable for this item.';
+  };
+
+  const openSupplierOrderModalForSerialItem = async () => {
+    if (!serialsEditingItem) return;
+    setIsSuppliersLoading(true);
+    try {
+      const supplierData = await getSuppliers('');
+      setSuppliers(supplierData);
+      setSupplierOrderProductName(serialsEditingItem.name.trim());
+      setIsSupplierOrderModalOpen(true);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load suppliers.',
+      );
+    } finally {
+      setIsSuppliersLoading(false);
+    }
+  };
+
+  const handleCreateSupplier = async (
+    payload: SupplierFormValues,
+  ) => {
+    try {
+      const created = await createSupplier(payload);
+      setSuppliers((current) => [created, ...current]);
+      return true;
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create supplier.',
+      );
+      return false;
+    }
+  };
+
+  const handleSubmitSupplierOrder = async (
+    payload: SupplierOrderModalSubmitPayload,
+  ) => {
+    const createPayload: SupplierOrderFormValues = {
+      supplierId: payload.supplierId,
+      deliveryDate: payload.deliveryDate,
+      supplyType: payload.supplyType,
+      number: payload.number,
+      note: payload.note,
+      createdBy: 'Administrator',
+      orderBaseId: `SO-${Date.now()}`,
+      status: 'request',
+      paymentStatus: 'pending',
+      items: payload.items,
+    };
+    await createSupplierOrder(createPayload);
+    onSuccess(
+      'Supplier order created with status New and added to Supplier Order tab.',
+    );
   };
 
   useEffect(() => {
@@ -4500,7 +4621,7 @@ const LineItemsPanel = ({
                 {item.kind === 'product' ? (
                   <button
                     type='button'
-                    className='line-item-remove-button'
+                    className='line-item-serials-button'
                     onClick={() => {
                       setSerialsEditingItem(item);
                       setSerialsInput(
@@ -4509,7 +4630,10 @@ const LineItemsPanel = ({
                     }}
                     disabled={isReadOnly}
                   >
-                    {`Serials ${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                    <span>{'Serials '}</span>
+                    <span className='line-item-serials-count'>
+                      {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                    </span>
                   </button>
                 ) : null}
                 <button
@@ -4578,25 +4702,6 @@ const LineItemsPanel = ({
               </option>
             ))}
           </select>
-          {kind === 'product' ? (
-            <div className='order-line-items-shipping-inline'>
-              <button
-                type='button'
-                className='secondary-button order-shipping-status-button'
-              >
-                {shippingStatusLabel ?? 'Order'}
-              </button>
-              <button
-                type='button'
-                className='toolbar-square-button order-shipping-status-add'
-                onClick={() => void submitItem()}
-                aria-label='Add product'
-                disabled={isReadOnly}
-              >
-                +
-              </button>
-            </div>
-          ) : null}
           <button
             type='button'
             className='primary-button'
@@ -4834,6 +4939,14 @@ const LineItemsPanel = ({
             <div className='modal-actions serial-bind-modal-footer'>
               <button
                 type='button'
+                className='primary-button'
+                onClick={() => void openSupplierOrderModalForSerialItem()}
+                disabled={isSuppliersLoading}
+              >
+                {isSuppliersLoading ? 'Loading...' : 'Order'}
+              </button>
+              <button
+                type='button'
                 className='secondary-button'
                 onClick={() => setSerialsEditingItem(null)}
               >
@@ -4875,6 +4988,16 @@ const LineItemsPanel = ({
           </section>
         </div>
       ) : null}
+      <SupplierOrderModal
+        isOpen={isSupplierOrderModalOpen}
+        suppliers={suppliers}
+        initialProductName={supplierOrderProductName}
+        onClose={() => setIsSupplierOrderModalOpen(false)}
+        onCreateSupplier={handleCreateSupplier}
+        onSubmit={handleSubmitSupplierOrder}
+        onSuccess={onSuccess}
+        onError={onError}
+      />
     </div>
   );
 };

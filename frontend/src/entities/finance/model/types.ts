@@ -1,4 +1,4 @@
-export type FinanceCurrency = 'UAH' | 'USD';
+export type FinanceCurrency = string;
 export type FinanceTransactionType = 'deposit' | 'withdraw' | 'transfer';
 
 export type Cashbox = {

@@ -373,6 +373,11 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
+const normalizeSaleStatus = (value: string | null | undefined) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
 export const WarehousePanel = ({
   products,
   sales,
@@ -916,8 +921,78 @@ export const WarehousePanel = ({
     );
   }, [products, warehouses]);
   const filteredProducts = useMemo(() => {
+    const soldIssuedProductIds = new Set<string>();
+    const productIdsBySerial = new Map<string, string[]>();
+    const productIdsByArticle = new Map<string, string[]>();
+    const productIdsByName = new Map<string, string[]>();
+
+    products.forEach((product) => {
+      const serial = product.serialNumber.trim().toLowerCase();
+      const article = product.article.trim().toLowerCase();
+      const name = product.name.trim().toLowerCase();
+      if (serial) {
+        productIdsBySerial.set(serial, [
+          ...(productIdsBySerial.get(serial) ?? []),
+          product.id,
+        ]);
+      }
+      if (article) {
+        productIdsByArticle.set(article, [
+          ...(productIdsByArticle.get(article) ?? []),
+          product.id,
+        ]);
+      }
+      if (name) {
+        productIdsByName.set(name, [
+          ...(productIdsByName.get(name) ?? []),
+          product.id,
+        ]);
+      }
+    });
+
+    sales.forEach((sale) => {
+      if (sale.kind !== 'sale') return;
+      if (normalizeSaleStatus(sale.status) !== 'issued') return;
+
+      if (sale.product?.id) {
+        soldIssuedProductIds.add(sale.product.id);
+      }
+      const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
+      const saleArticle = sale.product?.article?.trim().toLowerCase();
+      const saleName = sale.product?.name?.trim().toLowerCase();
+      (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
+        (productId) => soldIssuedProductIds.add(productId),
+      );
+      (saleArticle ? productIdsByArticle.get(saleArticle) ?? [] : []).forEach(
+        (productId) => soldIssuedProductIds.add(productId),
+      );
+      (saleName ? productIdsByName.get(saleName) ?? [] : []).forEach(
+        (productId) => soldIssuedProductIds.add(productId),
+      );
+
+      (sale.lineItems ?? []).forEach((item) => {
+        if (item.kind !== 'product') return;
+        if (item.productId) {
+          soldIssuedProductIds.add(item.productId);
+        }
+        (item.serialNumbers ?? [])
+          .map((serial) => serial.trim().toLowerCase())
+          .filter(Boolean)
+          .forEach((serial) =>
+            (productIdsBySerial.get(serial) ?? []).forEach((productId) =>
+              soldIssuedProductIds.add(productId),
+            ),
+          );
+        const itemName = item.name.trim().toLowerCase();
+        (productIdsByName.get(itemName) ?? []).forEach((productId) =>
+          soldIssuedProductIds.add(productId),
+        );
+      });
+    });
+
     const stockProducts = products.filter(
-      (product) => product.quantity > 0,
+      (product) =>
+        product.quantity > 0 && !soldIssuedProductIds.has(product.id),
     );
     const normalizedQuery = query.trim().toLowerCase();
     return stockProducts.filter((product) => {
@@ -996,6 +1071,7 @@ export const WarehousePanel = ({
   }, [
     appliedFilters,
     buyersByProductName,
+    sales,
     productWarehouseMetaById,
     products,
     query,

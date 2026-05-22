@@ -80,8 +80,9 @@
   - line item add/edit/remove
   - serial binding changes
   - comments add
-  - payment/refund actions
+  - payment actions
   - main info save actions
+- Exception: for `issued` sale with `paidAmount > 0`, `Refund to client` action remains available.
 
 ## Product Remove/Return Rules (Money vs Stock)
 
@@ -98,6 +99,10 @@
 - Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
 - `Remove` deletes line item from sale card only (no warehouse receive modal and no stock movement).
 - For `issued` sale, product stock acceptance must use `Return` action and warehouse modal.
+- For `issued` sale return completion:
+  - after required refund is completed and product is received back to stock,
+  - if product line items are fully returned and `paidAmount = 0`,
+  - status is auto-switched to `returned`.
 
 ## Service Remove Rules
 

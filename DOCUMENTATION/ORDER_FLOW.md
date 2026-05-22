@@ -106,16 +106,22 @@
 - `Remove` is enabled only when device is not used in orders/sales.
 - `Remove` action asks for confirmation.
 
-## Sales Flow: Shipping Status And Supplier Order Link
+## Sales Flow: Product Add Action
 
-- In `Create order` on `Sales order` tab, every product row has `Shipping status` action button.
-- Button text is dynamic:
-  - `In stock` when selected product has available warehouse quantity (`freeQuantity > 0`).
-  - `Order` when selected/matched product is not available in warehouse.
-  - `Supplier order` after user confirms supplier-order request for this row.
-- Clicking `Order` opens modal flow: `Order -> Supplier order -> Замовити у постачальника`.
-- Confirm action `Замовити у постачальника` marks row as supplier-order requested and auto-adds flag `Waiting for supply` to the order.
-- `In stock` status is informational and does not open modal.
+- In sale create/card product entry, Shipping status action is removed.
+- Product add flow uses explicit add action only.
+- No supplier-order modal is triggered from product entry row.
+
+## Sales Card: Serials Modal -> Supplier Order (2026-05-20)
+
+- In sale card product line, `Serials x/y` action opens serial binding modal.
+- In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
+- Product name is prefilled from current product line item.
+- On submit, system creates supplier order with:
+  - order status `request` (new request),
+  - payment status `pending`,
+  - selected supplier/date/line items from modal.
+- Created request appears in `Orders -> Supplier Order`.
 
 ## Products Suggestions Source (2026-05-09)
 
@@ -129,3 +135,4 @@
 - Device name from repair context (`Device #1` / order-card main device) is stored only in `Clients goods` (`client-devices`) and order snapshots/history.
 - Only explicit product line items (`lineItems.kind = product`) participate in `Products` catalog upsert.
 - The list supports activity status (`active`/`inactive`) and editing via modal.
+
