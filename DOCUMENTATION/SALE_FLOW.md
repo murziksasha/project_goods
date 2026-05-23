@@ -79,10 +79,8 @@
   - `Accept to cashbox` (deposit only)
   - `Accept and mark paid` (deposit + status change)
   - `Mark paid without payment` (status change without deposit)
-- Modal summary includes editable `Discount` with mode switch:
-  - `%` percent discount
-  - `₴` fixed amount discount
-- Discount is shared with sale card payment panel and affects `To pay` immediately.
+- Modal summary includes read-only `Discount` (informational only).
+- Discount editing is done only in sale card `Payment` panel; modal reuses those values.
 
 ## Status Change: Issued In Sales List
 
@@ -99,6 +97,9 @@
 ## Status Dropdown UX
 
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
+- Status dropdown in list always opens downward.
+- Dropdown menu is rendered in a top overlay layer (portal), above table/content.
+- Opening dropdown must not change table row height and must not introduce extra scroll inside orders table block.
 
 ## Suggestion Catalog Source (2026-05-09)
 
@@ -159,3 +160,4 @@
   1. `Refund to client` (allowed in `issued` card despite read-only mode).
   2. `Return` in product row -> stock receive modal.
   3. Status auto-switches to `returned` when product part is fully reverted and money is refunded.
+

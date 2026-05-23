@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
@@ -1015,6 +1016,10 @@ export const OrdersWorkspace = ({
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
     string | null
   >(null);
+  const [statusMenuPosition, setStatusMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
@@ -1544,7 +1549,11 @@ export const OrdersWorkspace = ({
 
     const closeStatusDropdownOnOutsideClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('.order-status-menu')) return;
+      if (
+        target?.closest('.order-status-menu') ||
+        target?.closest('.order-status-options-portal')
+      )
+        return;
       setOpenStatusSaleId(null);
     };
 
@@ -1561,9 +1570,61 @@ export const OrdersWorkspace = ({
     };
   }, [openStatusSaleId]);
 
+  useEffect(() => {
+    if (!openStatusSaleId) {
+      setStatusMenuPosition(null);
+      return;
+    }
+
+    const syncStatusMenuPosition = () => {
+      const trigger = document.querySelector<HTMLElement>(
+        `[data-status-trigger-id="${openStatusSaleId}"]`,
+      );
+      if (!trigger) {
+        setStatusMenuPosition(null);
+        return;
+      }
+
+      const rect = trigger.getBoundingClientRect();
+      setStatusMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    };
+
+    syncStatusMenuPosition();
+
+    const handleResize = () => {
+      setOpenStatusSaleId(null);
+    };
+
+    const handleScroll = () => {
+      if (activeTab === 'orders') {
+        syncStatusMenuPosition();
+        return;
+      }
+      setOpenStatusSaleId(null);
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [activeTab, openStatusSaleId]);
+
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
+  );
+  const openStatusSale = useMemo(
+    () =>
+      openStatusSaleId
+        ? sales.find((sale) => sale.id === openStatusSaleId) ?? null
+        : null,
+    [openStatusSaleId, sales],
   );
 
   useEffect(() => {
@@ -1574,6 +1635,26 @@ export const OrdersWorkspace = ({
       setPaymentSale(refreshedSale);
     }
   }, [paymentSale, sales]);
+
+  useEffect(() => {
+    if (!paymentSale) return;
+    const remainingPayment = getRemainingPayment(
+      paymentSale,
+      getPaidAmount(paymentSale),
+      getLineItems(paymentSale),
+    );
+    const normalizedRemaining = Math.round(remainingPayment * 100) / 100;
+    setPaymentAmount((current) => {
+      const numericCurrent = Math.round(Number(current) * 100) / 100;
+      if (!Number.isFinite(numericCurrent) || numericCurrent < 0) {
+        return String(normalizedRemaining);
+      }
+      if (numericCurrent > normalizedRemaining) {
+        return String(normalizedRemaining);
+      }
+      return current;
+    });
+  }, [paymentSale]);
 
   const selectedSaleStatusOptions = selectedSale
     ? isRepairOrder(selectedSale)
@@ -1797,7 +1878,6 @@ export const OrdersWorkspace = ({
     columnKey: OrdersColumnKey,
   ): ReactNode => {
     const status = getStatus(sale);
-    const statusOptions = getStatusOptions(sale);
 
     switch (columnKey) {
       case 'orderNumber':
@@ -1834,6 +1914,7 @@ export const OrdersWorkspace = ({
             <button
               type='button'
               className={`order-status order-status-${status}`}
+              data-status-trigger-id={sale.id}
               onClick={() =>
                 setOpenStatusSaleId((currentId) =>
                   currentId === sale.id ? null : sale.id,
@@ -1842,26 +1923,6 @@ export const OrdersWorkspace = ({
             >
               {getStatusLabel(sale, status)}
             </button>
-            {openStatusSaleId === sale.id ? (
-              <div className='order-status-options'>
-                {statusOptions.map((statusOption) => (
-                  <button
-                    key={statusOption.key}
-                    type='button'
-                    className={
-                      statusOption.key === status
-                        ? 'order-status-option order-status-option-active'
-                        : 'order-status-option'
-                    }
-                    onClick={() => {
-                      void updateStatus(sale, statusOption.key);
-                    }}
-                  >
-                    {statusOption.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         );
       case 'primaryItem': {
@@ -2009,8 +2070,18 @@ export const OrdersWorkspace = ({
         : current,
     );
 
+    const lineItems = getLineItems(sale);
     const discountedTotal = Math.max(
-      getOrderTotal(sale, getLineItems(sale)),
+      getOrderTotal(
+        {
+          ...sale,
+          discount: {
+            mode: discount.mode,
+            value: normalizedValue,
+          },
+        },
+        lineItems,
+      ),
       0,
     );
     const nextPaidAmount = Math.min(getPaidAmount(sale), discountedTotal);
@@ -3400,6 +3471,37 @@ export const OrdersWorkspace = ({
           setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
         }}
       />
+      {openStatusSale &&
+      statusMenuPosition &&
+      typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className='order-status-options order-status-options-portal'
+              style={{
+                top: statusMenuPosition.top,
+                left: statusMenuPosition.left,
+              }}
+            >
+              {getStatusOptions(openStatusSale).map((statusOption) => (
+                <button
+                  key={statusOption.key}
+                  type='button'
+                  className={
+                    statusOption.key === getStatus(openStatusSale)
+                      ? 'order-status-option order-status-option-active'
+                      : 'order-status-option'
+                  }
+                  onClick={() => {
+                    void updateStatus(openStatusSale, statusOption.key);
+                  }}
+                >
+                  {statusOption.label}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
 
       {paymentSale ? (
         <PaymentModal
@@ -3416,9 +3518,6 @@ export const OrdersWorkspace = ({
           onCashboxChange={setSelectedCashboxId}
           onPaymentMethodChange={setPaymentMethod}
           onAmountChange={setPaymentAmount}
-          onDiscountChange={(discount) =>
-            updateDiscount(paymentSale, discount)
-          }
           onClose={() => setPaymentSale(null)}
           onSubmit={acceptPayment}
         />
@@ -5836,10 +5935,6 @@ type PaymentModalProps = {
   onCashboxChange: (cashboxId: string) => void;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onAmountChange: (amount: string) => void;
-  onDiscountChange: (discount: {
-    mode: 'percent' | 'amount';
-    value: number;
-  }) => void;
   onClose: () => void;
   onSubmit: (action: PaymentAction) => void;
 };
@@ -5858,7 +5953,6 @@ const PaymentModal = ({
   onCashboxChange,
   onPaymentMethodChange,
   onAmountChange,
-  onDiscountChange,
   onClose,
   onSubmit,
 }: PaymentModalProps) => {
@@ -6007,62 +6101,15 @@ const PaymentModal = ({
               <dt>
                 <span className='payment-summary-discount-label'>
                   Discount
-                  <button
-                    type='button'
-                    className='payment-summary-discount-badge'
-                    onClick={() =>
-                      onDiscountChange({
-                        mode:
-                          discount.mode === 'percent'
-                            ? 'amount'
-                            : 'percent',
-                        value: discount.value,
-                      })
-                    }
-                    aria-label='Toggle discount mode from summary badge'
-                    disabled={isLoading || isSaving}
-                  >
+                  <span className='payment-summary-discount-badge'>
                     {discount.mode === 'percent' ? '%' : '₴'}
-                  </button>
+                  </span>
                 </span>
               </dt>
               <dd>
-                <div className='order-payment-discount-control'>
-                  <input
-                    type='number'
-                    min={0}
-                    step='0.01'
-                    value={String(discount.value)}
-                    onChange={(event) => {
-                      const nextValue = Number(event.target.value);
-                      onDiscountChange({
-                        mode: discount.mode,
-                        value:
-                          Number.isFinite(nextValue) && nextValue > 0
-                            ? Math.round(nextValue * 100) / 100
-                            : 0,
-                      });
-                    }}
-                    disabled={isLoading || isSaving}
-                  />
-                  <button
-                    type='button'
-                    className='order-payment-discount-mode'
-                    onClick={() =>
-                      onDiscountChange({
-                        mode:
-                          discount.mode === 'percent'
-                            ? 'amount'
-                            : 'percent',
-                        value: discount.value,
-                      })
-                    }
-                    aria-label='Toggle discount mode'
-                    disabled={isLoading || isSaving}
-                  >
-                    {discount.mode === 'percent' ? '%' : '₴'}
-                  </button>
-                </div>
+                {discount.value > 0
+                  ? `${discount.value}${discount.mode === 'percent' ? '%' : ' ₴'}`
+                  : '-'}
               </dd>
             </div>
             <div>

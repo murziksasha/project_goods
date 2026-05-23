@@ -53,8 +53,9 @@
 - `Discount` supports toggle modes:
   - `%` for percentage discount from total sale amount
   - `₴` for fixed discount amount
-- The same editable `Discount` control is shown in `Accept payment` modal summary.
-- Discount affects `To pay` immediately and is stored in workspace state.
+- In `Accept payment` modal, `Discount` is read-only and shown for reference.
+- Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
+- Discount value is stored in workspace state and reused across card and payment modal.
 
 ## Sale Status Mapping
 
