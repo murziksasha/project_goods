@@ -60,12 +60,15 @@
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+- Status dropdown in list always opens downward and is rendered in overlay (portal) above table/content.
+- Status dropdown must not affect row height and must not create additional scroll inside orders table container.
 
 ## Payment Method In Accept Payment Modal
 
 - `Cash` badge in payment modal is clickable and toggles payment method: `Cash` <-> `Non-cash`.
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
+- `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
 
 ## Order Card Editing Rules
 
@@ -134,14 +137,14 @@
   - explicit link by `LINKED_SALE_ID` (primary),
   - fallback by linked client marker + product-name intersection (for backward compatibility with older records).
 - Purpose:
-  - quick jump context for receiving (`Оприбуткувати`) from same workflow window,
+  - quick jump context for receiving (`РћРїСЂРёР±СѓС‚РєСѓРІР°С‚Рё`) from same workflow window,
   - historical visibility of supplier procurement done for a specific client sale.
 - Clicking a linked supplier-order item in `Sales` card bottom tab `Supplier Order` opens `SupplierOrderModal` for that exact item.
 - Take-on-charge action from this modal is item-scoped (`itemIndex` is passed), so receiving affects only the selected product line.
 - Opening behavior:
   - before modal open, system loads suppliers and warehouse settings,
   - modal opens in context of a single supplier-order line (`<orderNumber>-<itemIndex+1>`),
-  - action `Оприбуткувати` from this modal triggers `takeOnChargeSupplierOrder` for the same supplier order id with selected `itemIndex`.
+  - action `РћРїСЂРёР±СѓС‚РєСѓРІР°С‚Рё` from this modal triggers `takeOnChargeSupplierOrder` for the same supplier order id with selected `itemIndex`.
 ## Products Suggestions Source (2026-05-09)
 
 - `Products & Services` now contains a dedicated tab `Products` (suggestion catalog in DB).
