@@ -2,11 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   saleModel,
+  productModel,
   normalizeSalePayloadMock,
   upsertCatalogProductsMock,
 } = vi.hoisted(() => ({
   saleModel: {
     find: vi.fn(),
+    findById: vi.fn(),
+    findByIdAndUpdate: vi.fn(),
+  },
+  productModel: {
     findById: vi.fn(),
     findByIdAndUpdate: vi.fn(),
   },
@@ -33,10 +38,7 @@ vi.mock('../catalog-product/model', () => ({
 }));
 
 vi.mock('../product/model', () => ({
-  Product: {
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
+  Product: productModel,
 }));
 
 vi.mock('../../shared/lib/formatters', () => ({
@@ -121,6 +123,20 @@ describe('updateSaleWorkspace line items', () => {
     saleModel.find.mockReturnValue({
       select: vi.fn().mockReturnValue({
         lean: vi.fn().mockResolvedValue([]),
+      }),
+    });
+    productModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: '507f1f77bcf86cd799439012',
+        quantity: 10,
+        reservedQuantity: 0,
+      }),
+    });
+    productModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: '507f1f77bcf86cd799439012',
+        quantity: 9,
+        reservedQuantity: 0,
       }),
     });
   });
@@ -231,5 +247,120 @@ describe('updateSaleWorkspace line items', () => {
     expect(updatePayload.lineItems).toHaveLength(2);
     expect(updatePayload.lineItems[0].name).toBe('Wireless Mouse');
     expect(updatePayload.lineItems[1].name).toBe('Keyboard');
+  });
+
+  it('decrements stock for repair orders when status becomes issued', async () => {
+    const existingSale = buildExistingSale('repair');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    saleModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        ...existingSale,
+        status: 'issued',
+        lineItems: [lineItem],
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'repair',
+      status: 'issued',
+      paidAmount: 150,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [lineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await updateSaleWorkspace(existingSale._id, {
+      kind: 'repair',
+      status: 'issued',
+      paidAmount: 150,
+      lineItems: [lineItem],
+    });
+
+    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      { $inc: { quantity: -1 } },
+      { returnDocument: 'after' },
+    );
+  });
+
+  it('does not decrement stock for repair orders in non-closing status', async () => {
+    const existingSale = buildExistingSale('repair');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    saleModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        ...existingSale,
+        status: 'inRepair',
+        lineItems: [lineItem],
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'repair',
+      status: 'inRepair',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [lineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await updateSaleWorkspace(existingSale._id, {
+      kind: 'repair',
+      status: 'inRepair',
+      lineItems: [lineItem],
+    });
+
+    expect(productModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('keeps sale stock behavior unchanged for issued status', async () => {
+    const existingSale = buildExistingSale('sale');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    saleModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        ...existingSale,
+        status: 'issued',
+        lineItems: [lineItem],
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'sale',
+      status: 'issued',
+      paidAmount: 150,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [lineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await updateSaleWorkspace(existingSale._id, {
+      kind: 'sale',
+      status: 'issued',
+      paidAmount: 150,
+      lineItems: [lineItem],
+    });
+
+    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      { $inc: { quantity: -1 } },
+      { returnDocument: 'after' },
+    );
   });
 });
