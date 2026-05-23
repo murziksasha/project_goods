@@ -18,6 +18,7 @@ type SupplierOrderModalProps = {
   isOpen: boolean;
   suppliers: Supplier[];
   initialProductName?: string;
+  initialQuantity?: number;
   editingOrder?: SupplierOrder | null;
   forceReadOnly?: boolean;
   onClose: () => void;
@@ -60,6 +61,7 @@ export const SupplierOrderModal = ({
   isOpen,
   suppliers,
   initialProductName = '',
+  initialQuantity = 1,
   editingOrder,
   forceReadOnly = false,
   onClose,
@@ -157,7 +159,9 @@ export const SupplierOrderModal = ({
       deliveryDate: (editingOrder?.deliveryDate ?? '').slice(0, 10),
       supplyType: editingOrder?.supplyType ?? 'Локально',
       number: editingOrder?.number ?? '',
-      quantity: String(firstItem?.quantity ?? 1),
+      quantity: String(
+        firstItem?.quantity ?? Math.max(1, Math.floor(initialQuantity)),
+      ),
       price: String(firstItem?.price ?? 0),
       note: editingOrder?.note ?? '',
     });
@@ -169,7 +173,13 @@ export const SupplierOrderModal = ({
     const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
     setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
-  }, [editingOrder, initialProductName, isOpen, resolvedWarehouseOptions]);
+  }, [
+    editingOrder,
+    initialProductName,
+    initialQuantity,
+    isOpen,
+    resolvedWarehouseOptions,
+  ]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);

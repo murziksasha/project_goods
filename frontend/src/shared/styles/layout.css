@@ -1697,6 +1697,15 @@
   color: #2d7dca;
 }
 
+.order-related-item-supplier {
+  grid-template-columns: 110px minmax(0, 1fr) 140px 90px 160px;
+}
+
+.order-related-supplier-status {
+  font-weight: 700;
+  color: #4c6077;
+}
+
 .order-detail-table {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 160px 90px;

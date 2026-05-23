@@ -123,6 +123,25 @@
   - selected supplier/date/line items from modal.
 - Created request appears in `Orders -> Supplier Order`.
 
+## Sales Card: Related Supplier Orders Link (2026-05-23)
+
+- Supplier orders created from `Sales` card serials modal are now explicitly linked to the source sale.
+- Link is persisted in supplier order note using technical markers:
+  - `[LINKED_SALE_ID:<saleId>]`
+  - `[LINKED_CLIENT_ID:<clientId>]`
+- In order/sale card bottom related block, tab `Supplier Order` now shows linked supplier orders for the current sale.
+- Matching priority:
+  - explicit link by `LINKED_SALE_ID` (primary),
+  - fallback by linked client marker + product-name intersection (for backward compatibility with older records).
+- Purpose:
+  - quick jump context for receiving (`Оприбуткувати`) from same workflow window,
+  - historical visibility of supplier procurement done for a specific client sale.
+- Clicking a linked supplier-order item in `Sales` card bottom tab `Supplier Order` opens `SupplierOrderModal` for that exact item.
+- Take-on-charge action from this modal is item-scoped (`itemIndex` is passed), so receiving affects only the selected product line.
+- Opening behavior:
+  - before modal open, system loads suppliers and warehouse settings,
+  - modal opens in context of a single supplier-order line (`<orderNumber>-<itemIndex+1>`),
+  - action `Оприбуткувати` from this modal triggers `takeOnChargeSupplierOrder` for the same supplier order id with selected `itemIndex`.
 ## Products Suggestions Source (2026-05-09)
 
 - `Products & Services` now contains a dedicated tab `Products` (suggestion catalog in DB).
@@ -135,4 +154,6 @@
 - Device name from repair context (`Device #1` / order-card main device) is stored only in `Clients goods` (`client-devices`) and order snapshots/history.
 - Only explicit product line items (`lineItems.kind = product`) participate in `Products` catalog upsert.
 - The list supports activity status (`active`/`inactive`) and editing via modal.
+
+
 
