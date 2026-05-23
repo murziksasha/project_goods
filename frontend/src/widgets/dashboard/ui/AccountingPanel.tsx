@@ -402,6 +402,7 @@ export const AccountingPanel = ({
   }, [allCurrencyCodes]);
 
   useEffect(() => {
+    if (!isCashboxesOrderHydrated) return;
     setCashboxCurrencyActivity((current) => {
       let changed = false;
       const nextByCashbox = allCashboxes.reduce<Record<string, Record<string, boolean>>>((acc, cashbox) => {
@@ -428,7 +429,7 @@ export const AccountingPanel = ({
 
       return changed ? nextByCashbox : current;
     });
-  }, [allCashboxes, allCurrencyCodes]);
+  }, [allCashboxes, allCurrencyCodes, isCashboxesOrderHydrated]);
 
   useEffect(() => {
     try {
@@ -442,6 +443,7 @@ export const AccountingPanel = ({
   }, [currencyActivity]);
 
   useEffect(() => {
+    if (!isCashboxesOrderHydrated) return;
     try {
       window.localStorage.setItem(
         accountingCashboxCurrencyActivityStorageKey,
@@ -450,7 +452,7 @@ export const AccountingPanel = ({
     } catch {
       // Ignore localStorage write errors.
     }
-  }, [cashboxCurrencyActivity]);
+  }, [cashboxCurrencyActivity, isCashboxesOrderHydrated]);
   useEffect(() => {
     try {
       window.localStorage.setItem(

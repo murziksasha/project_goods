@@ -3155,13 +3155,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 22px 20px;
+  align-items: stretch;
 }
 
 .finance-cashbox-card {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-content: start;
   min-width: 0;
+  height: 100%;
 }
 
 .finance-cashbox-heading {
@@ -3197,6 +3200,7 @@
 
 .finance-cashbox-balances {
   display: grid;
+  align-content: start;
   gap: 8px;
   justify-items: center;
 }
