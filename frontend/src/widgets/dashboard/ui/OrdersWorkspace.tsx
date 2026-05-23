@@ -215,19 +215,21 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
 
 const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
 const supplierOrderClientLinkPrefix = '[LINKED_CLIENT_ID:';
+const orderDetailSectionsStorageKey =
+  'project-goods.order-detail-sections';
 
 const buildSupplierOrderLinkNote = (
-  saleId: string,
+  saleReference: string,
   clientId: string,
 ) =>
-  `${supplierOrderSaleLinkPrefix}${saleId}] ${supplierOrderClientLinkPrefix}${clientId}]`;
+  `${supplierOrderSaleLinkPrefix}${saleReference}] ${supplierOrderClientLinkPrefix}${clientId}]`;
 
 const withSupplierOrderLinkNote = (
   note: string,
-  saleId: string,
+  saleReference: string,
   clientId: string,
 ) => {
-  const linkNote = buildSupplierOrderLinkNote(saleId, clientId);
+  const linkNote = buildSupplierOrderLinkNote(saleReference, clientId);
   const normalizedNote = note.trim();
   const withoutExistingMarkers = normalizedNote
     .replace(/\[LINKED_SALE_ID:[^\]]+\]/gi, '')
@@ -259,6 +261,47 @@ const extractLinkedClientIdFromSupplierOrder = (
     order.note ?? '',
     supplierOrderClientLinkPrefix,
   );
+
+const isSupplierOrderLinkedToSale = (
+  order: SupplierOrder,
+  sale: Sale,
+) => {
+  const linkedSaleRef = extractLinkedSaleIdFromSupplierOrder(order)
+    .trim()
+    .toLowerCase();
+  if (!linkedSaleRef) return false;
+  const saleRecordNumber = (sale.recordNumber ?? '')
+    .trim()
+    .toLowerCase();
+  if (!saleRecordNumber) return false;
+  return linkedSaleRef === saleRecordNumber;
+};
+
+type StoredOrderDetailSections = Record<
+  string,
+  { productsOpen: boolean; servicesOpen: boolean }
+>;
+
+const readOrderDetailSectionsState = (): StoredOrderDetailSections => {
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(orderDetailSectionsStorageKey) ??
+        '{}',
+    ) as StoredOrderDetailSections;
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeOrderDetailSectionsState = (
+  value: StoredOrderDetailSections,
+) => {
+  window.localStorage.setItem(
+    orderDetailSectionsStorageKey,
+    JSON.stringify(value),
+  );
+};
 
 const getSupplierOrderStatusLabel = (
   status: SupplierOrder['status'],
@@ -671,6 +714,28 @@ const getLineItemRefundableAmount = (
 };
 const normalizeProductLookupValue = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const isRepairDevicePlaceholderLineItem = (
+  sale: Sale,
+  item: OrderLineItem,
+) => {
+  if (!isRepairOrder(sale)) return false;
+  if (item.kind !== 'product') return false;
+  if ((item.productId ?? '').trim()) return false;
+  if ((item.serialNumbers ?? []).length > 0) return false;
+
+  const normalizedItemName = normalizeProductLookupValue(item.name);
+  const normalizedDeviceName = normalizeProductLookupValue(
+    getPrimaryDeviceName(sale),
+  );
+  if (!normalizedItemName || !normalizedDeviceName) return false;
+  if (normalizedItemName !== normalizedDeviceName) return false;
+
+  const hasLegacyPrice = Math.abs((item.price ?? 0) - sale.salePrice) < 0.01;
+  const hasLegacyQuantity = Number(item.quantity ?? 0) === Number(sale.quantity ?? 0);
+
+  return hasLegacyPrice && hasLegacyQuantity;
+};
 
 const getRemainingPayment = (
   sale: Sale,
@@ -1670,10 +1735,14 @@ export const OrdersWorkspace = ({
 
   const getStatusOptions = getStatusOptionsForSale;
 
-  const getLineItems = (sale: Sale) =>
-    sale.lineItems?.length
+  const getLineItems = (sale: Sale) => {
+    const sourceItems = sale.lineItems?.length
       ? sale.lineItems
       : getDefaultLineItems(sale);
+    return sourceItems.filter(
+      (item) => !isRepairDevicePlaceholderLineItem(sale, item),
+    );
+  };
 
   const getPaidAmount = (sale: Sale) => sale.paidAmount ?? 0;
 
@@ -3708,10 +3777,41 @@ const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
+  const isProductBlockReadOnly =
+    isSaleCard
+      ? isReadOnly
+      : !saleEditableStatuses.has(normalizeOrderStatus(sale.status));
   useEffect(() => {
-    setIsProductsOpen(isSaleCard);
-    setIsServicesOpen(isSaleCard ? false : true);
-  }, [sale.id, isSaleCard]);
+    const storedState = readOrderDetailSectionsState()[sale.id];
+    const productsOpenByDefault = isSaleCard;
+    const servicesOpenByDefault = !isSaleCard;
+    setIsProductsOpen(
+      productItems.length > 0
+        ? true
+        : (storedState?.productsOpen ?? productsOpenByDefault),
+    );
+    setIsServicesOpen(
+      serviceItems.length > 0
+        ? true
+        : (storedState?.servicesOpen ?? servicesOpenByDefault),
+    );
+  }, [sale.id, isSaleCard, productItems.length, serviceItems.length]);
+  useEffect(() => {
+    const current = readOrderDetailSectionsState();
+    writeOrderDetailSectionsState({
+      ...current,
+      [sale.id]: {
+        productsOpen: productItems.length > 0 ? true : isProductsOpen,
+        servicesOpen: serviceItems.length > 0 ? true : isServicesOpen,
+      },
+    });
+  }, [
+    sale.id,
+    isProductsOpen,
+    isServicesOpen,
+    productItems.length,
+    serviceItems.length,
+  ]);
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
@@ -3761,8 +3861,7 @@ const OrderDetailCard = ({
   );
   const relatedSupplierOrders = useMemo(() => {
     const byExplicitSaleLink = supplierOrders.filter((order) => {
-      const linkedSaleId = extractLinkedSaleIdFromSupplierOrder(order);
-      return linkedSaleId === sale.id;
+      return isSupplierOrderLinkedToSale(order, sale);
     });
     if (byExplicitSaleLink.length > 0) {
       return byExplicitSaleLink.sort(
@@ -3787,13 +3886,19 @@ const OrderDetailCard = ({
           new Date(secondItem.createdAt).getTime() -
           new Date(firstItem.createdAt).getTime(),
       );
-  }, [sale.id, sale.client.id, saleProductNames, supplierOrders]);
+  }, [
+    sale.id,
+    sale.recordNumber,
+    sale.client.id,
+    saleProductNames,
+    supplierOrders,
+  ]);
   const hasExplicitSaleSupplierLinks = useMemo(
     () =>
       relatedSupplierOrders.some(
-        (order) => extractLinkedSaleIdFromSupplierOrder(order) === sale.id,
+        (order) => isSupplierOrderLinkedToSale(order, sale),
       ),
-    [relatedSupplierOrders, sale.id],
+    [relatedSupplierOrders, sale.id, sale.recordNumber],
   );
   const relatedSupplierOrderItems = useMemo(
     () =>
@@ -4077,7 +4182,10 @@ const OrderDetailCard = ({
           <button
             type='button'
             className='order-detail-collapse-button'
-            onClick={() => setIsProductsOpen((current) => !current)}
+            onClick={() => {
+              if (productItems.length > 0) return;
+              setIsProductsOpen((current) => !current);
+            }}
             aria-expanded={isProductsOpen}
           >
             <span>Products</span>
@@ -4091,6 +4199,7 @@ const OrderDetailCard = ({
               kind='product'
               sales={sales}
               currentSaleId={sale.id}
+              currentSaleRecordNumber={sale.recordNumber ?? undefined}
               currentClientId={sale.client.id}
               currentStatus={status}
               items={productItems}
@@ -4102,7 +4211,7 @@ const OrderDetailCard = ({
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
-              isReadOnly={isReadOnly}
+              isReadOnly={isProductBlockReadOnly}
             />
           ) : null}
         </section>
@@ -4111,7 +4220,10 @@ const OrderDetailCard = ({
           <button
             type='button'
             className='order-detail-collapse-button'
-            onClick={() => setIsServicesOpen((current) => !current)}
+            onClick={() => {
+              if (serviceItems.length > 0) return;
+              setIsServicesOpen((current) => !current);
+            }}
             aria-expanded={isServicesOpen}
           >
             <span>Services</span>
@@ -4125,6 +4237,7 @@ const OrderDetailCard = ({
               kind='service'
               sales={sales}
               currentSaleId={sale.id}
+              currentSaleRecordNumber={sale.recordNumber ?? undefined}
               currentClientId={sale.client.id}
               currentStatus={status}
               items={serviceItems}
@@ -4399,7 +4512,7 @@ const OrderDetailCard = ({
                 number: relatedSupplierOrderSource.number,
                 note: withSupplierOrderLinkNote(
                   relatedSupplierOrderSource.note,
-                  sale.id,
+                  sale.recordNumber ?? sale.id,
                   sale.client.id,
                 ),
                 createdBy: relatedSupplierOrderSource.createdBy,
@@ -4442,7 +4555,7 @@ const OrderDetailCard = ({
             number: relatedSupplierOrderSource.number,
             note: withSupplierOrderLinkNote(
               payload.note,
-              sale.id,
+              sale.recordNumber ?? sale.id,
               sale.client.id,
             ),
             createdBy: relatedSupplierOrderSource.createdBy,
@@ -4463,6 +4576,7 @@ type LineItemsPanelProps = {
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
+  currentSaleRecordNumber?: string;
   currentClientId: string;
   currentStatus: OrderStatus;
   items: OrderLineItem[];
@@ -4497,6 +4611,7 @@ const LineItemsPanel = ({
   kind,
   sales,
   currentSaleId,
+  currentSaleRecordNumber,
   currentClientId,
   currentStatus,
   items,
@@ -4595,6 +4710,13 @@ const LineItemsPanel = ({
     const occupied = new Set<string>();
 
     sales.forEach((candidateSale) => {
+      const saleLevelSerial = candidateSale.product?.serialNumber
+        ?.trim()
+        .toUpperCase();
+      if (saleLevelSerial) {
+        occupied.add(saleLevelSerial);
+      }
+
       (candidateSale.lineItems ?? []).forEach((lineItem) => {
         if (lineItem.kind !== 'product') return;
 
@@ -4694,7 +4816,7 @@ const LineItemsPanel = ({
       number: payload.number,
       note: withSupplierOrderLinkNote(
         payload.note,
-        currentSaleId,
+        currentSaleRecordNumber ?? currentSaleId,
         currentClientId,
       ),
       createdBy: 'Administrator',
@@ -5569,6 +5691,15 @@ const LineItemsPanel = ({
                   ) {
                     onError(
                       'Serial count cannot exceed line quantity.',
+                    );
+                    return;
+                  }
+                  const conflictingSerials = uniqueSerials.filter(
+                    (serial) => occupiedSerials.has(serial),
+                  );
+                  if (conflictingSerials.length > 0) {
+                    onError(
+                      `Serial already linked to another order: ${conflictingSerials.join(', ')}.`,
                     );
                     return;
                   }
