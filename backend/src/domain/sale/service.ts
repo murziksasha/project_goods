@@ -795,9 +795,7 @@ export const updateSaleWorkspace = async (
     payload.serialNumber !== undefined
       ? payload.serialNumber
       : (existingSale.productSnapshot?.serialNumber ?? '');
-  const normalizedLineItems = nextLineItems.map((item) =>
-    item.kind === 'product' ? { ...item, name: nextDeviceName || item.name } : item,
-  );
+  const normalizedLineItems = nextLineItems;
   const nextDiscount =
     payloadInput.discount === undefined
       ? normalizeDiscount(existingSale.discount)
