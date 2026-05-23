@@ -78,6 +78,10 @@ import {
   shouldCreateMissingServiceOnSubmit,
 } from '../model/missingService';
 import { mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
+import {
+  patchLineItemsById,
+  removeLineItemsById,
+} from '../model/line-item-ops';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -714,6 +718,9 @@ const getLineItemRefundableAmount = (
 };
 const normalizeProductLookupValue = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const isProductAvailableForOrder = (product: Product) =>
+  product.isActive && product.isInStock && product.freeQuantity > 0;
 
 const isRepairDevicePlaceholderLineItem = (
   sale: Sale,
@@ -2361,9 +2368,9 @@ export const OrdersWorkspace = ({
     itemIndex?: number,
   ) => {
     const currentItems = getLineItems(sale);
-    const removedItem = currentItems.find((item, index) =>
-      index === itemIndex ? true : item.id === itemId,
-    );
+    const removedItem =
+      currentItems.find((item) => item.id === itemId) ??
+      (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
     if (!removedItem) return;
     if (getPaidAmount(sale) > 0) {
       onError(
@@ -2381,8 +2388,10 @@ export const OrdersWorkspace = ({
       );
       return;
     }
-    const nextItems = currentItems.filter((item, index) =>
-      index === itemIndex ? false : item.id !== itemId,
+    const nextItems = removeLineItemsById(
+      currentItems,
+      itemId,
+      itemIndex,
     );
     if (nextItems.length === 0) {
       void persistSaleWorkspace(sale, {
@@ -2420,25 +2429,12 @@ export const OrdersWorkspace = ({
       >
     >,
   ) => {
-    const nextItems = getLineItems(sale).map((item, index) => {
-      if (itemIndex === index) {
-        return {
-          ...item,
-          ...patch,
-          serialNumbers:
-            patch.quantity !== undefined
-              ? (patch.serialNumbers ?? item.serialNumbers)?.slice(
-                  0,
-                  patch.quantity,
-                )
-              : patch.serialNumbers ?? item.serialNumbers,
-        };
-      }
-      if (itemIndex === undefined && item.id === itemId) {
-        return { ...item, ...patch };
-      }
-      return item;
-    });
+    const nextItems = patchLineItemsById(
+      getLineItems(sale),
+      itemId,
+      itemIndex,
+      patch,
+    );
 
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
@@ -4948,7 +4944,7 @@ const LineItemsPanel = ({
           setProductSuggestions(
             products
               .filter((product) => {
-                if (!product.isActive) return false;
+                if (!isProductAvailableForOrder(product)) return false;
                 const lookupFields = [
                   product.name,
                   product.article,
@@ -5281,7 +5277,7 @@ const LineItemsPanel = ({
                   min={0}
                   value={String(item.price)}
                   onChange={(value) =>
-                    onUpdateItem(item.id, itemIndex, {
+                    onUpdateItem(item.id, undefined, {
                       price: Number(value),
                     })
                   }
@@ -5294,7 +5290,7 @@ const LineItemsPanel = ({
                   min={1}
                   value={String(item.quantity)}
                   onChange={(value) =>
-                    onUpdateItem(item.id, itemIndex, {
+                    onUpdateItem(item.id, undefined, {
                       quantity: Math.max(1, Number(value) || 1),
                     })
                   }
@@ -5306,7 +5302,7 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   value={item.warrantyPeriod}
                   onChange={(event) =>
-                    onUpdateItem(item.id, itemIndex, {
+                    onUpdateItem(item.id, undefined, {
                       warrantyPeriod: Number(event.target.value),
                     })
                   }
@@ -5366,9 +5362,9 @@ const LineItemsPanel = ({
                   onClick={() =>
                     isProduct
                       ? canDirectRemove
-                        ? onRemoveItem(item.id, itemIndex)
+                        ? onRemoveItem(item.id, undefined)
                         : onReturnItem(item)
-                      : onRemoveItem(item.id, itemIndex)
+                      : onRemoveItem(item.id, undefined)
                   }
                   disabled={actionDisabled}
                   title={actionBlockedReason || undefined}
@@ -5703,12 +5699,9 @@ const LineItemsPanel = ({
                     );
                     return;
                   }
-                  const itemIndex = items.findIndex(
-                    (candidate) => candidate.id === serialsEditingItem.id,
-                  );
                   onUpdateItem(
                     serialsEditingItem.id,
-                    itemIndex >= 0 ? itemIndex : undefined,
+                    undefined,
                     { serialNumbers: uniqueSerials },
                   );
                   onSuccess('Serial numbers updated.');

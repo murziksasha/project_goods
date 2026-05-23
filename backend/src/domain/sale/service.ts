@@ -94,6 +94,14 @@ const isStockCommittedSaleStatus = (status: string) => {
   );
 };
 
+const isStockCommittedRepairStatus = (status: string) => {
+  const normalized = status.trim().toLowerCase();
+  return (
+    normalized === 'issued' ||
+    normalized === 'issuedwithoutrepair'
+  );
+};
+
 const addStockQuantity = (
   stockMap: Map<string, number>,
   productId: string,
@@ -109,7 +117,12 @@ const getStockLines = (
   fallbackQuantity: number,
   fallbackProductId?: mongoose.Types.ObjectId | string | null,
 ): StockLine[] => {
-  if (kind !== 'sale' || !isStockCommittedSaleStatus(status)) {
+  const isStockCommitted =
+    kind === 'sale'
+      ? isStockCommittedSaleStatus(status)
+      : isStockCommittedRepairStatus(status);
+
+  if (!isStockCommitted) {
     return [];
   }
 
@@ -795,9 +808,7 @@ export const updateSaleWorkspace = async (
     payload.serialNumber !== undefined
       ? payload.serialNumber
       : (existingSale.productSnapshot?.serialNumber ?? '');
-  const normalizedLineItems = nextLineItems.map((item) =>
-    item.kind === 'product' ? { ...item, name: nextDeviceName || item.name } : item,
-  );
+  const normalizedLineItems = nextLineItems;
   const nextDiscount =
     payloadInput.discount === undefined
       ? normalizeDiscount(existingSale.discount)
@@ -1255,9 +1266,6 @@ export const returnSaleLineItemToStock = async (
   isValidObjectIdOrThrow(saleId, 'saleId');
   const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
   if (!sale) throw new Error('Sale not found.');
-  if (sale.kind !== 'sale') {
-    throw new Error('Only product sales can be returned this way.');
-  }
 
   const lineItemId = String(payload.lineItemId ?? '').trim();
   const lineItemIndex = (sale.lineItems ?? []).findIndex(

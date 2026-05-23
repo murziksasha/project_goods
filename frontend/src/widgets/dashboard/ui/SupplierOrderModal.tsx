@@ -285,6 +285,27 @@ export const SupplierOrderModal = ({
   );
   const selectedTakeOnChargeLocations =
     selectedTakeOnChargeWarehouse?.locations ?? [];
+  const updateBasketItemQuantity = (
+    itemIndex: number,
+    quantityValue: string,
+  ) => {
+    const normalizedQuantity = Math.max(
+      1,
+      Math.floor(Number(quantityValue) || 1),
+    );
+    setBasketItems((current) =>
+      current.map((item, index) =>
+        index === itemIndex
+          ? { ...item, quantity: normalizedQuantity }
+          : item,
+      ),
+    );
+  };
+  const removeBasketItem = (itemIndex: number) => {
+    setBasketItems((current) =>
+      current.filter((_, index) => index !== itemIndex),
+    );
+  };
 
   useEffect(() => {
     if (selectedTakeOnChargeLocations.length === 0) {
@@ -530,9 +551,25 @@ export const SupplierOrderModal = ({
                     <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
-                    <div className='field supplier-order-product-compact'><input value={String(item.quantity)} readOnly /></div>
+                    <div className='field supplier-order-product-compact'>
+                      <input
+                        value={String(item.quantity)}
+                        disabled={isReadOnly}
+                        onChange={(event) =>
+                          updateBasketItemQuantity(index, event.target.value)
+                        }
+                      />
+                    </div>
                     <div className='field supplier-order-product-compact'><input value={String(item.quantity * item.price)} readOnly /></div>
-                    <div />
+                    <button
+                      type='button'
+                      className='toolbar-square-button supplier-order-product-add'
+                      aria-label='Remove product from order list'
+                      disabled={isReadOnly}
+                      onClick={() => removeBasketItem(index)}
+                    >
+                      -
+                    </button>
                   </div>
                 ))}
               </div>

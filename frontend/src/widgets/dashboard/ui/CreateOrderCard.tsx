@@ -101,6 +101,8 @@ const formatPhone = (input: string) => {
 const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
 const toNameKey = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
+const toDeviceLookupKey = (value: string) =>
+  value.toLowerCase().replace(/\s+/g, ' ').trim();
 const normalizeProductLookupKey = (value: string) =>
   toNameKey(value).replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ');
 const parseDecimalInput = (value: string) => {
@@ -123,6 +125,28 @@ const extractDeviceKit = (note: string) =>
     .filter(Boolean)
     .slice(0, 2)
     .join(', ');
+
+const filterActiveDevicesByQuery = (
+  devices: ClientDevice[],
+  rawQuery: string,
+) => {
+  const normalizedQuery = toDeviceLookupKey(rawQuery);
+  const activeDevices = devices.filter((device) => device.isActive);
+  if (!normalizedQuery) return activeDevices;
+
+  return activeDevices.filter((device) => {
+    const lookupFields = [
+      device.name,
+      device.serialNumber,
+      device.clientName,
+      device.clientPhone,
+      device.note,
+    ];
+    return lookupFields.some((field) =>
+      toDeviceLookupKey(field || '').includes(normalizedQuery),
+    );
+  });
+};
 
 const getDeviceHistory = (history: ClientHistory | null) => {
   if (!history) return [];
@@ -256,6 +280,14 @@ export const CreateOrderCard = ({
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
   const visibleClientHistory = selectedClientId ? clientHistory : null;
+  const hasExactDeviceMatch = useMemo(() => {
+    if (deviceName.trim().length < 2) return false;
+    const normalizedInput = toNameKey(deviceName);
+    return deviceSuggestions.some(
+      (device) =>
+        device.isActive && toNameKey(device.name) === normalizedInput,
+    );
+  }, [deviceName, deviceSuggestions]);
   const visibleDeviceSuggestions = useMemo(() => {
     if (deviceName.trim().length < 2) return [];
 
@@ -272,7 +304,9 @@ export const CreateOrderCard = ({
     activeTab === 'repair' &&
     Boolean(resolvedClientForDeviceCreate) &&
     deviceName.trim().length >= 2 &&
+    !selectedDeviceSuggestionId &&
     !isDeviceLookupLoading &&
+    !hasExactDeviceMatch &&
     visibleDeviceSuggestions.length === 0;
   const focusedSaleItem =
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
@@ -344,7 +378,21 @@ export const CreateOrderCard = ({
       try {
         const devices = await getClientDevices(deviceLookupQuery);
         if (isActive) {
-          setDeviceSuggestions(devices.filter((device) => device.isActive).slice(0, 8));
+          let suggestions = filterActiveDevicesByQuery(
+            devices,
+            deviceLookupQuery,
+          );
+
+          if (suggestions.length === 0) {
+            const allDevices = await getClientDevices('');
+            if (!isActive) return;
+            suggestions = filterActiveDevicesByQuery(
+              allDevices,
+              deviceLookupQuery,
+            );
+          }
+
+          setDeviceSuggestions(suggestions.slice(0, 8));
         }
       } catch {
         if (isActive) setDeviceSuggestions([]);
@@ -813,6 +861,13 @@ export const CreateOrderCard = ({
                     type="button"
                     className="secondary-button"
                     disabled={!canCreateClientDevice || isClientEnsuring}
+                    title={
+                      selectedDeviceSuggestionId
+                        ? 'Selected existing device'
+                        : hasExactDeviceMatch
+                          ? 'Device already exists'
+                          : undefined
+                    }
                     onClick={async () => {
                       const resolvedClient = resolvedClientForDeviceCreate ?? (await ensureClientForDevice());
                       if (!resolvedClient) return;
@@ -827,6 +882,9 @@ export const CreateOrderCard = ({
                     Create new
                   </button>
                 </div>
+                {hasExactDeviceMatch ? (
+                  <p>Found existing device with this name.</p>
+                ) : null}
                 {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
                   <div className="create-suggestions">
                     {isDeviceLookupLoading ? <p>Searching devices...</p> : null}

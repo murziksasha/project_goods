@@ -77,6 +77,12 @@ This document defines current warehouse requirements for stock balances, receipt
 1. if `order.status = cancelled` OR `order.paymentStatus = cancelled` -> row status `cancelled`
 2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
 
+### 6.3) Supplier Order Modal Item List Editing
+- In `SupplierOrderModal` (`src/widgets/dashboard/ui/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
+- Each already added item row must have remove action button `-` at row end.
+- Remove action uses the same square toolbar visual style as add button `+`.
+- Remove action deletes only selected row from current order item list.
+
 ### 7) Status/Cancel Projection
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.
 - Projection rule: if `status = cancelled` OR `paymentStatus = cancelled`, row state is `cancelled` regardless of previous `receiptStatus`.
