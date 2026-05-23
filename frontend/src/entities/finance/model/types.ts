@@ -1,4 +1,4 @@
-export type FinanceCurrency = 'UAH' | 'USD';
+export type FinanceCurrency = string;
 export type FinanceTransactionType = 'deposit' | 'withdraw' | 'transfer';
 
 export type Cashbox = {
@@ -44,6 +44,11 @@ export type SupplierOrderPaymentQueueItem = {
 
 export type CreateCashboxPayload = {
   name: string;
+};
+
+export type UpdateCashboxPayload = {
+  name?: string;
+  isArchived?: boolean;
 };
 
 export type CreateFinanceTransactionPayload = {

@@ -7,11 +7,14 @@ import type {
   FinanceReport,
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
+  UpdateCashboxPayload,
 } from '../model/types';
 
-export const getCashboxes = async () => {
+export const getCashboxes = async (options: { includeArchived?: boolean } = {}) => {
   try {
-    const response = await apiClient.get<Cashbox[]>('/finance/cashboxes');
+    const response = await apiClient.get<Cashbox[]>('/finance/cashboxes', {
+      params: options.includeArchived ? { includeArchived: '1' } : undefined,
+    });
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
@@ -21,6 +24,18 @@ export const getCashboxes = async () => {
 export const createCashbox = async (payload: CreateCashboxPayload) => {
   try {
     const response = await apiClient.post<Cashbox>('/finance/cashboxes', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateCashbox = async (
+  cashboxId: string,
+  payload: UpdateCashboxPayload,
+) => {
+  try {
+    const response = await apiClient.patch<Cashbox>(`/finance/cashboxes/${cashboxId}`, payload);
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

@@ -278,6 +278,11 @@ export const createDashboardActions = ({
   };
   const normalizeServiceName = (value: string) =>
     value.trim().replace(/\s+/g, ' ').toLowerCase();
+  const parseDecimalInput = (value: string) => {
+    const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
+    const numeric = Number.parseFloat(normalized || '0');
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
   const safeRefresh = async (
     refreshAction: () => Promise<void>,
     fallbackMessage: string,
@@ -1031,7 +1036,7 @@ export const createDashboardActions = ({
         const saleItems = (payload.saleItems ?? [])
           .map((item) => {
             const quantity = Number.parseInt(item.quantity || '1', 10);
-            const price = Number.parseFloat(item.price || '0');
+            const price = parseDecimalInput(item.price);
             const warrantyPeriod = Number.parseInt(item.warrantyPeriod || '0', 10);
 
             return {
@@ -1124,9 +1129,7 @@ export const createDashboardActions = ({
                 id: item.id || crypto.randomUUID(),
                 kind: 'product' as const,
                 productId: '',
-                name: item.warehouse
-                  ? `${item.name} (${item.warehouse})`
-                  : item.name,
+                name: item.name,
                 price: item.price,
                 quantity: item.quantity,
                 warrantyPeriod: item.warrantyPeriod,

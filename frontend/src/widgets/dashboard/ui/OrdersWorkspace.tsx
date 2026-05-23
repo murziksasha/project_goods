@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -41,6 +42,24 @@ import {
   getProducts,
   updateProduct,
 } from '../../../entities/product/api/productApi';
+import {
+  cancelSupplierOrder,
+  getSupplierOrders,
+  createSupplierOrder,
+  takeOnChargeSupplierOrder,
+  updateSupplierOrder,
+} from '../../../entities/supplier-order/api/supplierOrderApi';
+import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import {
+  createSupplier,
+  getSuppliers,
+} from '../../../entities/supplier/api/supplierApi';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../entities/supplier/model/types';
+import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
 import type {
   Product,
   ProductFormValues,
@@ -50,9 +69,14 @@ import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from './SupplierOrderModal';
+import {
   buildMissingServicePayload,
   shouldCreateMissingServiceOnSubmit,
 } from '../model/missingService';
+import { mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -187,6 +211,76 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
   { key: 'sales', label: 'Sales' },
   { key: 'supplierOrders', label: 'Supplier Order' },
 ];
+
+const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
+const supplierOrderClientLinkPrefix = '[LINKED_CLIENT_ID:';
+
+const buildSupplierOrderLinkNote = (
+  saleId: string,
+  clientId: string,
+) =>
+  `${supplierOrderSaleLinkPrefix}${saleId}] ${supplierOrderClientLinkPrefix}${clientId}]`;
+
+const withSupplierOrderLinkNote = (
+  note: string,
+  saleId: string,
+  clientId: string,
+) => {
+  const linkNote = buildSupplierOrderLinkNote(saleId, clientId);
+  const normalizedNote = note.trim();
+  const withoutExistingMarkers = normalizedNote
+    .replace(/\[LINKED_SALE_ID:[^\]]+\]/gi, '')
+    .replace(/\[LINKED_CLIENT_ID:[^\]]+\]/gi, '')
+    .trim();
+  return withoutExistingMarkers
+    ? `${withoutExistingMarkers}\n${linkNote}`
+    : linkNote;
+};
+
+const extractLinkedValueFromNote = (
+  note: string,
+  prefix: string,
+) => {
+  const pattern = new RegExp(
+    `${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\]]+)\\]`,
+    'i',
+  );
+  return note.match(pattern)?.[1]?.trim() ?? '';
+};
+
+const extractLinkedSaleIdFromSupplierOrder = (order: SupplierOrder) =>
+  extractLinkedValueFromNote(order.note ?? '', supplierOrderSaleLinkPrefix);
+
+const extractLinkedClientIdFromSupplierOrder = (
+  order: SupplierOrder,
+) =>
+  extractLinkedValueFromNote(
+    order.note ?? '',
+    supplierOrderClientLinkPrefix,
+  );
+
+const getSupplierOrderStatusLabel = (
+  status: SupplierOrder['status'],
+) => {
+  switch (status) {
+    case 'request':
+      return 'Запит на закупівлю';
+    case 'ordered':
+      return 'Товар замовлений';
+    case 'approved':
+      return 'Затверджено';
+    case 'stocked':
+      return 'Оприбутковано';
+    case 'overdue':
+      return 'Протермінований';
+    case 'cancelled':
+      return 'Скасований';
+    case 'unavailable':
+      return 'Недоступний';
+    default:
+      return status;
+  }
+};
 
 const printFormsStorageKey = 'project-goods.print-forms';
 const ordersColumnsStorageKey = 'project-goods.orders-columns';
@@ -720,6 +814,34 @@ const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
     ? 'Search by order, client or device'
     : 'Search by order, client or manager';
 
+const ORDERS_CELL_MAX_LENGTH = 15;
+
+const truncateOrdersCellText = (
+  value: string,
+  maxLength: number = ORDERS_CELL_MAX_LENGTH,
+) => {
+  const normalizedValue = value.trim();
+  if (normalizedValue.length <= maxLength) {
+    return normalizedValue;
+  }
+  return `${normalizedValue.slice(0, maxLength)}...`;
+};
+
+const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
+  switch (columnKey) {
+    case 'orderNumber':
+      return 'orders-col-order-number';
+    case 'client':
+      return 'orders-col-client';
+    case 'status':
+      return 'orders-col-status';
+    case 'primaryItem':
+      return 'orders-col-primary-item';
+    default:
+      return '';
+  }
+};
+
 const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   activeTab === 'orders' ? 'Device' : 'Service center';
 
@@ -955,6 +1077,9 @@ export const OrdersWorkspace = ({
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
+    [],
+  );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const canManageSavedFilters = Boolean(currentEmployee?.id);
@@ -974,7 +1099,7 @@ export const OrdersWorkspace = ({
     [activeTab, employeeSavedFilters],
   );
   const visibleColumnKeys = visibleColumns[activeTab];
-  const tableMinWidth = Math.max(840, visibleColumnKeys.length * 118);
+  const tableMinWidth = Math.max(720, visibleColumnKeys.length * 104);
   const tabSales = useMemo(
     () =>
       sales.filter((sale) =>
@@ -1158,6 +1283,22 @@ export const OrdersWorkspace = ({
     const start = (currentPage - 1) * currentPageSize;
     return filteredOrders.slice(start, start + currentPageSize);
   }, [currentPage, currentPageSize, filteredOrders]);
+
+  const loadSupplierOrders = useCallback(async () => {
+    try {
+      setSupplierOrders(await getSupplierOrders(''));
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load supplier orders.',
+      );
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    void loadSupplierOrders();
+  }, [loadSupplierOrders]);
 
   useEffect(() => {
     const sanitizeFilters = (current: OrdersFilters) => {
@@ -1670,9 +1811,23 @@ export const OrdersWorkspace = ({
           </button>
         );
       case 'manager':
-        return sale.manager?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.manager?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.manager?.name || '-')}
+          </span>
+        );
       case 'received':
-        return sale.issuedBy?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.issuedBy?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.issuedBy?.name || '-')}
+          </span>
+        );
       case 'status':
         return (
           <div className='order-status-menu'>
@@ -1709,23 +1864,32 @@ export const OrdersWorkspace = ({
             ) : null}
           </div>
         );
-      case 'primaryItem':
+      case 'primaryItem': {
+        const primaryItemText = getPrimaryItemCellContent(
+          sale,
+          activeTab,
+        );
+        const primaryDeviceSerial = getPrimaryDeviceSerial(sale);
         return (
           <button
             type='button'
             className='order-device-button'
-            onClick={() => openSaleCard(sale)}
-          >
-            <span>{getPrimaryItemCellContent(sale, activeTab)}</span>
+          onClick={() => openSaleCard(sale)}
+          title={primaryItemText}
+        >
+            <span>{primaryItemText}</span>
             {activeTab === 'orders' ? (
-              getPrimaryDeviceSerial(sale) ? (
-                <small>{`S/N: ${getPrimaryDeviceSerial(sale)}`}</small>
+              primaryDeviceSerial ? (
+                <small title={primaryDeviceSerial}>
+                  {`S/N: ${primaryDeviceSerial}`}
+                </small>
               ) : null
             ) : (
               <small>Warehouse: Service center</small>
             )}
           </button>
         );
+      }
       case 'price':
         return (
           <span
@@ -1753,11 +1917,14 @@ export const OrdersWorkspace = ({
               type='button'
               className='orders-client-link'
               onClick={() => onOpenClientCard(sale.client.id)}
+              title={sale.client.name}
             >
               {sale.client.name}
             </button>
             <small>
-              <PhoneNumber value={sale.client.phone} />
+              <span title={sale.client.phone}>
+                <PhoneNumber value={sale.client.phone} />
+              </span>
               <span
                 className={`client-status-badge ${getClientStatusClass(
                   String(sale.client.status || ''),
@@ -1776,9 +1943,23 @@ export const OrdersWorkspace = ({
           'Non-urgent'
         );
       case 'warehouse':
-        return getWarehouseLabel(sale);
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={getWarehouseLabel(sale)}
+          >
+            {truncateOrdersCellText(getWarehouseLabel(sale))}
+          </span>
+        );
       case 'master':
-        return sale.master?.name || '-';
+        return (
+          <span
+            className='orders-table-cell-truncate'
+            title={sale.master?.name || '-'}
+          >
+            {truncateOrdersCellText(sale.master?.name || '-')}
+          </span>
+        );
       case 'createdAt':
         return formatReadyDate(sale.createdAt);
       case 'readyDate':
@@ -1875,6 +2056,11 @@ export const OrdersWorkspace = ({
   };
 
   const openRefundModal = async (sale: Sale) => {
+    if (getPaidAmount(sale) <= 0) {
+      onError('No paid amount is available for refund.');
+      return;
+    }
+
     const paymentHistory = sale.paymentHistory ?? [];
     const lastDepositCashboxId =
       paymentHistory.find((entry) => entry.type === 'deposit')
@@ -2308,6 +2494,12 @@ export const OrdersWorkspace = ({
     setIsRefundSaving(true);
 
     try {
+      const lineItems = getLineItems(refundSale);
+      const orderTotal = getOrderTotal(refundSale, lineItems);
+      const currentStatus = normalizeOrderStatus(refundSale.status);
+      const hasProducts = lineItems.some(
+        (item) => item.kind === 'product' && item.quantity > 0,
+      );
       const cashboxName =
         cashboxes.find(
           (cashbox) => cashbox.id === selectedRefundCashboxId,
@@ -2316,6 +2508,14 @@ export const OrdersWorkspace = ({
         currentPaidAmount - normalizedAmount,
         0,
       );
+      const shouldDowngradeIssuedStatus =
+        !isRepairOrder(refundSale) &&
+        currentStatus === 'issued' &&
+        hasProducts &&
+        nextPaidAmount < orderTotal;
+      const nextStatus: OrderStatus = shouldDowngradeIssuedStatus
+        ? 'reserved'
+        : currentStatus;
       const nextPaymentHistory = [
         addPaymentHistoryEntry({
           type: 'refund',
@@ -2327,6 +2527,13 @@ export const OrdersWorkspace = ({
         ...(refundSale.paymentHistory ?? []),
       ];
       const nextTimeline = [
+        ...(shouldDowngradeIssuedStatus
+          ? [
+              appendTimelineEntry(
+                `${currentEmployeeName} changed status to "${getStatusLabel(refundSale, nextStatus)}".`,
+              ),
+            ]
+          : []),
         appendTimelineEntry(
           `${currentEmployeeName} refunded ${formatCurrency(normalizedAmount)} from ${cashboxName}.`,
         ),
@@ -2340,7 +2547,11 @@ export const OrdersWorkspace = ({
         note: `Refund for order ${refundSale.recordNumber ?? refundSale.id}`,
       });
       await persistSaleWorkspace(refundSale, {
+        status: nextStatus,
         paidAmount: nextPaidAmount,
+        issuedById: shouldCaptureReceivedBy(refundSale, nextStatus)
+          ? currentEmployee?.id ?? ''
+          : '',
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
       });
@@ -2371,11 +2582,36 @@ export const OrdersWorkspace = ({
     setIsReturnSaving(true);
 
     try {
-      const updatedSale = await returnSaleLineItemToStock(returnSale.id, {
+      let updatedSale = await returnSaleLineItemToStock(returnSale.id, {
         lineItemId: returnLineItem.id,
         warehouse: returnWarehouse,
         author: currentEmployeeName,
       });
+
+      const hasRemainingProductItems = getLineItems(updatedSale).some(
+        (item) => item.kind === 'product' && item.quantity > 0,
+      );
+      const canAutoMarkReturned =
+        !isRepairOrder(updatedSale) &&
+        normalizeOrderStatus(updatedSale.status) === 'issued' &&
+        getPaidAmount(updatedSale) <= 0 &&
+        !hasRemainingProductItems;
+
+      if (canAutoMarkReturned) {
+        updatedSale = await persistSaleWorkspace(updatedSale, {
+          status: 'returned',
+          issuedById: shouldCaptureReceivedBy(updatedSale, 'returned')
+            ? currentEmployee?.id ?? ''
+            : '',
+          timeline: [
+            appendTimelineEntry(
+              `${currentEmployeeName} changed status to "${getStatusLabel(updatedSale, 'returned')}".`,
+            ),
+            ...(updatedSale.timeline ?? []),
+          ],
+        });
+      }
+
       onSaleUpdate(updatedSale);
       await syncReceivedBy(
         updatedSale,
@@ -2538,6 +2774,7 @@ export const OrdersWorkspace = ({
         <OrderDetailCard
           sale={selectedSale}
           sales={sales}
+          supplierOrders={supplierOrders}
           employees={employees}
           status={selectedSaleStatus}
           statusOptions={selectedSaleStatusOptions}
@@ -2573,6 +2810,7 @@ export const OrdersWorkspace = ({
           onOpenClientCard={() =>
             onOpenClientCard(selectedSale.client.id)
           }
+          onSupplierOrderCreated={loadSupplierOrders}
           onError={onError}
           onSuccess={onSuccess}
           onSaveMainInfo={(payload) =>
@@ -3097,7 +3335,10 @@ export const OrdersWorkspace = ({
           <thead>
             <tr>
               {visibleColumnKeys.map((columnKey) => (
-                <th key={columnKey}>
+                <th
+                  key={columnKey}
+                  className={getOrdersColumnClassName(columnKey)}
+                >
                   {getColumnLabel(columnKey, activeTab)}
                 </th>
               ))}
@@ -3128,7 +3369,10 @@ export const OrdersWorkspace = ({
               paginatedOrders.map((sale) => (
                 <tr key={sale.id}>
                   {visibleColumnKeys.map((columnKey) => (
-                    <td key={`${sale.id}-${columnKey}`}>
+                    <td
+                      key={`${sale.id}-${columnKey}`}
+                      className={getOrdersColumnClassName(columnKey)}
+                    >
                       {renderOrdersCell(sale, columnKey)}
                     </td>
                   ))}
@@ -3246,6 +3490,7 @@ export const OrdersWorkspace = ({
 type OrderDetailCardProps = {
   sale: Sale;
   sales: Sale[];
+  supplierOrders: SupplierOrder[];
   employees: Employee[];
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; label: string }>;
@@ -3285,6 +3530,7 @@ type OrderDetailCardProps = {
     value: number;
   }) => void;
   onOpenClientCard: () => void;
+  onSupplierOrderCreated: () => Promise<void>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   onSaveMainInfo: (payload: {
@@ -3297,6 +3543,7 @@ type OrderDetailCardProps = {
 const OrderDetailCard = ({
   sale,
   sales,
+  supplierOrders,
   employees,
   status,
   statusOptions,
@@ -3315,6 +3562,7 @@ const OrderDetailCard = ({
   onRefundPayment,
   onDiscountChange,
   onOpenClientCard,
+  onSupplierOrderCreated,
   onError,
   onSuccess,
   onSaveMainInfo,
@@ -3330,6 +3578,24 @@ const OrderDetailCard = ({
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [relatedSupplierOrderSource, setRelatedSupplierOrderSource] =
+    useState<SupplierOrder | null>(null);
+  const [relatedSupplierOrderItemIndex, setRelatedSupplierOrderItemIndex] =
+    useState<number | null>(null);
+  const [isRelatedSupplierOrderModalOpen, setIsRelatedSupplierOrderModalOpen] =
+    useState(false);
+  const [relatedSuppliers, setRelatedSuppliers] = useState<Supplier[]>(
+    [],
+  );
+  const [isRelatedSupplierOrderOpening, setIsRelatedSupplierOrderOpening] =
+    useState(false);
+  const [relatedWarehouseOptions, setRelatedWarehouseOptions] = useState<
+    Array<{
+      id: string;
+      name: string;
+      locations: Array<{ id: string; name: string }>;
+    }>
+  >([]);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
   const remainingPayment = getRemainingPayment(
@@ -3384,6 +3650,69 @@ const OrderDetailCard = ({
       ? isRepairOrder(item)
       : !isRepairOrder(item),
   );
+  const saleProductNames = useMemo(
+    () =>
+      new Set(
+        lineItems
+          .filter((item) => item.kind === 'product')
+          .map((item) => item.name.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    [lineItems],
+  );
+  const relatedSupplierOrders = useMemo(() => {
+    const byExplicitSaleLink = supplierOrders.filter((order) => {
+      const linkedSaleId = extractLinkedSaleIdFromSupplierOrder(order);
+      return linkedSaleId === sale.id;
+    });
+    if (byExplicitSaleLink.length > 0) {
+      return byExplicitSaleLink.sort(
+        (firstItem, secondItem) =>
+          new Date(secondItem.createdAt).getTime() -
+          new Date(firstItem.createdAt).getTime(),
+      );
+    }
+
+    return supplierOrders
+      .filter((order) => {
+        const linkedClientId = extractLinkedClientIdFromSupplierOrder(order);
+        if (linkedClientId && linkedClientId !== sale.client.id) {
+          return false;
+        }
+        return order.items.some((item) =>
+          saleProductNames.has(item.productName.trim().toLowerCase()),
+        );
+      })
+      .sort(
+        (firstItem, secondItem) =>
+          new Date(secondItem.createdAt).getTime() -
+          new Date(firstItem.createdAt).getTime(),
+      );
+  }, [sale.id, sale.client.id, saleProductNames, supplierOrders]);
+  const hasExplicitSaleSupplierLinks = useMemo(
+    () =>
+      relatedSupplierOrders.some(
+        (order) => extractLinkedSaleIdFromSupplierOrder(order) === sale.id,
+      ),
+    [relatedSupplierOrders, sale.id],
+  );
+  const relatedSupplierOrderItems = useMemo(
+    () =>
+      relatedSupplierOrders.flatMap((order) =>
+        order.items
+          .filter((item) =>
+            hasExplicitSaleSupplierLinks
+              ? true
+              : saleProductNames.has(item.productName.trim().toLowerCase()),
+          )
+          .map((item) => ({ order, item })),
+      ),
+    [
+      hasExplicitSaleSupplierLinks,
+      relatedSupplierOrders,
+      saleProductNames,
+    ],
+  );
   const timelineItems = [
     {
       id: `${sale.id}-created`,
@@ -3405,16 +3734,53 @@ const OrderDetailCard = ({
     onAddComment(comment);
     setComment('');
   };
+  const selectedRelatedSupplierOrder =
+    relatedSupplierOrderSource && relatedSupplierOrderItemIndex !== null
+      ? {
+          ...relatedSupplierOrderSource,
+          items:
+            relatedSupplierOrderSource.items.filter(
+              (item) => item.itemIndex === relatedSupplierOrderItemIndex,
+            ) ?? [],
+        }
+      : null;
 
-  const shippingStatusLabel = (() => {
-    if (productItems.length === 0) return 'Order';
-    const withLinkedProduct = productItems.filter(
-      (item) => Boolean(item.productId),
-    ).length;
-    if (withLinkedProduct === productItems.length) return 'In stock';
-    if (withLinkedProduct > 0) return 'Supplier order';
-    return 'Order';
-  })();
+  const openRelatedSupplierOrderTakeOnCharge = async (
+    order: SupplierOrder,
+    itemIndex: number,
+  ) => {
+    setIsRelatedSupplierOrderOpening(true);
+    try {
+      const [suppliersData, warehouseSettings] = await Promise.all([
+        getSuppliers(''),
+        getWarehouseSettings(),
+      ]);
+      setRelatedSuppliers(suppliersData);
+      setRelatedWarehouseOptions(
+        warehouseSettings.warehouses
+          .filter((warehouse) => warehouse.isActive)
+          .map((warehouse) => ({
+            id: warehouse.id,
+            name: warehouse.name,
+            locations: warehouse.locations.map((location) => ({
+              id: location.id,
+              name: location.name,
+            })),
+          })),
+      );
+      setRelatedSupplierOrderSource(order);
+      setRelatedSupplierOrderItemIndex(itemIndex);
+      setIsRelatedSupplierOrderModalOpen(true);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to open supplier order modal.',
+      );
+    } finally {
+      setIsRelatedSupplierOrderOpening(false);
+    }
+  };
 
   return (
     <article className='order-detail-card' aria-label='Order card'>
@@ -3626,6 +3992,7 @@ const OrderDetailCard = ({
               kind='product'
               sales={sales}
               currentSaleId={sale.id}
+              currentClientId={sale.client.id}
               currentStatus={status}
               items={productItems}
               onAddItem={onAddLineItem}
@@ -3635,7 +4002,7 @@ const OrderDetailCard = ({
               isOrderPaid={paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
-              shippingStatusLabel={shippingStatusLabel}
+              onSupplierOrderCreated={onSupplierOrderCreated}
               isReadOnly={isReadOnly}
             />
           ) : null}
@@ -3659,6 +4026,7 @@ const OrderDetailCard = ({
               kind='service'
               sales={sales}
               currentSaleId={sale.id}
+              currentClientId={sale.client.id}
               currentStatus={status}
               items={serviceItems}
               onAddItem={onAddLineItem}
@@ -3668,6 +4036,7 @@ const OrderDetailCard = ({
               isOrderPaid={paidAmount > 0}
               onError={onError}
               onSuccess={onSuccess}
+              onSupplierOrderCreated={onSupplierOrderCreated}
               isReadOnly={isReadOnly}
             />
           ) : null}
@@ -3750,7 +4119,7 @@ const OrderDetailCard = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
-              disabled={isReadOnly}
+              disabled={isReadOnly && status !== 'issued'}
             >
               Refund to client
             </button>
@@ -3782,7 +4151,38 @@ const OrderDetailCard = ({
             ))}
           </div>
           <div className='order-related-list'>
-            {relatedVisibleRecords.length === 0 ? (
+            {relatedTab === 'supplierOrders' ? (
+              relatedSupplierOrderItems.length === 0 ? (
+                <p>No supplier orders linked to this sale.</p>
+              ) : (
+                relatedSupplierOrderItems.map(({ order, item }) => {
+                  return (
+                  <button
+                    key={`${order.id}-${item.itemIndex}`}
+                    className='order-related-item order-related-item-supplier'
+                    type='button'
+                    onClick={() =>
+                      void openRelatedSupplierOrderTakeOnCharge(
+                        order,
+                        item.itemIndex,
+                      )
+                    }
+                    disabled={isRelatedSupplierOrderOpening}
+                  >
+                    <span>{`${order.number || order.orderBaseId}-${item.itemIndex + 1}`}</span>
+                    <strong>
+                      {item.productName.trim() || '-'}
+                    </strong>
+                    <span>{formatCurrency(item.quantity * item.price)}</span>
+                    <span>{formatReadyDate(order.createdAt)}</span>
+                    <span className='order-related-supplier-status'>
+                      {getSupplierOrderStatusLabel(order.status)}
+                    </span>
+                  </button>
+                  );
+                })
+              )
+            ) : relatedVisibleRecords.length === 0 ? (
               <p>
                 {relatedTab === 'orders'
                   ? 'No orders for this client.'
@@ -3806,6 +4206,155 @@ const OrderDetailCard = ({
           </div>
         </section>
       </div>
+      <SupplierOrderModal
+        isOpen={isRelatedSupplierOrderModalOpen}
+        suppliers={relatedSuppliers}
+        editingOrder={selectedRelatedSupplierOrder}
+        forceReadOnly={Boolean(
+          selectedRelatedSupplierOrder &&
+            (selectedRelatedSupplierOrder.status === 'stocked' ||
+              selectedRelatedSupplierOrder.receiptStatus === 'received' ||
+              selectedRelatedSupplierOrder.status === 'cancelled' ||
+              selectedRelatedSupplierOrder.paymentStatus === 'cancelled'),
+        )}
+        warehouseOptions={relatedWarehouseOptions}
+        onClose={() => {
+          setIsRelatedSupplierOrderModalOpen(false);
+          setRelatedSupplierOrderSource(null);
+          setRelatedSupplierOrderItemIndex(null);
+        }}
+        onCreateSupplier={async (payload) => {
+          try {
+            const created = await createSupplier(payload);
+            setRelatedSuppliers((current) => [created, ...current]);
+            return true;
+          } catch (error) {
+            onError(
+              error instanceof Error
+                ? error.message
+                : 'Failed to create supplier.',
+            );
+            return false;
+          }
+        }}
+        onSuccess={onSuccess}
+        onError={onError}
+        onTakeOnCharge={async ({
+          autoGenerateSerialNumbers,
+          serialNumbers,
+          autoGenerateArticles,
+          articleBase,
+          warehouseId,
+          locationId,
+        }) => {
+          if (
+            !relatedSupplierOrderSource ||
+            relatedSupplierOrderItemIndex === null
+          ) {
+            return;
+          }
+          await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+            autoGenerateArticles,
+            articleBase: articleBase.trim().toUpperCase(),
+            itemIndex: relatedSupplierOrderItemIndex,
+            warehouseId,
+            locationId,
+          });
+          onSuccess('Order taken on charge.');
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          window.dispatchEvent(new Event('project-goods:products-updated'));
+          await onSupplierOrderCreated();
+          setIsRelatedSupplierOrderModalOpen(false);
+          setRelatedSupplierOrderSource(null);
+          setRelatedSupplierOrderItemIndex(null);
+        }}
+        onCancelOrder={async () => {
+          if (
+            !relatedSupplierOrderSource ||
+            relatedSupplierOrderItemIndex === null
+          ) {
+            return;
+          }
+          try {
+            if (relatedSupplierOrderSource.items.length <= 1) {
+              await cancelSupplierOrder(relatedSupplierOrderSource.id);
+              onSuccess('Order cancelled.');
+            } else {
+              const nextItems = relatedSupplierOrderSource.items
+                .filter(
+                  (item) =>
+                    item.itemIndex !== relatedSupplierOrderItemIndex,
+                )
+                .map((item, index) => ({
+                  ...item,
+                  itemIndex: index,
+                }));
+              await updateSupplierOrder(relatedSupplierOrderSource.id, {
+                orderBaseId: relatedSupplierOrderSource.orderBaseId,
+                supplierId: relatedSupplierOrderSource.supplierId,
+                deliveryDate:
+                  relatedSupplierOrderSource.deliveryDate.slice(0, 10),
+                supplyType: relatedSupplierOrderSource.supplyType,
+                number: relatedSupplierOrderSource.number,
+                note: withSupplierOrderLinkNote(
+                  relatedSupplierOrderSource.note,
+                  sale.id,
+                  sale.client.id,
+                ),
+                createdBy: relatedSupplierOrderSource.createdBy,
+                status: relatedSupplierOrderSource.status,
+                paymentStatus:
+                  relatedSupplierOrderSource.paymentStatus,
+                items: nextItems,
+              });
+              onSuccess('Supplier order item removed.');
+            }
+            await onSupplierOrderCreated();
+            setIsRelatedSupplierOrderModalOpen(false);
+            setRelatedSupplierOrderSource(null);
+            setRelatedSupplierOrderItemIndex(null);
+          } catch (error) {
+            onError(
+              error instanceof Error
+                ? error.message
+                : 'Failed to remove supplier order.',
+            );
+          }
+        }}
+        onSubmit={async (payload) => {
+          if (
+            !relatedSupplierOrderSource ||
+            relatedSupplierOrderItemIndex === null
+          ) {
+            return;
+          }
+          const mergedItems = mergeSupplierOrderItemUpdate({
+            sourceOrder: relatedSupplierOrderSource,
+            selectedItemIndex: relatedSupplierOrderItemIndex,
+            updatedItem: payload.items[0],
+          });
+          await updateSupplierOrder(relatedSupplierOrderSource.id, {
+            orderBaseId: relatedSupplierOrderSource.orderBaseId,
+            supplierId: payload.supplierId,
+            deliveryDate: payload.deliveryDate,
+            supplyType: payload.supplyType,
+            number: relatedSupplierOrderSource.number,
+            note: withSupplierOrderLinkNote(
+              payload.note,
+              sale.id,
+              sale.client.id,
+            ),
+            createdBy: relatedSupplierOrderSource.createdBy,
+            status: relatedSupplierOrderSource.status,
+            paymentStatus: relatedSupplierOrderSource.paymentStatus,
+            items: mergedItems,
+          });
+          onSuccess('Supplier order updated.');
+          await onSupplierOrderCreated();
+        }}
+      />
     </article>
   );
 };
@@ -3815,6 +4364,7 @@ type LineItemsPanelProps = {
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
+  currentClientId: string;
   currentStatus: OrderStatus;
   items: OrderLineItem[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
@@ -3838,9 +4388,9 @@ type LineItemsPanelProps = {
   onReturnItem: (item: OrderLineItem) => void;
   isOrderPaid: boolean;
   isReadOnly: boolean;
+  onSupplierOrderCreated: () => Promise<void>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-  shippingStatusLabel?: string;
 };
 
 const LineItemsPanel = ({
@@ -3848,6 +4398,7 @@ const LineItemsPanel = ({
   kind,
   sales,
   currentSaleId,
+  currentClientId,
   currentStatus,
   items,
   onAddItem,
@@ -3856,9 +4407,9 @@ const LineItemsPanel = ({
   onReturnItem,
   isOrderPaid,
   isReadOnly,
+  onSupplierOrderCreated,
   onError,
   onSuccess,
-  shippingStatusLabel,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -3905,6 +4456,14 @@ const LineItemsPanel = ({
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialsInput, setSerialsInput] = useState('');
+  const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
+    useState(false);
+  const [supplierOrderProductName, setSupplierOrderProductName] =
+    useState('');
+  const [supplierOrderInitialQuantity, setSupplierOrderInitialQuantity] =
+    useState(1);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
     useState<Product[]>([]);
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
@@ -3985,6 +4544,71 @@ const LineItemsPanel = ({
       return 'Unbind serial numbers before removing this product.';
     }
     return 'Action is unavailable for this item.';
+  };
+
+  const openSupplierOrderModalForSerialItem = async () => {
+    if (!serialsEditingItem) return;
+    setIsSuppliersLoading(true);
+    try {
+      const supplierData = await getSuppliers('');
+      setSuppliers(supplierData);
+      setSupplierOrderProductName(serialsEditingItem.name.trim());
+      setSupplierOrderInitialQuantity(
+        Math.max(1, Math.floor(serialsEditingItem.quantity)),
+      );
+      setIsSupplierOrderModalOpen(true);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load suppliers.',
+      );
+    } finally {
+      setIsSuppliersLoading(false);
+    }
+  };
+
+  const handleCreateSupplier = async (
+    payload: SupplierFormValues,
+  ) => {
+    try {
+      const created = await createSupplier(payload);
+      setSuppliers((current) => [created, ...current]);
+      return true;
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create supplier.',
+      );
+      return false;
+    }
+  };
+
+  const handleSubmitSupplierOrder = async (
+    payload: SupplierOrderModalSubmitPayload,
+  ) => {
+    const createPayload: SupplierOrderFormValues = {
+      supplierId: payload.supplierId,
+      deliveryDate: payload.deliveryDate,
+      supplyType: payload.supplyType,
+      number: payload.number,
+      note: withSupplierOrderLinkNote(
+        payload.note,
+        currentSaleId,
+        currentClientId,
+      ),
+      createdBy: 'Administrator',
+      orderBaseId: `SO-${Date.now()}`,
+      status: 'request',
+      paymentStatus: 'pending',
+      items: payload.items,
+    };
+    await createSupplierOrder(createPayload);
+    await onSupplierOrderCreated();
+    onSuccess(
+      'Supplier order created with status New and added to Supplier Order tab.',
+    );
   };
 
   useEffect(() => {
@@ -4500,7 +5124,7 @@ const LineItemsPanel = ({
                 {item.kind === 'product' ? (
                   <button
                     type='button'
-                    className='line-item-remove-button'
+                    className='line-item-serials-button'
                     onClick={() => {
                       setSerialsEditingItem(item);
                       setSerialsInput(
@@ -4509,7 +5133,10 @@ const LineItemsPanel = ({
                     }}
                     disabled={isReadOnly}
                   >
-                    {`Serials ${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                    <span>{'Serials '}</span>
+                    <span className='line-item-serials-count'>
+                      {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                    </span>
                   </button>
                 ) : null}
                 <button
@@ -4578,25 +5205,6 @@ const LineItemsPanel = ({
               </option>
             ))}
           </select>
-          {kind === 'product' ? (
-            <div className='order-line-items-shipping-inline'>
-              <button
-                type='button'
-                className='secondary-button order-shipping-status-button'
-              >
-                {shippingStatusLabel ?? 'Order'}
-              </button>
-              <button
-                type='button'
-                className='toolbar-square-button order-shipping-status-add'
-                onClick={() => void submitItem()}
-                aria-label='Add product'
-                disabled={isReadOnly}
-              >
-                +
-              </button>
-            </div>
-          ) : null}
           <button
             type='button'
             className='primary-button'
@@ -4834,6 +5442,14 @@ const LineItemsPanel = ({
             <div className='modal-actions serial-bind-modal-footer'>
               <button
                 type='button'
+                className='primary-button'
+                onClick={() => void openSupplierOrderModalForSerialItem()}
+                disabled={isSuppliersLoading}
+              >
+                {isSuppliersLoading ? 'Loading...' : 'Order'}
+              </button>
+              <button
+                type='button'
                 className='secondary-button'
                 onClick={() => setSerialsEditingItem(null)}
               >
@@ -4875,6 +5491,17 @@ const LineItemsPanel = ({
           </section>
         </div>
       ) : null}
+      <SupplierOrderModal
+        isOpen={isSupplierOrderModalOpen}
+        suppliers={suppliers}
+        initialProductName={supplierOrderProductName}
+        initialQuantity={supplierOrderInitialQuantity}
+        onClose={() => setIsSupplierOrderModalOpen(false)}
+        onCreateSupplier={handleCreateSupplier}
+        onSubmit={handleSubmitSupplierOrder}
+        onSuccess={onSuccess}
+        onError={onError}
+      />
     </div>
   );
 };

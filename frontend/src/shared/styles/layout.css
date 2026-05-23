@@ -1697,6 +1697,15 @@
   color: #2d7dca;
 }
 
+.order-related-item-supplier {
+  grid-template-columns: 110px minmax(0, 1fr) 140px 90px 160px;
+}
+
+.order-related-supplier-status {
+  font-weight: 700;
+  color: #4c6077;
+}
+
 .order-detail-table {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 160px 90px;
@@ -1803,6 +1812,22 @@
   background: transparent;
   color: #c35a5a;
   cursor: pointer;
+  font-weight: 700;
+}
+
+.line-item-serials-button {
+  border: 0;
+  background: transparent;
+  color: #2d8ae3;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.line-item-serials-count {
+  color: #2d8ae3;
   font-weight: 700;
 }
 
@@ -2680,11 +2705,14 @@
   border: 1px solid #d0d8e3;
   border-radius: 8px;
   background: #fff;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .orders-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .orders-table th,
@@ -2694,6 +2722,7 @@
   vertical-align: middle;
   padding: 11px 10px;
   color: #4d637a;
+  overflow: hidden;
 }
 
 .orders-table th {
@@ -2705,6 +2734,36 @@
 
 .orders-table td {
   font-size: 0.95rem;
+}
+
+.orders-table .orders-col-order-number {
+  width: 124px;
+  min-width: 124px;
+  white-space: nowrap;
+}
+
+.orders-table .orders-col-client {
+  width: 170px;
+  min-width: 170px;
+}
+
+.orders-table .orders-col-status {
+  width: 160px;
+  min-width: 160px;
+}
+
+.orders-table .orders-col-primary-item {
+  width: 220px;
+  min-width: 220px;
+}
+
+.orders-table-cell-truncate {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .finance-transaction-type {
@@ -2727,6 +2786,7 @@
 .orders-client-cell {
   display: grid;
   gap: 1px;
+  min-width: 0;
 }
 
 .orders-client-cell small {
@@ -2746,6 +2806,11 @@
   font-weight: 700;
   cursor: pointer;
   text-align: left;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .orders-client-link:hover {
@@ -2780,11 +2845,19 @@
   display: grid;
   gap: 2px;
   font-weight: 700;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .order-device-button small {
   color: #7f91a7;
   font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .order-status-menu {
@@ -2803,6 +2876,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .order-status-new {
@@ -3090,13 +3164,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 22px 20px;
+  align-items: stretch;
 }
 
 .finance-cashbox-card {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-content: start;
   min-width: 0;
+  height: 100%;
 }
 
 .finance-cashbox-heading {
@@ -3128,6 +3205,70 @@
   text-align: center;
   color: #00a98f;
   margin: 0;
+}
+
+.finance-cashbox-balances {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  justify-items: center;
+}
+
+.finance-cashbox-balance-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  color: #28435f;
+  width: 100%;
+  max-width: 220px;
+}
+
+.finance-cashbox-balance-row strong {
+  text-align: center;
+  color: inherit;
+  margin: 0;
+}
+
+.finance-cashbox-balance-value {
+  font-size: 1.06rem;
+  line-height: 1.08;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.finance-cashbox-balance-value-uah {
+  color: #00a98f;
+}
+
+.finance-cashbox-balance-amount,
+.finance-cashbox-balance-currency-code {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.finance-cashbox-balance-currency-code {
+  margin-left: 0.2em;
+}
+
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-amount,
+.finance-cashbox-balance-value-uah .finance-cashbox-balance-currency-code {
+  color: #00a98f;
+}
+
+.finance-cashbox-balance-row > span {
+  color: #6b7c91;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finance-cashbox-balance-row-inactive {
+  color: #7b8796;
 }
 
 .finance-cashbox-actions {
@@ -3808,4 +3949,132 @@
   border-top: 1px solid #d9e8fa;
   border-bottom: 1px solid #d9e8fa;
   padding: 8px 10px;
+}
+
+.finance-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-settings-panel {
+  margin-top: 12px;
+}
+
+.finance-settings-body {
+  display: grid;
+  gap: 12px;
+}
+
+.finance-settings-card {
+  margin: 0;
+}
+
+.finance-settings-cashbox {
+  margin: 0;
+}
+
+.finance-settings-cashbox-archived {
+  opacity: 0.52;
+}
+
+.finance-currency-activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-currency-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d8e1ec;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px 12px;
+}
+
+.finance-currency-activity-toggle {
+  flex: 1 1 auto;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.finance-currency-activity-toggle span {
+  flex: 0 0 auto;
+}
+
+.finance-currency-activity-badge {
+  border-radius: 999px;
+  background: #e7f1ff;
+  color: #24528a;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.finance-currency-activity-badge-off {
+  background: #eef2f7;
+  color: #728197;
+}
+
+.finance-currency-activity-item .orders-filter-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.finance-currency-remove-button {
+  min-width: 86px;
+  border-radius: 10px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.finance-settings-accordion-header {
+  padding: 0;
+}
+
+.finance-settings-accordion-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  text-align: left;
+  font: inherit;
+}
+
+.finance-settings-accordion-toggle h2 {
+  margin: 0;
+}
+
+.finance-currency-cashbox-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.finance-currency-cashbox-card {
+  border: 1px solid #d6e0ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  background: #f8fbff;
+}
+
+.finance-currency-cashbox-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #39506b;
 }
