@@ -4852,57 +4852,29 @@ const LineItemsPanel = ({
         .replace(/[^a-z0-9\u0400-\u04ff\s-]/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-    const isSameProductName = (left: string, right: string) => {
-      const leftNormalized = normalizeNameForMatch(left);
-      const rightNormalized = normalizeNameForMatch(right);
-      if (!leftNormalized || !rightNormalized) return false;
-      return (
-        leftNormalized === rightNormalized ||
-        leftNormalized.includes(rightNormalized) ||
-        rightNormalized.includes(leftNormalized)
-      );
-    };
     const loadAvailableSerials = async () => {
       setIsSerialLookupLoading(true);
       try {
-        const products = await getProducts(serialsEditingItem.name);
+        const lineProductId = serialsEditingItem.productId?.trim() ?? '';
+        const normalizedLineName = normalizeNameForMatch(
+          serialsEditingItem.name,
+        );
+        const products = lineProductId
+          ? await getProducts('')
+          : await getProducts(serialsEditingItem.name);
         if (!isActive) return;
 
-        const normalizedLineName = serialsEditingItem.name;
-        const lineProductId = serialsEditingItem.productId ?? '';
-        let filtered = products.filter((product) => {
+        const filtered = products.filter((product) => {
           if (!product.isActive) return false;
           if (!product.serialNumber?.trim()) return false;
           if (product.freeQuantity <= 0) return false;
-          if (
-            lineProductId &&
-            product.id === lineProductId
-          ) {
-            return true;
+          if (lineProductId) {
+            return product.id === lineProductId;
           }
-
-          return isSameProductName(product.name, normalizedLineName);
+          return (
+            normalizeNameForMatch(product.name) === normalizedLineName
+          );
         });
-
-        if (filtered.length === 0) {
-          const allProducts = await getProducts('');
-          if (!isActive) return;
-          filtered = allProducts.filter((product) => {
-            if (!product.isActive) return false;
-            if (!product.serialNumber?.trim()) return false;
-            if (product.freeQuantity <= 0) return false;
-            if (
-              lineProductId &&
-              product.id === lineProductId
-            ) {
-              return true;
-            }
-            return isSameProductName(
-              product.name,
-              normalizedLineName,
-            );
-          });
-        }
 
         const sorted = [...filtered]
           .filter((product) => {

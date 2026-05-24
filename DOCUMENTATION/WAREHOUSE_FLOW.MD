@@ -62,6 +62,18 @@ This document defines current warehouse requirements for stock balances, receipt
 2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
 - Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
 
+### 4.3) Serial Binding In Sale Card: Strict Product Match Only
+- In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
+- Source of truth for candidate list:
+1. `lineItem.productId` strict equality with `product.id`
+2. if `lineItem.productId` is missing (legacy data), allow only exact normalized product name equality (no partial match)
+- Forbidden matching logic:
+1. `includes` / substring checks between product names
+2. fuzzy matching that can mix similar models (example: `Аеромиша G10S` and `Аеромиша G10S Pro`)
+- Result requirement:
+1. operator must never see serials from another product model in the same bind modal
+2. serial picker must remain deterministic and model-safe even when names are similar
+
 ## Receipts Requirements
 
 ### 5) Receipts Source
