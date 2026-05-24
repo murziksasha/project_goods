@@ -10,6 +10,18 @@
 - Clicking request number opens a new browser tab/window (`target="_blank"`).
 - The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
 
+## Create Order Sidebar: Client Devices / Client Requests Tabs (2026-05-24)
+
+- In right sidebar block `Client devices`, show devices only from `Repair order` history (`sale.kind = repair`).
+- Sales history entries must not be shown in `Client devices`.
+- In right sidebar block `Client requests`, two tabs are available:
+  - `Orders` (repair requests only),
+  - `Sales` (sales requests only).
+- `Client requests` tab auto-activates based on current create tab:
+  - `Create order -> Repair order` activates `Orders`,
+  - `Create order -> Sales order` activates `Sales`.
+- User can still switch `Client requests` tab manually after auto-selection.
+
 ## Repair Order Device Behavior
 
 - `Device #1` searches in `Products & Services -> Clients goods` (client devices), globally across all clients (no `clientId` filter).
@@ -69,6 +81,10 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- For `Repair order`, action `Issue without payment` is allowed even when `To pay > 0`.
+- For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
+- Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until those products are returned to stock.
+- For `Sales`, `Issue without payment` remains blocked for target status `issued` while `To pay > 0`.
 
 ## Repair Order Refund Guard
 

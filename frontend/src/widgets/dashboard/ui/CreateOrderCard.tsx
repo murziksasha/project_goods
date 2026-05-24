@@ -69,6 +69,7 @@ type SaleProductSuggestion = {
   note: string;
   catalogProductId: string;
 };
+type ClientRequestTab = 'orders' | 'sales';
 
 const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
@@ -153,6 +154,7 @@ const getDeviceHistory = (history: ClientHistory | null) => {
 
   const seen = new Set<string>();
   return history.sales.filter((sale) => {
+    if (sale.kind !== 'repair') return false;
     const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
     const deviceName = (deviceItem?.name?.trim() || sale.product.name || '').toLowerCase();
     const serial = (sale.product.serialNumber || '').trim().toLowerCase();
@@ -215,6 +217,9 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
+    initialTab === 'sale' ? 'sales' : 'orders',
+  );
 
   const managers = employees.filter(
     (employee) =>
@@ -280,6 +285,16 @@ export const CreateOrderCard = ({
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
   const visibleClientHistory = selectedClientId ? clientHistory : null;
+  const repairClientRequests = useMemo(
+    () => visibleClientHistory?.sales.filter((sale) => sale.kind === 'repair') ?? [],
+    [visibleClientHistory],
+  );
+  const saleClientRequests = useMemo(
+    () => visibleClientHistory?.sales.filter((sale) => sale.kind === 'sale') ?? [],
+    [visibleClientHistory],
+  );
+  const activeClientRequests =
+    activeClientRequestTab === 'orders' ? repairClientRequests : saleClientRequests;
   const hasExactDeviceMatch = useMemo(() => {
     if (deviceName.trim().length < 2) return false;
     const normalizedInput = toNameKey(deviceName);
@@ -364,6 +379,10 @@ export const CreateOrderCard = ({
       isActive = false;
     };
   }, [selectedClientId]);
+
+  useEffect(() => {
+    setActiveClientRequestTab(activeTab === 'sale' ? 'sales' : 'orders');
+  }, [activeTab]);
 
   useEffect(() => {
     if (deviceLookupQuery.length < 2 || Boolean(selectedDeviceSuggestionId)) {
@@ -1092,9 +1111,33 @@ export const CreateOrderCard = ({
 
             <section className="create-side-box">
               <h4>Client requests</h4>
-              {visibleClientHistory?.sales.length ? (
+              <div className="order-related-tabs">
+                <button
+                  type="button"
+                  className={
+                    activeClientRequestTab === 'orders'
+                      ? 'order-related-tab order-related-tab-active'
+                      : 'order-related-tab'
+                  }
+                  onClick={() => setActiveClientRequestTab('orders')}
+                >
+                  Orders
+                </button>
+                <button
+                  type="button"
+                  className={
+                    activeClientRequestTab === 'sales'
+                      ? 'order-related-tab order-related-tab-active'
+                      : 'order-related-tab'
+                  }
+                  onClick={() => setActiveClientRequestTab('sales')}
+                >
+                  Sales
+                </button>
+              </div>
+              {activeClientRequests.length ? (
                 <div className="create-side-list">
-                  {visibleClientHistory.sales.slice(0, 5).map((sale) => (
+                  {activeClientRequests.slice(0, 5).map((sale) => (
                     (() => {
                       const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
                       const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
@@ -1115,7 +1158,11 @@ export const CreateOrderCard = ({
                   ))}
                 </div>
               ) : (
-                <p>Select client or device to view previous requests.</p>
+                <p>
+                  {activeClientRequestTab === 'orders'
+                    ? 'No repair orders for this client yet.'
+                    : 'No sales orders for this client yet.'}
+                </p>
               )}
             </section>
 

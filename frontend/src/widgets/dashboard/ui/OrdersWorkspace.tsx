@@ -669,7 +669,7 @@ const getDiscountAmount = (
 
 const getOrderBaseTotal = (
   sale: Sale,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
@@ -678,11 +678,13 @@ const getOrderBaseTotal = (
         (total, item) => total + item.price * item.quantity,
         0,
       )
-    : sale.salePrice;
+    : Array.isArray(sale.lineItems)
+      ? 0
+      : sale.salePrice;
 
 const getOrderTotal = (
   sale: Sale,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
@@ -703,7 +705,7 @@ const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
 const getLineItemRefundableAmount = (
   sale: Sale,
   lineItem: OrderLineItem,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) => {
@@ -1752,7 +1754,7 @@ export const OrdersWorkspace = ({
   const getStatusOptions = getStatusOptionsForSale;
 
   const getLineItems = (sale: Sale) => {
-    const sourceItems = sale.lineItems?.length
+    const sourceItems = Array.isArray(sale.lineItems)
       ? sale.lineItems
       : getDefaultLineItems(sale);
     return sourceItems.filter(
@@ -2512,7 +2514,9 @@ export const OrdersWorkspace = ({
       nextPaymentRemaining > 0
     ) {
       setWarningMessage(
-        'Product shipped but payment has not been received.',
+        isRepairOrder(paymentSale)
+          ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+          : 'Product shipped but payment has not been received.',
       );
       return;
     }
@@ -6124,7 +6128,12 @@ const PaymentModal = ({
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
   const isIssueWithoutPaymentBlocked =
-    paymentTargetStatus === 'issued' && currentPaymentRemaining > 0;
+    (!isRepairOrder(sale) &&
+      paymentTargetStatus === 'issued' &&
+      currentPaymentRemaining > 0) ||
+    (isRepairOrder(sale) &&
+      hasAttachedProducts(sale) &&
+      currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
 
@@ -6374,7 +6383,9 @@ const PaymentModal = ({
               disabled={isIssueDisabled}
               title={
                 isIssueWithoutPaymentBlocked
-                  ? 'Issued requires payment to cashbox unless total is 0.'
+                  ? isRepairOrder(sale)
+                    ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+                    : 'Issued sale requires payment to cashbox unless total is 0.'
                   : undefined
               }
             >
