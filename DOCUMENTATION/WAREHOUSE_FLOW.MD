@@ -138,6 +138,17 @@ This document defines current warehouse requirements for stock balances, receipt
 - Article is not required to be globally unique.
 - `SO-*` pattern is not used for article generation anymore (legacy branch removed).
 
+### 11.2) Manual Status Change To `Оприбутковано` In `Warehouse -> Supplier Order`
+- Scope: only manual status change in `Warehouse -> Supplier Order` list (`status` select in row).
+- Status field in row must stay manually editable as `select` for all supplier order statuses.
+- Edit lock exception: when `paymentStatus = cancelled`, status control is disabled.
+- If operator changes status to `stocked` (`Оприбутковано`) from that list:
+1. UI must skip take-on-charge modals.
+2. UI must call take-on-charge flow directly (not plain status update).
+3. Target warehouse/location: default warehouse pair (first active warehouse and its first location).
+4. Serial numbers: auto-generated (equivalent to modal flow where user keeps defaults and clicks `Оприбуткувати`).
+- For all other flows and entry points, existing сценарий must stay unchanged (modals + explicit operator choices).
+
 ## Global UI Requirement
 
 ### 12) Horizontal Scrollbar Accessibility

@@ -798,6 +798,12 @@ const getRepairCompletionDate = (sale: Sale) => {
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid';
+const canRefundFromStatus = (sale: Sale, status: OrderStatus) =>
+  isRepairOrder(sale)
+    ? status !== 'issued' &&
+      status !== 'clientRejected' &&
+      status !== 'issuedWithoutRepair'
+    : true;
 const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
@@ -2206,6 +2212,14 @@ export const OrdersWorkspace = ({
   };
 
   const openRefundModal = async (sale: Sale) => {
+    const currentStatus = normalizeOrderStatus(sale.status);
+    if (!canRefundFromStatus(sale, currentStatus)) {
+      onError(
+        'Refund is unavailable for "Issued", "Client rejected", and "Issued without repair" repair orders.',
+      );
+      return;
+    }
+
     if (getPaidAmount(sale) <= 0) {
       onError('No paid amount is available for refund.');
       return;
@@ -2616,6 +2630,13 @@ export const OrdersWorkspace = ({
 
   const refundPayment = async () => {
     if (!refundSale || !selectedRefundCashboxId) return;
+    const currentStatus = normalizeOrderStatus(refundSale.status);
+    if (!canRefundFromStatus(refundSale, currentStatus)) {
+      onError(
+        'Refund is unavailable for "Issued", "Client rejected", and "Issued without repair" repair orders.',
+      );
+      return;
+    }
 
     const currentPaidAmount = getPaidAmount(refundSale);
     const normalizedAmount =
@@ -2635,7 +2656,6 @@ export const OrdersWorkspace = ({
     try {
       const lineItems = getLineItems(refundSale);
       const orderTotal = getOrderTotal(refundSale, lineItems);
-      const currentStatus = normalizeOrderStatus(refundSale.status);
       const hasProducts = lineItems.some(
         (item) => item.kind === 'product' && item.quantity > 0,
       );
@@ -3770,6 +3790,8 @@ const OrderDetailCard = ({
     paidAmount,
     lineItems,
   );
+  const canRefundPayment =
+    paidAmount > 0 && canRefundFromStatus(sale, status);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -4336,7 +4358,7 @@ const OrderDetailCard = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
-              disabled={isReadOnly && status !== 'issued'}
+              disabled={!canRefundPayment || (isReadOnly && status !== 'issued')}
             >
               Refund to client
             </button>

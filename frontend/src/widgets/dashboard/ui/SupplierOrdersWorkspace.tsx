@@ -8,6 +8,7 @@ import {
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
 } from '../../../entities/supplier-order/api/supplierOrderApi';
+import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
@@ -56,8 +57,6 @@ const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
   { key: 'without_payment', label: 'Видано без оплати' },
   { key: 'cancelled', label: 'Відмінені' },
 ];
-const getOrderStatusLabel = (status: SupplierOrderStatus) =>
-  orderStatuses.find((item) => item.key === status)?.label ?? status;
 
 const supplierOrdersFiltersStorageKey = 'project-goods.supplier-orders-filters';
 
@@ -116,6 +115,8 @@ export const SupplierOrdersWorkspace = ({
   const [productEditForm, setProductEditForm] = useState({ name: '', note: '', isActive: true });
   const [isSupplierSaving, setIsSupplierSaving] = useState(false);
   const [isProductSaving, setIsProductSaving] = useState(false);
+  const [defaultTakeOnChargeWarehouse, setDefaultTakeOnChargeWarehouse] =
+    useState<{ warehouseId: string; locationId: string } | null>(null);
 
   const refreshOrders = async () => {
     setIsLoading(true);
@@ -131,6 +132,33 @@ export const SupplierOrdersWorkspace = ({
 
   useEffect(() => {
     void refreshOrders();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await getWarehouseSettings();
+        const activeWarehouses = settings.warehouses.filter(
+          (warehouse) => warehouse.isActive,
+        );
+        const sourceWarehouses =
+          activeWarehouses.length > 0
+            ? activeWarehouses
+            : settings.warehouses;
+        const defaultWarehouse = sourceWarehouses[0];
+        const defaultLocation = defaultWarehouse?.locations[0];
+        if (!defaultWarehouse?.id || !defaultLocation?.id) {
+          setDefaultTakeOnChargeWarehouse(null);
+          return;
+        }
+        setDefaultTakeOnChargeWarehouse({
+          warehouseId: defaultWarehouse.id,
+          locationId: defaultLocation.id,
+        });
+      } catch {
+        setDefaultTakeOnChargeWarehouse(null);
+      }
+    })();
   }, []);
 
   const filteredOrders = useMemo(() => {
@@ -321,19 +349,31 @@ export const SupplierOrdersWorkspace = ({
                   </td>
                   <td>{formatDateTime(order.deliveryDate)}</td>
                   <td>
-                    {order.status === 'stocked' ||
-                    order.status === 'cancelled' ||
-                    order.paymentStatus === 'cancelled' ? (
-                      <input
-                        value={getOrderStatusLabel(order.status)}
-                        readOnly
-                      />
-                    ) : (
-                      <select
-                        value={order.status}
-                        disabled={order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment'}
-                        onChange={async (event) => {
-                          try {
+                    <select
+                      value={order.status}
+                      disabled={order.paymentStatus === 'cancelled'}
+                      onChange={async (event) => {
+                        try {
+                          const nextStatus =
+                            event.target.value as SupplierOrderStatus;
+                          if (nextStatus === 'stocked') {
+                            if (!defaultTakeOnChargeWarehouse) {
+                              onError(
+                                'Не знайдено дефолтний склад або локацію для оприбуткування.',
+                              );
+                              return;
+                            }
+                            await takeOnChargeSupplierOrder(order.id, {
+                              autoGenerateSerialNumbers: true,
+                              serialNumbers: [],
+                              autoGenerateArticles: false,
+                              articleBase: '',
+                              warehouseId:
+                                defaultTakeOnChargeWarehouse.warehouseId,
+                              locationId:
+                                defaultTakeOnChargeWarehouse.locationId,
+                            });
+                          } else {
                             await updateSupplierOrder(order.id, {
                               orderBaseId: order.orderBaseId,
                               supplierId: order.supplierId,
@@ -343,23 +383,23 @@ export const SupplierOrdersWorkspace = ({
                               note: order.note,
                               createdBy: order.createdBy,
                               paymentStatus: order.paymentStatus,
-                              status: event.target.value as SupplierOrderStatus,
+                              status: nextStatus,
                               items: order.items,
                             });
-                            await refreshOrders();
-                            onSuccess('Статус замовлення оновлено.');
-                          } catch (error) {
-                            onError(error instanceof Error ? error.message : 'Не вдалося оновити статус замовлення.');
                           }
-                        }}
-                      >
-                        {orderStatuses.map((status) => (
-                          <option key={status.key} value={status.key}>
-                            {status.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                          await refreshOrders();
+                          onSuccess('Статус замовлення оновлено.');
+                        } catch (error) {
+                          onError(error instanceof Error ? error.message : 'Не вдалося оновити статус замовлення.');
+                        }
+                      }}
+                    >
+                      {orderStatuses.map((status) => (
+                        <option key={status.key} value={status.key}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td>{paymentStatuses.find((status) => status.key === order.paymentStatus)?.label ?? order.paymentStatus}</td>
                 </tr>

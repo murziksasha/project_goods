@@ -70,6 +70,14 @@
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
 
+## Repair Order Refund Guard
+
+- For repair orders, `Refund to client` is blocked in statuses:
+  - `issued`
+  - `client rejected`
+  - `issued without repair`
+- In all other repair statuses, refund action is allowed and refund modal may open.
+
 ## Order Card Editing Rules
 
 - In order card `Main information`, `Device` is read-only (no `Edit` button and no device-edit modal in order card).

@@ -54,3 +54,6 @@
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
 - Discount is persisted in sale/order workspace and reused across card and payment modal views.
+- `Refund to client` availability for repair orders:
+  - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
+  - For all other repair statuses, refund modal can be opened.
