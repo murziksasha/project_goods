@@ -128,6 +128,17 @@ export const SupplierOrderModal = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const editingItems = editingOrder?.items ?? [];
     const firstItem = editingItems[0];
 

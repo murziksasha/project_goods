@@ -63,9 +63,10 @@ This document defines current warehouse requirements for stock balances, receipt
 - If catalog/supplier entity is not found, show explicit error toast.
 
 ### 6.1) Supplier Order Item Numbering
-- Receipt row number must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
+- If supplier order has exactly one item, receipt row number is shown as base number without postfix: `<baseSupplierOrderNumber>`.
+- If supplier order has 2+ items, receipt row numbers must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
 - `N` is 1-based item index in supplier order (`itemIndex + 1`), examples: `SO-1779142808517-1`, `SO-1779142808517-2`.
-- Click by number with postfix must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
+- Click by row number (with or without postfix, depending on item count) must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
 
 ### 6.2) Item-Level Suborder Status Model
 - Supplier order with multiple items is treated in warehouse receipts as independent item-level suborders.

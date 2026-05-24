@@ -77,7 +77,10 @@ import {
   buildMissingServicePayload,
   shouldCreateMissingServiceOnSubmit,
 } from '../model/missingService';
-import { mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
+import {
+  buildSupplierOrderItemNumber,
+  mergeSupplierOrderItemUpdate,
+} from '../model/supplier-order-utils';
 import {
   patchLineItemsById,
   removeLineItemsById,
@@ -3955,10 +3958,16 @@ const OrderDetailCard = ({
         getSuppliers(''),
         getWarehouseSettings(),
       ]);
+      const activeWarehouses = warehouseSettings.warehouses.filter(
+        (warehouse) => warehouse.isActive,
+      );
+      const warehousesForTakeOnCharge =
+        activeWarehouses.length > 0
+          ? activeWarehouses
+          : warehouseSettings.warehouses;
       setRelatedSuppliers(suppliersData);
       setRelatedWarehouseOptions(
-        warehouseSettings.warehouses
-          .filter((warehouse) => warehouse.isActive)
+        warehousesForTakeOnCharge
           .map((warehouse) => ({
             id: warehouse.id,
             name: warehouse.name,
@@ -4377,7 +4386,12 @@ const OrderDetailCard = ({
                     }
                     disabled={isRelatedSupplierOrderOpening}
                   >
-                    <span>{`${order.number || order.orderBaseId}-${item.itemIndex + 1}`}</span>
+                    <span>
+                      {buildSupplierOrderItemNumber(
+                        order,
+                        item.itemIndex,
+                      )}
+                    </span>
                     <strong>
                       {item.productName.trim() || '-'}
                     </strong>
