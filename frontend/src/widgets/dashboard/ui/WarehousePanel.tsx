@@ -378,6 +378,10 @@ const normalizeSaleStatus = (value: string | null | undefined) =>
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
+const isIssuedSaleStatus = (value: string | null | undefined) => {
+  const normalized = normalizeSaleStatus(value);
+  return normalized === 'issued' || normalized === 'issuedwithoutrepair';
+};
 export const WarehousePanel = ({
   products,
   sales,
@@ -951,8 +955,7 @@ export const WarehousePanel = ({
     });
 
     sales.forEach((sale) => {
-      if (sale.kind !== 'sale') return;
-      if (normalizeSaleStatus(sale.status) !== 'issued') return;
+      if (!isIssuedSaleStatus(sale.status)) return;
 
       if (sale.product?.id) {
         soldIssuedProductIds.add(sale.product.id);
