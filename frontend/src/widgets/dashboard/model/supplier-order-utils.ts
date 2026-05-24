@@ -27,6 +27,9 @@ export const buildSupplierOrderItemNumber = (
   itemIndex: number,
 ) => {
   const baseNumber = order.number || order.orderBaseId || order.id;
+  if (order.items.length <= 1) {
+    return baseNumber;
+  }
   return `${baseNumber}-${itemIndex + 1}`;
 };
 

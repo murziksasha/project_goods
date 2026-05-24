@@ -1155,22 +1155,12 @@ export const WarehousePanel = ({
   }, [currentPage, filteredReceipts, pageSize]);
   const salesByProductId = useMemo(() => {
     const bySerial = new Map<string, string[]>();
-    const byArticle = new Map<string, string[]>();
-    const byName = new Map<string, string[]>();
 
     products.forEach((product) => {
       const serial = product.serialNumber.trim().toLowerCase();
-      const article = product.article.trim().toLowerCase();
-      const name = product.name.trim().toLowerCase();
 
       if (serial) {
         bySerial.set(serial, [...(bySerial.get(serial) ?? []), product.id]);
-      }
-      if (article) {
-        byArticle.set(article, [...(byArticle.get(article) ?? []), product.id]);
-      }
-      if (name) {
-        byName.set(name, [...(byName.get(name) ?? []), product.id]);
       }
     });
 
@@ -1193,25 +1183,11 @@ export const WarehousePanel = ({
               ),
             );
         }
-        if (item.kind === 'product') {
-          const itemName = item.name.trim().toLowerCase();
-          (byName.get(itemName) ?? []).forEach((productId) =>
-            linkedProductIds.add(productId),
-          );
-        }
       });
 
       const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
-      const saleArticle = sale.product?.article?.trim().toLowerCase();
-      const saleName = sale.product?.name?.trim().toLowerCase();
 
       (saleSerial ? (bySerial.get(saleSerial) ?? []) : []).forEach((productId) =>
-        linkedProductIds.add(productId),
-      );
-      (saleArticle ? (byArticle.get(saleArticle) ?? []) : []).forEach(
-        (productId) => linkedProductIds.add(productId),
-      );
-      (saleName ? (byName.get(saleName) ?? []) : []).forEach((productId) =>
         linkedProductIds.add(productId),
       );
 

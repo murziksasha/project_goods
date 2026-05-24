@@ -17,6 +17,7 @@ import type {
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
+import { buildSupplierOrderItemNumber } from '../model/supplier-order-utils';
 
 type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
 
@@ -197,7 +198,7 @@ export const SupplierOrdersWorkspace = ({
 
   const groupedOrderView = (order: SupplierOrder) =>
     order.items.map((item) => ({
-      id: `${order.orderBaseId}-${item.itemIndex + 1}`,
+      id: buildSupplierOrderItemNumber(order, item.itemIndex),
       item,
       order,
     }));
