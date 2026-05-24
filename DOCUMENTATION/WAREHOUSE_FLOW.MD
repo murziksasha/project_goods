@@ -47,8 +47,20 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.1) Issued Sale Visibility Rule
 - Product linked to `Sales order` with status `issued` must not be shown in `Stock balances`.
-- Matching is resolved by product linkage data (`productId`) and fallback identifiers (`serial`, `article`, `name`).
+- Matching is resolved only by strict linkage identifiers:
+1. `productId` (from `sale.product.id` or `sale.lineItems[].productId`)
+2. `serial` (from `sale.product.serialNumber` or `sale.lineItems[].serialNumbers[]`)
 - After customer return flow is completed (refund + stock receive), sale status becomes `returned` and product may appear in stock balances again by regular stock rules.
+
+### 4.2) Free vs Linked Stock Display
+- `Stock balances` must clearly separate free stock units from linked units by data rules (not by product name/article similarity).
+- `Free` unit:
+1. product has `quantity > 0`
+2. product is not matched to any `issued` sale by strict linkage (`productId` or `serial`)
+- `Linked` unit:
+1. product is matched to an `issued` sale by strict linkage (`productId` or `serial`)
+2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
+- Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
 
 ## Receipts Requirements
 
