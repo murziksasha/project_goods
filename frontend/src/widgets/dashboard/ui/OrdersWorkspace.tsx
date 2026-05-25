@@ -4352,7 +4352,11 @@ const OrderDetailCard = ({
           <button
             type='button'
             className='primary-button'
-            onClick={onAcceptPayment}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onAcceptPayment();
+            }}
             disabled={remainingPayment <= 0 || isReadOnly}
           >
             {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
@@ -6127,12 +6131,15 @@ const PaymentModal = ({
     !Number.isFinite(numericAmount) ||
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
+  const hasProductLineItems = lineItems.some(
+    (item) => item.kind === 'product' && item.quantity > 0,
+  );
   const isIssueWithoutPaymentBlocked =
     (!isRepairOrder(sale) &&
       paymentTargetStatus === 'issued' &&
       currentPaymentRemaining > 0) ||
     (isRepairOrder(sale) &&
-      hasAttachedProducts(sale) &&
+      hasProductLineItems &&
       currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
@@ -6363,7 +6370,11 @@ const PaymentModal = ({
             <button
               type='button'
               className='orders-create-button'
-              onClick={() => onSubmit('deposit')}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('deposit');
+              }}
               disabled={isSubmitDisabled}
             >
               {isSaving ? 'Saving...' : 'Accept to cashbox'}
@@ -6371,7 +6382,11 @@ const PaymentModal = ({
             <button
               type='button'
               className='payment-issue-button'
-              onClick={() => onSubmit('depositAndIssue')}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('depositAndIssue');
+              }}
               disabled={isSubmitDisabled}
             >
               {submitWithStatusLabel}
@@ -6379,7 +6394,11 @@ const PaymentModal = ({
             <button
               type='button'
               className='payment-issue-secondary-button'
-              onClick={() => onSubmit('issueWithoutPayment')}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('issueWithoutPayment');
+              }}
               disabled={isIssueDisabled}
               title={
                 isIssueWithoutPaymentBlocked
