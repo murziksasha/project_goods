@@ -669,7 +669,7 @@ const getDiscountAmount = (
 
 const getOrderBaseTotal = (
   sale: Sale,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
@@ -678,11 +678,13 @@ const getOrderBaseTotal = (
         (total, item) => total + item.price * item.quantity,
         0,
       )
-    : sale.salePrice;
+    : Array.isArray(sale.lineItems)
+      ? 0
+      : sale.salePrice;
 
 const getOrderTotal = (
   sale: Sale,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) =>
@@ -703,7 +705,7 @@ const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
 const getLineItemRefundableAmount = (
   sale: Sale,
   lineItem: OrderLineItem,
-  lineItems: OrderLineItem[] = sale.lineItems?.length
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
     ? sale.lineItems
     : getDefaultLineItems(sale),
 ) => {
@@ -798,6 +800,12 @@ const getRepairCompletionDate = (sale: Sale) => {
 
 const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid';
+const canRefundFromStatus = (sale: Sale, status: OrderStatus) =>
+  isRepairOrder(sale)
+    ? status !== 'issued' &&
+      status !== 'clientRejected' &&
+      status !== 'issuedWithoutRepair'
+    : true;
 const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
@@ -1746,7 +1754,7 @@ export const OrdersWorkspace = ({
   const getStatusOptions = getStatusOptionsForSale;
 
   const getLineItems = (sale: Sale) => {
-    const sourceItems = sale.lineItems?.length
+    const sourceItems = Array.isArray(sale.lineItems)
       ? sale.lineItems
       : getDefaultLineItems(sale);
     return sourceItems.filter(
@@ -2206,6 +2214,14 @@ export const OrdersWorkspace = ({
   };
 
   const openRefundModal = async (sale: Sale) => {
+    const currentStatus = normalizeOrderStatus(sale.status);
+    if (!canRefundFromStatus(sale, currentStatus)) {
+      onError(
+        'Refund is unavailable for "Issued", "Client rejected", and "Issued without repair" repair orders.',
+      );
+      return;
+    }
+
     if (getPaidAmount(sale) <= 0) {
       onError('No paid amount is available for refund.');
       return;
@@ -2498,7 +2514,9 @@ export const OrdersWorkspace = ({
       nextPaymentRemaining > 0
     ) {
       setWarningMessage(
-        'Product shipped but payment has not been received.',
+        isRepairOrder(paymentSale)
+          ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+          : 'Product shipped but payment has not been received.',
       );
       return;
     }
@@ -2616,6 +2634,13 @@ export const OrdersWorkspace = ({
 
   const refundPayment = async () => {
     if (!refundSale || !selectedRefundCashboxId) return;
+    const currentStatus = normalizeOrderStatus(refundSale.status);
+    if (!canRefundFromStatus(refundSale, currentStatus)) {
+      onError(
+        'Refund is unavailable for "Issued", "Client rejected", and "Issued without repair" repair orders.',
+      );
+      return;
+    }
 
     const currentPaidAmount = getPaidAmount(refundSale);
     const normalizedAmount =
@@ -2635,7 +2660,6 @@ export const OrdersWorkspace = ({
     try {
       const lineItems = getLineItems(refundSale);
       const orderTotal = getOrderTotal(refundSale, lineItems);
-      const currentStatus = normalizeOrderStatus(refundSale.status);
       const hasProducts = lineItems.some(
         (item) => item.kind === 'product' && item.quantity > 0,
       );
@@ -3770,6 +3794,8 @@ const OrderDetailCard = ({
     paidAmount,
     lineItems,
   );
+  const canRefundPayment =
+    paidAmount > 0 && canRefundFromStatus(sale, status);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -4336,7 +4362,7 @@ const OrderDetailCard = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
-              disabled={isReadOnly && status !== 'issued'}
+              disabled={!canRefundPayment || (isReadOnly && status !== 'issued')}
             >
               Refund to client
             </button>
@@ -4852,57 +4878,29 @@ const LineItemsPanel = ({
         .replace(/[^a-z0-9\u0400-\u04ff\s-]/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-    const isSameProductName = (left: string, right: string) => {
-      const leftNormalized = normalizeNameForMatch(left);
-      const rightNormalized = normalizeNameForMatch(right);
-      if (!leftNormalized || !rightNormalized) return false;
-      return (
-        leftNormalized === rightNormalized ||
-        leftNormalized.includes(rightNormalized) ||
-        rightNormalized.includes(leftNormalized)
-      );
-    };
     const loadAvailableSerials = async () => {
       setIsSerialLookupLoading(true);
       try {
-        const products = await getProducts(serialsEditingItem.name);
+        const lineProductId = serialsEditingItem.productId?.trim() ?? '';
+        const normalizedLineName = normalizeNameForMatch(
+          serialsEditingItem.name,
+        );
+        const products = lineProductId
+          ? await getProducts('')
+          : await getProducts(serialsEditingItem.name);
         if (!isActive) return;
 
-        const normalizedLineName = serialsEditingItem.name;
-        const lineProductId = serialsEditingItem.productId ?? '';
-        let filtered = products.filter((product) => {
+        const filtered = products.filter((product) => {
           if (!product.isActive) return false;
           if (!product.serialNumber?.trim()) return false;
           if (product.freeQuantity <= 0) return false;
-          if (
-            lineProductId &&
-            product.id === lineProductId
-          ) {
-            return true;
+          if (lineProductId) {
+            return product.id === lineProductId;
           }
-
-          return isSameProductName(product.name, normalizedLineName);
+          return (
+            normalizeNameForMatch(product.name) === normalizedLineName
+          );
         });
-
-        if (filtered.length === 0) {
-          const allProducts = await getProducts('');
-          if (!isActive) return;
-          filtered = allProducts.filter((product) => {
-            if (!product.isActive) return false;
-            if (!product.serialNumber?.trim()) return false;
-            if (product.freeQuantity <= 0) return false;
-            if (
-              lineProductId &&
-              product.id === lineProductId
-            ) {
-              return true;
-            }
-            return isSameProductName(
-              product.name,
-              normalizedLineName,
-            );
-          });
-        }
 
         const sorted = [...filtered]
           .filter((product) => {
@@ -6130,7 +6128,12 @@ const PaymentModal = ({
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
   const isIssueWithoutPaymentBlocked =
-    paymentTargetStatus === 'issued' && currentPaymentRemaining > 0;
+    (!isRepairOrder(sale) &&
+      paymentTargetStatus === 'issued' &&
+      currentPaymentRemaining > 0) ||
+    (isRepairOrder(sale) &&
+      hasAttachedProducts(sale) &&
+      currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
 
@@ -6380,7 +6383,9 @@ const PaymentModal = ({
               disabled={isIssueDisabled}
               title={
                 isIssueWithoutPaymentBlocked
-                  ? 'Issued requires payment to cashbox unless total is 0.'
+                  ? isRepairOrder(sale)
+                    ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+                    : 'Issued sale requires payment to cashbox unless total is 0.'
                   : undefined
               }
             >

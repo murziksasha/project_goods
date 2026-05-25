@@ -2736,6 +2736,77 @@
   font-size: 0.95rem;
 }
 
+.finance-orders-table {
+  table-layout: fixed;
+}
+
+.orders-table .finance-orders-col-number {
+  min-width: 88px;
+}
+
+.orders-table .finance-orders-col-payment {
+  width: 390px;
+  min-width: 390px;
+}
+
+.orders-table .finance-orders-col-date {
+  width: 130px;
+  min-width: 130px;
+}
+
+.orders-table .finance-orders-col-supplier {
+  width: auto;
+}
+
+.orders-table .finance-orders-col-amount {
+  width: 150px;
+  min-width: 150px;
+}
+
+.orders-table td.finance-orders-date-cell,
+.orders-table td.finance-orders-amount-cell {
+  white-space: nowrap;
+}
+
+.orders-table td.finance-orders-number-cell {
+  white-space: nowrap;
+}
+
+.orders-table td.finance-orders-supplier-cell {
+  min-width: 0;
+}
+
+.orders-table td.finance-orders-payment-cell {
+  overflow: hidden;
+}
+
+.finance-orders-payment-actions {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.finance-orders-payment-actions select {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+}
+
+.finance-orders-payment-actions .primary-button {
+  width: 62px;
+  min-width: 62px;
+}
+
+.finance-orders-payment-actions .secondary-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .orders-table .orders-col-order-number {
   width: 124px;
   min-width: 124px;

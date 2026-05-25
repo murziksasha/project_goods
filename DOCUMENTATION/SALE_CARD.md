@@ -75,6 +75,12 @@
   - `new`
   - `reserved`
   - `paid`
+
+## Product Rows Removal (2026-05-24)
+
+- In `Sales card -> Products`, removing the last product row is allowed in editable statuses.
+- After last-row removal, `lineItems` may remain empty; UI must not auto-inject a default product row back.
+- When `lineItems` are explicitly empty after removal, order total and `To pay` must be calculated as `0` (no fallback to previous base sale price).
 - For any other sales status (`issued`, `returned`, etc.) card becomes read-only.
 - In read-only mode, block:
   - status change in card header

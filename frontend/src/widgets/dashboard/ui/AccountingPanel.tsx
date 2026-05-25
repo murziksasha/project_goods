@@ -64,6 +64,11 @@ const formatDateDdMmYyyy = (value: string) => {
   return `${day}.${month}.${year}`;
 };
 
+const truncateLabel = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
+};
+
 const formatTransactionDayLabel = (value: string) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -1512,9 +1517,15 @@ export const AccountingPanel = ({
 
   const renderSupplierOrdersQueue = () => (
     <div className='finance-table-wrap'>
-      <table className='orders-table'>
+      <table className='orders-table finance-orders-table'>
         <thead>
-          <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Amount</th><th>Payment</th></tr>
+          <tr>
+            <th className='finance-orders-col-number'>Number</th>
+            <th className='finance-orders-col-date'>Date</th>
+            <th className='finance-orders-col-supplier'>Supplier</th>
+            <th className='finance-orders-col-amount'>Amount</th>
+            <th className='finance-orders-col-payment'>Payment</th>
+          </tr>
         </thead>
         <tbody>
           {supplierOrdersQueue.length === 0 ? (
@@ -1524,15 +1535,21 @@ export const AccountingPanel = ({
               const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
               return (
                 <tr key={order.id}>
-                  <td>{order.number || order.orderBaseId}</td>
-                  <td>{formatDateTime(order.deliveryDate || order.createdAt)}</td>
-                  <td>{order.supplierName}</td>
-                  <td>{formatMoney(order.total, 'UAH')}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                  <td className='finance-orders-number-cell' title={order.number || order.orderBaseId}>
+                    <span className='orders-table-cell-truncate'>{order.number || order.orderBaseId}</span>
+                  </td>
+                  <td className='finance-orders-date-cell'>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</td>
+                  <td className='finance-orders-supplier-cell'>
+                    <span className='orders-table-cell-truncate'>{order.supplierName}</span>
+                  </td>
+                  <td className='finance-orders-amount-cell'>{formatMoney(order.total, 'UAH')}</td>
+                  <td className='finance-orders-payment-cell'>
+                    <div className='finance-orders-payment-actions'>
                       <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
                         {cashboxes.map((cashbox) => (
-                          <option key={cashbox.id} value={cashbox.id}>{cashbox.name}</option>
+                          <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
+                            {truncateLabel(cashbox.name, 14)}
+                          </option>
                         ))}
                       </select>
                       <button

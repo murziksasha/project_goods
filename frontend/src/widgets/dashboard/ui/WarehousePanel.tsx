@@ -378,6 +378,10 @@ const normalizeSaleStatus = (value: string | null | undefined) =>
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
+const isIssuedSaleStatus = (value: string | null | undefined) => {
+  const normalized = normalizeSaleStatus(value);
+  return normalized === 'issued' || normalized === 'issuedwithoutrepair';
+};
 export const WarehousePanel = ({
   products,
   sales,
@@ -923,50 +927,25 @@ export const WarehousePanel = ({
   const filteredProducts = useMemo(() => {
     const soldIssuedProductIds = new Set<string>();
     const productIdsBySerial = new Map<string, string[]>();
-    const productIdsByArticle = new Map<string, string[]>();
-    const productIdsByName = new Map<string, string[]>();
 
     products.forEach((product) => {
       const serial = product.serialNumber.trim().toLowerCase();
-      const article = product.article.trim().toLowerCase();
-      const name = product.name.trim().toLowerCase();
       if (serial) {
         productIdsBySerial.set(serial, [
           ...(productIdsBySerial.get(serial) ?? []),
           product.id,
         ]);
       }
-      if (article) {
-        productIdsByArticle.set(article, [
-          ...(productIdsByArticle.get(article) ?? []),
-          product.id,
-        ]);
-      }
-      if (name) {
-        productIdsByName.set(name, [
-          ...(productIdsByName.get(name) ?? []),
-          product.id,
-        ]);
-      }
     });
 
     sales.forEach((sale) => {
-      if (sale.kind !== 'sale') return;
-      if (normalizeSaleStatus(sale.status) !== 'issued') return;
+      if (!isIssuedSaleStatus(sale.status)) return;
 
       if (sale.product?.id) {
         soldIssuedProductIds.add(sale.product.id);
       }
       const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
-      const saleArticle = sale.product?.article?.trim().toLowerCase();
-      const saleName = sale.product?.name?.trim().toLowerCase();
       (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
-        (productId) => soldIssuedProductIds.add(productId),
-      );
-      (saleArticle ? productIdsByArticle.get(saleArticle) ?? [] : []).forEach(
-        (productId) => soldIssuedProductIds.add(productId),
-      );
-      (saleName ? productIdsByName.get(saleName) ?? [] : []).forEach(
         (productId) => soldIssuedProductIds.add(productId),
       );
 
@@ -983,10 +962,6 @@ export const WarehousePanel = ({
               soldIssuedProductIds.add(productId),
             ),
           );
-        const itemName = item.name.trim().toLowerCase();
-        (productIdsByName.get(itemName) ?? []).forEach((productId) =>
-          soldIssuedProductIds.add(productId),
-        );
       });
     });
 

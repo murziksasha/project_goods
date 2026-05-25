@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/61</span>
+                <span class='fraction'>0/65</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/52</span>
+                <span class='fraction'>0/58</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/29</span>
+                <span class='fraction'>0/31</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/53</span>
+                <span class='fraction'>0/57</span>
             </div>
         
             
@@ -445,7 +445,23 @@
 <a name='L380'></a><a href='#L380'>380</a>
 <a name='L381'></a><a href='#L381'>381</a>
 <a name='L382'></a><a href='#L382'>382</a>
-<a name='L383'></a><a href='#L383'>383</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -658,6 +674,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1036,13 +1068,29 @@ export const <span class="cstat-no" title="statement not covered" ><span class="
         &lt;&gt;
           &lt;div className='orders-toolbar clients-toolbar'&gt;
             &lt;div className='orders-toolbar-left'&gt;
-              &lt;div className='orders-search-group clients-search-group'&gt;
+              &lt;div className='orders-search-group orders-search-group-clearable clients-search-group'&gt;
                 &lt;input
                   value={query}
 <span class="fstat-no" title="function not covered" >                  onChange={(e</span>vent) =&gt; <span class="cstat-no" title="statement not covered" >setQuery(event.target.value)}</span>
                   placeholder='Search by name, phone or supplier order'
                 /&gt;
-                &lt;button type='button'&gt;Find&lt;/button&gt;
+                {query ? (
+                  &lt;span
+                    role='button'
+                    tabIndex={0}
+                    className='orders-search-clear'
+                    aria-label='Clear search text'
+<span class="fstat-no" title="function not covered" >                    onClick={() =&gt; <span class="cstat-no" title="statement not covered" >s</span>etQuery('')}</span>
+<span class="fstat-no" title="function not covered" >                    onKeyDown={(e</span>vent) =&gt; {
+<span class="cstat-no" title="statement not covered" >                      if (event.key === 'Enter' || event.key === ' ') {</span>
+<span class="cstat-no" title="statement not covered" >                        event.preventDefault();</span>
+<span class="cstat-no" title="statement not covered" >                        setQuery('');</span>
+                      }
+                    }}
+                  &gt;
+                    x
+                  &lt;/span&gt;
+                ) : null}
               &lt;/div&gt;
             &lt;/div&gt;
             &lt;div className='orders-toolbar-actions clients-toolbar-actions'&gt;
@@ -1216,7 +1264,7 @@ export const <span class="cstat-no" title="statement not covered" ><span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-09T02:24:56.378Z
+                at 2026-05-24T10:12:29.423Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>
