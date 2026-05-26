@@ -820,6 +820,17 @@ export const updateSaleWorkspace = async (
     'repairs.execute',
   );
 
+  if (
+    nextKind === 'sale' &&
+    nextStatus === 'returned' &&
+    (normalizedLineItems.some((item) => item.kind === 'product') ||
+      nextPaidAmount > 0)
+  ) {
+    throw new Error(
+      'Sale can be marked returned only after products are returned to stock and client payment is fully refunded.',
+    );
+  }
+
   assertWorkspaceState(
     nextKind,
     nextStatus,

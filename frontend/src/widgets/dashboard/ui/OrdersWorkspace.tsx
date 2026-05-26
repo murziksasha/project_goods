@@ -445,6 +445,13 @@ const finalRepairStatuses: RepairStatus[] = [
   'clientRejected',
   'issuedWithoutRepair',
 ];
+const stockLockedRepairStatuses = new Set<RepairStatus>([
+  'issued',
+  'clientRejected',
+  'issuedWithoutRepair',
+]);
+const stockLockedRepairStatusMessage =
+  'Cannot change repair status to final while a warehouse serial is shipped. Return shipped products back to stock first.';
 const emptyOrdersFilters: OrdersFilters = {
   statuses: [],
   orderNumber: '',
@@ -544,8 +551,11 @@ const normalizeOrderStatus = (
     .toLowerCase();
   const aliasMap: Record<string, OrderStatus> = {
     issuedwithoutrepair: 'issuedWithoutRepair',
+    issuedwithoutrepairing: 'issuedWithoutRepair',
     issued_without_repair: 'issuedWithoutRepair',
+    issued_without_repairing: 'issuedWithoutRepair',
     'issued without repair': 'issuedWithoutRepair',
+    'issued without repairing': 'issuedWithoutRepair',
   };
   const repairStatusMap: Record<string, RepairStatus> = {
     new: 'new',
@@ -557,6 +567,7 @@ const normalizeOrderStatus = (
     ready: 'ready',
     issued: 'issued',
     issuedwithoutrepair: 'issuedWithoutRepair',
+    issuedwithoutrepairing: 'issuedWithoutRepair',
   };
   const saleStatusMap: Record<string, SaleStatus> = {
     new: 'new',
@@ -749,6 +760,31 @@ const isRepairDevicePlaceholderLineItem = (
   return hasLegacyPrice && hasLegacyQuantity;
 };
 
+const hasShippedStockProducts = (
+  sale: Sale,
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
+) =>
+  isRepairOrder(sale) &&
+  lineItems
+    .filter((item) => !isRepairDevicePlaceholderLineItem(sale, item))
+    .some(
+      (item) =>
+        item.kind === 'product' &&
+        (item.serialNumbers ?? []).some((serial) => serial.trim()),
+    );
+
+const isRepairStatusChangeLockedByStock = (
+  sale: Sale,
+  nextStatus: OrderStatus,
+  lineItems?: OrderLineItem[],
+) =>
+  isRepairOrder(sale) &&
+  normalizeOrderStatus(sale.status) !== nextStatus &&
+  stockLockedRepairStatuses.has(nextStatus as RepairStatus) &&
+  hasShippedStockProducts(sale, lineItems);
+
 const getRemainingPayment = (
   sale: Sale,
   paidAmount: number,
@@ -806,6 +842,29 @@ const canRefundFromStatus = (sale: Sale, status: OrderStatus) =>
       status !== 'clientRejected' &&
       status !== 'issuedWithoutRepair'
     : true;
+const getSalePaidAmount = (sale: Sale) => {
+  const history = sale.paymentHistory ?? [];
+  if (history.length > 0) {
+    const historyPaidAmount = history.reduce((total, entry) => {
+      const amount = Number(entry.amount);
+      if (!Number.isFinite(amount)) return total;
+      return entry.type === 'refund'
+        ? total - amount
+        : total + amount;
+    }, 0);
+    return Math.max(Math.round(historyPaidAmount * 100) / 100, 0);
+  }
+  return sale.paidAmount ?? 0;
+};
+const hasSaleReturnObligations = (
+  sale: Sale,
+  lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)
+    ? sale.lineItems
+    : getDefaultLineItems(sale),
+) =>
+  !isRepairOrder(sale) &&
+  (lineItems.some((item) => item.kind === 'product') ||
+    getSalePaidAmount(sale) > 0);
 const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
@@ -1762,7 +1821,7 @@ export const OrdersWorkspace = ({
     );
   };
 
-  const getPaidAmount = (sale: Sale) => sale.paidAmount ?? 0;
+  const getPaidAmount = getSalePaidAmount;
 
   const getOrderRemainingPayment = (sale: Sale) =>
     getRemainingPayment(
@@ -1827,6 +1886,12 @@ export const OrdersWorkspace = ({
   };
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
+    if (isRepairStatusChangeLockedByStock(sale, status)) {
+      setWarningMessage(stockLockedRepairStatusMessage);
+      setOpenStatusSaleId(null);
+      return;
+    }
+
     const remainingPayment = getOrderRemainingPayment(sale);
     const isZeroTotalSale =
       !isRepairOrder(sale) &&
@@ -1834,7 +1899,28 @@ export const OrdersWorkspace = ({
 
     if (!isRepairOrder(sale) && status === 'returned') {
       setOpenStatusSaleId(null);
-      await openReturnSaleModal(sale);
+      if (getLineItems(sale).some((item) => item.kind === 'product')) {
+        await openReturnSaleModal(sale);
+        return;
+      }
+      if (getPaidAmount(sale) > 0) {
+        setWarningMessage(
+          'Refund client payment before marking sale as returned.',
+        );
+        return;
+      }
+      await persistSaleWorkspace(sale, {
+        status,
+        issuedById: shouldCaptureReceivedBy(sale, status)
+          ? currentEmployee?.id
+          : '',
+        timeline: [
+          appendTimelineEntry(
+            `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
+          ),
+          ...sale.timeline,
+        ],
+      });
       return;
     }
 
@@ -2266,20 +2352,30 @@ export const OrdersWorkspace = ({
       return;
     }
     const saleStatus = normalizeOrderStatus(sale.status);
-    const isIssuedStatus = saleStatus === 'issued';
+    const hasBoundSerials = (item.serialNumbers ?? []).length > 0;
+    const isIssuedSaleStatus = !isRepairOrder(sale) && saleStatus === 'issued';
+    const isRepairFinalStockStatus =
+      isRepairOrder(sale) &&
+      stockLockedRepairStatuses.has(saleStatus as RepairStatus);
+    const canReturnShippedProduct =
+      (isIssuedSaleStatus || isRepairFinalStockStatus) &&
+      hasBoundSerials;
     const canEditAndRemove =
       saleEditableStatuses.has(saleStatus) &&
       getPaidAmount(sale) <= 0 &&
-      (item.serialNumbers ?? []).length === 0;
+      !hasBoundSerials;
 
-    if (!isIssuedStatus && !canEditAndRemove) {
+    if (!canReturnShippedProduct && !canEditAndRemove) {
       onError('This product cannot be returned to stock from current status.');
       return;
     }
 
-    if (isIssuedStatus && (item.serialNumbers ?? []).length === 0) {
+    if (
+      (isIssuedSaleStatus || isRepairFinalStockStatus) &&
+      !hasBoundSerials
+    ) {
       onError(
-        'Bind sold serial number before return to stock for issued sale.',
+        'Bind shipped serial number before return to stock.',
       );
       return;
     }
@@ -2415,11 +2511,13 @@ export const OrdersWorkspace = ({
     if (nextItems.length === 0) {
       void persistSaleWorkspace(sale, {
         lineItems: [],
+        paidAmount: getPaidAmount(sale),
       });
       return;
     }
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
+      paidAmount: getPaidAmount(sale),
       timeline: [
         appendTimelineEntry(
           removedItem.kind === 'product'
@@ -2504,6 +2602,18 @@ export const OrdersWorkspace = ({
       onError(
         'Issued status requires payment to cashbox. Use payment action or keep unpaid status.',
       );
+      return;
+    }
+
+    if (
+      (action === 'depositAndIssue' ||
+        action === 'issueWithoutPayment') &&
+      isRepairStatusChangeLockedByStock(
+        paymentSale,
+        paymentTargetStatus,
+      )
+    ) {
+      onError(stockLockedRepairStatusMessage);
       return;
     }
 
@@ -2862,6 +2972,25 @@ export const OrdersWorkspace = ({
     },
   ) => {
     try {
+      if (isRepairStatusChangeLockedByStock(sale, payload.status)) {
+        onError(stockLockedRepairStatusMessage);
+        return;
+      }
+      if (
+        !isRepairOrder(sale) &&
+        payload.status === 'returned' &&
+        hasSaleReturnObligations(sale, getLineItems(sale))
+      ) {
+        if (getLineItems(sale).some((item) => item.kind === 'product')) {
+          await openReturnSaleModal(sale);
+        } else {
+          onError(
+            'Refund client payment before marking sale as returned.',
+          );
+        }
+        return;
+      }
+
       const timeline = [
         appendTimelineEntry(
           `${currentEmployeeName} updated order main information.`,
@@ -3578,10 +3707,22 @@ export const OrdersWorkspace = ({
                 <button
                   key={statusOption.key}
                   type='button'
+                  disabled={isRepairStatusChangeLockedByStock(
+                    openStatusSale,
+                    statusOption.key,
+                  )}
                   className={
                     statusOption.key === getStatus(openStatusSale)
                       ? 'order-status-option order-status-option-active'
                       : 'order-status-option'
+                  }
+                  title={
+                    isRepairStatusChangeLockedByStock(
+                      openStatusSale,
+                      statusOption.key,
+                    )
+                      ? 'Return shipped products to stock first.'
+                      : undefined
                   }
                   onClick={() => {
                     void updateStatus(openStatusSale, statusOption.key);
@@ -3859,6 +4000,32 @@ const OrderDetailCard = ({
     serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
     masterIdInput !== (sale.master?.id ?? '') ||
     statusDraft !== status;
+  const isStatusDraftLockedByStock = isRepairStatusChangeLockedByStock(
+    sale,
+    statusDraft,
+    lineItems,
+  );
+  const isSaleReturnStatusDraftBlocked =
+    !isRepairOrder(sale) &&
+    statusDraft === 'returned' &&
+    hasSaleReturnObligations(sale, lineItems);
+  const isStatusDraftBlocked =
+    isStatusDraftLockedByStock || isSaleReturnStatusDraftBlocked;
+  const getStatusOptionBlockedReason = (statusOption: OrderStatus) => {
+    if (
+      isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
+    ) {
+      return 'Return shipped products to stock first.';
+    }
+    if (
+      !isRepairOrder(sale) &&
+      statusOption === 'returned' &&
+      hasSaleReturnObligations(sale, lineItems)
+    ) {
+      return 'Return products to stock and refund client payment first.';
+    }
+    return '';
+  };
   const relatedRecords = useMemo(
     () =>
       sales
@@ -3984,16 +4151,9 @@ const OrderDetailCard = ({
         getSuppliers(''),
         getWarehouseSettings(),
       ]);
-      const activeWarehouses = warehouseSettings.warehouses.filter(
-        (warehouse) => warehouse.isActive,
-      );
-      const warehousesForTakeOnCharge =
-        activeWarehouses.length > 0
-          ? activeWarehouses
-          : warehouseSettings.warehouses;
       setRelatedSuppliers(suppliersData);
       setRelatedWarehouseOptions(
-        warehousesForTakeOnCharge
+        warehouseSettings.warehouses
           .map((warehouse) => ({
             id: warehouse.id,
             name: warehouse.name,
@@ -4018,10 +4178,15 @@ const OrderDetailCard = ({
   };
 
   return (
-    <article className='order-detail-card' aria-label='Order card'>
+    <article
+      className='order-detail-card'
+      aria-label={isSaleCard ? 'Sale card' : 'Order card'}
+    >
       <header className='order-detail-header'>
         <div>
-          <span className='section-label'>Order card</span>
+          <span className='section-label'>
+            {isSaleCard ? 'Sale card' : 'Order card'}
+          </span>
           <h2>{sale.recordNumber ?? 'r------'}</h2>
         </div>
         <div className='order-detail-actions'>
@@ -4032,12 +4197,28 @@ const OrderDetailCard = ({
             }}
             aria-label='Repair status'
             disabled={isReadOnly}
+            title={
+              isStatusDraftBlocked
+                ? isSaleReturnStatusDraftBlocked
+                  ? 'Return products to stock and refund client payment first.'
+                  : 'Return shipped products to stock first.'
+                : undefined
+            }
           >
-            {statusOptions.map((statusOption) => (
-              <option key={statusOption.key} value={statusOption.key}>
-                {statusOption.label}
-              </option>
-            ))}
+            {statusOptions.map((statusOption) => {
+              const blockedReason = getStatusOptionBlockedReason(
+                statusOption.key,
+              );
+              return (
+                <option
+                  key={statusOption.key}
+                  value={statusOption.key}
+                  disabled={Boolean(blockedReason)}
+                >
+                  {statusOption.label}
+                </option>
+              );
+            })}
           </select>
           <button
             type='button'
@@ -4136,7 +4317,16 @@ const OrderDetailCard = ({
                     type='button'
                     className='primary-button'
                     disabled={
-                      isSavingMainInfo || isReadOnly
+                      isSavingMainInfo ||
+                      isReadOnly ||
+                      isStatusDraftBlocked
+                    }
+                    title={
+                      isStatusDraftBlocked
+                        ? isSaleReturnStatusDraftBlocked
+                          ? 'Return products to stock and refund client payment first.'
+                          : 'Return shipped products to stock first.'
+                        : undefined
                     }
                     onClick={async () => {
                       setIsSavingMainInfo(true);
@@ -4352,7 +4542,11 @@ const OrderDetailCard = ({
           <button
             type='button'
             className='primary-button'
-            onClick={onAcceptPayment}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onAcceptPayment();
+            }}
             disabled={remainingPayment <= 0 || isReadOnly}
           >
             {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
@@ -4778,9 +4972,11 @@ const LineItemsPanel = ({
     !isReadOnly &&
     !isOrderPaid &&
     (item.serialNumbers ?? []).length === 0;
+  const isRepairFinalStockStatus =
+    stockLockedRepairStatuses.has(currentStatus as RepairStatus);
   const canReturnIssuedProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
-    isIssuedSale &&
+    (isIssuedSale || isRepairFinalStockStatus) &&
     (item.serialNumbers ?? []).length > 0;
   const getProductActionBlockedReason = (item: OrderLineItem) => {
     if (canDirectRemoveProductItem(item)) return '';
@@ -4792,7 +4988,7 @@ const LineItemsPanel = ({
       return 'Bind sold serial number before stock return.';
     }
     if (isReadOnly) {
-      return 'Use Return flow for issued sale.';
+      return 'Use Return flow for shipped serialized product.';
     }
     if (isOrderPaid) {
       return 'Refund is required before removing items.';
@@ -5330,8 +5526,11 @@ const LineItemsPanel = ({
               <div key={`${item.id}-action`}>
                 {(() => {
                   const isProduct = item.kind === 'product';
+                  const hasBoundSerials =
+                    (item.serialNumbers ?? []).length > 0;
                   const canDirectRemove = canDirectRemoveProductItem(item);
                   const canReturnIssued = canReturnIssuedProductItem(item);
+                  const canOpenSerials = !isReadOnly || hasBoundSerials;
                   const actionDisabled = isProduct
                     ? !canDirectRemove && !canReturnIssued
                     : !canRemoveServiceItem;
@@ -5360,7 +5559,12 @@ const LineItemsPanel = ({
                         (item.serialNumbers ?? []).join('\n'),
                       );
                     }}
-                    disabled={isReadOnly}
+                    disabled={!canOpenSerials}
+                    title={
+                      canOpenSerials
+                        ? undefined
+                        : 'Editing is blocked for current order status.'
+                    }
                   >
                     <span>{'Serials '}</span>
                     <span className='line-item-serials-count'>
@@ -6127,12 +6331,22 @@ const PaymentModal = ({
     !Number.isFinite(numericAmount) ||
     numericAmount <= 0 ||
     numericAmount > currentPaymentRemaining;
+  const hasProductLineItems = lineItems.some(
+    (item) => item.kind === 'product' && item.quantity > 0,
+  );
+  const isRepairTargetStatusBlockedByStock =
+    isRepairStatusChangeLockedByStock(
+      sale,
+      paymentTargetStatus,
+      lineItems,
+    );
   const isIssueWithoutPaymentBlocked =
+    isRepairTargetStatusBlockedByStock ||
     (!isRepairOrder(sale) &&
       paymentTargetStatus === 'issued' &&
       currentPaymentRemaining > 0) ||
     (isRepairOrder(sale) &&
-      hasAttachedProducts(sale) &&
+      hasProductLineItems &&
       currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
@@ -6363,7 +6577,11 @@ const PaymentModal = ({
             <button
               type='button'
               className='orders-create-button'
-              onClick={() => onSubmit('deposit')}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('deposit');
+              }}
               disabled={isSubmitDisabled}
             >
               {isSaving ? 'Saving...' : 'Accept to cashbox'}
@@ -6371,19 +6589,36 @@ const PaymentModal = ({
             <button
               type='button'
               className='payment-issue-button'
-              onClick={() => onSubmit('depositAndIssue')}
-              disabled={isSubmitDisabled}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('depositAndIssue');
+              }}
+              disabled={
+                isSubmitDisabled || isRepairTargetStatusBlockedByStock
+              }
+              title={
+                isRepairTargetStatusBlockedByStock
+                  ? 'Return shipped products to stock first.'
+                  : undefined
+              }
             >
               {submitWithStatusLabel}
             </button>
             <button
               type='button'
               className='payment-issue-secondary-button'
-              onClick={() => onSubmit('issueWithoutPayment')}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSubmit('issueWithoutPayment');
+              }}
               disabled={isIssueDisabled}
               title={
                 isIssueWithoutPaymentBlocked
-                  ? isRepairOrder(sale)
+                  ? isRepairTargetStatusBlockedByStock
+                    ? 'Return shipped products to stock first.'
+                    : isRepairOrder(sale)
                     ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
                     : 'Issued sale requires payment to cashbox unless total is 0.'
                   : undefined

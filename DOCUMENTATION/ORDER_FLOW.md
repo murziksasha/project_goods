@@ -74,6 +74,10 @@
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Status dropdown in list always opens downward and is rendered in overlay (portal) above table/content.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
+- For repair orders, status change to `issued`, `client rejected`, or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
+- Product line items without bound warehouse serial numbers do not trigger this final-status stock lock.
+- To unlock final-status change, shipped serialized products must be returned back to stock first (line-item return flow).
+- The line-item `Return` action remains available for serialized products in these final repair statuses, so the user can move the shipped item back to stock and unlock the order.
 
 ## Payment Method In Accept Payment Modal
 
@@ -106,6 +110,8 @@
 - `Article` is removed from order card main information.
 - `Save changes` button appears only when main information or status was modified (dirty state), and persists changes atomically.
 - Status in order card is applied on `Save changes` (not immediately on select).
+- In order card `Save changes`, status change is blocked by the same stock rule as in Orders list: selecting `issued`, `client rejected`, or `issued without repair` must fail while any product line has a bound warehouse serial number.
+- In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
 - If saved status is NOT one of final issued statuses:
   - `issued`
   - `client rejected`

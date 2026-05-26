@@ -380,7 +380,11 @@ const normalizeSaleStatus = (value: string | null | undefined) =>
     .replace(/[\s_-]+/g, '');
 const isIssuedSaleStatus = (value: string | null | undefined) => {
   const normalized = normalizeSaleStatus(value);
-  return normalized === 'issued' || normalized === 'issuedwithoutrepair';
+  return (
+    normalized === 'issued' ||
+    normalized === 'issuedwithoutrepair' ||
+    normalized === 'issuedwithoutrepairing'
+  );
 };
 export const WarehousePanel = ({
   products,
