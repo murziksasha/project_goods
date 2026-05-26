@@ -200,7 +200,8 @@ type OrdersFilters = {
   warehouse: string;
   repairType: RepairTypeFilter;
   paymentMethod: '' | PaymentMethod;
-  date: string;
+  dateFrom: string;
+  dateTo: string;
   product: string;
   service: string;
 };
@@ -460,7 +461,8 @@ const emptyOrdersFilters: OrdersFilters = {
   warehouse: '',
   repairType: 'all',
   paymentMethod: '',
-  date: '',
+  dateFrom: '',
+  dateTo: '',
   product: '',
   service: '',
 };
@@ -472,12 +474,19 @@ const readActiveOrderFilters = () => {
     ) as Partial<Record<OrdersTab, OrdersFilters>>;
 
     const normalizeOne = (
-      value: OrdersFilters | undefined,
+      value:
+        | (OrdersFilters & {
+            date?: string;
+          })
+        | undefined,
     ): OrdersFilters => {
       if (!value) return emptyOrdersFilters;
+      const normalizedLegacyDate = value.date ?? '';
       return {
         ...emptyOrdersFilters,
         ...value,
+        dateFrom: value.dateFrom ?? normalizedLegacyDate,
+        dateTo: value.dateTo ?? normalizedLegacyDate,
         statuses: Array.isArray(value.statuses) ? value.statuses : [],
       };
     };
@@ -917,6 +926,16 @@ const formatReadyDate = (value: string) =>
 const getWarehouseLabel = (_sale: Sale) => 'Service center';
 
 const getIsoDatePart = (value: string) => value.slice(0, 10);
+const isIsoDateWithinRange = (
+  isoDate: string,
+  dateFrom: string,
+  dateTo: string,
+) => {
+  if (!dateFrom && !dateTo) return true;
+  if (dateFrom && isoDate < dateFrom) return false;
+  if (dateTo && isoDate > dateTo) return false;
+  return true;
+};
 
 const formatPhoneNumber = (value: string) => {
   const groups = getPhoneNumberGroups(value);
@@ -1296,7 +1315,8 @@ export const OrdersWorkspace = ({
       (appliedFilters.warehouse ? 1 : 0) +
       (appliedFilters.repairType !== 'all' ? 1 : 0) +
       (appliedFilters.paymentMethod ? 1 : 0) +
-      (appliedFilters.date ? 1 : 0) +
+      (appliedFilters.dateFrom ? 1 : 0) +
+      (appliedFilters.dateTo ? 1 : 0) +
       (appliedFilters.product.trim() ? 1 : 0) +
       (appliedFilters.service.trim() ? 1 : 0),
     [appliedFilters],
@@ -1394,8 +1414,11 @@ export const OrdersWorkspace = ({
         return false;
       }
       if (
-        appliedFilters.date &&
-        getIsoDatePart(sale.saleDate) !== appliedFilters.date
+        !isIsoDateWithinRange(
+          getIsoDatePart(sale.saleDate),
+          appliedFilters.dateFrom,
+          appliedFilters.dateTo,
+        )
       ) {
         return false;
       }
@@ -3440,14 +3463,28 @@ export const OrdersWorkspace = ({
           </label>
 
           <label className='orders-filter-field'>
-            <span>Date</span>
+            <span>Date from</span>
             <input
               type='date'
-              value={draftFilters.date}
+              value={draftFilters.dateFrom}
               onChange={(event) =>
                 setDraftFilters((current) => ({
                   ...current,
-                  date: event.target.value,
+                  dateFrom: event.target.value,
+                }))
+              }
+            />
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Date to</span>
+            <input
+              type='date'
+              value={draftFilters.dateTo}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  dateTo: event.target.value,
                 }))
               }
             />

@@ -113,6 +113,15 @@
     width: 100%;
   }
 
+  .supplier-orders-toolbar-left {
+    flex-wrap: wrap;
+  }
+
+  .supplier-orders-quick-filters {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
   .finance-transactions-toolbar-left {
     flex-wrap: wrap;
   }
