@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct, CatalogProductFormValues } from '../../../entities/catalog-product/model/types';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import {
@@ -15,7 +15,7 @@ import type {
   SupplierOrderStatus,
   SupplierPaymentStatus,
 } from '../../../entities/supplier-order/model/types';
-import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
+import { formatCurrency } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { buildSupplierOrderItemNumber } from '../model/supplier-order-utils';
@@ -42,23 +42,42 @@ const tabs: Array<{ key: OrdersTab; label: string }> = [
 ];
 
 const orderStatuses: Array<{ key: SupplierOrderStatus; label: string }> = [
-  { key: 'request', label: 'Запит на закупівлю' },
-  { key: 'ordered', label: 'Товар замовлений' },
-  { key: 'approved', label: 'Затверджено' },
-  { key: 'stocked', label: 'Оприбутковано' },
-  { key: 'overdue', label: 'Протермінований' },
-  { key: 'cancelled', label: 'Скасований' },
-  { key: 'unavailable', label: 'Недоступний' },
+  { key: 'request', label: 'Purchase request' },
+  { key: 'ordered', label: 'Ordered' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'stocked', label: 'Stocked' },
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'unavailable', label: 'Unavailable' },
 ];
 
 const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
-  { key: 'pending', label: 'Очікують оплати' },
-  { key: 'paid', label: 'Сплачено' },
-  { key: 'without_payment', label: 'Видано без оплати' },
-  { key: 'cancelled', label: 'Відмінені' },
+  { key: 'pending', label: 'Awaiting payment' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'without_payment', label: 'Issued without payment' },
+  { key: 'cancelled', label: 'Cancelled' },
 ];
 
 const supplierOrdersFiltersStorageKey = 'project-goods.supplier-orders-filters';
+const supplierOrderDateFormatter = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+const getSupplierOrderStatusClass = (status: SupplierOrderStatus) =>
+  `supplier-order-status-badge supplier-order-status-${status}`;
+
+const getSupplierPaymentStatusClass = (status: SupplierPaymentStatus) =>
+  `supplier-payment-status-badge supplier-payment-status-${status}`;
+
+const getSupplierOrderStatusLabel = (status: SupplierOrderStatus) =>
+  orderStatuses.find((item) => item.key === status)?.label ?? status;
+
+const getSupplierPaymentStatusLabel = (status: SupplierPaymentStatus) =>
+  paymentStatuses.find((item) => item.key === status)?.label ?? status;
+
+const formatSupplierOrderDate = (value: string) =>
+  supplierOrderDateFormatter.format(new Date(value));
 
 export const SupplierOrdersWorkspace = ({
   activeTab,
@@ -102,12 +121,23 @@ export const SupplierOrdersWorkspace = ({
       return 'all';
     }
   });
+  const [deliveryDate, setDeliveryDate] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ deliveryDate: string }>;
+      return parsed.deliveryDate ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
+  const [openStatusOrderId, setOpenStatusOrderId] = useState<string | null>(null);
   const [statusQuery, setStatusQuery] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SupplierOrder | null>(null);
+  const orderStatusFilterRef = useRef<HTMLDivElement | null>(null);
+  const paymentStatusFilterRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] = useState<Supplier | null>(null);
   const [selectedCatalogProductForEdit, setSelectedCatalogProductForEdit] = useState<CatalogProduct | null>(null);
@@ -117,6 +147,41 @@ export const SupplierOrdersWorkspace = ({
   const [isProductSaving, setIsProductSaving] = useState(false);
   const [defaultTakeOnChargeWarehouse, setDefaultTakeOnChargeWarehouse] =
     useState<{ warehouseId: string; locationId: string } | null>(null);
+
+  useEffect(() => {
+    const closeMenusOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      if (
+        isOrderStatusOpen &&
+        orderStatusFilterRef.current &&
+        !orderStatusFilterRef.current.contains(target)
+      ) {
+        setIsOrderStatusOpen(false);
+      }
+
+      if (
+        isPaymentStatusOpen &&
+        paymentStatusFilterRef.current &&
+        !paymentStatusFilterRef.current.contains(target)
+      ) {
+        setIsPaymentStatusOpen(false);
+      }
+
+      if (
+        openStatusOrderId &&
+        !target.closest('.supplier-order-status-picker')
+      ) {
+        setOpenStatusOrderId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', closeMenusOnOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', closeMenusOnOutsideClick);
+    };
+  }, [isOrderStatusOpen, isPaymentStatusOpen, openStatusOrderId]);
 
   const refreshOrders = async () => {
     setIsLoading(true);
@@ -177,9 +242,10 @@ export const SupplierOrdersWorkspace = ({
       }
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(order.status)) return false;
       if (paymentStatus !== 'all' && order.paymentStatus !== paymentStatus) return false;
+      if (deliveryDate && order.deliveryDate.slice(0, 10) !== deliveryDate) return false;
       return true;
     });
-  }, [orders, paymentStatus, query, selectedStatuses]);
+  }, [deliveryDate, orders, paymentStatus, query, selectedStatuses]);
 
   const filteredOrderStatuses = useMemo(() => {
     const normalized = statusQuery.trim().toLowerCase();
@@ -202,8 +268,53 @@ export const SupplierOrdersWorkspace = ({
   };
 
   useEffect(() => {
-    window.localStorage.setItem(supplierOrdersFiltersStorageKey, JSON.stringify({ query, selectedStatuses, paymentStatus }));
-  }, [paymentStatus, query, selectedStatuses]);
+    window.localStorage.setItem(supplierOrdersFiltersStorageKey, JSON.stringify({ query, selectedStatuses, paymentStatus, deliveryDate }));
+  }, [deliveryDate, paymentStatus, query, selectedStatuses]);
+
+  const updateSupplierOrderStatus = async (
+    order: SupplierOrder,
+    nextStatus: SupplierOrderStatus,
+  ) => {
+    try {
+      if (nextStatus === order.status) {
+        setOpenStatusOrderId(null);
+        return;
+      }
+
+      if (nextStatus === 'stocked') {
+        if (!defaultTakeOnChargeWarehouse) {
+          onError('Default warehouse or location for stock receipt was not found.');
+          return;
+        }
+        await takeOnChargeSupplierOrder(order.id, {
+          autoGenerateSerialNumbers: true,
+          serialNumbers: [],
+          autoGenerateArticles: false,
+          articleBase: '',
+          warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
+          locationId: defaultTakeOnChargeWarehouse.locationId,
+        });
+      } else {
+        await updateSupplierOrder(order.id, {
+          orderBaseId: order.orderBaseId,
+          supplierId: order.supplierId,
+          deliveryDate: order.deliveryDate.slice(0, 10),
+          supplyType: order.supplyType,
+          number: order.number,
+          note: order.note,
+          createdBy: order.createdBy,
+          paymentStatus: order.paymentStatus,
+          status: nextStatus,
+          items: order.items,
+        });
+      }
+      setOpenStatusOrderId(null);
+      await refreshOrders();
+      onSuccess('Supplier order status updated.');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update supplier order status.');
+    }
+  };
 
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
@@ -244,7 +355,7 @@ export const SupplierOrdersWorkspace = ({
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left'>
           <div className='orders-search-group orders-search-group-clearable'>
-            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Пошук' />
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Search' />
             {query ? (
               <span
                 role='button'
@@ -265,16 +376,18 @@ export const SupplierOrdersWorkspace = ({
             ) : null}
           </div>
 
-          <div className='orders-filter-field orders-filter-status-field'>
+          <div className='orders-filter-field orders-filter-status-field' ref={orderStatusFilterRef}>
             <button type='button' className='orders-filter-status-toggle' aria-expanded={isOrderStatusOpen} onClick={() => setIsOrderStatusOpen((current) => !current)}>
-              Статус замовлення
+              {selectedStatuses.length > 0
+                ? `${selectedStatuses.length} order statuses`
+                : 'Order status'}
             </button>
             {isOrderStatusOpen ? (
               <div className='orders-filter-status-menu'>
-                <input value={statusQuery} onChange={(event) => setStatusQuery(event.target.value)} placeholder='Пошук' />
+                <input value={statusQuery} onChange={(event) => setStatusQuery(event.target.value)} placeholder='Search' />
                 <label className='orders-filter-status-all'>
                   <input type='checkbox' checked={selectedStatuses.length === orderStatuses.length} onChange={() => setSelectedStatuses((current) => current.length === orderStatuses.length ? [] : orderStatuses.map((item) => item.key))} />
-                  <span>Обрати все</span>
+                  <span>Select all</span>
                 </label>
                 {filteredOrderStatuses.map((status) => (
                   <label key={status.key}><input type='checkbox' checked={selectedStatuses.includes(status.key)} onChange={() => toggleStatus(status.key)} /><span>{status.label}</span></label>
@@ -283,34 +396,46 @@ export const SupplierOrdersWorkspace = ({
             ) : null}
           </div>
 
-          <div className='orders-filter-field orders-filter-status-field'>
+          <div className='orders-filter-field orders-filter-status-field' ref={paymentStatusFilterRef}>
             <button type='button' className='orders-filter-status-toggle' aria-expanded={isPaymentStatusOpen} onClick={() => setIsPaymentStatusOpen((current) => !current)}>
-              {paymentStatus === 'all' ? 'Всі статуси оплати' : paymentStatuses.find((item) => item.key === paymentStatus)?.label}
+              {paymentStatus === 'all' ? 'All payment statuses' : getSupplierPaymentStatusLabel(paymentStatus)}
             </button>
             {isPaymentStatusOpen ? (
               <div className='orders-filter-status-menu'>
-                <input value={paymentQuery} onChange={(event) => setPaymentQuery(event.target.value)} placeholder='Пошук' />
-                <label><input type='radio' checked={paymentStatus === 'all'} onChange={() => setPaymentStatus('all')} /><span>Всі статуси оплати</span></label>
+                <input value={paymentQuery} onChange={(event) => setPaymentQuery(event.target.value)} placeholder='Search' />
+                <label><input type='radio' checked={paymentStatus === 'all'} onChange={() => setPaymentStatus('all')} /><span>All payment statuses</span></label>
                 {filteredPaymentStatuses.map((status) => (
                   <label key={status.key}><input type='radio' checked={paymentStatus === status.key} onChange={() => setPaymentStatus(status.key)} /><span>{status.label}</span></label>
                 ))}
               </div>
             ) : null}
           </div>
+
+          <label className='orders-filter-field supplier-orders-date-filter'>
+            <span>Delivery date</span>
+            <input
+              type='date'
+              value={deliveryDate}
+              onChange={(event) => {
+                setDeliveryDate(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
         </div>
 
         <div className='orders-toolbar-actions'>
           <button type='button' className='orders-create-button' onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}>
-            Замовити у постачальника
+            Order from supplier
           </button>
         </div>
       </div>
 
       <div className='orders-table-wrap'>
-        <table className='orders-table'>
+        <table className='orders-table supplier-orders-table'>
           <thead>
             <tr>
-              <th>№</th><th>Товар</th><th>К-сть</th><th>Ціна</th><th>Вартість</th><th>Сплачено</th><th>Постачальник</th><th>Дата пост.</th><th>Статус</th><th>Статус оплати</th>
+              <th className='supplier-orders-col-number'>No.</th><th className='supplier-orders-col-product'>Product</th><th className='supplier-orders-col-quantity'>Qty</th><th className='supplier-orders-col-money'>Price</th><th className='supplier-orders-col-money'>Total</th><th className='supplier-orders-col-money'>Paid</th><th className='supplier-orders-col-supplier'>Supplier</th><th className='supplier-orders-col-date'>Delivery date</th><th className='supplier-orders-col-status'>Status</th><th className='supplier-orders-col-payment'>Payment status</th>
             </tr>
           </thead>
           <tbody>
@@ -327,13 +452,13 @@ export const SupplierOrdersWorkspace = ({
                           )
                         : catalogProducts.find((product) => product.name.trim().toLowerCase() === item.productName.trim().toLowerCase());
                       if (!matchedProduct) {
-                        onError('Товар не знайдено в Products каталозі.');
+                        onError('Product was not found in the Products catalog.');
                         return;
                       }
                       setSelectedCatalogProductForEdit(matchedProduct);
                     }}>{item.productName}</button>
                   </td>
-                  <td>{item.quantity} шт</td>
+                  <td>{item.quantity} pcs</td>
                   <td>{formatCurrency(item.price)}</td>
                   <td>{formatCurrency(item.quantity * item.price)}</td>
                   <td>{formatCurrency(order.paid)}</td>
@@ -341,74 +466,62 @@ export const SupplierOrdersWorkspace = ({
                     <button type='button' className='catalog-name-button' onClick={() => {
                       const matchedSupplier = suppliers.find((supplier) => supplier.id === order.supplierId);
                       if (!matchedSupplier) {
-                        onError('Постачальника не знайдено.');
+                        onError('Supplier was not found.');
                         return;
                       }
                       setSelectedSupplierForEdit(matchedSupplier);
                     }}>{order.supplierName}</button>
                   </td>
-                  <td>{formatDateTime(order.deliveryDate)}</td>
+                  <td>{formatSupplierOrderDate(order.deliveryDate)}</td>
                   <td>
-                    <select
-                      value={order.status}
-                      disabled={order.paymentStatus === 'cancelled'}
-                      onChange={async (event) => {
-                        try {
-                          const nextStatus =
-                            event.target.value as SupplierOrderStatus;
-                          if (nextStatus === 'stocked') {
-                            if (!defaultTakeOnChargeWarehouse) {
-                              onError(
-                                'Не знайдено дефолтний склад або локацію для оприбуткування.',
-                              );
-                              return;
-                            }
-                            await takeOnChargeSupplierOrder(order.id, {
-                              autoGenerateSerialNumbers: true,
-                              serialNumbers: [],
-                              autoGenerateArticles: false,
-                              articleBase: '',
-                              warehouseId:
-                                defaultTakeOnChargeWarehouse.warehouseId,
-                              locationId:
-                                defaultTakeOnChargeWarehouse.locationId,
-                            });
-                          } else {
-                            await updateSupplierOrder(order.id, {
-                              orderBaseId: order.orderBaseId,
-                              supplierId: order.supplierId,
-                              deliveryDate: order.deliveryDate.slice(0, 10),
-                              supplyType: order.supplyType,
-                              number: order.number,
-                              note: order.note,
-                              createdBy: order.createdBy,
-                              paymentStatus: order.paymentStatus,
-                              status: nextStatus,
-                              items: order.items,
-                            });
-                          }
-                          await refreshOrders();
-                          onSuccess('Статус замовлення оновлено.');
-                        } catch (error) {
-                          onError(error instanceof Error ? error.message : 'Не вдалося оновити статус замовлення.');
+                    <div className='supplier-order-status-picker'>
+                      <button
+                        type='button'
+                        className={getSupplierOrderStatusClass(order.status)}
+                        disabled={order.paymentStatus === 'cancelled'}
+                        aria-expanded={openStatusOrderId === order.id}
+                        onClick={() =>
+                          setOpenStatusOrderId((current) =>
+                            current === order.id ? null : order.id,
+                          )
                         }
-                      }}
-                    >
-                      {orderStatuses.map((status) => (
-                        <option key={status.key} value={status.key}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
+                      >
+                        {getSupplierOrderStatusLabel(order.status)}
+                      </button>
+                      {openStatusOrderId === order.id ? (
+                        <div className='supplier-order-status-menu'>
+                          {orderStatuses.map((status) => (
+                            <button
+                              key={status.key}
+                              type='button'
+                              className={
+                                status.key === order.status
+                                  ? 'supplier-order-status-option supplier-order-status-option-active'
+                                  : 'supplier-order-status-option'
+                              }
+                              onClick={() =>
+                                void updateSupplierOrderStatus(order, status.key)
+                              }
+                            >
+                              {status.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </td>
-                  <td>{paymentStatuses.find((status) => status.key === order.paymentStatus)?.label ?? order.paymentStatus}</td>
+                  <td>
+                    <span className={getSupplierPaymentStatusClass(order.paymentStatus)}>
+                      {getSupplierPaymentStatusLabel(order.paymentStatus)}
+                    </span>
+                  </td>
                 </tr>
               )),
             )}
           </tbody>
         </table>
-        {isLoading ? <p className='orders-empty'>Завантаження...</p> : null}
-        {!isLoading && paginatedOrders.length === 0 ? <p className='orders-empty'>Немає замовлень постачальникам.</p> : null}
+        {isLoading ? <p className='orders-empty'>Loading...</p> : null}
+        {!isLoading && paginatedOrders.length === 0 ? <p className='orders-empty'>No supplier orders found.</p> : null}
       </div>
 
       <PaginationPanel totalItems={filteredOrders.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }} />
@@ -445,7 +558,7 @@ export const SupplierOrdersWorkspace = ({
             warehouseId,
             locationId,
           });
-          onSuccess('Замовлення оприбутковано.');
+          onSuccess('Supplier order stocked.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshOrders();
@@ -453,7 +566,7 @@ export const SupplierOrdersWorkspace = ({
         onCancelOrder={async () => {
           if (!editingOrder) return;
           await cancelSupplierOrder(editingOrder.id);
-          onSuccess('Замовлення скасовано.');
+          onSuccess('Supplier order cancelled.');
           await refreshOrders();
         }}
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {

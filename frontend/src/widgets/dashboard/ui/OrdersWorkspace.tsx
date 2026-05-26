@@ -315,19 +315,19 @@ const getSupplierOrderStatusLabel = (
 ) => {
   switch (status) {
     case 'request':
-      return 'Запит на закупівлю';
+      return 'Purchase request';
     case 'ordered':
-      return 'Товар замовлений';
+      return 'Ordered';
     case 'approved':
-      return 'Затверджено';
+      return 'Approved';
     case 'stocked':
-      return 'Оприбутковано';
+      return 'Stocked';
     case 'overdue':
-      return 'Протермінований';
+      return 'Overdue';
     case 'cancelled':
-      return 'Скасований';
+      return 'Cancelled';
     case 'unavailable':
-      return 'Недоступний';
+      return 'Unavailable';
     default:
       return status;
   }
