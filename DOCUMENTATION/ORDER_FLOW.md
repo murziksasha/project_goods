@@ -188,5 +188,23 @@
 - Only explicit product line items (`lineItems.kind = product`) participate in `Products` catalog upsert.
 - The list supports activity status (`active`/`inactive`) and editing via modal.
 
+## Supplier Order Toolbar and Date Panel (2026-05-26)
+
+- `Orders -> Supplier Order` toolbar follows `Order Flow` visual pattern:
+  - left: `Data` button, columns settings (gear), persistent `Search`, `Order status`, `Payment status`,
+  - right: `Order from supplier`.
+- In `Supplier Order`, the date-panel toggle is named `Data` (instead of `Filter`) because it controls date range fields.
+- `Data` toggles a smooth expandable panel using the same animated filter-panel behavior as order-flow tabs.
+- The panel includes:
+  - `Date from`
+  - `Date to`
+  - `Clear dates`
+- `Order status` and `Payment status` dropdown menus are overlay controls and must open over content without reflow or layout shifts.
+- Date filter behavior is inclusive range:
+  - only `Date from`: include records with `deliveryDate >= dateFrom`,
+  - only `Date to`: include records with `deliveryDate <= dateTo`,
+  - both: include records with `dateFrom <= deliveryDate <= dateTo`.
+- Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
+
 
 

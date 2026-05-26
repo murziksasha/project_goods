@@ -59,6 +59,7 @@ const paymentStatuses: Array<{ key: SupplierPaymentStatus; label: string }> = [
 ];
 
 const supplierOrdersFiltersStorageKey = 'project-goods.supplier-orders-filters';
+const supplierOrdersColumnsStorageKey = 'project-goods.supplier-orders-columns';
 const supplierOrderDateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -78,6 +79,60 @@ const getSupplierPaymentStatusLabel = (status: SupplierPaymentStatus) =>
 
 const formatSupplierOrderDate = (value: string) =>
   supplierOrderDateFormatter.format(new Date(value));
+
+type SupplierOrdersColumnKey =
+  | 'number'
+  | 'product'
+  | 'quantity'
+  | 'price'
+  | 'total'
+  | 'paid'
+  | 'supplier'
+  | 'deliveryDate'
+  | 'status'
+  | 'paymentStatus';
+
+const supplierOrdersAllColumns: SupplierOrdersColumnKey[] = [
+  'number',
+  'product',
+  'quantity',
+  'price',
+  'total',
+  'paid',
+  'supplier',
+  'deliveryDate',
+  'status',
+  'paymentStatus',
+];
+
+const supplierOrdersLockedColumns: SupplierOrdersColumnKey[] = ['number'];
+
+const getSupplierOrdersColumnLabel = (columnKey: SupplierOrdersColumnKey) => {
+  switch (columnKey) {
+    case 'number':
+      return 'No.';
+    case 'product':
+      return 'Product';
+    case 'quantity':
+      return 'Qty';
+    case 'price':
+      return 'Price';
+    case 'total':
+      return 'Total';
+    case 'paid':
+      return 'Paid';
+    case 'supplier':
+      return 'Supplier';
+    case 'deliveryDate':
+      return 'Delivery date';
+    case 'status':
+      return 'Status';
+    case 'paymentStatus':
+      return 'Payment status';
+    default:
+      return columnKey;
+  }
+};
 
 export const SupplierOrdersWorkspace = ({
   activeTab,
@@ -121,16 +176,26 @@ export const SupplierOrdersWorkspace = ({
       return 'all';
     }
   });
-  const [deliveryDate, setDeliveryDate] = useState(() => {
+  const [deliveryDateFrom, setDeliveryDateFrom] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ deliveryDate: string }>;
-      return parsed.deliveryDate ?? '';
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ deliveryDate: string; deliveryDateFrom: string }>;
+      return parsed.deliveryDateFrom ?? parsed.deliveryDate ?? '';
     } catch {
       return '';
     }
   });
+  const [deliveryDateTo, setDeliveryDateTo] = useState(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersFiltersStorageKey) ?? '{}') as Partial<{ deliveryDate: string; deliveryDateTo: string }>;
+      return parsed.deliveryDateTo ?? parsed.deliveryDate ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
+  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [openStatusOrderId, setOpenStatusOrderId] = useState<string | null>(null);
   const [statusQuery, setStatusQuery] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
@@ -138,6 +203,17 @@ export const SupplierOrdersWorkspace = ({
   const [editingOrder, setEditingOrder] = useState<SupplierOrder | null>(null);
   const orderStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const paymentStatusFilterRef = useRef<HTMLDivElement | null>(null);
+  const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const [visibleColumns, setVisibleColumns] = useState<SupplierOrdersColumnKey[]>(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(supplierOrdersColumnsStorageKey) ?? '[]') as SupplierOrdersColumnKey[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return supplierOrdersAllColumns;
+      const normalized = supplierOrdersAllColumns.filter((key) => parsed.includes(key));
+      return normalized.length > 0 ? normalized : supplierOrdersAllColumns;
+    } catch {
+      return supplierOrdersAllColumns;
+    }
+  });
 
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] = useState<Supplier | null>(null);
   const [selectedCatalogProductForEdit, setSelectedCatalogProductForEdit] = useState<CatalogProduct | null>(null);
@@ -175,13 +251,21 @@ export const SupplierOrdersWorkspace = ({
       ) {
         setOpenStatusOrderId(null);
       }
+
+      if (
+        isColumnsMenuOpen &&
+        columnsMenuRef.current &&
+        !columnsMenuRef.current.contains(target)
+      ) {
+        setIsColumnsMenuOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', closeMenusOnOutsideClick);
     return () => {
       document.removeEventListener('mousedown', closeMenusOnOutsideClick);
     };
-  }, [isOrderStatusOpen, isPaymentStatusOpen, openStatusOrderId]);
+  }, [isColumnsMenuOpen, isOrderStatusOpen, isPaymentStatusOpen, openStatusOrderId]);
 
   const refreshOrders = async () => {
     setIsLoading(true);
@@ -230,22 +314,27 @@ export const SupplierOrdersWorkspace = ({
     const normalized = query.trim().toLowerCase();
     return orders.filter((order) => {
       if (normalized) {
-        const text = [
-          ...order.items.map((item) => item.productName),
-          order.supplierName,
-          order.orderBaseId,
-          order.number,
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!text.includes(normalized)) return false;
+        const matchesNumber =
+          order.number.toLowerCase().includes(normalized) ||
+          order.orderBaseId.toLowerCase().includes(normalized);
+        const matchesProduct = order.items.some((item) =>
+          item.productName.toLowerCase().includes(normalized),
+        );
+        const matchesSupplier =
+          order.supplierName.toLowerCase().includes(normalized);
+
+        if (!matchesNumber && !matchesProduct && !matchesSupplier) {
+          return false;
+        }
       }
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(order.status)) return false;
       if (paymentStatus !== 'all' && order.paymentStatus !== paymentStatus) return false;
-      if (deliveryDate && order.deliveryDate.slice(0, 10) !== deliveryDate) return false;
+      const orderDate = order.deliveryDate.slice(0, 10);
+      if (deliveryDateFrom && orderDate < deliveryDateFrom) return false;
+      if (deliveryDateTo && orderDate > deliveryDateTo) return false;
       return true;
     });
-  }, [deliveryDate, orders, paymentStatus, query, selectedStatuses]);
+  }, [deliveryDateFrom, deliveryDateTo, orders, paymentStatus, query, selectedStatuses]);
 
   const filteredOrderStatuses = useMemo(() => {
     const normalized = statusQuery.trim().toLowerCase();
@@ -268,8 +357,29 @@ export const SupplierOrdersWorkspace = ({
   };
 
   useEffect(() => {
-    window.localStorage.setItem(supplierOrdersFiltersStorageKey, JSON.stringify({ query, selectedStatuses, paymentStatus, deliveryDate }));
-  }, [deliveryDate, paymentStatus, query, selectedStatuses]);
+    window.localStorage.setItem(supplierOrdersFiltersStorageKey, JSON.stringify({ query, selectedStatuses, paymentStatus, deliveryDateFrom, deliveryDateTo }));
+  }, [deliveryDateFrom, deliveryDateTo, paymentStatus, query, selectedStatuses]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      supplierOrdersColumnsStorageKey,
+      JSON.stringify(visibleColumns),
+    );
+  }, [visibleColumns]);
+
+  const dateFiltersCount =
+    (deliveryDateFrom ? 1 : 0) + (deliveryDateTo ? 1 : 0);
+
+  const toggleColumnVisibility = (columnKey: SupplierOrdersColumnKey) => {
+    if (supplierOrdersLockedColumns.includes(columnKey)) return;
+    setVisibleColumns((current) =>
+      current.includes(columnKey)
+        ? current.filter((key) => key !== columnKey)
+        : supplierOrdersAllColumns.filter(
+            (key) => key === columnKey || current.includes(key),
+          ),
+    );
+  };
 
   const updateSupplierOrderStatus = async (
     order: SupplierOrder,
@@ -353,9 +463,51 @@ export const SupplierOrdersWorkspace = ({
       </div>
 
       <div className='orders-toolbar'>
-        <div className='orders-toolbar-left'>
-          <div className='orders-search-group orders-search-group-clearable'>
-            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Search' />
+        <div className='orders-toolbar-left supplier-orders-toolbar-left'>
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isFilterBarOpen}
+            onClick={() => setIsFilterBarOpen((current) => !current)}
+          >
+            Data
+            {dateFiltersCount > 0 ? (
+              <span className='toolbar-filter-count'>{dateFiltersCount}</span>
+            ) : null}
+          </button>
+
+          <div className='toolbar-settings' ref={columnsMenuRef}>
+            <button
+              type='button'
+              className='toolbar-square-button'
+              aria-label='Toggle table columns'
+              aria-expanded={isColumnsMenuOpen}
+              onClick={() => setIsColumnsMenuOpen((current) => !current)}
+            >
+              <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' className='toolbar-square-button-icon' fill='currentColor'>
+                <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
+              </svg>
+            </button>
+            {isColumnsMenuOpen ? (
+              <div className='toolbar-settings-menu'>
+                {supplierOrdersAllColumns.map((columnKey) => (
+                  <label key={columnKey} className='toolbar-settings-option'>
+                    <input
+                      type='checkbox'
+                      checked={visibleColumns.includes(columnKey)}
+                      disabled={supplierOrdersLockedColumns.includes(columnKey)}
+                      onChange={() => toggleColumnVisibility(columnKey)}
+                    />
+                    <span>{getSupplierOrdersColumnLabel(columnKey)}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className='supplier-orders-quick-filters'>
+            <div className='orders-search-group orders-search-group-clearable'>
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder='Search by number, product, supplier' />
             {query ? (
               <span
                 role='button'
@@ -374,9 +526,9 @@ export const SupplierOrdersWorkspace = ({
                 x
               </span>
             ) : null}
-          </div>
+            </div>
 
-          <div className='orders-filter-field orders-filter-status-field' ref={orderStatusFilterRef}>
+            <div className='orders-filter-field orders-filter-status-field' ref={orderStatusFilterRef}>
             <button type='button' className='orders-filter-status-toggle' aria-expanded={isOrderStatusOpen} onClick={() => setIsOrderStatusOpen((current) => !current)}>
               {selectedStatuses.length > 0
                 ? `${selectedStatuses.length} order statuses`
@@ -394,9 +546,9 @@ export const SupplierOrdersWorkspace = ({
                 ))}
               </div>
             ) : null}
-          </div>
+            </div>
 
-          <div className='orders-filter-field orders-filter-status-field' ref={paymentStatusFilterRef}>
+            <div className='orders-filter-field orders-filter-status-field' ref={paymentStatusFilterRef}>
             <button type='button' className='orders-filter-status-toggle' aria-expanded={isPaymentStatusOpen} onClick={() => setIsPaymentStatusOpen((current) => !current)}>
               {paymentStatus === 'all' ? 'All payment statuses' : getSupplierPaymentStatusLabel(paymentStatus)}
             </button>
@@ -409,19 +561,9 @@ export const SupplierOrdersWorkspace = ({
                 ))}
               </div>
             ) : null}
-          </div>
+            </div>
 
-          <label className='orders-filter-field supplier-orders-date-filter'>
-            <span>Delivery date</span>
-            <input
-              type='date'
-              value={deliveryDate}
-              onChange={(event) => {
-                setDeliveryDate(event.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
+          </div>
         </div>
 
         <div className='orders-toolbar-actions'>
@@ -431,19 +573,77 @@ export const SupplierOrdersWorkspace = ({
         </div>
       </div>
 
+      <section
+        className={
+          isFilterBarOpen
+            ? 'orders-filter-panel orders-filter-panel-open'
+            : 'orders-filter-panel'
+        }
+        aria-hidden={!isFilterBarOpen}
+      >
+        <div className='orders-filter-grid'>
+          <label className='orders-filter-field supplier-orders-date-filter'>
+            <span>Date from</span>
+            <input
+              type='date'
+              value={deliveryDateFrom}
+              onChange={(event) => {
+                setDeliveryDateFrom(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+
+          <label className='orders-filter-field supplier-orders-date-filter'>
+            <span>Date to</span>
+            <input
+              type='date'
+              value={deliveryDateTo}
+              onChange={(event) => {
+                setDeliveryDateTo(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+        </div>
+
+        <div className='orders-filter-actions'>
+          <button
+            type='button'
+            className='toolbar-filter-button'
+            onClick={() => {
+              setDeliveryDateFrom('');
+              setDeliveryDateTo('');
+              setPage(1);
+            }}
+          >
+            Clear dates
+          </button>
+        </div>
+      </section>
+
       <div className='orders-table-wrap'>
         <table className='orders-table supplier-orders-table'>
           <thead>
             <tr>
-              <th className='supplier-orders-col-number'>No.</th><th className='supplier-orders-col-product'>Product</th><th className='supplier-orders-col-quantity'>Qty</th><th className='supplier-orders-col-money'>Price</th><th className='supplier-orders-col-money'>Total</th><th className='supplier-orders-col-money'>Paid</th><th className='supplier-orders-col-supplier'>Supplier</th><th className='supplier-orders-col-date'>Delivery date</th><th className='supplier-orders-col-status'>Status</th><th className='supplier-orders-col-payment'>Payment status</th>
+              {visibleColumns.includes('number') ? <th className='supplier-orders-col-number'>No.</th> : null}
+              {visibleColumns.includes('product') ? <th className='supplier-orders-col-product'>Product</th> : null}
+              {visibleColumns.includes('quantity') ? <th className='supplier-orders-col-quantity'>Qty</th> : null}
+              {visibleColumns.includes('price') ? <th className='supplier-orders-col-money'>Price</th> : null}
+              {visibleColumns.includes('total') ? <th className='supplier-orders-col-money'>Total</th> : null}
+              {visibleColumns.includes('paid') ? <th className='supplier-orders-col-money'>Paid</th> : null}
+              {visibleColumns.includes('supplier') ? <th className='supplier-orders-col-supplier'>Supplier</th> : null}
+              {visibleColumns.includes('deliveryDate') ? <th className='supplier-orders-col-date'>Delivery date</th> : null}
+              {visibleColumns.includes('status') ? <th className='supplier-orders-col-status'>Status</th> : null}
+              {visibleColumns.includes('paymentStatus') ? <th className='supplier-orders-col-payment'>Payment status</th> : null}
             </tr>
           </thead>
           <tbody>
             {paginatedOrders.flatMap((order) =>
               groupedOrderView(order).map(({ id, item }) => (
                 <tr key={id}>
-                  <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td>
-                  <td>
+                  {visibleColumns.includes('number') ? <td><button type='button' className='catalog-name-button' onClick={() => { if (order.paymentStatus === 'paid' || order.paymentStatus === 'without_payment') return; setEditingOrder(order); setIsModalOpen(true); }}>{id}</button></td> : null}
+                  {visibleColumns.includes('product') ? <td>
                     <button type='button' className='catalog-name-button' onClick={() => {
                       const matchedProduct = item.catalogProductId
                         ? catalogProducts.find(
@@ -457,12 +657,12 @@ export const SupplierOrdersWorkspace = ({
                       }
                       setSelectedCatalogProductForEdit(matchedProduct);
                     }}>{item.productName}</button>
-                  </td>
-                  <td>{item.quantity} pcs</td>
-                  <td>{formatCurrency(item.price)}</td>
-                  <td>{formatCurrency(item.quantity * item.price)}</td>
-                  <td>{formatCurrency(order.paid)}</td>
-                  <td>
+                  </td> : null}
+                  {visibleColumns.includes('quantity') ? <td>{item.quantity} pcs</td> : null}
+                  {visibleColumns.includes('price') ? <td>{formatCurrency(item.price)}</td> : null}
+                  {visibleColumns.includes('total') ? <td>{formatCurrency(item.quantity * item.price)}</td> : null}
+                  {visibleColumns.includes('paid') ? <td>{formatCurrency(order.paid)}</td> : null}
+                  {visibleColumns.includes('supplier') ? <td>
                     <button type='button' className='catalog-name-button' onClick={() => {
                       const matchedSupplier = suppliers.find((supplier) => supplier.id === order.supplierId);
                       if (!matchedSupplier) {
@@ -471,9 +671,9 @@ export const SupplierOrdersWorkspace = ({
                       }
                       setSelectedSupplierForEdit(matchedSupplier);
                     }}>{order.supplierName}</button>
-                  </td>
-                  <td>{formatSupplierOrderDate(order.deliveryDate)}</td>
-                  <td>
+                  </td> : null}
+                  {visibleColumns.includes('deliveryDate') ? <td>{formatSupplierOrderDate(order.deliveryDate)}</td> : null}
+                  {visibleColumns.includes('status') ? <td>
                     <div className='supplier-order-status-picker'>
                       <button
                         type='button'
@@ -509,12 +709,12 @@ export const SupplierOrdersWorkspace = ({
                         </div>
                       ) : null}
                     </div>
-                  </td>
-                  <td>
+                  </td> : null}
+                  {visibleColumns.includes('paymentStatus') ? <td>
                     <span className={getSupplierPaymentStatusClass(order.paymentStatus)}>
                       {getSupplierPaymentStatusLabel(order.paymentStatus)}
                     </span>
-                  </td>
+                  </td> : null}
                 </tr>
               )),
             )}
