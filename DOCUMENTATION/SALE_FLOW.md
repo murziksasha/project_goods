@@ -135,7 +135,7 @@
 ### Remove Availability Rules
 
 - `Remove` for product line is enabled only when:
-  - order is not paid (`paidAmount = 0`)
+  - order is not paid (`paidAmount = 0`, or net payment history deposits minus refunds equals `0`)
   - status is editable (`new`, `reserved`, `paid`)
   - no serial number is bound to that line item
 - When enabled, `Remove` performs pure line deletion from order card (no stock receive modal).
@@ -160,4 +160,13 @@
   1. `Refund to client` (allowed in `issued` card despite read-only mode).
   2. `Return` in product row -> stock receive modal.
   3. Status auto-switches to `returned` when product part is fully reverted and money is refunded.
+
+## Returned Status Guard (2026-05-26)
+
+- Sale status `returned` must not be set manually while any product line remains attached to the sale.
+- Sale status `returned` must not be set while `paidAmount > 0`; the client payment must be refunded first.
+- In sale card status dropdown, `Returned` is blocked until:
+  - all product lines were returned/unbound from the sale,
+  - client paid amount is fully refunded (`paidAmount = 0`).
+- Backend workspace update mirrors this guard and rejects direct `returned` saves that bypass the UI.
 

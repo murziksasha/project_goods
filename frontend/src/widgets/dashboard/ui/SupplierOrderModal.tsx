@@ -3,6 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
+import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { getSupplierSuggestions } from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
@@ -73,8 +74,12 @@ export const SupplierOrderModal = ({
   onError,
   warehouseOptions,
 }: SupplierOrderModalProps) => {
+  const [fallbackWarehouseOptions, setFallbackWarehouseOptions] =
+    useState(EMPTY_WAREHOUSE_OPTIONS);
   const resolvedWarehouseOptions =
-    warehouseOptions ?? EMPTY_WAREHOUSE_OPTIONS;
+    warehouseOptions && warehouseOptions.length > 0
+      ? warehouseOptions
+      : fallbackWarehouseOptions;
   const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
@@ -124,6 +129,35 @@ export const SupplierOrderModal = ({
         editingOrder.paymentStatus === 'cancelled'),
   );
   const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (warehouseOptions && warehouseOptions.length > 0) return;
+
+    let isCancelled = false;
+    void getWarehouseSettings()
+      .then((settings) => {
+        if (isCancelled) return;
+        setFallbackWarehouseOptions(
+          settings.warehouses.map((warehouse) => ({
+            id: warehouse.id,
+            name: warehouse.name,
+            locations: warehouse.locations.map((location) => ({
+              id: location.id,
+              name: location.name,
+            })),
+          })),
+        );
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setFallbackWarehouseOptions(EMPTY_WAREHOUSE_OPTIONS);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, warehouseOptions]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -782,12 +816,20 @@ export const SupplierOrderModal = ({
               <label className='field field-wide'>
                 <span>Warehouse</span>
                 <select
+                  className={
+                    !takeOnChargeWarehouseId
+                      ? 'supplier-order-invalid-input'
+                      : undefined
+                  }
                   value={takeOnChargeWarehouseId}
                   onChange={(event) =>
                     setTakeOnChargeWarehouseId(event.target.value)
                   }
                 >
-                    {resolvedWarehouseOptions.map((warehouse) => (
+                  {resolvedWarehouseOptions.length === 0 ? (
+                    <option value=''>No warehouses</option>
+                  ) : null}
+                  {resolvedWarehouseOptions.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </option>
@@ -797,12 +839,20 @@ export const SupplierOrderModal = ({
               <label className='field field-wide'>
                 <span>Location</span>
                 <select
+                  className={
+                    !takeOnChargeLocationId
+                      ? 'supplier-order-invalid-input'
+                      : undefined
+                  }
                   value={takeOnChargeLocationId}
                   onChange={(event) =>
                     setTakeOnChargeLocationId(event.target.value)
                   }
                   disabled={selectedTakeOnChargeLocations.length === 0}
                 >
+                  {selectedTakeOnChargeLocations.length === 0 ? (
+                    <option value=''>No locations</option>
+                  ) : null}
                   {selectedTakeOnChargeLocations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
