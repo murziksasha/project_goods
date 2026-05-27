@@ -556,33 +556,34 @@
   background: #dc2626;
 }
 
-.receipt-payment-badge {
+.receipt-payment-status {
   display: inline-flex;
-  justify-content: center;
-  min-width: 120px;
-  border-radius: 5px;
-  padding: 4px 10px;
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 800;
+  align-items: center;
+  min-height: 26px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.receipt-payment-badge-paid {
-  background: #16a34a;
+.receipt-payment-status-pending {
+  color: #d97706;
 }
 
-.receipt-payment-badge-pending {
-  background: #64748b;
+.receipt-payment-status-paid {
+  color: #16a34a;
 }
 
-.receipt-payment-badge-cancelled {
-  background: #dc2626;
+.receipt-payment-status-without_payment {
+  color: #0284c7;
 }
 
-.receipt-payment-without-payment {
-  color: #ff1f1f;
-  font-weight: 900;
-  text-transform: lowercase;
+.receipt-payment-status-cancelled {
+  color: #dc2626;
 }
 
 .warehouse-receipt-modal-grid {
@@ -593,6 +594,86 @@
 
 .warehouse-stock-table {
   min-width: 1500px;
+}
+
+.warehouse-transfer-panel {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.warehouse-transfer-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.warehouse-transfer-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d7e0eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.warehouse-transfer-current {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #d7e0eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #53677d;
+}
+
+.warehouse-transfer-current strong {
+  color: #263f5d;
+  font-weight: 800;
+}
+
+.warehouse-transfer-note textarea {
+  resize: vertical;
+  min-height: 78px;
+  border: 1px solid #cfd8e3;
+  border-radius: 6px;
+  padding: 9px 10px;
+  font: inherit;
+  color: #2f4966;
+}
+
+.warehouse-transfer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.warehouse-transfer-list .catalog-table {
+  min-width: 760px;
+}
+
+.warehouse-transfer-row {
+  cursor: pointer;
+}
+
+.warehouse-transfer-row:hover td {
+  background: #eef6ff;
+}
+
+.warehouse-transfer-row-selected td {
+  background: #e1f1ff;
+  color: #153a5b;
+  font-weight: 800;
+}
+
+.warehouse-transfer-history .catalog-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.warehouse-transfer-history {
+  overflow: hidden;
 }
 
 .warehouse-settings-panel {

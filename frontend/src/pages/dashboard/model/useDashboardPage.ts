@@ -13,7 +13,7 @@ import {
   filterClientsByQuery,
   filterClientsByStatus,
 } from '../../../entities/client/lib/filter-clients';
-import { initialProductForm } from '../../../entities/product/model/forms';
+import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import { filterProducts } from '../../../entities/product/lib/filter-products';
 import {
@@ -603,6 +603,55 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
               : 'Failed to remove catalog product.',
           );
           return false;
+        }
+      },
+      transferProduct: async (
+        product: Product,
+        target: { warehouseId: string; locationId: string; note: string },
+      ) => {
+        setIsProductSaving(true);
+        setError('');
+        setSuccessMessage('');
+
+        try {
+          const updatedProduct = await updateProductMutation.mutateAsync({
+            productId: product.id,
+            payload: {
+              ...toProductForm(product),
+              warehouseId: target.warehouseId,
+              locationId: target.locationId,
+              note: target.note
+                ? [product.note, `Transfer note: ${target.note}`]
+                    .filter(Boolean)
+                    .join('\n')
+                : product.note,
+            },
+          });
+          setAllProducts((current) =>
+            current.map((item) =>
+              item.id === updatedProduct.id ? updatedProduct : item,
+            ),
+          );
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.products,
+          });
+          const nextProducts = await queryClient.fetchQuery({
+            queryKey: queryKeys.products,
+            queryFn: () => getProducts(),
+          });
+          setAllProducts(nextProducts);
+          setLastSyncAt(new Date().toISOString());
+          setSuccessMessage('Product transferred.');
+          return true;
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to transfer product.',
+          );
+          return false;
+        } finally {
+          setIsProductSaving(false);
         }
       },
       setStatsPeriod,

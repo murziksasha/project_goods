@@ -883,6 +883,7 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
+              onProductTransfer={actions.transferProduct}
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
