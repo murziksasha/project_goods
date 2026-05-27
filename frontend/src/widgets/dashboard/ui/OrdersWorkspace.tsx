@@ -1490,6 +1490,12 @@ export const OrdersWorkspace = ({
   }, [activeTab, storedActiveFilters]);
 
   useEffect(() => {
+    if (activeTab !== 'supplierOrders') return;
+    setIsFilterPanelOpen(false);
+    setIsStatusFilterOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
   }, [activeTab, searchValue]);
 
