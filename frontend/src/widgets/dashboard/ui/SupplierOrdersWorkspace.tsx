@@ -192,7 +192,7 @@ export const SupplierOrdersWorkspace = ({
       return '';
     }
   });
-  const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
