@@ -346,6 +346,17 @@ export const SupplierOrderModal = ({
       ),
     );
   };
+  const updateBasketItemPrice = (
+    itemIndex: number,
+    priceValue: string,
+  ) => {
+    const normalizedPrice = Math.max(0, Number(priceValue) || 0);
+    setBasketItems((current) =>
+      current.map((item, index) =>
+        index === itemIndex ? { ...item, price: normalizedPrice } : item,
+      ),
+    );
+  };
   const removeBasketItem = (itemIndex: number) => {
     setBasketItems((current) =>
       current.filter((_, index) => index !== itemIndex),
@@ -595,7 +606,15 @@ export const SupplierOrderModal = ({
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
                     <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
-                    <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
+                    <div className='field supplier-order-product-compact'>
+                      <input
+                        value={String(item.price)}
+                        disabled={isReadOnly}
+                        onChange={(event) =>
+                          updateBasketItemPrice(index, event.target.value)
+                        }
+                      />
+                    </div>
                     <div className='field supplier-order-product-compact'>
                       <input
                         value={String(item.quantity)}

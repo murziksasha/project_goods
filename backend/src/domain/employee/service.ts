@@ -7,6 +7,26 @@ import { HttpError } from '../../shared/lib/errors';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { EmployeePayload } from '../shared/types';
 
+type EmployeeActor = Pick<EmployeeDocument, '_id' | 'role' | 'permissions'>;
+
+const ensureCanWriteEmployee = (
+  actor: EmployeeActor,
+  normalizedPayload: ReturnType<typeof normalizeEmployeePayload>,
+  existingEmployee?: EmployeeDocument | null,
+) => {
+  if (actor.role === 'owner') {
+    return;
+  }
+
+  if (existingEmployee?.role === 'owner' || normalizedPayload.role === 'owner') {
+    throw new HttpError(403, 'Only owners can manage owner accounts.');
+  }
+
+  if (normalizedPayload.permissions.includes('employees.manage')) {
+    throw new HttpError(403, 'Only owners can grant employees.manage permission.');
+  }
+};
+
 export const listEmployees = async (queryValue: unknown, roleValue: unknown) => {
   const query = getSearchQuery(queryValue) as Record<string, unknown>;
   const role = typeof roleValue === 'string' ? roleValue : '';
@@ -21,8 +41,11 @@ export const listEmployees = async (queryValue: unknown, roleValue: unknown) => 
   return employees.map(formatEmployee);
 };
 
-export const createEmployee = async (payload: EmployeePayload) => {
+export const createEmployee = async (payload: EmployeePayload, actor?: EmployeeActor) => {
   const normalizedPayload = normalizeEmployeePayload(payload);
+  if (actor) {
+    ensureCanWriteEmployee(actor, normalizedPayload);
+  }
   if (!normalizedPayload.username) {
     throw new HttpError(400, 'Username is required.');
   }
@@ -50,10 +73,23 @@ export const createEmployee = async (payload: EmployeePayload) => {
   return formatEmployee(employee.toObject<EmployeeDocument>());
 };
 
-export const updateEmployee = async (employeeId: string, payload: EmployeePayload) => {
+export const updateEmployee = async (
+  employeeId: string,
+  payload: EmployeePayload,
+  actor?: EmployeeActor,
+) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
 
   const normalizedPayload = normalizeEmployeePayload(payload);
+  const existingEmployee = actor
+    ? await Employee.findById(employeeId).lean<EmployeeDocument | null>()
+    : null;
+  if (actor) {
+    if (!existingEmployee) {
+      throw new HttpError(404, 'Employee not found.');
+    }
+    ensureCanWriteEmployee(actor, normalizedPayload, existingEmployee);
+  }
   if (!normalizedPayload.username) {
     throw new HttpError(400, 'Username is required.');
   }
@@ -89,8 +125,17 @@ export const updateEmployee = async (employeeId: string, payload: EmployeePayloa
   return formatEmployee(employee);
 };
 
-export const deleteEmployee = async (employeeId: string) => {
+export const deleteEmployee = async (employeeId: string, actor?: EmployeeActor) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
+  if (actor?.role !== 'owner') {
+    const existingEmployee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
+    if (!existingEmployee) {
+      throw new HttpError(404, 'Employee not found.');
+    }
+    if (existingEmployee.role === 'owner') {
+      throw new HttpError(403, 'Only owners can delete owner accounts.');
+    }
+  }
 
   const deletedEmployee = await Employee.findByIdAndDelete(employeeId).lean<EmployeeDocument | null>();
   if (!deletedEmployee) {

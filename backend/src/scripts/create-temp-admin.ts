@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { connectDatabase } from '../config/database';
+import { employeePermissions } from '../domain/employee/constants';
 import { Employee } from '../domain/employee/model';
 import { hashPassword } from '../shared/lib/auth';
 
@@ -20,15 +21,7 @@ const run = async () => {
       inviteToken: '',
       inviteExpiresAt: null,
       role: 'owner',
-      permissions: [
-        'orders.view',
-        'orders.manage',
-        'repairs.execute',
-        'sales.manage',
-        'clients.manage',
-        'inventory.manage',
-        'employees.manage',
-      ],
+      permissions: [...employeePermissions],
       isActive: true,
       note: 'Temporary test account',
     },

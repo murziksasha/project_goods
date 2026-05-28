@@ -34,6 +34,7 @@ This document defines current warehouse requirements for stock balances, receipt
 1. supplier name from linked supplier order (`supplierOrdersByProductId[product.id][0].supplierName`)
 2. fallback to legacy product field `purchasePlace`
 3. fallback `-`
+- Search mode `By supplier`, the supplier filter, and the `Supplier` column must use this same priority so the visible value and filtering behavior stay consistent.
 
 ### 3) Product Warehouse Mapping Priority
 - Stock display mapping priority:
@@ -61,6 +62,20 @@ This document defines current warehouse requirements for stock balances, receipt
 1. product is matched to an `issued` sale by strict linkage (`productId` or `serial`)
 2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
 - Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
+- Stock balance filtering logic is kept in a pure frontend helper (`src/widgets/dashboard/model/stock-balance.ts`) and must remain covered by unit tests for strict product/serial matching, warehouse fallback, and supplier fallback.
+
+### 4.4) Stock Balance Working Register UI
+- `Stock balances` is a compact operational register for finding and opening a stock unit quickly.
+- Toolbar requirements:
+1. show current filtered stock row count
+2. show the number of active applied filters on the `Filter` button
+3. use a search placeholder that matches the active search mode
+- Table requirements:
+1. header stays sticky while scrolling the stock table
+2. rows use compact spacing for dense scanning
+3. `Warehouse` and `Location` are displayed as readable badges
+4. `Client order` and `Supplier order` links are displayed as compact badges
+5. empty state must explicitly suggest adjusting search or filters
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
@@ -182,12 +197,59 @@ This document defines current warehouse requirements for stock balances, receipt
 4. Serial numbers: auto-generated (equivalent to modal flow where user keeps defaults and clicks `Оприбуткувати`).
 - For all other flows and entry points, existing сценарий must stay unchanged (modals + explicit operator choices).
 
+## Transfers Requirements
+
+### 12) Transfer Purpose
+- `Warehouse -> Transfers` moves existing stock items between configured warehouses and locations.
+- Target warehouse/location options are loaded from `Warehouse -> Settings -> Warehouses`.
+- Locations created later in settings must become available in transfer target selectors without code changes.
+
+### 12.1) Transfer Item Selection
+- The right-side stock list shows filtered stock items for the current `Transfers` tab.
+- Each visible row is clickable as a whole row.
+- Clicking a row selects that product into the transfer `Product` field.
+- The selected row must be visually highlighted.
+- Keyboard selection must work with `Enter` or `Space` on the focused row.
+- The `Product` select may include all currently filtered stock items, not only the current visible page.
+
+### 12.2) Transfer Pagination
+- `Transfers` uses the shared top page arrows from the warehouse toolbar.
+- Page size for the right-side transfer stock list is fixed at `8` rows.
+- Paging in `Transfers` must advance/return by 8 stock rows.
+- This transfer page size does not change the user-selected page size for `Stock balances` or `Receipts`.
+
+### 12.3) Transfer Validation
+- Operator must choose a product, target warehouse, and target location.
+- Transfer action is disabled until all required values are present.
+- Transfer to the same current warehouse/location is blocked with an explicit error.
+- Current location is displayed from product warehouse metadata.
+
+### 12.4) Transfer Persistence
+- Transfer saves to product warehouse metadata:
+1. `product.warehouseId = target warehouse id`
+2. `product.locationId = target location id`
+- If operator enters a transfer note, it is appended to product note as transfer context.
+- After successful transfer, product data must be refreshed from API/query cache.
+- Successful transfer is recorded in the local session transfer history table with:
+1. date
+2. product/serial
+3. source warehouse/location
+4. target warehouse/location
+5. operator
+6. note
+
+### 12.5) Transfer Scroll Behavior
+- The right-side transfer stock list may keep its own horizontal scrollbar if table width exceeds available space.
+- `Transfers` stock list must opt out from the global fixed horizontal scrollbar to avoid a second parasitic scrollbar over the transfer history header.
+- Transfer history must not render a horizontal scrollbar by default.
+
 ## Global UI Requirement
 
-### 12) Horizontal Scrollbar Accessibility
+### 13) Horizontal Scrollbar Accessibility
 - If horizontal overflow appears, scrollbar must remain accessible at the bottom of app window.
 - Implemented via global shared component `GlobalHorizontalScrollbar`.
 - The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`.
+- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content.
 
 ## Notes
 - This document is normative for warehouse UI/UX and data mapping.
