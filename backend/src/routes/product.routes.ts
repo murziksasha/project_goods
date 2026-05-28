@@ -7,8 +7,12 @@ import {
   getNextProductSerialNumber,
   listProducts,
   updateProduct,
+  updateProductModelByName,
 } from '../domain/product/service';
-import type { ProductPayload } from '../domain/shared/types';
+import type {
+  ProductModelUpdatePayload,
+  ProductPayload,
+} from '../domain/shared/types';
 
 export const productRouter = Router();
 
@@ -31,6 +35,16 @@ productRouter.post('/products', async (req, res, next) => {
 productRouter.post('/products/serial-number/next', async (_req, res, next) => {
   try {
     res.json(await getNextProductSerialNumber());
+  } catch (error) {
+    next(error);
+  }
+});
+
+productRouter.patch('/products/model-by-name', async (req, res, next) => {
+  try {
+    res.json(
+      await updateProductModelByName(req.body as ProductModelUpdatePayload),
+    );
   } catch (error) {
     next(error);
   }

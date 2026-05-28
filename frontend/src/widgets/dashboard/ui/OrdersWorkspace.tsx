@@ -42,7 +42,6 @@ import {
 } from '../../../entities/service-catalog/model/forms';
 import {
   getProducts,
-  updateProduct,
 } from '../../../entities/product/api/productApi';
 import {
   cancelSupplierOrder,
@@ -64,9 +63,8 @@ import type {
 import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
 import type {
   Product,
-  ProductFormValues,
+  ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
-import { toProductForm } from '../../../entities/product/model/forms';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -86,6 +84,14 @@ import {
   patchLineItemsById,
   removeLineItemsById,
 } from '../model/line-item-ops';
+import {
+  buildSerializedProductLineItem,
+  getProductSerialAvailability,
+  getSaleSerialUsage,
+  normalizeSerialNumber,
+} from '../model/order-line-serials';
+import { ProductModelModal } from './ProductModelModal';
+import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -105,6 +111,8 @@ type OrdersWorkspaceProps = {
   externalSelectedSaleId?: string | null;
   onExternalSaleOpenHandled?: () => void;
   onOpenClientCard: (clientId: string) => void;
+  products: Product[];
+  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
 };
 
 type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
@@ -1166,6 +1174,8 @@ export const OrdersWorkspace = ({
   externalSelectedSaleId = null,
   onExternalSaleOpenHandled,
   onOpenClientCard,
+  products,
+  onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
     currentEmployee?.name ?? 'Unknown employee';
@@ -2515,7 +2525,14 @@ export const OrdersWorkspace = ({
     sale: Sale,
     item: Omit<OrderLineItem, 'id'>,
   ) => {
-    const nextItem = { ...item, id: crypto.randomUUID() };
+    const nextItem = {
+      ...item,
+      quantity:
+        item.kind === 'product' && (item.serialNumbers ?? []).length > 0
+          ? 1
+          : item.quantity,
+      id: crypto.randomUUID(),
+    };
     void persistSaleWorkspace(sale, {
       lineItems: [...getLineItems(sale), nextItem],
       timeline: [
@@ -2579,6 +2596,41 @@ export const OrdersWorkspace = ({
     });
   };
 
+  const replaceLineItem = (
+    sale: Sale,
+    itemId: string,
+    itemIndex: number | undefined,
+    items: Array<Omit<OrderLineItem, 'id'>>,
+  ) => {
+    const currentItems = getLineItems(sale);
+    const replacedItem =
+      currentItems.find((item) => item.id === itemId) ??
+      (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
+    if (!replacedItem || items.length === 0) return;
+
+    const hasMatchingId = currentItems.some((item) => item.id === itemId);
+    const nextItems = currentItems.flatMap((item, index) => {
+      const shouldReplace =
+        item.id === itemId ||
+        (!hasMatchingId && itemIndex !== undefined && itemIndex === index);
+      if (!shouldReplace) return [item];
+      return items.map((nextItem) => ({
+        ...nextItem,
+        id: crypto.randomUUID(),
+      }));
+    });
+
+    void persistSaleWorkspace(sale, {
+      lineItems: nextItems,
+      timeline: [
+        appendTimelineEntry(
+          `${currentEmployeeName} bound serial numbers for "${replacedItem.name}".`,
+        ),
+        ...sale.timeline,
+      ],
+    });
+  };
+
   const updateLineItem = (
     sale: Sale,
     itemId: string,
@@ -2596,6 +2648,20 @@ export const OrdersWorkspace = ({
       >
     >,
   ) => {
+    const currentItem =
+      getLineItems(sale).find((item) => item.id === itemId) ??
+      (itemIndex !== undefined ? getLineItems(sale)[itemIndex] : undefined);
+    if (
+      currentItem?.kind === 'product' &&
+      (currentItem.serialNumbers ?? []).length > 0 &&
+      patch.quantity !== undefined &&
+      patch.quantity !== 1
+    ) {
+      onError(
+        'Serialized products are sold one serial per line. Add another serial instead.',
+      );
+      return;
+    }
     const nextItems = patchLineItemsById(
       getLineItems(sale),
       itemId,
@@ -3134,6 +3200,7 @@ export const OrdersWorkspace = ({
           statusOptions={selectedSaleStatusOptions}
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
+          products={products}
           paidAmount={getPaidAmount(selectedSale)}
           isReadOnly={
             !isRepairOrder(selectedSale) &&
@@ -3148,6 +3215,9 @@ export const OrdersWorkspace = ({
             addComment(selectedSale, comment)
           }
           onAddLineItem={(item) => addLineItem(selectedSale, item)}
+          onReplaceLineItem={(itemId, itemIndex, nextItems) =>
+            replaceLineItem(selectedSale, itemId, itemIndex, nextItems)
+          }
           onRemoveLineItem={(itemId, itemIndex) =>
             removeLineItem(selectedSale, itemId, itemIndex)
           }
@@ -3167,6 +3237,7 @@ export const OrdersWorkspace = ({
             onOpenClientCard(selectedSale.client.id)
           }
           onSupplierOrderCreated={loadSupplierOrders}
+          onUpdateProductModel={onUpdateProductModel}
           onError={onError}
           onSuccess={onSuccess}
           onSaveMainInfo={(payload) =>
@@ -3906,6 +3977,7 @@ type OrderDetailCardProps = {
   statusOptions: Array<{ key: OrderStatus; label: string }>;
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
+  products: Product[];
   paidAmount: number;
   isReadOnly: boolean;
   canAcceptPayment: boolean;
@@ -3913,6 +3985,11 @@ type OrderDetailCardProps = {
   onClose: () => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
+  onReplaceLineItem: (
+    itemId: string,
+    itemIndex: number | undefined,
+    items: Array<Omit<OrderLineItem, 'id'>>,
+  ) => void;
   onRemoveLineItem: (
     itemId: string,
     itemIndex?: number,
@@ -3943,6 +4020,7 @@ type OrderDetailCardProps = {
   }) => void;
   onOpenClientCard: () => void;
   onSupplierOrderCreated: () => Promise<void>;
+  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   onSaveMainInfo: (payload: {
@@ -3961,6 +4039,7 @@ const OrderDetailCard = ({
   statusOptions,
   comments,
   lineItems,
+  products,
   paidAmount,
   isReadOnly,
   canAcceptPayment,
@@ -3968,6 +4047,7 @@ const OrderDetailCard = ({
   onClose,
   onAddComment,
   onAddLineItem,
+  onReplaceLineItem,
   onRemoveLineItem,
   onUpdateLineItem,
   onReturnLineItem,
@@ -3977,6 +4057,7 @@ const OrderDetailCard = ({
   onDiscountChange,
   onOpenClientCard,
   onSupplierOrderCreated,
+  onUpdateProductModel,
   onError,
   onSuccess,
   onSaveMainInfo,
@@ -4506,7 +4587,10 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={productItems}
+              products={products}
+              onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
+              onReplaceItem={onReplaceLineItem}
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
@@ -4544,7 +4628,10 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={serviceItems}
+              products={products}
+              onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
+              onReplaceItem={onReplaceLineItem}
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
@@ -4892,7 +4979,13 @@ type LineItemsPanelProps = {
   currentClientId: string;
   currentStatus: OrderStatus;
   items: OrderLineItem[];
+  products: Product[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
+  onReplaceItem: (
+    itemId: string,
+    itemIndex: number | undefined,
+    items: Array<Omit<OrderLineItem, 'id'>>,
+  ) => void;
   onRemoveItem: (itemId: string, itemIndex?: number) => void;
   onUpdateItem: (
     itemId: string,
@@ -4914,6 +5007,7 @@ type LineItemsPanelProps = {
   isOrderPaid: boolean;
   isReadOnly: boolean;
   onSupplierOrderCreated: () => Promise<void>;
+  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 };
@@ -4927,13 +5021,16 @@ const LineItemsPanel = ({
   currentClientId,
   currentStatus,
   items,
+  products,
   onAddItem,
+  onReplaceItem,
   onRemoveItem,
   onUpdateItem,
   onReturnItem,
   isOrderPaid,
   isReadOnly,
   onSupplierOrderCreated,
+  onUpdateProductModel,
   onError,
   onSuccess,
 }: LineItemsPanelProps) => {
@@ -4959,12 +5056,8 @@ const LineItemsPanel = ({
     useState(false);
   const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
-  const [selectedProduct, setSelectedProduct] =
-    useState<Product | null>(null);
   const [selectedService, setSelectedService] =
     useState<ServiceCatalogItem | null>(null);
-  const [productForm, setProductForm] =
-    useState<ProductFormValues | null>(null);
   const [serviceForm, setServiceForm] = useState(
     initialServiceCatalogForm,
   );
@@ -4994,6 +5087,10 @@ const LineItemsPanel = ({
     useState<Product[]>([]);
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
     useState(false);
+  const [productModelName, setProductModelName] = useState<string | null>(null);
+  const [productModelWarehouses, setProductModelWarehouses] = useState<
+    WarehouseItem[]
+  >([]);
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
   const hasExactServiceSuggestion = serviceSuggestions.some(
     (service) =>
@@ -5012,19 +5109,22 @@ const LineItemsPanel = ({
         new Set(
           serialsInput
             .split('\n')
-            .map((value) => value.trim().toUpperCase())
+            .map(normalizeSerialNumber)
             .filter(Boolean),
         ),
       ),
     [serialsInput],
   );
+  const serialUsage = useMemo(() => {
+    return getSaleSerialUsage(sales, currentSaleId);
+  }, [currentSaleId, sales]);
   const occupiedSerials = useMemo(() => {
     const occupied = new Set<string>();
 
     sales.forEach((candidateSale) => {
-      const saleLevelSerial = candidateSale.product?.serialNumber
-        ?.trim()
-        .toUpperCase();
+      const saleLevelSerial = normalizeSerialNumber(
+        candidateSale.product?.serialNumber,
+      );
       if (saleLevelSerial) {
         occupied.add(saleLevelSerial);
       }
@@ -5039,7 +5139,7 @@ const LineItemsPanel = ({
         if (isCurrentEditingLine) return;
 
         (lineItem.serialNumbers ?? [])
-          .map((serial) => serial.trim().toUpperCase())
+          .map(normalizeSerialNumber)
           .filter(Boolean)
           .forEach((serial) => occupied.add(serial));
       });
@@ -5047,6 +5147,8 @@ const LineItemsPanel = ({
 
     return occupied;
   }, [currentSaleId, sales, serialsEditingItem]);
+  const getProductSuggestionState = (product: Product) =>
+    getProductSerialAvailability(product, serialUsage);
   const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
   const isIssuedSale = currentStatus === 'issued';
   const canDirectRemoveProductItem = (item: OrderLineItem) =>
@@ -5159,7 +5261,11 @@ const LineItemsPanel = ({
     const loadAvailableSerials = async () => {
       setIsSerialLookupLoading(true);
       try {
-        const lineProductId = serialsEditingItem.productId?.trim() ?? '';
+        const lineProductId =
+          serialsEditingItem.quantity === 1 &&
+          (serialsEditingItem.serialNumbers ?? []).length > 0
+            ? (serialsEditingItem.productId?.trim() ?? '')
+            : '';
         const normalizedLineName = normalizeNameForMatch(
           serialsEditingItem.name,
         );
@@ -5182,7 +5288,7 @@ const LineItemsPanel = ({
 
         const sorted = [...filtered]
           .filter((product) => {
-            const serial = product.serialNumber.trim().toUpperCase();
+            const serial = normalizeSerialNumber(product.serialNumber);
             if (!serial) return false;
             return !occupiedSerials.has(serial);
           })
@@ -5234,7 +5340,6 @@ const LineItemsPanel = ({
           setProductSuggestions(
             products
               .filter((product) => {
-                if (!isProductAvailableForOrder(product)) return false;
                 const lookupFields = [
                   product.name,
                   product.article,
@@ -5245,6 +5350,28 @@ const LineItemsPanel = ({
                     normalizedQuery,
                   ),
                 );
+              })
+              .sort((first, second) => {
+                const firstSerial =
+                  normalizeProductLookupValue(first.serialNumber);
+                const secondSerial =
+                  normalizeProductLookupValue(second.serialNumber);
+                const firstExactSerial =
+                  firstSerial === normalizedQuery ? 0 : 1;
+                const secondExactSerial =
+                  secondSerial === normalizedQuery ? 0 : 1;
+                if (firstExactSerial !== secondExactSerial) {
+                  return firstExactSerial - secondExactSerial;
+                }
+                const firstSelectable = getProductSuggestionState(first)
+                  .selectable
+                  ? 0
+                  : 1;
+                const secondSelectable = getProductSuggestionState(second)
+                  .selectable
+                  ? 0
+                  : 1;
+                return firstSelectable - secondSelectable;
               })
               .slice(0, 8),
           );
@@ -5260,7 +5387,7 @@ const LineItemsPanel = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [kind, name, selectedProductId]);
+  }, [kind, name, selectedProductId, serialUsage]);
 
   useEffect(() => {
     if (
@@ -5303,8 +5430,37 @@ const LineItemsPanel = ({
   };
 
   const applyProductSuggestion = (product: Product) => {
+    const state = getProductSuggestionState(product);
+    if (!state.selectable) {
+      onError(`Product cannot be selected: ${state.label}.`);
+      return;
+    }
     const suggestedPrice =
       product.salePriceOptions[0] ?? product.price ?? 0;
+    const serial = normalizeSerialNumber(product.serialNumber);
+    const normalizedQuery = normalizeProductLookupValue(name);
+    const isSerialPick =
+      serial &&
+      normalizeProductLookupValue(serial).includes(normalizedQuery);
+
+    if (isSerialPick) {
+      onAddItem({
+        ...buildSerializedProductLineItem({
+          product,
+          price: suggestedPrice,
+          warrantyPeriod: 0,
+        }),
+      });
+      setName('');
+      setPrice('');
+      setQuantity('1');
+      setWarrantyPeriod('0');
+      setSelectedProductId(undefined);
+      setProductSuggestions([]);
+      onSuccess(`Product "${product.name}" with S/N ${serial} added.`);
+      return;
+    }
+
     setName(product.name);
     setPrice(String(suggestedPrice));
     setQuantity('1');
@@ -5350,21 +5506,9 @@ const LineItemsPanel = ({
     setEditingItemId(item.id);
     try {
       if (item.kind === 'product') {
-        const products = await getProducts(item.name);
-        const product =
-          products.find(
-            (candidate) => candidate.id === item.productId,
-          ) ??
-          products.find(
-            (candidate) => candidate.name === item.name,
-          ) ??
-          null;
-        if (!product) {
-          onError('Product was not found in catalog.');
-          return;
-        }
-        setSelectedProduct(product);
-        setProductForm(toProductForm(product));
+        const settings = await getWarehouseSettings();
+        setProductModelWarehouses(settings.warehouses);
+        setProductModelName(item.name);
         return;
       }
 
@@ -5387,37 +5531,6 @@ const LineItemsPanel = ({
           ? error.message
           : 'Failed to load catalog item.',
       );
-    }
-  };
-
-  const saveSelectedProduct = async () => {
-    if (!selectedProduct || !productForm || !editingItemId) return;
-
-    setIsCatalogSaving(true);
-    try {
-      const updatedProduct = await updateProduct(
-        selectedProduct.id,
-        productForm,
-      );
-      setSelectedProduct(updatedProduct);
-      setProductForm(toProductForm(updatedProduct));
-      onUpdateItem(editingItemId, undefined, {
-        name: updatedProduct.name,
-        productId: updatedProduct.id,
-        price:
-          updatedProduct.salePriceOptions[0] ?? updatedProduct.price,
-        warrantyPeriod: 0,
-      });
-      onSuccess('Product updated.');
-      setSelectedProduct(null);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to update product.',
-      );
-    } finally {
-      setIsCatalogSaving(false);
     }
   };
 
@@ -5500,15 +5613,36 @@ const LineItemsPanel = ({
         return;
       }
     }
+    const selectedProduct =
+      kind === 'product'
+        ? products.find(
+            (product) =>
+              product.id ===
+              (selectedProductId ??
+                productSuggestions.find(
+                  (candidate) => candidate.name === normalizedName,
+                )?.id),
+          )
+        : null;
+    const selectedProductSerial = normalizeSerialNumber(
+      selectedProduct?.serialNumber,
+    );
+    if (
+      kind === 'product' &&
+      selectedProductSerial &&
+      normalizedQuantity > 1
+    ) {
+      onError(
+        'Serialized products are sold one serial per line. Add each serial separately.',
+      );
+      return;
+    }
 
     onAddItem({
       kind,
       productId:
         kind === 'product'
-          ? (selectedProductId ??
-            productSuggestions.find(
-              (product) => product.name === normalizedName,
-            )?.id)
+          ? selectedProduct?.id
           : undefined,
       serviceId:
         kind === 'service'
@@ -5518,6 +5652,10 @@ const LineItemsPanel = ({
       price: normalizedPrice,
       quantity: normalizedQuantity,
       warrantyPeriod: Number(warrantyPeriod),
+      serialNumbers:
+        kind === 'product' && selectedProductSerial
+          ? [selectedProductSerial]
+          : undefined,
     });
     setName('');
     setPrice('');
@@ -5579,12 +5717,25 @@ const LineItemsPanel = ({
                   className='line-item-inline-input'
                   min={1}
                   value={String(item.quantity)}
-                  onChange={(value) =>
+                  onChange={(value) => {
+                    if (
+                      item.kind === 'product' &&
+                      (item.serialNumbers ?? []).length > 0
+                    ) {
+                      onError(
+                        'Serialized products are sold one serial per line. Add another serial instead.',
+                      );
+                      return;
+                    }
                     onUpdateItem(item.id, undefined, {
                       quantity: Math.max(1, Number(value) || 1),
-                    })
+                    });
+                  }}
+                  disabled={
+                    isReadOnly ||
+                    (item.kind === 'product' &&
+                      (item.serialNumbers ?? []).length > 0)
                   }
-                  disabled={isReadOnly}
                 />
               </div>
               <div key={`${item.id}-warranty`}>
@@ -5735,18 +5886,22 @@ const LineItemsPanel = ({
             {isProductLookupLoading ? (
               <p>Searching products...</p>
             ) : null}
-            {productSuggestions.map((product) => (
-              <button
-                key={product.id}
-                type='button'
-                className='create-suggestion-item'
-                onClick={() => applyProductSuggestion(product)}
-                disabled={isReadOnly}
-              >
-                <strong>{product.name}</strong>
-                <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber}`}</span>
-              </button>
-            ))}
+            {productSuggestions.map((product) => {
+              const state = getProductSuggestionState(product);
+              return (
+                <button
+                  key={product.id}
+                  type='button'
+                  className='create-suggestion-item'
+                  onClick={() => applyProductSuggestion(product)}
+                  disabled={isReadOnly || !state.selectable}
+                  title={state.selectable ? undefined : state.label}
+                >
+                  <strong>{product.name}</strong>
+                  <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber} / ${state.label}`}</span>
+                </button>
+              );
+            })}
           </div>
         ) : null}
         {kind === 'service' &&
@@ -5796,18 +5951,21 @@ const LineItemsPanel = ({
           onClose={() => setIsCreateServiceOpen(false)}
         />
       ) : null}
-      {selectedProduct && productForm ? (
-        <CatalogProductEditorModal
-          product={selectedProduct}
-          form={productForm}
+      {productModelName ? (
+        <ProductModelModal
+          name={productModelName}
+          products={products}
+          warehouses={productModelWarehouses}
           isSaving={isCatalogSaving}
-          onChange={(field, value) =>
-            setProductForm((current) =>
-              current ? { ...current, [field]: value } : current,
-            )
-          }
-          onSubmit={() => void saveSelectedProduct()}
-          onClose={() => setSelectedProduct(null)}
+          onClose={() => setProductModelName(null)}
+          onSave={async (payload) => {
+            setIsCatalogSaving(true);
+            try {
+              return await onUpdateProductModel(payload);
+            } finally {
+              setIsCatalogSaving(false);
+            }
+          }}
         />
       ) : null}
       {selectedService ? (
@@ -5848,7 +6006,7 @@ const LineItemsPanel = ({
                 onClick={() => {
                   const oldestSerials = availableSerialProducts
                     .map((product) =>
-                      product.serialNumber.trim().toUpperCase(),
+                      normalizeSerialNumber(product.serialNumber),
                     )
                     .filter(Boolean)
                     .slice(0, serialsEditingItem.quantity);
@@ -5976,7 +6134,7 @@ const LineItemsPanel = ({
                 onClick={() => {
                   const serials = serialsInput
                     .split('\n')
-                    .map((value) => value.trim().toUpperCase())
+                    .map(normalizeSerialNumber)
                     .filter(Boolean);
                   const uniqueSerials = Array.from(new Set(serials));
                   if (
@@ -5997,10 +6155,85 @@ const LineItemsPanel = ({
                     );
                     return;
                   }
+                  const serialProducts = uniqueSerials.map((serial) => {
+                    const product = products.find(
+                      (candidate) =>
+                        normalizeSerialNumber(candidate.serialNumber) ===
+                        serial,
+                    );
+                    return { serial, product };
+                  });
+                  const missingSerials = serialProducts
+                    .filter(({ product }) => !product)
+                    .map(({ serial }) => serial);
+                  if (missingSerials.length > 0) {
+                    onError(
+                      `Serial was not found in stock: ${missingSerials.join(', ')}.`,
+                    );
+                    return;
+                  }
+                  const unavailableSerials = serialProducts
+                    .filter(({ product }) => {
+                      if (!product) return false;
+                      if (
+                        product.id ===
+                        (serialsEditingItem.productId ?? '').trim()
+                      ) {
+                        return false;
+                      }
+                      return !isProductAvailableForOrder(product);
+                    })
+                    .map(({ serial }) => serial);
+                  if (unavailableSerials.length > 0) {
+                    onError(
+                      `Serial has no free stock: ${unavailableSerials.join(', ')}.`,
+                    );
+                    return;
+                  }
+                  const shouldSplitSerializedLine =
+                    serialsEditingItem.quantity > 1 ||
+                    uniqueSerials.length > 1;
+                  if (shouldSplitSerializedLine) {
+                    onReplaceItem(
+                      serialsEditingItem.id,
+                      undefined,
+                      serialProducts.map(({ serial, product }) => ({
+                        ...(product
+                          ? buildSerializedProductLineItem({
+                              product,
+                              price: serialsEditingItem.price,
+                              warrantyPeriod:
+                                serialsEditingItem.warrantyPeriod,
+                            })
+                          : {
+                              kind: 'product' as const,
+                              productId: undefined,
+                              name: serialsEditingItem.name,
+                              price: serialsEditingItem.price,
+                              quantity: 1,
+                              warrantyPeriod:
+                                serialsEditingItem.warrantyPeriod,
+                              serialNumbers: [serial],
+                            }),
+                      })),
+                    );
+                    onSuccess('Serial numbers updated.');
+                    setSerialsEditingItem(null);
+                    return;
+                  }
                   onUpdateItem(
                     serialsEditingItem.id,
                     undefined,
-                    { serialNumbers: uniqueSerials },
+                    {
+                      productId:
+                        serialProducts[0]?.product?.id ??
+                        serialsEditingItem.productId,
+                      name:
+                        serialProducts[0]?.product?.name ??
+                        serialsEditingItem.name,
+                      quantity: 1,
+                      serialNumbers: uniqueSerials,
+                    },
                   );
                   onSuccess('Serial numbers updated.');
                   setSerialsEditingItem(null);
@@ -6023,197 +6256,6 @@ const LineItemsPanel = ({
         onSuccess={onSuccess}
         onError={onError}
       />
-    </div>
-  );
-};
-
-const getProductPriceOption = (
-  form: ProductFormValues,
-  index: number,
-) =>
-  form.salePriceOptions
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)[index] ?? '';
-
-const setProductPriceOption = (
-  form: ProductFormValues,
-  index: number,
-  value: string,
-) => {
-  const values = form.salePriceOptions
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  values[index] = value;
-  return values.join(', ');
-};
-
-type CatalogProductEditorModalProps = {
-  product: Product;
-  form: ProductFormValues;
-  isSaving: boolean;
-  onChange: <K extends keyof ProductFormValues>(
-    field: K,
-    value: ProductFormValues[K],
-  ) => void;
-  onSubmit: () => void;
-  onClose: () => void;
-};
-
-const CatalogProductEditorModal = ({
-  product,
-  form,
-  isSaving,
-  onChange,
-  onSubmit,
-  onClose,
-}: CatalogProductEditorModalProps) => {
-  useLockBodyScroll();
-
-  return (
-    <div
-      className='modal-backdrop'
-      role='presentation'
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        className='catalog-edit-modal'
-        role='dialog'
-        aria-modal='true'
-      >
-        <header className='catalog-edit-header'>
-          <div className='catalog-edit-title'>
-            <span>Product</span>
-            <h2>{product.name}</h2>
-          </div>
-          <button
-            type='button'
-            className='create-order-close'
-            onClick={onClose}
-            aria-label='Close'
-          >
-            &times;
-          </button>
-        </header>
-        <div className='catalog-edit-body'>
-          <h3>Main information</h3>
-          <label className='field'>
-            <span>Name</span>
-            <input
-              value={form.name}
-              onChange={(event) =>
-                onChange('name', event.target.value)
-              }
-            />
-          </label>
-          <label className='field'>
-            <span>Article</span>
-            <input
-              value={form.article}
-              onChange={(event) =>
-                onChange('article', event.target.value)
-              }
-            />
-          </label>
-          <label className='field'>
-            <span>Serial number</span>
-            <input
-              value={form.serialNumber}
-              onChange={(event) =>
-                onChange('serialNumber', event.target.value)
-              }
-            />
-          </label>
-          <fieldset className='catalog-type-field'>
-            <legend>Item type</legend>
-            <label>
-              <input type='radio' checked readOnly /> Product
-            </label>
-            <label>
-              <input type='radio' disabled /> Service
-            </label>
-          </fieldset>
-          <div className='catalog-price-grid'>
-            <label className='field'>
-              <span>Retail price</span>
-              <NumberStepper
-                min={0}
-                value={getProductPriceOption(form, 0) || form.price}
-                onChange={(value) =>
-                  onChange(
-                    'salePriceOptions',
-                    setProductPriceOption(form, 0, value),
-                  )
-                }
-              />
-            </label>
-            <label className='field'>
-              <span>Purchase price</span>
-              <NumberStepper
-                min={0}
-                value={form.price}
-                onChange={(value) => onChange('price', value)}
-              />
-            </label>
-            <label className='field'>
-              <span>Quantity</span>
-              <NumberStepper
-                min={0}
-                value={form.quantity}
-                onChange={(value) => onChange('quantity', value)}
-              />
-            </label>
-            <label className='field'>
-              <span>Warehouse</span>
-              <input
-                value={form.purchasePlace}
-                onChange={(event) =>
-                  onChange('purchasePlace', event.target.value)
-                }
-              />
-            </label>
-            <label className='field'>
-              <span>Warranty</span>
-              <input
-                value={form.warrantyPeriod}
-                onChange={(event) =>
-                  onChange('warrantyPeriod', event.target.value)
-                }
-              />
-            </label>
-          </div>
-          <label className='field field-wide'>
-            <span>Note</span>
-            <textarea
-              rows={3}
-              value={form.note}
-              onChange={(event) =>
-                onChange('note', event.target.value)
-              }
-            />
-          </label>
-        </div>
-        <footer className='catalog-edit-footer'>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={onSubmit}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </button>
-        </footer>
-      </section>
     </div>
   );
 };

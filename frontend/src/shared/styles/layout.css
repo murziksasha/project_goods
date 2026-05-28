@@ -952,6 +952,136 @@
   justify-content: center;
 }
 
+.product-model-modal {
+  width: min(760px, calc(100vw - 28px));
+}
+
+.product-model-copy-label {
+  width: fit-content;
+  border: 0;
+  border-radius: 6px;
+  background: #e9f3ff;
+  color: #24415f;
+  padding: 6px 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.product-model-title-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.product-model-title-row h2 {
+  min-width: 0;
+  margin: 0;
+}
+
+.product-model-title-button {
+  display: block;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  padding: 0;
+}
+
+.product-model-copy-button {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #c7d4e4;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #24415f;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.product-model-copy-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  border-radius: 6px;
+  background: #1f2937;
+  color: #fff;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.product-model-section-toggle {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #d7e1ec;
+  background: #f6f8fb;
+  color: #536070;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-model-section-body {
+  padding: 18px 0;
+}
+
+.product-model-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.product-model-summary div {
+  border: 1px solid #d7e1ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.product-model-summary span,
+.product-model-summary strong {
+  display: block;
+}
+
+.product-model-summary span {
+  color: #637083;
+  font-size: 12px;
+}
+
+.product-model-summary strong {
+  margin-top: 4px;
+  color: #1f2937;
+  font-size: 20px;
+}
+
+.product-model-stock-table {
+  margin-top: 10px;
+}
+
 .warehouse-settings-color-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 56px;

@@ -36,3 +36,12 @@ export type ProductFormValues = {
   isActive?: boolean;
   expectedUpdatedAt?: string;
 };
+
+export type ProductModelUpdatePayload = {
+  name: string;
+  article?: string;
+  note?: string;
+  retailPrice?: string | number;
+  wholesalePrice?: string | number;
+  purchasePrice?: string | number;
+};

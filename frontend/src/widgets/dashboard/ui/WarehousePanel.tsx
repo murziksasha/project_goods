@@ -4,6 +4,7 @@ import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
   ProductFormValues,
+  ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
 import type {
   CatalogProduct,
@@ -433,6 +434,8 @@ export const WarehousePanel = ({
 }: WarehousePanelProps) => {
   const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
     useState(false);
+  const [selectedProductModelName, setSelectedProductModelName] =
+    useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -2148,6 +2151,7 @@ export const WarehousePanel = ({
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
             onEdit={onProductEdit}
+            onOpenModel={(product) => setSelectedProductModelName(product.name)}
             onDelete={onProductDelete}
             onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
@@ -2182,6 +2186,16 @@ export const WarehousePanel = ({
               setCurrentPage(1);
             }}
           />
+          {selectedProductModelName ? (
+            <ProductModelModal
+              name={selectedProductModelName}
+              products={products}
+              warehouses={warehouses}
+              isSaving={isProductSaving}
+              onClose={() => setSelectedProductModelName(null)}
+              onSave={onUpdateProductModel}
+            />
+          ) : null}
         </>
       ) : activeTab === 'receipts' ? (
         <>
@@ -3834,6 +3848,7 @@ const StockTable = ({
   supplierOrdersByProductId,
   productWarehouseMetaById,
   onEdit,
+  onOpenModel,
   onDelete,
   onOpenSupplierOrder,
 }: {
@@ -3844,6 +3859,7 @@ const StockTable = ({
   supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
   onEdit: (product: Product) => void;
+  onOpenModel: (product: Product) => void;
   onDelete: (product: Product) => void;
   onOpenSupplierOrder: (
     supplierOrderId: string,
@@ -3951,7 +3967,7 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.name}
                           </button>
@@ -3959,7 +3975,7 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.serialNumber}
                           </button>
@@ -3967,7 +3983,7 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.article}
                           </button>

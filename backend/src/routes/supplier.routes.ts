@@ -1,6 +1,12 @@
 ﻿import { Router } from 'express';
-import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '../domain/supplier/service';
-import type { SupplierPayload } from '../domain/shared/types';
+import {
+  createSupplier,
+  deleteSupplier,
+  listSuppliers,
+  mergeSuppliers,
+  updateSupplier,
+} from '../domain/supplier/service';
+import type { MergeSuppliersPayload, SupplierPayload } from '../domain/shared/types';
 
 export const supplierRouter = Router();
 
@@ -15,6 +21,17 @@ supplierRouter.get('/suppliers', async (req, res, next) => {
 supplierRouter.post('/suppliers', async (req, res, next) => {
   try {
     res.status(201).json(await createSupplier(req.body as SupplierPayload));
+  } catch (error) {
+    next(error);
+  }
+});
+
+supplierRouter.post('/suppliers/merge', async (req, res, next) => {
+  try {
+    const payload = req.body as MergeSuppliersPayload;
+    res.json(
+      await mergeSuppliers(payload.targetSupplierId, payload.sourceSupplierId),
+    );
   } catch (error) {
     next(error);
   }

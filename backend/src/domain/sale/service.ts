@@ -191,6 +191,55 @@ const assertSerialNumbersNotBoundToOtherSales = async (
   }
 };
 
+const assertSerializedLineItemsAreAtomic = async (
+  lineItems: SaleLineItem[],
+) => {
+  for (const item of lineItems) {
+    if (item.kind !== 'product' || !item.productId) continue;
+
+    const serialNumbers = Array.from(
+      new Set(
+        (item.serialNumbers ?? [])
+          .map((serial) => String(serial ?? '').trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    );
+
+    if (serialNumbers.length > 0) {
+      if (serialNumbers.length !== 1 || item.quantity !== 1) {
+        throw new Error(
+          'Serialized product line items must contain exactly one serial number and quantity 1.',
+        );
+      }
+
+      isValidObjectIdOrThrow(item.productId.toString(), 'lineItems.productId');
+      const product = await Product.findById(item.productId).lean<ProductDocument | null>();
+      if (!product) {
+        throw new Error('Product not found.');
+      }
+
+      const productSerial = String(product.serialNumber ?? '').trim().toUpperCase();
+      if (!productSerial || productSerial !== serialNumbers[0]) {
+        throw new Error(
+          'Serialized product line item must reference the matching stock product.',
+        );
+      }
+      continue;
+    }
+
+    if (item.quantity > 1) {
+      isValidObjectIdOrThrow(item.productId.toString(), 'lineItems.productId');
+      const product = await Product.findById(item.productId).lean<ProductDocument | null>();
+      const productSerial = String(product?.serialNumber ?? '').trim();
+      if (productSerial) {
+        throw new Error(
+          'Serialized stock products cannot be sold with quantity greater than 1.',
+        );
+      }
+    }
+  }
+};
+
 const getStockDeltas = (
   currentLines: StockLine[],
   nextLines: StockLine[],
@@ -843,6 +892,7 @@ export const updateSaleWorkspace = async (
     saleId,
     normalizedLineItems,
   );
+  await assertSerializedLineItemsAreAtomic(normalizedLineItems);
 
   const currentStockLines = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
