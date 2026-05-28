@@ -8,6 +8,8 @@ type Metrics = {
 };
 
 const isVisibleOverflow = (element: HTMLDivElement) => {
+  if (element.dataset.globalScrollbar === 'off') return false;
+
   const rect = element.getBoundingClientRect();
   const intersectsViewport = rect.bottom > 0 && rect.top < window.innerHeight;
   const hasLayout = rect.width > 0 && rect.height > 0;

@@ -53,8 +53,9 @@
 - `Discount` supports toggle modes:
   - `%` for percentage discount from total sale amount
   - `₴` for fixed discount amount
-- The same editable `Discount` control is shown in `Accept payment` modal summary.
-- Discount affects `To pay` immediately and is stored in workspace state.
+- In `Accept payment` modal, `Discount` is read-only and shown for reference.
+- Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
+- Discount value is stored in workspace state and reused across card and payment modal.
 
 ## Sale Status Mapping
 
@@ -74,6 +75,12 @@
   - `new`
   - `reserved`
   - `paid`
+
+## Product Rows Removal (2026-05-24)
+
+- In `Sales card -> Products`, removing the last product row is allowed in editable statuses.
+- After last-row removal, `lineItems` may remain empty; UI must not auto-inject a default product row back.
+- When `lineItems` are explicitly empty after removal, order total and `To pay` must be calculated as `0` (no fallback to previous base sale price).
 - For any other sales status (`issued`, `returned`, etc.) card becomes read-only.
 - In read-only mode, block:
   - status change in card header

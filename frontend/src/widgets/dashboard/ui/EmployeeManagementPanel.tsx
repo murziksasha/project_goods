@@ -5,9 +5,43 @@ import type {
   EmployeePermission,
 } from '../../../entities/employee/model/types';
 import {
-  employeePermissionOptions,
   employeeRoleOptions,
 } from '../../../entities/employee/model/types';
+
+const permissionGroups: Array<{
+  title: string;
+  permissions: EmployeePermission[];
+}> = [
+  {
+    title: 'Orders',
+    permissions: ['orders.view', 'orders.manage', 'repairs.execute', 'sales.manage'],
+  },
+  {
+    title: 'Clients',
+    permissions: ['clients.manage'],
+  },
+  {
+    title: 'Inventory',
+    permissions: ['inventory.manage'],
+  },
+  {
+    title: 'Finance',
+    permissions: [
+      'finance.view',
+      'finance.cashboxes.view',
+      'finance.cashboxes.manage',
+      'finance.transactions.deposit',
+      'finance.transactions.withdraw',
+      'finance.transactions.transfer',
+      'finance.supplierOrders.pay',
+      'finance.supplierOrders.issueWithoutPayment',
+    ],
+  },
+  {
+    title: 'Employees',
+    permissions: ['employees.manage'],
+  },
+];
 
 type EmployeeManagementPanelProps = {
   employees: Employee[];
@@ -16,6 +50,7 @@ type EmployeeManagementPanelProps = {
   isSaving: boolean;
   isEditing: boolean;
   canManageEmployees: boolean;
+  canManageOwnerAccounts: boolean;
   currentEmployeeId: string;
   onChange: <K extends keyof EmployeeFormValues>(
     field: K,
@@ -34,6 +69,7 @@ export const EmployeeManagementPanel = ({
   isSaving,
   isEditing,
   canManageEmployees,
+  canManageOwnerAccounts,
   currentEmployeeId,
   onChange,
   onSubmit,
@@ -45,6 +81,9 @@ export const EmployeeManagementPanel = ({
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   const togglePermission = (permission: EmployeePermission) => {
+    if (permission === 'employees.manage' && !canManageOwnerAccounts) {
+      return;
+    }
     if (form.permissions.includes(permission)) {
       onChange(
         'permissions',
@@ -65,6 +104,9 @@ export const EmployeeManagementPanel = ({
   };
 
   const handleEdit = (employee: Employee) => {
+    if (employee.role === 'owner' && !canManageOwnerAccounts) {
+      return;
+    }
     onEdit(employee);
     window.requestAnimationFrame(() => {
       formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -88,6 +130,7 @@ export const EmployeeManagementPanel = ({
         <div className="stack-list">
           {employees.map((employee) => {
             const isCurrentEmployee = employee.id === currentEmployeeId;
+            const canWriteThisEmployee = employee.role !== 'owner' || canManageOwnerAccounts;
 
             return (
               <article key={employee.id} className="list-card">
@@ -103,7 +146,7 @@ export const EmployeeManagementPanel = ({
                       className="ghost-button"
                       type="button"
                       onClick={() => handleEdit(employee)}
-                      disabled={!canManageEmployees}
+                      disabled={!canManageEmployees || !canWriteThisEmployee}
                     >
                       Edit
                     </button>
@@ -111,7 +154,7 @@ export const EmployeeManagementPanel = ({
                       className="danger-button"
                       type="button"
                       onClick={() => setEmployeeToDelete(employee)}
-                      disabled={!canManageEmployees || isCurrentEmployee}
+                      disabled={!canManageEmployees || isCurrentEmployee || !canWriteThisEmployee}
                       title={isCurrentEmployee ? 'You cannot delete your own account.' : 'Delete employee'}
                     >
                       Delete
@@ -189,7 +232,9 @@ export const EmployeeManagementPanel = ({
             value={form.role}
             onChange={(event) => onChange('role', event.target.value as EmployeeFormValues['role'])}
           >
-            {employeeRoleOptions.map((role) => (
+            {employeeRoleOptions
+              .filter((role) => canManageOwnerAccounts || role !== 'owner')
+              .map((role) => (
               <option key={role} value={role}>
                 {role}
               </option>
@@ -217,15 +262,21 @@ export const EmployeeManagementPanel = ({
       </div>
 
       <div className="employee-permissions">
-        {employeePermissionOptions.map((permission) => (
-          <label key={permission} className="create-inline-checkbox">
-            <input
-              type="checkbox"
-              checked={form.permissions.includes(permission)}
-              onChange={() => togglePermission(permission)}
-            />
-            <span>{permission}</span>
-          </label>
+        {permissionGroups.map((group) => (
+          <section key={group.title} className="employee-permission-group">
+            <h3>{group.title}</h3>
+            {group.permissions.map((permission) => (
+              <label key={permission} className="create-inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.permissions.includes(permission)}
+                  disabled={permission === 'employees.manage' && !canManageOwnerAccounts}
+                  onChange={() => togglePermission(permission)}
+                />
+                <span>{permission}</span>
+              </label>
+            ))}
+          </section>
         ))}
       </div>
 

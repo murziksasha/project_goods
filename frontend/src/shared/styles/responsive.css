@@ -113,6 +113,15 @@
     width: 100%;
   }
 
+  .supplier-orders-toolbar-left {
+    flex-wrap: wrap;
+  }
+
+  .supplier-orders-quick-filters {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
   .finance-transactions-toolbar-left {
     flex-wrap: wrap;
   }
@@ -155,6 +164,20 @@
   .orders-table td {
     padding: 9px 8px;
     font-size: 0.88rem;
+  }
+
+  .orders-table .finance-orders-col-number {
+    width: 78px;
+    min-width: 78px;
+  }
+
+  .orders-table .finance-orders-col-payment {
+    width: 350px;
+    min-width: 350px;
+  }
+
+  .finance-orders-payment-actions .secondary-button {
+    min-width: 120px;
   }
 
   .order-status {

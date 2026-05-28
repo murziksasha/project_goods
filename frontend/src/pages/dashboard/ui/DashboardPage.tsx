@@ -8,6 +8,7 @@ import {
   authTokenStorageKey,
 } from '../../../entities/auth/api/authApi';
 import type { Employee } from '../../../entities/employee/model/types';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import { setApiAuthToken } from '../../../shared/api/http';
 import {
   isNetworkRequestError,
@@ -247,7 +248,8 @@ export const DashboardPage = () => {
     (currentEmployee.role === 'owner' ||
       currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
-  const canManageEmployees = currentEmployee?.role === 'owner';
+  const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
+  const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -385,6 +387,16 @@ export const DashboardPage = () => {
 
     setDashboardUrl('home', activeOrdersTab, null);
   }, [currentEmployee, isAuthLoading]);
+
+  useEffect(() => {
+    if (activePage === 'employees' && !canManageEmployees) {
+      setActivePage('home');
+      return;
+    }
+    if (activePage === 'accounting' && !canViewAccounting) {
+      setActivePage('home');
+    }
+  }, [activePage, canManageEmployees, canViewAccounting]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
@@ -639,6 +651,7 @@ export const DashboardPage = () => {
         <nav className="sidebar-nav" aria-label="Main menu">
           {sidebarItems
             .filter((item) => item.key !== 'employees' || canManageEmployees)
+            .filter((item) => item.key !== 'accounting' || canViewAccounting)
             .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
@@ -783,6 +796,7 @@ export const DashboardPage = () => {
               isSaving={state.isEmployeeSaving}
               isEditing={Boolean(state.editingEmployeeId)}
               canManageEmployees={canManageEmployees}
+              canManageOwnerAccounts={currentEmployee.role === 'owner'}
               currentEmployeeId={currentEmployee.id}
               onChange={actions.onEmployeeChange}
               onSubmit={actions.saveEmployee}
@@ -820,6 +834,7 @@ export const DashboardPage = () => {
             />
           ) : activePage === 'accounting' ? (
             <AccountingPanel
+              currentEmployee={currentEmployee}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
               sales={state.sales}
@@ -883,6 +898,7 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
+              onProductTransfer={actions.transferProduct}
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}

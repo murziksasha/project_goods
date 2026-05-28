@@ -69,6 +69,7 @@ type SaleProductSuggestion = {
   note: string;
   catalogProductId: string;
 };
+type ClientRequestTab = 'orders' | 'sales';
 
 const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
@@ -101,6 +102,8 @@ const formatPhone = (input: string) => {
 const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
 const toNameKey = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
+const toDeviceLookupKey = (value: string) =>
+  value.toLowerCase().replace(/\s+/g, ' ').trim();
 const normalizeProductLookupKey = (value: string) =>
   toNameKey(value).replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ');
 const parseDecimalInput = (value: string) => {
@@ -124,11 +127,34 @@ const extractDeviceKit = (note: string) =>
     .slice(0, 2)
     .join(', ');
 
+const filterActiveDevicesByQuery = (
+  devices: ClientDevice[],
+  rawQuery: string,
+) => {
+  const normalizedQuery = toDeviceLookupKey(rawQuery);
+  const activeDevices = devices.filter((device) => device.isActive);
+  if (!normalizedQuery) return activeDevices;
+
+  return activeDevices.filter((device) => {
+    const lookupFields = [
+      device.name,
+      device.serialNumber,
+      device.clientName,
+      device.clientPhone,
+      device.note,
+    ];
+    return lookupFields.some((field) =>
+      toDeviceLookupKey(field || '').includes(normalizedQuery),
+    );
+  });
+};
+
 const getDeviceHistory = (history: ClientHistory | null) => {
   if (!history) return [];
 
   const seen = new Set<string>();
   return history.sales.filter((sale) => {
+    if (sale.kind !== 'repair') return false;
     const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
     const deviceName = (deviceItem?.name?.trim() || sale.product.name || '').toLowerCase();
     const serial = (sale.product.serialNumber || '').trim().toLowerCase();
@@ -191,6 +217,9 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
+    initialTab === 'sale' ? 'sales' : 'orders',
+  );
 
   const managers = employees.filter(
     (employee) =>
@@ -256,6 +285,24 @@ export const CreateOrderCard = ({
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
   const visibleClientHistory = selectedClientId ? clientHistory : null;
+  const repairClientRequests = useMemo(
+    () => visibleClientHistory?.sales.filter((sale) => sale.kind === 'repair') ?? [],
+    [visibleClientHistory],
+  );
+  const saleClientRequests = useMemo(
+    () => visibleClientHistory?.sales.filter((sale) => sale.kind === 'sale') ?? [],
+    [visibleClientHistory],
+  );
+  const activeClientRequests =
+    activeClientRequestTab === 'orders' ? repairClientRequests : saleClientRequests;
+  const hasExactDeviceMatch = useMemo(() => {
+    if (deviceName.trim().length < 2) return false;
+    const normalizedInput = toNameKey(deviceName);
+    return deviceSuggestions.some(
+      (device) =>
+        device.isActive && toNameKey(device.name) === normalizedInput,
+    );
+  }, [deviceName, deviceSuggestions]);
   const visibleDeviceSuggestions = useMemo(() => {
     if (deviceName.trim().length < 2) return [];
 
@@ -272,7 +319,9 @@ export const CreateOrderCard = ({
     activeTab === 'repair' &&
     Boolean(resolvedClientForDeviceCreate) &&
     deviceName.trim().length >= 2 &&
+    !selectedDeviceSuggestionId &&
     !isDeviceLookupLoading &&
+    !hasExactDeviceMatch &&
     visibleDeviceSuggestions.length === 0;
   const focusedSaleItem =
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
@@ -332,6 +381,10 @@ export const CreateOrderCard = ({
   }, [selectedClientId]);
 
   useEffect(() => {
+    setActiveClientRequestTab(activeTab === 'sale' ? 'sales' : 'orders');
+  }, [activeTab]);
+
+  useEffect(() => {
     if (deviceLookupQuery.length < 2 || Boolean(selectedDeviceSuggestionId)) {
       setDeviceSuggestions([]);
       setIsDeviceLookupLoading(false);
@@ -344,7 +397,21 @@ export const CreateOrderCard = ({
       try {
         const devices = await getClientDevices(deviceLookupQuery);
         if (isActive) {
-          setDeviceSuggestions(devices.filter((device) => device.isActive).slice(0, 8));
+          let suggestions = filterActiveDevicesByQuery(
+            devices,
+            deviceLookupQuery,
+          );
+
+          if (suggestions.length === 0) {
+            const allDevices = await getClientDevices('');
+            if (!isActive) return;
+            suggestions = filterActiveDevicesByQuery(
+              allDevices,
+              deviceLookupQuery,
+            );
+          }
+
+          setDeviceSuggestions(suggestions.slice(0, 8));
         }
       } catch {
         if (isActive) setDeviceSuggestions([]);
@@ -813,6 +880,13 @@ export const CreateOrderCard = ({
                     type="button"
                     className="secondary-button"
                     disabled={!canCreateClientDevice || isClientEnsuring}
+                    title={
+                      selectedDeviceSuggestionId
+                        ? 'Selected existing device'
+                        : hasExactDeviceMatch
+                          ? 'Device already exists'
+                          : undefined
+                    }
                     onClick={async () => {
                       const resolvedClient = resolvedClientForDeviceCreate ?? (await ensureClientForDevice());
                       if (!resolvedClient) return;
@@ -827,6 +901,9 @@ export const CreateOrderCard = ({
                     Create new
                   </button>
                 </div>
+                {hasExactDeviceMatch ? (
+                  <p>Found existing device with this name.</p>
+                ) : null}
                 {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
                   <div className="create-suggestions">
                     {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
@@ -1034,9 +1111,33 @@ export const CreateOrderCard = ({
 
             <section className="create-side-box">
               <h4>Client requests</h4>
-              {visibleClientHistory?.sales.length ? (
+              <div className="order-related-tabs">
+                <button
+                  type="button"
+                  className={
+                    activeClientRequestTab === 'orders'
+                      ? 'order-related-tab order-related-tab-active'
+                      : 'order-related-tab'
+                  }
+                  onClick={() => setActiveClientRequestTab('orders')}
+                >
+                  Orders
+                </button>
+                <button
+                  type="button"
+                  className={
+                    activeClientRequestTab === 'sales'
+                      ? 'order-related-tab order-related-tab-active'
+                      : 'order-related-tab'
+                  }
+                  onClick={() => setActiveClientRequestTab('sales')}
+                >
+                  Sales
+                </button>
+              </div>
+              {activeClientRequests.length ? (
                 <div className="create-side-list">
-                  {visibleClientHistory.sales.slice(0, 5).map((sale) => (
+                  {activeClientRequests.slice(0, 5).map((sale) => (
                     (() => {
                       const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
                       const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
@@ -1057,7 +1158,11 @@ export const CreateOrderCard = ({
                   ))}
                 </div>
               ) : (
-                <p>Select client or device to view previous requests.</p>
+                <p>
+                  {activeClientRequestTab === 'orders'
+                    ? 'No repair orders for this client yet.'
+                    : 'No sales orders for this client yet.'}
+                </p>
               )}
             </section>
 

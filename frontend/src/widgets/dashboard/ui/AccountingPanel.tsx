@@ -26,8 +26,11 @@ import { SupplierOrderModal } from './SupplierOrderModal';
 import { formatDateTime } from '../../../shared/lib/format';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import type { Employee } from '../../../entities/employee/model/types';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 
 type AccountingPanelProps = {
+  currentEmployee: Employee | null;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   sales: Sale[];
@@ -62,6 +65,11 @@ const formatDateDdMmYyyy = (value: string) => {
   }
   const [year, month, day] = normalized.split('-');
   return `${day}.${month}.${year}`;
+};
+
+const truncateLabel = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
 };
 
 const formatTransactionDayLabel = (value: string) => {
@@ -123,6 +131,7 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
 };
 
 export const AccountingPanel = ({
+  currentEmployee,
   onError,
   onSuccess,
   sales,
@@ -228,6 +237,24 @@ export const AccountingPanel = ({
       return {};
     }
   });
+  const canManageCashboxes = hasEmployeePermission(currentEmployee, 'finance.cashboxes.manage');
+  const canCreateDeposit = hasEmployeePermission(currentEmployee, 'finance.transactions.deposit');
+  const canCreateWithdraw = hasEmployeePermission(currentEmployee, 'finance.transactions.withdraw');
+  const canCreateTransfer = hasEmployeePermission(currentEmployee, 'finance.transactions.transfer');
+  const canPaySupplierOrders = hasEmployeePermission(currentEmployee, 'finance.supplierOrders.pay');
+  const canIssueSupplierOrdersWithoutPayment = hasEmployeePermission(
+    currentEmployee,
+    'finance.supplierOrders.issueWithoutPayment',
+  );
+  const permittedTransactionTypes = useMemo(
+    () =>
+      ([
+        canCreateDeposit ? 'deposit' : null,
+        canCreateWithdraw ? 'withdraw' : null,
+        canCreateTransfer ? 'transfer' : null,
+      ].filter(Boolean) as FinanceTransactionType[]),
+    [canCreateDeposit, canCreateTransfer, canCreateWithdraw],
+  );
 
   const allCurrencyCodes = useMemo(
     () =>
@@ -477,6 +504,10 @@ export const AccountingPanel = ({
   );
 
   const startTransaction = (type: FinanceTransactionType, cashbox: Cashbox) => {
+    if (!permittedTransactionTypes.includes(type)) {
+      onError('Current employee does not have permission for this finance operation.');
+      return;
+    }
     const nextFromCashboxId = type === 'withdraw' || type === 'transfer' ? cashbox.id : '';
     const fallbackToCashboxId = type === 'deposit' ? cashbox.id : secondCashboxId;
     const nextToCashboxId = resolvePreferredTargetCashboxId(type, nextFromCashboxId, fallbackToCashboxId);
@@ -496,6 +527,7 @@ export const AccountingPanel = ({
   };
 
   const handleTransactionTypeChange = (nextType: FinanceTransactionType) => {
+    if (!permittedTransactionTypes.includes(nextType)) return;
     setTransactionForm((current) => {
       const nextFromCashboxId =
         nextType === 'deposit'
@@ -532,6 +564,10 @@ export const AccountingPanel = ({
 
   const saveCashbox = async () => {
     if (!editingCashboxId) return;
+    if (!canManageCashboxes) {
+      onError('Current employee does not have permission to manage cashboxes.');
+      return;
+    }
     setIsSaving(true);
     try {
       await updateCashbox(editingCashboxId, { name: editingCashboxName.trim() });
@@ -547,6 +583,10 @@ export const AccountingPanel = ({
   };
 
   const toggleCashboxArchived = async (cashbox: Cashbox) => {
+    if (!canManageCashboxes) {
+      onError('Current employee does not have permission to manage cashboxes.');
+      return;
+    }
     setIsSaving(true);
     try {
       await updateCashbox(cashbox.id, { isArchived: !cashbox.isArchived });
@@ -689,6 +729,10 @@ export const AccountingPanel = ({
 
   const handleCreateCashbox = async () => {
     if (!newCashboxName.trim()) return;
+    if (!canManageCashboxes) {
+      onError('Current employee does not have permission to manage cashboxes.');
+      return;
+    }
     setIsSaving(true);
     try {
       await createCashbox({ name: newCashboxName });
@@ -703,6 +747,10 @@ export const AccountingPanel = ({
   };
 
   const handleCreateTransaction = async () => {
+    if (!permittedTransactionTypes.includes(transactionForm.type)) {
+      onError('Current employee does not have permission for this finance operation.');
+      return;
+    }
     const normalizedAmount = transactionForm.amount.replace(',', '.').trim();
     if (!allowedTransactionCurrencies.includes(transactionForm.currency)) {
       onError('Selected currency is not available for this operation.');
@@ -733,7 +781,11 @@ export const AccountingPanel = ({
         '',
         firstCashboxId,
       );
-      setTransactionForm({ ...initialTransactionForm, type: nextInitialType, toCashboxId: nextToCashboxId });
+      setTransactionForm({
+        ...initialTransactionForm,
+        type: permittedTransactionTypes[0] ?? nextInitialType,
+        toCashboxId: nextToCashboxId,
+      });
       onSuccess('Finance transaction saved.');
       await refreshFinance();
     } catch (error) {
@@ -750,12 +802,14 @@ export const AccountingPanel = ({
           <strong>{formatMoney(totals.UAH, 'UAH')}</strong>
           <span>{formatMoney(totals.USD, 'USD')}</span>
         </div>
-        <div className='finance-add-cashbox'>
-          <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='New cashbox' />
-          <button type='button' className='orders-create-button' onClick={handleCreateCashbox} disabled={isSaving}>
-            Add cashbox
-          </button>
-        </div>
+        {canManageCashboxes ? (
+          <div className='finance-add-cashbox'>
+            <input value={newCashboxName} onChange={(event) => setNewCashboxName(event.target.value)} placeholder='New cashbox' />
+            <button type='button' className='orders-create-button' onClick={handleCreateCashbox} disabled={isSaving}>
+              Add cashbox
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className='finance-cashbox-grid'>
@@ -832,15 +886,16 @@ export const AccountingPanel = ({
               )}
             </div>
             <div className='finance-cashbox-actions'>
-              <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Withdraw</button>
-              <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Deposit</button>
-              <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Transfer</button>
+              {canCreateWithdraw ? <button type='button' onClick={() => startTransaction('withdraw', cashbox)}>Withdraw</button> : null}
+              {canCreateDeposit ? <button type='button' onClick={() => startTransaction('deposit', cashbox)}>Deposit</button> : null}
+              {canCreateTransfer ? <button type='button' onClick={() => startTransaction('transfer', cashbox)}>Transfer</button> : null}
               <button type='button' onClick={() => openCashboxTransactions(cashbox)}>Transactions</button>
             </div>
           </article>
         ))}
       </div>
 
+      {permittedTransactionTypes.length > 0 ? (
       <section className='finance-operation-panel'>
         <div className='panel-header'>
           <div>
@@ -852,9 +907,9 @@ export const AccountingPanel = ({
           <label className='field'>
             <span>Type</span>
             <select value={transactionForm.type} onChange={(event) => handleTransactionTypeChange(event.target.value as FinanceTransactionType)}>
-              <option value='deposit'>Deposit</option>
-              <option value='withdraw'>Withdraw</option>
-              <option value='transfer'>Transfer</option>
+              {canCreateDeposit ? <option value='deposit'>Deposit</option> : null}
+              {canCreateWithdraw ? <option value='withdraw'>Withdraw</option> : null}
+              {canCreateTransfer ? <option value='transfer'>Transfer</option> : null}
             </select>
           </label>
           <label className='field'>
@@ -909,6 +964,7 @@ export const AccountingPanel = ({
           {isSaving ? 'Saving...' : 'Save operation'}
         </button>
       </section>
+      ) : null}
     </>
   );
 
@@ -1512,9 +1568,15 @@ export const AccountingPanel = ({
 
   const renderSupplierOrdersQueue = () => (
     <div className='finance-table-wrap'>
-      <table className='orders-table'>
+      <table className='orders-table finance-orders-table'>
         <thead>
-          <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Amount</th><th>Payment</th></tr>
+          <tr>
+            <th className='finance-orders-col-number'>Number</th>
+            <th className='finance-orders-col-date'>Date</th>
+            <th className='finance-orders-col-supplier'>Supplier</th>
+            <th className='finance-orders-col-amount'>Amount</th>
+            <th className='finance-orders-col-payment'>Payment</th>
+          </tr>
         </thead>
         <tbody>
           {supplierOrdersQueue.length === 0 ? (
@@ -1524,46 +1586,58 @@ export const AccountingPanel = ({
               const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
               return (
                 <tr key={order.id}>
-                  <td>{order.number || order.orderBaseId}</td>
-                  <td>{formatDateTime(order.deliveryDate || order.createdAt)}</td>
-                  <td>{order.supplierName}</td>
-                  <td>{formatMoney(order.total, 'UAH')}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
-                        {cashboxes.map((cashbox) => (
-                          <option key={cashbox.id} value={cashbox.id}>{cashbox.name}</option>
-                        ))}
-                      </select>
-                      <button
-                        type='button'
-                        className='primary-button'
-                        disabled={isSaving || !cashboxId}
-                        onClick={async () => {
-                          if (!cashboxId) return;
-                          setIsSaving(true);
-                          try {
-                            await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
-                            onSuccess('Order has been paid.');
-                            window.dispatchEvent(new Event('project-goods:finance-updated'));
-                            await refreshFinance();
-                          } catch (error) {
-                            onError(error instanceof Error ? error.message : 'Failed to pay order.');
-                          } finally {
-                            setIsSaving(false);
-                          }
-                        }}
-                      >
-                        Pay
-                      </button>
-                      <button
-                        type='button'
-                        className='secondary-button'
-                        disabled={isSaving}
-                        onClick={() => setWithoutPaymentOrder(order)}
-                      >
-                        Issue without payment
-                      </button>
+                  <td className='finance-orders-number-cell' title={order.number || order.orderBaseId}>
+                    <span className='orders-table-cell-truncate'>{order.number || order.orderBaseId}</span>
+                  </td>
+                  <td className='finance-orders-date-cell'>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</td>
+                  <td className='finance-orders-supplier-cell'>
+                    <span className='orders-table-cell-truncate'>{order.supplierName}</span>
+                  </td>
+                  <td className='finance-orders-amount-cell'>{formatMoney(order.total, 'UAH')}</td>
+                  <td className='finance-orders-payment-cell'>
+                    <div className='finance-orders-payment-actions'>
+                      {canPaySupplierOrders ? (
+                        <>
+                          <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
+                            {cashboxes.map((cashbox) => (
+                              <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
+                                {truncateLabel(cashbox.name, 14)}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type='button'
+                            className='primary-button'
+                            disabled={isSaving || !cashboxId}
+                            onClick={async () => {
+                              if (!cashboxId) return;
+                              setIsSaving(true);
+                              try {
+                                await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
+                                onSuccess('Order has been paid.');
+                                window.dispatchEvent(new Event('project-goods:finance-updated'));
+                                await refreshFinance();
+                              } catch (error) {
+                                onError(error instanceof Error ? error.message : 'Failed to pay order.');
+                              } finally {
+                                setIsSaving(false);
+                              }
+                            }}
+                          >
+                            Pay
+                          </button>
+                        </>
+                      ) : null}
+                      {canIssueSupplierOrdersWithoutPayment ? (
+                        <button
+                          type='button'
+                          className='secondary-button'
+                          disabled={isSaving}
+                          onClick={() => setWithoutPaymentOrder(order)}
+                        >
+                          Issue without payment
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -1915,7 +1989,7 @@ export const AccountingPanel = ({
             </button>
           ))}
         </div>
-        <div className='toolbar-settings'>
+        {canManageCashboxes ? <div className='toolbar-settings'>
           <button
             type='button'
             className='toolbar-square-button'
@@ -1942,7 +2016,7 @@ export const AccountingPanel = ({
               <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
             </svg>
           </button>
-        </div>
+        </div> : null}
       </div>
 
       {isLoading ? (

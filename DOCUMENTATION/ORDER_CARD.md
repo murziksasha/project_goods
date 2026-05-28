@@ -45,13 +45,15 @@
   - `Discount`
   - `Paid`
   - `To pay`
-- `Discount` is editable both:
-  - in the right `Payment` panel of the card
-  - in `Accept payment` modal summary
-- `Discount` supports two modes switched by icon/button:
+- `Discount` is editable only in the right `Payment` panel of the card.
+- In `Accept payment` modal summary, `Discount` is read-only and informational.
+- `Discount` supports two modes switched in the card control:
   - `%` (percentage from total)
   - `₴` (fixed amount in currency)
 - Discount reduces final order amount before `To pay` calculation.
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
 - Discount is persisted in sale/order workspace and reused across card and payment modal views.
+- `Refund to client` availability for repair orders:
+  - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
+  - For all other repair statuses, refund modal can be opened.

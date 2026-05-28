@@ -47,8 +47,32 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.1) Issued Sale Visibility Rule
 - Product linked to `Sales order` with status `issued` must not be shown in `Stock balances`.
-- Matching is resolved by product linkage data (`productId`) and fallback identifiers (`serial`, `article`, `name`).
+- Matching is resolved only by strict linkage identifiers:
+1. `productId` (from `sale.product.id` or `sale.lineItems[].productId`)
+2. `serial` (from `sale.product.serialNumber` or `sale.lineItems[].serialNumbers[]`)
 - After customer return flow is completed (refund + stock receive), sale status becomes `returned` and product may appear in stock balances again by regular stock rules.
+
+### 4.2) Free vs Linked Stock Display
+- `Stock balances` must clearly separate free stock units from linked units by data rules (not by product name/article similarity).
+- `Free` unit:
+1. product has `quantity > 0`
+2. product is not matched to any `issued` sale by strict linkage (`productId` or `serial`)
+- `Linked` unit:
+1. product is matched to an `issued` sale by strict linkage (`productId` or `serial`)
+2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
+- Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
+
+### 4.3) Serial Binding In Sale Card: Strict Product Match Only
+- In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
+- Source of truth for candidate list:
+1. `lineItem.productId` strict equality with `product.id`
+2. if `lineItem.productId` is missing (legacy data), allow only exact normalized product name equality (no partial match)
+- Forbidden matching logic:
+1. `includes` / substring checks between product names
+2. fuzzy matching that can mix similar models (example: `Аеромиша G10S` and `Аеромиша G10S Pro`)
+- Result requirement:
+1. operator must never see serials from another product model in the same bind modal
+2. serial picker must remain deterministic and model-safe even when names are similar
 
 ## Receipts Requirements
 
@@ -63,9 +87,10 @@ This document defines current warehouse requirements for stock balances, receipt
 - If catalog/supplier entity is not found, show explicit error toast.
 
 ### 6.1) Supplier Order Item Numbering
-- Receipt row number must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
+- If supplier order has exactly one item, receipt row number is shown as base number without postfix: `<baseSupplierOrderNumber>`.
+- If supplier order has 2+ items, receipt row numbers must use item postfix format: `<baseSupplierOrderNumber>-<N>`.
 - `N` is 1-based item index in supplier order (`itemIndex + 1`), examples: `SO-1779142808517-1`, `SO-1779142808517-2`.
-- Click by number with postfix must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
+- Click by row number (with or without postfix, depending on item count) must open and process only that конкретное наименование товара (selected item), not all items from the supplier order.
 
 ### 6.2) Item-Level Suborder Status Model
 - Supplier order with multiple items is treated in warehouse receipts as independent item-level suborders.
@@ -76,6 +101,12 @@ This document defines current warehouse requirements for stock balances, receipt
 - Receipt row status projection priority:
 1. if `order.status = cancelled` OR `order.paymentStatus = cancelled` -> row status `cancelled`
 2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
+
+### 6.3) Supplier Order Modal Item List Editing
+- In `SupplierOrderModal` (`src/widgets/dashboard/ui/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
+- Each already added item row must have remove action button `-` at row end.
+- Remove action uses the same square toolbar visual style as add button `+`.
+- Remove action deletes only selected row from current order item list.
 
 ### 7) Status/Cancel Projection
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.
@@ -107,12 +138,70 @@ This document defines current warehouse requirements for stock balances, receipt
 - Article is not required to be globally unique.
 - `SO-*` pattern is not used for article generation anymore (legacy branch removed).
 
+### 11.2) Manual Status Change To `Оприбутковано` In `Warehouse -> Supplier Order`
+- Scope: only manual status change in `Warehouse -> Supplier Order` list (`status` select in row).
+- Status field in row must stay manually editable as `select` for all supplier order statuses.
+- Edit lock exception: when `paymentStatus = cancelled`, status control is disabled.
+- If operator changes status to `stocked` (`Оприбутковано`) from that list:
+1. UI must skip take-on-charge modals.
+2. UI must call take-on-charge flow directly (not plain status update).
+3. Target warehouse/location: default warehouse pair (first active warehouse and its first location).
+4. Serial numbers: auto-generated (equivalent to modal flow where user keeps defaults and clicks `Оприбуткувати`).
+- For all other flows and entry points, existing сценарий must stay unchanged (modals + explicit operator choices).
+
+## Transfers Requirements
+
+### 12) Transfer Purpose
+- `Warehouse -> Transfers` moves existing stock items between configured warehouses and locations.
+- Target warehouse/location options are loaded from `Warehouse -> Settings -> Warehouses`.
+- Locations created later in settings must become available in transfer target selectors without code changes.
+
+### 12.1) Transfer Item Selection
+- The right-side stock list shows filtered stock items for the current `Transfers` tab.
+- Each visible row is clickable as a whole row.
+- Clicking a row selects that product into the transfer `Product` field.
+- The selected row must be visually highlighted.
+- Keyboard selection must work with `Enter` or `Space` on the focused row.
+- The `Product` select may include all currently filtered stock items, not only the current visible page.
+
+### 12.2) Transfer Pagination
+- `Transfers` uses the shared top page arrows from the warehouse toolbar.
+- Page size for the right-side transfer stock list is fixed at `8` rows.
+- Paging in `Transfers` must advance/return by 8 stock rows.
+- This transfer page size does not change the user-selected page size for `Stock balances` or `Receipts`.
+
+### 12.3) Transfer Validation
+- Operator must choose a product, target warehouse, and target location.
+- Transfer action is disabled until all required values are present.
+- Transfer to the same current warehouse/location is blocked with an explicit error.
+- Current location is displayed from product warehouse metadata.
+
+### 12.4) Transfer Persistence
+- Transfer saves to product warehouse metadata:
+1. `product.warehouseId = target warehouse id`
+2. `product.locationId = target location id`
+- If operator enters a transfer note, it is appended to product note as transfer context.
+- After successful transfer, product data must be refreshed from API/query cache.
+- Successful transfer is recorded in the local session transfer history table with:
+1. date
+2. product/serial
+3. source warehouse/location
+4. target warehouse/location
+5. operator
+6. note
+
+### 12.5) Transfer Scroll Behavior
+- The right-side transfer stock list may keep its own horizontal scrollbar if table width exceeds available space.
+- `Transfers` stock list must opt out from the global fixed horizontal scrollbar to avoid a second parasitic scrollbar over the transfer history header.
+- Transfer history must not render a horizontal scrollbar by default.
+
 ## Global UI Requirement
 
-### 12) Horizontal Scrollbar Accessibility
+### 13) Horizontal Scrollbar Accessibility
 - If horizontal overflow appears, scrollbar must remain accessible at the bottom of app window.
 - Implemented via global shared component `GlobalHorizontalScrollbar`.
 - The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`.
+- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content.
 
 ## Notes
 - This document is normative for warehouse UI/UX and data mapping.

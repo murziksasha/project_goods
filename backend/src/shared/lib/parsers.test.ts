@@ -54,9 +54,55 @@ describe('normalizeEmployeePayload', () => {
       username: 'boss',
       password: 'pass',
       role: 'manager',
-      permissions: ['orders.view', 'orders.manage', 'clients.manage'],
+      permissions: [
+        'orders.view',
+        'orders.manage',
+        'clients.manage',
+        'finance.cashboxes.view',
+        'finance.transactions.deposit',
+      ],
       isActive: true,
       note: 'hi',
     });
+  });
+
+  it('accepts finance permissions and applies accountant defaults', () => {
+    const parsed = normalizeEmployeePayload({
+      name: 'Accountant',
+      username: 'acc',
+      password: 'pass',
+      role: 'accountant',
+      permissions: [
+        'finance.view',
+        'finance.transactions.withdraw',
+        'invalid.permission',
+      ],
+    });
+
+    expect(parsed.permissions).toEqual([
+      'finance.view',
+      'finance.transactions.withdraw',
+    ]);
+
+    const defaults = normalizeEmployeePayload({
+      name: 'Default Accountant',
+      username: 'default-acc',
+      password: 'pass',
+      role: 'accountant',
+      permissions: [],
+    });
+
+    expect(defaults.permissions).toEqual(
+      expect.arrayContaining([
+        'finance.view',
+        'finance.cashboxes.manage',
+        'finance.transactions.deposit',
+        'finance.transactions.withdraw',
+        'finance.transactions.transfer',
+        'finance.supplierOrders.pay',
+        'finance.supplierOrders.issueWithoutPayment',
+      ]),
+    );
+    expect(defaults.permissions).not.toContain('employees.manage');
   });
 });

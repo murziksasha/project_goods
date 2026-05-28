@@ -26,3 +26,9 @@ In modal forms with lookup fields (supplier/client/product/service/device):
 ## Notes
 - This rule applies uniformly for clients, products, devices, suppliers, services, and merge selectors.
 - Debounce/min-symbol thresholds for loading suggestions are configured per field and do not change this rule.
+
+## Create Order Device Rule
+For `Create order` -> `Repair order` -> `Device #1`:
+1. `Create new` must be disabled when an existing device is selected from suggestions.
+2. `Create new` must be disabled when input has an exact existing device match (case-insensitive).
+3. This prevents accidental overwrite/update flows for existing catalog devices and avoids duplicate-creation confusion.

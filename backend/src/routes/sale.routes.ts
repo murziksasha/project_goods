@@ -10,6 +10,7 @@ import {
   updateSaleWorkspace,
   updateSale,
 } from '../domain/sale/service';
+import { getBearerToken, requirePermissionByToken } from '../domain/auth/service';
 import type { SalePayload } from '../domain/shared/types';
 
 export const saleRouter = Router();
@@ -48,6 +49,7 @@ saleRouter.patch('/sales/:saleId/workspace', async (req, res, next) => {
 
 saleRouter.patch('/sales/:saleId/return-line-item', async (req, res, next) => {
   try {
+    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
     res.json(await returnSaleLineItem(req.params.saleId, req.body));
   } catch (error) {
     next(error);
@@ -56,6 +58,7 @@ saleRouter.patch('/sales/:saleId/return-line-item', async (req, res, next) => {
 
 saleRouter.patch('/sales/:saleId/return-line-item-serials', async (req, res, next) => {
   try {
+    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
     res.json(await returnSaleLineItemBySerials(req.params.saleId, req.body));
   } catch (error) {
     next(error);
@@ -72,6 +75,7 @@ saleRouter.patch('/sales/:saleId/return-line-item-stock', async (req, res, next)
 
 saleRouter.patch('/sales/:saleId/return', async (req, res, next) => {
   try {
+    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
     res.json(await returnSale(req.params.saleId, req.body));
   } catch (error) {
     next(error);

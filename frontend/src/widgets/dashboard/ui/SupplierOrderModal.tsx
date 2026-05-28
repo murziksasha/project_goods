@@ -3,6 +3,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
+import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { getSupplierSuggestions } from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
@@ -73,8 +74,12 @@ export const SupplierOrderModal = ({
   onError,
   warehouseOptions,
 }: SupplierOrderModalProps) => {
+  const [fallbackWarehouseOptions, setFallbackWarehouseOptions] =
+    useState(EMPTY_WAREHOUSE_OPTIONS);
   const resolvedWarehouseOptions =
-    warehouseOptions ?? EMPTY_WAREHOUSE_OPTIONS;
+    warehouseOptions && warehouseOptions.length > 0
+      ? warehouseOptions
+      : fallbackWarehouseOptions;
   const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
@@ -124,6 +129,46 @@ export const SupplierOrderModal = ({
         editingOrder.paymentStatus === 'cancelled'),
   );
   const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (warehouseOptions && warehouseOptions.length > 0) return;
+
+    let isCancelled = false;
+    void getWarehouseSettings()
+      .then((settings) => {
+        if (isCancelled) return;
+        setFallbackWarehouseOptions(
+          settings.warehouses.map((warehouse) => ({
+            id: warehouse.id,
+            name: warehouse.name,
+            locations: warehouse.locations.map((location) => ({
+              id: location.id,
+              name: location.name,
+            })),
+          })),
+        );
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setFallbackWarehouseOptions(EMPTY_WAREHOUSE_OPTIONS);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, warehouseOptions]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -285,6 +330,38 @@ export const SupplierOrderModal = ({
   );
   const selectedTakeOnChargeLocations =
     selectedTakeOnChargeWarehouse?.locations ?? [];
+  const updateBasketItemQuantity = (
+    itemIndex: number,
+    quantityValue: string,
+  ) => {
+    const normalizedQuantity = Math.max(
+      1,
+      Math.floor(Number(quantityValue) || 1),
+    );
+    setBasketItems((current) =>
+      current.map((item, index) =>
+        index === itemIndex
+          ? { ...item, quantity: normalizedQuantity }
+          : item,
+      ),
+    );
+  };
+  const updateBasketItemPrice = (
+    itemIndex: number,
+    priceValue: string,
+  ) => {
+    const normalizedPrice = Math.max(0, Number(priceValue) || 0);
+    setBasketItems((current) =>
+      current.map((item, index) =>
+        index === itemIndex ? { ...item, price: normalizedPrice } : item,
+      ),
+    );
+  };
+  const removeBasketItem = (itemIndex: number) => {
+    setBasketItems((current) =>
+      current.filter((_, index) => index !== itemIndex),
+    );
+  };
 
   useEffect(() => {
     if (selectedTakeOnChargeLocations.length === 0) {
@@ -529,10 +606,34 @@ export const SupplierOrderModal = ({
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
                     <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
-                    <div className='field supplier-order-product-compact'><input value={String(item.price)} readOnly /></div>
-                    <div className='field supplier-order-product-compact'><input value={String(item.quantity)} readOnly /></div>
+                    <div className='field supplier-order-product-compact'>
+                      <input
+                        value={String(item.price)}
+                        disabled={isReadOnly}
+                        onChange={(event) =>
+                          updateBasketItemPrice(index, event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className='field supplier-order-product-compact'>
+                      <input
+                        value={String(item.quantity)}
+                        disabled={isReadOnly}
+                        onChange={(event) =>
+                          updateBasketItemQuantity(index, event.target.value)
+                        }
+                      />
+                    </div>
                     <div className='field supplier-order-product-compact'><input value={String(item.quantity * item.price)} readOnly /></div>
-                    <div />
+                    <button
+                      type='button'
+                      className='toolbar-square-button supplier-order-product-add'
+                      aria-label='Remove product from order list'
+                      disabled={isReadOnly}
+                      onClick={() => removeBasketItem(index)}
+                    >
+                      -
+                    </button>
                   </div>
                 ))}
               </div>
@@ -734,12 +835,20 @@ export const SupplierOrderModal = ({
               <label className='field field-wide'>
                 <span>Warehouse</span>
                 <select
+                  className={
+                    !takeOnChargeWarehouseId
+                      ? 'supplier-order-invalid-input'
+                      : undefined
+                  }
                   value={takeOnChargeWarehouseId}
                   onChange={(event) =>
                     setTakeOnChargeWarehouseId(event.target.value)
                   }
                 >
-                    {resolvedWarehouseOptions.map((warehouse) => (
+                  {resolvedWarehouseOptions.length === 0 ? (
+                    <option value=''>No warehouses</option>
+                  ) : null}
+                  {resolvedWarehouseOptions.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </option>
@@ -749,12 +858,20 @@ export const SupplierOrderModal = ({
               <label className='field field-wide'>
                 <span>Location</span>
                 <select
+                  className={
+                    !takeOnChargeLocationId
+                      ? 'supplier-order-invalid-input'
+                      : undefined
+                  }
                   value={takeOnChargeLocationId}
                   onChange={(event) =>
                     setTakeOnChargeLocationId(event.target.value)
                   }
                   disabled={selectedTakeOnChargeLocations.length === 0}
                 >
+                  {selectedTakeOnChargeLocations.length === 0 ? (
+                    <option value=''>No locations</option>
+                  ) : null}
                   {selectedTakeOnChargeLocations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}

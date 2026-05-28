@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
@@ -131,6 +131,28 @@ type ReceiptRow = {
   paymentStatus?: 'pending' | 'paid' | 'without_payment' | 'cancelled';
   note: string;
 };
+
+const getReceiptPaymentStatusLabel = (
+  status: NonNullable<ReceiptRow['paymentStatus']>,
+) => {
+  switch (status) {
+    case 'pending':
+      return 'Awaiting payment';
+    case 'paid':
+      return 'Paid';
+    case 'without_payment':
+      return 'Issued without payment';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return status;
+  }
+};
+
+const getReceiptPaymentStatusClass = (
+  status: NonNullable<ReceiptRow['paymentStatus']>,
+) => `receipt-payment-status receipt-payment-status-${status}`;
+
 type SupplierOrderLink = {
   order: SupplierOrder;
   itemIndex: number;
@@ -171,6 +193,24 @@ type ProductWarehouseMeta = {
   locationId: string;
   locationName: string;
 };
+type TransferFormState = {
+  productId: string;
+  toWarehouseId: string;
+  toLocationId: string;
+  note: string;
+};
+type TransferHistoryRow = {
+  id: string;
+  productName: string;
+  serialNumber: string;
+  fromWarehouseName: string;
+  fromLocationName: string;
+  toWarehouseName: string;
+  toLocationName: string;
+  note: string;
+  createdAt: string;
+  createdBy: string;
+};
 
 type WarehousePanelProps = {
   products: Product[];
@@ -189,6 +229,14 @@ type WarehousePanelProps = {
   onProductCancelEdit: () => void;
   onProductEdit: (product: Product) => void;
   onProductDelete: (product: Product) => void;
+  onProductTransfer: (
+    product: Product,
+    target: {
+      warehouseId: string;
+      locationId: string;
+      note: string;
+    },
+  ) => Promise<boolean>;
   suppliers: Supplier[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (
@@ -237,6 +285,7 @@ const initialServiceCenters: ServiceCenter[] = [];
 const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
+const transferPageSize = 8;
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
 const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
 const savedWarehouseFiltersStorageKey =
@@ -378,6 +427,14 @@ const normalizeSaleStatus = (value: string | null | undefined) =>
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
+const isIssuedSaleStatus = (value: string | null | undefined) => {
+  const normalized = normalizeSaleStatus(value);
+  return (
+    normalized === 'issued' ||
+    normalized === 'issuedwithoutrepair' ||
+    normalized === 'issuedwithoutrepairing'
+  );
+};
 export const WarehousePanel = ({
   products,
   sales,
@@ -389,6 +446,7 @@ export const WarehousePanel = ({
   onProductSubmit,
   onProductEdit,
   onProductDelete,
+  onProductTransfer,
   suppliers,
   onCreateSupplier,
   onUpdateSupplier,
@@ -607,6 +665,15 @@ export const WarehousePanel = ({
     note: '',
   });
   const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
+  const [transferForm, setTransferForm] = useState<TransferFormState>({
+    productId: '',
+    toWarehouseId: '',
+    toLocationId: '',
+    note: '',
+  });
+  const [transferHistory, setTransferHistory] = useState<
+    TransferHistoryRow[]
+  >([]);
   const persistWarehouseSettings = async (payload?: {
     serviceCenters?: ServiceCenter[];
     warehouses?: WarehouseItem[];
@@ -679,9 +746,13 @@ export const WarehousePanel = ({
     const rows = buildReceiptRows(orders);
     setReceiptHistory((current) => {
       const manualRows = current.filter((row) => !row.id.startsWith('so-'));
-      return [...rows.map((row) => ({ ...row, id: `so-${row.id}` })), ...manualRows];
+      return [
+        ...rows.map((row) => ({ ...row, id: `so-${row.id}` })),
+        ...manualRows,
+      ];
     });
   };
+
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
     nextName: string,
@@ -923,50 +994,25 @@ export const WarehousePanel = ({
   const filteredProducts = useMemo(() => {
     const soldIssuedProductIds = new Set<string>();
     const productIdsBySerial = new Map<string, string[]>();
-    const productIdsByArticle = new Map<string, string[]>();
-    const productIdsByName = new Map<string, string[]>();
 
     products.forEach((product) => {
       const serial = product.serialNumber.trim().toLowerCase();
-      const article = product.article.trim().toLowerCase();
-      const name = product.name.trim().toLowerCase();
       if (serial) {
         productIdsBySerial.set(serial, [
           ...(productIdsBySerial.get(serial) ?? []),
           product.id,
         ]);
       }
-      if (article) {
-        productIdsByArticle.set(article, [
-          ...(productIdsByArticle.get(article) ?? []),
-          product.id,
-        ]);
-      }
-      if (name) {
-        productIdsByName.set(name, [
-          ...(productIdsByName.get(name) ?? []),
-          product.id,
-        ]);
-      }
     });
 
     sales.forEach((sale) => {
-      if (sale.kind !== 'sale') return;
-      if (normalizeSaleStatus(sale.status) !== 'issued') return;
+      if (!isIssuedSaleStatus(sale.status)) return;
 
       if (sale.product?.id) {
         soldIssuedProductIds.add(sale.product.id);
       }
       const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
-      const saleArticle = sale.product?.article?.trim().toLowerCase();
-      const saleName = sale.product?.name?.trim().toLowerCase();
       (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
-        (productId) => soldIssuedProductIds.add(productId),
-      );
-      (saleArticle ? productIdsByArticle.get(saleArticle) ?? [] : []).forEach(
-        (productId) => soldIssuedProductIds.add(productId),
-      );
-      (saleName ? productIdsByName.get(saleName) ?? [] : []).forEach(
         (productId) => soldIssuedProductIds.add(productId),
       );
 
@@ -983,10 +1029,6 @@ export const WarehousePanel = ({
               soldIssuedProductIds.add(productId),
             ),
           );
-        const itemName = item.name.trim().toLowerCase();
-        (productIdsByName.get(itemName) ?? []).forEach((productId) =>
-          soldIssuedProductIds.add(productId),
-        );
       });
     });
 
@@ -1001,7 +1043,10 @@ export const WarehousePanel = ({
       const locationName = productMeta?.locationName ?? '-';
       const matchesQuery =
         !normalizedQuery ||
-        getSearchText(product, searchMode)
+        (searchMode === 'warehouse'
+          ? warehouseName
+          : getSearchText(product, searchMode)
+        )
           .toLowerCase()
           .includes(normalizedQuery);
       if (!matchesQuery) return false;
@@ -1082,6 +1127,21 @@ export const WarehousePanel = ({
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [currentPage, filteredProducts, pageSize]);
+  const paginatedTransferProducts = useMemo(() => {
+    const start = (currentPage - 1) * transferPageSize;
+    return filteredProducts.slice(start, start + transferPageSize);
+  }, [currentPage, filteredProducts]);
+  const activeTransferProduct = useMemo(
+    () =>
+      filteredProducts.find(
+        (product) => product.id === transferForm.productId,
+      ) ?? null,
+    [filteredProducts, transferForm.productId],
+  );
+  const transferLocationOptions = useMemo(
+    () => locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
+    [locationOptionsByWarehouseId, transferForm.toWarehouseId],
+  );
   const filteredReceipts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return receiptHistory.filter((receipt) => {
@@ -1135,6 +1195,8 @@ export const WarehousePanel = ({
     activeTab === 'receipts'
       ? filteredReceipts.length
       : filteredProducts.length;
+  const activePageSize =
+    activeTab === 'transfers' ? transferPageSize : pageSize;
   const activeColumnsTab: WarehouseColumnsTab | null =
     activeTab === 'stock' || activeTab === 'receipts'
       ? activeTab
@@ -1148,29 +1210,19 @@ export const WarehousePanel = ({
   const visibleColumnKeySet = new Set<string>(
     visibleColumnKeys as string[],
   );
-  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
   }, [currentPage, filteredReceipts, pageSize]);
   const salesByProductId = useMemo(() => {
     const bySerial = new Map<string, string[]>();
-    const byArticle = new Map<string, string[]>();
-    const byName = new Map<string, string[]>();
 
     products.forEach((product) => {
       const serial = product.serialNumber.trim().toLowerCase();
-      const article = product.article.trim().toLowerCase();
-      const name = product.name.trim().toLowerCase();
 
       if (serial) {
         bySerial.set(serial, [...(bySerial.get(serial) ?? []), product.id]);
-      }
-      if (article) {
-        byArticle.set(article, [...(byArticle.get(article) ?? []), product.id]);
-      }
-      if (name) {
-        byName.set(name, [...(byName.get(name) ?? []), product.id]);
       }
     });
 
@@ -1193,25 +1245,11 @@ export const WarehousePanel = ({
               ),
             );
         }
-        if (item.kind === 'product') {
-          const itemName = item.name.trim().toLowerCase();
-          (byName.get(itemName) ?? []).forEach((productId) =>
-            linkedProductIds.add(productId),
-          );
-        }
       });
 
       const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
-      const saleArticle = sale.product?.article?.trim().toLowerCase();
-      const saleName = sale.product?.name?.trim().toLowerCase();
 
       (saleSerial ? (bySerial.get(saleSerial) ?? []) : []).forEach((productId) =>
-        linkedProductIds.add(productId),
-      );
-      (saleArticle ? (byArticle.get(saleArticle) ?? []) : []).forEach(
-        (productId) => linkedProductIds.add(productId),
-      );
-      (saleName ? (byName.get(saleName) ?? []) : []).forEach((productId) =>
         linkedProductIds.add(productId),
       );
 
@@ -1285,7 +1323,9 @@ export const WarehousePanel = ({
       activeTab === 'receipts'
         ? filteredReceipts.length
         : filteredProducts.length;
-    const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+    const activePageSize =
+      activeTab === 'transfers' ? transferPageSize : pageSize;
+    const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
     if (currentPage > pageCount) setCurrentPage(pageCount);
   }, [
     activeTab,
@@ -1670,6 +1710,59 @@ export const WarehousePanel = ({
         [activeColumnsTab]: nextColumns,
       };
     });
+  };
+  const submitTransfer = async () => {
+    if (!activeTransferProduct) return;
+    const targetWarehouse = warehouses.find(
+      (warehouse) => warehouse.id === transferForm.toWarehouseId,
+    );
+    const targetLocation = targetWarehouse?.locations.find(
+      (location) => location.id === transferForm.toLocationId,
+    );
+    const sourceMeta = productWarehouseMetaById[activeTransferProduct.id];
+
+    if (!targetWarehouse || !targetLocation) {
+      onError('Select target warehouse and location.');
+      return;
+    }
+
+    if (
+      sourceMeta?.warehouseId === targetWarehouse.id &&
+      sourceMeta?.locationId === targetLocation.id
+    ) {
+      onError('Product is already in the selected location.');
+      return;
+    }
+
+    const wasTransferred = await onProductTransfer(activeTransferProduct, {
+      warehouseId: targetWarehouse.id,
+      locationId: targetLocation.id,
+      note: transferForm.note.trim(),
+    });
+
+    if (!wasTransferred) return;
+
+    setTransferHistory((current) => [
+      {
+        id: `transfer-${Date.now()}`,
+        productName: activeTransferProduct.name,
+        serialNumber: activeTransferProduct.serialNumber,
+        fromWarehouseName: sourceMeta?.warehouseName ?? '-',
+        fromLocationName: sourceMeta?.locationName ?? '-',
+        toWarehouseName: targetWarehouse.name,
+        toLocationName: targetLocation.name,
+        note: transferForm.note.trim(),
+        createdAt: new Date().toISOString(),
+        createdBy: currentEmployeeName || 'Administrator',
+      },
+      ...current,
+    ]);
+    setTransferForm((current) => ({
+      ...current,
+      productId: '',
+      note: '',
+    }));
+    onSuccess('Product transferred.');
   };
 
   return (
@@ -2313,6 +2406,20 @@ export const WarehousePanel = ({
             }}
           />
         </>
+      ) : activeTab === 'transfers' ? (
+        <TransferWorkspace
+          products={paginatedTransferProducts}
+          selectableProducts={filteredProducts}
+          warehouses={warehouses.filter((warehouse) => warehouse.isActive)}
+          productWarehouseMetaById={productWarehouseMetaById}
+          form={transferForm}
+          selectedProduct={activeTransferProduct}
+          targetLocations={transferLocationOptions}
+          history={transferHistory}
+          isSaving={isProductSaving}
+          onFormChange={setTransferForm}
+          onSubmit={submitTransfer}
+        />
       ) : (
         <p className='empty-state'>
           This warehouse section is ready for the next workflow.
@@ -3048,10 +3155,18 @@ const ReceiptsTable = ({
                     </span>
                   ) : receipt.status === 'new' ? (
                     '-'
-                  ) : receipt.paymentStatus === 'without_payment' ? (
-                    <span className='receipt-payment-without-payment'>without payment</span>
+                  ) : receipt.paymentStatus ? (
+                    <span
+                      className={getReceiptPaymentStatusClass(
+                        receipt.paymentStatus,
+                      )}
+                    >
+                      {getReceiptPaymentStatusLabel(
+                        receipt.paymentStatus,
+                      )}
+                    </span>
                   ) : (
-                    receipt.paymentStatus ?? '-'
+                    '-'
                   )}
                 </td>
               ))}
@@ -3536,6 +3651,270 @@ const WarehouseSettings = ({
         </>
       ) : null}
     </div>
+  );
+};
+
+const TransferWorkspace = ({
+  products,
+  selectableProducts,
+  warehouses,
+  productWarehouseMetaById,
+  form,
+  selectedProduct,
+  targetLocations,
+  history,
+  isSaving,
+  onFormChange,
+  onSubmit,
+}: {
+  products: Product[];
+  selectableProducts: Product[];
+  warehouses: WarehouseItem[];
+  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
+  form: TransferFormState;
+  selectedProduct: Product | null;
+  targetLocations: WarehouseLocation[];
+  history: TransferHistoryRow[];
+  isSaving: boolean;
+  onFormChange: Dispatch<SetStateAction<TransferFormState>>;
+  onSubmit: () => void;
+}) => {
+  const currentMeta = selectedProduct
+    ? productWarehouseMetaById[selectedProduct.id]
+    : undefined;
+  const isSameLocation =
+    Boolean(selectedProduct) &&
+    currentMeta?.warehouseId === form.toWarehouseId &&
+    currentMeta?.locationId === form.toLocationId;
+  const canSubmit =
+    Boolean(selectedProduct) &&
+    Boolean(form.toWarehouseId) &&
+    Boolean(form.toLocationId) &&
+    !isSameLocation &&
+    !isSaving;
+
+  return (
+    <section className='warehouse-transfer-panel'>
+      <div className='warehouse-transfer-grid'>
+        <div className='warehouse-transfer-form'>
+          <label className='orders-filter-field'>
+            <span>Product</span>
+            <select
+              value={form.productId}
+              onChange={(event) =>
+                onFormChange((current) => ({
+                  ...current,
+                  productId: event.target.value,
+                }))
+              }
+              disabled={isSaving}
+            >
+              <option value=''>Select stock item</option>
+              {selectableProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {`${product.name} / ${product.serialNumber || product.article}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className='warehouse-transfer-current'>
+            <span>Current location</span>
+            <strong>
+              {currentMeta
+                ? `${currentMeta.warehouseName} / ${currentMeta.locationName}`
+                : '-'}
+            </strong>
+          </div>
+
+          <label className='orders-filter-field'>
+            <span>Target warehouse</span>
+            <select
+              value={form.toWarehouseId}
+              onChange={(event) => {
+                const nextWarehouseId = event.target.value;
+                const nextWarehouse = warehouses.find(
+                  (warehouse) => warehouse.id === nextWarehouseId,
+                );
+                onFormChange((current) => ({
+                  ...current,
+                  toWarehouseId: nextWarehouseId,
+                  toLocationId: nextWarehouse?.locations[0]?.id ?? '',
+                }));
+              }}
+              disabled={isSaving || warehouses.length === 0}
+            >
+              <option value=''>
+                {warehouses.length === 0
+                  ? 'Create warehouse in Settings'
+                  : 'Select warehouse'}
+              </option>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className='orders-filter-field'>
+            <span>Target location</span>
+            <select
+              value={form.toLocationId}
+              onChange={(event) =>
+                onFormChange((current) => ({
+                  ...current,
+                  toLocationId: event.target.value,
+                }))
+              }
+              disabled={isSaving || targetLocations.length === 0}
+            >
+              {targetLocations.length === 0 ? (
+                <option value=''>Create location in Settings</option>
+              ) : null}
+              {targetLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className='orders-filter-field warehouse-transfer-note'>
+            <span>Note</span>
+            <textarea
+              value={form.note}
+              onChange={(event) =>
+                onFormChange((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+              disabled={isSaving}
+              rows={3}
+              placeholder='Reason or document number'
+            />
+          </label>
+
+          <div className='warehouse-transfer-actions'>
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={onSubmit}
+              disabled={!canSubmit}
+            >
+              {isSaving ? 'Transferring...' : 'Transfer stock'}
+            </button>
+          </div>
+        </div>
+
+        <div
+          className='catalog-table-wrap warehouse-transfer-list'
+          data-global-scrollbar='off'
+        >
+          <table className='catalog-table'>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Serial #</th>
+                <th>Warehouse</th>
+                <th>Location</th>
+                <th>Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No stock rows found.</td>
+                </tr>
+              ) : (
+                products.map((product) => {
+                  const meta = productWarehouseMetaById[product.id];
+                  return (
+                    <tr
+                      key={product.id}
+                      className={
+                        product.id === form.productId
+                          ? 'warehouse-transfer-row warehouse-transfer-row-selected'
+                          : 'warehouse-transfer-row'
+                      }
+                      role='button'
+                      tabIndex={0}
+                      aria-pressed={product.id === form.productId}
+                      onClick={() =>
+                        onFormChange((current) => ({
+                          ...current,
+                          productId: product.id,
+                        }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') {
+                          return;
+                        }
+                        event.preventDefault();
+                        onFormChange((current) => ({
+                          ...current,
+                          productId: product.id,
+                        }));
+                      }}
+                    >
+                      <td className='catalog-name-cell'>{product.name}</td>
+                      <td>{product.serialNumber || '-'}</td>
+                      <td>{meta?.warehouseName ?? '-'}</td>
+                      <td>{meta?.locationName ?? '-'}</td>
+                      <td>{product.quantity}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className='warehouse-transfer-history'>
+        <table className='catalog-table'>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Product</th>
+              <th>From</th>
+              <th>To</th>
+              <th>By</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.length === 0 ? (
+              <tr>
+                <td colSpan={6}>No transfers in this session.</td>
+              </tr>
+            ) : (
+              history.map((transfer) => (
+                <tr key={transfer.id}>
+                  <td>{formatDate(transfer.createdAt)}</td>
+                  <td>
+                    {transfer.productName}
+                    {transfer.serialNumber
+                      ? ` / ${transfer.serialNumber}`
+                      : ''}
+                  </td>
+                  <td>
+                    {transfer.fromWarehouseName} /{' '}
+                    {transfer.fromLocationName}
+                  </td>
+                  <td>
+                    {transfer.toWarehouseName} / {transfer.toLocationName}
+                  </td>
+                  <td>{transfer.createdBy}</td>
+                  <td>{transfer.note || '-'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 };
 
