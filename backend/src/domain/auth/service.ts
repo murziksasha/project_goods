@@ -1,4 +1,5 @@
 import { Employee } from '../employee/model';
+import type { EmployeePermission } from '../employee/constants';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { createAuthToken, hashPassword, verifyPassword } from '../../shared/lib/auth';
 import { toNonEmptyString } from '../../shared/lib/parsers';
@@ -80,6 +81,47 @@ const getInvitationEmployee = async (tokenValue: unknown) => {
 
   if (!employee || !employee.inviteExpiresAt || employee.inviteExpiresAt.getTime() < Date.now()) {
     throw new HttpError(404, 'Invitation not found or expired.');
+  }
+
+  return employee;
+};
+
+export const getBearerToken = (authorizationHeader: unknown) => {
+  const headerValue = typeof authorizationHeader === 'string' ? authorizationHeader : '';
+  return headerValue.startsWith('Bearer ') ? headerValue.slice(7).trim() : '';
+};
+
+export const employeeHasPermission = (
+  employee: { role?: string; permissions?: readonly string[] },
+  permission: EmployeePermission,
+) => employee.role === 'owner' || Boolean(employee.permissions?.includes(permission));
+
+export const employeeHasAnyPermission = (
+  employee: { role?: string; permissions?: readonly string[] },
+  permissions: readonly EmployeePermission[],
+) => employee.role === 'owner' || permissions.some((permission) => employee.permissions?.includes(permission));
+
+export const requirePermissionByToken = async (
+  tokenValue: unknown,
+  permission: EmployeePermission,
+  message = 'Current employee does not have required permission.',
+) => {
+  const employee = await getEmployeeByToken(tokenValue);
+  if (!employeeHasPermission(employee, permission)) {
+    throw new HttpError(403, message);
+  }
+
+  return employee;
+};
+
+export const requireAnyPermissionByToken = async (
+  tokenValue: unknown,
+  permissions: readonly EmployeePermission[],
+  message = 'Current employee does not have required permission.',
+) => {
+  const employee = await getEmployeeByToken(tokenValue);
+  if (!employeeHasAnyPermission(employee, permissions)) {
+    throw new HttpError(403, message);
   }
 
   return employee;
