@@ -34,6 +34,7 @@ This document defines current warehouse requirements for stock balances, receipt
 1. supplier name from linked supplier order (`supplierOrdersByProductId[product.id][0].supplierName`)
 2. fallback to legacy product field `purchasePlace`
 3. fallback `-`
+- Search mode `By supplier`, the supplier filter, and the `Supplier` column must use this same priority so the visible value and filtering behavior stay consistent.
 
 ### 3) Product Warehouse Mapping Priority
 - Stock display mapping priority:
@@ -61,6 +62,20 @@ This document defines current warehouse requirements for stock balances, receipt
 1. product is matched to an `issued` sale by strict linkage (`productId` or `serial`)
 2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
 - Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
+- Stock balance filtering logic is kept in a pure frontend helper (`src/widgets/dashboard/model/stock-balance.ts`) and must remain covered by unit tests for strict product/serial matching, warehouse fallback, and supplier fallback.
+
+### 4.4) Stock Balance Working Register UI
+- `Stock balances` is a compact operational register for finding and opening a stock unit quickly.
+- Toolbar requirements:
+1. show current filtered stock row count
+2. show the number of active applied filters on the `Filter` button
+3. use a search placeholder that matches the active search mode
+- Table requirements:
+1. header stays sticky while scrolling the stock table
+2. rows use compact spacing for dense scanning
+3. `Warehouse` and `Location` are displayed as readable badges
+4. `Client order` and `Supplier order` links are displayed as compact badges
+5. empty state must explicitly suggest adjusting search or filters
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
