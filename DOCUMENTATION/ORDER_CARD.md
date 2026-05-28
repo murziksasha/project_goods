@@ -37,6 +37,11 @@
 
 - `Products` section contains only attached products/parts/services used for the order work.
 - Accepted repair device is not a product line item.
+- Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.
+- If multiple serials are bound to a legacy multi-quantity product line, the card must split it into one product row per serial before saving.
+- Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
+- The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
+- Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
 
 ## Payment And Discount
 

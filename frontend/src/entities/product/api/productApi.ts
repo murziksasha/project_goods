@@ -1,5 +1,9 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
-import type { Product, ProductFormValues } from '../model/types';
+import type {
+  Product,
+  ProductFormValues,
+  ProductModelUpdatePayload,
+} from '../model/types';
 
 export const getProducts = async (query = '') => {
   try {
@@ -42,6 +46,20 @@ export const updateProduct = async (
       `/products/${productId}`,
       payload,
     );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateProductModelByName = async (
+  payload: ProductModelUpdatePayload,
+) => {
+  try {
+    const response = await apiClient.patch<{
+      matchedCount: number;
+      products: Product[];
+    }>('/products/model-by-name', payload);
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

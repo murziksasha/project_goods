@@ -74,6 +74,39 @@ This document defines current warehouse requirements for stock balances, receipt
 1. operator must never see serials from another product model in the same bind modal
 2. serial picker must remain deterministic and model-safe even when names are similar
 
+### 4.3.1) Serialized Sale Line Item Invariant
+- Warehouse receipt creates one stock `Product` row per serialized unit; sale/order cards must preserve that unit-level identity.
+- For serialized stock sales, persisted sale line items are atomic:
+1. `lineItems[].kind = product`
+2. `lineItems[].productId` points to the exact stock `Product`
+3. `lineItems[].quantity = 1`
+4. `lineItems[].serialNumbers` contains exactly one serial
+5. that serial must equal the referenced stock `Product.serialNumber`
+- A sale of two serialized units must be stored as two product line items, even when both units have the same product name/model.
+- A product line item with a bound serial must not allow direct quantity increase.
+- Binding multiple serials to a legacy product row must split that row into one atomic serialized row per selected serial.
+- Backend workspace validation must enforce the same invariant before stock deltas are calculated.
+
+### 4.4) Product Model Detail Modal
+- In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, or `Article` opens the shared product model modal for the row's exact product name.
+- The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
+- The modal shows:
+1. read-only model name
+2. shared editable `article` and `note`
+3. retail price from `salePriceOptions[0]`
+4. wholesale price from `salePriceOptions[1]`
+5. purchase / last batch price from `Product.price`
+6. total/free/reserved stock grouped by warehouse/location using configured warehouse metadata
+- Clicking the `Product model` label, model title, or copy icon near the title copies the exact product name to clipboard and shows a short copied tooltip.
+- Modal content is grouped as an accordion:
+1. `MAIN INFORMATION`
+2. `PRICES`
+3. `STOCK SUMMARY`
+- Default accordion state: only `PRICES` is expanded; all other groups are collapsed.
+- Saving the modal updates all and only matching `Product` stock rows.
+- Saving does not update `CatalogProduct` and does not create stock rows.
+- If no matching stock rows exist, balances are shown as zero and stock-backed fields cannot be saved.
+
 ## Receipts Requirements
 
 ### 5) Receipts Source

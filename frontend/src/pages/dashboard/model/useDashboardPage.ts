@@ -14,7 +14,11 @@ import {
   filterClientsByStatus,
 } from '../../../entities/client/lib/filter-clients';
 import { initialProductForm } from '../../../entities/product/model/forms';
-import type { Product, ProductFormValues } from '../../../entities/product/model/types';
+import type {
+  Product,
+  ProductFormValues,
+  ProductModelUpdatePayload,
+} from '../../../entities/product/model/types';
 import { filterProducts } from '../../../entities/product/lib/filter-products';
 import {
   archiveProduct,
@@ -22,6 +26,7 @@ import {
   deleteProduct,
   getProducts,
   updateProduct,
+  updateProductModelByName,
 } from '../../../entities/product/api/productApi';
 import type { Supplier } from '../../../entities/supplier/model/types';
 import type {
@@ -142,6 +147,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const updateProductMutation = useMutation({
     mutationFn: ({ productId, payload }: { productId: string; payload: ProductFormValues }) =>
       updateProduct(productId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });
+  const updateProductModelMutation = useMutation({
+    mutationFn: (payload: ProductModelUpdatePayload) =>
+      updateProductModelByName(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.products });
     },
@@ -420,6 +432,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     mutateCreateProduct: async (payload) => createProductMutation.mutateAsync(payload),
     mutateUpdateProduct: async (productId, payload) =>
       updateProductMutation.mutateAsync({ productId, payload }),
+    mutateUpdateProductModel: async (payload) =>
+      updateProductModelMutation.mutateAsync(payload),
     mutateCreateSale: async (payload) => createSaleMutation.mutateAsync(payload),
     mutateUpdateSale: async (saleId, payload) =>
       updateSaleMutation.mutateAsync({ saleId, payload }),

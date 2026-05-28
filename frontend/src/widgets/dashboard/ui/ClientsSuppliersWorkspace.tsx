@@ -30,6 +30,10 @@ type Props = {
     targetClientId: string,
     sourceClientId: string,
   ) => Promise<boolean>;
+  onMergeSuppliers: (
+    targetSupplierId: string,
+    sourceSupplierId: string,
+  ) => Promise<boolean>;
   onUpdateClient: (
     clientId: string,
     payload: ClientFormValues,
@@ -72,6 +76,7 @@ export const ClientsSuppliersWorkspace = ({
   openClientCardRequestId,
   onOpenClientCardHandled,
   onCreateSupplier,
+  onMergeSuppliers,
   onUpdateSupplier,
 }: Props) => {
   const [activeTab, setActiveTab] = useState<TabKey>('clients');
@@ -80,6 +85,15 @@ export const ClientsSuppliersWorkspace = ({
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
     null,
   );
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [mergeTargetQuery, setMergeTargetQuery] = useState('');
+  const [mergeSourceQuery, setMergeSourceQuery] = useState('');
+  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
+    useState(false);
+  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
+    useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [mergeSourceId, setMergeSourceId] = useState('');
   const [form, setForm] = useState({
     name: '',
     phone: '+380',
@@ -114,6 +128,26 @@ export const ClientsSuppliersWorkspace = ({
       return sameName || samePhone;
     });
   }, [editingSupplierId, form.name, form.phone, suppliers]);
+
+  const mergeTargetOptions = useMemo(() => {
+    const normalized = mergeTargetQuery.trim().toLowerCase();
+    if (!normalized) return [];
+    return suppliers
+      .filter((supplier) =>
+        `${supplier.name} ${supplier.phone}`.toLowerCase().includes(normalized),
+      )
+      .slice(0, 6);
+  }, [mergeTargetQuery, suppliers]);
+
+  const mergeSourceOptions = useMemo(() => {
+    const normalized = mergeSourceQuery.trim().toLowerCase();
+    if (!normalized) return [];
+    return suppliers
+      .filter((supplier) =>
+        `${supplier.name} ${supplier.phone}`.toLowerCase().includes(normalized),
+      )
+      .slice(0, 6);
+  }, [mergeSourceQuery, suppliers]);
 
   const openCreateModal = () => {
     setEditingSupplierId(null);
@@ -156,6 +190,25 @@ export const ClientsSuppliersWorkspace = ({
 
     if (!isSuccess) return;
     setIsCreateModalOpen(false);
+  };
+
+  const handleMergeSuppliers = async () => {
+    if (
+      !mergeTargetId ||
+      !mergeSourceId ||
+      mergeTargetId === mergeSourceId
+    ) {
+      return;
+    }
+
+    const isSuccess = await onMergeSuppliers(mergeTargetId, mergeSourceId);
+    if (!isSuccess) return;
+
+    setIsMergeModalOpen(false);
+    setMergeTargetQuery('');
+    setMergeSourceQuery('');
+    setMergeTargetId('');
+    setMergeSourceId('');
   };
 
   return (
@@ -233,6 +286,13 @@ export const ClientsSuppliersWorkspace = ({
               </div>
             </div>
             <div className='orders-toolbar-actions clients-toolbar-actions'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                Merge
+              </button>
               <button
                 type='button'
                 className='primary-button'
@@ -387,6 +447,122 @@ export const ClientsSuppliersWorkspace = ({
                 }}
               >
                 {isSaving ? 'Saving...' : editingSupplierId ? 'Save' : 'Create'}
+              </button>
+            </footer>
+          </article>
+        </div>
+      ) : null}
+
+      {isMergeModalOpen ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onClick={() => setIsMergeModalOpen(false)}
+        >
+          <article
+            className='catalog-edit-modal clients-modal'
+            role='dialog'
+            aria-modal='true'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className='catalog-edit-header'>
+              <h2>Merge suppliers</h2>
+              <button
+                type='button'
+                className='ghost-button'
+                onClick={() => setIsMergeModalOpen(false)}
+              >
+                x
+              </button>
+            </header>
+            <div className='catalog-edit-body clients-modal-body'>
+              <p className='muted-copy'>
+                Select Supplier 1 and Supplier 2. Data from Supplier 2 will be merged into Supplier 1, then Supplier 2 will be removed.
+              </p>
+              <label className='field field-wide modal-suggestions-anchor'>
+                <span>Supplier 1</span>
+                <input
+                  value={mergeTargetQuery}
+                  placeholder='Enter name or phone'
+                  onChange={(event) => {
+                    setMergeTargetQuery(event.target.value);
+                    setMergeTargetId('');
+                    setShowMergeTargetSuggestions(true);
+                  }}
+                />
+              </label>
+              {showMergeTargetSuggestions &&
+              mergeTargetOptions.length > 0 ? (
+                <div className='suggestions-panel'>
+                  {mergeTargetOptions.map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      type='button'
+                      className='suggestion-item'
+                      onClick={() => {
+                        setMergeTargetId(supplier.id);
+                        setMergeTargetQuery(
+                          `${supplier.name} (${supplier.phone})`,
+                        );
+                        setShowMergeTargetSuggestions(false);
+                      }}
+                    >
+                      <strong>{supplier.name}</strong>
+                      <span>{supplier.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <label className='field field-wide modal-suggestions-anchor'>
+                <span>Supplier 2</span>
+                <input
+                  value={mergeSourceQuery}
+                  placeholder='Enter name or phone'
+                  onChange={(event) => {
+                    setMergeSourceQuery(event.target.value);
+                    setMergeSourceId('');
+                    setShowMergeSourceSuggestions(true);
+                  }}
+                />
+              </label>
+              {showMergeSourceSuggestions &&
+              mergeSourceOptions.length > 0 ? (
+                <div className='suggestions-panel'>
+                  {mergeSourceOptions.map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      type='button'
+                      className='suggestion-item'
+                      onClick={() => {
+                        setMergeSourceId(supplier.id);
+                        setMergeSourceQuery(
+                          `${supplier.name} (${supplier.phone})`,
+                        );
+                        setShowMergeSourceSuggestions(false);
+                      }}
+                    >
+                      <strong>{supplier.name}</strong>
+                      <span>{supplier.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isSaving ||
+                  !mergeTargetId ||
+                  !mergeSourceId ||
+                  mergeTargetId === mergeSourceId
+                }
+                onClick={() => {
+                  void handleMergeSuppliers();
+                }}
+              >
+                {isSaving ? 'Merging...' : 'Merge suppliers'}
               </button>
             </footer>
           </article>

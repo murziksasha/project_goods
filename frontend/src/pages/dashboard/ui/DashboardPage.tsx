@@ -185,7 +185,7 @@ const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
   { key: 'employees', label: 'Employees' },
-  { key: 'clients', label: 'Clients & Supplier' },
+  { key: 'clients', label: 'Clients & Suppliers' },
   { key: 'accounting', label: 'Accounting' },
   { key: 'warehouse', label: 'Warehouses' },
   { key: 'catalog', label: 'Products & Services' },
@@ -734,7 +734,10 @@ export const DashboardPage = () => {
                   onClose={openOrdersPage}
                   initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                   catalogProducts={state.catalogProducts}
+                  products={state.allProducts}
                   onSave={actions.saveOrderRequest}
+                  onUpdateProductModel={actions.updateProductModelCard}
+                  onError={actions.showError}
               />
             ) : (
               activeOrdersTab === 'supplierOrders' ? (
@@ -753,6 +756,7 @@ export const DashboardPage = () => {
               ) : (
                 <OrdersWorkspace
                   sales={state.sales}
+                  products={state.allProducts}
                   employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
                   activeTab={activeOrdersTab}
@@ -772,6 +776,7 @@ export const DashboardPage = () => {
                   externalSelectedSaleId={externalSelectedSaleId}
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onOpenClientCard={openClientCardFromOrders}
+                  onUpdateProductModel={actions.updateProductModelCard}
                 />
               )
             )
@@ -804,6 +809,7 @@ export const DashboardPage = () => {
               onDeleteClient={actions.deleteClient}
               onCreateClient={actions.createClientCard}
               onMergeClients={actions.mergeClients}
+              onMergeSuppliers={actions.mergeSuppliers}
               onUpdateClient={actions.updateClientCard}
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
@@ -883,6 +889,7 @@ export const DashboardPage = () => {
               onProductCancelEdit={actions.resetProductEditor}
               onProductEdit={actions.editProduct}
               onProductDelete={actions.deleteProduct}
+              onUpdateProductModel={actions.updateProductModelCard}
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}

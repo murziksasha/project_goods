@@ -124,6 +124,18 @@ Client status localization rule: keep client status values in original English (
     - appends refund transaction and timeline entry
     - keeps non-returned serials in the line item
 
+## Sale Workspace Serialized Line Items (2026-05-28)
+
+- `PATCH /sales/:saleId/workspace`
+  - Serialized stock product line items are validated as atomic units.
+  - If a product line item has `serialNumbers.length > 0`:
+    - `quantity` must be `1`
+    - `serialNumbers` must contain exactly one normalized serial
+    - `productId` must reference an existing stock `Product`
+    - referenced `Product.serialNumber` must match `serialNumbers[0]`
+  - A stock `Product` with a serial number cannot be persisted as one line item with `quantity > 1`.
+  - Selling multiple serialized units requires multiple product line items, one per stock serial.
+
 ## Warehouse Flow Guard (2026-05-10)
 
 - Until receipt (оприходування) workflow is implemented, no flow may place items into stock balances.
