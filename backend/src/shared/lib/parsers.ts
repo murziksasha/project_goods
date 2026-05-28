@@ -216,11 +216,34 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
 
   const defaultRolePermissions: Record<EmployeeRole, EmployeePermission[]> = {
     owner: [...employeePermissions],
-    manager: ['orders.view', 'orders.manage', 'clients.manage'],
+    manager: [
+      'orders.view',
+      'orders.manage',
+      'clients.manage',
+      'finance.cashboxes.view',
+      'finance.transactions.deposit',
+    ],
     master: ['orders.view', 'repairs.execute'],
-    accountant: ['orders.view', 'sales.manage'],
+    accountant: [
+      'orders.view',
+      'sales.manage',
+      'finance.view',
+      'finance.cashboxes.view',
+      'finance.cashboxes.manage',
+      'finance.transactions.deposit',
+      'finance.transactions.withdraw',
+      'finance.transactions.transfer',
+      'finance.supplierOrders.pay',
+      'finance.supplierOrders.issueWithoutPayment',
+    ],
     warehouse: ['orders.view', 'inventory.manage'],
-    sales: ['orders.view', 'sales.manage', 'clients.manage'],
+    sales: [
+      'orders.view',
+      'sales.manage',
+      'clients.manage',
+      'finance.cashboxes.view',
+      'finance.transactions.deposit',
+    ],
     support: ['orders.view'],
   };
 

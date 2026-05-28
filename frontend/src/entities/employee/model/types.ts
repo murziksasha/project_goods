@@ -17,6 +17,14 @@ export const employeePermissionOptions = [
   'sales.manage',
   'clients.manage',
   'inventory.manage',
+  'finance.view',
+  'finance.cashboxes.view',
+  'finance.cashboxes.manage',
+  'finance.transactions.deposit',
+  'finance.transactions.withdraw',
+  'finance.transactions.transfer',
+  'finance.supplierOrders.pay',
+  'finance.supplierOrders.issueWithoutPayment',
   'employees.manage',
 ] as const;
 

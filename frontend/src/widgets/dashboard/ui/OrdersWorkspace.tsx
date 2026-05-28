@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { Employee } from '../../../entities/employee/model/types';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import {
@@ -1168,6 +1169,14 @@ export const OrdersWorkspace = ({
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
     currentEmployee?.name ?? 'Unknown employee';
+  const canAcceptFinanceDeposit = hasEmployeePermission(
+    currentEmployee,
+    'finance.transactions.deposit',
+  );
+  const canCreateFinanceWithdraw = hasEmployeePermission(
+    currentEmployee,
+    'finance.transactions.withdraw',
+  );
   const [visibleColumns, setVisibleColumns] =
     useState<OrdersColumnVisibility>(readVisibleColumns);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
@@ -2300,6 +2309,10 @@ export const OrdersWorkspace = ({
     sale: Sale,
     targetStatus: PaymentTargetStatus = 'issued',
   ) => {
+    if (!canAcceptFinanceDeposit) {
+      onError('Current employee does not have permission to accept payments.');
+      return;
+    }
     const remainingPayment = getOrderRemainingPayment(sale);
 
     setPaymentSale(sale);
@@ -2329,6 +2342,10 @@ export const OrdersWorkspace = ({
   };
 
   const openRefundModal = async (sale: Sale) => {
+    if (!canCreateFinanceWithdraw) {
+      onError('Current employee does not have permission to refund payments.');
+      return;
+    }
     const currentStatus = normalizeOrderStatus(sale.status);
     if (!canRefundFromStatus(sale, currentStatus)) {
       onError(
@@ -2433,6 +2450,10 @@ export const OrdersWorkspace = ({
   };
 
   const openReturnSaleModal = async (sale: Sale) => {
+    if (!canCreateFinanceWithdraw) {
+      onError('Current employee does not have permission to refund payments.');
+      return;
+    }
     const lastDepositCashboxId =
       (sale.paymentHistory ?? []).find(
         (entry) => entry.type === 'deposit',
@@ -2596,6 +2617,10 @@ export const OrdersWorkspace = ({
       (action !== 'issueWithoutPayment' && !selectedCashboxId)
     )
       return;
+    if (action !== 'issueWithoutPayment' && !canAcceptFinanceDeposit) {
+      onError('Current employee does not have permission to accept payments.');
+      return;
+    }
 
     const currentPaidAmount = getPaidAmount(paymentSale);
     const currentLineItems = getLineItems(paymentSale);
@@ -2773,6 +2798,10 @@ export const OrdersWorkspace = ({
 
   const refundPayment = async () => {
     if (!refundSale || !selectedRefundCashboxId) return;
+    if (!canCreateFinanceWithdraw) {
+      onError('Current employee does not have permission to refund payments.');
+      return;
+    }
     const currentStatus = normalizeOrderStatus(refundSale.status);
     if (!canRefundFromStatus(refundSale, currentStatus)) {
       onError(
@@ -2935,6 +2964,10 @@ export const OrdersWorkspace = ({
 
   const returnFullSaleToStock = async () => {
     if (!fullReturnSale || !selectedRefundCashboxId) return;
+    if (!canCreateFinanceWithdraw) {
+      onError('Current employee does not have permission to refund payments.');
+      return;
+    }
 
     const refundAmountValue =
       Math.round(Number(returnRefundAmount) * 100) / 100;
@@ -3108,6 +3141,8 @@ export const OrdersWorkspace = ({
               normalizeOrderStatus(selectedSale.status),
             )
           }
+          canAcceptPayment={canAcceptFinanceDeposit}
+          canRefundPayment={canCreateFinanceWithdraw}
           onClose={() => setSelectedSaleId(null)}
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
@@ -3873,6 +3908,8 @@ type OrderDetailCardProps = {
   lineItems: OrderLineItem[];
   paidAmount: number;
   isReadOnly: boolean;
+  canAcceptPayment: boolean;
+  canRefundPayment: boolean;
   onClose: () => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
@@ -3926,6 +3963,8 @@ const OrderDetailCard = ({
   lineItems,
   paidAmount,
   isReadOnly,
+  canAcceptPayment,
+  canRefundPayment: canRefundPaymentPermission,
   onClose,
   onAddComment,
   onAddLineItem,
@@ -3979,7 +4018,7 @@ const OrderDetailCard = ({
     lineItems,
   );
   const canRefundPayment =
-    paidAmount > 0 && canRefundFromStatus(sale, status);
+    canRefundPaymentPermission && paidAmount > 0 && canRefundFromStatus(sale, status);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -4590,7 +4629,7 @@ const OrderDetailCard = ({
               event.stopPropagation();
               onAcceptPayment();
             }}
-            disabled={remainingPayment <= 0 || isReadOnly}
+            disabled={remainingPayment <= 0 || isReadOnly || !canAcceptPayment}
           >
             {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
           </button>
