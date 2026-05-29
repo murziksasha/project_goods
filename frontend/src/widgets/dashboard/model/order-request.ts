@@ -23,6 +23,7 @@ export type CreateOrderRequestPayload = {
     name: string;
     article: string;
     serialNumber: string;
+    serialNumbers?: string[];
     price: string;
     quantity: string;
     warrantyPeriod: string;

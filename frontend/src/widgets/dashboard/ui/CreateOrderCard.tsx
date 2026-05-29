@@ -12,10 +12,16 @@ import type {
   Product,
   ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
+import {
+  buildCreateOrderProductSuggestions,
+  type CreateOrderProductSuggestion,
+} from '../model/create-order-products';
+import { normalizeSerialNumber } from '../model/order-line-serials';
 import { ProductModelModal } from './ProductModelModal';
 
 type CreateOrderCardProps = {
@@ -25,6 +31,7 @@ type CreateOrderCardProps = {
   initialTab?: CreateOrderRequestPayload['sourceTab'];
   catalogProducts: CatalogProduct[];
   products: Product[];
+  sales: Sale[];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
@@ -67,24 +74,26 @@ const saleExtraOptionsRight = [
 type SaleOrderItem = {
   id: string;
   query: string;
+  source: '' | 'stock' | 'catalog';
+  productId: string;
   catalogProductId: string;
+  article: string;
+  serialNumber: string;
   price: string;
   unitPrice: string;
   quantity: string;
   warrantyPeriod: string;
-};
-type SaleProductSuggestion = {
-  id: string;
-  name: string;
-  note: string;
-  catalogProductId: string;
 };
 type ClientRequestTab = 'orders' | 'sales';
 
 const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
   query: '',
+  source: '',
+  productId: '',
   catalogProductId: '',
+  article: '',
+  serialNumber: '',
   price: '',
   unitPrice: '',
   quantity: '1',
@@ -114,8 +123,6 @@ const toNameKey = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
 const toDeviceLookupKey = (value: string) =>
   value.toLowerCase().replace(/\s+/g, ' ').trim();
-const normalizeProductLookupKey = (value: string) =>
-  toNameKey(value).replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ');
 const parseDecimalInput = (value: string) => {
   const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
   const numeric = Number.parseFloat(normalized || '0');
@@ -193,6 +200,7 @@ export const CreateOrderCard = ({
   initialTab = 'repair',
   catalogProducts,
   products,
+  sales,
   onClose,
   onSave,
   onUpdateProductModel,
@@ -223,7 +231,7 @@ export const CreateOrderCard = ({
   const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
   const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
-  const [saleProductSuggestions, setSaleProductSuggestions] = useState<SaleProductSuggestion[]>([]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<CreateOrderProductSuggestion[]>([]);
   const [selectedDeviceSuggestionId, setSelectedDeviceSuggestionId] = useState<string | null>(null);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
@@ -346,7 +354,8 @@ export const CreateOrderCard = ({
   const visibleSaleProductSuggestions =
     activeTab === 'sale' &&
     saleProductLookupQuery.length >= 2 &&
-    !focusedSaleItem?.catalogProductId
+    !focusedSaleItem?.catalogProductId &&
+    !focusedSaleItem?.productId
       ? saleProductSuggestions
       : [];
   const saleItemsTotal = saleItems.reduce((total, item) => {
@@ -447,7 +456,8 @@ export const CreateOrderCard = ({
     if (
       activeTab !== 'sale' ||
       saleProductLookupQuery.length < 2 ||
-      Boolean(focusedSaleItem?.catalogProductId)
+      Boolean(focusedSaleItem?.catalogProductId) ||
+      Boolean(focusedSaleItem?.productId)
     ) {
       setSaleProductSuggestions([]);
       setIsSaleProductLookupLoading(false);
@@ -459,22 +469,15 @@ export const CreateOrderCard = ({
       setIsSaleProductLookupLoading(true);
       try {
         if (isActive) {
-          const normalizedLookupQuery =
-            normalizeProductLookupKey(saleProductLookupQuery);
-          const catalogMatches = catalogProducts
-            .filter((product) =>
-              normalizeProductLookupKey(product.name).includes(
-                normalizedLookupQuery,
-              ),
-            )
-            .slice(0, 8)
-            .map((product) => ({
-              id: `catalog-${product.id}`,
-              name: product.name,
-              note: product.note || 'Catalog product',
-              catalogProductId: product.id,
-            }));
-          setSaleProductSuggestions(catalogMatches);
+          setSaleProductSuggestions(
+            buildCreateOrderProductSuggestions({
+              products,
+              catalogProducts,
+              sales,
+              query: saleProductLookupQuery,
+              limit: 8,
+            }),
+          );
         }
       } catch {
         if (isActive) setSaleProductSuggestions([]);
@@ -487,7 +490,15 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeTab, catalogProducts, focusedSaleItem?.catalogProductId, saleProductLookupQuery]);
+  }, [
+    activeTab,
+    catalogProducts,
+    focusedSaleItem?.catalogProductId,
+    focusedSaleItem?.productId,
+    products,
+    saleProductLookupQuery,
+    sales,
+  ]);
 
   const toggleFlag = (flag: string) => {
     setSelectedFlags((current) =>
@@ -521,11 +532,29 @@ export const CreateOrderCard = ({
 
   const applySaleProduct = (
     itemId: string,
-    suggestion: SaleProductSuggestion,
+    suggestion: CreateOrderProductSuggestion,
   ) => {
+    if (!suggestion.selectable) {
+      onError(`Product cannot be selected: ${suggestion.availabilityLabel}.`);
+      return;
+    }
+
+    const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
+    const isSerializedStock =
+      suggestion.source === 'stock' && Boolean(serialNumber);
+    const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '';
+
     updateSaleItem(itemId, {
       query: suggestion.name,
+      source: suggestion.source,
+      productId: suggestion.productId,
       catalogProductId: suggestion.catalogProductId,
+      article: suggestion.article,
+      serialNumber,
+      price: unitPrice,
+      unitPrice,
+      quantity: isSerializedStock ? '1' : '1',
+      warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
     });
     setSaleProductSuggestions([]);
   };
@@ -557,6 +586,15 @@ export const CreateOrderCard = ({
   };
 
   const handleSaleItemQuantityChange = (item: SaleOrderItem, value: string) => {
+    if (item.source === 'stock' && item.serialNumber) {
+      updateSaleItem(item.id, {
+        quantity: '1',
+        price: item.unitPrice || item.price,
+      });
+      onError('Serialized products are sold one serial per line. Add each serial separately.');
+      return;
+    }
+
     const nextQuantity = Math.max(1, Number.parseInt(value || '1', 10) || 1);
     const previousQuantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
     const currentPrice = parseDecimalInput(item.price);
@@ -676,24 +714,31 @@ export const CreateOrderCard = ({
   };
 
   const handleSave = async () => {
-    const normalizedSaleItems = saleItems.flatMap((item) => {
+    const normalizedSaleItems = saleItems.map((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
       const totalPrice = Math.max(0, parseDecimalInput(item.price) || 0);
       const knownUnitPrice = Math.max(0, parseDecimalInput(item.unitPrice) || 0);
       const resolvedUnitPrice = knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
       const normalizedUnitPrice = String(Math.round(resolvedUnitPrice * 100) / 100);
+      const serialNumber = normalizeSerialNumber(item.serialNumber);
 
-      return Array.from({ length: quantity }, (_, index) => ({
-        id: `${item.id}-${index + 1}`,
-        productId: item.catalogProductId || '',
+      return {
+        id: item.id,
+        productId: item.source === 'stock' ? item.productId : '',
         name: item.query.trim(),
-        article: '',
-        serialNumber: '',
-        price: normalizedUnitPrice,
-        quantity: '1',
+        article: item.article,
+        serialNumber,
+        serialNumbers:
+          item.source === 'stock' && serialNumber ? [serialNumber] : undefined,
+        price:
+          item.source === 'stock' && serialNumber
+            ? normalizedUnitPrice
+            : String(Math.round(totalPrice * 100) / 100),
+        quantity:
+          item.source === 'stock' && serialNumber ? '1' : String(quantity),
         warrantyPeriod: item.warrantyPeriod,
         warehouse: '',
-      }));
+      };
     });
 
     const success = await onSave({
@@ -801,12 +846,16 @@ export const CreateOrderCard = ({
                               setFocusedSaleItemId(item.id);
                               updateSaleItem(item.id, {
                                 query: event.target.value,
+                                source: '',
+                                productId: '',
                                 catalogProductId: '',
+                                article: '',
+                                serialNumber: '',
                               });
                             }}
                             placeholder="Name, serial or article"
                           />
-                          {item.catalogProductId && item.query.trim() ? (
+                          {(item.catalogProductId || item.productId) && item.query.trim() ? (
                             <button
                               type="button"
                               className="settings-link-button"
@@ -822,6 +871,7 @@ export const CreateOrderCard = ({
                             min={1}
                             value={item.quantity}
                             onChange={(value) => handleSaleItemQuantityChange(item, value)}
+                            disabled={item.source === 'stock' && Boolean(item.serialNumber)}
                           />
                         </label>
                         <label className="field">
@@ -870,16 +920,22 @@ export const CreateOrderCard = ({
 
                 {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading) ? (
                   <div className="create-suggestions">
-                    {isSaleProductLookupLoading ? <p>Searching products in catalog...</p> : null}
+                    {isSaleProductLookupLoading ? <p>Searching products...</p> : null}
                     {visibleSaleProductSuggestions.map((product) => (
                       <button
                         key={product.id}
                         type="button"
                         className="create-suggestion-item"
+                        disabled={!product.selectable}
+                        title={product.selectable ? undefined : product.availabilityLabel}
                         onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
                       >
                         <strong>{product.name}</strong>
-                        <span>{product.note}</span>
+                        <span>
+                          {product.source === 'stock'
+                            ? `${product.article || '-'} / ${product.serialNumber || '-'} / ${product.availabilityLabel}`
+                            : product.note}
+                        </span>
                       </button>
                     ))}
                     <div className="sale-order-unavailable">

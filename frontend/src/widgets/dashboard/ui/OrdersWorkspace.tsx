@@ -156,6 +156,7 @@ type RepairStatus =
   | 'issued'
   | 'ready'
   | 'new'
+  | 'paid'
   | 'diagnostics'
   | 'inRepair'
   | 'waitingParts'
@@ -445,6 +446,7 @@ const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
   { key: 'ready', label: 'Ready' },
   { key: 'issued', label: 'Issued' },
+  { key: 'paid', label: 'Paid' },
   { key: 'new', label: 'New repair' },
   { key: 'diagnostics', label: 'Diagnostics' },
   { key: 'inRepair', label: 'In repair' },
@@ -550,6 +552,7 @@ const normalizeOrderStatus = (
   };
   const repairStatusMap: Record<string, RepairStatus> = {
     new: 'new',
+    paid: 'paid',
     diagnostics: 'diagnostics',
     inrepair: 'inRepair',
     waitingparts: 'waitingParts',
@@ -1943,6 +1946,7 @@ export const OrdersWorkspace = ({
 
     if (
       (isRepairOrder(sale) && status === 'issued') ||
+      (isRepairOrder(sale) && isSalePaymentStatus(status)) ||
       (!isRepairOrder(sale) &&
         (isSalePaymentStatus(status) || status === 'issued'))
     ) {
@@ -2710,6 +2714,7 @@ export const OrdersWorkspace = ({
       (action === 'depositAndIssue' ||
         action === 'issueWithoutPayment') &&
       hasAttachedProducts(paymentSale) &&
+      paymentTargetStatus !== 'paid' &&
       nextPaymentRemaining > 0
     ) {
       setWarningMessage(
@@ -2771,9 +2776,9 @@ export const OrdersWorkspace = ({
 
       const shouldAutoMarkPaidOnDeposit =
         action === 'deposit' &&
-        !isRepairOrder(paymentSale) &&
-        (paymentTargetStatus === 'issued' ||
-          paymentTargetStatus === 'paid');
+        (paymentTargetStatus === 'paid' ||
+          (!isRepairOrder(paymentSale) &&
+            paymentTargetStatus === 'issued'));
 
       if (shouldAutoMarkPaidOnDeposit) {
         nextStatus = 'paid';
@@ -2813,8 +2818,8 @@ export const OrdersWorkspace = ({
       onSuccess(
         action === 'deposit'
           ? 'Payment accepted to cashbox.'
-          : paymentTargetStatus === 'paid'
-            ? 'Sale marked as paid successfully.'
+        : paymentTargetStatus === 'paid'
+            ? 'Order marked as paid successfully.'
             : paymentTargetStatus === 'issuedWithoutRepair'
               ? 'Order issued without repair successfully.'
               : 'Order issued successfully.',
@@ -3197,7 +3202,12 @@ export const OrdersWorkspace = ({
             openReturnLineItemModal(selectedSale, item)
           }
           onOpenRelatedSale={openSaleCard}
-          onAcceptPayment={() => openPaymentModal(selectedSale)}
+          onAcceptPayment={() =>
+            openPaymentModal(
+              selectedSale,
+              isRepairOrder(selectedSale) ? 'paid' : 'issued',
+            )
+          }
           onRefundPayment={() => openRefundModal(selectedSale)}
           onDiscountChange={(discount) =>
             updateDiscount(selectedSale, discount)
@@ -6444,6 +6454,7 @@ const PaymentModal = ({
       paymentTargetStatus === 'issued' &&
       currentPaymentRemaining > 0) ||
     (isRepairOrder(sale) &&
+      paymentTargetStatus !== 'paid' &&
       hasProductLineItems &&
       currentPaymentRemaining > 0);
   const isIssueDisabled =

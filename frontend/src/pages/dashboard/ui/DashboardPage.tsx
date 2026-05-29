@@ -765,6 +765,7 @@ export const DashboardPage = () => {
                   initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
                   catalogProducts={state.catalogProducts}
                   products={state.allProducts}
+                  sales={state.sales}
                   onSave={actions.saveOrderRequest}
                   onUpdateProductModel={actions.updateProductModelCard}
                   onError={actions.showError}
