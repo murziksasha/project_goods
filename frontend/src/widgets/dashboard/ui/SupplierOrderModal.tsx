@@ -4,7 +4,10 @@ import { createCatalogProduct, getCatalogProducts } from '../../../entities/cata
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import { getSupplierSuggestions } from '../model/supplier-order-utils';
+import {
+  getSupplierOrderDisplayNumber,
+  getSupplierSuggestions,
+} from '../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
@@ -203,7 +206,7 @@ export const SupplierOrderModal = ({
     setForm({
       deliveryDate: (editingOrder?.deliveryDate ?? '').slice(0, 10),
       supplyType: editingOrder?.supplyType ?? 'Локально',
-      number: editingOrder?.number ?? '',
+      number: editingOrder ? getSupplierOrderDisplayNumber(editingOrder) : '',
       quantity: String(
         firstItem?.quantity ?? Math.max(1, Math.floor(initialQuantity)),
       ),

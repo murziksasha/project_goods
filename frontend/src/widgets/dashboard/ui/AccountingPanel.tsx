@@ -29,6 +29,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import { formatMetric } from '../model/sales-analytics';
+import { getSupplierOrderDisplayNumber } from '../model/supplier-order-utils';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -40,11 +41,15 @@ type AccountingPanelProps = {
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
 const accountingTabStorageKey = 'project-goods.accounting-tab';
+const accountingSettingsOpenStorageKey = 'project-goods.accounting-settings-open';
+const accountingExpandedFinanceSettingsCardStorageKey =
+  'project-goods.accounting-expanded-finance-settings-card';
 const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
 const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
 const accountingCurrencyActivityStorageKey = 'project-goods.accounting-currency-activity';
 const accountingCashboxCurrencyActivityStorageKey = 'project-goods.accounting-cashbox-currency-activity';
 const accountingLastTargetCashboxByTypeStorageKey = 'project-goods.accounting-last-target-cashbox-by-type';
+const accountingFinanceSettingsTabStorageKey = 'project-goods.accounting-finance-settings-tab';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -145,6 +150,36 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
+const getStoredAccountingTab = (): AccountingTab => {
+  try {
+    const storedTab = window.localStorage.getItem(accountingTabStorageKey);
+    return storedTab === 'cashboxes' ||
+      storedTab === 'transactions' ||
+      storedTab === 'orders' ||
+      storedTab === 'reports'
+      ? storedTab
+      : 'cashboxes';
+  } catch {
+    return 'cashboxes';
+  }
+};
+
+const getStoredAccountingSettingsOpen = (): boolean => {
+  try {
+    return window.localStorage.getItem(accountingSettingsOpenStorageKey) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const getStoredExpandedFinanceSettingsCard = (): string | null => {
+  try {
+    return window.localStorage.getItem(accountingExpandedFinanceSettingsCardStorageKey);
+  } catch {
+    return null;
+  }
+};
+
 export const AccountingPanel = ({
   currentEmployee,
   onError,
@@ -152,19 +187,7 @@ export const AccountingPanel = ({
   sales,
   onOpenSaleCard,
 }: AccountingPanelProps) => {
-  const [activeTab, setActiveTab] = useState<AccountingTab>(() => {
-    try {
-      const storedTab = window.localStorage.getItem(accountingTabStorageKey);
-      return storedTab === 'cashboxes' ||
-        storedTab === 'transactions' ||
-        storedTab === 'orders' ||
-        storedTab === 'reports'
-        ? storedTab
-        : 'cashboxes';
-    } catch {
-      return 'cashboxes';
-    }
-  });
+  const [activeTab, setActiveTab] = useState<AccountingTab>(getStoredAccountingTab);
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -188,9 +211,17 @@ export const AccountingPanel = ({
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
   const [withoutPaymentOrder, setWithoutPaymentOrder] = useState<SupplierOrderPaymentQueueItem | null>(null);
-  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(false);
-  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>('cashboxes');
-  const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] = useState<string | null>(null);
+  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(getStoredAccountingSettingsOpen);
+  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>(() => {
+    try {
+      const storedTab = window.localStorage.getItem(accountingFinanceSettingsTabStorageKey);
+      return storedTab === 'cashboxes' || storedTab === 'currencies' ? storedTab : 'cashboxes';
+    } catch {
+      return 'cashboxes';
+    }
+  });
+  const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] =
+    useState<string | null>(getStoredExpandedFinanceSettingsCard);
   const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
   const [editingCashboxName, setEditingCashboxName] = useState('');
   const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
@@ -394,7 +425,11 @@ export const AccountingPanel = ({
   }, [refreshFinance]);
 
   useEffect(() => {
-    window.localStorage.setItem(accountingTabStorageKey, activeTab);
+    try {
+      window.localStorage.setItem(accountingTabStorageKey, activeTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -505,6 +540,43 @@ export const AccountingPanel = ({
       // Ignore localStorage write errors.
     }
   }, [lastTargetCashboxByType]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingFinanceSettingsTabStorageKey,
+        financeSettingsTab,
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [financeSettingsTab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingSettingsOpenStorageKey,
+        String(isFinanceSettingsOpen),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [isFinanceSettingsOpen]);
+
+  useEffect(() => {
+    try {
+      if (expandedFinanceSettingsCard) {
+        window.localStorage.setItem(
+          accountingExpandedFinanceSettingsCardStorageKey,
+          expandedFinanceSettingsCard,
+        );
+      } else {
+        window.localStorage.removeItem(accountingExpandedFinanceSettingsCardStorageKey);
+      }
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [expandedFinanceSettingsCard]);
 
   const totals = useMemo(
     () =>
@@ -1647,86 +1719,136 @@ export const AccountingPanel = ({
   );
 
   const renderSupplierOrdersQueue = () => (
-    <div className='finance-table-wrap'>
-      <table className='orders-table finance-orders-table'>
-        <thead>
-          <tr>
-            <th className='finance-orders-col-number'>Number</th>
-            <th className='finance-orders-col-date'>Date</th>
-            <th className='finance-orders-col-supplier'>Supplier</th>
-            <th className='finance-orders-col-amount'>Amount</th>
-            <th className='finance-orders-col-payment'>Payment</th>
-          </tr>
-        </thead>
-        <tbody>
-          {supplierOrdersQueue.length === 0 ? (
-            <tr><td colSpan={5} className='orders-empty'>No orders are waiting for payment.</td></tr>
-          ) : (
-            supplierOrdersQueue.map((order) => {
-              const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
-              return (
-                <tr key={order.id}>
-                  <td className='finance-orders-number-cell' title={order.number || order.orderBaseId}>
-                    <span className='orders-table-cell-truncate'>{order.number || order.orderBaseId}</span>
-                  </td>
-                  <td className='finance-orders-date-cell'>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</td>
-                  <td className='finance-orders-supplier-cell'>
-                    <span className='orders-table-cell-truncate'>{order.supplierName}</span>
-                  </td>
-                  <td className='finance-orders-amount-cell'>{formatMoney(order.total, 'UAH')}</td>
-                  <td className='finance-orders-payment-cell'>
-                    <div className='finance-orders-payment-actions'>
-                      {canPaySupplierOrders ? (
-                        <>
-                          <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
-                            {cashboxes.map((cashbox) => (
-                              <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
-                                {truncateLabel(cashbox.name, 14)}
-                              </option>
-                            ))}
-                          </select>
+    <section className='finance-orders-view'>
+      <div className='finance-information-header finance-orders-header'>
+        <div>
+          <p className='section-label'>Supplier payments</p>
+          <h2>Orders payment queue</h2>
+        </div>
+        <div className='finance-information-status'>
+          <span>{`${financeOverview.pendingSupplierCount} waiting`}</span>
+          <span>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</span>
+        </div>
+      </div>
+
+      <div className='finance-orders-summary-grid'>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Queue amount</span>
+          <strong>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Orders waiting</span>
+          <strong>{formatMetric(financeOverview.pendingSupplierCount)}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Active cashboxes</span>
+          <strong>{formatMetric(financeOverview.activeCashboxCount)}</strong>
+        </article>
+      </div>
+
+      <div className='orders-table-wrap finance-orders-table-wrap'>
+        <table className='orders-table finance-orders-table'>
+          <thead>
+            <tr>
+              <th className='finance-orders-col-number'>Order</th>
+              <th className='finance-orders-col-date'>Date</th>
+              <th className='finance-orders-col-supplier'>Supplier</th>
+              <th className='finance-orders-col-amount'>Amount</th>
+              <th className='finance-orders-col-payment'>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {supplierOrdersQueue.length === 0 ? (
+              <tr>
+                <td colSpan={5} className='orders-empty finance-orders-empty'>
+                  No orders are waiting for payment.
+                </td>
+              </tr>
+            ) : (
+              supplierOrdersQueue.map((order) => {
+                const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
+                const orderNumber = getSupplierOrderDisplayNumber(order);
+                return (
+                  <tr key={order.id} className='finance-orders-row'>
+                    <td className='finance-orders-number-cell' title={orderNumber}>
+                      <button
+                        type='button'
+                        className='finance-orders-number-button'
+                        onClick={() => setSelectedSupplierOrder(order)}
+                        aria-label={`Open supplier order ${orderNumber}`}
+                      >
+                        {orderNumber}
+                      </button>
+                      <span className='finance-orders-cell-note'>Supplier order</span>
+                    </td>
+                    <td className='finance-orders-date-cell'>
+                      <span>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</span>
+                      <small>{order.deliveryDate ? 'Delivery' : 'Created'}</small>
+                    </td>
+                    <td className='finance-orders-supplier-cell'>
+                      <span className='orders-table-cell-truncate'>{order.supplierName}</span>
+                      <small>Payment required</small>
+                    </td>
+                    <td className='finance-orders-amount-cell'>
+                      <strong>{formatMoney(order.total, 'UAH')}</strong>
+                    </td>
+                    <td className='finance-orders-payment-cell'>
+                      <div className='finance-orders-payment-actions'>
+                        {canPaySupplierOrders ? (
+                          <>
+                            <label className='finance-orders-cashbox-select'>
+                              <span>Cashbox</span>
+                              <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
+                                {cashboxes.map((cashbox) => (
+                                  <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
+                                    {truncateLabel(cashbox.name, 14)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button
+                              type='button'
+                              className='primary-button'
+                              disabled={isSaving || !cashboxId}
+                              onClick={async () => {
+                                if (!cashboxId) return;
+                                setIsSaving(true);
+                                try {
+                                  await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${orderNumber}` });
+                                  onSuccess('Order has been paid.');
+                                  window.dispatchEvent(new Event('project-goods:finance-updated'));
+                                  await refreshFinance();
+                                } catch (error) {
+                                  onError(error instanceof Error ? error.message : 'Failed to pay order.');
+                                } finally {
+                                  setIsSaving(false);
+                                }
+                              }}
+                            >
+                              Pay
+                            </button>
+                          </>
+                        ) : null}
+                        {canIssueSupplierOrdersWithoutPayment ? (
                           <button
                             type='button'
-                            className='primary-button'
-                            disabled={isSaving || !cashboxId}
-                            onClick={async () => {
-                              if (!cashboxId) return;
-                              setIsSaving(true);
-                              try {
-                                await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
-                                onSuccess('Order has been paid.');
-                                window.dispatchEvent(new Event('project-goods:finance-updated'));
-                                await refreshFinance();
-                              } catch (error) {
-                                onError(error instanceof Error ? error.message : 'Failed to pay order.');
-                              } finally {
-                                setIsSaving(false);
-                              }
-                            }}
+                            className='secondary-button'
+                            disabled={isSaving}
+                            onClick={() => setWithoutPaymentOrder(order)}
                           >
-                            Pay
+                            Issue without payment
                           </button>
-                        </>
-                      ) : null}
-                      {canIssueSupplierOrdersWithoutPayment ? (
-                        <button
-                          type='button'
-                          className='secondary-button'
-                          disabled={isSaving}
-                          onClick={() => setWithoutPaymentOrder(order)}
-                        >
-                          Issue without payment
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 
   const renderReports = () => (
@@ -2194,7 +2316,7 @@ export const AccountingPanel = ({
               key={key}
               type='button'
               className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
-            onClick={() => {
+              onClick={() => {
                 setIsFinanceSettingsOpen(false);
                 setExpandedFinanceSettingsCard(null);
                 setActiveTab(key as AccountingTab);
@@ -2277,7 +2399,7 @@ export const AccountingPanel = ({
             </header>
             <div className='catalog-edit-body'>
               <p>
-                Order <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> will be
+                Order <strong>{getSupplierOrderDisplayNumber(withoutPaymentOrder)}</strong> will be
                 marked as <strong>issued without payment</strong>.
               </p>
               <p>No finance transaction will be created. Continue?</p>

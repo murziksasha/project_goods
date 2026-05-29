@@ -24,10 +24,23 @@ export type PrintFormVariable =
   | 'warehouse'
   | 'warehouse_address'
   | 'warehouse_phone'
+  | 'company_address'
+  | 'company_id'
+  | 'company_iban'
+  | 'customer_reg_id'
+  | 'due_date'
+  | 'net_amount'
+  | 'vat_amount'
+  | 'total_amount'
+  | 'total_written'
+  | 'seller_occupation'
+  | 'seller_name'
+  | 'note_label'
   | 'barcode'
   | 'qrcode'
   | 'products_table'
   | 'services_table'
+  | 'invoice_items_table'
   | 'note';
 
 export type PrintTemplateData = Partial<Record<PrintFormVariable, string>> &
@@ -44,6 +57,7 @@ export const printFormVariableGroups: Array<{
       { key: 'orderNumber', label: 'Номер замовлення' },
       { key: 'date', label: 'Дата створення' },
       { key: 'createdAt', label: 'Дата та час створення' },
+      { key: 'due_date', label: 'Сплатити до' },
       { key: 'status', label: 'Статус' },
     ],
   },
@@ -52,6 +66,7 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'clientName', label: 'ПІБ або назва клієнта' },
       { key: 'clientPhone', label: 'Телефон клієнта' },
+      { key: 'customer_reg_id', label: 'ЄДРПОУ або ІПН клієнта' },
     ],
   },
   {
@@ -73,6 +88,10 @@ export const printFormVariableGroups: Array<{
       { key: 'toPay', label: 'До сплати' },
       { key: 'currency', label: 'Валюта' },
       { key: 'discount', label: 'Знижка' },
+      { key: 'net_amount', label: 'Разом без ПДВ' },
+      { key: 'vat_amount', label: 'ПДВ' },
+      { key: 'total_amount', label: 'Всього з ПДВ' },
+      { key: 'total_written', label: 'Сума прописом' },
     ],
   },
   {
@@ -86,9 +105,15 @@ export const printFormVariableGroups: Array<{
     title: 'Сервіс і склад',
     variables: [
       { key: 'company', label: 'Назва компанії' },
+      { key: 'company_address', label: 'Адреса компанії' },
+      { key: 'company_id', label: 'ЄДРПОУ або ІПН компанії' },
+      { key: 'company_iban', label: 'IBAN компанії' },
       { key: 'warehouse', label: 'Склад' },
       { key: 'warehouse_address', label: 'Адреса складу' },
       { key: 'warehouse_phone', label: 'Телефон складу' },
+      { key: 'seller_occupation', label: 'Посада підписанта' },
+      { key: 'seller_name', label: 'ПІБ підписанта' },
+      { key: 'note_label', label: 'Назва примітки' },
     ],
   },
   {
@@ -98,6 +123,7 @@ export const printFormVariableGroups: Array<{
       { key: 'qrcode', label: 'QR Code' },
       { key: 'products_table', label: 'Товари' },
       { key: 'services_table', label: 'Послуги' },
+      { key: 'invoice_items_table', label: 'Позиції рахунку з ПДВ' },
     ],
   },
 ];
@@ -232,19 +258,51 @@ export const defaultPrintForms: PrintForm[] = [
     title: 'Рахунок',
     type: 'invoice',
     content: documentShell(`
-      <h1>Рахунок на оплату №{{orderNumber}}</h1>
-      <p><strong>Постачальник:</strong> {{company}}</p>
-      <p><strong>Платник:</strong> {{clientName}}, {{clientPhone}}</p>
-      {{products_table}}
-      {{services_table}}
-      <table class="print-summary-table print-summary-right">
+      <div class="invoice-party">
+        <strong>Постачальник</strong>
+        <div>
+          <b>{{company}}</b><br>
+          Адреса: {{company_address}}<br>
+          ЄДРПОУ або ІПН: {{company_id}}<br>
+          не є платником податку на прибуток на загальних умовах<br>
+          <b>Р/р {{company_iban}}</b>
+        </div>
+      </div>
+      <div class="invoice-party">
+        <strong>Одержувач</strong>
+        <div>
+          <b>{{clientName}}</b><br>
+          ЄДРПОУ або ІПН: {{customer_reg_id}}<br>
+          {{clientPhone}}<br>
+          {{warehouse_address}}
+        </div>
+      </div>
+      <div class="invoice-title">
+        <h1>Рахунок фактура № {{orderNumber}}</h1>
+        <p>від {{date}} р.</p>
+      </div>
+      {{invoice_items_table}}
+      <table class="invoice-totals">
         <tbody>
-          <tr><td>Знижка</td><td>{{discount}}</td></tr>
-          <tr><td>Сплачено</td><td>{{paid}}</td></tr>
-          <tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr>
-          <tr><td>Разом</td><td><strong>{{total}}</strong></td></tr>
+          <tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr>
+          <tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr>
+          <tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr>
         </tbody>
       </table>
+      <div class="invoice-written">
+        <p>Всього на суму: <strong>{{total_written}}</strong></p>
+        <p>ПДВ: {{vat_amount}}</p>
+      </div>
+      <div class="invoice-payable">
+        <strong>Загальна сума до оплати:</strong>
+        <strong>{{total_amount}}</strong>
+      </div>
+      <div class="invoice-signature">
+        <strong><em>{{seller_occupation}}</em></strong>
+        <span></span>
+        <strong><em>{{seller_name}}</em></strong>
+      </div>
+      <p class="invoice-note"><strong>{{note_label}}:</strong> {{note}}</p>
     `),
     contentFormat: 'html',
     pageSize: 'A4',
@@ -281,6 +339,11 @@ export const legacyDefaultPrintFormIds = new Set([
   'barcode',
 ]);
 
+const isPreviousDefaultInvoice = (form: PrintForm) =>
+  form.id === 'invoice' &&
+  form.title === 'Рахунок' &&
+  form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+
 export const createDefaultSettingsForm = () => ({
   serviceName: 'Service CRM',
   printForms: defaultPrintForms,
@@ -311,15 +374,23 @@ export const createDefaultSettingsForm = () => ({
 
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
-    (form, index) => ({
-      ...form,
-      contentFormat: form.contentFormat ?? 'text',
-      pageSize: form.pageSize ?? (form.type === 'barcode' ? 'label' : 'A4'),
-      orientation: form.orientation ?? 'portrait',
-      sortOrder: Number.isFinite(form.sortOrder)
-        ? form.sortOrder
-        : (index + 1) * 10,
-    }),
+    (form, index) => {
+      const normalizedForm = isPreviousDefaultInvoice(form)
+        ? defaultPrintForms.find((defaultForm) => defaultForm.id === 'invoice') ?? form
+        : form;
+
+      return {
+        ...normalizedForm,
+        contentFormat: normalizedForm.contentFormat ?? 'text',
+        pageSize:
+          normalizedForm.pageSize ??
+          (normalizedForm.type === 'barcode' ? 'label' : 'A4'),
+        orientation: normalizedForm.orientation ?? 'portrait',
+        sortOrder: Number.isFinite(normalizedForm.sortOrder)
+          ? normalizedForm.sortOrder
+          : (index + 1) * 10,
+      };
+    },
   );
 
   const existingIds = new Set(normalized.map((form) => form.id));
@@ -374,6 +445,12 @@ export const renderPrintTemplate = (
     if (key === 'services_table') {
       return result.replaceAll('{{services_table}}', renderServicesTable(values.services_table ?? ''));
     }
+    if (key === 'invoice_items_table') {
+      return result.replaceAll(
+        '{{invoice_items_table}}',
+        renderProductsTable(values.invoice_items_table ?? ''),
+      );
+    }
 
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));
   }, source);
@@ -404,6 +481,24 @@ export const printDocumentStyles = `
   .print-muted { color: #6b7280; }
   .print-label { width: 58mm; min-height: 40mm; display: grid; place-items: center; gap: 2mm; text-align: center; font-size: 12px; }
   .print-label-code .print-barcode { width: 52mm; max-width: 52mm; }
+  .invoice-party { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; font-size: 12px; }
+  .invoice-party > strong { text-decoration: underline; }
+  .invoice-title { margin: 26px 0 14px; text-align: center; }
+  .invoice-title h1 { margin: 0; font-size: 17px; font-weight: 800; }
+  .invoice-title p { margin: 2px 0 0; font-weight: 800; }
+  .invoice-items-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+  .invoice-items-table th, .invoice-items-table td { border: 1px solid #777; padding: 5px 6px; vertical-align: top; }
+  .invoice-items-table th { background: #d7d5d5; text-align: center; font-weight: 800; }
+  .invoice-items-table td:nth-child(1), .invoice-items-table td:nth-child(n+3) { text-align: right; }
+  .invoice-items-table td:nth-child(2) { text-align: left; }
+  .invoice-item-description { display: block; margin-top: 2px; font-size: 10px; font-weight: 400; }
+  .invoice-totals { width: 260px; margin: 14px 0 26px auto; border-collapse: collapse; font-size: 12px; font-weight: 800; }
+  .invoice-totals td { padding: 3px 0 3px 12px; border: 0; text-align: right; }
+  .invoice-written { margin-top: 18px; font-size: 12px; }
+  .invoice-payable { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 20px; margin-top: 64px; font-size: 13px; }
+  .invoice-signature { display: grid; grid-template-columns: 120px 1fr 220px; align-items: end; gap: 16px; margin-top: 24px; font-size: 12px; }
+  .invoice-signature span { border-bottom: 1px solid #333; height: 18px; }
+  .invoice-note { margin-top: 44px; font-size: 11px; }
   @page { size: A4 portrait; margin: 12mm; }
   @media print {
     body { margin: 0; }

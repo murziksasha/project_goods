@@ -48,6 +48,14 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date working set as the supplier-order table.
 
+## Tab Persistence Rule (2026-05-29)
+
+- Active dashboard tabs must persist across browser reload (`F5`) so users return to the last working view instead of falling back to `Main`.
+- The persisted tab state is stored in `localStorage` and restored automatically on mount unless a deeper navigation state explicitly overrides it.
+- This applies to the main dashboard page, `Settings`, `Accounting`, `Products & Services`, `Clients & Suppliers`, `Warehouse`, and the nested workflow tabs inside create/edit cards.
+- Nested examples that must remember their last tab: `Accounting -> Finance settings`, `Clients -> client card`, `Clients -> create client modal`, `Orders -> order detail related block`, and `Create order -> request tabs`.
+- URL-driven navigation still wins when the user opens a specific page/tab via route or link, but ordinary refresh should preserve the last active tab selection.
+
 ## Sidebar UI Persistence Rule (2026-05-19)
 
 - Dashboard main menu collapsed/expanded state must persist across browser reload (`F5`).

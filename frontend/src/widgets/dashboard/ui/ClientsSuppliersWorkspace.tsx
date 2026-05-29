@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDateTime } from '../../../shared/lib/format';
 import type { Sale } from '../../../entities/sale/model/types';
 import type {
@@ -13,6 +13,18 @@ import type {
 import { ClientsWorkspace } from './ClientsWorkspace';
 
 type TabKey = 'clients' | 'suppliers';
+const clientsSuppliersTabStorageKey = 'project-goods.clients-suppliers-tab';
+
+const getStoredClientsSuppliersTab = (): TabKey => {
+  try {
+    const storedTab = window.localStorage.getItem(clientsSuppliersTabStorageKey);
+    return storedTab === 'clients' || storedTab === 'suppliers'
+      ? storedTab
+      : 'clients';
+  } catch {
+    return 'clients';
+  }
+};
 
 type Props = {
   clients: Client[];
@@ -79,7 +91,7 @@ export const ClientsSuppliersWorkspace = ({
   onMergeSuppliers,
   onUpdateSupplier,
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<TabKey>('clients');
+  const [activeTab, setActiveTab] = useState<TabKey>(getStoredClientsSuppliersTab);
   const [query, setQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
@@ -210,6 +222,14 @@ export const ClientsSuppliersWorkspace = ({
     setMergeTargetId('');
     setMergeSourceId('');
   };
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(clientsSuppliersTabStorageKey, activeTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [activeTab]);
 
   return (
     <section className='panel clients-workspace'>

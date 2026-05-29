@@ -78,12 +78,16 @@ export const buildSupplierOrderItemNumber = (
   order: SupplierOrder,
   itemIndex: number,
 ) => {
-  const baseNumber = order.number || order.orderBaseId || order.id;
+  const baseNumber = getSupplierOrderDisplayNumber(order);
   if (order.items.length <= 1) {
     return baseNumber;
   }
   return `${baseNumber}-${itemIndex + 1}`;
 };
+
+export const getSupplierOrderDisplayNumber = (
+  order: Pick<SupplierOrder, 'number' | 'orderBaseId' | 'id'>,
+) => order.number || order.orderBaseId || order.id;
 
 export const mergeSupplierOrderItemUpdate = ({
   sourceOrder,
