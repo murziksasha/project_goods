@@ -318,6 +318,18 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
               title,
               type: toNonEmptyString(source.type) || 'custom',
               content,
+              contentFormat:
+                toNonEmptyString(source.contentFormat) === 'html'
+                  ? 'html'
+                  : 'text',
+              pageSize:
+                toNonEmptyString(source.pageSize) === 'label'
+                  ? 'label'
+                  : 'A4',
+              orientation:
+                toNonEmptyString(source.orientation) === 'landscape'
+                  ? 'landscape'
+                  : 'portrait',
               isActive: toBoolean(source.isActive, true),
               sortOrder: clampInteger(source.sortOrder, (index + 1) * 10, 0),
             };

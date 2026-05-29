@@ -66,6 +66,14 @@ const setupSettingsService = async ({
   vi.doMock('./model', () => ({
     Settings: FakeSettings,
     defaultPrintForms,
+    legacyDefaultPrintFormTitles: new Set([
+      'Receipt',
+      'Check',
+      'Warranty',
+      'Completion act',
+      'Invoice',
+      'Barcode label',
+    ]),
   }));
 
   const service = await import('./service');
@@ -136,7 +144,15 @@ describe('settings service', () => {
       {},
       expect.objectContaining({
         serviceName: 'Repair CRM',
-        printForms: updateResult.printForms,
+        printForms: [
+          expect.objectContaining({
+            id: 'invoice',
+            title: 'Invoice',
+            contentFormat: 'text',
+            pageSize: 'A4',
+            orientation: 'portrait',
+          }),
+        ],
       }),
       expect.objectContaining({
         upsert: true,
@@ -146,7 +162,17 @@ describe('settings service', () => {
     );
     expect(settings).toMatchObject({
       serviceName: 'Repair CRM',
-      printForms: updateResult.printForms,
+      printForms: [
+        expect.objectContaining({
+          id: 'invoice',
+          contentFormat: 'text',
+          pageSize: 'A4',
+          orientation: 'portrait',
+        }),
+        expect.objectContaining({
+          id: 'receipt',
+        }),
+      ],
       financeDefaults: {
         currency: 'USD',
         paymentMethod: 'non-cash',

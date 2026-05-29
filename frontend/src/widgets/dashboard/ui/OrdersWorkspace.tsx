@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -96,6 +98,7 @@ import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   defaultPrintForms,
   normalizePrintFormsForView,
+  printDocumentStyles,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
 } from '../../../entities/settings/model/printForms';
@@ -865,26 +868,85 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
+const renderLineItemsTable = (
+  items: OrderLineItem[],
+  emptyLabel: string,
+) => {
+  if (items.length === 0) {
+    return `<p class="print-muted">${emptyLabel}</p>`;
+  }
+
+  const rows = items
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(String(item.quantity))}</td>
+          <td>${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
+        </tr>
+      `,
+    )
+    .join('');
+
+  return `
+    <table class="print-line-table">
+      <thead>
+        <tr>
+          <th>Назва</th>
+          <th>К-сть</th>
+          <th>Сума</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+};
+
 const getPrintTemplateData = (
   sale: Sale,
   paidAmount: number,
   orderNumber: string,
 ): PrintTemplateData => {
   const total = getOrderTotal(sale);
+  const productItems = (sale.lineItems ?? []).filter(
+    (item) => item.kind === 'product',
+  );
+  const serviceItems = (sale.lineItems ?? []).filter(
+    (item) => item.kind === 'service',
+  );
+  const createdAt = formatDateTime(sale.createdAt);
   return {
+    id: sale.id,
     orderNumber,
+    date: createdAt.split(',')[0] ?? createdAt,
+    status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
     clientName: sale.client.name,
     clientPhone: sale.client.phone,
     deviceName: sale.product.name,
     serialNumber: sale.product.serialNumber,
     article: sale.product.article,
+    defect: sale.note || '-',
+    comment: sale.note || '-',
     total: formatCurrency(total),
     paid: formatCurrency(paidAmount),
     toPay: formatCurrency(getRemainingPayment(sale, paidAmount)),
+    currency: 'UAH',
+    discount:
+      getDiscount(sale).value > 0
+        ? `${getDiscount(sale).value}${getDiscount(sale).mode === 'percent' ? '%' : ' UAH'}`
+        : '0 UAH',
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
-    createdAt: formatDateTime(sale.createdAt),
+    company: 'Сервісний центр',
+    warehouse: getWarehouseLabel(sale),
+    warehouse_address: '-',
+    warehouse_phone: '-',
+    products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
+    services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
+    barcode: orderNumber,
+    qrcode: orderNumber,
+    createdAt,
   };
 };
 
@@ -6490,7 +6552,7 @@ const PaymentModal = ({
     );
   };
 
-  const printSelectedForms = () => {
+  const printSelectedForms = async () => {
     const formsToPrint = availablePrintForms.filter((form) =>
       selectedFormIds.includes(form.id),
     );
@@ -6503,12 +6565,12 @@ const PaymentModal = ({
     );
     if (!printWindow) return;
 
+    const templateData = getPrintTemplateData(sale, paidAmount, orderNumber);
     const body = formsToPrint
       .map(
         (form) => `
-          <section class="print-form">
-            <h1>${escapeHtml(form.title)}</h1>
-            <pre>${escapeHtml(renderSettingsPrintTemplate(form.content, getPrintTemplateData(sale, paidAmount, orderNumber)))}</pre>
+          <section class="print-form ${form.pageSize === 'label' ? 'print-form-label' : ''}">
+            ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
           </section>
         `,
       )
@@ -6520,16 +6582,58 @@ const PaymentModal = ({
         <head>
           <title>Print forms ${orderNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #1f2937; }
-            .print-form { page-break-after: always; border: 1px solid #d1d5db; padding: 24px; margin-bottom: 24px; }
-            h1 { margin-top: 0; }
-            pre { white-space: pre-wrap; font: inherit; line-height: 1.5; }
+            ${printDocumentStyles}
           </style>
         </head>
         <body>${body}</body>
       </html>
     `);
     printWindow.document.close();
+
+    printWindow.document
+      .querySelectorAll<SVGSVGElement>('svg[data-barcode-value]')
+      .forEach((node) => {
+        if (
+          node.ownerDocument.defaultView?.navigator.userAgent.includes(
+            'jsdom',
+          )
+        ) {
+          return;
+        }
+        const value = node.dataset.barcodeValue || orderNumber;
+        try {
+          JsBarcode(node, value, {
+            format: 'CODE128',
+            displayValue: true,
+            fontSize: 12,
+            height: 44,
+            margin: 0,
+          });
+        } catch {
+          node.replaceWith(printWindow.document.createTextNode(value));
+        }
+      });
+
+    await Promise.all(
+      Array.from(
+        printWindow.document.querySelectorAll<HTMLCanvasElement>(
+          'canvas[data-qrcode-value]',
+        ),
+      )
+        .filter(
+          (node) =>
+            !node.ownerDocument.defaultView?.navigator.userAgent.includes(
+              'jsdom',
+            ),
+        )
+        .map((node) =>
+          QRCode.toCanvas(node, node.dataset.qrcodeValue || orderNumber, {
+            width: 88,
+            margin: 1,
+          }).catch(() => undefined),
+        ),
+    );
+
     printWindow.focus();
     printWindow.print();
   };
@@ -6666,7 +6770,7 @@ const PaymentModal = ({
                 <button
                   type='button'
                   className='primary-button'
-                  onClick={printSelectedForms}
+                  onClick={() => void printSelectedForms()}
                   disabled={selectedFormIds.length === 0}
                 >
                   Print selected

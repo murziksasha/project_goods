@@ -3,58 +3,86 @@ import mongoose from 'mongoose';
 export const defaultPrintForms = [
   {
     id: 'receipt',
-    title: 'Receipt',
+    title: 'Квитанція',
     type: 'receipt',
     content:
-      'Receipt for order {{orderNumber}}\nClient: {{clientName}}\nPhone: {{clientPhone}}\nDevice: {{deviceName}}\nAmount: {{total}}',
+      '<div class="print-document"><div class="print-header print-header-right"><div><h2>{{company}}</h2><p>{{warehouse_address}} {{warehouse_phone}}</p></div></div><div class="print-title-row"><h1>Квитанція №{{orderNumber}} від {{date}}</h1><div>{{barcode}}</div></div><table class="print-details-table"><tbody><tr><td>Вид ремонту:</td><td><strong>{{comment}}</strong></td><td>Пристрій:</td><td><strong>{{deviceName}}</strong></td></tr><tr><td>Замовник:</td><td><strong>{{clientName}}</strong></td><td>Серійний №:</td><td><strong>{{serialNumber}}</strong></td></tr><tr><td>Контактні дані:</td><td><strong>{{clientPhone}}</strong></td><td>Артикул:</td><td><strong>{{article}}</strong></td></tr><tr><td>Заявлена несправність:</td><td><strong>{{defect}}</strong></td><td>Передплата:</td><td><strong>{{paid}}</strong></td></tr><tr><td>Орієнтована вартість:</td><td><strong>{{total}}</strong></td><td>До сплати:</td><td><strong>{{toPay}}</strong></td></tr></tbody></table><ol class="print-terms"><li>Сервісний центр не несе відповідальності за втрату даних в пам&apos;яті пристрою.</li><li>Термін діагностики - від 1 до 3-х днів.</li><li>Гарантія поширюється на виконані роботи та встановлені деталі.</li></ol><div class="print-signatures"><span>Прийняв: {{managerName}}</span><span>Клієнт: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 10,
   },
   {
     id: 'check',
-    title: 'Check',
+    title: 'Чек',
     type: 'check',
     content:
-      'Check\nOrder: {{orderNumber}}\nPaid: {{paid}}\nTo pay: {{toPay}}',
+      '<div class="print-document"><h1>Чек оплати</h1><table class="print-summary-table"><tbody><tr><td>Замовлення</td><td>{{orderNumber}}</td></tr><tr><td>Клієнт</td><td>{{clientName}}</td></tr><tr><td>Пристрій</td><td>{{deviceName}}</td></tr><tr><td>Сума</td><td><strong>{{total}}</strong></td></tr><tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr><tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr></tbody></table><div class="print-code-row">{{qrcode}}{{barcode}}</div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 20,
   },
   {
     id: 'warranty',
-    title: 'Warranty',
+    title: 'Гарантійний талон',
     type: 'warranty',
     content:
-      'Warranty document\nDevice: {{deviceName}}\nS/N: {{serialNumber}}\nClient: {{clientName}}\nMaster: {{masterName}}',
+      '<div class="print-document"><h1>Гарантійний талон</h1><p>Замовлення №{{orderNumber}} від {{date}}</p><p><strong>Клієнт:</strong> {{clientName}}</p><p><strong>Пристрій:</strong> {{deviceName}} {{serialNumber}}</p><p><strong>Майстер:</strong> {{masterName}}</p><p>Гарантія діє за умови відсутності механічних пошкоджень та слідів стороннього втручання.</p><div class="print-signatures"><span>Сервіс: __________________</span><span>Клієнт: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 30,
   },
   {
     id: 'completion-act',
-    title: 'Completion act',
+    title: 'Акт виконаних робіт',
     type: 'completion-act',
     content:
-      'Completion act\nOrder: {{orderNumber}}\nWork: {{note}}\nTotal: {{total}}',
+      '<div class="print-document"><h1>Акт виконаних робіт №{{orderNumber}}</h1><p>Дата: {{date}}</p><p><strong>Клієнт:</strong> {{clientName}}, {{clientPhone}}</p><p><strong>Пристрій:</strong> {{deviceName}} {{serialNumber}}</p><h3>Виконані роботи</h3>{{services_table}}<h3>Встановлені товари</h3>{{products_table}}<p class="print-total-line">Разом: <strong>{{total}}</strong></p><div class="print-signatures"><span>Виконавець: {{masterName}}</span><span>Замовник: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 40,
   },
   {
     id: 'invoice',
-    title: 'Invoice',
+    title: 'Рахунок',
     type: 'invoice',
     content:
-      'Invoice for payment\nOrder: {{orderNumber}}\nClient: {{clientName}}\nTotal: {{total}}',
+      '<div class="print-document"><h1>Рахунок на оплату №{{orderNumber}}</h1><p><strong>Постачальник:</strong> {{company}}</p><p><strong>Платник:</strong> {{clientName}}, {{clientPhone}}</p>{{products_table}}{{services_table}}<table class="print-summary-table print-summary-right"><tbody><tr><td>Знижка</td><td>{{discount}}</td></tr><tr><td>Сплачено</td><td>{{paid}}</td></tr><tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr><tr><td>Разом</td><td><strong>{{total}}</strong></td></tr></tbody></table></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 50,
   },
   {
     id: 'barcode',
-    title: 'Barcode label',
+    title: 'Штрих-код',
     type: 'barcode',
-    content: 'Barcode form\nOrder: {{orderNumber}}\nS/N: {{serialNumber}}',
+    content:
+      '<div class="print-label"><div class="print-label-code">{{barcode}}</div><strong>{{orderNumber}}</strong><span>{{clientPhone}}</span><span>{{deviceName}}</span></div>',
+    contentFormat: 'html',
+    pageSize: 'label',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 60,
   },
 ];
+
+export const legacyDefaultPrintFormTitles = new Set([
+  'Receipt',
+  'Check',
+  'Warranty',
+  'Completion act',
+  'Invoice',
+  'Barcode label',
+]);
 
 const printFormSchema = new mongoose.Schema(
   {
@@ -77,7 +105,22 @@ const printFormSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 10000,
+      maxlength: 30000,
+    },
+    contentFormat: {
+      type: String,
+      enum: ['html', 'text'],
+      default: 'text',
+    },
+    pageSize: {
+      type: String,
+      enum: ['A4', 'label'],
+      default: 'A4',
+    },
+    orientation: {
+      type: String,
+      enum: ['portrait', 'landscape'],
+      default: 'portrait',
     },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },

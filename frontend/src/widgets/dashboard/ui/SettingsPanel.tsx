@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
 import type {
   AppSettingsFormValues,
   FinanceDefaults,
@@ -9,7 +11,7 @@ import type {
 } from '../../../entities/settings/model/types';
 import {
   normalizePrintFormsForView,
-  printFormVariables,
+  printFormVariableGroups,
   renderPrintTemplate,
 } from '../../../entities/settings/model/printForms';
 
@@ -51,30 +53,122 @@ const printFormTypeOptions = [
 ];
 
 const demoPrintValues = {
+  id: 'demo-sale-id',
   orderNumber: 'r000124',
+  date: '29.05.2026',
+  status: 'Новий ремонт',
   clientName: 'Ivan Petrenko',
   clientPhone: '+38 067 111 22 33',
   deviceName: 'iPhone 13 Pro',
   serialNumber: 'SN-2026-001',
   article: 'IPH13P',
+  defect: 'Не працює дисплей',
+  comment: 'Заміна дисплея та діагностика',
   total: '4 800 UAH',
   paid: '1 000 UAH',
   toPay: '3 800 UAH',
+  currency: 'UAH',
+  discount: '0 UAH',
   note: 'Display replacement and diagnostics',
   managerName: 'Olena Manager',
   masterName: 'Andrii Master',
+  company: 'Сервісний центр',
+  warehouse: 'Основний склад',
+  warehouse_address: 'Київ, вул. Сервісна, 10',
+  warehouse_phone: '+38 067 000 00 00',
+  barcode: 'r000124',
+  qrcode: 'r000124',
+  products_table:
+    '<table class="print-line-table"><thead><tr><th>Товар</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Дисплейний модуль</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
+  services_table:
+    '<table class="print-line-table"><thead><tr><th>Послуга</th><th>Сума</th></tr></thead><tbody><tr><td>Діагностика та заміна</td><td>1 000 UAH</td></tr></tbody></table>',
   createdAt: '29.05.2026 10:30',
 };
 
 const createPrintForm = (sortOrder: number): PrintForm => ({
   id: `form-${Date.now()}`,
-  title: 'New form',
+  title: 'Новий шаблон',
   type: 'custom',
   content:
-    'Order: {{orderNumber}}\nClient: {{clientName}}\nDevice: {{deviceName}}\nTotal: {{total}}',
+    '<div class="print-document"><h1>Новий шаблон</h1><p>Замовлення: {{orderNumber}}</p><p>Клієнт: {{clientName}}</p><p>Сума: {{total}}</p></div>',
+  contentFormat: 'html',
+  pageSize: 'A4',
+  orientation: 'portrait',
   isActive: true,
   sortOrder,
 });
+
+const htmlEditorCommandButtons = [
+  { command: 'undo', label: '↶', title: 'Скасувати' },
+  { command: 'redo', label: '↷', title: 'Повторити' },
+  { command: 'bold', label: 'B', title: 'Жирний' },
+  { command: 'italic', label: 'I', title: 'Курсив' },
+  { command: 'underline', label: 'U', title: 'Підкреслений' },
+  { command: 'justifyLeft', label: '⯇', title: 'Ліворуч' },
+  { command: 'justifyCenter', label: '≡', title: 'По центру' },
+  { command: 'justifyRight', label: '⯈', title: 'Праворуч' },
+  { command: 'insertUnorderedList', label: '•', title: 'Маркірований список' },
+  { command: 'insertOrderedList', label: '1.', title: 'Нумерований список' },
+];
+
+const insertTableHtml =
+  '<table class="print-line-table"><thead><tr><th>Назва</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Позиція</td><td>1</td><td>{{total}}</td></tr></tbody></table>';
+
+const imagePlaceholderHtml =
+  '<div class="print-image-placeholder">Місце для зображення</div>';
+
+const renderSpecialCodes = (root: HTMLElement | Document) => {
+  root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
+    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
+      return;
+    }
+    const value = node.dataset.barcodeValue || 'EMPTY';
+    try {
+      JsBarcode(node, value, {
+        format: 'CODE128',
+        displayValue: true,
+        fontSize: 12,
+        height: 44,
+        margin: 0,
+      });
+    } catch {
+      node.replaceWith(document.createTextNode(value));
+    }
+  });
+
+  root.querySelectorAll<HTMLCanvasElement>('canvas[data-qrcode-value]').forEach((node) => {
+    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
+      return;
+    }
+    const value = node.dataset.qrcodeValue || 'EMPTY';
+    void QRCode.toCanvas(node, value, {
+      width: 88,
+      margin: 1,
+    }).catch(() => undefined);
+  });
+};
+
+const PrintPreview = ({
+  html,
+}: {
+  html: string;
+}) => {
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (previewRef.current) {
+      renderSpecialCodes(previewRef.current);
+    }
+  }, [html]);
+
+  return (
+    <div
+      ref={previewRef}
+      className="settings-print-preview-page"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
 
 export const SettingsPanel = ({
   form,
@@ -90,11 +184,17 @@ export const SettingsPanel = ({
   const [selectedFormId, setSelectedFormId] = useState(
     () => printForms[0]?.id ?? '',
   );
+  const [isHtmlMode, setIsHtmlMode] = useState(false);
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const selectedForm =
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
   const selectedPreview = selectedForm
-    ? renderPrintTemplate(selectedForm.content, demoPrintValues)
+    ? renderPrintTemplate(
+        selectedForm.content,
+        demoPrintValues,
+        selectedForm.contentFormat,
+      )
     : '';
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
@@ -130,7 +230,7 @@ export const SettingsPanel = ({
     const nextForm = {
       ...selectedForm,
       id: `form-${Date.now()}`,
-      title: `${selectedForm.title} copy`,
+      title: `${selectedForm.title} копія`,
       sortOrder: (printForms.length + 1) * 10,
     };
     updatePrintForms([...printForms, nextForm]);
@@ -147,11 +247,41 @@ export const SettingsPanel = ({
     setSelectedFormId(nextForms[0]?.id ?? '');
   };
 
-  const insertVariable = (variable: string) => {
+  const updateEditorContent = (content: string) => {
+    updateSelectedForm({
+      content,
+      contentFormat: isHtmlMode ? 'html' : selectedForm?.contentFormat ?? 'html',
+    });
+  };
+
+  const insertHtmlIntoEditor = (html: string) => {
     if (!selectedForm) return;
 
+    if (isHtmlMode) {
+      const nextContent = `${selectedForm.content}${selectedForm.content ? '\n' : ''}${html}`;
+      updateSelectedForm({ content: nextContent, contentFormat: 'html' });
+      return;
+    }
+
+    editorRef.current?.focus();
+    document.execCommand('insertHTML', false, html);
     updateSelectedForm({
-      content: `${selectedForm.content}${selectedForm.content ? ' ' : ''}{{${variable}}}`,
+      content: editorRef.current?.innerHTML ?? `${selectedForm.content}${html}`,
+      contentFormat: 'html',
+    });
+  };
+
+  const insertVariable = (variable: string) => {
+    insertHtmlIntoEditor(`{{${variable}}}`);
+  };
+
+  const runEditorCommand = (command: string, value?: string) => {
+    if (!selectedForm || isHtmlMode) return;
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    updateSelectedForm({
+      content: editorRef.current?.innerHTML ?? selectedForm.content,
+      contentFormat: 'html',
     });
   };
 
@@ -298,7 +428,7 @@ export const SettingsPanel = ({
               <div className="settings-print-builder">
                 <div className="settings-print-editor">
                   <label className="field">
-                    <span>Form title</span>
+                    <span>Назва шаблону</span>
                     <input
                       value={selectedForm.title}
                       onChange={(event) =>
@@ -307,7 +437,7 @@ export const SettingsPanel = ({
                     />
                   </label>
                   <label className="field">
-                    <span>Document type</span>
+                    <span>Тип документа</span>
                     <select
                       value={selectedForm.type}
                       onChange={(event) =>
@@ -321,6 +451,40 @@ export const SettingsPanel = ({
                       ))}
                     </select>
                   </label>
+                  <div className="settings-print-options-row">
+                    <label className="field">
+                      <span>Формат сторінки</span>
+                      <select
+                        value={selectedForm.pageSize}
+                        onChange={(event) =>
+                          updateSelectedForm({
+                            pageSize:
+                              event.target.value === 'label' ? 'label' : 'A4',
+                          })
+                        }
+                      >
+                        <option value="A4">A4</option>
+                        <option value="label">Етикетка</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Орієнтація</span>
+                      <select
+                        value={selectedForm.orientation}
+                        onChange={(event) =>
+                          updateSelectedForm({
+                            orientation:
+                              event.target.value === 'landscape'
+                                ? 'landscape'
+                                : 'portrait',
+                          })
+                        }
+                      >
+                        <option value="portrait">Портретна</option>
+                        <option value="landscape">Альбомна</option>
+                      </select>
+                    </label>
+                  </div>
                   <label className="settings-check">
                     <input
                       type="checkbox"
@@ -329,29 +493,107 @@ export const SettingsPanel = ({
                         updateSelectedForm({ isActive: event.target.checked })
                       }
                     />
-                    <span>Active in payment print menu</span>
+                    <span>Активний у меню друку оплати</span>
                   </label>
-                  <label className="field">
-                    <span>Template content</span>
-                    <textarea
-                      rows={13}
-                      value={selectedForm.content}
-                      onChange={(event) =>
-                        updateSelectedForm({ content: event.target.value })
-                      }
-                    />
-                  </label>
-                  <div className="settings-variable-list">
-                    {printFormVariables.map((variable) => (
-                      <button
-                        key={variable}
-                        type="button"
-                        className="settings-variable-chip"
-                        onClick={() => insertVariable(variable)}
+                  <div className="settings-rich-editor">
+                    <div className="settings-rich-toolbar" aria-label="Template editor toolbar">
+                      {htmlEditorCommandButtons.map((button) => (
+                        <button
+                          key={button.command}
+                          type="button"
+                          title={button.title}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => runEditorCommand(button.command)}
+                          disabled={isHtmlMode}
+                        >
+                          {button.label}
+                        </button>
+                      ))}
+                      <select
+                        aria-label="Розмір шрифту"
+                        value=""
+                        onChange={(event) => {
+                          runEditorCommand('fontSize', event.target.value);
+                          event.target.value = '';
+                        }}
+                        disabled={isHtmlMode}
                       >
-                        {`{{${variable}}}`}
+                        <option value="">Розмір</option>
+                        <option value="2">10pt</option>
+                        <option value="3">12pt</option>
+                        <option value="4">14pt</option>
+                        <option value="5">18pt</option>
+                      </select>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => insertHtmlIntoEditor(insertTableHtml)}
+                        disabled={isHtmlMode}
+                      >
+                        Таблиця
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => insertHtmlIntoEditor(imagePlaceholderHtml)}
+                        disabled={isHtmlMode}
+                      >
+                        Зображення
+                      </button>
+                      <button
+                        type="button"
+                        className={isHtmlMode ? 'settings-rich-mode-active' : ''}
+                        onClick={() => setIsHtmlMode((current) => !current)}
+                      >
+                        HTML
+                      </button>
+                    </div>
+                    {isHtmlMode ? (
+                      <textarea
+                        className="settings-html-source"
+                        rows={16}
+                        value={selectedForm.content}
+                        onChange={(event) => updateEditorContent(event.target.value)}
+                      />
+                    ) : (
+                      <div
+                        key={selectedForm.id}
+                        ref={editorRef}
+                        className="settings-content-editable"
+                        contentEditable
+                        suppressContentEditableWarning
+                        onInput={(event) =>
+                          updateSelectedForm({
+                            content: event.currentTarget.innerHTML,
+                            contentFormat: 'html',
+                          })
+                        }
+                        dangerouslySetInnerHTML={{
+                          __html: selectedForm.content,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="settings-variable-catalog">
+                    <h3>Змінні шаблону</h3>
+                    <div className="settings-variable-grid">
+                      {printFormVariableGroups.map((group) => (
+                        <div key={group.title} className="settings-variable-group">
+                          <strong>{group.title}</strong>
+                          {group.variables.map((variable) => (
+                            <button
+                              key={variable.key}
+                              type="button"
+                              className="settings-variable-row"
+                              onClick={() => insertVariable(variable.key)}
+                            >
+                              <code>{`{{${variable.key}}}`}</code>
+                              <span>{variable.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -359,13 +601,13 @@ export const SettingsPanel = ({
                     onClick={deleteSelectedForm}
                     disabled={printForms.length <= 1}
                   >
-                    Delete form
+                    Видалити шаблон
                   </button>
                 </div>
                 <aside className="settings-print-preview">
                   <p className="section-label">Live preview</p>
                   <h3>{selectedForm.title}</h3>
-                  <pre>{selectedPreview}</pre>
+                  <PrintPreview html={selectedPreview} />
                 </aside>
               </div>
             ) : null}

@@ -12,6 +12,9 @@ export type PrintForm = {
   title: string;
   type: PrintFormType | string;
   content: string;
+  contentFormat: 'html' | 'text';
+  pageSize: 'A4' | 'label';
+  orientation: 'portrait' | 'landscape';
   isActive: boolean;
   sortOrder: number;
 };
