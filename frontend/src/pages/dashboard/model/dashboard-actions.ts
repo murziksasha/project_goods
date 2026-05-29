@@ -61,6 +61,7 @@ import {
 } from '../../../features/demo-data/api/demoApi';
 import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
+import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/create-order-products';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -1120,6 +1121,11 @@ export const createDashboardActions = ({
             return {
               ...item,
               name: item.name.trim(),
+              serialNumbers: Array.isArray(item.serialNumbers)
+                ? item.serialNumbers
+                    .map((serial) => String(serial ?? '').trim().toUpperCase())
+                    .filter(Boolean)
+                : [],
               quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
               price: Number.isFinite(price) && price >= 0 ? price : 0,
               warrantyPeriod:
@@ -1203,15 +1209,20 @@ export const createDashboardActions = ({
         ].filter(Boolean);
         const lineItems =
           payload.sourceTab === 'sale' && saleItems.length > 0
-            ? saleItems.map((item) => ({
-                id: item.id || crypto.randomUUID(),
-                kind: 'product' as const,
-                productId: '',
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                warrantyPeriod: item.warrantyPeriod,
-              }))
+            ? buildCreateOrderSaleLineItems(
+                saleItems.map((item) => ({
+                  id: item.id || crypto.randomUUID(),
+                  productId: item.productId,
+                  name: item.name,
+                  article: item.article,
+                  serialNumber: item.serialNumber,
+                  serialNumbers: item.serialNumbers,
+                  price: String(item.price),
+                  quantity: String(item.quantity),
+                  warrantyPeriod: String(item.warrantyPeriod),
+                  warehouse: item.warehouse,
+                })),
+              )
             : [];
 
         await mutateCreateSale({

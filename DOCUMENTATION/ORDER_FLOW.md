@@ -85,6 +85,14 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
+- When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
+- In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `paid`.
+- For repair order `paid` target, payment modal actions follow the same paid-status behavior as `SALE_FLOW.md`:
+  - `Accept to cashbox` adds a deposit and marks the order `paid`.
+  - `Accept and mark paid` adds a deposit and marks the order `paid`.
+  - `Mark paid without payment` changes only the status to `paid`.
+- Repair status `paid` is a payment state, not a final issue/close state: it does not fill `Issued`, does not set completion date, and does not trigger final repair stock-lock behavior.
 - For `Repair order`, action `Issue without payment` is allowed even when `To pay > 0`.
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
 - Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until those products are returned to stock.

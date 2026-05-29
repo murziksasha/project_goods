@@ -539,6 +539,8 @@ export const createSale = async (payloadInput: SalePayload) => {
   let stockDeltasApplied = false;
 
   try {
+    await assertSerialNumbersNotBoundToOtherSales('', lineItems);
+    await assertSerializedLineItemsAreAtomic(lineItems);
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
     const updatedProduct = product
