@@ -1,4 +1,9 @@
-import { Settings, defaultPrintForms, type SettingsDocument } from './model';
+import {
+  Settings,
+  defaultPrintForms,
+  legacyDefaultPrintFormTitles,
+  type SettingsDocument,
+} from './model';
 import { normalizeSettingsPayload } from '../../shared/lib/parsers';
 import type { SettingsPayload } from '../shared/types';
 
@@ -29,15 +34,37 @@ const defaultNotificationSettings = {
   emailEnabled: false,
 };
 
-const formatSettings = (settings: SettingsDocument) => {
-  const rawPrintForms = Array.isArray(settings.printForms)
-    ? settings.printForms
-    : [];
+const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
+  const rawPrintForms = Array.isArray(forms) ? forms : [];
+  if (rawPrintForms.length === 0) return defaultPrintForms;
 
+  const existingIds = new Set(rawPrintForms.map((form) => form.id));
+  const shouldReplaceLegacyDefaults = rawPrintForms.every(
+    (form) =>
+      legacyDefaultPrintFormTitles.has(form.title) &&
+      defaultPrintForms.some((defaultForm) => defaultForm.id === form.id),
+  );
+
+  if (shouldReplaceLegacyDefaults) {
+    return defaultPrintForms;
+  }
+
+  return [
+    ...rawPrintForms.map((form) => ({
+      ...form,
+      contentFormat: form.contentFormat ?? 'text',
+      pageSize: form.pageSize ?? (form.type === 'barcode' ? 'label' : 'A4'),
+      orientation: form.orientation ?? 'portrait',
+    })),
+    ...defaultPrintForms.filter((form) => !existingIds.has(form.id)),
+  ].sort((first, second) => first.sortOrder - second.sortOrder);
+};
+
+const formatSettings = (settings: SettingsDocument) => {
   return {
     id: settings._id.toString(),
     serviceName: settings.serviceName,
-    printForms: rawPrintForms.length > 0 ? rawPrintForms : defaultPrintForms,
+    printForms: normalizePrintForms(settings.printForms),
     orderDefaults: {
       ...defaultOrderDefaults,
       ...(settings.orderDefaults ?? {}),
@@ -60,15 +87,34 @@ const formatSettings = (settings: SettingsDocument) => {
 };
 
 export const getSettings = async () => {
+  let wasCreated = false;
   let settings = await Settings.findOne().lean<SettingsDocument | null>();
   if (!settings) {
     const created = new Settings({ serviceName: 'Service CRM' });
     await created.validate();
     await created.save();
     settings = created.toObject<SettingsDocument>();
+    wasCreated = true;
   }
 
-  return formatSettings(settings);
+  const formatted = formatSettings(settings);
+  const shouldPersistMigratedPrintForms =
+    JSON.stringify(settings.printForms ?? []) !==
+    JSON.stringify(formatted.printForms);
+
+  if (shouldPersistMigratedPrintForms) {
+    if (wasCreated) {
+      return formatted;
+    }
+    const updated = await Settings.findOneAndUpdate(
+      {},
+      { printForms: formatted.printForms },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SettingsDocument | null>();
+    return formatSettings(updated ?? settings);
+  }
+
+  return formatted;
 };
 
 export const updateSettings = async (payload: SettingsPayload) => {

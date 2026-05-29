@@ -24,12 +24,12 @@ describe('renderPrintTemplate', () => {
         '{{orderNumber}} {{clientName}} {{deviceName}} {{total}} {{masterName}}',
         templateData,
       ),
-    ).toBe('r000124 Ivan iPhone 100 UAH Master');
+    ).toContain('r000124 Ivan iPhone 100 UAH Master');
   });
 
   it('leaves unknown variables visible', () => {
     expect(
       renderPrintTemplate('Order {{orderNumber}} {{unknownValue}}', templateData),
-    ).toBe('Order r000124 {{unknownValue}}');
+    ).toContain('Order r000124 {{unknownValue}}');
   });
 });

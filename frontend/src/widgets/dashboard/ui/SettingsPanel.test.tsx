@@ -32,17 +32,17 @@ describe('SettingsPanel', () => {
     render(<SettingsPanelHarness />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
-    expect(screen.getAllByText('Receipt').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Квитанція').length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain('r000124');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(screen.getByDisplayValue('New form')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Новий шаблон')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
-    expect(screen.getByDisplayValue('New form copy')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Новий шаблон копія')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete form' }));
-    expect(screen.getByText('New form')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Видалити шаблон' }));
+    expect(screen.getByText('Новий шаблон')).toBeInTheDocument();
   });
 
   it('disables save while service name is invalid', async () => {
