@@ -41,6 +41,23 @@ const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'finance', label: 'Finance' },
   { key: 'notifications', label: 'Notifications' },
 ];
+const settingsTabStorageKey = 'project-goods.settings-tab';
+
+const getStoredSettingsTab = (): SettingsTab => {
+  try {
+    const storedTab = window.localStorage.getItem(settingsTabStorageKey);
+    return storedTab === 'company' ||
+      storedTab === 'print' ||
+      storedTab === 'orders' ||
+      storedTab === 'numbering' ||
+      storedTab === 'finance' ||
+      storedTab === 'notifications'
+      ? storedTab
+      : 'company';
+  } catch {
+    return 'company';
+  }
+};
 
 const printFormTypeOptions = [
   'receipt',
@@ -73,15 +90,29 @@ const demoPrintValues = {
   managerName: 'Olena Manager',
   masterName: 'Andrii Master',
   company: 'Сервісний центр',
+  company_address: '10001, м. Житомир, пл. Лесі Українки, 16',
+  company_id: '12345678',
+  company_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
+  customer_reg_id: '87654321',
+  due_date: '01.06.2026',
   warehouse: 'Основний склад',
-  warehouse_address: 'Київ, вул. Сервісна, 10',
+  warehouse_address: '82707, м. Вінниця, вул. Гагаріна, 12',
   warehouse_phone: '+38 067 000 00 00',
+  net_amount: '4 800,00 грн',
+  vat_amount: '0,00 грн',
+  total_amount: '4 800,00 грн',
+  total_written: 'чотири тисячі вісімсот гривень 00 копійок',
+  seller_occupation: 'Директор',
+  seller_name: 'Петро Степаненко',
+  note_label: 'Примітка',
   barcode: 'r000124',
   qrcode: 'r000124',
   products_table:
     '<table class="print-line-table"><thead><tr><th>Товар</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Дисплейний модуль</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
   services_table:
     '<table class="print-line-table"><thead><tr><th>Послуга</th><th>Сума</th></tr></thead><tbody><tr><td>Діагностика та заміна</td><td>1 000 UAH</td></tr></tbody></table>',
+  invoice_items_table:
+    '<table class="invoice-items-table"><thead><tr><th style="width: 34px;">№</th><th>Назва</th><th style="width: 74px;">Кількість</th><th style="width: 72px;">Ціна без ПДВ</th><th style="width: 64px;">Ставка ПДВ</th><th style="width: 82px;">Сума без ПДВ</th><th style="width: 82px;">Сума з ПДВ</th></tr></thead><tbody><tr><td>1.</td><td><strong>Заміна дисплейного модуля</strong><span class="invoice-item-description">Робота та встановлення комплектуючих</span></td><td>1,000</td><td>4 800,00</td><td>0%</td><td>4 800,00</td><td>4 800,00</td></tr></tbody></table>',
   createdAt: '29.05.2026 10:30',
 };
 
@@ -176,7 +207,7 @@ export const SettingsPanel = ({
   onChange,
   onSubmit,
 }: SettingsPanelProps) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('company');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(getStoredSettingsTab);
   const printForms = useMemo(
     () => normalizePrintFormsForView(form.printForms),
     [form.printForms],
@@ -253,6 +284,14 @@ export const SettingsPanel = ({
       contentFormat: isHtmlMode ? 'html' : selectedForm?.contentFormat ?? 'html',
     });
   };
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(settingsTabStorageKey, activeTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [activeTab]);
 
   const insertHtmlIntoEditor = (html: string) => {
     if (!selectedForm) return;

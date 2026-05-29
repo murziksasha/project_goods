@@ -62,6 +62,7 @@ const ordersTabs: OrdersTab[] = [
   'supplierInformation',
 ];
 const ordersTabStorageKey = 'project-goods.orders-tab';
+const activePageStorageKey = 'project-goods.dashboard-page';
 const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
 const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
 
@@ -83,10 +84,15 @@ const saveEmployeeSnapshot = (employee: Employee) => {
   window.localStorage.setItem(employeeSnapshotStorageKey, JSON.stringify(employee));
 };
 
-const getPageFromUrl = (): PageKey => {
+const getPageFromUrl = (): PageKey | null => {
   const page = new URLSearchParams(window.location.search).get('page');
 
-  return pageKeys.includes(page as PageKey) ? (page as PageKey) : 'home';
+  return pageKeys.includes(page as PageKey) ? (page as PageKey) : null;
+};
+
+const getStoredActivePage = (): PageKey => {
+  const rawPage = window.localStorage.getItem(activePageStorageKey);
+  return pageKeys.includes(rawPage as PageKey) ? (rawPage as PageKey) : 'home';
 };
 
 const getInvitationTokenFromUrl = () =>
@@ -240,7 +246,7 @@ export const DashboardPage = () => {
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
-  const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
+  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrl() ?? getStoredActivePage());
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
@@ -347,6 +353,10 @@ export const DashboardPage = () => {
   }, [activeOrdersTab, activePage, isCreateOrderOpen]);
 
   useEffect(() => {
+    window.localStorage.setItem(activePageStorageKey, activePage);
+  }, [activePage]);
+
+  useEffect(() => {
     window.localStorage.setItem(sidebarCollapsedStorageKey, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
@@ -415,7 +425,7 @@ export const DashboardPage = () => {
   useEffect(() => {
     const syncPageFromHistory = () => {
       const createOrderTab = getCreateOrderFromUrl();
-      setActivePage(getPageFromUrl());
+      setActivePage(getPageFromUrl() ?? getStoredActivePage());
       setActiveOrdersTab(
         createOrderTab ? getOrdersTabForCreateOrder(createOrderTab) : getOrdersTabFromUrl() ?? getStoredOrdersTab(),
       );

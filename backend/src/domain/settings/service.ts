@@ -50,12 +50,24 @@ const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
   }
 
   return [
-    ...rawPrintForms.map((form) => ({
-      ...form,
-      contentFormat: form.contentFormat ?? 'text',
-      pageSize: form.pageSize ?? (form.type === 'barcode' ? 'label' : 'A4'),
-      orientation: form.orientation ?? 'portrait',
-    })),
+    ...rawPrintForms.map((form) => {
+      const isPreviousDefaultInvoice =
+        form.id === 'invoice' &&
+        form.title === 'Рахунок' &&
+        form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+      const normalizedForm = isPreviousDefaultInvoice
+        ? defaultPrintForms.find((defaultForm) => defaultForm.id === 'invoice') ?? form
+        : form;
+
+      return {
+        ...normalizedForm,
+        contentFormat: normalizedForm.contentFormat ?? 'text',
+        pageSize:
+          normalizedForm.pageSize ??
+          (normalizedForm.type === 'barcode' ? 'label' : 'A4'),
+        orientation: normalizedForm.orientation ?? 'portrait',
+      };
+    }),
     ...defaultPrintForms.filter((form) => !existingIds.has(form.id)),
   ].sort((first, second) => first.sortOrder - second.sortOrder);
 };

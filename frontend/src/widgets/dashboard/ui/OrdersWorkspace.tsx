@@ -246,6 +246,8 @@ const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
 const supplierOrderClientLinkPrefix = '[LINKED_CLIENT_ID:';
 const orderDetailSectionsStorageKey =
   'project-goods.order-detail-sections';
+const orderDetailRelatedTabStorageKey =
+  'project-goods.order-detail-related-tab';
 
 const buildSupplierOrderLinkNote = (
   saleReference: string,
@@ -330,6 +332,22 @@ const writeOrderDetailSectionsState = (
     orderDetailSectionsStorageKey,
     JSON.stringify(value),
   );
+};
+
+const getStoredOrderDetailRelatedTab = (): OrdersTab => {
+  try {
+    const storedTab = window.localStorage.getItem(
+      orderDetailRelatedTabStorageKey,
+    );
+    return storedTab === 'orders' ||
+      storedTab === 'sales' ||
+      storedTab === 'supplierOrders' ||
+      storedTab === 'supplierInformation'
+      ? storedTab
+      : 'orders';
+  } catch {
+    return 'orders';
+  }
 };
 
 const getSupplierOrderStatusLabel = (
@@ -902,12 +920,204 @@ const renderLineItemsTable = (
   `;
 };
 
+const formatInvoiceAmount = (value: number) =>
+  new Intl.NumberFormat('uk-UA', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const pluralizeUk = (
+  value: number,
+  one: string,
+  few: string,
+  many: string,
+) => {
+  const lastTwo = value % 100;
+  const last = value % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
+};
+
+const numberToUkrainianWords = (value: number) => {
+  if (value === 0) return 'нуль';
+
+  const units = [
+    '',
+    'один',
+    'два',
+    'три',
+    'чотири',
+    "п'ять",
+    'шість',
+    'сім',
+    'вісім',
+    "дев'ять",
+  ];
+  const femaleUnits = [
+    '',
+    'одна',
+    'дві',
+    'три',
+    'чотири',
+    "п'ять",
+    'шість',
+    'сім',
+    'вісім',
+    "дев'ять",
+  ];
+  const teens = [
+    'десять',
+    'одинадцять',
+    'дванадцять',
+    'тринадцять',
+    'чотирнадцять',
+    "п'ятнадцять",
+    'шістнадцять',
+    'сімнадцять',
+    'вісімнадцять',
+    "дев'ятнадцять",
+  ];
+  const tens = [
+    '',
+    '',
+    'двадцять',
+    'тридцять',
+    'сорок',
+    "п'ятдесят",
+    'шістдесят',
+    'сімдесят',
+    'вісімдесят',
+    "дев'яносто",
+  ];
+  const hundreds = [
+    '',
+    'сто',
+    'двісті',
+    'триста',
+    'чотириста',
+    "п'ятсот",
+    'шістсот',
+    'сімсот',
+    'вісімсот',
+    "дев'ятсот",
+  ];
+
+  const chunkToWords = (chunk: number, female = false) => {
+    const parts: string[] = [];
+    const unitWords = female ? femaleUnits : units;
+    const hundred = Math.floor(chunk / 100);
+    const ten = Math.floor((chunk % 100) / 10);
+    const unit = chunk % 10;
+
+    if (hundred) parts.push(hundreds[hundred]);
+    if (ten === 1) {
+      parts.push(teens[unit]);
+    } else {
+      if (ten > 1) parts.push(tens[ten]);
+      if (unit) parts.push(unitWords[unit]);
+    }
+
+    return parts.filter(Boolean).join(' ');
+  };
+
+  const thousands = Math.floor(value / 1000);
+  const rest = value % 1000;
+  const words: string[] = [];
+  if (thousands > 0) {
+    words.push(
+      chunkToWords(thousands, true),
+      pluralizeUk(thousands, 'тисяча', 'тисячі', 'тисяч'),
+    );
+  }
+  if (rest > 0) words.push(chunkToWords(rest));
+
+  return words.filter(Boolean).join(' ');
+};
+
+const formatAmountInWords = (value: number) => {
+  const hryvnias = Math.floor(value);
+  const kopiyky = Math.round((value - hryvnias) * 100);
+  return `${numberToUkrainianWords(hryvnias)} ${pluralizeUk(
+    hryvnias,
+    'гривня',
+    'гривні',
+    'гривень',
+  )} ${String(kopiyky).padStart(2, '0')} ${pluralizeUk(
+    kopiyky,
+    'копійка',
+    'копійки',
+    'копійок',
+  )}`;
+};
+
+const renderInvoiceItemsTable = (sale: Sale) => {
+  const items = (sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale))
+    .filter((item) => item.quantity > 0)
+    .map((item, index) => {
+      const amount = item.price * item.quantity;
+      return `
+        <tr>
+          <td>${index + 1}.</td>
+          <td>
+            <strong>${escapeHtml(item.name)}</strong>
+            <span class="invoice-item-description">${escapeHtml(
+              item.serialNumbers?.length
+                ? `Серійний №: ${item.serialNumbers.join(', ')}`
+                : item.kind === 'service'
+                  ? 'Послуга'
+                  : 'Товар',
+            )}</span>
+          </td>
+          <td>${formatInvoiceAmount(item.quantity)}</td>
+          <td>${formatInvoiceAmount(item.price)}</td>
+          <td>0%</td>
+          <td>${formatInvoiceAmount(amount)}</td>
+          <td>${formatInvoiceAmount(amount)}</td>
+        </tr>
+      `;
+    });
+
+  if (items.length === 0) {
+    items.push(`
+      <tr>
+        <td>1.</td>
+        <td><strong>${escapeHtml(getPrimaryDeviceName(sale))}</strong></td>
+        <td>${formatInvoiceAmount(1)}</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+        <td>0%</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+      </tr>
+    `);
+  }
+
+  return `
+    <table class="invoice-items-table">
+      <thead>
+        <tr>
+          <th style="width: 34px;">№</th>
+          <th>Назва</th>
+          <th style="width: 74px;">Кількість</th>
+          <th style="width: 72px;">Ціна без ПДВ</th>
+          <th style="width: 64px;">Ставка ПДВ</th>
+          <th style="width: 82px;">Сума без ПДВ</th>
+          <th style="width: 82px;">Сума з ПДВ</th>
+        </tr>
+      </thead>
+      <tbody>${items.join('')}</tbody>
+    </table>
+  `;
+};
+
 const getPrintTemplateData = (
   sale: Sale,
   paidAmount: number,
   orderNumber: string,
 ): PrintTemplateData => {
   const total = getOrderTotal(sale);
+  const totalAmount = Math.round(total * 100) / 100;
   const productItems = (sale.lineItems ?? []).filter(
     (item) => item.kind === 'product',
   );
@@ -939,11 +1149,24 @@ const getPrintTemplateData = (
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
     company: 'Сервісний центр',
+    company_address: 'Адресу компанії можна змінити в шаблоні',
+    company_id: '-',
+    company_iban: '-',
+    customer_reg_id: '-',
+    due_date: createdAt.split(',')[0] ?? createdAt,
     warehouse: getWarehouseLabel(sale),
     warehouse_address: '-',
     warehouse_phone: '-',
+    net_amount: `${formatInvoiceAmount(totalAmount)} грн`,
+    vat_amount: '0,00 грн',
+    total_amount: `${formatInvoiceAmount(totalAmount)} грн`,
+    total_written: formatAmountInWords(totalAmount),
+    seller_occupation: 'Директор',
+    seller_name: sale.manager?.name ?? '-',
+    note_label: 'Примітка',
     products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
     services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
+    invoice_items_table: renderInvoiceItemsTable(sale),
     barcode: orderNumber,
     qrcode: orderNumber,
     createdAt,
@@ -4111,7 +4334,9 @@ const OrderDetailCard = ({
     isSaleCard ? false : true,
   );
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
-  const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
+  const [relatedTab, setRelatedTab] = useState<OrdersTab>(
+    getStoredOrderDetailRelatedTab,
+  );
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
@@ -4186,6 +4411,16 @@ const OrderDetailCard = ({
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        orderDetailRelatedTabStorageKey,
+        relatedTab,
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [relatedTab]);
   useEffect(() => {
     setSerialNumberInput(getPrimaryDeviceSerial(sale));
     setMasterIdInput(sale.master?.id ?? '');

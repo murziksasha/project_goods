@@ -85,6 +85,9 @@ type SaleOrderItem = {
   warrantyPeriod: string;
 };
 type ClientRequestTab = 'orders' | 'sales';
+const createOrderTabStorageKey = 'project-goods.create-order-tab';
+const createOrderClientRequestsTabStorageKey =
+  'project-goods.create-order-client-requests-tab';
 
 const createSaleOrderItem = (): SaleOrderItem => ({
   id: crypto.randomUUID(),
@@ -134,6 +137,32 @@ const toApiPhone = (input: string) => {
   if (digits.startsWith('0') && digits.length === 10) return `+380${digits.slice(1)}`;
   if (digits.length === 9) return `+380${digits}`;
   return '';
+};
+
+const getStoredCreateOrderTab = (
+  fallback: CreateOrderRequestPayload['sourceTab'],
+): CreateOrderRequestPayload['sourceTab'] => {
+  try {
+    const storedTab = window.localStorage.getItem(createOrderTabStorageKey);
+    return storedTab === 'repair' || storedTab === 'sale' ? storedTab : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getStoredCreateOrderClientRequestsTab = (
+  fallback: ClientRequestTab,
+): ClientRequestTab => {
+  try {
+    const storedTab = window.localStorage.getItem(
+      createOrderClientRequestsTabStorageKey,
+    );
+    return storedTab === 'orders' || storedTab === 'sales'
+      ? storedTab
+      : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
 const extractDeviceKit = (note: string) =>
@@ -206,7 +235,9 @@ export const CreateOrderCard = ({
   onUpdateProductModel,
   onError,
 }: CreateOrderCardProps) => {
-  const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(initialTab);
+  const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
+    () => getStoredCreateOrderTab(initialTab),
+  );
   const [clientPhone, setClientPhone] = useState('');
   const [clientName, setClientName] = useState('');
   const [deviceName, setDeviceName] = useState('');
@@ -243,7 +274,10 @@ export const CreateOrderCard = ({
     WarehouseItem[]
   >([]);
   const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
-    initialTab === 'sale' ? 'sales' : 'orders',
+    () =>
+      getStoredCreateOrderClientRequestsTab(
+        initialTab === 'sale' ? 'sales' : 'orders',
+      ),
   );
 
   const managers = employees.filter(
@@ -409,6 +443,25 @@ export const CreateOrderCard = ({
   useEffect(() => {
     setActiveClientRequestTab(activeTab === 'sale' ? 'sales' : 'orders');
   }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(createOrderTabStorageKey, activeTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        createOrderClientRequestsTabStorageKey,
+        activeClientRequestTab,
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [activeClientRequestTab]);
 
   useEffect(() => {
     if (deviceLookupQuery.length < 2 || Boolean(selectedDeviceSuggestionId)) {

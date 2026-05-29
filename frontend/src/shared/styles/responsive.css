@@ -96,6 +96,7 @@
   .supplier-information-summary,
   .supplier-information-grid,
   .supplier-information-price-grid,
+  .finance-orders-summary-grid,
   .finance-report-grid-wide,
   .finance-information-grid,
   .finance-operation-grid,
@@ -176,17 +177,30 @@
   }
 
   .orders-table .finance-orders-col-number {
-    width: 78px;
-    min-width: 78px;
+    width: 128px;
+    min-width: 128px;
   }
 
   .orders-table .finance-orders-col-payment {
-    width: 350px;
-    min-width: 350px;
+    width: 360px;
+    min-width: 360px;
+  }
+
+  .finance-orders-table {
+    min-width: 860px;
+  }
+
+  .finance-orders-payment-actions {
+    grid-template-columns: minmax(118px, 1fr) 58px minmax(118px, 1fr);
+  }
+
+  .finance-orders-payment-actions .primary-button {
+    width: 58px;
+    min-width: 58px;
   }
 
   .finance-orders-payment-actions .secondary-button {
-    min-width: 120px;
+    min-width: 0;
   }
 
   .order-status {
