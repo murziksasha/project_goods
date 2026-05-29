@@ -1,1 +1,1 @@
-// Global test setup placeholder.
+import '@testing-library/jest-dom/vitest';

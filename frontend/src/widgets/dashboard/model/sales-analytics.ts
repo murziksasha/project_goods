@@ -1,3 +1,4 @@
+import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 
 export type StatsPeriod = 'today' | 'currentMonth' | 'lastMonth' | 'currentYear' | 'lastYear';
@@ -29,6 +30,7 @@ export const statsPeriodOptions: Array<{ value: StatsPeriod; label: string }> = 
 ];
 
 const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
+const finalStatuses = new Set(['issued', 'issuedWithoutRepair', 'paid', 'returned', 'clientRejected']);
 
 const metricFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
@@ -44,6 +46,30 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
+
+const getLineItemsTotal = (sale: Sale) =>
+  Array.isArray(sale.lineItems) && sale.lineItems.length > 0
+    ? sale.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    : sale.salePrice * sale.quantity;
+
+export const getSaleTotal = (sale: Sale) => {
+  const baseTotal = getLineItemsTotal(sale);
+  const discount = sale.discount;
+
+  if (!discount || discount.value <= 0) return baseTotal;
+
+  if (discount.mode === 'percent') {
+    return Math.max(baseTotal - (baseTotal * Math.min(discount.value, 100)) / 100, 0);
+  }
+
+  return Math.max(baseTotal - discount.value, 0);
+};
+
+const getPaidAmount = (sale: Sale) => Math.max(Number(sale.paidAmount ?? 0), 0);
+
+const isFinalRecord = (sale: Sale) => finalStatuses.has(String(sale.status ?? ''));
+
+const getDateKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
 const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig => {
   const currentYear = currentDate.getFullYear();
@@ -177,37 +203,30 @@ export const buildLinePath = (
       const x =
         padding.left +
         (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth);
-      const y =
-        padding.top + innerHeight - (value / Math.max(maxValue, 1)) * innerHeight;
+      const y = padding.top + innerHeight - (value / Math.max(maxValue, 1)) * innerHeight;
 
       return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
     })
     .join(' ');
 };
 
-export const formatMetric = (value: number) =>
-  metricFormatter.format(Math.round(value));
+export const formatMetric = (value: number) => metricFormatter.format(Math.round(value));
 
-export const formatCompactMetric = (value: number) =>
-  compactMetricFormatter.format(value);
+export const formatCompactMetric = (value: number) => compactMetricFormatter.format(value);
 
 export const formatCurrencyMetric = (value: number) =>
-  `₴ ${currencyFormatter.format(Math.round(value))}`;
+  `UAH ${currencyFormatter.format(Math.round(value))}`;
 
 export const buildDashboardAnalytics = (
   productSales: Sale[],
   repairOrders: Sale[],
   statsPeriod: StatsPeriod,
+  products: Product[] = [],
+  currentDate = new Date(),
 ) => {
-  const config = getPeriodConfig(statsPeriod, new Date());
+  const config = getPeriodConfig(statsPeriod, currentDate);
   const revenueSnapshots = comparisonColors.map((color, index) =>
-    buildSnapshot(
-      productSales,
-      config,
-      index,
-      color,
-      (sale) => sale.salePrice * sale.quantity,
-    ),
+    buildSnapshot(productSales, config, index, color, getSaleTotal),
   );
   const orderSnapshots = comparisonColors.map((color, index) =>
     buildSnapshot(repairOrders, config, index, color, () => 1),
@@ -221,10 +240,38 @@ export const buildDashboardAnalytics = (
   const selectedSales = productSales.filter((sale) =>
     matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
   );
+  const selectedOrders = repairOrders.filter((sale) =>
+    matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
+  );
+  const selectedRecords = [...selectedSales, ...selectedOrders];
   const revenue = currentRevenue.total;
   const salesCount = currentSalesCount.total;
   const ordersCount = currentOrders.total;
   const averageTicket = salesCount > 0 ? revenue / salesCount : 0;
+  const paidAmount = selectedRecords.reduce((sum, sale) => sum + getPaidAmount(sale), 0);
+  const totalAmount = selectedRecords.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
+  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+  const paymentCoverage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+  const openOrders = selectedRecords.filter((sale) => !isFinalRecord(sale)).length;
+  const closedOrders = selectedRecords.length - openOrders;
+  const unpaidOrders = selectedRecords.filter((sale) => getSaleTotal(sale) > getPaidAmount(sale)).length;
+  const totalStock = products.reduce((sum, product) => sum + Math.max(product.quantity ?? 0, 0), 0);
+  const freeStock = products.reduce((sum, product) => sum + Math.max(product.freeQuantity ?? 0, 0), 0);
+  const reservedStock = products.reduce(
+    (sum, product) => sum + Math.max(product.reservedQuantity ?? 0, 0),
+    0,
+  );
+  const stockValue = products.reduce(
+    (sum, product) => sum + Math.max(product.price ?? 0, 0) * Math.max(product.quantity ?? 0, 0),
+    0,
+  );
+  const outOfStockProducts = products.filter((product) => product.freeQuantity <= 0).length;
+  const lowStockProducts = products.filter(
+    (product) => product.freeQuantity > 0 && product.freeQuantity <= 2,
+  ).length;
+  const todayKey = getDateKey(currentDate);
+  const todaySales = productSales.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
+  const todayOrders = repairOrders.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
 
   return {
     statsPeriodOptions,
@@ -240,23 +287,67 @@ export const buildDashboardAnalytics = (
     currentYearLabel: currentRevenue.label,
     comparisonLabel: revenueSnapshots.map((snapshot) => snapshot.label).join(', '),
     summaryCards: [
-      { label: 'Продажи', value: formatMetric(salesCount), accent: comparisonColors[0] },
-      { label: 'Заказы', value: formatMetric(ordersCount), accent: '#14b8a6' },
-      { label: 'Выручка', value: formatCurrencyMetric(revenue), accent: '#f97316' },
-      { label: 'Средний чек', value: formatCurrencyMetric(averageTicket), accent: '#64748b' },
+      { label: 'Sales', value: formatMetric(salesCount), accent: comparisonColors[0] },
+      { label: 'Repair orders', value: formatMetric(ordersCount), accent: '#14b8a6' },
+      { label: 'Revenue', value: formatCurrencyMetric(revenue), accent: '#f97316' },
+      { label: 'Average ticket', value: formatCurrencyMetric(averageTicket), accent: '#64748b' },
+      { label: 'Paid', value: formatCurrencyMetric(paidAmount), accent: '#0ea47d' },
+      { label: 'Receivables', value: formatCurrencyMetric(remainingAmount), accent: '#dc2626' },
     ],
     conversionCards: [
       {
-        label: 'Заказы / продажи',
+        label: 'Repair orders / sales',
         value: salesCount > 0 ? `${formatMetric((ordersCount / salesCount) * 100)}%` : '0%',
       },
       {
-        label: 'Продажи / заказы',
+        label: 'Sales / repair orders',
         value: ordersCount > 0 ? `${formatMetric((salesCount / ordersCount) * 100)}%` : '0%',
       },
       {
-        label: 'Оплаченные продажи',
-        value: selectedSales.length > 0 ? '100%' : '0%',
+        label: 'Payment coverage',
+        value: `${formatMetric(paymentCoverage)}%`,
+      },
+    ],
+    operations: {
+      openOrders,
+      closedOrders,
+      unpaidOrders,
+      paidAmount,
+      remainingAmount,
+      paymentCoverage,
+      todaySales: todaySales.length,
+      todayOrders: todayOrders.length,
+      todayRevenue: todaySales.reduce((sum, sale) => sum + getSaleTotal(sale), 0),
+    },
+    stock: {
+      productCount: products.length,
+      totalStock,
+      freeStock,
+      reservedStock,
+      stockValue,
+      outOfStockProducts,
+      lowStockProducts,
+    },
+    signals: [
+      {
+        label: 'Unpaid orders',
+        value: formatMetric(unpaidOrders),
+        tone: unpaidOrders > 0 ? 'risk' : 'good',
+      },
+      {
+        label: 'Open workflow',
+        value: formatMetric(openOrders),
+        tone: openOrders > 0 ? 'watch' : 'good',
+      },
+      {
+        label: 'Low stock items',
+        value: formatMetric(lowStockProducts + outOfStockProducts),
+        tone: lowStockProducts + outOfStockProducts > 0 ? 'risk' : 'good',
+      },
+      {
+        label: 'Today activity',
+        value: formatMetric(todaySales.length + todayOrders.length),
+        tone: todaySales.length + todayOrders.length > 0 ? 'good' : 'muted',
       },
     ],
   };

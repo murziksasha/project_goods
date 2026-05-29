@@ -26,6 +26,7 @@
 
   .hero-chart-layout,
   .analytics-report-layout,
+  .analytics-executive-grid,
   .workspace-grid {
     grid-template-columns: 1fr;
   }
@@ -77,6 +78,8 @@
   }
 
   .hero-header,
+  .analytics-executive-header,
+  .finance-information-header,
   .hero-controls,
   .panel-header,
   .panel-header-row,
@@ -89,6 +92,12 @@
 
   .hero-inline-metrics,
   .analytics-summary-grid,
+  .analytics-summary-grid-wide,
+  .supplier-information-summary,
+  .supplier-information-grid,
+  .supplier-information-price-grid,
+  .finance-report-grid-wide,
+  .finance-information-grid,
   .finance-operation-grid,
   .finance-report-grid,
   .form-grid,
@@ -222,6 +231,19 @@
     grid-column: auto;
   }
 
+  .finance-info-panel-wide {
+    grid-column: auto;
+  }
+
+  .finance-distribution-row,
+  .finance-recent-row {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-recent-row time {
+    text-align: left;
+  }
+
   .analytics-period-row,
   .analytics-panel-header {
     flex-direction: column;
@@ -303,5 +325,13 @@
 
   .settings-print-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-print-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-print-preview {
+    position: static;
   }
 }

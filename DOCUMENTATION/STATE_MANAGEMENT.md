@@ -46,6 +46,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Filter and search settings must persist across browser reload (`F5`) for all dashboard workspaces that expose filters/search.
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
+- `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date working set as the supplier-order table.
 
 ## Sidebar UI Persistence Rule (2026-05-19)
 

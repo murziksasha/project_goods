@@ -92,6 +92,13 @@ import {
 } from '../model/order-line-serials';
 import { ProductModelModal } from './ProductModelModal';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
+import type { PrintForm } from '../../../entities/settings/model/types';
+import {
+  defaultPrintForms,
+  normalizePrintFormsForView,
+  renderPrintTemplate as renderSettingsPrintTemplate,
+  type PrintTemplateData,
+} from '../../../entities/settings/model/printForms';
 
 type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -112,10 +119,15 @@ type OrdersWorkspaceProps = {
   onExternalSaleOpenHandled?: () => void;
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
+  printForms: PrintForm[];
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
 };
 
-type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
+type OrdersTab =
+  | 'orders'
+  | 'sales'
+  | 'supplierOrders'
+  | 'supplierInformation';
 type OrdersColumnKey =
   | 'orderNumber'
   | 'client'
@@ -166,11 +178,6 @@ type PaymentTargetStatus =
   | 'issued'
   | 'issuedWithoutRepair'
   | 'paid';
-type PrintForm = {
-  id: string;
-  title: string;
-  content: string;
-};
 type TimelineEntry = {
   id: string;
   author: string;
@@ -228,6 +235,7 @@ const orderTabs: Array<{ key: OrdersTab; label: string }> = [
   { key: 'orders', label: 'Orders' },
   { key: 'sales', label: 'Sales' },
   { key: 'supplierOrders', label: 'Supplier Order' },
+  { key: 'supplierInformation', label: 'Information' },
 ];
 
 const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
@@ -343,7 +351,6 @@ const getSupplierOrderStatusLabel = (
   }
 };
 
-const printFormsStorageKey = 'project-goods.print-forms';
 const ordersColumnsStorageKey = 'project-goods.orders-columns';
 const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
@@ -420,16 +427,19 @@ const defaultVisibleColumns: OrdersColumnVisibility = {
     'readyDate',
   ],
   supplierOrders: allOrdersColumnKeys,
+  supplierInformation: allOrdersColumnKeys,
 };
 const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: allOrdersColumnKeys,
   sales: defaultVisibleColumns.sales,
   supplierOrders: allOrdersColumnKeys,
+  supplierInformation: allOrdersColumnKeys,
 };
 const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
   sales: ['orderNumber'],
   supplierOrders: ['orderNumber'],
+  supplierInformation: ['orderNumber'],
 };
 
 const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
@@ -504,54 +514,17 @@ const readActiveOrderFilters = () => {
       orders: normalizeOne(raw.orders),
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
+      supplierInformation: normalizeOne(raw.supplierInformation),
     } as Record<OrdersTab, OrdersFilters>;
   } catch {
     return {
       orders: emptyOrdersFilters,
       sales: emptyOrdersFilters,
       supplierOrders: emptyOrdersFilters,
+      supplierInformation: emptyOrdersFilters,
     } as Record<OrdersTab, OrdersFilters>;
   }
 };
-
-const defaultPrintForms: PrintForm[] = [
-  {
-    id: 'receipt',
-    title: 'Receipt',
-    content:
-      'Receipt for order {{orderNumber}}\nClient: {{clientName}}\nDevice: {{deviceName}}\nAmount: {{total}}',
-  },
-  {
-    id: 'check',
-    title: 'Check',
-    content:
-      'Check\nOrder: {{orderNumber}}\nPaid: {{paid}}\nTo pay: {{toPay}}',
-  },
-  {
-    id: 'warranty',
-    title: 'Warranty',
-    content:
-      'Warranty document\nDevice: {{deviceName}}\nS/N: {{serialNumber}}\nClient: {{clientName}}',
-  },
-  {
-    id: 'completion-act',
-    title: 'Completion act',
-    content:
-      'Completion act\nOrder: {{orderNumber}}\nWork: {{note}}\nTotal: {{total}}',
-  },
-  {
-    id: 'invoice',
-    title: 'Invoice',
-    content:
-      'Invoice for payment\nOrder: {{orderNumber}}\nClient: {{clientName}}\nTotal: {{total}}',
-  },
-  {
-    id: 'barcode',
-    title: 'Barcode',
-    content:
-      'Barcode form\nOrder: {{orderNumber}}\nS/N: {{serialNumber}}',
-  },
-];
 
 const statusLabels = repairStatuses.reduce(
   (acc, status) => ({ ...acc, [status.key]: status.label }),
@@ -613,17 +586,6 @@ const getStatusLabel = (sale: Sale, status: OrderStatus) =>
     (option) => option.key === status,
   )?.label ?? statusLabels[status];
 
-const readPrintForms = () => {
-  try {
-    const forms = JSON.parse(
-      window.localStorage.getItem(printFormsStorageKey) ?? '[]',
-    ) as PrintForm[];
-    return forms.length > 0 ? forms : defaultPrintForms;
-  } catch {
-    return defaultPrintForms;
-  }
-};
-
 const readSavedOrderFilters = () => {
   try {
     const raw = JSON.parse(
@@ -636,7 +598,10 @@ const readSavedOrderFilters = () => {
         Boolean(item?.id) &&
         Boolean(item?.employeeId) &&
         Boolean(item?.name) &&
-        (item?.tab === 'orders' || item?.tab === 'sales' || item?.tab === 'supplierOrders') &&
+        (item?.tab === 'orders' ||
+          item?.tab === 'sales' ||
+          item?.tab === 'supplierOrders' ||
+          item?.tab === 'supplierInformation') &&
         item?.filters,
     );
   } catch {
@@ -897,14 +862,13 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
-const renderPrintTemplate = (
-  template: string,
+const getPrintTemplateData = (
   sale: Sale,
   paidAmount: number,
   orderNumber: string,
-) => {
+): PrintTemplateData => {
   const total = getOrderTotal(sale);
-  const replacements: Record<string, string> = {
+  return {
     orderNumber,
     clientName: sale.client.name,
     clientPhone: sale.client.phone,
@@ -915,12 +879,10 @@ const renderPrintTemplate = (
     paid: formatCurrency(paidAmount),
     toPay: formatCurrency(getRemainingPayment(sale, paidAmount)),
     note: sale.note || '-',
+    managerName: sale.manager?.name ?? '-',
+    masterName: sale.master?.name ?? '-',
+    createdAt: formatDateTime(sale.createdAt),
   };
-
-  return Object.entries(replacements).reduce(
-    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
-    template,
-  );
 };
 
 const buildOrderNumber = (sale: Sale) =>
@@ -1106,6 +1068,7 @@ const readVisibleColumns = (): OrdersColumnVisibility => {
       orders: sanitizeColumns(saved.orders, 'orders'),
       sales: sanitizeColumns(saved.sales, 'sales'),
       supplierOrders: defaultVisibleColumns.orders,
+      supplierInformation: defaultVisibleColumns.orders,
     };
   } catch {
     return defaultVisibleColumns;
@@ -1175,6 +1138,7 @@ export const OrdersWorkspace = ({
   onExternalSaleOpenHandled,
   onOpenClientCard,
   products,
+  printForms,
   onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
@@ -1255,10 +1219,15 @@ export const OrdersWorkspace = ({
   );
   const [pageByTab, setPageByTab] = useState<
     Record<OrdersTab, number>
-  >({ orders: 1, sales: 1, supplierOrders: 1 });
+  >({ orders: 1, sales: 1, supplierOrders: 1, supplierInformation: 1 });
   const [pageSizeByTab, setPageSizeByTab] = useState<
     Record<OrdersTab, number>
-  >({ orders: 10, sales: 10, supplierOrders: 10 });
+  >({
+    orders: 10,
+    sales: 10,
+    supplierOrders: 10,
+    supplierInformation: 10,
+  });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -3890,6 +3859,7 @@ export const OrdersWorkspace = ({
           sale={paymentSale}
           paymentTargetStatus={paymentTargetStatus}
           lineItems={getLineItems(paymentSale)}
+          printForms={printForms}
           cashboxes={cashboxes}
           selectedCashboxId={selectedCashboxId}
           paymentMethod={paymentMethod}
@@ -6389,6 +6359,7 @@ type PaymentModalProps = {
   sale: Sale;
   paymentTargetStatus: PaymentTargetStatus;
   lineItems: OrderLineItem[];
+  printForms: PrintForm[];
   cashboxes: Cashbox[];
   selectedCashboxId: string;
   paymentMethod: PaymentMethod;
@@ -6407,6 +6378,7 @@ const PaymentModal = ({
   sale,
   paymentTargetStatus,
   lineItems,
+  printForms,
   cashboxes,
   selectedCashboxId,
   paymentMethod,
@@ -6447,7 +6419,9 @@ const PaymentModal = ({
     [],
   );
   const printMenuRef = useRef<HTMLDivElement | null>(null);
-  const printForms = readPrintForms();
+  const availablePrintForms = normalizePrintFormsForView(
+    printForms.length > 0 ? printForms : defaultPrintForms,
+  ).filter((form) => form.isActive);
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -6506,7 +6480,7 @@ const PaymentModal = ({
   };
 
   const printSelectedForms = () => {
-    const formsToPrint = printForms.filter((form) =>
+    const formsToPrint = availablePrintForms.filter((form) =>
       selectedFormIds.includes(form.id),
     );
     if (formsToPrint.length === 0) return;
@@ -6523,7 +6497,7 @@ const PaymentModal = ({
         (form) => `
           <section class="print-form">
             <h1>${escapeHtml(form.title)}</h1>
-            <pre>${escapeHtml(renderPrintTemplate(form.content, sale, paidAmount, orderNumber))}</pre>
+            <pre>${escapeHtml(renderSettingsPrintTemplate(form.content, getPrintTemplateData(sale, paidAmount, orderNumber)))}</pre>
           </section>
         `,
       )
@@ -6659,13 +6633,13 @@ const PaymentModal = ({
               onClick={() =>
                 setIsPrintMenuOpen((current) => !current)
               }
-              disabled={isSaving}
+              disabled={isSaving || availablePrintForms.length === 0}
             >
               Print
             </button>
             {isPrintMenuOpen ? (
               <div className='payment-print-options'>
-                {printForms.map((form) => (
+                {availablePrintForms.map((form) => (
                   <label
                     key={form.id}
                     className='payment-print-option'

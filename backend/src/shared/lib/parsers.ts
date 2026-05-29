@@ -266,9 +266,105 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
   };
 };
 
-export const normalizeSettingsPayload = (payload: SettingsPayload) => ({
-  serviceName: toNonEmptyString(payload.serviceName) || 'Service CRM',
-});
+const toBoolean = (value: unknown, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+
+  return fallback;
+};
+
+const toFiniteNumber = (value: unknown, fallback: number) => {
+  const parsed = toNumber(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const clampInteger = (
+  value: unknown,
+  fallback: number,
+  min: number,
+) => Math.max(min, Math.floor(toFiniteNumber(value, fallback)));
+
+const readObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+export const normalizeSettingsPayload = (payload: SettingsPayload) => {
+  const orderDefaults = readObject(payload.orderDefaults);
+  const numbering = readObject(payload.numbering);
+  const financeDefaults = readObject(payload.financeDefaults);
+  const notificationSettings = readObject(payload.notificationSettings);
+  const paymentMethod =
+    toNonEmptyString(financeDefaults.paymentMethod) === 'non-cash'
+      ? 'non-cash'
+      : 'cash';
+
+  return {
+    serviceName: toNonEmptyString(payload.serviceName) || 'Service CRM',
+    printForms: Array.isArray(payload.printForms)
+      ? payload.printForms
+          .map((item, index) => {
+            const source = readObject(item);
+            const title = toNonEmptyString(source.title);
+            const content = toNonEmptyString(source.content);
+            if (!title || !content) return null;
+
+            return {
+              id:
+                toNonEmptyString(source.id) ||
+                `form-${Date.now()}-${index}`,
+              title,
+              type: toNonEmptyString(source.type) || 'custom',
+              content,
+              isActive: toBoolean(source.isActive, true),
+              sortOrder: clampInteger(source.sortOrder, (index + 1) * 10, 0),
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      : [],
+    orderDefaults: {
+      defaultRepairTermDays: clampInteger(
+        orderDefaults.defaultRepairTermDays,
+        7,
+        0,
+      ),
+      defaultWarrantyMonths: clampInteger(
+        orderDefaults.defaultWarrantyMonths,
+        1,
+        0,
+      ),
+      defaultRepairStatus:
+        toNonEmptyString(orderDefaults.defaultRepairStatus) || 'new',
+      defaultSaleStatus:
+        toNonEmptyString(orderDefaults.defaultSaleStatus) || 'new',
+    },
+    numbering: {
+      repairPrefix: toNonEmptyString(numbering.repairPrefix) || 'r',
+      salePrefix: toNonEmptyString(numbering.salePrefix) || 's',
+      supplierOrderPrefix:
+        toNonEmptyString(numbering.supplierOrderPrefix) || 'SO',
+      nextRepairNumber: clampInteger(numbering.nextRepairNumber, 1, 1),
+      nextSaleNumber: clampInteger(numbering.nextSaleNumber, 1, 1),
+      nextSupplierOrderNumber: clampInteger(
+        numbering.nextSupplierOrderNumber,
+        1,
+        1,
+      ),
+    },
+    financeDefaults: {
+      currency:
+        toNonEmptyString(financeDefaults.currency).toUpperCase() || 'UAH',
+      paymentMethod,
+    },
+    notificationSettings: {
+      smsEnabled: toBoolean(notificationSettings.smsEnabled),
+      messengerEnabled: toBoolean(notificationSettings.messengerEnabled),
+      emailEnabled: toBoolean(notificationSettings.emailEnabled),
+    },
+  };
+};
 
 export const normalizeWarehouseSettingsPayload = (
   payload: WarehouseSettingsPayload,

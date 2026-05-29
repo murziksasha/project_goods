@@ -47,6 +47,7 @@ import {
   type StockSupplierOrderLink,
   type StockWarehouseMeta,
 } from '../model/stock-balance';
+import { ProductModelModal } from './ProductModelModal';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseColumnsTab = 'stock' | 'receipts';
@@ -250,6 +251,7 @@ type WarehousePanelProps = {
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
+  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -428,6 +430,7 @@ export const WarehousePanel = ({
   onCreateSupplier,
   onUpdateSupplier,
   onUpdateCatalogProduct,
+  onUpdateProductModel,
   currentEmployeeName,
   onSuccess,
   onError,
