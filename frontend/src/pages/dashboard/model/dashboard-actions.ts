@@ -793,7 +793,14 @@ export const createDashboardActions = ({
       try {
         const updated = await updateSettings(settingsForm);
         setSettings(updated);
-        setSettingsForm({ serviceName: updated.serviceName });
+        setSettingsForm({
+          serviceName: updated.serviceName,
+          printForms: updated.printForms,
+          orderDefaults: updated.orderDefaults,
+          numbering: updated.numbering,
+          financeDefaults: updated.financeDefaults,
+          notificationSettings: updated.notificationSettings,
+        });
         setSuccessMessage('Settings saved.');
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to save settings.'));

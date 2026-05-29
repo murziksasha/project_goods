@@ -1,7 +1,9 @@
+import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
   buildDashboardAnalytics,
   buildLinePath,
+  formatCurrencyMetric,
   formatMetric,
   type StatsPeriod,
 } from '../model/sales-analytics';
@@ -9,9 +11,8 @@ import {
 type AnalyticsHeroSectionProps = {
   sales: Sale[];
   orders: Sale[];
-  productCount: number;
+  products: Product[];
   clientCount: number;
-  totalFreeStock: number;
   isSalesLoading: boolean;
   isSeeding: boolean;
   isExporting: boolean;
@@ -35,6 +36,7 @@ type ChartPanelProps = {
   snapshots: Array<{ label: string; values: number[]; total: number; color: string }>;
   maxValue: number;
   axisLabels: string[];
+  formatTotal?: (value: number) => string;
 };
 
 const ChartPanel = ({
@@ -46,6 +48,7 @@ const ChartPanel = ({
   snapshots,
   maxValue,
   axisLabels,
+  formatTotal = formatMetric,
 }: ChartPanelProps) => (
   <section className="analytics-chart-panel">
     <div className="analytics-panel-header">
@@ -59,7 +62,7 @@ const ChartPanel = ({
             <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
             <div>
               <strong>{snapshot.label}</strong>
-              <p>{formatMetric(snapshot.total)}</p>
+              <p>{formatTotal(snapshot.total)}</p>
             </div>
           </div>
         ))}
@@ -153,9 +156,8 @@ const ChartPanel = ({
 export const AnalyticsHeroSection = ({
   sales,
   orders,
-  productCount,
+  products,
   clientCount,
-  totalFreeStock,
   isSalesLoading,
   isSeeding,
   isExporting,
@@ -165,15 +167,16 @@ export const AnalyticsHeroSection = ({
   onSeed,
   onExport,
 }: AnalyticsHeroSectionProps) => {
-  const analytics = buildDashboardAnalytics(sales, orders, statsPeriod);
+  const analytics = buildDashboardAnalytics(sales, orders, statsPeriod, products);
 
   return (
-    <section className="hero-card analytics-dashboard">
-      <div className="hero-header">
+    <section className="analytics-dashboard">
+      <div className="analytics-executive-header">
         <div>
-          <h1>Основні бізнес-показники компанії</h1>
+          <p className="section-label">Executive dashboard</p>
+          <h1>Business performance</h1>
           <p className="hero-chart-note">
-            Порівняння продажів і ремонтних замовлень за {analytics.comparisonLabel}.
+            Sales, repair workload, payments and stock health for {analytics.detailLabel}.
           </p>
         </div>
         <div className="hero-controls">
@@ -207,7 +210,7 @@ export const AnalyticsHeroSection = ({
         </div>
       </div>
 
-      <div className="analytics-summary-grid">
+      <div className="analytics-summary-grid analytics-summary-grid-wide">
         {analytics.summaryCards.map((card) => (
           <article key={card.label} className="analytics-summary-card">
             <span className="metric-label">{card.label}</span>
@@ -216,68 +219,117 @@ export const AnalyticsHeroSection = ({
         ))}
       </div>
 
-      <div className="hero-chart-card">
-        <div className="analytics-report-layout">
-          <aside className="hero-conversion-column">
-            <p className="section-label">Конверсія за вибраний період</p>
-            <div className="hero-conversion-grid">
-              {analytics.conversionCards.map((metric) => (
-                <article key={metric.label} className="metric-card metric-card-hero">
-                  <strong>{metric.value}</strong>
-                  <p className="metric-hint">{metric.label}</p>
-                </article>
-              ))}
-            </div>
-
-            <div className="hero-inline-metrics">
-              <div className="hero-inline-metric">
-                <span className="metric-label">Товари</span>
-                <strong>{formatMetric(productCount)}</strong>
+      <div className="analytics-executive-grid">
+        <aside className="analytics-side-stack">
+          <section className="analytics-info-panel">
+            <div className="analytics-panel-header">
+              <div>
+                <p className="section-label">Workflow</p>
+                <h2>Operational pulse</h2>
               </div>
-              <div className="hero-inline-metric">
-                <span className="metric-label">Клієнти</span>
+            </div>
+            <div className="analytics-mini-grid">
+              <div>
+                <span className="metric-label">Open</span>
+                <strong>{formatMetric(analytics.operations.openOrders)}</strong>
+              </div>
+              <div>
+                <span className="metric-label">Closed</span>
+                <strong>{formatMetric(analytics.operations.closedOrders)}</strong>
+              </div>
+              <div>
+                <span className="metric-label">Today sales</span>
+                <strong>{formatMetric(analytics.operations.todaySales)}</strong>
+              </div>
+              <div>
+                <span className="metric-label">Today repairs</span>
+                <strong>{formatMetric(analytics.operations.todayOrders)}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="analytics-info-panel">
+            <div className="analytics-panel-header">
+              <div>
+                <p className="section-label">Stock</p>
+                <h2>Inventory health</h2>
+              </div>
+            </div>
+            <div className="analytics-stock-list">
+              <div>
+                <span>Products</span>
+                <strong>{formatMetric(analytics.stock.productCount)}</strong>
+              </div>
+              <div>
+                <span>Free stock</span>
+                <strong>{formatMetric(analytics.stock.freeStock)}</strong>
+              </div>
+              <div>
+                <span>Reserved</span>
+                <strong>{formatMetric(analytics.stock.reservedStock)}</strong>
+              </div>
+              <div>
+                <span>Stock value</span>
+                <strong>{formatCurrencyMetric(analytics.stock.stockValue)}</strong>
+              </div>
+              <div>
+                <span>Clients</span>
                 <strong>{formatMetric(clientCount)}</strong>
               </div>
-              <div className="hero-inline-metric">
-                <span className="metric-label">Залишок</span>
-                <strong>{formatMetric(totalFreeStock)}</strong>
-              </div>
             </div>
-          </aside>
+          </section>
 
-          <div className="analytics-charts-stack">
-            <div className="analytics-period-row">
+          <section className="analytics-info-panel">
+            <div className="analytics-panel-header">
               <div>
-                <p className="section-label">Порівняльний аналіз</p>
-                <h2>{analytics.detailLabel}</h2>
+                <p className="section-label">Signals</p>
+                <h2>Attention queue</h2>
               </div>
-              <p className="hero-chart-note">
-                Поточний період завжди синій; попередні роки залишаються помаранчевим і зеленим.
-              </p>
             </div>
+            <div className="analytics-signal-list">
+              {analytics.signals.map((signal) => (
+                <div key={signal.label} className={`analytics-signal analytics-signal-${signal.tone}`}>
+                  <span>{signal.label}</span>
+                  <strong>{signal.value}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+        </aside>
 
-            <ChartPanel
-              title="Продажи"
-              valueLabel="Выручка"
-              emptyText="No sales found for the selected period."
-              isLoading={isSalesLoading}
-              hasData={analytics.hasRevenueData}
-              snapshots={analytics.revenueSnapshots}
-              maxValue={analytics.revenueChartMax}
-              axisLabels={analytics.axisLabels}
-            />
-
-            <ChartPanel
-              title="Заказы"
-              valueLabel="Ремонтные заказы"
-              emptyText="No repair orders found for the selected period."
-              isLoading={isSalesLoading}
-              hasData={analytics.hasOrdersData}
-              snapshots={analytics.orderSnapshots}
-              maxValue={analytics.ordersChartMax}
-              axisLabels={analytics.axisLabels}
-            />
+        <div className="analytics-charts-stack">
+          <div className="analytics-period-row">
+            <div>
+              <p className="section-label">Comparative analysis</p>
+              <h2>{analytics.detailLabel}</h2>
+            </div>
+            <p className="hero-chart-note">
+              Current period is blue; previous comparable years are orange and green.
+            </p>
           </div>
+
+          <ChartPanel
+            title="Revenue"
+            valueLabel="Product sales"
+            emptyText="No sales found for the selected period."
+            isLoading={isSalesLoading}
+            hasData={analytics.hasRevenueData}
+            snapshots={analytics.revenueSnapshots}
+            maxValue={analytics.revenueChartMax}
+            axisLabels={analytics.axisLabels}
+            formatTotal={formatCurrencyMetric}
+          />
+
+          <ChartPanel
+            title="Repair orders"
+            valueLabel="Order volume"
+            emptyText="No repair orders found for the selected period."
+            isLoading={isSalesLoading}
+            hasData={analytics.hasOrdersData}
+            snapshots={analytics.orderSnapshots}
+            maxValue={analytics.ordersChartMax}
+            axisLabels={analytics.axisLabels}
+          />
         </div>
       </div>
     </section>

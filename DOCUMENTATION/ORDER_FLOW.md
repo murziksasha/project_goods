@@ -206,5 +206,29 @@
   - both: include records with `dateFrom <= deliveryDate <= dateTo`.
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
 
+## Supplier Order Information Tab (2026-05-29)
 
+- `Orders` has a fourth tab after `Supplier Order` named `Information`.
+- `Information` is rendered by the same supplier-order workspace as `Supplier Order`.
+- The `Information` tab reuses the supplier-order working set after current filters are applied:
+  - search by number, product, supplier,
+  - order status,
+  - payment status,
+  - inclusive delivery date range from the `Data` panel.
+- The `Data`, `Search`, `Order status`, `Payment status`, and `Order from supplier` controls remain available on `Information`.
+- The table column settings gear is hidden on `Information` because the analytics dashboard has no configurable table columns.
+- The normal supplier-order table and pagination are shown only on `Supplier Order`.
+- `Information` shows procurement analytics for supplier-order goods only:
+  - summary cards: supplier order count, total value, paid amount, outstanding amount, total quantity, average order value, payment coverage, stocked/received rate,
+  - popular goods: top products by quantity, purchase value, and frequency,
+  - price analysis: lowest unit price, highest unit price, and product min/max/average price ranges when the product appears at multiple prices,
+  - supplier analysis: top suppliers by spend, pending amount, paid amount, and order count,
+  - business signals: overdue open orders, late-risk open orders within 3 days, cancelled/unavailable rate, stocked/received rate, and payment coverage.
+- Overdue and late-risk counts exclude final/closed supplier orders:
+  - `stocked`,
+  - `cancelled`,
+  - `unavailable`,
+  - `receiptStatus = received`.
+- If filters produce no supplier orders, `Information` shows a compact empty state instead of table rows.
+- Services are not included in this tab in v1 because `SupplierOrder` items currently represent goods/products only.
 

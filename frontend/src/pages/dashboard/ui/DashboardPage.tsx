@@ -38,7 +38,11 @@ type PageKey =
   | 'accounting'
   | 'catalog'
   | 'warehouse';
-type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
+type OrdersTab =
+  | 'orders'
+  | 'sales'
+  | 'supplierOrders'
+  | 'supplierInformation';
 type CreateOrderTab = 'repair' | 'sale';
 
 const pageKeys: PageKey[] = [
@@ -51,7 +55,12 @@ const pageKeys: PageKey[] = [
   'catalog',
   'warehouse',
 ];
-const ordersTabs: OrdersTab[] = ['orders', 'sales', 'supplierOrders'];
+const ordersTabs: OrdersTab[] = [
+  'orders',
+  'sales',
+  'supplierOrders',
+  'supplierInformation',
+];
 const ordersTabStorageKey = 'project-goods.orders-tab';
 const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
 const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
@@ -250,6 +259,7 @@ export const DashboardPage = () => {
       currentEmployee.permissions.includes('orders.manage'));
   const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
   const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
+  const canManageSettings = currentEmployee?.role === 'owner';
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -395,8 +405,12 @@ export const DashboardPage = () => {
     }
     if (activePage === 'accounting' && !canViewAccounting) {
       setActivePage('home');
+      return;
     }
-  }, [activePage, canManageEmployees, canViewAccounting]);
+    if (activePage === 'settings' && !canManageSettings) {
+      setActivePage('home');
+    }
+  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
@@ -652,6 +666,7 @@ export const DashboardPage = () => {
           {sidebarItems
             .filter((item) => item.key !== 'employees' || canManageEmployees)
             .filter((item) => item.key !== 'accounting' || canViewAccounting)
+            .filter((item) => item.key !== 'settings' || canManageSettings)
             .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
@@ -739,7 +754,9 @@ export const DashboardPage = () => {
           />
 
           {activePage === 'orders' ? (
-            isCreateOrderOpen && activeOrdersTab !== 'supplierOrders' ? (
+            isCreateOrderOpen &&
+            activeOrdersTab !== 'supplierOrders' &&
+            activeOrdersTab !== 'supplierInformation' ? (
                 <CreateOrderCard
                   isSaving={state.isSaleSaving}
                   employees={state.allEmployees}
@@ -753,7 +770,8 @@ export const DashboardPage = () => {
                   onError={actions.showError}
               />
             ) : (
-              activeOrdersTab === 'supplierOrders' ? (
+              activeOrdersTab === 'supplierOrders' ||
+              activeOrdersTab === 'supplierInformation' ? (
                 <SupplierOrdersWorkspace
                   activeTab={activeOrdersTab}
                   onActiveTabChange={changeOrdersTab}
@@ -789,6 +807,7 @@ export const DashboardPage = () => {
                   externalSelectedSaleId={externalSelectedSaleId}
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onOpenClientCard={openClientCardFromOrders}
+                  printForms={state.settings?.printForms ?? state.settingsForm.printForms}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />
               )
@@ -831,7 +850,7 @@ export const DashboardPage = () => {
               openClientCardRequestId={openClientCardRequestId}
               onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}
             />
-          ) : activePage === 'settings' ? (
+          ) : activePage === 'settings' && canManageSettings ? (
             <SettingsPanel
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
@@ -908,6 +927,7 @@ export const DashboardPage = () => {
               onCreateSupplier={actions.createSupplierCard}
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
+              onUpdateProductModel={actions.updateProductModelCard}
               currentEmployeeName={currentEmployee.name}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
@@ -916,9 +936,8 @@ export const DashboardPage = () => {
             <AnalyticsHeroSection
               sales={productSales}
               orders={repairOrders}
-              productCount={state.allProducts.length}
+              products={state.allProducts}
               clientCount={state.allClients.length}
-              totalFreeStock={state.totalFreeStock}
               isSalesLoading={state.isSalesLoading}
               isSeeding={state.isSeeding}
               isExporting={state.isExporting}

@@ -18,6 +18,7 @@ import { getServiceCatalogItems } from '../../../entities/service-catalog/api/se
 import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
+import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import { queryKeys } from '../../../shared/api/queryClient';
 
@@ -109,10 +110,17 @@ export const useDashboardEffects = ({
         }
         if (settingsResult.status === 'fulfilled') {
           setSettings(settingsResult.value);
-          setSettingsForm({ serviceName: settingsResult.value.serviceName });
+          setSettingsForm({
+            serviceName: settingsResult.value.serviceName,
+            printForms: settingsResult.value.printForms,
+            orderDefaults: settingsResult.value.orderDefaults,
+            numbering: settingsResult.value.numbering,
+            financeDefaults: settingsResult.value.financeDefaults,
+            notificationSettings: settingsResult.value.notificationSettings,
+          });
         } else {
           setSettings(null);
-          setSettingsForm({ serviceName: 'Service CRM' });
+          setSettingsForm(createDefaultSettingsForm());
         }
         setLastSyncAt(new Date().toISOString());
       } finally {

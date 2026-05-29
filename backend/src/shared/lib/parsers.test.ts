@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEmployeePayload, normalizeProductPayload } from './parsers';
+import {
+  normalizeEmployeePayload,
+  normalizeProductPayload,
+  normalizeSettingsPayload,
+} from './parsers';
 
 describe('normalizeProductPayload', () => {
   it('normalizes scalar fields and filters invalid sale prices', () => {
@@ -104,5 +108,112 @@ describe('normalizeEmployeePayload', () => {
       ]),
     );
     expect(defaults.permissions).not.toContain('employees.manage');
+  });
+});
+
+describe('normalizeSettingsPayload', () => {
+  it('normalizes print forms and nested settings', () => {
+    const result = normalizeSettingsPayload({
+      serviceName: '  Repair CRM  ',
+      printForms: [
+        {
+          id: ' receipt ',
+          title: ' Receipt ',
+          type: ' receipt ',
+          content: ' Order {{orderNumber}} ',
+          isActive: 'false',
+          sortOrder: '5',
+        },
+        { title: '', content: 'ignored' },
+      ],
+      orderDefaults: {
+        defaultRepairTermDays: '3',
+        defaultWarrantyMonths: '6',
+        defaultRepairStatus: ' diagnostics ',
+        defaultSaleStatus: ' paid ',
+      },
+      numbering: {
+        repairPrefix: ' R ',
+        salePrefix: ' S ',
+        supplierOrderPrefix: ' SO ',
+        nextRepairNumber: '10',
+        nextSaleNumber: '20',
+        nextSupplierOrderNumber: '30',
+      },
+      financeDefaults: {
+        currency: ' usd ',
+        paymentMethod: 'non-cash',
+      },
+      notificationSettings: {
+        smsEnabled: 'true',
+        messengerEnabled: true,
+        emailEnabled: 'false',
+      },
+    });
+
+    expect(result).toMatchObject({
+      serviceName: 'Repair CRM',
+      printForms: [
+        {
+          id: 'receipt',
+          title: 'Receipt',
+          type: 'receipt',
+          content: 'Order {{orderNumber}}',
+          isActive: false,
+          sortOrder: 5,
+        },
+      ],
+      orderDefaults: {
+        defaultRepairTermDays: 3,
+        defaultWarrantyMonths: 6,
+        defaultRepairStatus: 'diagnostics',
+        defaultSaleStatus: 'paid',
+      },
+      numbering: {
+        repairPrefix: 'R',
+        salePrefix: 'S',
+        supplierOrderPrefix: 'SO',
+        nextRepairNumber: 10,
+        nextSaleNumber: 20,
+        nextSupplierOrderNumber: 30,
+      },
+      financeDefaults: {
+        currency: 'USD',
+        paymentMethod: 'non-cash',
+      },
+      notificationSettings: {
+        smsEnabled: true,
+        messengerEnabled: true,
+        emailEnabled: false,
+      },
+    });
+  });
+
+  it('falls back to safe defaults for invalid settings values', () => {
+    const result = normalizeSettingsPayload({
+      serviceName: '',
+      printForms: 'bad',
+      orderDefaults: {
+        defaultRepairTermDays: '-4',
+        defaultWarrantyMonths: 'abc',
+      },
+      numbering: {
+        nextRepairNumber: '0',
+      },
+      financeDefaults: {
+        currency: '',
+        paymentMethod: 'card',
+      },
+    });
+
+    expect(result.serviceName).toBe('Service CRM');
+    expect(result.printForms).toEqual([]);
+    expect(result.orderDefaults.defaultRepairTermDays).toBe(0);
+    expect(result.orderDefaults.defaultWarrantyMonths).toBe(1);
+    expect(result.numbering.nextRepairNumber).toBe(1);
+    expect(result.financeDefaults).toEqual({
+      currency: 'UAH',
+      paymentMethod: 'cash',
+    });
   });
 });
