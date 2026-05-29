@@ -23,7 +23,11 @@ import {
   exportProducts,
 } from '../../../entities/product/api/productApi';
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
-import type { Product, ProductFormValues } from '../../../entities/product/model/types';
+import type {
+  Product,
+  ProductFormValues,
+  ProductModelUpdatePayload,
+} from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
@@ -38,7 +42,11 @@ import type {
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
-import { createSupplier, updateSupplier } from '../../../entities/supplier/api/supplierApi';
+import {
+  createSupplier,
+  mergeSuppliers as mergeSuppliersApi,
+  updateSupplier,
+} from '../../../entities/supplier/api/supplierApi';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
@@ -53,6 +61,7 @@ import {
 } from '../../../features/demo-data/api/demoApi';
 import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
+import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/create-order-products';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -118,6 +127,9 @@ type DashboardActionParams = {
     productId: string,
     payload: ProductFormValues,
   ) => Promise<Product>;
+  mutateUpdateProductModel: (
+    payload: ProductModelUpdatePayload,
+  ) => Promise<{ matchedCount: number; products: Product[] }>;
   mutateCreateSale: (payload: SaleFormValues) => Promise<{
     sale: Sale;
     product: Product | null;
@@ -223,6 +235,7 @@ export const createDashboardActions = ({
   refreshClientDevices,
   mutateCreateProduct,
   mutateUpdateProduct,
+  mutateUpdateProductModel,
   mutateCreateSale,
   mutateUpdateSale,
   mutateCreateClientDevice,
@@ -444,6 +457,31 @@ export const createDashboardActions = ({
         setIsProductSaving(false);
       }
     },
+    updateProductModelCard: async (payload: ProductModelUpdatePayload) => {
+      setIsProductSaving(true);
+      clearNotifications();
+
+      try {
+        const result = await mutateUpdateProductModel(payload);
+        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        setSuccessMessage(
+          result.matchedCount > 0
+            ? 'Product model updated.'
+            : 'No stock rows found for this product model.',
+        );
+        return result.matchedCount > 0;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            'Failed to update product model.',
+          ),
+        );
+        return false;
+      } finally {
+        setIsProductSaving(false);
+      }
+    },
     saveService: async () => {
       clearNotifications();
       if (!editingServiceId) {
@@ -631,6 +669,40 @@ export const createDashboardActions = ({
         setIsClientSaving(false);
       }
     },
+    mergeSuppliers: async (
+      targetSupplierId: string,
+      sourceSupplierId: string,
+    ) => {
+      setIsClientSaving(true);
+      clearNotifications();
+
+      try {
+        const result = await mergeSuppliersApi(
+          targetSupplierId,
+          sourceSupplierId,
+        );
+        setSuppliers((current) =>
+          current
+            .filter((supplier) => supplier.id !== result.removedSupplierId)
+            .map((supplier) =>
+              supplier.id === result.supplier.id
+                ? result.supplier
+                : supplier,
+            ),
+        );
+        setSuccessMessage(
+          `Suppliers merged. Moved supplier orders: ${result.movedSupplierOrdersCount}.`,
+        );
+        return true;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(requestError, 'Failed to merge suppliers.'),
+        );
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
     updateClientCard: async (clientId: string, payload: ClientFormValues) => {
       setIsClientSaving(true);
       clearNotifications();
@@ -722,7 +794,14 @@ export const createDashboardActions = ({
       try {
         const updated = await updateSettings(settingsForm);
         setSettings(updated);
-        setSettingsForm({ serviceName: updated.serviceName });
+        setSettingsForm({
+          serviceName: updated.serviceName,
+          printForms: updated.printForms,
+          orderDefaults: updated.orderDefaults,
+          numbering: updated.numbering,
+          financeDefaults: updated.financeDefaults,
+          notificationSettings: updated.notificationSettings,
+        });
         setSuccessMessage('Settings saved.');
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to save settings.'));
@@ -1042,6 +1121,11 @@ export const createDashboardActions = ({
             return {
               ...item,
               name: item.name.trim(),
+              serialNumbers: Array.isArray(item.serialNumbers)
+                ? item.serialNumbers
+                    .map((serial) => String(serial ?? '').trim().toUpperCase())
+                    .filter(Boolean)
+                : [],
               quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
               price: Number.isFinite(price) && price >= 0 ? price : 0,
               warrantyPeriod:
@@ -1125,15 +1209,20 @@ export const createDashboardActions = ({
         ].filter(Boolean);
         const lineItems =
           payload.sourceTab === 'sale' && saleItems.length > 0
-            ? saleItems.map((item) => ({
-                id: item.id || crypto.randomUUID(),
-                kind: 'product' as const,
-                productId: '',
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                warrantyPeriod: item.warrantyPeriod,
-              }))
+            ? buildCreateOrderSaleLineItems(
+                saleItems.map((item) => ({
+                  id: item.id || crypto.randomUUID(),
+                  productId: item.productId,
+                  name: item.name,
+                  article: item.article,
+                  serialNumber: item.serialNumber,
+                  serialNumbers: item.serialNumbers,
+                  price: String(item.price),
+                  quantity: String(item.quantity),
+                  warrantyPeriod: String(item.warrantyPeriod),
+                  warehouse: item.warehouse,
+                })),
+              )
             : [];
 
         await mutateCreateSale({

@@ -75,6 +75,7 @@
 ## Status Change: Paid
 
 - For `Sales` flow, when status is changed to `paid`, system opens `Accept payment` modal (if `To pay > 0`).
+- The same paid-status payment behavior is reused by repair orders in `Orders` tab; repair-specific rules are documented in `ORDER_FLOW.md`.
 - Payment modal is the working path for these status transitions:
   - `Accept to cashbox` (deposit only)
   - `Accept and mark paid` (deposit + status change)

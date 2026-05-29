@@ -85,6 +85,14 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
+- When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
+- In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `paid`.
+- For repair order `paid` target, payment modal actions follow the same paid-status behavior as `SALE_FLOW.md`:
+  - `Accept to cashbox` adds a deposit and marks the order `paid`.
+  - `Accept and mark paid` adds a deposit and marks the order `paid`.
+  - `Mark paid without payment` changes only the status to `paid`.
+- Repair status `paid` is a payment state, not a final issue/close state: it does not fill `Issued`, does not set completion date, and does not trigger final repair stock-lock behavior.
 - For `Repair order`, action `Issue without payment` is allowed even when `To pay > 0`.
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
 - Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until those products are returned to stock.
@@ -206,5 +214,29 @@
   - both: include records with `dateFrom <= deliveryDate <= dateTo`.
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
 
+## Supplier Order Information Tab (2026-05-29)
 
+- `Orders` has a fourth tab after `Supplier Order` named `Information`.
+- `Information` is rendered by the same supplier-order workspace as `Supplier Order`.
+- The `Information` tab reuses the supplier-order working set after current filters are applied:
+  - search by number, product, supplier,
+  - order status,
+  - payment status,
+  - inclusive delivery date range from the `Data` panel.
+- The `Data`, `Search`, `Order status`, `Payment status`, and `Order from supplier` controls remain available on `Information`.
+- The table column settings gear is hidden on `Information` because the analytics dashboard has no configurable table columns.
+- The normal supplier-order table and pagination are shown only on `Supplier Order`.
+- `Information` shows procurement analytics for supplier-order goods only:
+  - summary cards: supplier order count, total value, paid amount, outstanding amount, total quantity, average order value, payment coverage, stocked/received rate,
+  - popular goods: top products by quantity, purchase value, and frequency,
+  - price analysis: lowest unit price, highest unit price, and product min/max/average price ranges when the product appears at multiple prices,
+  - supplier analysis: top suppliers by spend, pending amount, paid amount, and order count,
+  - business signals: overdue open orders, late-risk open orders within 3 days, cancelled/unavailable rate, stocked/received rate, and payment coverage.
+- Overdue and late-risk counts exclude final/closed supplier orders:
+  - `stocked`,
+  - `cancelled`,
+  - `unavailable`,
+  - `receiptStatus = received`.
+- If filters produce no supplier orders, `Information` shows a compact empty state instead of table rows.
+- Services are not included in this tab in v1 because `SupplierOrder` items currently represent goods/products only.
 

@@ -14,7 +14,11 @@ import {
   filterClientsByStatus,
 } from '../../../entities/client/lib/filter-clients';
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
-import type { Product, ProductFormValues } from '../../../entities/product/model/types';
+import type {
+  Product,
+  ProductFormValues,
+  ProductModelUpdatePayload,
+} from '../../../entities/product/model/types';
 import { filterProducts } from '../../../entities/product/lib/filter-products';
 import {
   archiveProduct,
@@ -22,6 +26,7 @@ import {
   deleteProduct,
   getProducts,
   updateProduct,
+  updateProductModelByName,
 } from '../../../entities/product/api/productApi';
 import type { Supplier } from '../../../entities/supplier/model/types';
 import type {
@@ -66,6 +71,7 @@ import {
   updateServiceCatalogItem,
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
+import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
@@ -85,9 +91,9 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>({
-    serviceName: 'Service CRM',
-  });
+  const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>(
+    createDefaultSettingsForm,
+  );
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
@@ -142,6 +148,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const updateProductMutation = useMutation({
     mutationFn: ({ productId, payload }: { productId: string; payload: ProductFormValues }) =>
       updateProduct(productId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });
+  const updateProductModelMutation = useMutation({
+    mutationFn: (payload: ProductModelUpdatePayload) =>
+      updateProductModelByName(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.products });
     },
@@ -420,6 +433,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     mutateCreateProduct: async (payload) => createProductMutation.mutateAsync(payload),
     mutateUpdateProduct: async (productId, payload) =>
       updateProductMutation.mutateAsync({ productId, payload }),
+    mutateUpdateProductModel: async (payload) =>
+      updateProductModelMutation.mutateAsync(payload),
     mutateCreateSale: async (payload) => createSaleMutation.mutateAsync(payload),
     mutateUpdateSale: async (saleId, payload) =>
       updateSaleMutation.mutateAsync({ saleId, payload }),
@@ -462,7 +477,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       services: enabled ? filteredServices : [],
       allEmployees: enabled ? allEmployees : [],
       settings: enabled ? settings : null,
-      settingsForm: enabled ? settingsForm : { serviceName: 'Service CRM' },
+      settingsForm: enabled ? settingsForm : createDefaultSettingsForm(),
       statsPeriod,
       products: enabled ? products : [],
       clients: enabled ? clients : [],

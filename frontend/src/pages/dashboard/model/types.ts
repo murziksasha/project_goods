@@ -8,7 +8,11 @@ export type PageKey =
   | 'catalog'
   | 'warehouse';
 
-export type OrdersTab = 'orders' | 'sales' | 'supplierOrders';
+export type OrdersTab =
+  | 'orders'
+  | 'sales'
+  | 'supplierOrders'
+  | 'supplierInformation';
 export type CreateOrderTab = 'repair' | 'sale';
 
 export const pageKeys: PageKey[] = [
@@ -22,7 +26,12 @@ export const pageKeys: PageKey[] = [
   'warehouse',
 ];
 
-export const ordersTabs: OrdersTab[] = ['orders', 'sales', 'supplierOrders'];
+export const ordersTabs: OrdersTab[] = [
+  'orders',
+  'sales',
+  'supplierOrders',
+  'supplierInformation',
+];
 export const ordersTabStorageKey = 'project-goods.orders-tab';
 
 export const getPageFromUrl = (): PageKey => {

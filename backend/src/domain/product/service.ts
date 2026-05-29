@@ -4,7 +4,10 @@ import { Sale } from '../sale/model';
 import { formatProduct } from '../../shared/lib/formatters';
 import { normalizeProductPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
-import type { ProductPayload } from '../shared/types';
+import type {
+  ProductModelUpdatePayload,
+  ProductPayload,
+} from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
 import {
   formatProductSerialNumber,
@@ -14,6 +17,62 @@ import { Sequence } from '../sequence/model';
 
 const productSerialSequenceKey = 'product-serial-number';
 const productSerialPattern = /^S\d+$/;
+
+export const normalizeProductModelName = (value: string) =>
+  value.trim().toLowerCase();
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export const getExactProductModelNameQuery = (name: string) => ({
+  name: {
+    $regex: `^\\s*${escapeRegExp(name.trim())}\\s*$`,
+    $options: 'i',
+  },
+});
+
+const parseOptionalPrice = (value: unknown) => {
+  if (value === undefined) return undefined;
+  const normalized = String(value).replace(/\s+/g, '').replace(',', '.').trim();
+  if (!normalized) return 0;
+  const numeric = Number.parseFloat(normalized);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    throw new Error('Product model prices must be valid non-negative numbers.');
+  }
+  return numeric;
+};
+
+export const applyProductModelUpdate = (
+  product: ProductDocument,
+  payload: ProductModelUpdatePayload,
+) => {
+  const nextProduct = { ...product };
+  const salePriceOptions = [...(nextProduct.salePriceOptions ?? [])];
+  const retailPrice = parseOptionalPrice(payload.retailPrice);
+  const wholesalePrice = parseOptionalPrice(payload.wholesalePrice);
+  const purchasePrice = parseOptionalPrice(payload.purchasePrice);
+
+  if (payload.article !== undefined) {
+    nextProduct.article = String(payload.article ?? '').trim().toUpperCase();
+  }
+  if (payload.note !== undefined) {
+    nextProduct.note = String(payload.note ?? '').trim();
+  }
+  if (retailPrice !== undefined) {
+    salePriceOptions[0] = retailPrice;
+  }
+  if (wholesalePrice !== undefined) {
+    salePriceOptions[1] = wholesalePrice;
+  }
+  if (retailPrice !== undefined || wholesalePrice !== undefined) {
+    nextProduct.salePriceOptions = salePriceOptions;
+  }
+  if (purchasePrice !== undefined) {
+    nextProduct.price = purchasePrice;
+  }
+
+  return nextProduct;
+};
 
 const syncProductSerialSequenceWithDatabase = async () => {
   const [lastSequence, topProduct] = await Promise.all([
@@ -101,6 +160,44 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
   }
 
   return formatProduct(product);
+};
+
+export const updateProductModelByName = async (
+  payload: ProductModelUpdatePayload,
+) => {
+  const name = String(payload.name ?? '').trim();
+  if (name.length < 2) {
+    throw new Error('Product name must contain at least 2 characters.');
+  }
+
+  const products = await Product.find(getExactProductModelNameQuery(name));
+  const matchingProducts = products.filter(
+    (product) =>
+      normalizeProductModelName(product.name) ===
+      normalizeProductModelName(name),
+  );
+
+  for (const product of matchingProducts) {
+    const nextProduct = applyProductModelUpdate(
+      product.toObject<ProductDocument>(),
+      payload,
+    );
+    product.set({
+      article: nextProduct.article,
+      note: nextProduct.note,
+      price: nextProduct.price,
+      salePriceOptions: nextProduct.salePriceOptions,
+    });
+    await product.validate();
+    await product.save();
+  }
+
+  return {
+    matchedCount: matchingProducts.length,
+    products: matchingProducts.map((product) =>
+      formatProduct(product.toObject<ProductDocument>()),
+    ),
+  };
 };
 
 export const deleteProduct = async (productId: string) => {

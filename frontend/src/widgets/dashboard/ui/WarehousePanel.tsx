@@ -4,6 +4,7 @@ import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
   ProductFormValues,
+  ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
 import type {
   CatalogProduct,
@@ -39,6 +40,14 @@ import {
   buildSupplierOrderItemNumber,
   mergeSupplierOrderItemUpdate,
 } from '../model/supplier-order-utils';
+import {
+  buildProductWarehouseMetaById,
+  filterStockProducts,
+  getStockSupplierLabel,
+  type StockSupplierOrderLink,
+  type StockWarehouseMeta,
+} from '../model/stock-balance';
+import { ProductModelModal } from './ProductModelModal';
 
 type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
 type WarehouseColumnsTab = 'stock' | 'receipts';
@@ -157,7 +166,7 @@ type SupplierOrderLink = {
   order: SupplierOrder;
   itemIndex: number;
   displayNumber: string;
-};
+} & StockSupplierOrderLink;
 type WarehouseItem = {
   id: string;
   name: string;
@@ -187,12 +196,7 @@ type WarehouseFormState = {
   receiptPhone: string;
   locations: string[];
 };
-type ProductWarehouseMeta = {
-  warehouseId: string;
-  warehouseName: string;
-  locationId: string;
-  locationName: string;
-};
+type ProductWarehouseMeta = StockWarehouseMeta;
 type TransferFormState = {
   productId: string;
   toWarehouseId: string;
@@ -247,6 +251,7 @@ type WarehousePanelProps = {
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
+  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -391,19 +396,6 @@ const lockedWarehouseColumns: {
   receipts: ['number'],
 };
 
-const getSearchText = (
-  product: Product,
-  mode: WarehouseSearchMode,
-) =>
-  mode === 'serial'
-    ? product.serialNumber
-    : mode === 'article'
-      ? product.article
-    : mode === 'warehouse'
-      ? 'Main warehouse'
-      : mode === 'supplier'
-      ? product.purchasePlace
-      : [product.name, product.article, product.note].join(' ');
 const toServiceCenterForm = (
   c?: ServiceCenter,
 ): ServiceCenterFormState => ({
@@ -422,19 +414,6 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
-const normalizeSaleStatus = (value: string | null | undefined) =>
-  String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, '');
-const isIssuedSaleStatus = (value: string | null | undefined) => {
-  const normalized = normalizeSaleStatus(value);
-  return (
-    normalized === 'issued' ||
-    normalized === 'issuedwithoutrepair' ||
-    normalized === 'issuedwithoutrepairing'
-  );
-};
 export const WarehousePanel = ({
   products,
   sales,
@@ -451,12 +430,15 @@ export const WarehousePanel = ({
   onCreateSupplier,
   onUpdateSupplier,
   onUpdateCatalogProduct,
+  onUpdateProductModel,
   currentEmployeeName,
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
   const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
     useState(false);
+  const [selectedProductModelName, setSelectedProductModelName] =
+    useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -953,194 +935,9 @@ export const WarehousePanel = ({
     locationOptionsByWarehouseId,
     warehouseOptions,
   ]);
-  const productWarehouseMetaById = useMemo(() => {
-    const byId = new Map(
-      warehouses.map((warehouse) => [warehouse.id, warehouse]),
-    );
-    const byName = new Map(
-      warehouses.map((warehouse) => [
-        warehouse.name.trim().toLowerCase(),
-        warehouse,
-      ]),
-    );
-    const fallbackWarehouse = warehouses[0];
-    return products.reduce<Record<string, ProductWarehouseMeta>>(
-      (acc, product) => {
-        const matchedWarehouseById = product.warehouseId
-          ? byId.get(product.warehouseId)
-          : undefined;
-        const matchedWarehouse =
-          matchedWarehouseById ??
-          byName.get(product.purchasePlace.trim().toLowerCase()) ??
-          fallbackWarehouse;
-        const matchedLocation =
-          product.locationId && matchedWarehouse
-            ? matchedWarehouse.locations.find(
-                (location) => location.id === product.locationId,
-              )
-            : undefined;
-        const firstLocation = matchedLocation ?? matchedWarehouse?.locations[0];
-        acc[product.id] = {
-          warehouseId: matchedWarehouse?.id ?? '',
-          warehouseName: matchedWarehouse?.name ?? '-',
-          locationId: firstLocation?.id ?? '',
-          locationName: firstLocation?.name ?? '-',
-        };
-        return acc;
-      },
-      {},
-    );
-  }, [products, warehouses]);
-  const filteredProducts = useMemo(() => {
-    const soldIssuedProductIds = new Set<string>();
-    const productIdsBySerial = new Map<string, string[]>();
-
-    products.forEach((product) => {
-      const serial = product.serialNumber.trim().toLowerCase();
-      if (serial) {
-        productIdsBySerial.set(serial, [
-          ...(productIdsBySerial.get(serial) ?? []),
-          product.id,
-        ]);
-      }
-    });
-
-    sales.forEach((sale) => {
-      if (!isIssuedSaleStatus(sale.status)) return;
-
-      if (sale.product?.id) {
-        soldIssuedProductIds.add(sale.product.id);
-      }
-      const saleSerial = sale.product?.serialNumber?.trim().toLowerCase();
-      (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
-        (productId) => soldIssuedProductIds.add(productId),
-      );
-
-      (sale.lineItems ?? []).forEach((item) => {
-        if (item.kind !== 'product') return;
-        if (item.productId) {
-          soldIssuedProductIds.add(item.productId);
-        }
-        (item.serialNumbers ?? [])
-          .map((serial) => serial.trim().toLowerCase())
-          .filter(Boolean)
-          .forEach((serial) =>
-            (productIdsBySerial.get(serial) ?? []).forEach((productId) =>
-              soldIssuedProductIds.add(productId),
-            ),
-          );
-      });
-    });
-
-    const stockProducts = products.filter(
-      (product) =>
-        product.quantity > 0 && !soldIssuedProductIds.has(product.id),
-    );
-    const normalizedQuery = query.trim().toLowerCase();
-    return stockProducts.filter((product) => {
-      const productMeta = productWarehouseMetaById[product.id];
-      const warehouseName = productMeta?.warehouseName ?? '-';
-      const locationName = productMeta?.locationName ?? '-';
-      const matchesQuery =
-        !normalizedQuery ||
-        (searchMode === 'warehouse'
-          ? warehouseName
-          : getSearchText(product, searchMode)
-        )
-          .toLowerCase()
-          .includes(normalizedQuery);
-      if (!matchesQuery) return false;
-      if (
-        appliedFilters.name.trim() &&
-        !product.name
-          .toLowerCase()
-          .includes(appliedFilters.name.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      if (
-        appliedFilters.serial.trim() &&
-        !product.serialNumber
-          .toLowerCase()
-          .includes(appliedFilters.serial.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      if (
-        appliedFilters.article.trim() &&
-        !product.article
-          .toLowerCase()
-          .includes(appliedFilters.article.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      if (
-        appliedFilters.warehouse.trim() &&
-        !warehouseName
-          .toLowerCase()
-          .includes(appliedFilters.warehouse.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      const supplier = appliedFilters.supplier.trim().toLowerCase();
-      if (
-        supplier &&
-        !(product.purchasePlace || '')
-          .toLowerCase()
-          .includes(supplier)
-      ) {
-        return false;
-      }
-      if (
-        appliedFilters.location &&
-        locationName.toLowerCase() !==
-          appliedFilters.location.toLowerCase()
-      ) {
-        return false;
-      }
-      if (appliedFilters.buyer.trim()) {
-        const productBuyers =
-          buyersByProductName[product.name.trim().toLowerCase()] ?? [];
-        if (
-          !productBuyers.some(
-            (buyer) =>
-              buyer.toLowerCase() ===
-              appliedFilters.buyer.trim().toLowerCase(),
-          )
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [
-    appliedFilters,
-    buyersByProductName,
-    sales,
-    productWarehouseMetaById,
-    products,
-    query,
-    searchMode,
-  ]);
-
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredProducts.slice(start, start + pageSize);
-  }, [currentPage, filteredProducts, pageSize]);
-  const paginatedTransferProducts = useMemo(() => {
-    const start = (currentPage - 1) * transferPageSize;
-    return filteredProducts.slice(start, start + transferPageSize);
-  }, [currentPage, filteredProducts]);
-  const activeTransferProduct = useMemo(
-    () =>
-      filteredProducts.find(
-        (product) => product.id === transferForm.productId,
-      ) ?? null,
-    [filteredProducts, transferForm.productId],
-  );
-  const transferLocationOptions = useMemo(
-    () => locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
-    [locationOptionsByWarehouseId, transferForm.toWarehouseId],
+  const productWarehouseMetaById = useMemo(
+    () => buildProductWarehouseMetaById(products, warehouses),
+    [products, warehouses],
   );
   const filteredReceipts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -1182,39 +979,6 @@ export const WarehousePanel = ({
       return true;
     });
   }, [appliedFilters, query, receiptHistory]);
-  const employeeSavedFilters = useMemo(
-    () =>
-      savedFilters.filter(
-        (savedFilter) =>
-          savedFilter.employeeName === currentEmployeeName &&
-          savedFilter.tab === activeTab,
-      ),
-    [activeTab, currentEmployeeName, savedFilters],
-  );
-  const totalItems =
-    activeTab === 'receipts'
-      ? filteredReceipts.length
-      : filteredProducts.length;
-  const activePageSize =
-    activeTab === 'transfers' ? transferPageSize : pageSize;
-  const activeColumnsTab: WarehouseColumnsTab | null =
-    activeTab === 'stock' || activeTab === 'receipts'
-      ? activeTab
-      : null;
-  const visibleColumnKeys =
-    activeColumnsTab === 'stock'
-      ? visibleColumns.stock
-      : activeColumnsTab === 'receipts'
-        ? visibleColumns.receipts
-        : [];
-  const visibleColumnKeySet = new Set<string>(
-    visibleColumnKeys as string[],
-  );
-  const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
-  const paginatedReceipts = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredReceipts.slice(start, start + pageSize);
-  }, [currentPage, filteredReceipts, pageSize]);
   const salesByProductId = useMemo(() => {
     const bySerial = new Map<string, string[]>();
 
@@ -1306,6 +1070,102 @@ export const WarehousePanel = ({
       {},
     );
   }, [catalogProducts, products, supplierOrders]);
+  const filteredProducts = useMemo(
+    () =>
+      filterStockProducts({
+        products,
+        sales,
+        query,
+        searchMode,
+        filters: appliedFilters,
+        productWarehouseMetaById,
+        supplierOrdersByProductId,
+        buyersByProductName,
+      }),
+    [
+      appliedFilters,
+      buyersByProductName,
+      productWarehouseMetaById,
+      products,
+      query,
+      sales,
+      searchMode,
+      supplierOrdersByProductId,
+    ],
+  );
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [currentPage, filteredProducts, pageSize]);
+  const paginatedTransferProducts = useMemo(() => {
+    const start = (currentPage - 1) * transferPageSize;
+    return filteredProducts.slice(start, start + transferPageSize);
+  }, [currentPage, filteredProducts]);
+  const activeTransferProduct = useMemo(
+    () =>
+      filteredProducts.find(
+        (product) => product.id === transferForm.productId,
+      ) ?? null,
+    [filteredProducts, transferForm.productId],
+  );
+  const transferLocationOptions = useMemo(
+    () => locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
+    [locationOptionsByWarehouseId, transferForm.toWarehouseId],
+  );
+  const employeeSavedFilters = useMemo(
+    () =>
+      savedFilters.filter(
+        (savedFilter) =>
+          savedFilter.employeeName === currentEmployeeName &&
+          savedFilter.tab === activeTab,
+      ),
+    [activeTab, currentEmployeeName, savedFilters],
+  );
+  const totalItems =
+    activeTab === 'receipts'
+      ? filteredReceipts.length
+      : filteredProducts.length;
+  const activePageSize =
+    activeTab === 'transfers' ? transferPageSize : pageSize;
+  const activeColumnsTab: WarehouseColumnsTab | null =
+    activeTab === 'stock' || activeTab === 'receipts'
+      ? activeTab
+      : null;
+  const visibleColumnKeys =
+    activeColumnsTab === 'stock'
+      ? visibleColumns.stock
+      : activeColumnsTab === 'receipts'
+        ? visibleColumns.receipts
+        : [];
+  const visibleColumnKeySet = new Set<string>(
+    visibleColumnKeys as string[],
+  );
+  const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
+  const searchPlaceholder =
+    activeTab === 'receipts'
+      ? 'Search receipts'
+      : searchMode === 'serial'
+        ? 'Search by serial number'
+        : searchMode === 'name'
+          ? 'Search by product name'
+          : searchMode === 'article'
+            ? 'Search by article'
+            : searchMode === 'warehouse'
+              ? 'Search by warehouse'
+              : 'Search by supplier';
+  const activeFilterCount = Object.values(appliedFilters).filter((value) =>
+    value.trim(),
+  ).length;
+  const stockSummaryText =
+    activeTab === 'stock'
+      ? `${filteredProducts.length} stock rows`
+      : activeTab === 'transfers'
+        ? `${filteredProducts.length} movable rows`
+        : `${filteredReceipts.length} receipt rows`;
+  const paginatedReceipts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredReceipts.slice(start, start + pageSize);
+  }, [currentPage, filteredReceipts, pageSize]);
 
   const warehousesByServiceCenter = useMemo(
     () =>
@@ -1810,6 +1670,7 @@ export const WarehousePanel = ({
           >
             &rsaquo;
           </button>
+          <span className='warehouse-stock-count'>{stockSummaryText}</span>
           {activeColumnsTab ? (
             <div className='toolbar-settings' ref={columnsMenuRef}>
               <button
@@ -1890,7 +1751,9 @@ export const WarehousePanel = ({
             className='toolbar-filter-button'
             onClick={() => setIsFilterPanelOpen((current) => !current)}
           >
-            Filter
+            {activeFilterCount > 0
+              ? `Filter (${activeFilterCount})`
+              : 'Filter'}
           </button>
           <div className='orders-search-group warehouse-search-group'>
             <input
@@ -1899,7 +1762,7 @@ export const WarehousePanel = ({
                 setQuery(event.target.value);
                 setCurrentPage(1);
               }}
-              placeholder='Search stock'
+              placeholder={searchPlaceholder}
             />
             {query ? (
               <span
@@ -2291,6 +2154,7 @@ export const WarehousePanel = ({
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
             onEdit={onProductEdit}
+            onOpenModel={(product) => setSelectedProductModelName(product.name)}
             onDelete={onProductDelete}
             onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
@@ -2325,6 +2189,16 @@ export const WarehousePanel = ({
               setCurrentPage(1);
             }}
           />
+          {selectedProductModelName ? (
+            <ProductModelModal
+              name={selectedProductModelName}
+              products={products}
+              warehouses={warehouses}
+              isSaving={isProductSaving}
+              onClose={() => setSelectedProductModelName(null)}
+              onSave={onUpdateProductModel}
+            />
+          ) : null}
         </>
       ) : activeTab === 'receipts' ? (
         <>
@@ -3977,6 +3851,7 @@ const StockTable = ({
   supplierOrdersByProductId,
   productWarehouseMetaById,
   onEdit,
+  onOpenModel,
   onDelete,
   onOpenSupplierOrder,
 }: {
@@ -3987,6 +3862,7 @@ const StockTable = ({
   supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
   onEdit: (product: Product) => void;
+  onOpenModel: (product: Product) => void;
   onDelete: (product: Product) => void;
   onOpenSupplierOrder: (
     supplierOrderId: string,
@@ -3994,16 +3870,28 @@ const StockTable = ({
   ) => void;
 }) => {
   if (isLoading)
-    return <p className='empty-state'>Loading warehouse stock...</p>;
+    return (
+      <p className='empty-state warehouse-stock-empty'>
+        Loading warehouse stock...
+      </p>
+    );
   if (products.length === 0)
-    return <p className='empty-state'>No stock rows found.</p>;
+    return (
+      <div className='empty-state warehouse-stock-empty'>
+        <strong>No stock rows found.</strong>
+        <span>Adjust search or filters to see available stock.</span>
+      </div>
+    );
   return (
     <div className='catalog-table-wrap'>
       <table className='catalog-table warehouse-stock-table'>
         <thead>
           <tr>
             {visibleColumns.map((columnKey) => (
-              <th key={columnKey}>
+              <th
+                key={columnKey}
+                className={`warehouse-stock-cell-${columnKey}`}
+              >
                 {columnKey === 'select' ? (
                   <input
                     type='checkbox'
@@ -4045,6 +3933,10 @@ const StockTable = ({
                 const linkedSales = salesByProductId[product.id] ?? [];
                 const linkedSupplierOrders =
                   supplierOrdersByProductId[product.id] ?? [];
+                const supplierLabel = getStockSupplierLabel(
+                  product,
+                  linkedSupplierOrders,
+                );
                 const getOrderHref = (
                   sale: Sale,
                   tab: 'orders' | 'sales',
@@ -4060,7 +3952,15 @@ const StockTable = ({
                 return (
                   <>
                     {visibleColumns.map((columnKey) => (
-                      <td key={`${product.id}-${columnKey}`} className={columnKey === 'name' ? 'catalog-name-cell' : undefined}>
+                      <td
+                        key={`${product.id}-${columnKey}`}
+                        className={[
+                          `warehouse-stock-cell-${columnKey}`,
+                          columnKey === 'name' ? 'catalog-name-cell' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      >
                         {columnKey === 'select' ? (
                           <input
                             type='checkbox'
@@ -4070,7 +3970,7 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.name}
                           </button>
@@ -4078,7 +3978,7 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.serialNumber}
                           </button>
@@ -4086,20 +3986,24 @@ const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            onClick={() => onOpenModel(product)}
                           >
                             {product.article}
                           </button>
                         ) : columnKey === 'date' ? (
                           formatDate(product.purchaseDate)
                         ) : columnKey === 'purchase' ? (
-                          product.price
+                          formatCurrency(product.price)
                         ) : columnKey === 'warehouse' ? (
-                          productWarehouseMetaById[product.id]
-                            ?.warehouseName ?? '-'
+                          <span className='warehouse-data-badge warehouse-data-badge-warehouse'>
+                            {productWarehouseMetaById[product.id]
+                              ?.warehouseName ?? '-'}
+                          </span>
                         ) : columnKey === 'location' ? (
-                          productWarehouseMetaById[product.id]
-                            ?.locationName ?? '-'
+                          <span className='warehouse-data-badge warehouse-data-badge-location'>
+                            {productWarehouseMetaById[product.id]
+                              ?.locationName ?? '-'}
+                          </span>
                         ) : columnKey === 'clientOrder' ? (
                           linkedSales.length === 0
                             ? '-'
@@ -4107,7 +4011,7 @@ const StockTable = ({
                                 <span key={`${product.id}-sale-${sale.id}`}>
                                   {index > 0 ? ', ' : null}
                                   <a
-                                    className='settings-link-button'
+                                    className='warehouse-link-badge'
                                     href={getOrderHref(
                                       sale,
                                       sale.kind === 'sale'
@@ -4131,7 +4035,7 @@ const StockTable = ({
                                     {index > 0 ? ', ' : null}
                                     <button
                                       type='button'
-                                      className='settings-link-button'
+                                      className='warehouse-link-badge'
                                       onClick={() =>
                                         onOpenSupplierOrder(
                                           order.order.id,
@@ -4150,10 +4054,7 @@ const StockTable = ({
                             className='settings-link-button'
                             onClick={() => onEdit(product)}
                           >
-                            {linkedSupplierOrders[0]?.order
-                              .supplierName ||
-                              product.purchasePlace ||
-                              '-'}
+                            {supplierLabel}
                           </button>
                         ) : columnKey === 'note' ? (
                           <button

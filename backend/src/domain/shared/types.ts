@@ -15,6 +15,15 @@ export type ProductPayload = {
   expectedUpdatedAt?: unknown;
 };
 
+export type ProductModelUpdatePayload = {
+  name?: unknown;
+  article?: unknown;
+  note?: unknown;
+  retailPrice?: unknown;
+  wholesalePrice?: unknown;
+  purchasePrice?: unknown;
+};
+
 export type ClientPayload = {
   phone?: unknown;
   name?: unknown;
@@ -25,6 +34,11 @@ export type ClientPayload = {
 export type MergeClientsPayload = {
   targetClientId?: unknown;
   sourceClientId?: unknown;
+};
+
+export type MergeSuppliersPayload = {
+  targetSupplierId?: unknown;
+  sourceSupplierId?: unknown;
 };
 
 export type SalePayload = {
@@ -63,6 +77,11 @@ export type EmployeePayload = {
 
 export type SettingsPayload = {
   serviceName?: unknown;
+  printForms?: unknown;
+  orderDefaults?: unknown;
+  numbering?: unknown;
+  financeDefaults?: unknown;
+  notificationSettings?: unknown;
 };
 
 export type WarehouseSettingsPayload = {

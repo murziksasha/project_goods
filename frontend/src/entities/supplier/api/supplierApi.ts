@@ -29,3 +29,22 @@ export const updateSupplier = async (supplierId: string, payload: SupplierFormVa
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const mergeSuppliers = async (
+  targetSupplierId: string,
+  sourceSupplierId: string,
+) => {
+  try {
+    const response = await apiClient.post<{
+      supplier: Supplier;
+      removedSupplierId: string;
+      movedSupplierOrdersCount: number;
+    }>('/suppliers/merge', {
+      targetSupplierId,
+      sourceSupplierId,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

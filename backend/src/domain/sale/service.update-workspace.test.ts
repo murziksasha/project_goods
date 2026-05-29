@@ -116,6 +116,16 @@ const secondLineItem = {
   warrantyPeriod: 0,
   serialNumbers: [],
 };
+const serializedLineItem = {
+  id: 'li-serial',
+  kind: 'product',
+  productId: '507f1f77bcf86cd799439014',
+  name: 'Cable Trigger',
+  price: 500,
+  quantity: 1,
+  warrantyPeriod: 0,
+  serialNumbers: ['S000020'],
+};
 
 describe('updateSaleWorkspace line items', () => {
   beforeEach(() => {
@@ -247,6 +257,129 @@ describe('updateSaleWorkspace line items', () => {
     expect(updatePayload.lineItems).toHaveLength(2);
     expect(updatePayload.lineItems[0].name).toBe('Wireless Mouse');
     expect(updatePayload.lineItems[1].name).toBe('Keyboard');
+  });
+
+  it('rejects serialized line items with quantity greater than 1', async () => {
+    const existingSale = buildExistingSale('sale');
+    const invalidItem = {
+      ...serializedLineItem,
+      quantity: 2,
+    };
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    productModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: serializedLineItem.productId,
+        quantity: 1,
+        reservedQuantity: 0,
+        serialNumber: 'S000020',
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'sale',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [invalidItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await expect(
+      updateSaleWorkspace(existingSale._id, {
+        kind: 'sale',
+        status: 'new',
+        lineItems: [invalidItem],
+      }),
+    ).rejects.toThrow(
+      'Serialized product line items must contain exactly one serial number and quantity 1.',
+    );
+  });
+
+  it('rejects serialized line items linked to a different stock product', async () => {
+    const existingSale = buildExistingSale('sale');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    productModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: serializedLineItem.productId,
+        quantity: 1,
+        reservedQuantity: 0,
+        serialNumber: 'S000021',
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'sale',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [serializedLineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await expect(
+      updateSaleWorkspace(existingSale._id, {
+        kind: 'sale',
+        status: 'new',
+        lineItems: [serializedLineItem],
+      }),
+    ).rejects.toThrow(
+      'Serialized product line item must reference the matching stock product.',
+    );
+  });
+
+  it('rejects quantity greater than 1 for a serialized stock product without a bound serial', async () => {
+    const existingSale = buildExistingSale('sale');
+    const invalidItem = {
+      ...serializedLineItem,
+      quantity: 2,
+      serialNumbers: [],
+    };
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    productModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: serializedLineItem.productId,
+        quantity: 2,
+        reservedQuantity: 0,
+        serialNumber: 'S000020',
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'sale',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [invalidItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await expect(
+      updateSaleWorkspace(existingSale._id, {
+        kind: 'sale',
+        status: 'new',
+        lineItems: [invalidItem],
+      }),
+    ).rejects.toThrow(
+      'Serialized stock products cannot be sold with quantity greater than 1.',
+    );
   });
 
   it('decrements stock for repair orders when status becomes issued', async () => {

@@ -36,6 +36,26 @@
 
 - Product suggestion selection pre-fills line values and stores selected `productId`.
 - Manual value entry is still allowed.
+- Lookup in an existing sale card product row must match stock `Product` rows by `name`, `article`, and `serialNumber`.
+- When the user types an explicit serial number, the matching stock row must appear first when available.
+- Suggestion rows must show whether the stock row is free, already linked to the current order, linked to another order, or unavailable because it has no free stock.
+- Only active/free stock rows may be selected from suggestions.
+- In create-order sales flow, clicking the name of an already selected product row opens the shared product model modal; suggestion clicks still only select products.
+- In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
+- The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.
+
+## Serialized Product Rows
+
+- Serialized warehouse products are atomic in sale card data:
+  - one sold serial number = one `lineItems[]` product row
+  - serialized row must have `quantity = 1`
+  - serialized row must have exactly one `serialNumbers[]` value
+  - `lineItems[].productId` must reference the stock `Product` with the same `serialNumber`
+- Selecting a product suggestion by serial number must immediately add an atomic product row with `quantity = 1` and `serialNumbers = [serial]`.
+- Direct `Qty` changes are blocked for product rows that already have a bound serial number.
+- To sell two units of the same serialized model, the operator must bind/add two concrete serial numbers; data is persisted as two product rows, not as one row with `quantity = 2`.
+- If a legacy/non-serialized product row has `quantity > 1` and the operator binds multiple serial numbers, the save flow must split it into one atomic row per selected serial.
+- Backend workspace validation must reject serialized rows with `quantity > 1`, more than one serial, or a `productId`/`serialNumber` mismatch.
 
 ## Service Entry
 
