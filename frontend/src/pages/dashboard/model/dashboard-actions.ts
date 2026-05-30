@@ -796,6 +796,10 @@ export const createDashboardActions = ({
         setSettings(updated);
         setSettingsForm({
           serviceName: updated.serviceName,
+          company: updated.company,
+          companyAddress: updated.companyAddress,
+          companyId: updated.companyId,
+          companyIban: updated.companyIban,
           printForms: updated.printForms,
           orderDefaults: updated.orderDefaults,
           numbering: updated.numbering,

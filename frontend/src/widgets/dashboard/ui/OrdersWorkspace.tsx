@@ -123,7 +123,22 @@ type OrdersWorkspaceProps = {
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
   printForms: PrintForm[];
+  printCompanySettings: PrintCompanySettings;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+};
+
+type PrintCompanySettings = {
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
+};
+
+type OrderPrintRequest = {
+  sale: Sale;
+  lineItems: OrderLineItem[];
+  paidAmount: number;
+  orderNumber: string;
 };
 
 type OrdersTab =
@@ -1113,15 +1128,17 @@ const renderInvoiceItemsTable = (sale: Sale) => {
 
 const getPrintTemplateData = (
   sale: Sale,
+  lineItems: OrderLineItem[],
   paidAmount: number,
   orderNumber: string,
+  companySettings: PrintCompanySettings,
 ): PrintTemplateData => {
-  const total = getOrderTotal(sale);
+  const total = getOrderTotal(sale, lineItems);
   const totalAmount = Math.round(total * 100) / 100;
-  const productItems = (sale.lineItems ?? []).filter(
+  const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
-  const serviceItems = (sale.lineItems ?? []).filter(
+  const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
   const createdAt = formatDateTime(sale.createdAt);
@@ -1139,7 +1156,7 @@ const getPrintTemplateData = (
     comment: sale.note || '-',
     total: formatCurrency(total),
     paid: formatCurrency(paidAmount),
-    toPay: formatCurrency(getRemainingPayment(sale, paidAmount)),
+    toPay: formatCurrency(getRemainingPayment(sale, paidAmount, lineItems)),
     currency: 'UAH',
     discount:
       getDiscount(sale).value > 0
@@ -1148,10 +1165,10 @@ const getPrintTemplateData = (
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
-    company: 'Сервісний центр',
-    company_address: 'Адресу компанії можна змінити в шаблоні',
-    company_id: '-',
-    company_iban: '-',
+    company: companySettings.company || '-',
+    company_address: companySettings.companyAddress || '-',
+    company_id: companySettings.companyId || '-',
+    company_iban: companySettings.companyIban || '-',
     customer_reg_id: '-',
     due_date: createdAt.split(',')[0] ?? createdAt,
     warehouse: getWarehouseLabel(sale),
@@ -1166,7 +1183,7 @@ const getPrintTemplateData = (
     note_label: 'Примітка',
     products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
     services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
-    invoice_items_table: renderInvoiceItemsTable(sale),
+    invoice_items_table: renderInvoiceItemsTable({ ...sale, lineItems }),
     barcode: orderNumber,
     qrcode: orderNumber,
     createdAt,
@@ -1183,6 +1200,362 @@ const formatReadyDate = (value: string) =>
   }).format(new Date(value));
 
 const getWarehouseLabel = (_sale: Sale) => 'Service center';
+
+const PrinterIcon = () => (
+  <svg
+    className='print-button-icon'
+    viewBox='0 0 24 24'
+    aria-hidden='true'
+    focusable='false'
+  >
+    <path
+      d='M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4a2 2 0 0 1-2 2h-2M7 14h10v7H7zM17 12h.01'
+      fill='none'
+      stroke='currentColor'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      strokeWidth='2'
+    />
+  </svg>
+);
+
+const renderOrderPrintCodes = async (
+  root: HTMLElement | Document,
+  fallbackValue: string,
+) => {
+  root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
+    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
+      return;
+    }
+    const value = node.dataset.barcodeValue || fallbackValue;
+    try {
+      JsBarcode(node, value, {
+        format: 'CODE128',
+        displayValue: true,
+        fontSize: 12,
+        height: 44,
+        margin: 0,
+      });
+    } catch {
+      node.replaceWith(node.ownerDocument.createTextNode(value));
+    }
+  });
+
+  await Promise.all(
+    Array.from(root.querySelectorAll<HTMLCanvasElement>('canvas[data-qrcode-value]'))
+      .filter(
+        (node) =>
+          !node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom'),
+      )
+      .map((node) =>
+        QRCode.toCanvas(node, node.dataset.qrcodeValue || fallbackValue, {
+          width: 88,
+          margin: 1,
+        }).catch(() => undefined),
+      ),
+  );
+};
+
+const buildOrderPrintBody = (
+  forms: PrintForm[],
+  templateData: PrintTemplateData,
+  copies: number,
+) =>
+  Array.from({ length: Math.max(1, copies) })
+    .flatMap(() => forms)
+    .map(
+      (form) => `
+        <section class="print-form ${form.pageSize === 'label' ? 'print-form-label' : ''}">
+          ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
+        </section>
+      `,
+    )
+    .join('');
+
+const buildOrderPrintHtml = ({
+  title,
+  body,
+  pageSize,
+  orientation,
+}: {
+  title: string;
+  body: string;
+  pageSize: PrintForm['pageSize'];
+  orientation: PrintForm['orientation'];
+}) => `
+  <!doctype html>
+  <html>
+    <head>
+      <title>${title}</title>
+      <style>
+        @page { size: ${pageSize === 'label' ? '58mm 40mm' : 'A4'} ${orientation}; margin: 0; }
+        ${printDocumentStyles}
+      </style>
+    </head>
+    <body>${body}</body>
+  </html>
+`;
+
+const openOrderPrintWindow = async ({
+  title,
+  body,
+  pageSize,
+  orientation,
+  orderNumber,
+  shouldPrint,
+  autoClose,
+}: {
+  title: string;
+  body: string;
+  pageSize: PrintForm['pageSize'];
+  orientation: PrintForm['orientation'];
+  orderNumber: string;
+  shouldPrint: boolean;
+  autoClose: boolean;
+}) => {
+  const printWindow = window.open('', '_blank', 'width=980,height=760');
+  if (!printWindow) return;
+
+  printWindow.document.write(
+    buildOrderPrintHtml({ title, body, pageSize, orientation }),
+  );
+  printWindow.document.close();
+  await renderOrderPrintCodes(printWindow.document, orderNumber);
+  printWindow.focus();
+  if (shouldPrint) {
+    if (autoClose) {
+      printWindow.addEventListener('afterprint', () => printWindow.close(), {
+        once: true,
+      });
+    }
+    printWindow.print();
+  }
+};
+
+const OrderPrintPreview = ({
+  html,
+  orderNumber,
+}: {
+  html: string;
+  orderNumber: string;
+}) => {
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (previewRef.current) {
+      void renderOrderPrintCodes(previewRef.current, orderNumber);
+    }
+  }, [html, orderNumber]);
+
+  return (
+    <div
+      ref={previewRef}
+      className='order-print-preview-page settings-print-preview-page'
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
+
+type OrderPrintDialogProps = {
+  request: OrderPrintRequest;
+  printForms: PrintForm[];
+  companySettings: PrintCompanySettings;
+  onClose: () => void;
+};
+
+const OrderPrintDialog = ({
+  request,
+  printForms,
+  companySettings,
+  onClose,
+}: OrderPrintDialogProps) => {
+  const availablePrintForms = normalizePrintFormsForView(
+    printForms.length > 0 ? printForms : defaultPrintForms,
+  ).filter((form) => form.isActive);
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(() =>
+    availablePrintForms.slice(0, 1).map((form) => form.id),
+  );
+  const selectedForms = availablePrintForms.filter((form) =>
+    selectedFormIds.includes(form.id),
+  );
+  const firstSelectedForm = selectedForms[0] ?? availablePrintForms[0];
+  const [pageSize, setPageSize] = useState<PrintForm['pageSize']>(
+    firstSelectedForm?.pageSize ?? 'A4',
+  );
+  const [orientation, setOrientation] = useState<PrintForm['orientation']>(
+    firstSelectedForm?.orientation ?? 'portrait',
+  );
+  const [copies, setCopies] = useState(1);
+  const [autoClose, setAutoClose] = useState(true);
+  const templateData = getPrintTemplateData(
+    request.sale,
+    request.lineItems,
+    request.paidAmount,
+    request.orderNumber,
+    companySettings,
+  );
+  const previewBody = buildOrderPrintBody(selectedForms, templateData, copies);
+  const canPrint = selectedForms.length > 0;
+
+  useEffect(() => {
+    if (!firstSelectedForm) return;
+    setPageSize(firstSelectedForm.pageSize);
+    setOrientation(firstSelectedForm.orientation);
+  }, [firstSelectedForm?.id]);
+
+  const togglePrintForm = (formId: string) => {
+    setSelectedFormIds((current) =>
+      current.includes(formId)
+        ? current.filter((id) => id !== formId)
+        : [...current, formId],
+    );
+  };
+
+  const openPreviewWindow = () =>
+    openOrderPrintWindow({
+      title: `Preview ${request.orderNumber}`,
+      body: previewBody,
+      pageSize,
+      orientation,
+      orderNumber: request.orderNumber,
+      shouldPrint: false,
+      autoClose: false,
+    });
+
+  const printSelectedForms = () =>
+    openOrderPrintWindow({
+      title: `Print forms ${request.orderNumber}`,
+      body: previewBody,
+      pageSize,
+      orientation,
+      orderNumber: request.orderNumber,
+      shouldPrint: true,
+      autoClose,
+    });
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='order-print-dialog'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Print order'
+      >
+        <header className='order-print-dialog-header'>
+          <div>
+            <p className='section-label'>Print preview</p>
+            <h2>{request.orderNumber}</h2>
+          </div>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label='Close print preview'
+          >
+            &times;
+          </button>
+        </header>
+
+        <div className='order-print-dialog-grid'>
+          <aside className='order-print-settings'>
+            <h3>Forms</h3>
+            <div className='order-print-form-list'>
+              {availablePrintForms.map((form) => (
+                <label key={form.id} className='payment-print-option'>
+                  <input
+                    type='checkbox'
+                    checked={selectedFormIds.includes(form.id)}
+                    onChange={() => togglePrintForm(form.id)}
+                  />
+                  <span>{form.title}</span>
+                </label>
+              ))}
+            </div>
+
+            <h3>Print settings</h3>
+            <label className='field'>
+              <span>Page size</span>
+              <select
+                value={pageSize}
+                onChange={(event) =>
+                  setPageSize(event.target.value === 'label' ? 'label' : 'A4')
+                }
+              >
+                <option value='A4'>A4</option>
+                <option value='label'>Label</option>
+              </select>
+            </label>
+            <label className='field'>
+              <span>Orientation</span>
+              <select
+                value={orientation}
+                onChange={(event) =>
+                  setOrientation(
+                    event.target.value === 'landscape' ? 'landscape' : 'portrait',
+                  )
+                }
+              >
+                <option value='portrait'>Portrait</option>
+                <option value='landscape'>Landscape</option>
+              </select>
+            </label>
+            <label className='field'>
+              <span>Copies</span>
+              <input
+                type='number'
+                min={1}
+                max={10}
+                value={copies}
+                onChange={(event) =>
+                  setCopies(Math.min(Math.max(Number(event.target.value) || 1, 1), 10))
+                }
+              />
+            </label>
+            <label className='settings-check'>
+              <input
+                type='checkbox'
+                checked={autoClose}
+                onChange={(event) => setAutoClose(event.target.checked)}
+              />
+              <span>Close print window after print</span>
+            </label>
+          </aside>
+
+          <main className='order-print-preview'>
+            {canPrint ? (
+              <OrderPrintPreview html={previewBody} orderNumber={request.orderNumber} />
+            ) : (
+              <p className='empty-state'>Select at least one print form.</p>
+            )}
+          </main>
+        </div>
+
+        <footer className='order-print-dialog-footer'>
+          <button type='button' className='secondary-button' onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={() => void openPreviewWindow()}
+            disabled={!canPrint}
+          >
+            Preview
+          </button>
+          <button
+            type='button'
+            className='primary-button print-action-button'
+            onClick={() => void printSelectedForms()}
+            disabled={!canPrint}
+          >
+            <PrinterIcon />
+            Print
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+};
 
 const getIsoDatePart = (value: string) => value.slice(0, 10);
 const isIsoDateWithinRange = (
@@ -1427,6 +1800,7 @@ export const OrdersWorkspace = ({
   onOpenClientCard,
   products,
   printForms,
+  printCompanySettings,
   onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
@@ -1443,6 +1817,9 @@ export const OrdersWorkspace = ({
     useState<OrdersColumnVisibility>(readVisibleColumns);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
+    null,
+  );
+  const [printRequest, setPrintRequest] = useState<OrderPrintRequest | null>(
     null,
   );
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
@@ -2066,6 +2443,18 @@ export const OrdersWorkspace = ({
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
+  const openPrintDialog = (
+    sale: Sale,
+    lineItems = getLineItems(sale),
+    paidAmount = getPaidAmount(sale),
+  ) => {
+    setPrintRequest({
+      sale,
+      lineItems,
+      paidAmount,
+      orderNumber: buildOrderNumber(sale),
+    });
+  };
   const openStatusSale = useMemo(
     () =>
       openStatusSaleId
@@ -3493,6 +3882,13 @@ export const OrdersWorkspace = ({
               isRepairOrder(selectedSale) ? 'paid' : 'issued',
             )
           }
+          onOpenPrint={() =>
+            openPrintDialog(
+              selectedSale,
+              getLineItems(selectedSale),
+              getPaidAmount(selectedSale),
+            )
+          }
           onRefundPayment={() => openRefundModal(selectedSale)}
           onDiscountChange={(discount) =>
             updateDiscount(selectedSale, discount)
@@ -4166,7 +4562,23 @@ export const OrdersWorkspace = ({
           onPaymentMethodChange={setPaymentMethod}
           onAmountChange={setPaymentAmount}
           onClose={() => setPaymentSale(null)}
+          onOpenPrint={() =>
+            openPrintDialog(
+              paymentSale,
+              getLineItems(paymentSale),
+              getPaidAmount(paymentSale),
+            )
+          }
           onSubmit={acceptPayment}
+        />
+      ) : null}
+
+      {printRequest ? (
+        <OrderPrintDialog
+          request={printRequest}
+          printForms={printForms}
+          companySettings={printCompanySettings}
+          onClose={() => setPrintRequest(null)}
         />
       ) : null}
 
@@ -4278,6 +4690,7 @@ type OrderDetailCardProps = {
   onReturnLineItem: (item: OrderLineItem) => void;
   onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
+  onOpenPrint: () => void;
   onRefundPayment: () => void;
   onDiscountChange: (discount: {
     mode: 'percent' | 'amount';
@@ -4318,6 +4731,7 @@ const OrderDetailCard = ({
   onReturnLineItem,
   onOpenRelatedSale,
   onAcceptPayment,
+  onOpenPrint,
   onRefundPayment,
   onDiscountChange,
   onOpenClientCard,
@@ -4706,6 +5120,15 @@ const OrderDetailCard = ({
               );
             })}
           </select>
+          <button
+            type='button'
+            className='toolbar-square-button order-print-icon-button'
+            onClick={onOpenPrint}
+            aria-label='Print order'
+            title='Print order'
+          >
+            <PrinterIcon />
+          </button>
           <button
             type='button'
             className='create-order-close'
@@ -5224,7 +5647,7 @@ const OrderDetailCard = ({
           ) {
             return;
           }
-          await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
+          const result = await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
             autoGenerateSerialNumbers,
             serialNumbers,
             autoGenerateArticles,
@@ -5240,6 +5663,7 @@ const OrderDetailCard = ({
           setIsRelatedSupplierOrderModalOpen(false);
           setRelatedSupplierOrderSource(null);
           setRelatedSupplierOrderItemIndex(null);
+          return result;
         }}
         onCancelOrder={async () => {
           if (
@@ -6761,6 +7185,7 @@ type PaymentModalProps = {
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onAmountChange: (amount: string) => void;
   onClose: () => void;
+  onOpenPrint: () => void;
   onSubmit: (action: PaymentAction) => void;
 };
 
@@ -6780,6 +7205,7 @@ const PaymentModal = ({
   onPaymentMethodChange,
   onAmountChange,
   onClose,
+  onOpenPrint,
   onSubmit,
 }: PaymentModalProps) => {
   const total = getOrderBaseTotal(sale, lineItems);
@@ -6795,7 +7221,6 @@ const PaymentModal = ({
       (Number.isFinite(numericAmount) ? numericAmount : 0),
     0,
   );
-  const orderNumber = sale.recordNumber ?? 'r------';
   const submitWithStatusLabel =
     paymentTargetStatus === 'paid'
       ? 'Accept and mark paid'
@@ -6804,14 +7229,9 @@ const PaymentModal = ({
     paymentTargetStatus === 'paid'
       ? 'Mark paid without payment'
       : 'Issue without payment';
-  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
-  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
-    [],
-  );
-  const printMenuRef = useRef<HTMLDivElement | null>(null);
-  const availablePrintForms = normalizePrintFormsForView(
+  const hasAvailablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
-  ).filter((form) => form.isActive);
+  ).some((form) => form.isActive);
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -6839,122 +7259,6 @@ const PaymentModal = ({
       currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
-
-  useEffect(() => {
-    if (!isPrintMenuOpen) return;
-
-    const closePrintMenuOnOutsideClick = (event: MouseEvent) => {
-      if (!printMenuRef.current?.contains(event.target as Node)) {
-        setIsPrintMenuOpen(false);
-      }
-    };
-
-    document.addEventListener(
-      'mousedown',
-      closePrintMenuOnOutsideClick,
-    );
-
-    return () => {
-      document.removeEventListener(
-        'mousedown',
-        closePrintMenuOnOutsideClick,
-      );
-    };
-  }, [isPrintMenuOpen]);
-
-  const togglePrintForm = (formId: string) => {
-    setSelectedFormIds((current) =>
-      current.includes(formId)
-        ? current.filter((id) => id !== formId)
-        : [...current, formId],
-    );
-  };
-
-  const printSelectedForms = async () => {
-    const formsToPrint = availablePrintForms.filter((form) =>
-      selectedFormIds.includes(form.id),
-    );
-    if (formsToPrint.length === 0) return;
-
-    const printWindow = window.open(
-      '',
-      '_blank',
-      'width=900,height=700',
-    );
-    if (!printWindow) return;
-
-    const templateData = getPrintTemplateData(sale, paidAmount, orderNumber);
-    const body = formsToPrint
-      .map(
-        (form) => `
-          <section class="print-form ${form.pageSize === 'label' ? 'print-form-label' : ''}">
-            ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
-          </section>
-        `,
-      )
-      .join('');
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <title>Print forms ${orderNumber}</title>
-          <style>
-            ${printDocumentStyles}
-          </style>
-        </head>
-        <body>${body}</body>
-      </html>
-    `);
-    printWindow.document.close();
-
-    printWindow.document
-      .querySelectorAll<SVGSVGElement>('svg[data-barcode-value]')
-      .forEach((node) => {
-        if (
-          node.ownerDocument.defaultView?.navigator.userAgent.includes(
-            'jsdom',
-          )
-        ) {
-          return;
-        }
-        const value = node.dataset.barcodeValue || orderNumber;
-        try {
-          JsBarcode(node, value, {
-            format: 'CODE128',
-            displayValue: true,
-            fontSize: 12,
-            height: 44,
-            margin: 0,
-          });
-        } catch {
-          node.replaceWith(printWindow.document.createTextNode(value));
-        }
-      });
-
-    await Promise.all(
-      Array.from(
-        printWindow.document.querySelectorAll<HTMLCanvasElement>(
-          'canvas[data-qrcode-value]',
-        ),
-      )
-        .filter(
-          (node) =>
-            !node.ownerDocument.defaultView?.navigator.userAgent.includes(
-              'jsdom',
-            ),
-        )
-        .map((node) =>
-          QRCode.toCanvas(node, node.dataset.qrcodeValue || orderNumber, {
-            width: 88,
-            margin: 1,
-          }).catch(() => undefined),
-        ),
-    );
-
-    printWindow.focus();
-    printWindow.print();
-  };
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -7059,43 +7363,15 @@ const PaymentModal = ({
         </div>
 
         <footer className='payment-modal-footer'>
-          <div className='payment-print-menu' ref={printMenuRef}>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={() =>
-                setIsPrintMenuOpen((current) => !current)
-              }
-              disabled={isSaving || availablePrintForms.length === 0}
-            >
-              Print
-            </button>
-            {isPrintMenuOpen ? (
-              <div className='payment-print-options'>
-                {availablePrintForms.map((form) => (
-                  <label
-                    key={form.id}
-                    className='payment-print-option'
-                  >
-                    <input
-                      type='checkbox'
-                      checked={selectedFormIds.includes(form.id)}
-                      onChange={() => togglePrintForm(form.id)}
-                    />
-                    <span>{form.title}</span>
-                  </label>
-                ))}
-                <button
-                  type='button'
-                  className='primary-button'
-                  onClick={() => void printSelectedForms()}
-                  disabled={selectedFormIds.length === 0}
-                >
-                  Print selected
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <button
+            type='button'
+            className='secondary-button print-action-button'
+            onClick={onOpenPrint}
+            disabled={isSaving || !hasAvailablePrintForms}
+          >
+            <PrinterIcon />
+            Print
+          </button>
           <div className='payment-modal-actions'>
             <button
               type='button'

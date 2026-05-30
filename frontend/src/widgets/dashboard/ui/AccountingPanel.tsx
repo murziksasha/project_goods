@@ -1803,13 +1803,23 @@ export const AccountingPanel = ({
               supplierOrdersQueue.map((order) => {
                 const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
                 const orderNumber = getSupplierOrderDisplayNumber(order);
+                const fullOrder = supplierOrders.find((supplierOrder) =>
+                  supplierOrder.id === order.id ||
+                  supplierOrder.orderBaseId === order.orderBaseId ||
+                  supplierOrder.number === order.number,
+                );
                 return (
                   <tr key={order.id} className='finance-orders-row'>
                     <td className='finance-orders-number-cell' title={orderNumber}>
                       <button
                         type='button'
                         className='finance-orders-number-button'
-                        onClick={() => setSelectedSupplierOrder(order)}
+                        onClick={() => {
+                          if (fullOrder) {
+                            setSelectedSupplierOrder(fullOrder);
+                          }
+                        }}
+                        disabled={!fullOrder}
                         aria-label={`Open supplier order ${orderNumber}`}
                       >
                         {orderNumber}

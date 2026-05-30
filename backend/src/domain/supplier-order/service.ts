@@ -53,6 +53,13 @@ type SupplierOrderTakeOnChargePayload = {
   locationId?: unknown;
 };
 
+type StockedProductSummary = {
+  id: string;
+  name: string;
+  article: string;
+  serialNumber: string;
+};
+
 const toOrderStatus = (value: unknown) =>
   supplierOrderStatuses.includes(String(value ?? '') as (typeof supplierOrderStatuses)[number])
     ? (value as (typeof supplierOrderStatuses)[number])
@@ -440,6 +447,7 @@ export const takeOnChargeSupplierOrder = async (
     (matchedWarehouse?.locations ?? []).find((location) => location.id === requestedLocationId) ??
     matchedWarehouse?.locations?.[0];
   let serialCursor = 0;
+  const stockedProducts: StockedProductSummary[] = [];
 
   for (const item of targetItems) {
     const catalogName = item.catalogProductId
@@ -480,6 +488,12 @@ export const takeOnChargeSupplierOrder = async (
       });
       await newProduct.validate();
       await newProduct.save();
+      stockedProducts.push({
+        id: String(newProduct._id),
+        name: newProduct.name ?? '',
+        article: newProduct.article ?? '',
+        serialNumber: newProduct.serialNumber ?? '',
+      });
     }
     item.receiptStatus = 'received';
   }
@@ -497,7 +511,10 @@ export const takeOnChargeSupplierOrder = async (
   }
   await existing.validate();
   await existing.save();
-  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+  return {
+    ...(await withSupplierName(existing.toObject<SupplierOrderDocument>())),
+    stockedProducts,
+  };
 };
 
 

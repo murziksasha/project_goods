@@ -20,6 +20,7 @@ import {
   formatCurrency,
   formatDate,
 } from '../../../shared/lib/format';
+import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
@@ -466,6 +467,7 @@ export const WarehousePanel = ({
     useState(false);
   const [selectedProductModelName, setSelectedProductModelName] =
     useState<string | null>(null);
+  const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -1124,6 +1126,25 @@ export const WarehousePanel = ({
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [currentPage, filteredProducts, pageSize]);
+  const selectedStockProducts = useMemo(
+    () =>
+      products.filter((product) =>
+        selectedStockProductIds.includes(product.id),
+      ),
+    [products, selectedStockProductIds],
+  );
+  const selectedStockProductsWithSerials = selectedStockProducts.filter(
+    (product) => product.serialNumber.trim(),
+  );
+
+  useEffect(() => {
+    setSelectedStockProductIds((current) => {
+      const next = current.filter((productId) =>
+        filteredProducts.some((product) => product.id === productId),
+      );
+      return next.length === current.length ? current : next;
+    });
+  }, [filteredProducts]);
   const paginatedTransferProducts = useMemo(() => {
     const start = (currentPage - 1) * transferPageSize;
     return filteredProducts.slice(start, start + transferPageSize);
@@ -2177,11 +2198,30 @@ export const WarehousePanel = ({
             products={paginatedProducts}
             isLoading={isLoading}
             visibleColumns={visibleColumns.stock}
+            selectedProductIds={selectedStockProductIds}
             warehouses={warehouses}
             serviceCenters={serviceCenters}
             salesByProductId={salesByProductId}
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
+            onToggleProductSelection={(productId) =>
+              setSelectedStockProductIds((current) =>
+                current.includes(productId)
+                  ? current.filter((id) => id !== productId)
+                  : [...current, productId],
+              )
+            }
+            onTogglePageSelection={() => {
+              const pageIds = paginatedProducts.map((product) => product.id);
+              const isPageSelected = pageIds.every((productId) =>
+                selectedStockProductIds.includes(productId),
+              );
+              setSelectedStockProductIds((current) =>
+                isPageSelected
+                  ? current.filter((productId) => !pageIds.includes(productId))
+                  : Array.from(new Set([...current, ...pageIds])),
+              );
+            }}
             onEdit={onProductEdit}
             onOpenModel={(product) => setSelectedProductModelName(product.name)}
             onDelete={onProductDelete}
@@ -2208,6 +2248,35 @@ export const WarehousePanel = ({
               setIsSupplierOrderModalOpen(true);
             }}
           />
+          {selectedStockProductIds.length > 0 ? (
+            <div className='warehouse-bulk-actions'>
+              <strong>{selectedStockProductIds.length} selected</strong>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() =>
+                  printSerialNumbers(
+                    selectedStockProductsWithSerials.map((product) => ({
+                      name: product.name,
+                      article: product.article,
+                      serialNumber: product.serialNumber,
+                    })),
+                    'Warehouse serial numbers',
+                  )
+                }
+                disabled={selectedStockProductsWithSerials.length === 0}
+              >
+                Print serial numbers
+              </button>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setSelectedStockProductIds([])}
+              >
+                Clear selection
+              </button>
+            </div>
+          ) : null}
           <PaginationPanel
             totalItems={filteredProducts.length}
             page={currentPage}
@@ -2652,7 +2721,7 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          await takeOnChargeSupplierOrder(orderId, {
+          const result = await takeOnChargeSupplierOrder(orderId, {
             autoGenerateSerialNumbers,
             serialNumbers,
             autoGenerateArticles,
@@ -2668,6 +2737,7 @@ export const WarehousePanel = ({
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshSupplierOrders();
+          return result;
         }}
         onCancelOrder={async () => {
           if (!editingSupplierOrder) return;
@@ -3877,11 +3947,14 @@ const StockTable = ({
   products,
   isLoading,
   visibleColumns,
+  selectedProductIds,
   warehouses,
   serviceCenters,
   salesByProductId,
   supplierOrdersByProductId,
   productWarehouseMetaById,
+  onToggleProductSelection,
+  onTogglePageSelection,
   onEdit,
   onOpenModel,
   onDelete,
@@ -3890,11 +3963,14 @@ const StockTable = ({
   products: Product[];
   isLoading: boolean;
   visibleColumns: StockColumnKey[];
+  selectedProductIds: string[];
   warehouses: WarehouseItem[];
   serviceCenters: ServiceCenter[];
   salesByProductId: Record<string, Sale[]>;
   supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
+  onToggleProductSelection: (productId: string) => void;
+  onTogglePageSelection: () => void;
   onEdit: (product: Product) => void;
   onOpenModel: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -3903,6 +3979,20 @@ const StockTable = ({
     itemIndex: number,
   ) => void;
 }) => {
+  const isPageSelected =
+    products.length > 0 &&
+    products.every((product) => selectedProductIds.includes(product.id));
+  const isPagePartiallySelected =
+    !isPageSelected &&
+    products.some((product) => selectedProductIds.includes(product.id));
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isPagePartiallySelected;
+    }
+  }, [isPagePartiallySelected]);
+
   const warehouseById = useMemo(
     () =>
       warehouses.reduce<Record<string, WarehouseItem>>((acc, warehouse) => {
@@ -3948,8 +4038,11 @@ const StockTable = ({
               >
                 {columnKey === 'select' ? (
                   <input
+                    ref={selectAllRef}
                     type='checkbox'
                     aria-label='Select all stock rows'
+                    checked={isPageSelected}
+                    onChange={onTogglePageSelection}
                   />
                 ) : columnKey === 'name' ? (
                   'Name'
@@ -4027,6 +4120,8 @@ const StockTable = ({
                           <input
                             type='checkbox'
                             aria-label={`Select ${product.name}`}
+                            checked={selectedProductIds.includes(product.id)}
+                            onChange={() => onToggleProductSelection(product.id)}
                           />
                         ) : columnKey === 'name' ? (
                           <button

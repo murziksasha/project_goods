@@ -989,7 +989,7 @@ export const SupplierOrdersWorkspace = ({
           locationId,
         }) => {
           if (!editingOrder) return;
-          await takeOnChargeSupplierOrder(editingOrder.id, {
+          const result = await takeOnChargeSupplierOrder(editingOrder.id, {
             autoGenerateSerialNumbers,
             serialNumbers,
             autoGenerateArticles,
@@ -1001,6 +1001,7 @@ export const SupplierOrdersWorkspace = ({
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshOrders();
+          return result;
         }}
         onCancelOrder={async () => {
           if (!editingOrder) return;

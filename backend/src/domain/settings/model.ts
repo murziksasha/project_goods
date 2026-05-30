@@ -138,6 +138,26 @@ export const settingsSchema = new mongoose.Schema(
       maxlength: [120, 'Service name must contain no more than 120 characters'],
       default: 'Service CRM',
     },
+    company: {
+      type: String,
+      trim: true,
+      default: 'Service CRM',
+    },
+    companyAddress: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companyId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companyIban: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     printForms: {
       type: [printFormSchema],
       default: () => defaultPrintForms,

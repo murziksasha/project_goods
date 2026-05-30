@@ -115,6 +115,10 @@ describe('normalizeSettingsPayload', () => {
   it('normalizes print forms and nested settings', () => {
     const result = normalizeSettingsPayload({
       serviceName: '  Repair CRM  ',
+      company: '  Repair Company  ',
+      companyAddress: '  Kyiv, Main street 1  ',
+      companyId: '  12345678  ',
+      companyIban: '  UA123456789123456789123456789  ',
       printForms: [
         {
           id: ' receipt ',
@@ -153,6 +157,10 @@ describe('normalizeSettingsPayload', () => {
 
     expect(result).toMatchObject({
       serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
       printForms: [
         {
           id: 'receipt',
@@ -207,6 +215,10 @@ describe('normalizeSettingsPayload', () => {
     });
 
     expect(result.serviceName).toBe('Service CRM');
+    expect(result.company).toBe('Service CRM');
+    expect(result.companyAddress).toBe('');
+    expect(result.companyId).toBe('');
+    expect(result.companyIban).toBe('');
     expect(result.printForms).toEqual([]);
     expect(result.orderDefaults.defaultRepairTermDays).toBe(0);
     expect(result.orderDefaults.defaultWarrantyMonths).toBe(1);

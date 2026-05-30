@@ -112,6 +112,10 @@ export const useDashboardEffects = ({
           setSettings(settingsResult.value);
           setSettingsForm({
             serviceName: settingsResult.value.serviceName,
+            company: settingsResult.value.company,
+            companyAddress: settingsResult.value.companyAddress,
+            companyId: settingsResult.value.companyId,
+            companyIban: settingsResult.value.companyIban,
             printForms: settingsResult.value.printForms,
             orderDefaults: settingsResult.value.orderDefaults,
             numbering: settingsResult.value.numbering,
