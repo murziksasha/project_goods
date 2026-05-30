@@ -409,6 +409,10 @@ export const DashboardPage = () => {
   }, [currentEmployee, isAuthLoading]);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (activePage === 'employees' && !canManageEmployees) {
       setActivePage('home');
       return;
@@ -420,7 +424,7 @@ export const DashboardPage = () => {
     if (activePage === 'settings' && !canManageSettings) {
       setActivePage('home');
     }
-  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting]);
+  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting, isAuthLoading]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
