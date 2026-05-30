@@ -150,15 +150,25 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
+const isAccountingTab = (value: string | null): value is AccountingTab =>
+  value === 'cashboxes' ||
+  value === 'transactions' ||
+  value === 'orders' ||
+  value === 'reports';
+
+const getAccountingTabFromUrl = (): AccountingTab | null => {
+  try {
+    const tab = new URLSearchParams(window.location.search).get('accountingTab');
+    return isAccountingTab(tab) ? tab : null;
+  } catch {
+    return null;
+  }
+};
+
 const getStoredAccountingTab = (): AccountingTab => {
   try {
     const storedTab = window.localStorage.getItem(accountingTabStorageKey);
-    return storedTab === 'cashboxes' ||
-      storedTab === 'transactions' ||
-      storedTab === 'orders' ||
-      storedTab === 'reports'
-      ? storedTab
-      : 'cashboxes';
+    return isAccountingTab(storedTab) ? storedTab : 'cashboxes';
   } catch {
     return 'cashboxes';
   }
@@ -187,7 +197,9 @@ export const AccountingPanel = ({
   sales,
   onOpenSaleCard,
 }: AccountingPanelProps) => {
-  const [activeTab, setActiveTab] = useState<AccountingTab>(getStoredAccountingTab);
+  const [activeTab, setActiveTab] = useState<AccountingTab>(
+    () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
+  );
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -431,6 +443,29 @@ export const AccountingPanel = ({
       // Ignore localStorage write errors.
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('accountingTab', activeTab);
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      // Ignore URL update errors.
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const syncTabFromHistory = () => {
+      const tabFromUrl = getAccountingTabFromUrl();
+      if (!tabFromUrl) return;
+      setActiveTab(tabFromUrl);
+    };
+
+    window.addEventListener('popstate', syncTabFromHistory);
+    return () => {
+      window.removeEventListener('popstate', syncTabFromHistory);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCashboxesOrderHydrated || cashboxes.length === 0) return;
