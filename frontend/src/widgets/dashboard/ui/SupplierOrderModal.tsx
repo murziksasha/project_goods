@@ -2,8 +2,13 @@
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
-import type { SupplierOrder, SupplierOrderItem } from '../../../entities/supplier-order/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderItem,
+  TakeOnChargeResult,
+} from '../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
@@ -35,7 +40,7 @@ type SupplierOrderModalProps = {
     articleBase: string;
     warehouseId: string;
     locationId: string;
-  }) => Promise<void> | void;
+  }) => Promise<TakeOnChargeResult | void> | TakeOnChargeResult | void;
   onCancelOrder?: () => Promise<void> | void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -98,6 +103,7 @@ export const SupplierOrderModal = ({
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
   const [isAutoArticleEnabled, setIsAutoArticleEnabled] = useState(false);
+  const [shouldPrintSerials, setShouldPrintSerials] = useState(true);
   const [manualArticleBase, setManualArticleBase] = useState('');
   const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] = useState('');
   const [takeOnChargeLocationId, setTakeOnChargeLocationId] = useState('');
@@ -823,6 +829,16 @@ export const SupplierOrderModal = ({
                 />
                 <span>Автогенерация артикулов</span>
               </label>
+              <label className='supplier-serial-auto'>
+                <input
+                  type='checkbox'
+                  checked={shouldPrintSerials}
+                  onChange={(event) =>
+                    setShouldPrintSerials(event.target.checked)
+                  }
+                />
+                <span>Печатать серийные номера после оприходования</span>
+              </label>
               {!isAutoArticleEnabled ? (
                 <label className='field field-wide'>
                   <span>Артикул для всего количества</span>
@@ -909,7 +925,7 @@ export const SupplierOrderModal = ({
                     .toUpperCase();
                   setIsActionSubmitting(true);
                   try {
-                    await onTakeOnCharge({
+                    const result = await onTakeOnCharge({
                       autoGenerateSerialNumbers: isAutoSerialEnabled,
                       serialNumbers: isAutoSerialEnabled
                         ? []
@@ -923,6 +939,16 @@ export const SupplierOrderModal = ({
                       warehouseId: takeOnChargeWarehouseId,
                       locationId: takeOnChargeLocationId,
                     });
+                    if (shouldPrintSerials && result?.stockedProducts?.length) {
+                      printSerialNumbers(
+                        result.stockedProducts.map((product) => ({
+                          name: product.name,
+                          article: product.article,
+                          serialNumber: product.serialNumber,
+                        })),
+                        'Received serial numbers',
+                      );
+                    }
                     setIsSerialModalOpen(false);
                     onClose();
                   } catch (error) {

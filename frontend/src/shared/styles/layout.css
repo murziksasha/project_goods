@@ -628,6 +628,24 @@
   text-align: center;
 }
 
+.warehouse-bulk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #223447;
+}
+
+.warehouse-bulk-actions strong {
+  margin-right: auto;
+  font-size: 0.92rem;
+}
+
 .warehouse-stock-cell-name {
   min-width: 220px;
 }
@@ -2597,6 +2615,95 @@
 .payment-print-option input {
   width: 15px;
   height: 15px;
+}
+
+.print-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.print-button-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.order-print-icon-button {
+  display: inline-grid;
+  place-items: center;
+}
+
+.order-print-dialog {
+  width: min(1180px, calc(100vw - 32px));
+  max-height: min(860px, calc(100vh - 32px));
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(24, 39, 57, 0.26);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.order-print-dialog-header,
+.order-print-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #dbe3ec;
+}
+
+.order-print-dialog-header h2 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+}
+
+.order-print-dialog-footer {
+  justify-content: flex-end;
+  border-top: 1px solid #dbe3ec;
+  border-bottom: 0;
+}
+
+.order-print-dialog-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.order-print-settings {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid #dbe3ec;
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.order-print-settings h3 {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  color: #223447;
+}
+
+.order-print-form-list {
+  display: grid;
+  gap: 8px;
+}
+
+.order-print-preview {
+  min-height: 0;
+  overflow: auto;
+  background: #eef3f8;
+  padding: 20px;
+}
+
+.order-print-preview-page {
+  margin: 0 auto;
+  min-height: 720px;
 }
 
 .orders-tabs {

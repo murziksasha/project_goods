@@ -827,6 +827,13 @@ export const DashboardPage = () => {
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onOpenClientCard={openClientCardFromOrders}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
+                  printCompanySettings={{
+                    company: state.settings?.company ?? state.settingsForm.company,
+                    companyAddress:
+                      state.settings?.companyAddress ?? state.settingsForm.companyAddress,
+                    companyId: state.settings?.companyId ?? state.settingsForm.companyId,
+                    companyIban: state.settings?.companyIban ?? state.settingsForm.companyIban,
+                  }}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />
               )
