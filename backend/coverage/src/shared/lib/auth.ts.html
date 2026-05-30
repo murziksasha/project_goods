@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">25% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/16</span>
+                <span class='fraction'>4/16</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">26.66% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>4/15</span>
             </div>
         
             
@@ -93,44 +93,44 @@
 <a name='L28'></a><a href='#L28'>28</a>
 <a name='L29'></a><a href='#L29'>29</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import crypto from 'crypto';
 &nbsp;
-const passwordKeyLength = <span class="cstat-no" title="statement not covered" >64;</span>
+const passwordKeyLength = 64;
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >hashPassword = (p</span>assword: string) =&gt; {</span>
+export const <span class="fstat-no" title="function not covered" >hashPassword = (p</span>assword: string) =&gt; {
   const salt = <span class="cstat-no" title="statement not covered" >crypto.randomBytes(16).toString('hex');</span>
   const hash = <span class="cstat-no" title="statement not covered" >crypto.scryptSync(password, salt, passwordKeyLength).toString('hex');</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return `${salt}:${hash}`;</span>
 };
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >verifyPassword = (p</span>assword: string, passwordHash: string) =&gt; {</span>
+export const <span class="fstat-no" title="function not covered" >verifyPassword = (p</span>assword: string, passwordHash: string) =&gt; {
   const [salt, storedHash] = <span class="cstat-no" title="statement not covered" >passwordHash.split(':');</span>
 <span class="cstat-no" title="statement not covered" >  if (!salt || !storedHash) {</span>
 <span class="cstat-no" title="statement not covered" >    return false;</span>
@@ -146,7 +146,7 @@ export const <span class="cstat-no" title="statement not covered" ><span class="
 <span class="cstat-no" title="statement not covered" >  return crypto.timingSafeEqual(storedBuffer, computedHash);</span>
 };
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >createAuthToken = () =&gt; <span class="cstat-no" title="statement not covered" >c</span>rypto.randomBytes(32).toString('hex');</span></span>
+export const <span class="fstat-no" title="function not covered" >createAuthToken = () =&gt; <span class="cstat-no" title="statement not covered" >c</span>rypto.randomBytes(32).toString('hex');</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -154,7 +154,7 @@ export const <span class="cstat-no" title="statement not covered" ><span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-24T10:12:26.742Z
+                at 2026-05-30T06:48:48.371Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
