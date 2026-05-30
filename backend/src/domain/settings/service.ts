@@ -76,6 +76,10 @@ const formatSettings = (settings: SettingsDocument) => {
   return {
     id: settings._id.toString(),
     serviceName: settings.serviceName,
+    company: settings.company || 'Service CRM',
+    companyAddress: settings.companyAddress ?? '',
+    companyId: settings.companyId ?? '',
+    companyIban: settings.companyIban ?? '',
     printForms: normalizePrintForms(settings.printForms),
     orderDefaults: {
       ...defaultOrderDefaults,

@@ -161,6 +161,10 @@ const getDashboardHref = (
     url.searchParams.delete('ordersTab');
   }
 
+  if (page !== 'accounting') {
+    url.searchParams.delete('accountingTab');
+  }
+
   if (page === 'orders' && options.createOrder) {
     url.searchParams.set('createOrder', options.createOrder);
   } else {

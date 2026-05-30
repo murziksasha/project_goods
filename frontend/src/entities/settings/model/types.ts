@@ -49,6 +49,10 @@ export type NotificationSettings = {
 export type AppSettings = {
   id: string;
   serviceName: string;
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;
@@ -60,6 +64,10 @@ export type AppSettings = {
 
 export type AppSettingsFormValues = {
   serviceName: string;
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;

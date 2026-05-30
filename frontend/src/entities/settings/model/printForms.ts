@@ -346,6 +346,10 @@ const isPreviousDefaultInvoice = (form: PrintForm) =>
 
 export const createDefaultSettingsForm = () => ({
   serviceName: 'Service CRM',
+  company: 'Service CRM',
+  companyAddress: '',
+  companyId: '',
+  companyIban: '',
   printForms: defaultPrintForms,
   orderDefaults: {
     defaultRepairTermDays: 7,

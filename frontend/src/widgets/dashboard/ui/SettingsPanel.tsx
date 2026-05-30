@@ -220,18 +220,47 @@ export const SettingsPanel = ({
   const selectedForm =
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
+  const previewValues = useMemo(
+    () => ({
+      ...demoPrintValues,
+      company: form.company || demoPrintValues.company,
+      company_address: form.companyAddress || demoPrintValues.company_address,
+      company_id: form.companyId || demoPrintValues.company_id,
+      company_iban: form.companyIban || demoPrintValues.company_iban,
+    }),
+    [form.company, form.companyAddress, form.companyIban, form.companyId],
+  );
   const selectedPreview = selectedForm
     ? renderPrintTemplate(
         selectedForm.content,
-        demoPrintValues,
+        previewValues,
         selectedForm.contentFormat,
       )
     : '';
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
+  const companyName = form.company.trim();
+  const companyAddress = form.companyAddress.trim();
+  const companyId = form.companyId.trim();
+  const companyIbanNormalized = form.companyIban.replace(/\s+/g, '').toUpperCase();
+  const isCompanyNameValid = companyName.length >= 2;
+  const isCompanyAddressValid =
+    companyAddress.length === 0 || companyAddress.length >= 5;
+  const isCompanyIdValid =
+    companyId.length === 0 || /^[0-9A-Za-z-]{8,12}$/.test(companyId);
+  const isCompanyIbanValid =
+    companyIbanNormalized.length === 0 || /^UA\d{27}$/.test(companyIbanNormalized);
+  const hasInvalidCompanyFields =
+    !isCompanyNameValid ||
+    !isCompanyAddressValid ||
+    !isCompanyIdValid ||
+    !isCompanyIbanValid;
   const isSaveDisabled =
-    isSaving || form.serviceName.trim().length < 2 || hasInvalidPrintForms;
+    isSaving ||
+    form.serviceName.trim().length < 2 ||
+    hasInvalidPrintForms ||
+    hasInvalidCompanyFields;
 
   const updatePrintForms = (nextForms: PrintForm[]) => {
     onChange('printForms', normalizePrintFormsForView(nextForms));
@@ -406,13 +435,57 @@ export const SettingsPanel = ({
                 placeholder="Service CRM"
               />
             </label>
-            <label className="field field-wide">
-              <span>Company details</span>
-              <textarea
-                rows={3}
-                value="Configure legal details in the next version."
-                disabled
+            <label className="field">
+              <span>Company name ({'{{company}}'})</span>
+              <input
+                value={form.company}
+                onChange={(event) => onChange('company', event.target.value)}
+                placeholder="Назва компанії"
+                aria-invalid={!isCompanyNameValid}
               />
+              {!isCompanyNameValid ? (
+                <small>Company name must be at least 2 characters.</small>
+              ) : null}
+            </label>
+            <label className="field">
+              <span>Company ID ({'{{company_id}}'})</span>
+              <input
+                value={form.companyId}
+                onChange={(event) => onChange('companyId', event.target.value)}
+                placeholder="ЄДРПОУ або ІПН компанії"
+                aria-invalid={!isCompanyIdValid}
+              />
+              {!isCompanyIdValid ? (
+                <small>Company ID must be 8-12 characters (letters, digits, dash).</small>
+              ) : null}
+            </label>
+            <label className="field field-wide">
+              <span>Company address ({'{{company_address}}'})</span>
+              <input
+                value={form.companyAddress}
+                onChange={(event) =>
+                  onChange('companyAddress', event.target.value)
+                }
+                placeholder="Адреса компанії"
+                aria-invalid={!isCompanyAddressValid}
+              />
+              {!isCompanyAddressValid ? (
+                <small>Company address must be at least 5 characters.</small>
+              ) : null}
+            </label>
+            <label className="field field-wide">
+              <span>Company IBAN ({'{{company_iban}}'})</span>
+              <input
+                value={form.companyIban}
+                onChange={(event) =>
+                  onChange('companyIban', event.target.value)
+                }
+                placeholder="UA00 0000 0000 0000 0000 0000 0000 000"
+                aria-invalid={!isCompanyIbanValid}
+              />
+              {!isCompanyIbanValid ? (
+                <small>IBAN must match UA + 27 digits (spaces are allowed).</small>
+              ) : null}
             </label>
           </div>
         </section>

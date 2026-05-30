@@ -303,6 +303,10 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
 
   return {
     serviceName: toNonEmptyString(payload.serviceName) || 'Service CRM',
+    company: toNonEmptyString(payload.company) || 'Service CRM',
+    companyAddress: toNonEmptyString(payload.companyAddress),
+    companyId: toNonEmptyString(payload.companyId),
+    companyIban: toNonEmptyString(payload.companyIban),
     printForms: Array.isArray(payload.printForms)
       ? payload.printForms
           .map((item, index) => {

@@ -102,6 +102,10 @@ describe('settings service', () => {
     expect(settings).toMatchObject({
       id: 'created-id',
       serviceName: 'Service CRM',
+      company: 'Service CRM',
+      companyAddress: '',
+      companyId: '',
+      companyIban: '',
       printForms: defaultPrintForms,
       orderDefaults: {
         defaultRepairTermDays: 7,
@@ -115,6 +119,10 @@ describe('settings service', () => {
   it('updates and returns expanded settings', async () => {
     const updateResult = makeSettingsDocument({
       serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
       printForms: [
         {
           id: 'invoice',
@@ -136,6 +144,10 @@ describe('settings service', () => {
 
     const settings = await service.updateSettings({
       serviceName: ' Repair CRM ',
+      company: ' Repair Company ',
+      companyAddress: ' Kyiv, Main street 1 ',
+      companyId: ' 12345678 ',
+      companyIban: ' UA123456789123456789123456789 ',
       printForms: updateResult.printForms,
       financeDefaults: updateResult.financeDefaults,
     });
@@ -144,6 +156,10 @@ describe('settings service', () => {
       {},
       expect.objectContaining({
         serviceName: 'Repair CRM',
+        company: 'Repair Company',
+        companyAddress: 'Kyiv, Main street 1',
+        companyId: '12345678',
+        companyIban: 'UA123456789123456789123456789',
         printForms: [
           expect.objectContaining({
             id: 'invoice',
@@ -162,6 +178,10 @@ describe('settings service', () => {
     );
     expect(settings).toMatchObject({
       serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
       printForms: [
         expect.objectContaining({
           id: 'invoice',
@@ -177,6 +197,23 @@ describe('settings service', () => {
         currency: 'USD',
         paymentMethod: 'non-cash',
       },
+    });
+  });
+
+  it('returns fallback company fields for old settings documents', async () => {
+    const { service } = await setupSettingsService({
+      findOneResult: makeSettingsDocument({
+        printForms: defaultPrintForms,
+      }),
+    });
+
+    const settings = await service.getSettings();
+
+    expect(settings).toMatchObject({
+      company: 'Service CRM',
+      companyAddress: '',
+      companyId: '',
+      companyIban: '',
     });
   });
 });
