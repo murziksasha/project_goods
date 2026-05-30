@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { CreateOrderCard } from './CreateOrderCard';
 
@@ -41,54 +42,72 @@ const product = (patch: Partial<Product>): Product => ({
   ...patch,
 });
 
+const ownerEmployee: Employee = {
+  id: 'employee-1',
+  name: 'Owner',
+  phone: '+380000000000',
+  email: 'owner@example.com',
+  username: 'owner',
+  role: 'owner',
+  permissions: ['orders.manage'],
+  isActive: true,
+  isRegistered: true,
+  note: '',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const createLocalStorageMock = () => {
+  const store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = String(value);
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      Object.keys(store).forEach((key) => {
+        delete store[key];
+      });
+    },
+  };
+};
+
+Object.defineProperty(window, 'localStorage', {
+  value: createLocalStorageMock(),
+  configurable: true,
+});
+
+const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(async () => true)) =>
+  render(
+    <CreateOrderCard
+      isSaving={false}
+      employees={[ownerEmployee]}
+      currentEmployee={ownerEmployee}
+      initialTab={initialTab}
+      catalogProducts={[]}
+      products={[product({})]}
+      sales={[]}
+      onClose={vi.fn()}
+      onSave={onSave}
+      onUpdateProductModel={vi.fn(async () => true)}
+      onError={vi.fn()}
+    />,
+);
+
+afterEach(() => {
+  window.localStorage.clear();
+  vi.useRealTimers();
+});
+
 describe('CreateOrderCard', () => {
   it('binds a warehouse serial product into the sales order payload', async () => {
     vi.useFakeTimers();
     const onSave = vi.fn(async () => true);
 
-    render(
-      <CreateOrderCard
-        isSaving={false}
-        employees={[
-          {
-            id: 'employee-1',
-            name: 'Owner',
-            phone: '+380000000000',
-            email: 'owner@example.com',
-            username: 'owner',
-            role: 'owner',
-            permissions: ['orders.manage'],
-            isActive: true,
-            isRegistered: true,
-            note: '',
-            createdAt: '2026-01-01T00:00:00.000Z',
-            updatedAt: '2026-01-01T00:00:00.000Z',
-          },
-        ]}
-        currentEmployee={{
-          id: 'employee-1',
-          name: 'Owner',
-          phone: '+380000000000',
-          email: 'owner@example.com',
-          username: 'owner',
-          role: 'owner',
-          permissions: ['orders.manage'],
-          isActive: true,
-          isRegistered: true,
-          note: '',
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        }}
-        initialTab="sale"
-        catalogProducts={[]}
-        products={[product({})]}
-        sales={[]}
-        onClose={vi.fn()}
-        onSave={onSave}
-        onUpdateProductModel={vi.fn(async () => true)}
-        onError={vi.fn()}
-      />,
-    );
+    renderCreateOrderCard('sale', onSave);
 
     fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
       target: { value: 'S000003' },
@@ -132,5 +151,53 @@ describe('CreateOrderCard', () => {
     );
 
     vi.useRealTimers();
+  });
+
+  it('uses the workspace tab instead of a persisted tab when opening', () => {
+    window.localStorage.setItem('project-goods.create-order-tab', 'repair');
+
+    renderCreateOrderCard('sale');
+
+    const tablist = within(
+      screen.getAllByRole('tablist', { name: 'Order type tabs' }).at(-1)!,
+    );
+    expect(
+      tablist
+        .getAllByRole('button', { name: 'Sales order' })
+        .some((button) =>
+          button.classList.contains('create-order-tab-active'),
+        ),
+    ).toBe(true);
+    expect(
+      tablist
+        .getAllByRole('button', { name: 'Repair order' })
+        .some((button) =>
+          button.classList.contains('create-order-tab-active'),
+        ),
+    ).toBe(false);
+  });
+
+  it('opens on repair when the workspace tab is repair even if sale was persisted', () => {
+    window.localStorage.setItem('project-goods.create-order-tab', 'sale');
+
+    renderCreateOrderCard('repair');
+
+    const tablist = within(
+      screen.getAllByRole('tablist', { name: 'Order type tabs' }).at(-1)!,
+    );
+    expect(
+      tablist
+        .getAllByRole('button', { name: 'Repair order' })
+        .some((button) =>
+          button.classList.contains('create-order-tab-active'),
+        ),
+    ).toBe(true);
+    expect(
+      tablist
+        .getAllByRole('button', { name: 'Sales order' })
+        .some((button) =>
+          button.classList.contains('create-order-tab-active'),
+        ),
+    ).toBe(false);
   });
 });
