@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
@@ -414,6 +420,27 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
+const hexColorToRgb = (value: string) => {
+  const normalized = value.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+};
+const getWarehouseBadgeAccentStyle = (
+  color?: string,
+): CSSProperties | undefined => {
+  if (!color) return undefined;
+  const rgb = hexColorToRgb(color);
+  if (!rgb) return undefined;
+  return {
+    '--warehouse-badge-accent': color,
+    '--warehouse-badge-accent-bg': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
+    '--warehouse-badge-accent-border': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`,
+  } as CSSProperties;
+};
 export const WarehousePanel = ({
   products,
   sales,
@@ -2150,6 +2177,8 @@ export const WarehousePanel = ({
             products={paginatedProducts}
             isLoading={isLoading}
             visibleColumns={visibleColumns.stock}
+            warehouses={warehouses}
+            serviceCenters={serviceCenters}
             salesByProductId={salesByProductId}
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
@@ -2340,6 +2369,7 @@ export const WarehousePanel = ({
                 placeholder='#000000'
               />
               <input
+                className='warehouse-settings-color-picker'
                 type='color'
                 aria-label='color'
                 value={serviceCenterForm.color}
@@ -3847,6 +3877,8 @@ const StockTable = ({
   products,
   isLoading,
   visibleColumns,
+  warehouses,
+  serviceCenters,
   salesByProductId,
   supplierOrdersByProductId,
   productWarehouseMetaById,
@@ -3858,6 +3890,8 @@ const StockTable = ({
   products: Product[];
   isLoading: boolean;
   visibleColumns: StockColumnKey[];
+  warehouses: WarehouseItem[];
+  serviceCenters: ServiceCenter[];
   salesByProductId: Record<string, Sale[]>;
   supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
@@ -3869,6 +3903,26 @@ const StockTable = ({
     itemIndex: number,
   ) => void;
 }) => {
+  const warehouseById = useMemo(
+    () =>
+      warehouses.reduce<Record<string, WarehouseItem>>((acc, warehouse) => {
+        acc[warehouse.id] = warehouse;
+        return acc;
+      }, {}),
+    [warehouses],
+  );
+  const serviceCenterById = useMemo(
+    () =>
+      serviceCenters.reduce<Record<string, ServiceCenter>>(
+        (acc, serviceCenter) => {
+          acc[serviceCenter.id] = serviceCenter;
+          return acc;
+        },
+        {},
+      ),
+    [serviceCenters],
+  );
+
   if (isLoading)
     return (
       <p className='empty-state warehouse-stock-empty'>
@@ -3937,6 +3991,14 @@ const StockTable = ({
                   product,
                   linkedSupplierOrders,
                 );
+                const warehouse = warehouseById[
+                  productWarehouseMetaById[product.id]?.warehouseId ?? ''
+                ];
+                const serviceCenterColor = warehouse
+                  ? serviceCenterById[warehouse.serviceCenterId]?.color
+                  : '';
+                const warehouseBadgeStyle =
+                  getWarehouseBadgeAccentStyle(serviceCenterColor);
                 const getOrderHref = (
                   sale: Sale,
                   tab: 'orders' | 'sales',
@@ -3995,7 +4057,18 @@ const StockTable = ({
                         ) : columnKey === 'purchase' ? (
                           formatCurrency(product.price)
                         ) : columnKey === 'warehouse' ? (
-                          <span className='warehouse-data-badge warehouse-data-badge-warehouse'>
+                          <span
+                            className={[
+                              'warehouse-data-badge',
+                              'warehouse-data-badge-warehouse',
+                              serviceCenterColor
+                                ? 'warehouse-data-badge-warehouse-colored'
+                                : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            style={warehouseBadgeStyle}
+                          >
                             {productWarehouseMetaById[product.id]
                               ?.warehouseName ?? '-'}
                           </span>
