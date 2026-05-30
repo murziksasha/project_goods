@@ -139,32 +139,6 @@ const toApiPhone = (input: string) => {
   return '';
 };
 
-const getStoredCreateOrderTab = (
-  fallback: CreateOrderRequestPayload['sourceTab'],
-): CreateOrderRequestPayload['sourceTab'] => {
-  try {
-    const storedTab = window.localStorage.getItem(createOrderTabStorageKey);
-    return storedTab === 'repair' || storedTab === 'sale' ? storedTab : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const getStoredCreateOrderClientRequestsTab = (
-  fallback: ClientRequestTab,
-): ClientRequestTab => {
-  try {
-    const storedTab = window.localStorage.getItem(
-      createOrderClientRequestsTabStorageKey,
-    );
-    return storedTab === 'orders' || storedTab === 'sales'
-      ? storedTab
-      : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 const extractDeviceKit = (note: string) =>
   note
     .split('|')
@@ -236,7 +210,7 @@ export const CreateOrderCard = ({
   onError,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
-    () => getStoredCreateOrderTab(initialTab),
+    () => initialTab,
   );
   const [clientPhone, setClientPhone] = useState('');
   const [clientName, setClientName] = useState('');
@@ -274,10 +248,7 @@ export const CreateOrderCard = ({
     WarehouseItem[]
   >([]);
   const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
-    () =>
-      getStoredCreateOrderClientRequestsTab(
-        initialTab === 'sale' ? 'sales' : 'orders',
-      ),
+    () => (initialTab === 'sale' ? 'sales' : 'orders'),
   );
 
   const managers = employees.filter(
