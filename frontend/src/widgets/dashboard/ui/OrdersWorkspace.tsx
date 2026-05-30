@@ -4481,6 +4481,52 @@ const OrderDetailCard = ({
       ? isRepairOrder(item)
       : !isRepairOrder(item),
   );
+  const clientStats = useMemo(() => {
+    const stats = relatedRecords.reduce(
+      (accumulator, item) => {
+        const total = getOrderTotal(item);
+        if (isRepairOrder(item)) {
+          accumulator.repairsCount += 1;
+          accumulator.repairsAmount += total;
+        } else {
+          accumulator.salesCount += 1;
+          accumulator.salesAmount += total;
+        }
+        return accumulator;
+      },
+      {
+        salesCount: 0,
+        salesAmount: 0,
+        repairsCount: 0,
+        repairsAmount: 0,
+      },
+    );
+    const validCreatedAt = relatedRecords
+      .map((item) => ({
+        value: item.createdAt,
+        time: getCreatedTime(item),
+      }))
+      .filter((item) => Number.isFinite(item.time));
+    const firstContactAt =
+      validCreatedAt.length > 0
+        ? validCreatedAt.reduce((previous, current) =>
+            current.time < previous.time ? current : previous,
+          ).value
+        : null;
+    const lastContactAt =
+      validCreatedAt.length > 0
+        ? validCreatedAt.reduce((previous, current) =>
+            current.time > previous.time ? current : previous,
+          ).value
+        : null;
+    return {
+      ...stats,
+      totalCount: stats.salesCount + stats.repairsCount,
+      totalAmount: stats.salesAmount + stats.repairsAmount,
+      firstContactAt,
+      lastContactAt,
+    };
+  }, [relatedRecords]);
   const saleProductNames = useMemo(
     () =>
       new Set(
@@ -5070,6 +5116,43 @@ const OrderDetailCard = ({
                   );
                 })
               )
+            ) : relatedTab === 'supplierInformation' ? (
+              <dl className='order-payment-list order-related-stats-list'>
+                <div>
+                  <dt>Orders (sales)</dt>
+                  <dd>
+                    {clientStats.salesCount} | {formatCurrency(clientStats.salesAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Repair orders</dt>
+                  <dd>
+                    {clientStats.repairsCount} | {formatCurrency(clientStats.repairsAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>
+                    {clientStats.totalCount} | {formatCurrency(clientStats.totalAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>First contact</dt>
+                  <dd>
+                    {clientStats.firstContactAt
+                      ? formatReadyDate(clientStats.firstContactAt)
+                      : '-'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Last contact</dt>
+                  <dd>
+                    {clientStats.lastContactAt
+                      ? formatReadyDate(clientStats.lastContactAt)
+                      : '-'}
+                  </dd>
+                </div>
+              </dl>
             ) : relatedVisibleRecords.length === 0 ? (
               <p>
                 {relatedTab === 'orders'

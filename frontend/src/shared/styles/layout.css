@@ -2093,6 +2093,10 @@
   gap: 8px;
 }
 
+.order-related-stats-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .order-related-list p {
   margin: 0;
   color: #6f8197;
