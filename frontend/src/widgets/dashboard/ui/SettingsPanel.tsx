@@ -15,6 +15,8 @@ import {
   renderPrintTemplate,
 } from '../../../entities/settings/model/printForms';
 
+const EDITOR_PERSIST_DEBOUNCE_MS = 250;
+
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
   isSaving: boolean;
@@ -148,6 +150,36 @@ const insertTableHtml =
 const imagePlaceholderHtml =
   '<div class="print-image-placeholder">Місце для зображення</div>';
 
+const normalizeEditorHtml = (html: string): string => {
+  if (typeof window === 'undefined') return html;
+
+  const container = window.document.createElement('div');
+  container.innerHTML = html;
+
+  container.querySelectorAll('font').forEach((fontNode) => {
+    const parent = fontNode.parentNode;
+    while (fontNode.firstChild) {
+      parent?.insertBefore(fontNode.firstChild, fontNode);
+    }
+    parent?.removeChild(fontNode);
+  });
+
+  container.querySelectorAll<HTMLElement>('span').forEach((spanNode) => {
+    if (spanNode.attributes.length === 0) return;
+    if (!spanNode.textContent?.includes('{{')) return;
+    spanNode.removeAttribute('style');
+    if (spanNode.attributes.length === 0) {
+      const parent = spanNode.parentNode;
+      while (spanNode.firstChild) {
+        parent?.insertBefore(spanNode.firstChild, spanNode);
+      }
+      parent?.removeChild(spanNode);
+    }
+  });
+
+  return container.innerHTML;
+};
+
 const renderSpecialCodes = (root: HTMLElement | Document) => {
   root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
     if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
@@ -216,10 +248,19 @@ export const SettingsPanel = ({
     () => printForms[0]?.id ?? '',
   );
   const [isHtmlMode, setIsHtmlMode] = useState(false);
+  const [draftHtmlByFormId, setDraftHtmlByFormId] = useState<Record<string, string>>({});
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const printFormsRef = useRef(printForms);
+  const draftHtmlByFormIdRef = useRef(draftHtmlByFormId);
+  const persistTimerRef = useRef<number | null>(null);
   const selectedForm =
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
+  const selectedFormContent = selectedForm?.content ?? '';
+  const selectedEditorContent =
+    selectedForm && draftHtmlByFormId[selectedForm.id] !== undefined
+      ? draftHtmlByFormId[selectedForm.id]
+      : selectedFormContent;
   const previewValues = useMemo(
     () => ({
       ...demoPrintValues,
@@ -232,7 +273,7 @@ export const SettingsPanel = ({
   );
   const selectedPreview = selectedForm
     ? renderPrintTemplate(
-        selectedForm.content,
+        selectedEditorContent,
         previewValues,
         selectedForm.contentFormat,
       )
@@ -262,20 +303,29 @@ export const SettingsPanel = ({
     hasInvalidPrintForms ||
     hasInvalidCompanyFields;
 
+  useEffect(() => {
+    printFormsRef.current = printForms;
+  }, [printForms]);
+
+  useEffect(() => {
+    draftHtmlByFormIdRef.current = draftHtmlByFormId;
+  }, [draftHtmlByFormId]);
+
   const updatePrintForms = (nextForms: PrintForm[]) => {
     onChange('printForms', normalizePrintFormsForView(nextForms));
   };
 
-  const updateSelectedForm = (patch: Partial<PrintForm>) => {
-    if (!selectedForm) return;
-
+  const updateFormById = (formId: string, patch: Partial<PrintForm>) => {
     updatePrintForms(
-      printForms.map((printForm) =>
-        printForm.id === selectedForm.id
-          ? { ...printForm, ...patch }
-          : printForm,
+      printFormsRef.current.map((printForm) =>
+        printForm.id === formId ? { ...printForm, ...patch } : printForm,
       ),
     );
+  };
+
+  const updateSelectedForm = (patch: Partial<PrintForm>) => {
+    if (!selectedForm) return;
+    updateFormById(selectedForm.id, patch);
   };
 
   const addPrintForm = () => {
@@ -304,14 +354,48 @@ export const SettingsPanel = ({
       (printForm) => printForm.id !== selectedForm.id,
     );
     updatePrintForms(nextForms);
+    setDraftHtmlByFormId((current) => {
+      const next = { ...current };
+      delete next[selectedForm.id];
+      return next;
+    });
     setSelectedFormId(nextForms[0]?.id ?? '');
   };
 
+  const flushDraftToForm = (formId: string, content?: string) => {
+    const nextContent = normalizeEditorHtml(
+      content ?? draftHtmlByFormIdRef.current[formId] ?? '',
+    );
+    if (!nextContent.trim()) return;
+
+    const currentForm = printFormsRef.current.find((printForm) => printForm.id === formId);
+    if (!currentForm) return;
+    if (currentForm.content === nextContent && currentForm.contentFormat === 'html') return;
+    updateFormById(formId, { content: nextContent, contentFormat: 'html' });
+  };
+
+  const scheduleDraftPersist = (formId: string, content: string) => {
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+    }
+    persistTimerRef.current = window.setTimeout(() => {
+      flushDraftToForm(formId, content);
+      persistTimerRef.current = null;
+    }, EDITOR_PERSIST_DEBOUNCE_MS);
+  };
+
+  const syncDraftContent = (formId: string, content: string, persist = true) => {
+    setDraftHtmlByFormId((current) =>
+      current[formId] === content ? current : { ...current, [formId]: content },
+    );
+    if (persist) {
+      scheduleDraftPersist(formId, content);
+    }
+  };
+
   const updateEditorContent = (content: string) => {
-    updateSelectedForm({
-      content,
-      contentFormat: isHtmlMode ? 'html' : selectedForm?.contentFormat ?? 'html',
-    });
+    if (!selectedForm) return;
+    syncDraftContent(selectedForm.id, content);
   };
 
   useEffect(() => {
@@ -322,21 +406,48 @@ export const SettingsPanel = ({
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!selectedForm) return;
+    setDraftHtmlByFormId((current) =>
+      current[selectedForm.id] !== undefined
+        ? current
+        : { ...current, [selectedForm.id]: selectedForm.content },
+    );
+  }, [selectedForm?.id, selectedFormContent]);
+
+  useEffect(() => {
+    if (!selectedForm || isHtmlMode || !editorRef.current) return;
+    if (editorRef.current.innerHTML !== selectedEditorContent) {
+      editorRef.current.innerHTML = selectedEditorContent;
+    }
+  }, [isHtmlMode, selectedEditorContent, selectedForm?.id]);
+
+  useEffect(
+    () => () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const insertHtmlIntoEditor = (html: string) => {
     if (!selectedForm) return;
 
     if (isHtmlMode) {
-      const nextContent = `${selectedForm.content}${selectedForm.content ? '\n' : ''}${html}`;
-      updateSelectedForm({ content: nextContent, contentFormat: 'html' });
+      const nextContent = `${selectedEditorContent}${selectedEditorContent ? '\n' : ''}${html}`;
+      syncDraftContent(selectedForm.id, nextContent);
       return;
     }
 
     editorRef.current?.focus();
     document.execCommand('insertHTML', false, html);
-    updateSelectedForm({
-      content: editorRef.current?.innerHTML ?? `${selectedForm.content}${html}`,
-      contentFormat: 'html',
-    });
+    const nextContent =
+      normalizeEditorHtml(editorRef.current?.innerHTML ?? `${selectedEditorContent}${html}`);
+    if (editorRef.current && editorRef.current.innerHTML !== nextContent) {
+      editorRef.current.innerHTML = nextContent;
+    }
+    syncDraftContent(selectedForm.id, nextContent);
   };
 
   const insertVariable = (variable: string) => {
@@ -347,10 +458,13 @@ export const SettingsPanel = ({
     if (!selectedForm || isHtmlMode) return;
     editorRef.current?.focus();
     document.execCommand(command, false, value);
-    updateSelectedForm({
-      content: editorRef.current?.innerHTML ?? selectedForm.content,
-      contentFormat: 'html',
-    });
+    const nextContent = normalizeEditorHtml(
+      editorRef.current?.innerHTML ?? selectedEditorContent,
+    );
+    if (editorRef.current && editorRef.current.innerHTML !== nextContent) {
+      editorRef.current.innerHTML = nextContent;
+    }
+    syncDraftContent(selectedForm.id, nextContent);
   };
 
   const updateOrderDefaults = <K extends keyof OrderDefaults>(
@@ -384,6 +498,17 @@ export const SettingsPanel = ({
     });
   };
 
+  const handleSubmit = () => {
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    Object.entries(draftHtmlByFormIdRef.current).forEach(([formId, content]) => {
+      flushDraftToForm(formId, content);
+    });
+    onSubmit();
+  };
+
   return (
     <section className="panel settings-page">
       <div className="panel-header panel-header-row">
@@ -398,7 +523,7 @@ export const SettingsPanel = ({
         <button
           className="primary-button"
           type="button"
-          onClick={onSubmit}
+          onClick={handleSubmit}
           disabled={isSaveDisabled}
         >
           {isSaving ? 'Saving...' : 'Save settings'}
@@ -664,25 +789,32 @@ export const SettingsPanel = ({
                       <textarea
                         className="settings-html-source"
                         rows={16}
-                        value={selectedForm.content}
+                        value={selectedEditorContent}
                         onChange={(event) => updateEditorContent(event.target.value)}
+                        onBlur={() =>
+                          selectedForm && flushDraftToForm(selectedForm.id, selectedEditorContent)
+                        }
                       />
                     ) : (
                       <div
-                        key={selectedForm.id}
                         ref={editorRef}
                         className="settings-content-editable"
                         contentEditable
                         suppressContentEditableWarning
                         onInput={(event) =>
-                          updateSelectedForm({
-                            content: event.currentTarget.innerHTML,
-                            contentFormat: 'html',
-                          })
+                          selectedForm &&
+                          syncDraftContent(
+                            selectedForm.id,
+                            normalizeEditorHtml(event.currentTarget.innerHTML),
+                          )
                         }
-                        dangerouslySetInnerHTML={{
-                          __html: selectedForm.content,
-                        }}
+                        onBlur={() =>
+                          selectedForm &&
+                          flushDraftToForm(
+                            selectedForm.id,
+                            editorRef.current?.innerHTML ?? selectedEditorContent,
+                          )
+                        }
                       />
                     )}
                   </div>
