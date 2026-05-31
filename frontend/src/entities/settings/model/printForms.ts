@@ -1,5 +1,62 @@
 import type { PrintForm } from './types';
 
+export type LabelSizePreset = {
+  id: string;
+  label: string;
+  widthMm: number;
+  heightMm: number;
+};
+
+export const defaultLabelSize = {
+  presetId: '25x40',
+  widthMm: 25,
+  heightMm: 40,
+};
+
+export const labelSizePresets: LabelSizePreset[] = [
+  { id: '25x40', label: '25 x 40 mm', widthMm: 25, heightMm: 40 },
+  { id: '40x25', label: '40 x 25 mm', widthMm: 40, heightMm: 25 },
+  { id: '30x20', label: '30 x 20 mm', widthMm: 30, heightMm: 20 },
+  { id: '58x40', label: '58 x 40 mm', widthMm: 58, heightMm: 40 },
+  { id: '58x30', label: '58 x 30 mm', widthMm: 58, heightMm: 30 },
+];
+
+export const customLabelSizePresetId = 'custom';
+export const minLabelSizeMm = 10;
+export const maxLabelSizeMm = 120;
+
+const clampLabelSize = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, minLabelSizeMm), maxLabelSizeMm);
+};
+
+export const normalizeLabelSize = (
+  labelSize: PrintForm['labelSize'] | undefined,
+) => {
+  const preset = labelSizePresets.find(
+    (item) => item.id === labelSize?.presetId,
+  );
+
+  if (preset) {
+    return {
+      presetId: preset.id,
+      widthMm: preset.widthMm,
+      heightMm: preset.heightMm,
+    };
+  }
+
+  if (labelSize?.presetId === customLabelSizePresetId) {
+    return {
+      presetId: customLabelSizePresetId,
+      widthMm: clampLabelSize(labelSize.widthMm, defaultLabelSize.widthMm),
+      heightMm: clampLabelSize(labelSize.heightMm, defaultLabelSize.heightMm),
+    };
+  }
+
+  return defaultLabelSize;
+};
+
 export type PrintFormVariable =
   | 'id'
   | 'orderNumber'
@@ -150,6 +207,13 @@ const detailsTable = `
   </table>
 `;
 
+const lineItemsSections = `
+  <h3>Послуги</h3>
+  {{services_table}}
+  <h3>Товари</h3>
+  {{products_table}}
+`;
+
 export const defaultPrintForms: PrintForm[] = [
   {
     id: 'receipt',
@@ -167,6 +231,7 @@ export const defaultPrintForms: PrintForm[] = [
         <div class="print-code-block">{{barcode}}</div>
       </div>
       ${detailsTable}
+      ${lineItemsSections}
       <ol class="print-terms">
         <li>Сервісний центр не несе відповідальності за втрату даних в індивідуальній пам'яті пристрою.</li>
         <li>Термін проведення діагностики - від 1 до 3-х днів. Ремонт проводиться після погодження вартості.</li>
@@ -193,12 +258,12 @@ export const defaultPrintForms: PrintForm[] = [
         <tbody>
           <tr><td>Замовлення</td><td>{{orderNumber}}</td></tr>
           <tr><td>Клієнт</td><td>{{clientName}}</td></tr>
-          <tr><td>Пристрій</td><td>{{deviceName}}</td></tr>
           <tr><td>Сума</td><td><strong>{{total}}</strong></td></tr>
           <tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr>
           <tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr>
         </tbody>
       </table>
+      ${lineItemsSections}
       <div class="print-code-row">{{qrcode}}{{barcode}}</div>
     `),
     contentFormat: 'html',
@@ -215,6 +280,7 @@ export const defaultPrintForms: PrintForm[] = [
       <h1>Гарантійний талон</h1>
       <p>Замовлення №{{orderNumber}} від {{date}}</p>
       ${detailsTable}
+      ${lineItemsSections}
       <p><strong>Майстер:</strong> {{masterName}}</p>
       <p>Гарантійні зобов'язання діють за умови відсутності механічних пошкоджень та слідів стороннього втручання.</p>
       <div class="print-signatures">
@@ -236,11 +302,7 @@ export const defaultPrintForms: PrintForm[] = [
       <h1>Акт виконаних робіт №{{orderNumber}}</h1>
       <p>Дата: {{date}}</p>
       <p><strong>Клієнт:</strong> {{clientName}}, {{clientPhone}}</p>
-      <p><strong>Пристрій:</strong> {{deviceName}} {{serialNumber}}</p>
-      <h3>Виконані роботи</h3>
-      {{services_table}}
-      <h3>Встановлені товари</h3>
-      {{products_table}}
+      ${lineItemsSections}
       <p class="print-total-line">Разом: <strong>{{total}}</strong></p>
       <div class="print-signatures">
         <span>Виконавець: {{masterName}}</span>
@@ -324,6 +386,7 @@ export const defaultPrintForms: PrintForm[] = [
     `,
     contentFormat: 'html',
     pageSize: 'label',
+    labelSize: defaultLabelSize,
     orientation: 'portrait',
     isActive: true,
     sortOrder: 60,
@@ -343,6 +406,16 @@ const isPreviousDefaultInvoice = (form: PrintForm) =>
   form.id === 'invoice' &&
   form.title === 'Рахунок' &&
   form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+
+const isLegacyStandardPrintForm = (form: PrintForm) => {
+  if (!legacyDefaultPrintFormIds.has(form.id)) return false;
+  const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
+  if (!defaultForm || form.title !== defaultForm.title) return false;
+  if (form.id === 'invoice' || form.id === 'barcode') return false;
+  if (form.id === 'completion-act' && form.content.includes('{{deviceName}}')) return true;
+  return !form.content.includes('{{products_table}}') ||
+    !form.content.includes('{{services_table}}');
+};
 
 export const createDefaultSettingsForm = () => ({
   serviceName: 'Service CRM',
@@ -379,16 +452,22 @@ export const createDefaultSettingsForm = () => ({
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
     (form, index) => {
-      const normalizedForm = isPreviousDefaultInvoice(form)
-        ? defaultPrintForms.find((defaultForm) => defaultForm.id === 'invoice') ?? form
+      const normalizedForm = isPreviousDefaultInvoice(form) || isLegacyStandardPrintForm(form)
+        ? defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form
         : form;
+
+      const pageSize =
+        normalizedForm.pageSize ??
+        (normalizedForm.type === 'barcode' ? 'label' : 'A4');
 
       return {
         ...normalizedForm,
         contentFormat: normalizedForm.contentFormat ?? 'text',
-        pageSize:
-          normalizedForm.pageSize ??
-          (normalizedForm.type === 'barcode' ? 'label' : 'A4'),
+        pageSize,
+        labelSize:
+          pageSize === 'label'
+            ? normalizeLabelSize(normalizedForm.labelSize)
+            : normalizedForm.labelSize,
         orientation: normalizedForm.orientation ?? 'portrait',
         sortOrder: Number.isFinite(normalizedForm.sortOrder)
           ? normalizedForm.sortOrder
@@ -463,7 +542,7 @@ export const renderPrintTemplate = (
 export const printDocumentStyles = `
   body { font-family: Arial, sans-serif; color: #1f2937; background: #fff; }
   .print-form { page-break-after: always; padding: 16mm; }
-  .print-form-label { width: 58mm; min-height: 40mm; padding: 5mm; }
+  .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; overflow: hidden; }
   .print-document { font-size: 13px; line-height: 1.45; }
   .print-document h1 { font-size: 22px; margin: 0 0 16px; font-weight: 500; }
   .print-document h2 { font-size: 18px; margin: 0 0 6px; }
@@ -483,8 +562,11 @@ export const printDocumentStyles = `
   .print-signatures { display: flex; justify-content: space-between; gap: 32px; margin-top: 28px; }
   .print-total-line { text-align: right; font-size: 16px; }
   .print-muted { color: #6b7280; }
-  .print-label { width: 58mm; min-height: 40mm; display: grid; place-items: center; gap: 2mm; text-align: center; font-size: 12px; }
-  .print-label-code .print-barcode { width: 52mm; max-width: 52mm; }
+  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.8mm; overflow: hidden; padding: 2mm 1.5mm; text-align: center; font-size: 8px; line-height: 1.1; }
+  .print-label-code { width: 100%; display: flex; justify-content: center; }
+  .print-label-code .print-barcode { width: 22mm; max-width: 100%; height: 15mm; }
+  .print-label strong { font-size: 8px; line-height: 1; }
+  .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .invoice-party { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; font-size: 12px; }
   .invoice-party > strong { text-decoration: underline; }
   .invoice-title { margin: 26px 0 14px; text-align: center; }

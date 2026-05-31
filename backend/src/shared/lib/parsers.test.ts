@@ -197,6 +197,39 @@ describe('normalizeSettingsPayload', () => {
     });
   });
 
+  it('normalizes label sizes for label print forms', () => {
+    const result = normalizeSettingsPayload({
+      printForms: [
+        {
+          title: 'Barcode',
+          content: '{{barcode}}',
+          pageSize: 'label',
+          labelSize: {
+            presetId: 'custom',
+            widthMm: '200',
+            heightMm: '5',
+          },
+        },
+        {
+          title: 'Legacy barcode',
+          content: '{{barcode}}',
+          pageSize: 'label',
+        },
+      ],
+    });
+
+    expect(result.printForms[0].labelSize).toEqual({
+      presetId: 'custom',
+      widthMm: 120,
+      heightMm: 10,
+    });
+    expect(result.printForms[1].labelSize).toEqual({
+      presetId: '25x40',
+      widthMm: 25,
+      heightMm: 40,
+    });
+  });
+
   it('falls back to safe defaults for invalid settings values', () => {
     const result = normalizeSettingsPayload({
       serviceName: '',

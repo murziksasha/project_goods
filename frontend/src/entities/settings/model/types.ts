@@ -14,6 +14,11 @@ export type PrintForm = {
   content: string;
   contentFormat: 'html' | 'text';
   pageSize: 'A4' | 'label';
+  labelSize?: {
+    presetId: string;
+    widthMm: number;
+    heightMm: number;
+  };
   orientation: 'portrait' | 'landscape';
   isActive: boolean;
   sortOrder: number;
