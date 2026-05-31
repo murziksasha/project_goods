@@ -94,7 +94,6 @@ export type PrintFormVariable =
   | 'seller_name'
   | 'note_label'
   | 'barcode'
-  | 'qrcode'
   | 'products_table'
   | 'services_table'
   | 'invoice_items_table'
@@ -177,7 +176,6 @@ export const printFormVariableGroups: Array<{
     title: 'Спец-блоки',
     variables: [
       { key: 'barcode', label: 'Штрих-код' },
-      { key: 'qrcode', label: 'QR Code' },
       { key: 'products_table', label: 'Товари' },
       { key: 'services_table', label: 'Послуги' },
       { key: 'invoice_items_table', label: 'Позиції рахунку з ПДВ' },
@@ -264,7 +262,7 @@ export const defaultPrintForms: PrintForm[] = [
         </tbody>
       </table>
       ${lineItemsSections}
-      <div class="print-code-row">{{qrcode}}{{barcode}}</div>
+      <div class="print-code-row">{{barcode}}</div>
     `),
     contentFormat: 'html',
     pageSize: 'A4',
@@ -524,12 +522,6 @@ export const renderPrintTemplate = (
         `<svg class="print-barcode" data-barcode-value="${escapeHtml(values.orderNumber || values.id || '')}"></svg>`,
       );
     }
-    if (key === 'qrcode') {
-      return result.replaceAll(
-        '{{qrcode}}',
-        `<canvas class="print-qrcode" data-qrcode-value="${escapeHtml(values.orderNumber || values.id || '')}"></canvas>`,
-      );
-    }
     if (key === 'products_table') {
       return result.replaceAll('{{products_table}}', renderProductsTable(values.products_table ?? ''));
     }
@@ -554,7 +546,7 @@ export const renderPrintTemplate = (
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));
   }, source);
 
-  return rendered;
+  return rendered.replaceAll('{{qrcode}}', '');
 };
 
 export const printDocumentStyles = `
@@ -571,7 +563,6 @@ export const printDocumentStyles = `
   .print-code-block { min-width: 180px; text-align: center; }
   .print-code-row { display: flex; gap: 20px; align-items: center; margin-top: 16px; }
   .print-barcode { max-width: 220px; height: 52px; }
-  .print-qrcode { width: 88px; height: 88px; }
   .print-details-table, .print-summary-table, .print-line-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
   .print-details-table td, .print-summary-table td, .print-line-table th, .print-line-table td { border: 1px solid #d1d5db; padding: 5px 7px; vertical-align: top; }
   .print-line-table th { background: #f3f4f6; text-align: left; }

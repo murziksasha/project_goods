@@ -37,7 +37,7 @@ describe('renderPrintTemplate', () => {
     ).toContain('Order r000124 {{unknownValue}}');
   });
 
-  it('renders tables and special codes without dropping surrounding html', () => {
+  it('renders tables and barcode without dropping surrounding html', () => {
     const rendered = renderPrintTemplate(
       '<section>{{products_table}}{{services_table}}{{barcode}}{{qrcode}}</section>',
       {
@@ -52,7 +52,8 @@ describe('renderPrintTemplate', () => {
     expect(rendered).toContain('Display');
     expect(rendered).toContain('Install');
     expect(rendered).toContain('data-barcode-value="r000124"');
-    expect(rendered).toContain('data-qrcode-value="r000124"');
+    expect(rendered).not.toContain('{{qrcode}}');
+    expect(rendered).not.toContain('data-qrcode-value');
   });
 
   it('removes editor token wrappers from rendered output', () => {

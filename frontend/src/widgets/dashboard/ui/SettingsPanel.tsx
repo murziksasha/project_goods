@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
 import type {
   AppSettingsFormValues,
   FinanceDefaults,
@@ -126,7 +125,6 @@ const demoPrintValues = {
   seller_name: 'Петро Степаненко',
   note_label: 'Примітка',
   barcode: 'r000124',
-  qrcode: 'r000124',
   products_table:
     '<table class="print-line-table"><thead><tr><th>Товар</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Дисплейний модуль</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
   services_table:
@@ -170,7 +168,6 @@ const imagePlaceholderHtml =
 
 const specialPrintBlockButtons = [
   { label: 'Barcode', html: '{{barcode}}' },
-  { label: 'QR', html: '{{qrcode}}' },
   { label: 'Товари', html: '<h3>Товари</h3>{{products_table}}' },
   { label: 'Послуги', html: '<h3>Послуги</h3>{{services_table}}' },
   { label: 'Рахунок', html: '{{invoice_items_table}}' },
@@ -226,17 +223,6 @@ const renderSpecialCodes = (root: HTMLElement | Document) => {
     } catch {
       node.replaceWith(document.createTextNode(value));
     }
-  });
-
-  root.querySelectorAll<HTMLCanvasElement>('canvas[data-qrcode-value]').forEach((node) => {
-    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
-      return;
-    }
-    const value = node.dataset.qrcodeValue || 'EMPTY';
-    void QRCode.toCanvas(node, value, {
-      width: 88,
-      margin: 1,
-    }).catch(() => undefined);
   });
 };
 
