@@ -1,4 +1,10 @@
-import { Settings, defaultPrintForms, type SettingsDocument } from './model';
+import {
+  Settings,
+  defaultLabelSize,
+  defaultPrintForms,
+  legacyDefaultPrintFormTitles,
+  type SettingsDocument,
+} from './model';
 import { normalizeSettingsPayload } from '../../shared/lib/parsers';
 import type { SettingsPayload } from '../shared/types';
 
@@ -29,15 +35,68 @@ const defaultNotificationSettings = {
   emailEnabled: false,
 };
 
-const formatSettings = (settings: SettingsDocument) => {
-  const rawPrintForms = Array.isArray(settings.printForms)
-    ? settings.printForms
-    : [];
+const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
+  const rawPrintForms = Array.isArray(forms) ? forms : [];
+  if (rawPrintForms.length === 0) return defaultPrintForms;
 
+  const existingIds = new Set(rawPrintForms.map((form) => form.id));
+  const shouldReplaceLegacyDefaults = rawPrintForms.every(
+    (form) =>
+      legacyDefaultPrintFormTitles.has(form.title) &&
+      defaultPrintForms.some((defaultForm) => defaultForm.id === form.id),
+  );
+
+  if (shouldReplaceLegacyDefaults) {
+    return defaultPrintForms;
+  }
+
+  return [
+    ...rawPrintForms.map((form) => {
+      const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
+      const isPreviousDefaultInvoice =
+        form.id === 'invoice' &&
+        form.title === 'Рахунок' &&
+        form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+      const isLegacyStandardPrintForm =
+        Boolean(defaultForm) &&
+        form.title === defaultForm?.title &&
+        form.id !== 'invoice' &&
+        form.id !== 'barcode' &&
+        ((form.id === 'completion-act' && form.content.includes('{{deviceName}}')) ||
+          !form.content.includes('{{products_table}}') ||
+          !form.content.includes('{{services_table}}'));
+      const normalizedForm = isPreviousDefaultInvoice || isLegacyStandardPrintForm
+        ? defaultForm ?? form
+        : form;
+
+      const pageSize =
+        normalizedForm.pageSize ||
+        (String(normalizedForm.type) === 'barcode' ? 'label' : 'A4');
+
+      return {
+        ...normalizedForm,
+        contentFormat: normalizedForm.contentFormat ?? 'text',
+        pageSize,
+        labelSize:
+          pageSize === 'label'
+            ? { ...defaultLabelSize, ...(normalizedForm.labelSize ?? {}) }
+            : normalizedForm.labelSize,
+        orientation: normalizedForm.orientation ?? 'portrait',
+      };
+    }),
+    ...defaultPrintForms.filter((form) => !existingIds.has(form.id)),
+  ].sort((first, second) => first.sortOrder - second.sortOrder);
+};
+
+const formatSettings = (settings: SettingsDocument) => {
   return {
     id: settings._id.toString(),
     serviceName: settings.serviceName,
-    printForms: rawPrintForms.length > 0 ? rawPrintForms : defaultPrintForms,
+    company: settings.company || 'Service CRM',
+    companyAddress: settings.companyAddress ?? '',
+    companyId: settings.companyId ?? '',
+    companyIban: settings.companyIban ?? '',
+    printForms: normalizePrintForms(settings.printForms),
     orderDefaults: {
       ...defaultOrderDefaults,
       ...(settings.orderDefaults ?? {}),
@@ -60,15 +119,34 @@ const formatSettings = (settings: SettingsDocument) => {
 };
 
 export const getSettings = async () => {
+  let wasCreated = false;
   let settings = await Settings.findOne().lean<SettingsDocument | null>();
   if (!settings) {
     const created = new Settings({ serviceName: 'Service CRM' });
     await created.validate();
     await created.save();
     settings = created.toObject<SettingsDocument>();
+    wasCreated = true;
   }
 
-  return formatSettings(settings);
+  const formatted = formatSettings(settings);
+  const shouldPersistMigratedPrintForms =
+    JSON.stringify(settings.printForms ?? []) !==
+    JSON.stringify(formatted.printForms);
+
+  if (shouldPersistMigratedPrintForms) {
+    if (wasCreated) {
+      return formatted;
+    }
+    const updated = await Settings.findOneAndUpdate(
+      {},
+      { printForms: formatted.printForms },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SettingsDocument | null>();
+    return formatSettings(updated ?? settings);
+  }
+
+  return formatted;
 };
 
 export const updateSettings = async (payload: SettingsPayload) => {

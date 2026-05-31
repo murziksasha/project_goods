@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
@@ -14,6 +20,7 @@ import {
   formatCurrency,
   formatDate,
 } from '../../../shared/lib/format';
+import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
@@ -414,6 +421,27 @@ const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 });
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
+const hexColorToRgb = (value: string) => {
+  const normalized = value.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+};
+const getWarehouseBadgeAccentStyle = (
+  color?: string,
+): CSSProperties | undefined => {
+  if (!color) return undefined;
+  const rgb = hexColorToRgb(color);
+  if (!rgb) return undefined;
+  return {
+    '--warehouse-badge-accent': color,
+    '--warehouse-badge-accent-bg': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
+    '--warehouse-badge-accent-border': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`,
+  } as CSSProperties;
+};
 export const WarehousePanel = ({
   products,
   sales,
@@ -439,6 +467,7 @@ export const WarehousePanel = ({
     useState(false);
   const [selectedProductModelName, setSelectedProductModelName] =
     useState<string | null>(null);
+  const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -1097,6 +1126,25 @@ export const WarehousePanel = ({
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [currentPage, filteredProducts, pageSize]);
+  const selectedStockProducts = useMemo(
+    () =>
+      products.filter((product) =>
+        selectedStockProductIds.includes(product.id),
+      ),
+    [products, selectedStockProductIds],
+  );
+  const selectedStockProductsWithSerials = selectedStockProducts.filter(
+    (product) => product.serialNumber.trim(),
+  );
+
+  useEffect(() => {
+    setSelectedStockProductIds((current) => {
+      const next = current.filter((productId) =>
+        filteredProducts.some((product) => product.id === productId),
+      );
+      return next.length === current.length ? current : next;
+    });
+  }, [filteredProducts]);
   const paginatedTransferProducts = useMemo(() => {
     const start = (currentPage - 1) * transferPageSize;
     return filteredProducts.slice(start, start + transferPageSize);
@@ -2150,9 +2198,30 @@ export const WarehousePanel = ({
             products={paginatedProducts}
             isLoading={isLoading}
             visibleColumns={visibleColumns.stock}
+            selectedProductIds={selectedStockProductIds}
+            warehouses={warehouses}
+            serviceCenters={serviceCenters}
             salesByProductId={salesByProductId}
             supplierOrdersByProductId={supplierOrdersByProductId}
             productWarehouseMetaById={productWarehouseMetaById}
+            onToggleProductSelection={(productId) =>
+              setSelectedStockProductIds((current) =>
+                current.includes(productId)
+                  ? current.filter((id) => id !== productId)
+                  : [...current, productId],
+              )
+            }
+            onTogglePageSelection={() => {
+              const pageIds = paginatedProducts.map((product) => product.id);
+              const isPageSelected = pageIds.every((productId) =>
+                selectedStockProductIds.includes(productId),
+              );
+              setSelectedStockProductIds((current) =>
+                isPageSelected
+                  ? current.filter((productId) => !pageIds.includes(productId))
+                  : Array.from(new Set([...current, ...pageIds])),
+              );
+            }}
             onEdit={onProductEdit}
             onOpenModel={(product) => setSelectedProductModelName(product.name)}
             onDelete={onProductDelete}
@@ -2179,6 +2248,35 @@ export const WarehousePanel = ({
               setIsSupplierOrderModalOpen(true);
             }}
           />
+          {selectedStockProductIds.length > 0 ? (
+            <div className='warehouse-bulk-actions'>
+              <strong>{selectedStockProductIds.length} selected</strong>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() =>
+                  printSerialNumbers(
+                    selectedStockProductsWithSerials.map((product) => ({
+                      name: product.name,
+                      article: product.article,
+                      serialNumber: product.serialNumber,
+                    })),
+                    'Warehouse serial numbers',
+                  )
+                }
+                disabled={selectedStockProductsWithSerials.length === 0}
+              >
+                Print serial numbers
+              </button>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setSelectedStockProductIds([])}
+              >
+                Clear selection
+              </button>
+            </div>
+          ) : null}
           <PaginationPanel
             totalItems={filteredProducts.length}
             page={currentPage}
@@ -2340,6 +2438,7 @@ export const WarehousePanel = ({
                 placeholder='#000000'
               />
               <input
+                className='warehouse-settings-color-picker'
                 type='color'
                 aria-label='color'
                 value={serviceCenterForm.color}
@@ -2622,7 +2721,7 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          await takeOnChargeSupplierOrder(orderId, {
+          const result = await takeOnChargeSupplierOrder(orderId, {
             autoGenerateSerialNumbers,
             serialNumbers,
             autoGenerateArticles,
@@ -2638,6 +2737,7 @@ export const WarehousePanel = ({
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshSupplierOrders();
+          return result;
         }}
         onCancelOrder={async () => {
           if (!editingSupplierOrder) return;
@@ -3847,9 +3947,14 @@ const StockTable = ({
   products,
   isLoading,
   visibleColumns,
+  selectedProductIds,
+  warehouses,
+  serviceCenters,
   salesByProductId,
   supplierOrdersByProductId,
   productWarehouseMetaById,
+  onToggleProductSelection,
+  onTogglePageSelection,
   onEdit,
   onOpenModel,
   onDelete,
@@ -3858,9 +3963,14 @@ const StockTable = ({
   products: Product[];
   isLoading: boolean;
   visibleColumns: StockColumnKey[];
+  selectedProductIds: string[];
+  warehouses: WarehouseItem[];
+  serviceCenters: ServiceCenter[];
   salesByProductId: Record<string, Sale[]>;
   supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
   productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
+  onToggleProductSelection: (productId: string) => void;
+  onTogglePageSelection: () => void;
   onEdit: (product: Product) => void;
   onOpenModel: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -3869,6 +3979,40 @@ const StockTable = ({
     itemIndex: number,
   ) => void;
 }) => {
+  const isPageSelected =
+    products.length > 0 &&
+    products.every((product) => selectedProductIds.includes(product.id));
+  const isPagePartiallySelected =
+    !isPageSelected &&
+    products.some((product) => selectedProductIds.includes(product.id));
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isPagePartiallySelected;
+    }
+  }, [isPagePartiallySelected]);
+
+  const warehouseById = useMemo(
+    () =>
+      warehouses.reduce<Record<string, WarehouseItem>>((acc, warehouse) => {
+        acc[warehouse.id] = warehouse;
+        return acc;
+      }, {}),
+    [warehouses],
+  );
+  const serviceCenterById = useMemo(
+    () =>
+      serviceCenters.reduce<Record<string, ServiceCenter>>(
+        (acc, serviceCenter) => {
+          acc[serviceCenter.id] = serviceCenter;
+          return acc;
+        },
+        {},
+      ),
+    [serviceCenters],
+  );
+
   if (isLoading)
     return (
       <p className='empty-state warehouse-stock-empty'>
@@ -3894,8 +4038,11 @@ const StockTable = ({
               >
                 {columnKey === 'select' ? (
                   <input
+                    ref={selectAllRef}
                     type='checkbox'
                     aria-label='Select all stock rows'
+                    checked={isPageSelected}
+                    onChange={onTogglePageSelection}
                   />
                 ) : columnKey === 'name' ? (
                   'Name'
@@ -3937,6 +4084,14 @@ const StockTable = ({
                   product,
                   linkedSupplierOrders,
                 );
+                const warehouse = warehouseById[
+                  productWarehouseMetaById[product.id]?.warehouseId ?? ''
+                ];
+                const serviceCenterColor = warehouse
+                  ? serviceCenterById[warehouse.serviceCenterId]?.color
+                  : '';
+                const warehouseBadgeStyle =
+                  getWarehouseBadgeAccentStyle(serviceCenterColor);
                 const getOrderHref = (
                   sale: Sale,
                   tab: 'orders' | 'sales',
@@ -3965,6 +4120,8 @@ const StockTable = ({
                           <input
                             type='checkbox'
                             aria-label={`Select ${product.name}`}
+                            checked={selectedProductIds.includes(product.id)}
+                            onChange={() => onToggleProductSelection(product.id)}
                           />
                         ) : columnKey === 'name' ? (
                           <button
@@ -3995,7 +4152,18 @@ const StockTable = ({
                         ) : columnKey === 'purchase' ? (
                           formatCurrency(product.price)
                         ) : columnKey === 'warehouse' ? (
-                          <span className='warehouse-data-badge warehouse-data-badge-warehouse'>
+                          <span
+                            className={[
+                              'warehouse-data-badge',
+                              'warehouse-data-badge-warehouse',
+                              serviceCenterColor
+                                ? 'warehouse-data-badge-warehouse-colored'
+                                : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            style={warehouseBadgeStyle}
+                          >
                             {productWarehouseMetaById[product.id]
                               ?.warehouseName ?? '-'}
                           </span>

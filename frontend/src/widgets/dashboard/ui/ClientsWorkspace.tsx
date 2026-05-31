@@ -70,6 +70,8 @@ type ClientStats = {
 };
 
 const clientsFiltersStorageKey = 'project-goods.clients-active-filters';
+const clientCardTabStorageKey = 'project-goods.client-card-tab';
+const createClientTabStorageKey = 'project-goods.create-client-tab';
 
 const emptyFilters: ClientFilters = {
   query: '',
@@ -142,6 +144,28 @@ const filterStatusOptions: Array<{
   label: string;
   value: ClientStatus | '' | 'all';
 }> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
+
+const getStoredClientCardTab = (): ClientCardTab => {
+  try {
+    const storedTab = window.localStorage.getItem(clientCardTabStorageKey);
+    return storedTab === 'main' || storedTab === 'services' || storedTab === 'sales'
+      ? storedTab
+      : 'main';
+  } catch {
+    return 'main';
+  }
+};
+
+const getStoredCreateClientTab = (): CreateClientTab => {
+  try {
+    const storedTab = window.localStorage.getItem(createClientTabStorageKey);
+    return storedTab === 'person' || storedTab === 'company'
+      ? storedTab
+      : 'person';
+  } catch {
+    return 'person';
+  }
+};
 
 
 const getMetaFieldFromNote = (
@@ -348,9 +372,9 @@ export const ClientsWorkspace = ({
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
   const [clientCardTab, setClientCardTab] =
-    useState<ClientCardTab>('main');
+    useState<ClientCardTab>(getStoredClientCardTab);
   const [createClientTab, setCreateClientTab] =
-    useState<CreateClientTab>('person');
+    useState<CreateClientTab>(getStoredCreateClientTab);
   const [personForm, setPersonForm] = useState({
     phone: '+380',
     name: '',
@@ -601,6 +625,22 @@ export const ClientsWorkspace = ({
       }),
     );
   }, [appliedFilters, draftFilters, isFilterOpen, searchValue]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(clientCardTabStorageKey, clientCardTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [clientCardTab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(createClientTabStorageKey, createClientTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [createClientTab]);
 
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);

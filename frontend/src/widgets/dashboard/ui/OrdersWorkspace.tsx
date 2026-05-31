@@ -4,10 +4,12 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import JsBarcode from 'jsbarcode';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -81,6 +83,7 @@ import {
   mergeSupplierOrderItemUpdate,
 } from '../model/supplier-order-utils';
 import {
+  canRemoveLineItemAfterPayment,
   patchLineItemsById,
   removeLineItemsById,
 } from '../model/line-item-ops';
@@ -94,8 +97,12 @@ import { ProductModelModal } from './ProductModelModal';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
+  customLabelSizePresetId,
   defaultPrintForms,
+  labelSizePresets,
+  normalizeLabelSize,
   normalizePrintFormsForView,
+  printDocumentStyles,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
 } from '../../../entities/settings/model/printForms';
@@ -120,7 +127,22 @@ type OrdersWorkspaceProps = {
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
   printForms: PrintForm[];
+  printCompanySettings: PrintCompanySettings;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+};
+
+type PrintCompanySettings = {
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
+};
+
+type OrderPrintRequest = {
+  sale: Sale;
+  lineItems: OrderLineItem[];
+  paidAmount: number;
+  orderNumber: string;
 };
 
 type OrdersTab =
@@ -243,6 +265,8 @@ const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
 const supplierOrderClientLinkPrefix = '[LINKED_CLIENT_ID:';
 const orderDetailSectionsStorageKey =
   'project-goods.order-detail-sections';
+const orderDetailRelatedTabStorageKey =
+  'project-goods.order-detail-related-tab';
 
 const buildSupplierOrderLinkNote = (
   saleReference: string,
@@ -327,6 +351,22 @@ const writeOrderDetailSectionsState = (
     orderDetailSectionsStorageKey,
     JSON.stringify(value),
   );
+};
+
+const getStoredOrderDetailRelatedTab = (): OrdersTab => {
+  try {
+    const storedTab = window.localStorage.getItem(
+      orderDetailRelatedTabStorageKey,
+    );
+    return storedTab === 'orders' ||
+      storedTab === 'sales' ||
+      storedTab === 'supplierOrders' ||
+      storedTab === 'supplierInformation'
+      ? storedTab
+      : 'orders';
+  } catch {
+    return 'orders';
+  }
 };
 
 const getSupplierOrderStatusLabel = (
@@ -865,26 +905,294 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
+const renderLineItemsTable = (
+  items: OrderLineItem[],
+  emptyLabel: string,
+) => {
+  if (items.length === 0) {
+    return `<p class="print-muted">${emptyLabel}</p>`;
+  }
+
+  const rows = items
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(String(item.quantity))}</td>
+          <td>${escapeHtml(formatCurrency(item.price))}</td>
+          <td>${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
+        </tr>
+      `,
+    )
+    .join('');
+
+  return `
+    <table class="print-line-table">
+      <thead>
+        <tr>
+          <th>Назва</th>
+          <th>К-сть</th>
+          <th>Ціна</th>
+          <th>Сума</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+};
+
+const formatInvoiceAmount = (value: number) =>
+  new Intl.NumberFormat('uk-UA', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const pluralizeUk = (
+  value: number,
+  one: string,
+  few: string,
+  many: string,
+) => {
+  const lastTwo = value % 100;
+  const last = value % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
+};
+
+const numberToUkrainianWords = (value: number) => {
+  if (value === 0) return 'нуль';
+
+  const units = [
+    '',
+    'один',
+    'два',
+    'три',
+    'чотири',
+    "п'ять",
+    'шість',
+    'сім',
+    'вісім',
+    "дев'ять",
+  ];
+  const femaleUnits = [
+    '',
+    'одна',
+    'дві',
+    'три',
+    'чотири',
+    "п'ять",
+    'шість',
+    'сім',
+    'вісім',
+    "дев'ять",
+  ];
+  const teens = [
+    'десять',
+    'одинадцять',
+    'дванадцять',
+    'тринадцять',
+    'чотирнадцять',
+    "п'ятнадцять",
+    'шістнадцять',
+    'сімнадцять',
+    'вісімнадцять',
+    "дев'ятнадцять",
+  ];
+  const tens = [
+    '',
+    '',
+    'двадцять',
+    'тридцять',
+    'сорок',
+    "п'ятдесят",
+    'шістдесят',
+    'сімдесят',
+    'вісімдесят',
+    "дев'яносто",
+  ];
+  const hundreds = [
+    '',
+    'сто',
+    'двісті',
+    'триста',
+    'чотириста',
+    "п'ятсот",
+    'шістсот',
+    'сімсот',
+    'вісімсот',
+    "дев'ятсот",
+  ];
+
+  const chunkToWords = (chunk: number, female = false) => {
+    const parts: string[] = [];
+    const unitWords = female ? femaleUnits : units;
+    const hundred = Math.floor(chunk / 100);
+    const ten = Math.floor((chunk % 100) / 10);
+    const unit = chunk % 10;
+
+    if (hundred) parts.push(hundreds[hundred]);
+    if (ten === 1) {
+      parts.push(teens[unit]);
+    } else {
+      if (ten > 1) parts.push(tens[ten]);
+      if (unit) parts.push(unitWords[unit]);
+    }
+
+    return parts.filter(Boolean).join(' ');
+  };
+
+  const thousands = Math.floor(value / 1000);
+  const rest = value % 1000;
+  const words: string[] = [];
+  if (thousands > 0) {
+    words.push(
+      chunkToWords(thousands, true),
+      pluralizeUk(thousands, 'тисяча', 'тисячі', 'тисяч'),
+    );
+  }
+  if (rest > 0) words.push(chunkToWords(rest));
+
+  return words.filter(Boolean).join(' ');
+};
+
+const formatAmountInWords = (value: number) => {
+  const hryvnias = Math.floor(value);
+  const kopiyky = Math.round((value - hryvnias) * 100);
+  return `${numberToUkrainianWords(hryvnias)} ${pluralizeUk(
+    hryvnias,
+    'гривня',
+    'гривні',
+    'гривень',
+  )} ${String(kopiyky).padStart(2, '0')} ${pluralizeUk(
+    kopiyky,
+    'копійка',
+    'копійки',
+    'копійок',
+  )}`;
+};
+
+const renderInvoiceItemsTable = (sale: Sale) => {
+  const items = (sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale))
+    .filter((item) => item.quantity > 0)
+    .map((item, index) => {
+      const amount = item.price * item.quantity;
+      return `
+        <tr>
+          <td>${index + 1}.</td>
+          <td>
+            <strong>${escapeHtml(item.name)}</strong>
+            <span class="invoice-item-description">${escapeHtml(
+              item.serialNumbers?.length
+                ? `Серійний №: ${item.serialNumbers.join(', ')}`
+                : item.kind === 'service'
+                  ? 'Послуга'
+                  : 'Товар',
+            )}</span>
+          </td>
+          <td>${formatInvoiceAmount(item.quantity)}</td>
+          <td>${formatInvoiceAmount(item.price)}</td>
+          <td>0%</td>
+          <td>${formatInvoiceAmount(amount)}</td>
+          <td>${formatInvoiceAmount(amount)}</td>
+        </tr>
+      `;
+    });
+
+  if (items.length === 0) {
+    items.push(`
+      <tr>
+        <td>1.</td>
+        <td><strong>${escapeHtml(getPrimaryDeviceName(sale))}</strong></td>
+        <td>${formatInvoiceAmount(1)}</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+        <td>0%</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+        <td>${formatInvoiceAmount(sale.salePrice)}</td>
+      </tr>
+    `);
+  }
+
+  return `
+    <table class="invoice-items-table">
+      <thead>
+        <tr>
+          <th style="width: 34px;">№</th>
+          <th>Назва</th>
+          <th style="width: 74px;">Кількість</th>
+          <th style="width: 72px;">Ціна без ПДВ</th>
+          <th style="width: 64px;">Ставка ПДВ</th>
+          <th style="width: 82px;">Сума без ПДВ</th>
+          <th style="width: 82px;">Сума з ПДВ</th>
+        </tr>
+      </thead>
+      <tbody>${items.join('')}</tbody>
+    </table>
+  `;
+};
+
 const getPrintTemplateData = (
   sale: Sale,
+  lineItems: OrderLineItem[],
   paidAmount: number,
   orderNumber: string,
+  companySettings: PrintCompanySettings,
 ): PrintTemplateData => {
-  const total = getOrderTotal(sale);
+  const total = getOrderTotal(sale, lineItems);
+  const totalAmount = Math.round(total * 100) / 100;
+  const productItems = lineItems.filter(
+    (item) => item.kind === 'product',
+  );
+  const serviceItems = lineItems.filter(
+    (item) => item.kind === 'service',
+  );
+  const createdAt = formatDateTime(sale.createdAt);
+  const isRepair = isRepairOrder(sale);
   return {
+    id: sale.id,
     orderNumber,
+    date: createdAt.split(',')[0] ?? createdAt,
+    status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
     clientName: sale.client.name,
     clientPhone: sale.client.phone,
-    deviceName: sale.product.name,
-    serialNumber: sale.product.serialNumber,
-    article: sale.product.article,
+    deviceName: isRepair ? sale.product.name : '',
+    serialNumber: isRepair ? sale.product.serialNumber : '',
+    article: isRepair ? sale.product.article : '',
+    defect: sale.note || '-',
+    comment: sale.note || '-',
     total: formatCurrency(total),
     paid: formatCurrency(paidAmount),
-    toPay: formatCurrency(getRemainingPayment(sale, paidAmount)),
+    toPay: formatCurrency(getRemainingPayment(sale, paidAmount, lineItems)),
+    currency: 'UAH',
+    discount:
+      getDiscount(sale).value > 0
+        ? `${getDiscount(sale).value}${getDiscount(sale).mode === 'percent' ? '%' : ' UAH'}`
+        : '0 UAH',
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
-    createdAt: formatDateTime(sale.createdAt),
+    company: companySettings.company || '-',
+    company_address: companySettings.companyAddress || '-',
+    company_id: companySettings.companyId || '-',
+    company_iban: companySettings.companyIban || '-',
+    customer_reg_id: '-',
+    due_date: createdAt.split(',')[0] ?? createdAt,
+    warehouse: getWarehouseLabel(sale),
+    warehouse_address: '-',
+    warehouse_phone: '-',
+    net_amount: `${formatInvoiceAmount(totalAmount)} грн`,
+    vat_amount: '0,00 грн',
+    total_amount: `${formatInvoiceAmount(totalAmount)} грн`,
+    total_written: formatAmountInWords(totalAmount),
+    seller_occupation: 'Директор',
+    seller_name: sale.manager?.name ?? '-',
+    note_label: 'Примітка',
+    products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
+    services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
+    invoice_items_table: renderInvoiceItemsTable({ ...sale, lineItems }),
+    barcode: orderNumber,
+    createdAt,
   };
 };
 
@@ -898,6 +1206,472 @@ const formatReadyDate = (value: string) =>
   }).format(new Date(value));
 
 const getWarehouseLabel = (_sale: Sale) => 'Service center';
+
+const PrinterIcon = () => (
+  <svg
+    className='print-button-icon'
+    viewBox='0 0 24 24'
+    aria-hidden='true'
+    focusable='false'
+  >
+    <path
+      d='M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4a2 2 0 0 1-2 2h-2M7 14h10v7H7zM17 12h.01'
+      fill='none'
+      stroke='currentColor'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      strokeWidth='2'
+    />
+  </svg>
+);
+
+const renderOrderPrintCodes = async (
+  root: HTMLElement | Document,
+  fallbackValue: string,
+) => {
+  root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
+    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
+      return;
+    }
+    const value = node.dataset.barcodeValue || fallbackValue;
+    const isLabelBarcode = Boolean(node.closest('.print-label'));
+    try {
+      JsBarcode(node, value, {
+        format: 'CODE128',
+        displayValue: !isLabelBarcode,
+        fontSize: isLabelBarcode ? 18 : 12,
+        textMargin: isLabelBarcode ? 1 : 2,
+        height: isLabelBarcode ? 38 : 44,
+        margin: 0,
+      });
+    } catch {
+      node.replaceWith(node.ownerDocument.createTextNode(value));
+    }
+  });
+};
+
+const buildOrderPrintBody = (
+  forms: PrintForm[],
+  templateData: PrintTemplateData,
+  copies: number,
+  pageSize: PrintForm['pageSize'],
+  activeLabelSize: NonNullable<PrintForm['labelSize']>,
+) =>
+  Array.from({ length: Math.max(1, copies) })
+    .flatMap(() => forms)
+    .map(
+      (form) => {
+        const isLabel = pageSize === 'label' || form.pageSize === 'label';
+        const labelSize = pageSize === 'label'
+          ? activeLabelSize
+          : normalizeLabelSize(form.labelSize);
+        const labelStyle =
+          isLabel
+            ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm;"`
+            : '';
+
+        return `
+        <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>
+          ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
+        </section>
+      `;
+      },
+    )
+    .join('');
+
+const buildOrderPrintHtml = ({
+  title,
+  body,
+  pageSize,
+  labelSize,
+  orientation,
+}: {
+  title: string;
+  body: string;
+  pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
+  orientation: PrintForm['orientation'];
+}) => `
+  <!doctype html>
+  <html>
+    <head>
+      <title>${title}</title>
+      <style>
+        @page { size: ${pageSize === 'label' ? `${labelSize.widthMm}mm ${labelSize.heightMm}mm` : `A4 ${orientation}`}; margin: 0; }
+        ${printDocumentStyles}
+      </style>
+    </head>
+    <body class="${pageSize === 'label' ? 'print-body-label' : ''}">${body}</body>
+  </html>
+`;
+
+const openOrderPrintWindow = async ({
+  title,
+  body,
+  pageSize,
+  labelSize,
+  orientation,
+  orderNumber,
+  shouldPrint,
+  autoClose,
+}: {
+  title: string;
+  body: string;
+  pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
+  orientation: PrintForm['orientation'];
+  orderNumber: string;
+  shouldPrint: boolean;
+  autoClose: boolean;
+}) => {
+  const printWindow = window.open('', '_blank', 'width=980,height=760');
+  if (!printWindow) return;
+
+  printWindow.document.write(
+    buildOrderPrintHtml({ title, body, pageSize, labelSize, orientation }),
+  );
+  printWindow.document.close();
+  await renderOrderPrintCodes(printWindow.document, orderNumber);
+  printWindow.focus();
+  if (shouldPrint) {
+    if (autoClose) {
+      printWindow.addEventListener('afterprint', () => printWindow.close(), {
+        once: true,
+      });
+    }
+    printWindow.print();
+  }
+};
+
+const OrderPrintPreview = ({
+  html,
+  orderNumber,
+  pageSize,
+  labelSize,
+}: {
+  html: string;
+  orderNumber: string;
+  pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
+}) => {
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const previewStyle =
+    pageSize === 'label'
+      ? ({
+          '--label-width': `${labelSize.widthMm}mm`,
+          '--label-height': `${labelSize.heightMm}mm`,
+          width: `${labelSize.widthMm}mm`,
+          minHeight: `${labelSize.heightMm}mm`,
+        } as CSSProperties)
+      : undefined;
+
+  useEffect(() => {
+    if (previewRef.current) {
+      void renderOrderPrintCodes(previewRef.current, orderNumber);
+    }
+  }, [html, orderNumber]);
+
+  return (
+    <div
+      ref={previewRef}
+      className={
+        pageSize === 'label'
+          ? 'order-print-preview-page settings-print-preview-page settings-print-preview-page-label'
+          : 'order-print-preview-page settings-print-preview-page'
+      }
+      style={previewStyle}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
+
+type OrderPrintDialogProps = {
+  request: OrderPrintRequest;
+  printForms: PrintForm[];
+  companySettings: PrintCompanySettings;
+  onClose: () => void;
+};
+
+const OrderPrintDialog = ({
+  request,
+  printForms,
+  companySettings,
+  onClose,
+}: OrderPrintDialogProps) => {
+  const availablePrintForms = normalizePrintFormsForView(
+    printForms.length > 0 ? printForms : defaultPrintForms,
+  ).filter((form) => form.isActive);
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(() =>
+    availablePrintForms.slice(0, 1).map((form) => form.id),
+  );
+  const selectedForms = availablePrintForms.filter((form) =>
+    selectedFormIds.includes(form.id),
+  );
+  const firstSelectedForm = selectedForms[0] ?? availablePrintForms[0];
+  const [pageSize, setPageSize] = useState<PrintForm['pageSize']>(
+    firstSelectedForm?.pageSize ?? 'A4',
+  );
+  const [labelSize, setLabelSize] = useState<NonNullable<PrintForm['labelSize']>>(
+    normalizeLabelSize(firstSelectedForm?.labelSize),
+  );
+  const [orientation, setOrientation] = useState<PrintForm['orientation']>(
+    firstSelectedForm?.orientation ?? 'portrait',
+  );
+  const [copies, setCopies] = useState(1);
+  const [autoClose, setAutoClose] = useState(true);
+  const templateData = getPrintTemplateData(
+    request.sale,
+    request.lineItems,
+    request.paidAmount,
+    request.orderNumber,
+    companySettings,
+  );
+  const previewBody = buildOrderPrintBody(
+    selectedForms,
+    templateData,
+    copies,
+    pageSize,
+    labelSize,
+  );
+  const canPrint = selectedForms.length > 0;
+
+  useEffect(() => {
+    if (!firstSelectedForm) return;
+    setPageSize(firstSelectedForm.pageSize);
+    setLabelSize(normalizeLabelSize(firstSelectedForm.labelSize));
+    setOrientation(firstSelectedForm.orientation);
+  }, [firstSelectedForm?.id]);
+
+  const togglePrintForm = (formId: string) => {
+    setSelectedFormIds((current) =>
+      current.includes(formId)
+        ? current.filter((id) => id !== formId)
+        : [...current, formId],
+    );
+  };
+
+  const updateLabelPreset = (presetId: string) => {
+    const preset = labelSizePresets.find((item) => item.id === presetId);
+    setLabelSize(
+      preset
+        ? {
+            presetId: preset.id,
+            widthMm: preset.widthMm,
+            heightMm: preset.heightMm,
+          }
+        : {
+            ...labelSize,
+            presetId: customLabelSizePresetId,
+          },
+    );
+  };
+
+  const updateLabelSize = (field: 'widthMm' | 'heightMm', value: number) => {
+    setLabelSize((current) => ({
+      ...current,
+      presetId: customLabelSizePresetId,
+      [field]: value,
+    }));
+  };
+
+  const openPreviewWindow = () =>
+    openOrderPrintWindow({
+      title: `Preview ${request.orderNumber}`,
+      body: previewBody,
+      pageSize,
+      labelSize,
+      orientation,
+      orderNumber: request.orderNumber,
+      shouldPrint: false,
+      autoClose: false,
+    });
+
+  const printSelectedForms = () =>
+    openOrderPrintWindow({
+      title: `Print forms ${request.orderNumber}`,
+      body: previewBody,
+      pageSize,
+      labelSize,
+      orientation,
+      orderNumber: request.orderNumber,
+      shouldPrint: true,
+      autoClose,
+    });
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='order-print-dialog'
+        role='dialog'
+        aria-modal='true'
+        aria-label='Print order'
+      >
+        <header className='order-print-dialog-header'>
+          <div>
+            <p className='section-label'>Print preview</p>
+            <h2>{request.orderNumber}</h2>
+          </div>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label='Close print preview'
+          >
+            &times;
+          </button>
+        </header>
+
+        <div className='order-print-dialog-grid'>
+          <aside className='order-print-settings'>
+            <h3>Forms</h3>
+            <div className='order-print-form-list'>
+              {availablePrintForms.map((form) => (
+                <label key={form.id} className='payment-print-option'>
+                  <input
+                    type='checkbox'
+                    checked={selectedFormIds.includes(form.id)}
+                    onChange={() => togglePrintForm(form.id)}
+                  />
+                  <span>{form.title}</span>
+                </label>
+              ))}
+            </div>
+
+            <h3>Print settings</h3>
+            <label className='field'>
+              <span>Page size</span>
+              <select
+                value={pageSize}
+                onChange={(event) =>
+                  setPageSize(event.target.value === 'label' ? 'label' : 'A4')
+                }
+              >
+                <option value='A4'>A4</option>
+                <option value='label'>Label</option>
+              </select>
+            </label>
+            {pageSize === 'label' ? (
+              <>
+                <label className='field'>
+                  <span>Label size</span>
+                  <select
+                    value={labelSize.presetId}
+                    onChange={(event) => updateLabelPreset(event.target.value)}
+                  >
+                    {labelSizePresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </option>
+                    ))}
+                    <option value={customLabelSizePresetId}>Custom</option>
+                  </select>
+                </label>
+                <label className='field'>
+                  <span>Width, mm</span>
+                  <input
+                    type='number'
+                    min={10}
+                    max={120}
+                    step={1}
+                    value={labelSize.widthMm}
+                    disabled={labelSize.presetId !== customLabelSizePresetId}
+                    onChange={(event) =>
+                      updateLabelSize('widthMm', Number(event.target.value))
+                    }
+                  />
+                </label>
+                <label className='field'>
+                  <span>Height, mm</span>
+                  <input
+                    type='number'
+                    min={10}
+                    max={120}
+                    step={1}
+                    value={labelSize.heightMm}
+                    disabled={labelSize.presetId !== customLabelSizePresetId}
+                    onChange={(event) =>
+                      updateLabelSize('heightMm', Number(event.target.value))
+                    }
+                  />
+                </label>
+              </>
+            ) : null}
+            <label className='field'>
+              <span>Orientation</span>
+              <select
+                value={orientation}
+                onChange={(event) =>
+                  setOrientation(
+                    event.target.value === 'landscape' ? 'landscape' : 'portrait',
+                  )
+                }
+              >
+                <option value='portrait'>Portrait</option>
+                <option value='landscape'>Landscape</option>
+              </select>
+            </label>
+            <label className='field'>
+              <span>Copies</span>
+              <input
+                type='number'
+                min={1}
+                max={10}
+                value={copies}
+                onChange={(event) =>
+                  setCopies(Math.min(Math.max(Number(event.target.value) || 1, 1), 10))
+                }
+              />
+            </label>
+            <label className='settings-check'>
+              <input
+                type='checkbox'
+                checked={autoClose}
+                onChange={(event) => setAutoClose(event.target.checked)}
+              />
+              <span>Close print window after print</span>
+            </label>
+          </aside>
+
+          <main className='order-print-preview'>
+            {canPrint ? (
+              <OrderPrintPreview
+                html={previewBody}
+                orderNumber={request.orderNumber}
+                pageSize={pageSize}
+                labelSize={labelSize}
+              />
+            ) : (
+              <p className='empty-state'>Select at least one print form.</p>
+            )}
+          </main>
+        </div>
+
+        <footer className='order-print-dialog-footer'>
+          <button type='button' className='secondary-button' onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type='button'
+            className='secondary-button'
+            onClick={() => void openPreviewWindow()}
+            disabled={!canPrint}
+          >
+            Preview
+          </button>
+          <button
+            type='button'
+            className='primary-button print-action-button'
+            onClick={() => void printSelectedForms()}
+            disabled={!canPrint}
+          >
+            <PrinterIcon />
+            Print
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+};
 
 const getIsoDatePart = (value: string) => value.slice(0, 10);
 const isIsoDateWithinRange = (
@@ -1142,6 +1916,7 @@ export const OrdersWorkspace = ({
   onOpenClientCard,
   products,
   printForms,
+  printCompanySettings,
   onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
@@ -1158,6 +1933,9 @@ export const OrdersWorkspace = ({
     useState<OrdersColumnVisibility>(readVisibleColumns);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
+    null,
+  );
+  const [printRequest, setPrintRequest] = useState<OrderPrintRequest | null>(
     null,
   );
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
@@ -1781,6 +2559,18 @@ export const OrdersWorkspace = ({
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
+  const openPrintDialog = (
+    sale: Sale,
+    lineItems = getLineItems(sale),
+    paidAmount = getPaidAmount(sale),
+  ) => {
+    setPrintRequest({
+      sale,
+      lineItems,
+      paidAmount,
+      orderNumber: buildOrderNumber(sale),
+    });
+  };
   const openStatusSale = useMemo(
     () =>
       openStatusSaleId
@@ -2527,9 +3317,18 @@ export const OrdersWorkspace = ({
       currentItems.find((item) => item.id === itemId) ??
       (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
     if (!removedItem) return;
-    if (getPaidAmount(sale) > 0) {
+    const paidAmount = getPaidAmount(sale);
+    if (
+      !canRemoveLineItemAfterPayment(
+        currentItems,
+        itemId,
+        itemIndex,
+        paidAmount,
+        getDiscount(sale),
+      )
+    ) {
       onError(
-        'Cannot remove product or service from a paid order before refund.',
+        'Refund the line item amount before removing it from the order.',
       );
       return;
     }
@@ -2551,13 +3350,13 @@ export const OrdersWorkspace = ({
     if (nextItems.length === 0) {
       void persistSaleWorkspace(sale, {
         lineItems: [],
-        paidAmount: getPaidAmount(sale),
+        paidAmount,
       });
       return;
     }
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
-      paidAmount: getPaidAmount(sale),
+      paidAmount,
       timeline: [
         appendTimelineEntry(
           removedItem.kind === 'product'
@@ -3206,6 +4005,13 @@ export const OrdersWorkspace = ({
             openPaymentModal(
               selectedSale,
               isRepairOrder(selectedSale) ? 'paid' : 'issued',
+            )
+          }
+          onOpenPrint={() =>
+            openPrintDialog(
+              selectedSale,
+              getLineItems(selectedSale),
+              getPaidAmount(selectedSale),
             )
           }
           onRefundPayment={() => openRefundModal(selectedSale)}
@@ -3881,7 +4687,23 @@ export const OrdersWorkspace = ({
           onPaymentMethodChange={setPaymentMethod}
           onAmountChange={setPaymentAmount}
           onClose={() => setPaymentSale(null)}
+          onOpenPrint={() =>
+            openPrintDialog(
+              paymentSale,
+              getLineItems(paymentSale),
+              getPaidAmount(paymentSale),
+            )
+          }
           onSubmit={acceptPayment}
+        />
+      ) : null}
+
+      {printRequest ? (
+        <OrderPrintDialog
+          request={printRequest}
+          printForms={printForms}
+          companySettings={printCompanySettings}
+          onClose={() => setPrintRequest(null)}
         />
       ) : null}
 
@@ -3993,6 +4815,7 @@ type OrderDetailCardProps = {
   onReturnLineItem: (item: OrderLineItem) => void;
   onOpenRelatedSale: (sale: Sale) => void;
   onAcceptPayment: () => void;
+  onOpenPrint: () => void;
   onRefundPayment: () => void;
   onDiscountChange: (discount: {
     mode: 'percent' | 'amount';
@@ -4033,6 +4856,7 @@ const OrderDetailCard = ({
   onReturnLineItem,
   onOpenRelatedSale,
   onAcceptPayment,
+  onOpenPrint,
   onRefundPayment,
   onDiscountChange,
   onOpenClientCard,
@@ -4049,7 +4873,9 @@ const OrderDetailCard = ({
     isSaleCard ? false : true,
   );
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
-  const [relatedTab, setRelatedTab] = useState<OrdersTab>('orders');
+  const [relatedTab, setRelatedTab] = useState<OrdersTab>(
+    getStoredOrderDetailRelatedTab,
+  );
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
@@ -4086,6 +4912,9 @@ const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
+  const hasSaleProductSerials =
+    isSaleCard &&
+    productItems.some((item) => (item.serialNumbers ?? []).length > 0);
   const isProductBlockReadOnly =
     isSaleCard
       ? isReadOnly
@@ -4124,6 +4953,16 @@ const OrderDetailCard = ({
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        orderDetailRelatedTabStorageKey,
+        relatedTab,
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [relatedTab]);
   useEffect(() => {
     setSerialNumberInput(getPrimaryDeviceSerial(sale));
     setMasterIdInput(sale.master?.id ?? '');
@@ -4184,6 +5023,52 @@ const OrderDetailCard = ({
       ? isRepairOrder(item)
       : !isRepairOrder(item),
   );
+  const clientStats = useMemo(() => {
+    const stats = relatedRecords.reduce(
+      (accumulator, item) => {
+        const total = getOrderTotal(item);
+        if (isRepairOrder(item)) {
+          accumulator.repairsCount += 1;
+          accumulator.repairsAmount += total;
+        } else {
+          accumulator.salesCount += 1;
+          accumulator.salesAmount += total;
+        }
+        return accumulator;
+      },
+      {
+        salesCount: 0,
+        salesAmount: 0,
+        repairsCount: 0,
+        repairsAmount: 0,
+      },
+    );
+    const validCreatedAt = relatedRecords
+      .map((item) => ({
+        value: item.createdAt,
+        time: getCreatedTime(item),
+      }))
+      .filter((item) => Number.isFinite(item.time));
+    const firstContactAt =
+      validCreatedAt.length > 0
+        ? validCreatedAt.reduce((previous, current) =>
+            current.time < previous.time ? current : previous,
+          ).value
+        : null;
+    const lastContactAt =
+      validCreatedAt.length > 0
+        ? validCreatedAt.reduce((previous, current) =>
+            current.time > previous.time ? current : previous,
+          ).value
+        : null;
+    return {
+      ...stats,
+      totalCount: stats.salesCount + stats.repairsCount,
+      totalAmount: stats.salesAmount + stats.repairsAmount,
+      firstContactAt,
+      lastContactAt,
+    };
+  }, [relatedRecords]);
   const saleProductNames = useMemo(
     () =>
       new Set(
@@ -4404,7 +5289,18 @@ const OrderDetailCard = ({
                 </div>
                 <div>
                   <dt>S/N</dt>
-                  <dd>{serialNumberInput || '-'}</dd>
+                  <dd className='order-detail-serial-value'>
+                    <span>{serialNumberInput || '-'}</span>
+                    <button
+                      type='button'
+                      className='toolbar-square-button order-print-icon-button'
+                      onClick={onOpenPrint}
+                      aria-label='Print order'
+                      title='Print order'
+                    >
+                      <PrinterIcon />
+                    </button>
+                  </dd>
                 </div>
               </>
             )}
@@ -4557,6 +5453,17 @@ const OrderDetailCard = ({
               {isProductsOpen ? '⌃' : '⌄'}
             </span>
           </button>
+          {isSaleCard && !hasSaleProductSerials ? (
+            <button
+              type='button'
+              className='toolbar-square-button order-print-icon-button order-products-print-button'
+              onClick={onOpenPrint}
+              aria-label='Print sale'
+              title='Print sale'
+            >
+              <PrinterIcon />
+            </button>
+          ) : null}
           {isProductsOpen ? (
             <LineItemsPanel
               title='Products'
@@ -4567,6 +5474,7 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={productItems}
+              allItems={lineItems}
               products={products}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -4574,11 +5482,13 @@ const OrderDetailCard = ({
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isOrderPaid={paidAmount > 0}
+              paidAmount={paidAmount}
+              discount={getDiscount(sale)}
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               isReadOnly={isProductBlockReadOnly}
+              onOpenPrint={isSaleCard && hasSaleProductSerials ? onOpenPrint : undefined}
             />
           ) : null}
         </section>
@@ -4608,6 +5518,7 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={serviceItems}
+              allItems={lineItems}
               products={products}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -4615,7 +5526,8 @@ const OrderDetailCard = ({
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isOrderPaid={paidAmount > 0}
+              paidAmount={paidAmount}
+              discount={getDiscount(sale)}
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
@@ -4773,6 +5685,43 @@ const OrderDetailCard = ({
                   );
                 })
               )
+            ) : relatedTab === 'supplierInformation' ? (
+              <dl className='order-payment-list order-related-stats-list'>
+                <div>
+                  <dt>Orders (sales)</dt>
+                  <dd>
+                    {clientStats.salesCount} | {formatCurrency(clientStats.salesAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Repair orders</dt>
+                  <dd>
+                    {clientStats.repairsCount} | {formatCurrency(clientStats.repairsAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>
+                    {clientStats.totalCount} | {formatCurrency(clientStats.totalAmount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>First contact</dt>
+                  <dd>
+                    {clientStats.firstContactAt
+                      ? formatReadyDate(clientStats.firstContactAt)
+                      : '-'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Last contact</dt>
+                  <dd>
+                    {clientStats.lastContactAt
+                      ? formatReadyDate(clientStats.lastContactAt)
+                      : '-'}
+                  </dd>
+                </div>
+              </dl>
             ) : relatedVisibleRecords.length === 0 ? (
               <p>
                 {relatedTab === 'orders'
@@ -4844,7 +5793,7 @@ const OrderDetailCard = ({
           ) {
             return;
           }
-          await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
+          const result = await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
             autoGenerateSerialNumbers,
             serialNumbers,
             autoGenerateArticles,
@@ -4860,6 +5809,7 @@ const OrderDetailCard = ({
           setIsRelatedSupplierOrderModalOpen(false);
           setRelatedSupplierOrderSource(null);
           setRelatedSupplierOrderItemIndex(null);
+          return result;
         }}
         onCancelOrder={async () => {
           if (
@@ -4959,6 +5909,7 @@ type LineItemsPanelProps = {
   currentClientId: string;
   currentStatus: OrderStatus;
   items: OrderLineItem[];
+  allItems: OrderLineItem[];
   products: Product[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
@@ -4984,12 +5935,14 @@ type LineItemsPanelProps = {
     >,
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
-  isOrderPaid: boolean;
+  paidAmount: number;
+  discount: ReturnType<typeof getDiscount>;
   isReadOnly: boolean;
   onSupplierOrderCreated: () => Promise<void>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  onOpenPrint?: () => void;
 };
 
 const LineItemsPanel = ({
@@ -5001,18 +5954,21 @@ const LineItemsPanel = ({
   currentClientId,
   currentStatus,
   items,
+  allItems,
   products,
   onAddItem,
   onReplaceItem,
   onRemoveItem,
   onUpdateItem,
   onReturnItem,
-  isOrderPaid,
+  paidAmount,
+  discount,
   isReadOnly,
   onSupplierOrderCreated,
   onUpdateProductModel,
   onError,
   onSuccess,
+  onOpenPrint,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -5061,6 +6017,9 @@ const LineItemsPanel = ({
     useState('');
   const [supplierOrderInitialQuantity, setSupplierOrderInitialQuantity] =
     useState(1);
+  const firstPrintableSerialItemIndex = items.findIndex(
+    (item) => item.kind === 'product' && (item.serialNumbers ?? []).length > 0,
+  );
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
@@ -5129,12 +6088,21 @@ const LineItemsPanel = ({
   }, [currentSaleId, sales, serialsEditingItem]);
   const getProductSuggestionState = (product: Product) =>
     getProductSerialAvailability(product, serialUsage);
-  const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
+  const canRemoveItemAfterPayment = (item: OrderLineItem) =>
+    canRemoveLineItemAfterPayment(
+      allItems,
+      item.id,
+      undefined,
+      paidAmount,
+      discount,
+    );
+  const canRemoveServiceItem = (item: OrderLineItem) =>
+    !isReadOnly && canRemoveItemAfterPayment(item);
   const isIssuedSale = currentStatus === 'issued';
   const canDirectRemoveProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
     !isReadOnly &&
-    !isOrderPaid &&
+    canRemoveItemAfterPayment(item) &&
     (item.serialNumbers ?? []).length === 0;
   const isRepairFinalStockStatus =
     stockLockedRepairStatuses.has(currentStatus as RepairStatus);
@@ -5154,8 +6122,8 @@ const LineItemsPanel = ({
     if (isReadOnly) {
       return 'Use Return flow for shipped serialized product.';
     }
-    if (isOrderPaid) {
-      return 'Refund is required before removing items.';
+    if (!canRemoveItemAfterPayment(item)) {
+      return 'Refund the line item amount before removing it.';
     }
     if ((item.serialNumbers ?? []).length > 0) {
       return 'Unbind serial numbers before removing this product.';
@@ -5320,6 +6288,9 @@ const LineItemsPanel = ({
           setProductSuggestions(
             products
               .filter((product) => {
+                if (!getProductSuggestionState(product).selectable) {
+                  return false;
+                }
                 const lookupFields = [
                   product.name,
                   product.article,
@@ -5343,15 +6314,7 @@ const LineItemsPanel = ({
                 if (firstExactSerial !== secondExactSerial) {
                   return firstExactSerial - secondExactSerial;
                 }
-                const firstSelectable = getProductSuggestionState(first)
-                  .selectable
-                  ? 0
-                  : 1;
-                const secondSelectable = getProductSuggestionState(second)
-                  .selectable
-                  ? 0
-                  : 1;
-                return firstSelectable - secondSelectable;
+                return first.name.localeCompare(second.name);
               })
               .slice(0, 8),
           );
@@ -5674,8 +6637,19 @@ const LineItemsPanel = ({
                 </button>
                 {item.kind === 'product' &&
                 (item.serialNumbers ?? []).length > 0 ? (
-                  <p className='muted-copy'>
+                  <p className='muted-copy order-line-item-serials'>
                     {`S/N: ${(item.serialNumbers ?? []).join(', ')}`}
+                    {onOpenPrint && itemIndex === firstPrintableSerialItemIndex ? (
+                      <button
+                        type='button'
+                        className='toolbar-square-button order-print-icon-button'
+                        onClick={onOpenPrint}
+                        aria-label='Print sale'
+                        title='Print sale'
+                      >
+                        <PrinterIcon />
+                      </button>
+                    ) : null}
                   </p>
                 ) : null}
               </div>
@@ -5743,10 +6717,11 @@ const LineItemsPanel = ({
                     (item.serialNumbers ?? []).length > 0;
                   const canDirectRemove = canDirectRemoveProductItem(item);
                   const canReturnIssued = canReturnIssuedProductItem(item);
+                  const canRemoveService = canRemoveServiceItem(item);
                   const canOpenSerials = !isReadOnly || hasBoundSerials;
                   const actionDisabled = isProduct
                     ? !canDirectRemove && !canReturnIssued
-                    : !canRemoveServiceItem;
+                    : !canRemoveService;
                   const actionLabel = isProduct
                     ? canReturnIssued
                       ? 'Return'
@@ -5758,7 +6733,7 @@ const LineItemsPanel = ({
                       : !isProduct && actionDisabled
                         ? isReadOnly
                           ? 'Editing is blocked for current order status.'
-                          : 'Refund is required before removing items.'
+                          : 'Refund the line item amount before removing it.'
                         : '';
                   return (
                     <>
@@ -5873,6 +6848,10 @@ const LineItemsPanel = ({
                   key={product.id}
                   type='button'
                   className='create-suggestion-item'
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    applyProductSuggestion(product);
+                  }}
                   onClick={() => applyProductSuggestion(product)}
                   disabled={isReadOnly || !state.selectable}
                   title={state.selectable ? undefined : state.label}
@@ -6381,6 +7360,7 @@ type PaymentModalProps = {
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onAmountChange: (amount: string) => void;
   onClose: () => void;
+  onOpenPrint: () => void;
   onSubmit: (action: PaymentAction) => void;
 };
 
@@ -6400,6 +7380,7 @@ const PaymentModal = ({
   onPaymentMethodChange,
   onAmountChange,
   onClose,
+  onOpenPrint,
   onSubmit,
 }: PaymentModalProps) => {
   const total = getOrderBaseTotal(sale, lineItems);
@@ -6415,7 +7396,6 @@ const PaymentModal = ({
       (Number.isFinite(numericAmount) ? numericAmount : 0),
     0,
   );
-  const orderNumber = sale.recordNumber ?? 'r------';
   const submitWithStatusLabel =
     paymentTargetStatus === 'paid'
       ? 'Accept and mark paid'
@@ -6424,14 +7404,9 @@ const PaymentModal = ({
     paymentTargetStatus === 'paid'
       ? 'Mark paid without payment'
       : 'Issue without payment';
-  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
-  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
-    [],
-  );
-  const printMenuRef = useRef<HTMLDivElement | null>(null);
-  const availablePrintForms = normalizePrintFormsForView(
+  const hasAvailablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
-  ).filter((form) => form.isActive);
+  ).some((form) => form.isActive);
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -6459,80 +7434,6 @@ const PaymentModal = ({
       currentPaymentRemaining > 0);
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
-
-  useEffect(() => {
-    if (!isPrintMenuOpen) return;
-
-    const closePrintMenuOnOutsideClick = (event: MouseEvent) => {
-      if (!printMenuRef.current?.contains(event.target as Node)) {
-        setIsPrintMenuOpen(false);
-      }
-    };
-
-    document.addEventListener(
-      'mousedown',
-      closePrintMenuOnOutsideClick,
-    );
-
-    return () => {
-      document.removeEventListener(
-        'mousedown',
-        closePrintMenuOnOutsideClick,
-      );
-    };
-  }, [isPrintMenuOpen]);
-
-  const togglePrintForm = (formId: string) => {
-    setSelectedFormIds((current) =>
-      current.includes(formId)
-        ? current.filter((id) => id !== formId)
-        : [...current, formId],
-    );
-  };
-
-  const printSelectedForms = () => {
-    const formsToPrint = availablePrintForms.filter((form) =>
-      selectedFormIds.includes(form.id),
-    );
-    if (formsToPrint.length === 0) return;
-
-    const printWindow = window.open(
-      '',
-      '_blank',
-      'width=900,height=700',
-    );
-    if (!printWindow) return;
-
-    const body = formsToPrint
-      .map(
-        (form) => `
-          <section class="print-form">
-            <h1>${escapeHtml(form.title)}</h1>
-            <pre>${escapeHtml(renderSettingsPrintTemplate(form.content, getPrintTemplateData(sale, paidAmount, orderNumber)))}</pre>
-          </section>
-        `,
-      )
-      .join('');
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <title>Print forms ${orderNumber}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #1f2937; }
-            .print-form { page-break-after: always; border: 1px solid #d1d5db; padding: 24px; margin-bottom: 24px; }
-            h1 { margin-top: 0; }
-            pre { white-space: pre-wrap; font: inherit; line-height: 1.5; }
-          </style>
-        </head>
-        <body>${body}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
 
   return (
     <div className='modal-backdrop' role='presentation'>
@@ -6637,43 +7538,15 @@ const PaymentModal = ({
         </div>
 
         <footer className='payment-modal-footer'>
-          <div className='payment-print-menu' ref={printMenuRef}>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={() =>
-                setIsPrintMenuOpen((current) => !current)
-              }
-              disabled={isSaving || availablePrintForms.length === 0}
-            >
-              Print
-            </button>
-            {isPrintMenuOpen ? (
-              <div className='payment-print-options'>
-                {availablePrintForms.map((form) => (
-                  <label
-                    key={form.id}
-                    className='payment-print-option'
-                  >
-                    <input
-                      type='checkbox'
-                      checked={selectedFormIds.includes(form.id)}
-                      onChange={() => togglePrintForm(form.id)}
-                    />
-                    <span>{form.title}</span>
-                  </label>
-                ))}
-                <button
-                  type='button'
-                  className='primary-button'
-                  onClick={printSelectedForms}
-                  disabled={selectedFormIds.length === 0}
-                >
-                  Print selected
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <button
+            type='button'
+            className='secondary-button print-action-button'
+            onClick={onOpenPrint}
+            disabled={isSaving || !hasAvailablePrintForms}
+          >
+            <PrinterIcon />
+            Print
+          </button>
           <div className='payment-modal-actions'>
             <button
               type='button'

@@ -115,6 +115,10 @@ describe('normalizeSettingsPayload', () => {
   it('normalizes print forms and nested settings', () => {
     const result = normalizeSettingsPayload({
       serviceName: '  Repair CRM  ',
+      company: '  Repair Company  ',
+      companyAddress: '  Kyiv, Main street 1  ',
+      companyId: '  12345678  ',
+      companyIban: '  UA123456789123456789123456789  ',
       printForms: [
         {
           id: ' receipt ',
@@ -153,6 +157,10 @@ describe('normalizeSettingsPayload', () => {
 
     expect(result).toMatchObject({
       serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
       printForms: [
         {
           id: 'receipt',
@@ -189,6 +197,39 @@ describe('normalizeSettingsPayload', () => {
     });
   });
 
+  it('normalizes label sizes for label print forms', () => {
+    const result = normalizeSettingsPayload({
+      printForms: [
+        {
+          title: 'Barcode',
+          content: '{{barcode}}',
+          pageSize: 'label',
+          labelSize: {
+            presetId: 'custom',
+            widthMm: '200',
+            heightMm: '5',
+          },
+        },
+        {
+          title: 'Legacy barcode',
+          content: '{{barcode}}',
+          pageSize: 'label',
+        },
+      ],
+    });
+
+    expect(result.printForms[0].labelSize).toEqual({
+      presetId: 'custom',
+      widthMm: 120,
+      heightMm: 10,
+    });
+    expect(result.printForms[1].labelSize).toEqual({
+      presetId: '25x40',
+      widthMm: 25,
+      heightMm: 40,
+    });
+  });
+
   it('falls back to safe defaults for invalid settings values', () => {
     const result = normalizeSettingsPayload({
       serviceName: '',
@@ -207,6 +248,10 @@ describe('normalizeSettingsPayload', () => {
     });
 
     expect(result.serviceName).toBe('Service CRM');
+    expect(result.company).toBe('Service CRM');
+    expect(result.companyAddress).toBe('');
+    expect(result.companyId).toBe('');
+    expect(result.companyIban).toBe('');
     expect(result.printForms).toEqual([]);
     expect(result.orderDefaults.defaultRepairTermDays).toBe(0);
     expect(result.orderDefaults.defaultWarrantyMonths).toBe(1);

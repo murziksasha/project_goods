@@ -288,6 +288,24 @@ const clampInteger = (
   min: number,
 ) => Math.max(min, Math.floor(toFiniteNumber(value, fallback)));
 
+const defaultLabelSize = {
+  presetId: '25x40',
+  widthMm: 25,
+  heightMm: 40,
+};
+
+const labelSizePresetIds = new Set([
+  '25x40',
+  '40x25',
+  '30x20',
+  '58x40',
+  '58x30',
+  'custom',
+]);
+
+const clampLabelSizeMm = (value: unknown, fallback: number) =>
+  Math.min(Math.max(toFiniteNumber(value, fallback), 10), 120);
+
 const readObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
@@ -303,6 +321,10 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
 
   return {
     serviceName: toNonEmptyString(payload.serviceName) || 'Service CRM',
+    company: toNonEmptyString(payload.company) || 'Service CRM',
+    companyAddress: toNonEmptyString(payload.companyAddress),
+    companyId: toNonEmptyString(payload.companyId),
+    companyIban: toNonEmptyString(payload.companyIban),
     printForms: Array.isArray(payload.printForms)
       ? payload.printForms
           .map((item, index) => {
@@ -311,6 +333,13 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
             const content = toNonEmptyString(source.content);
             if (!title || !content) return null;
 
+            const pageSize =
+              toNonEmptyString(source.pageSize) === 'label'
+                ? 'label'
+                : 'A4';
+            const labelSize = readObject(source.labelSize);
+            const presetId = toNonEmptyString(labelSize.presetId);
+
             return {
               id:
                 toNonEmptyString(source.id) ||
@@ -318,6 +347,31 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
               title,
               type: toNonEmptyString(source.type) || 'custom',
               content,
+              contentFormat:
+                toNonEmptyString(source.contentFormat) === 'html'
+                  ? 'html'
+                  : 'text',
+              pageSize,
+              labelSize:
+                pageSize === 'label'
+                  ? {
+                      presetId: labelSizePresetIds.has(presetId)
+                        ? presetId
+                        : defaultLabelSize.presetId,
+                      widthMm: clampLabelSizeMm(
+                        labelSize.widthMm,
+                        defaultLabelSize.widthMm,
+                      ),
+                      heightMm: clampLabelSizeMm(
+                        labelSize.heightMm,
+                        defaultLabelSize.heightMm,
+                      ),
+                    }
+                  : undefined,
+              orientation:
+                toNonEmptyString(source.orientation) === 'landscape'
+                  ? 'landscape'
+                  : 'portrait',
               isActive: toBoolean(source.isActive, true),
               sortOrder: clampInteger(source.sortOrder, (index + 1) * 10, 0),
             };

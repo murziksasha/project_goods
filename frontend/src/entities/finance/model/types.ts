@@ -1,5 +1,6 @@
 export type FinanceCurrency = string;
 export type FinanceTransactionType = 'deposit' | 'withdraw' | 'transfer';
+export type FinanceTransactionStatus = 'active' | 'cancelled';
 
 export type Cashbox = {
   id: string;
@@ -20,6 +21,11 @@ export type FinanceTransaction = {
   toCashbox: { id: string; name: string } | null;
   note: string;
   transactionDate: string;
+  status: FinanceTransactionStatus;
+  isCancellation: boolean;
+  cancelsTransactionId?: string;
+  cancellationTransactionId?: string;
+  cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
 };

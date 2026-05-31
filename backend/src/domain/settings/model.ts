@@ -1,60 +1,95 @@
 import mongoose from 'mongoose';
 
+export const defaultLabelSize = {
+  presetId: '25x40',
+  widthMm: 25,
+  heightMm: 40,
+};
+
 export const defaultPrintForms = [
   {
     id: 'receipt',
-    title: 'Receipt',
+    title: 'Квитанція',
     type: 'receipt',
     content:
-      'Receipt for order {{orderNumber}}\nClient: {{clientName}}\nPhone: {{clientPhone}}\nDevice: {{deviceName}}\nAmount: {{total}}',
+      '<div class="print-document"><div class="print-header print-header-right"><div><h2>{{company}}</h2><p>{{warehouse_address}} {{warehouse_phone}}</p></div></div><div class="print-title-row"><h1>Квитанція №{{orderNumber}} від {{date}}</h1><div class="print-code-block">{{barcode}}</div></div><table class="print-details-table"><tbody><tr><td>Замовлення</td><td>{{orderNumber}}</td><td>Клієнт</td><td>{{clientName}}</td></tr><tr><td>Телефон</td><td>{{clientPhone}}</td><td>Передплата</td><td>{{paid}}</td></tr><tr><td>Сума</td><td>{{total}}</td><td>До сплати</td><td>{{toPay}}</td></tr></tbody></table><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<ol class="print-terms"><li>Сервісний центр не несе відповідальності за втрату даних в пам&apos;яті пристрою.</li><li>Термін діагностики - від 1 до 3-х днів.</li><li>Гарантія поширюється на виконані роботи та встановлені деталі.</li></ol><div class="print-signatures"><span>Прийняв: {{managerName}}</span><span>Клієнт: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 10,
   },
   {
     id: 'check',
-    title: 'Check',
+    title: 'Чек',
     type: 'check',
     content:
-      'Check\nOrder: {{orderNumber}}\nPaid: {{paid}}\nTo pay: {{toPay}}',
+      '<div class="print-document"><h1>Чек оплати</h1><table class="print-summary-table"><tbody><tr><td>Замовлення</td><td>{{orderNumber}}</td></tr><tr><td>Клієнт</td><td>{{clientName}}</td></tr><tr><td>Сума</td><td><strong>{{total}}</strong></td></tr><tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr><tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr></tbody></table><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<div class="print-code-row">{{barcode}}</div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 20,
   },
   {
     id: 'warranty',
-    title: 'Warranty',
+    title: 'Гарантійний талон',
     type: 'warranty',
     content:
-      'Warranty document\nDevice: {{deviceName}}\nS/N: {{serialNumber}}\nClient: {{clientName}}\nMaster: {{masterName}}',
+      '<div class="print-document"><h1>Гарантійний талон</h1><p>Замовлення №{{orderNumber}} від {{date}}</p><p><strong>Клієнт:</strong> {{clientName}}</p><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<p><strong>Майстер:</strong> {{masterName}}</p><p>Гарантія діє за умови відсутності механічних пошкоджень та слідів стороннього втручання.</p><div class="print-signatures"><span>Сервіс: __________________</span><span>Клієнт: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 30,
   },
   {
     id: 'completion-act',
-    title: 'Completion act',
+    title: 'Акт виконаних робіт',
     type: 'completion-act',
     content:
-      'Completion act\nOrder: {{orderNumber}}\nWork: {{note}}\nTotal: {{total}}',
+      '<div class="print-document"><h1>Акт виконаних робіт №{{orderNumber}}</h1><p>Дата: {{date}}</p><p><strong>Клієнт:</strong> {{clientName}}, {{clientPhone}}</p><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<p class="print-total-line">Разом: <strong>{{total}}</strong></p><div class="print-signatures"><span>Виконавець: {{masterName}}</span><span>Замовник: __________________</span></div></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 40,
   },
   {
     id: 'invoice',
-    title: 'Invoice',
+    title: 'Рахунок',
     type: 'invoice',
     content:
-      'Invoice for payment\nOrder: {{orderNumber}}\nClient: {{clientName}}\nTotal: {{total}}',
+      '<div class="print-document"><div class="invoice-party"><strong>Постачальник</strong><div><b>{{company}}</b><br>Адреса: {{company_address}}<br>ЄДРПОУ або ІПН: {{company_id}}<br>не є платником податку на прибуток на загальних умовах<br><b>Р/р {{company_iban}}</b></div></div><div class="invoice-party"><strong>Одержувач</strong><div><b>{{clientName}}</b><br>ЄДРПОУ або ІПН: {{customer_reg_id}}<br>{{clientPhone}}<br>{{warehouse_address}}</div></div><div class="invoice-title"><h1>Рахунок фактура № {{orderNumber}}</h1><p>від {{date}} р.</p></div>{{invoice_items_table}}<table class="invoice-totals"><tbody><tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr><tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr><tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr></tbody></table><div class="invoice-written"><p>Всього на суму: <strong>{{total_written}}</strong></p><p>ПДВ: {{vat_amount}}</p></div><div class="invoice-payable"><strong>Загальна сума до оплати:</strong><strong>{{total_amount}}</strong></div><div class="invoice-signature"><strong><em>{{seller_occupation}}</em></strong><span></span><strong><em>{{seller_name}}</em></strong></div><p class="invoice-note"><strong>{{note_label}}:</strong> {{note}}</p></div>',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 50,
   },
   {
     id: 'barcode',
-    title: 'Barcode label',
+    title: 'Штрих-код',
     type: 'barcode',
-    content: 'Barcode form\nOrder: {{orderNumber}}\nS/N: {{serialNumber}}',
+    content:
+      '<div class="print-label"><div class="print-label-code">{{barcode}}</div><strong>{{orderNumber}}</strong><span>{{clientPhone}}</span><span>{{deviceName}}</span></div>',
+    contentFormat: 'html',
+    pageSize: 'label',
+    labelSize: defaultLabelSize,
+    orientation: 'portrait',
     isActive: true,
     sortOrder: 60,
   },
 ];
+
+export const legacyDefaultPrintFormTitles = new Set([
+  'Receipt',
+  'Check',
+  'Warranty',
+  'Completion act',
+  'Invoice',
+  'Barcode label',
+]);
 
 const printFormSchema = new mongoose.Schema(
   {
@@ -77,7 +112,41 @@ const printFormSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 10000,
+      maxlength: 30000,
+    },
+    contentFormat: {
+      type: String,
+      enum: ['html', 'text'],
+      default: 'text',
+    },
+    pageSize: {
+      type: String,
+      enum: ['A4', 'label'],
+      default: 'A4',
+    },
+    labelSize: {
+      presetId: {
+        type: String,
+        trim: true,
+        default: defaultLabelSize.presetId,
+      },
+      widthMm: {
+        type: Number,
+        min: 10,
+        max: 120,
+        default: defaultLabelSize.widthMm,
+      },
+      heightMm: {
+        type: Number,
+        min: 10,
+        max: 120,
+        default: defaultLabelSize.heightMm,
+      },
+    },
+    orientation: {
+      type: String,
+      enum: ['portrait', 'landscape'],
+      default: 'portrait',
     },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
@@ -94,6 +163,26 @@ export const settingsSchema = new mongoose.Schema(
       minlength: [2, 'Service name must contain at least 2 characters'],
       maxlength: [120, 'Service name must contain no more than 120 characters'],
       default: 'Service CRM',
+    },
+    company: {
+      type: String,
+      trim: true,
+      default: 'Service CRM',
+    },
+    companyAddress: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companyId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companyIban: {
+      type: String,
+      trim: true,
+      default: '',
     },
     printForms: {
       type: [printFormSchema],

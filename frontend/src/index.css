@@ -2,4 +2,5 @@
 @import './shared/styles/layout.css';
 @import './shared/styles/forms.css';
 @import './shared/styles/lists.css';
+@import './shared/styles/pwa.css';
 @import './shared/styles/responsive.css';

@@ -96,6 +96,7 @@
   .supplier-information-summary,
   .supplier-information-grid,
   .supplier-information-price-grid,
+  .finance-orders-summary-grid,
   .finance-report-grid-wide,
   .finance-information-grid,
   .finance-operation-grid,
@@ -176,17 +177,30 @@
   }
 
   .orders-table .finance-orders-col-number {
-    width: 78px;
-    min-width: 78px;
+    width: 128px;
+    min-width: 128px;
   }
 
   .orders-table .finance-orders-col-payment {
-    width: 350px;
-    min-width: 350px;
+    width: 360px;
+    min-width: 360px;
+  }
+
+  .finance-orders-table {
+    min-width: 860px;
+  }
+
+  .finance-orders-payment-actions {
+    grid-template-columns: minmax(118px, 1fr) 58px minmax(118px, 1fr);
+  }
+
+  .finance-orders-payment-actions .primary-button {
+    width: 58px;
+    min-width: 58px;
   }
 
   .finance-orders-payment-actions .secondary-button {
-    min-width: 120px;
+    min-width: 0;
   }
 
   .order-status {
@@ -319,8 +333,36 @@
     width: 100%;
   }
 
+  .warehouse-bulk-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .warehouse-bulk-actions strong {
+    margin-right: 0;
+  }
+
   .payment-print-options {
     width: min(100vw - 56px, 280px);
+  }
+
+  .order-print-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .order-print-dialog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-print-settings {
+    max-height: 300px;
+    border-right: 0;
+    border-bottom: 1px solid #dbe3ec;
+  }
+
+  .order-print-dialog-footer {
+    flex-wrap: wrap;
   }
 
   .settings-print-grid {

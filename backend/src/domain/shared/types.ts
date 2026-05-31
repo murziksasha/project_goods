@@ -77,6 +77,10 @@ export type EmployeePayload = {
 
 export type SettingsPayload = {
   serviceName?: unknown;
+  company?: unknown;
+  companyAddress?: unknown;
+  companyId?: unknown;
+  companyIban?: unknown;
   printForms?: unknown;
   orderDefaults?: unknown;
   numbering?: unknown;

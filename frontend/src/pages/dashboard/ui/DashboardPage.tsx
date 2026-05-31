@@ -62,6 +62,7 @@ const ordersTabs: OrdersTab[] = [
   'supplierInformation',
 ];
 const ordersTabStorageKey = 'project-goods.orders-tab';
+const activePageStorageKey = 'project-goods.dashboard-page';
 const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
 const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
 
@@ -83,10 +84,15 @@ const saveEmployeeSnapshot = (employee: Employee) => {
   window.localStorage.setItem(employeeSnapshotStorageKey, JSON.stringify(employee));
 };
 
-const getPageFromUrl = (): PageKey => {
+const getPageFromUrl = (): PageKey | null => {
   const page = new URLSearchParams(window.location.search).get('page');
 
-  return pageKeys.includes(page as PageKey) ? (page as PageKey) : 'home';
+  return pageKeys.includes(page as PageKey) ? (page as PageKey) : null;
+};
+
+const getStoredActivePage = (): PageKey => {
+  const rawPage = window.localStorage.getItem(activePageStorageKey);
+  return pageKeys.includes(rawPage as PageKey) ? (rawPage as PageKey) : 'home';
 };
 
 const getInvitationTokenFromUrl = () =>
@@ -155,6 +161,10 @@ const getDashboardHref = (
     url.searchParams.delete('ordersTab');
   }
 
+  if (page !== 'accounting') {
+    url.searchParams.delete('accountingTab');
+  }
+
   if (page === 'orders' && options.createOrder) {
     url.searchParams.set('createOrder', options.createOrder);
   } else {
@@ -194,11 +204,11 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
 const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
-  { key: 'employees', label: 'Employees' },
-  { key: 'clients', label: 'Clients & Suppliers' },
   { key: 'accounting', label: 'Accounting' },
-  { key: 'warehouse', label: 'Warehouses' },
+  { key: 'warehouse', label: 'Warehouse' },
   { key: 'catalog', label: 'Products & Services' },
+  { key: 'clients', label: 'Clients & suppliers' },
+  { key: 'employees', label: 'Employees' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -240,7 +250,7 @@ export const DashboardPage = () => {
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
-  const [activePage, setActivePage] = useState<PageKey>(getPageFromUrl);
+  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrl() ?? getStoredActivePage());
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
@@ -347,6 +357,10 @@ export const DashboardPage = () => {
   }, [activeOrdersTab, activePage, isCreateOrderOpen]);
 
   useEffect(() => {
+    window.localStorage.setItem(activePageStorageKey, activePage);
+  }, [activePage]);
+
+  useEffect(() => {
     window.localStorage.setItem(sidebarCollapsedStorageKey, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
@@ -399,6 +413,10 @@ export const DashboardPage = () => {
   }, [currentEmployee, isAuthLoading]);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (activePage === 'employees' && !canManageEmployees) {
       setActivePage('home');
       return;
@@ -410,12 +428,12 @@ export const DashboardPage = () => {
     if (activePage === 'settings' && !canManageSettings) {
       setActivePage('home');
     }
-  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting]);
+  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting, isAuthLoading]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
       const createOrderTab = getCreateOrderFromUrl();
-      setActivePage(getPageFromUrl());
+      setActivePage(getPageFromUrl() ?? getStoredActivePage());
       setActiveOrdersTab(
         createOrderTab ? getOrdersTabForCreateOrder(createOrderTab) : getOrdersTabFromUrl() ?? getStoredOrdersTab(),
       );
@@ -809,6 +827,13 @@ export const DashboardPage = () => {
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onOpenClientCard={openClientCardFromOrders}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
+                  printCompanySettings={{
+                    company: state.settings?.company ?? state.settingsForm.company,
+                    companyAddress:
+                      state.settings?.companyAddress ?? state.settingsForm.companyAddress,
+                    companyId: state.settings?.companyId ?? state.settingsForm.companyId,
+                    companyIban: state.settings?.companyIban ?? state.settingsForm.companyIban,
+                  }}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />
               )

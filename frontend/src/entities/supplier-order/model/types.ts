@@ -40,6 +40,17 @@ export type SupplierOrder = {
   updatedAt: string;
 };
 
+export type StockedProductSummary = {
+  id: string;
+  name: string;
+  article: string;
+  serialNumber: string;
+};
+
+export type TakeOnChargeResult = SupplierOrder & {
+  stockedProducts?: StockedProductSummary[];
+};
+
 export type SupplierOrderFormValues = {
   orderBaseId?: string;
   supplierId: string;

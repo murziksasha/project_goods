@@ -12,6 +12,14 @@ export type PrintForm = {
   title: string;
   type: PrintFormType | string;
   content: string;
+  contentFormat: 'html' | 'text';
+  pageSize: 'A4' | 'label';
+  labelSize?: {
+    presetId: string;
+    widthMm: number;
+    heightMm: number;
+  };
+  orientation: 'portrait' | 'landscape';
   isActive: boolean;
   sortOrder: number;
 };
@@ -46,6 +54,10 @@ export type NotificationSettings = {
 export type AppSettings = {
   id: string;
   serviceName: string;
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;
@@ -57,6 +69,10 @@ export type AppSettings = {
 
 export type AppSettingsFormValues = {
   serviceName: string;
+  company: string;
+  companyAddress: string;
+  companyId: string;
+  companyIban: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;

@@ -1,5 +1,9 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
-import type { SupplierOrder, SupplierOrderFormValues } from '../model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderFormValues,
+  TakeOnChargeResult,
+} from '../model/types';
 
 export const getSupplierOrders = async (query = '') => {
   try {
@@ -54,7 +58,7 @@ export const takeOnChargeSupplierOrder = async (
   payload?: TakeOnChargePayload,
 ) => {
   try {
-    const response = await apiClient.post<SupplierOrder>(
+    const response = await apiClient.post<TakeOnChargeResult>(
       `/supplier-orders/${supplierOrderId}/take-on-charge`,
       payload ?? {},
     );

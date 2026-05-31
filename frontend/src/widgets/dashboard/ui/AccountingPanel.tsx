@@ -1,5 +1,6 @@
 ﻿import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  cancelFinanceTransaction,
   createCashbox,
   createFinanceTransaction,
   getCashboxes,
@@ -29,6 +30,7 @@ import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import { formatMetric } from '../model/sales-analytics';
+import { getSupplierOrderDisplayNumber } from '../model/supplier-order-utils';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -40,11 +42,15 @@ type AccountingPanelProps = {
 
 type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
 const accountingTabStorageKey = 'project-goods.accounting-tab';
+const accountingSettingsOpenStorageKey = 'project-goods.accounting-settings-open';
+const accountingExpandedFinanceSettingsCardStorageKey =
+  'project-goods.accounting-expanded-finance-settings-card';
 const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
 const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
 const accountingCurrencyActivityStorageKey = 'project-goods.accounting-currency-activity';
 const accountingCashboxCurrencyActivityStorageKey = 'project-goods.accounting-cashbox-currency-activity';
 const accountingLastTargetCashboxByTypeStorageKey = 'project-goods.accounting-last-target-cashbox-by-type';
+const accountingFinanceSettingsTabStorageKey = 'project-goods.accounting-finance-settings-tab';
 
 const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 const transactionLabels: Record<FinanceTransactionType, string> = {
@@ -145,6 +151,46 @@ const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
+const isAccountingTab = (value: string | null): value is AccountingTab =>
+  value === 'cashboxes' ||
+  value === 'transactions' ||
+  value === 'orders' ||
+  value === 'reports';
+
+const getAccountingTabFromUrl = (): AccountingTab | null => {
+  try {
+    const tab = new URLSearchParams(window.location.search).get('accountingTab');
+    return isAccountingTab(tab) ? tab : null;
+  } catch {
+    return null;
+  }
+};
+
+const getStoredAccountingTab = (): AccountingTab => {
+  try {
+    const storedTab = window.localStorage.getItem(accountingTabStorageKey);
+    return isAccountingTab(storedTab) ? storedTab : 'cashboxes';
+  } catch {
+    return 'cashboxes';
+  }
+};
+
+const getStoredAccountingSettingsOpen = (): boolean => {
+  try {
+    return window.localStorage.getItem(accountingSettingsOpenStorageKey) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const getStoredExpandedFinanceSettingsCard = (): string | null => {
+  try {
+    return window.localStorage.getItem(accountingExpandedFinanceSettingsCardStorageKey);
+  } catch {
+    return null;
+  }
+};
+
 export const AccountingPanel = ({
   currentEmployee,
   onError,
@@ -152,19 +198,9 @@ export const AccountingPanel = ({
   sales,
   onOpenSaleCard,
 }: AccountingPanelProps) => {
-  const [activeTab, setActiveTab] = useState<AccountingTab>(() => {
-    try {
-      const storedTab = window.localStorage.getItem(accountingTabStorageKey);
-      return storedTab === 'cashboxes' ||
-        storedTab === 'transactions' ||
-        storedTab === 'orders' ||
-        storedTab === 'reports'
-        ? storedTab
-        : 'cashboxes';
-    } catch {
-      return 'cashboxes';
-    }
-  });
+  const [activeTab, setActiveTab] = useState<AccountingTab>(
+    () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
+  );
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -172,6 +208,7 @@ export const AccountingPanel = ({
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
   const [supplierOrdersQueue, setSupplierOrdersQueue] = useState<SupplierOrderPaymentQueueItem[]>([]);
   const [selectedSupplierOrder, setSelectedSupplierOrder] = useState<SupplierOrder | null>(null);
+  const [transferToCancel, setTransferToCancel] = useState<FinanceTransaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newCashboxName, setNewCashboxName] = useState('');
@@ -188,9 +225,17 @@ export const AccountingPanel = ({
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] = useState(false);
   const [withoutPaymentOrder, setWithoutPaymentOrder] = useState<SupplierOrderPaymentQueueItem | null>(null);
-  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(false);
-  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>('cashboxes');
-  const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] = useState<string | null>(null);
+  const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(getStoredAccountingSettingsOpen);
+  const [financeSettingsTab, setFinanceSettingsTab] = useState<'cashboxes' | 'currencies'>(() => {
+    try {
+      const storedTab = window.localStorage.getItem(accountingFinanceSettingsTabStorageKey);
+      return storedTab === 'cashboxes' || storedTab === 'currencies' ? storedTab : 'cashboxes';
+    } catch {
+      return 'cashboxes';
+    }
+  });
+  const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] =
+    useState<string | null>(getStoredExpandedFinanceSettingsCard);
   const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
   const [editingCashboxName, setEditingCashboxName] = useState('');
   const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
@@ -394,8 +439,35 @@ export const AccountingPanel = ({
   }, [refreshFinance]);
 
   useEffect(() => {
-    window.localStorage.setItem(accountingTabStorageKey, activeTab);
+    try {
+      window.localStorage.setItem(accountingTabStorageKey, activeTab);
+    } catch {
+      // Ignore localStorage write errors.
+    }
   }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('accountingTab', activeTab);
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      // Ignore URL update errors.
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const syncTabFromHistory = () => {
+      const tabFromUrl = getAccountingTabFromUrl();
+      if (!tabFromUrl) return;
+      setActiveTab(tabFromUrl);
+    };
+
+    window.addEventListener('popstate', syncTabFromHistory);
+    return () => {
+      window.removeEventListener('popstate', syncTabFromHistory);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCashboxesOrderHydrated || cashboxes.length === 0) return;
@@ -505,6 +577,43 @@ export const AccountingPanel = ({
       // Ignore localStorage write errors.
     }
   }, [lastTargetCashboxByType]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingFinanceSettingsTabStorageKey,
+        financeSettingsTab,
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [financeSettingsTab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingSettingsOpenStorageKey,
+        String(isFinanceSettingsOpen),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [isFinanceSettingsOpen]);
+
+  useEffect(() => {
+    try {
+      if (expandedFinanceSettingsCard) {
+        window.localStorage.setItem(
+          accountingExpandedFinanceSettingsCardStorageKey,
+          expandedFinanceSettingsCard,
+        );
+      } else {
+        window.localStorage.removeItem(accountingExpandedFinanceSettingsCardStorageKey);
+      }
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [expandedFinanceSettingsCard]);
 
   const totals = useMemo(
     () =>
@@ -870,6 +979,35 @@ export const AccountingPanel = ({
       await refreshFinance();
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Failed to save transaction.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const canCancelTransferTransaction = (transaction: FinanceTransaction) =>
+    canCreateTransfer &&
+    transaction.type === 'transfer' &&
+    Boolean(transaction.fromCashbox && transaction.toCashbox) &&
+    (transaction.status ?? 'active') !== 'cancelled' &&
+    !transaction.isCancellation &&
+    !transaction.cancelsTransactionId;
+
+  const handleCancelTransfer = async () => {
+    if (!transferToCancel) return;
+    if (!canCancelTransferTransaction(transferToCancel)) {
+      onError('Only active transfers between cashboxes can be cancelled.');
+      setTransferToCancel(null);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await cancelFinanceTransaction(transferToCancel.id);
+      onSuccess('Transfer cancelled. A reverse transaction was created.');
+      setTransferToCancel(null);
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to cancel transfer.');
     } finally {
       setIsSaving(false);
     }
@@ -1547,29 +1685,42 @@ export const AccountingPanel = ({
       <div className='finance-table-wrap'>
         <table className='orders-table'>
           <thead>
-            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Total</th><th>From</th><th>To</th><th>Note</th></tr>
+            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Total</th><th>From</th><th>To</th><th>Note</th><th>Action</th></tr>
           </thead>
           <tbody>
             {filteredTransactions.length === 0 ? (
-              <tr><td colSpan={7} className='orders-empty'>Transactions not found.</td></tr>
+              <tr><td colSpan={8} className='orders-empty'>Transactions not found.</td></tr>
             ) : (
                             paginatedTransactions.map((transaction, index) => {
                 const currentDay = transaction.transactionDate.slice(0, 10);
                 const previousDay = paginatedTransactions[index - 1]?.transactionDate.slice(0, 10);
                 const isNewDay = index === 0 || currentDay !== previousDay;
+                const isCancelled = (transaction.status ?? 'active') === 'cancelled';
+                const isCancellation = transaction.isCancellation || Boolean(transaction.cancelsTransactionId);
+                const canCancelTransfer = canCancelTransferTransaction(transaction);
                 return (
                   <Fragment key={transaction.id}>
                     {isNewDay ? (
                       <tr className='finance-day-separator-row'>
-                        <td colSpan={7} className='finance-day-separator-cell'>
+                        <td colSpan={8} className='finance-day-separator-cell'>
                           {formatTransactionDayLabel(transaction.transactionDate)}
                         </td>
                       </tr>
                     ) : null}
-                    <tr>
+                    <tr className={isCancelled ? 'finance-transaction-row-cancelled' : undefined}>
                       <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
                       <td className={`finance-transaction-type finance-transaction-type-${transaction.type}`}>
                         {transactionLabels[transaction.type]}
+                        {isCancelled ? (
+                          <span className='finance-transaction-badge finance-transaction-badge-cancelled'>
+                            Cancelled
+                          </span>
+                        ) : null}
+                        {isCancellation ? (
+                          <span className='finance-transaction-badge finance-transaction-badge-cancellation'>
+                            Cancellation
+                          </span>
+                        ) : null}
                       </td>
                       <td>{formatMoney(transaction.amount, transaction.currency)}</td>
                       <td>
@@ -1626,6 +1777,17 @@ export const AccountingPanel = ({
                           );
                         })()}
                       </td>
+                      <td className='finance-transaction-action-cell'>
+                        {canCancelTransfer ? (
+                          <button
+                            type='button'
+                            className='toolbar-filter-button finance-transaction-cancel-button'
+                            onClick={() => setTransferToCancel(transaction)}
+                          >
+                            Cancel transfer
+                          </button>
+                        ) : null}
+                      </td>
                     </tr>
                   </Fragment>
                 );
@@ -1647,86 +1809,146 @@ export const AccountingPanel = ({
   );
 
   const renderSupplierOrdersQueue = () => (
-    <div className='finance-table-wrap'>
-      <table className='orders-table finance-orders-table'>
-        <thead>
-          <tr>
-            <th className='finance-orders-col-number'>Number</th>
-            <th className='finance-orders-col-date'>Date</th>
-            <th className='finance-orders-col-supplier'>Supplier</th>
-            <th className='finance-orders-col-amount'>Amount</th>
-            <th className='finance-orders-col-payment'>Payment</th>
-          </tr>
-        </thead>
-        <tbody>
-          {supplierOrdersQueue.length === 0 ? (
-            <tr><td colSpan={5} className='orders-empty'>No orders are waiting for payment.</td></tr>
-          ) : (
-            supplierOrdersQueue.map((order) => {
-              const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
-              return (
-                <tr key={order.id}>
-                  <td className='finance-orders-number-cell' title={order.number || order.orderBaseId}>
-                    <span className='orders-table-cell-truncate'>{order.number || order.orderBaseId}</span>
-                  </td>
-                  <td className='finance-orders-date-cell'>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</td>
-                  <td className='finance-orders-supplier-cell'>
-                    <span className='orders-table-cell-truncate'>{order.supplierName}</span>
-                  </td>
-                  <td className='finance-orders-amount-cell'>{formatMoney(order.total, 'UAH')}</td>
-                  <td className='finance-orders-payment-cell'>
-                    <div className='finance-orders-payment-actions'>
-                      {canPaySupplierOrders ? (
-                        <>
-                          <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
-                            {cashboxes.map((cashbox) => (
-                              <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
-                                {truncateLabel(cashbox.name, 14)}
-                              </option>
-                            ))}
-                          </select>
+    <section className='finance-orders-view'>
+      <div className='finance-information-header finance-orders-header'>
+        <div>
+          <p className='section-label'>Supplier payments</p>
+          <h2>Orders payment queue</h2>
+        </div>
+        <div className='finance-information-status'>
+          <span>{`${financeOverview.pendingSupplierCount} waiting`}</span>
+          <span>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</span>
+        </div>
+      </div>
+
+      <div className='finance-orders-summary-grid'>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Queue amount</span>
+          <strong>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Orders waiting</span>
+          <strong>{formatMetric(financeOverview.pendingSupplierCount)}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>Active cashboxes</span>
+          <strong>{formatMetric(financeOverview.activeCashboxCount)}</strong>
+        </article>
+      </div>
+
+      <div className='orders-table-wrap finance-orders-table-wrap'>
+        <table className='orders-table finance-orders-table'>
+          <thead>
+            <tr>
+              <th className='finance-orders-col-number'>Order</th>
+              <th className='finance-orders-col-date'>Date</th>
+              <th className='finance-orders-col-supplier'>Supplier</th>
+              <th className='finance-orders-col-amount'>Amount</th>
+              <th className='finance-orders-col-payment'>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {supplierOrdersQueue.length === 0 ? (
+              <tr>
+                <td colSpan={5} className='orders-empty finance-orders-empty'>
+                  No orders are waiting for payment.
+                </td>
+              </tr>
+            ) : (
+              supplierOrdersQueue.map((order) => {
+                const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
+                const orderNumber = getSupplierOrderDisplayNumber(order);
+                const fullOrder = supplierOrders.find((supplierOrder) =>
+                  supplierOrder.id === order.id ||
+                  supplierOrder.orderBaseId === order.orderBaseId ||
+                  supplierOrder.number === order.number,
+                );
+                return (
+                  <tr key={order.id} className='finance-orders-row'>
+                    <td className='finance-orders-number-cell' title={orderNumber}>
+                      <button
+                        type='button'
+                        className='finance-orders-number-button'
+                        onClick={() => {
+                          if (fullOrder) {
+                            setSelectedSupplierOrder(fullOrder);
+                          }
+                        }}
+                        disabled={!fullOrder}
+                        aria-label={`Open supplier order ${orderNumber}`}
+                      >
+                        {orderNumber}
+                      </button>
+                      <span className='finance-orders-cell-note'>Supplier order</span>
+                    </td>
+                    <td className='finance-orders-date-cell'>
+                      <span>{formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}</span>
+                      <small>{order.deliveryDate ? 'Delivery' : 'Created'}</small>
+                    </td>
+                    <td className='finance-orders-supplier-cell'>
+                      <span className='orders-table-cell-truncate'>{order.supplierName}</span>
+                      <small>Payment required</small>
+                    </td>
+                    <td className='finance-orders-amount-cell'>
+                      <strong>{formatMoney(order.total, 'UAH')}</strong>
+                    </td>
+                    <td className='finance-orders-payment-cell'>
+                      <div className='finance-orders-payment-actions'>
+                        {canPaySupplierOrders ? (
+                          <>
+                            <label className='finance-orders-cashbox-select'>
+                              <span>Cashbox</span>
+                              <select value={cashboxId} onChange={(event) => setTransactionForm((current) => ({ ...current, fromCashboxId: event.target.value }))}>
+                                {cashboxes.map((cashbox) => (
+                                  <option key={cashbox.id} value={cashbox.id} title={cashbox.name}>
+                                    {truncateLabel(cashbox.name, 14)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button
+                              type='button'
+                              className='primary-button'
+                              disabled={isSaving || !cashboxId}
+                              onClick={async () => {
+                                if (!cashboxId) return;
+                                setIsSaving(true);
+                                try {
+                                  await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${orderNumber}` });
+                                  onSuccess('Order has been paid.');
+                                  window.dispatchEvent(new Event('project-goods:finance-updated'));
+                                  await refreshFinance();
+                                } catch (error) {
+                                  onError(error instanceof Error ? error.message : 'Failed to pay order.');
+                                } finally {
+                                  setIsSaving(false);
+                                }
+                              }}
+                            >
+                              Pay
+                            </button>
+                          </>
+                        ) : null}
+                        {canIssueSupplierOrdersWithoutPayment ? (
                           <button
                             type='button'
-                            className='primary-button'
-                            disabled={isSaving || !cashboxId}
-                            onClick={async () => {
-                              if (!cashboxId) return;
-                              setIsSaving(true);
-                              try {
-                                await paySupplierOrder(order.id, { cashboxId, note: `Payment for order ${order.number || order.orderBaseId}` });
-                                onSuccess('Order has been paid.');
-                                window.dispatchEvent(new Event('project-goods:finance-updated'));
-                                await refreshFinance();
-                              } catch (error) {
-                                onError(error instanceof Error ? error.message : 'Failed to pay order.');
-                              } finally {
-                                setIsSaving(false);
-                              }
-                            }}
+                            className='secondary-button'
+                            disabled={isSaving}
+                            onClick={() => setWithoutPaymentOrder(order)}
                           >
-                            Pay
+                            Issue without payment
                           </button>
-                        </>
-                      ) : null}
-                      {canIssueSupplierOrdersWithoutPayment ? (
-                        <button
-                          type='button'
-                          className='secondary-button'
-                          disabled={isSaving}
-                          onClick={() => setWithoutPaymentOrder(order)}
-                        >
-                          Issue without payment
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 
   const renderReports = () => (
@@ -2194,7 +2416,7 @@ export const AccountingPanel = ({
               key={key}
               type='button'
               className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
-            onClick={() => {
+              onClick={() => {
                 setIsFinanceSettingsOpen(false);
                 setExpandedFinanceSettingsCard(null);
                 setActiveTab(key as AccountingTab);
@@ -2258,6 +2480,74 @@ export const AccountingPanel = ({
         onSuccess={onSuccess}
         onError={onError}
       />
+      {transferToCancel ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSaving) {
+              setTransferToCancel(null);
+            }
+          }}
+        >
+          <div
+            className='catalog-edit-modal finance-cancel-transfer-modal'
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='cancel-transfer-title'
+          >
+            <header className='catalog-edit-header'>
+              <h2 id='cancel-transfer-title'>Cancel transfer</h2>
+              <button
+                type='button'
+                className='ghost-button'
+                disabled={isSaving}
+                onClick={() => setTransferToCancel(null)}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>
+                This will create a reverse transaction and return funds from{' '}
+                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong> to{' '}
+                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>.
+              </p>
+              <div className='finance-cancel-transfer-summary'>
+                <span>Date</span>
+                <strong>{formatDateDdMmYyyy(transferToCancel.transactionDate)}</strong>
+                <span>Amount</span>
+                <strong>{formatMoney(transferToCancel.amount, transferToCancel.currency)}</strong>
+                <span>From</span>
+                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>
+                <span>To</span>
+                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong>
+              </div>
+              <p className='muted-copy'>
+                The original transfer will stay in history with a Cancelled badge.
+              </p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                disabled={isSaving}
+                onClick={() => setTransferToCancel(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button finance-danger-button'
+                disabled={isSaving}
+                onClick={handleCancelTransfer}
+              >
+                {isSaving ? 'Cancelling...' : 'Confirm cancellation'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
       {withoutPaymentOrder ? (
         <div
           className='modal-backdrop'
@@ -2277,7 +2567,7 @@ export const AccountingPanel = ({
             </header>
             <div className='catalog-edit-body'>
               <p>
-                Order <strong>{withoutPaymentOrder.number || withoutPaymentOrder.orderBaseId}</strong> will be
+                Order <strong>{getSupplierOrderDisplayNumber(withoutPaymentOrder)}</strong> will be
                 marked as <strong>issued without payment</strong>.
               </p>
               <p>No finance transaction will be created. Continue?</p>

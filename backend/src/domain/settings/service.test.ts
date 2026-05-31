@@ -5,7 +5,7 @@ const defaultPrintForms = [
     id: 'receipt',
     title: 'Receipt',
     type: 'receipt',
-    content: 'Order {{orderNumber}}',
+    content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
     isActive: true,
     sortOrder: 10,
   },
@@ -65,7 +65,16 @@ const setupSettingsService = async ({
 
   vi.doMock('./model', () => ({
     Settings: FakeSettings,
+    defaultLabelSize: { presetId: '25x40', widthMm: 25, heightMm: 40 },
     defaultPrintForms,
+    legacyDefaultPrintFormTitles: new Set([
+      'Receipt',
+      'Check',
+      'Warranty',
+      'Completion act',
+      'Invoice',
+      'Barcode label',
+    ]),
   }));
 
   const service = await import('./service');
@@ -94,6 +103,10 @@ describe('settings service', () => {
     expect(settings).toMatchObject({
       id: 'created-id',
       serviceName: 'Service CRM',
+      company: 'Service CRM',
+      companyAddress: '',
+      companyId: '',
+      companyIban: '',
       printForms: defaultPrintForms,
       orderDefaults: {
         defaultRepairTermDays: 7,
@@ -107,6 +120,10 @@ describe('settings service', () => {
   it('updates and returns expanded settings', async () => {
     const updateResult = makeSettingsDocument({
       serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
       printForms: [
         {
           id: 'invoice',
@@ -128,6 +145,10 @@ describe('settings service', () => {
 
     const settings = await service.updateSettings({
       serviceName: ' Repair CRM ',
+      company: ' Repair Company ',
+      companyAddress: ' Kyiv, Main street 1 ',
+      companyId: ' 12345678 ',
+      companyIban: ' UA123456789123456789123456789 ',
       printForms: updateResult.printForms,
       financeDefaults: updateResult.financeDefaults,
     });
@@ -136,7 +157,19 @@ describe('settings service', () => {
       {},
       expect.objectContaining({
         serviceName: 'Repair CRM',
-        printForms: updateResult.printForms,
+        company: 'Repair Company',
+        companyAddress: 'Kyiv, Main street 1',
+        companyId: '12345678',
+        companyIban: 'UA123456789123456789123456789',
+        printForms: [
+          expect.objectContaining({
+            id: 'invoice',
+            title: 'Invoice',
+            contentFormat: 'text',
+            pageSize: 'A4',
+            orientation: 'portrait',
+          }),
+        ],
       }),
       expect.objectContaining({
         upsert: true,
@@ -146,11 +179,101 @@ describe('settings service', () => {
     );
     expect(settings).toMatchObject({
       serviceName: 'Repair CRM',
-      printForms: updateResult.printForms,
+      company: 'Repair Company',
+      companyAddress: 'Kyiv, Main street 1',
+      companyId: '12345678',
+      companyIban: 'UA123456789123456789123456789',
+      printForms: [
+        expect.objectContaining({
+          id: 'invoice',
+          contentFormat: 'text',
+          pageSize: 'A4',
+          orientation: 'portrait',
+        }),
+        expect.objectContaining({
+          id: 'receipt',
+        }),
+      ],
       financeDefaults: {
         currency: 'USD',
         paymentMethod: 'non-cash',
       },
     });
+  });
+
+  it('returns fallback company fields for old settings documents', async () => {
+    const { service } = await setupSettingsService({
+      findOneResult: makeSettingsDocument({
+        printForms: defaultPrintForms,
+      }),
+    });
+
+    const settings = await service.getSettings();
+
+    expect(settings).toMatchObject({
+      company: 'Service CRM',
+      companyAddress: '',
+      companyId: '',
+      companyIban: '',
+    });
+  });
+
+  it('migrates recognizable standard print forms and keeps custom forms', async () => {
+    const migratedPrintForms = [
+      {
+        id: 'receipt',
+        title: 'Receipt',
+        type: 'receipt',
+        content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
+        isActive: true,
+        sortOrder: 10,
+      },
+      {
+        id: 'custom',
+        title: 'Custom',
+        type: 'custom',
+        content: 'Custom {{orderNumber}}',
+        isActive: true,
+        sortOrder: 20,
+      },
+    ];
+    const { service } = await setupSettingsService({
+      findOneResult: makeSettingsDocument({
+        printForms: [
+          {
+            id: 'receipt',
+            title: 'Receipt',
+            type: 'receipt',
+            content: 'Order {{orderNumber}}',
+            isActive: true,
+            sortOrder: 10,
+          },
+          {
+            id: 'custom',
+            title: 'Custom',
+            type: 'custom',
+            content: 'Custom {{orderNumber}}',
+            isActive: true,
+            sortOrder: 20,
+          },
+        ],
+      }),
+      updateResult: makeSettingsDocument({
+        printForms: migratedPrintForms,
+      }),
+    });
+
+    const settings = await service.getSettings();
+
+    expect(settings.printForms).toEqual([
+      expect.objectContaining({
+        id: 'receipt',
+        content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
+      }),
+      expect.objectContaining({
+        id: 'custom',
+        content: 'Custom {{orderNumber}}',
+      }),
+    ]);
   });
 });
