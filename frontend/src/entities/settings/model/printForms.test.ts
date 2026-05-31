@@ -54,6 +54,18 @@ describe('renderPrintTemplate', () => {
     expect(rendered).toContain('data-barcode-value="r000124"');
     expect(rendered).toContain('data-qrcode-value="r000124"');
   });
+
+  it('removes editor token wrappers from rendered output', () => {
+    const rendered = renderPrintTemplate(
+      '<div class="print-label"><span class="settings-print-variable-token" contenteditable="false">{{orderNumber}}</span>&nbsp;</div>',
+      templateData,
+      'html',
+    );
+
+    expect(rendered).toContain('<span class="print-order-number">r000124</span>');
+    expect(rendered).not.toContain('settings-print-variable-token');
+    expect(rendered).not.toContain('&nbsp;');
+  });
 });
 
 describe('normalizePrintFormsForView', () => {
