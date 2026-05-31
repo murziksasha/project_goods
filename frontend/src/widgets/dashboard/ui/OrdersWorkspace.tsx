@@ -1236,12 +1236,14 @@ const renderOrderPrintCodes = async (
       return;
     }
     const value = node.dataset.barcodeValue || fallbackValue;
+    const isLabelBarcode = Boolean(node.closest('.print-label'));
     try {
       JsBarcode(node, value, {
         format: 'CODE128',
-        displayValue: true,
-        fontSize: 12,
-        height: 44,
+        displayValue: !isLabelBarcode,
+        fontSize: isLabelBarcode ? 18 : 12,
+        textMargin: isLabelBarcode ? 1 : 2,
+        height: isLabelBarcode ? 38 : 44,
         margin: 0,
       });
     } catch {
@@ -1315,7 +1317,7 @@ const buildOrderPrintHtml = ({
         ${printDocumentStyles}
       </style>
     </head>
-    <body>${body}</body>
+    <body class="${pageSize === 'label' ? 'print-body-label' : ''}">${body}</body>
   </html>
 `;
 

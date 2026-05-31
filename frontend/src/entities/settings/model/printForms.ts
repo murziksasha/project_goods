@@ -502,14 +502,22 @@ const renderProductsTable = (html: string) =>
 const renderServicesTable = (html: string) =>
   html || '<p class="print-muted">Послуги відсутні</p>';
 
+const unwrapEditorTokens = (html: string) =>
+  html.replace(
+    /<span\b(?=[^>]*\bsettings-print-variable-token\b)[^>]*>(.*?)<\/span>(?:&nbsp;)?/gi,
+    '$1',
+  );
+
 export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
   contentFormat: PrintForm['contentFormat'] = 'text',
 ) => {
-  const source = contentFormat === 'html' ? template : textToHtml(template);
+  const source =
+    contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template);
+  const isLabelTemplate = source.includes('print-label');
 
-  return printFormVariables.reduce((result, key) => {
+  const rendered = printFormVariables.reduce((result, key) => {
     if (key === 'barcode') {
       return result.replaceAll(
         '{{barcode}}',
@@ -534,13 +542,24 @@ export const renderPrintTemplate = (
         renderProductsTable(values.invoice_items_table ?? ''),
       );
     }
+    if (key === 'orderNumber') {
+      return result.replaceAll(
+        '{{orderNumber}}',
+        isLabelTemplate
+          ? `<span class="print-order-number">${escapeHtml(values.orderNumber ?? '')}</span>`
+          : escapeHtml(values.orderNumber ?? ''),
+      );
+    }
 
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));
   }, source);
+
+  return rendered;
 };
 
 export const printDocumentStyles = `
   body { font-family: Arial, sans-serif; color: #1f2937; background: #fff; }
+  .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
   .print-form { page-break-after: always; padding: 16mm; }
   .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; overflow: hidden; }
   .print-document { font-size: 13px; line-height: 1.45; }
@@ -562,10 +581,11 @@ export const printDocumentStyles = `
   .print-signatures { display: flex; justify-content: space-between; gap: 32px; margin-top: 28px; }
   .print-total-line { text-align: right; font-size: 16px; }
   .print-muted { color: #6b7280; }
-  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.8mm; overflow: hidden; padding: 2mm 1.5mm; text-align: center; font-size: 8px; line-height: 1.1; }
+  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.6mm; overflow: hidden; padding: 1.5mm; text-align: center; font-size: 8px; line-height: 1.1; }
   .print-label-code { width: 100%; display: flex; justify-content: center; }
-  .print-label-code .print-barcode { width: 22mm; max-width: 100%; height: 15mm; }
-  .print-label strong { font-size: 8px; line-height: 1; }
+  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 3mm); max-width: 100%; height: 10mm; }
+  .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label strong { font-size: 16px; line-height: 1; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .invoice-party { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; font-size: 12px; }
   .invoice-party > strong { text-decoration: underline; }
