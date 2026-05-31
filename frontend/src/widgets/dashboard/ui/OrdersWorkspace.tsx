@@ -1401,9 +1401,7 @@ const OrderPrintDialog = ({
   const availablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
   ).filter((form) => form.isActive);
-  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(() =>
-    availablePrintForms.slice(0, 1).map((form) => form.id),
-  );
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>([]);
   const selectedForms = availablePrintForms.filter((form) =>
     selectedFormIds.includes(form.id),
   );
@@ -1444,9 +1442,7 @@ const OrderPrintDialog = ({
 
   const togglePrintForm = (formId: string) => {
     setSelectedFormIds((current) =>
-      current.includes(formId)
-        ? current.filter((id) => id !== formId)
-        : [...current, formId],
+      current.includes(formId) ? [] : [formId],
     );
   };
 
@@ -4912,9 +4908,6 @@ const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
-  const hasSaleProductSerials =
-    isSaleCard &&
-    productItems.some((item) => (item.serialNumbers ?? []).length > 0);
   const isProductBlockReadOnly =
     isSaleCard
       ? isReadOnly
@@ -5211,10 +5204,21 @@ const OrderDetailCard = ({
       aria-label={isSaleCard ? 'Sale card' : 'Order card'}
     >
       <header className='order-detail-header'>
-        <div>
-          <span className='section-label'>
-            {isSaleCard ? 'Sale card' : 'Order card'}
-          </span>
+        <div className='order-detail-title'>
+          <div className='order-detail-title-label-row'>
+            <span className='section-label'>
+              {isSaleCard ? 'Sale card' : 'Order card'}
+            </span>
+            <button
+              type='button'
+              className='toolbar-square-button order-print-icon-button order-header-print-button'
+              onClick={onOpenPrint}
+              aria-label={isSaleCard ? 'Print sale' : 'Print order'}
+              title={isSaleCard ? 'Print sale' : 'Print order'}
+            >
+              <PrinterIcon />
+            </button>
+          </div>
           <h2>{sale.recordNumber ?? 'r------'}</h2>
         </div>
         <div className='order-detail-actions'>
@@ -5291,15 +5295,6 @@ const OrderDetailCard = ({
                   <dt>S/N</dt>
                   <dd className='order-detail-serial-value'>
                     <span>{serialNumberInput || '-'}</span>
-                    <button
-                      type='button'
-                      className='toolbar-square-button order-print-icon-button'
-                      onClick={onOpenPrint}
-                      aria-label='Print order'
-                      title='Print order'
-                    >
-                      <PrinterIcon />
-                    </button>
                   </dd>
                 </div>
               </>
@@ -5453,17 +5448,6 @@ const OrderDetailCard = ({
               {isProductsOpen ? '⌃' : '⌄'}
             </span>
           </button>
-          {isSaleCard && !hasSaleProductSerials ? (
-            <button
-              type='button'
-              className='toolbar-square-button order-print-icon-button order-products-print-button'
-              onClick={onOpenPrint}
-              aria-label='Print sale'
-              title='Print sale'
-            >
-              <PrinterIcon />
-            </button>
-          ) : null}
           {isProductsOpen ? (
             <LineItemsPanel
               title='Products'
@@ -5488,7 +5472,6 @@ const OrderDetailCard = ({
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               isReadOnly={isProductBlockReadOnly}
-              onOpenPrint={isSaleCard && hasSaleProductSerials ? onOpenPrint : undefined}
             />
           ) : null}
         </section>
@@ -5942,7 +5925,6 @@ type LineItemsPanelProps = {
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-  onOpenPrint?: () => void;
 };
 
 const LineItemsPanel = ({
@@ -5968,7 +5950,6 @@ const LineItemsPanel = ({
   onUpdateProductModel,
   onError,
   onSuccess,
-  onOpenPrint,
 }: LineItemsPanelProps) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -6017,9 +5998,6 @@ const LineItemsPanel = ({
     useState('');
   const [supplierOrderInitialQuantity, setSupplierOrderInitialQuantity] =
     useState(1);
-  const firstPrintableSerialItemIndex = items.findIndex(
-    (item) => item.kind === 'product' && (item.serialNumbers ?? []).length > 0,
-  );
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
@@ -6639,17 +6617,6 @@ const LineItemsPanel = ({
                 (item.serialNumbers ?? []).length > 0 ? (
                   <p className='muted-copy order-line-item-serials'>
                     {`S/N: ${(item.serialNumbers ?? []).join(', ')}`}
-                    {onOpenPrint && itemIndex === firstPrintableSerialItemIndex ? (
-                      <button
-                        type='button'
-                        className='toolbar-square-button order-print-icon-button'
-                        onClick={onOpenPrint}
-                        aria-label='Print sale'
-                        title='Print sale'
-                      >
-                        <PrinterIcon />
-                      </button>
-                    ) : null}
                   </p>
                 ) : null}
               </div>

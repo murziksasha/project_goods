@@ -138,7 +138,7 @@ describe('create order product helpers', () => {
     });
   });
 
-  it('keeps catalog fallback when stock matches are unavailable', () => {
+  it('hides catalog fallback that duplicates an unavailable stock model', () => {
     const sale = {
       id: 'sale-1',
       product: { id: '', article: '', name: '', serialNumber: '' },
@@ -165,6 +165,17 @@ describe('create order product helpers', () => {
       ],
       catalogProducts: [catalogProduct({ id: 'c-hub', name: 'USB hub' })],
       sales: [sale],
+      query: 'hub',
+    });
+
+    expect(suggestions).toEqual([]);
+  });
+
+  it('keeps catalog fallback for catalog-only products', () => {
+    const suggestions = buildCreateOrderProductSuggestions({
+      products: [],
+      catalogProducts: [catalogProduct({ id: 'c-hub', name: 'USB hub' })],
+      sales: [],
       query: 'hub',
     });
 
@@ -195,6 +206,7 @@ describe('create order product helpers', () => {
         {
           id: 'li-manual',
           productId: '',
+          catalogProductId: '',
           name: 'Manual item',
           article: '',
           serialNumber: '',
@@ -209,6 +221,7 @@ describe('create order product helpers', () => {
         id: 'li-stock',
         kind: 'product',
         productId: 'p1',
+        catalogProductId: undefined,
         name: 'iPhone 14',
         price: 1200,
         quantity: 1,
@@ -219,12 +232,57 @@ describe('create order product helpers', () => {
         id: 'li-manual',
         kind: 'product',
         productId: undefined,
+        catalogProductId: undefined,
         name: 'Manual item',
         price: 300,
         quantity: 2,
         warrantyPeriod: 0,
         serialNumbers: [],
       },
+    ]);
+  });
+
+  it('keeps catalog product ids separate from stock product ids', () => {
+    expect(
+      buildCreateOrderSaleLineItems([
+        {
+          id: 'li-catalog',
+          productId: '',
+          catalogProductId: 'c-hub',
+          name: 'USB hub',
+          article: '',
+          serialNumber: '',
+          price: '400',
+          quantity: '1',
+          warrantyPeriod: '0',
+          warehouse: '',
+        },
+        {
+          id: 'li-stock',
+          productId: 'p1',
+          catalogProductId: '',
+          name: 'iPhone 14',
+          article: 'IPH-14',
+          serialNumber: 'S000003',
+          serialNumbers: ['S000003'],
+          price: '1200',
+          quantity: '1',
+          warrantyPeriod: '12',
+          warehouse: '',
+        },
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        id: 'li-catalog',
+        productId: undefined,
+        catalogProductId: 'c-hub',
+      }),
+      expect.objectContaining({
+        id: 'li-stock',
+        productId: 'p1',
+        catalogProductId: undefined,
+        serialNumbers: ['S000003'],
+      }),
     ]);
   });
 });

@@ -126,8 +126,11 @@ export const formatSale = (sale: SaleDocument) => ({
   lineItems: (sale.lineItems ?? []).map((item) => ({
     id: item.id,
     kind: item.kind,
-    productId: item.productId ? item.productId.toString() : '',
-    serviceId: item.serviceId ? item.serviceId.toString() : '',
+    productId: item.productId ? item.productId.toString() : undefined,
+    catalogProductId: item.catalogProductId
+      ? item.catalogProductId.toString()
+      : undefined,
+    serviceId: item.serviceId ? item.serviceId.toString() : undefined,
     name: item.name,
     price: item.price,
     quantity: item.quantity,

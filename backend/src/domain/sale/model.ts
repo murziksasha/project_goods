@@ -128,6 +128,12 @@ export const saleSchema = new mongoose.Schema(
           required: false,
           default: null,
         },
+        catalogProductId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'CatalogProduct',
+          required: false,
+          default: null,
+        },
         serviceId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'ServiceCatalog',

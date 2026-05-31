@@ -8,13 +8,8 @@ import {
 } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
-import type {
-  Product,
-  ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
+import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
-import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 import {
@@ -22,7 +17,6 @@ import {
   type CreateOrderProductSuggestion,
 } from '../model/create-order-products';
 import { normalizeSerialNumber } from '../model/order-line-serials';
-import { ProductModelModal } from './ProductModelModal';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
@@ -34,7 +28,6 @@ type CreateOrderCardProps = {
   sales: Sale[];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
-  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
 };
 
@@ -206,7 +199,6 @@ export const CreateOrderCard = ({
   sales,
   onClose,
   onSave,
-  onUpdateProductModel,
   onError,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
@@ -243,10 +235,6 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
-  const [productModelName, setProductModelName] = useState<string | null>(null);
-  const [productModelWarehouses, setProductModelWarehouses] = useState<
-    WarehouseItem[]
-  >([]);
   const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
     () => (initialTab === 'sale' ? 'sales' : 'orders'),
   );
@@ -583,20 +571,6 @@ export const CreateOrderCard = ({
     setSaleProductSuggestions([]);
   };
 
-  const openProductModel = async (name: string) => {
-    try {
-      const settings = await getWarehouseSettings();
-      setProductModelWarehouses(settings.warehouses);
-      setProductModelName(name);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to load warehouse settings.',
-      );
-    }
-  };
-
   const addSaleItem = () => {
     const item = createSaleOrderItem();
     setSaleItems((current) => [...current, item]);
@@ -749,6 +723,8 @@ export const CreateOrderCard = ({
       return {
         id: item.id,
         productId: item.source === 'stock' ? item.productId : '',
+        catalogProductId:
+          item.source === 'catalog' ? item.catalogProductId : undefined,
         name: item.query.trim(),
         article: item.article,
         serialNumber,
@@ -879,15 +855,6 @@ export const CreateOrderCard = ({
                             }}
                             placeholder="Name, serial or article"
                           />
-                          {(item.catalogProductId || item.productId) && item.query.trim() ? (
-                            <button
-                              type="button"
-                              className="settings-link-button"
-                              onClick={() => void openProductModel(item.query)}
-                            >
-                              {item.query}
-                            </button>
-                          ) : null}
                         </label>
                         <label className="field">
                           <span>Qty</span>
@@ -1347,16 +1314,6 @@ export const CreateOrderCard = ({
             </footer>
           </section>
         </div>
-      ) : null}
-      {productModelName ? (
-        <ProductModelModal
-          name={productModelName}
-          products={products}
-          warehouses={productModelWarehouses}
-          isSaving={isSaving}
-          onClose={() => setProductModelName(null)}
-          onSave={onUpdateProductModel}
-        />
       ) : null}
     </section>
   );

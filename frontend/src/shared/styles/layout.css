@@ -1860,6 +1860,18 @@
   font-weight: 500;
 }
 
+.order-detail-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.order-detail-title-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .order-detail-actions {
   display: flex;
   align-items: center;
@@ -2647,8 +2659,10 @@
   place-items: center;
 }
 
-.order-products-print-button {
-  margin: 10px 0 0;
+.order-header-print-button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
 }
 
 .order-print-dialog {

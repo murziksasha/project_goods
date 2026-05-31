@@ -25,6 +25,7 @@ export type CreateOrderProductSuggestion = {
 export type NormalizedCreateOrderSaleItem = {
   id: string;
   productId: string;
+  catalogProductId?: string;
   name: string;
   article: string;
   serialNumber: string;
@@ -75,7 +76,7 @@ export const buildCreateOrderProductSuggestions = ({
   if (normalizedQuery.length < 2) return [];
 
   const serialUsage = getSaleSerialUsage(sales, '');
-  const stockMatches = products
+  const matchedStockSuggestions = products
     .filter((product) => {
       const fields = [
         product.name,
@@ -106,7 +107,14 @@ export const buildCreateOrderProductSuggestions = ({
         selectable: availability.selectable,
         rank: getStockProductRank(product, normalizedQuery),
       };
-    })
+    });
+  const unavailableStockNames = new Set(
+    matchedStockSuggestions
+      .filter((product) => !product.selectable)
+      .map((product) => normalizeCreateOrderProductLookup(product.name))
+      .filter(Boolean),
+  );
+  const stockMatches = matchedStockSuggestions
     .filter((product) => product.selectable)
     .sort((first, second) => {
       if (first.rank !== second.rank) return first.rank - second.rank;
@@ -121,6 +129,12 @@ export const buildCreateOrderProductSuggestions = ({
           normalizedQuery,
         ),
       ),
+    )
+    .filter(
+      (product) =>
+        !unavailableStockNames.has(
+          normalizeCreateOrderProductLookup(product.name),
+        ),
     )
     .slice(0, limit)
     .map((product) => ({
@@ -148,6 +162,7 @@ export const buildCreateOrderSaleLineItems = (
     id: item.id,
     kind: 'product' as const,
     productId: item.productId || undefined,
+    catalogProductId: item.catalogProductId || undefined,
     name: item.name,
     price: Number(item.price),
     quantity: Number(item.quantity),

@@ -78,6 +78,7 @@ type SaleLineItem = {
   id: string;
   kind: string;
   productId?: string | mongoose.Types.ObjectId | null;
+  catalogProductId?: string | mongoose.Types.ObjectId | null;
   serviceId?: string | mongoose.Types.ObjectId | null;
   name: string;
   price: number;
@@ -163,10 +164,12 @@ const assertSerialNumbersNotBoundToOtherSales = async (
 
   if (requestedSerials.length === 0) return;
 
-  const otherSales = await Sale.find({
-    _id: { $ne: saleId },
+  const query = {
+    ...(saleId ? { _id: { $ne: saleId } } : {}),
     'lineItems.serialNumbers.0': { $exists: true },
-  })
+  };
+
+  const otherSales = await Sale.find(query)
     .select({ lineItems: 1 })
     .lean<SaleDocument[]>();
 
@@ -240,6 +243,31 @@ const assertSerializedLineItemsAreAtomic = async (
   }
 };
 
+const assertLineItemCatalogProductIds = async (
+  lineItems: SaleLineItem[],
+) => {
+  const catalogProductIds = Array.from(
+    new Set(
+      lineItems
+        .map((item) => item.catalogProductId?.toString().trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  if (catalogProductIds.length === 0) return;
+
+  catalogProductIds.forEach((catalogProductId) =>
+    isValidObjectIdOrThrow(catalogProductId, 'lineItems.catalogProductId'),
+  );
+
+  const count = await CatalogProduct.countDocuments({
+    _id: { $in: catalogProductIds },
+  });
+  if (count !== catalogProductIds.length) {
+    throw new Error('Catalog product not found.');
+  }
+};
+
 const getStockDeltas = (
   currentLines: StockLine[],
   nextLines: StockLine[],
@@ -282,16 +310,24 @@ const getFallbackLineItems = (
   kind: 'repair' | 'sale',
   salePrice: number,
   quantity: number,
-  product: { _id: mongoose.Types.ObjectId | string; name: string },
-) =>
-  getDefaultLineItems(
+  product?: {
+    _id?: mongoose.Types.ObjectId | string | null;
+    name?: string | null;
+  } | null,
+) => {
+  const productId = product?._id?.toString().trim();
+  const productName = String(product?.name ?? '').trim();
+  if (!productId || !productName) return [];
+
+  return getDefaultLineItems(
     {
       kind,
       salePrice,
       quantity,
     },
-    product,
+    { _id: productId, name: productName },
   );
+};
 
 const assertSalePayload = (quantity: number, salePrice: number) => {
   if (!Number.isFinite(quantity) || quantity < 1) {
@@ -541,6 +577,7 @@ export const createSale = async (payloadInput: SalePayload) => {
   try {
     await assertSerialNumbersNotBoundToOtherSales('', lineItems);
     await assertSerializedLineItemsAreAtomic(lineItems);
+    await assertLineItemCatalogProductIds(lineItems);
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
     const updatedProduct = product
@@ -711,6 +748,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   let stockDeltasApplied = false;
 
   try {
+    await assertLineItemCatalogProductIds(nextLineItems);
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
     assertWorkspaceState(
@@ -842,12 +880,10 @@ export const updateSaleWorkspace = async (
       ? payload.lineItems
       : (existingSale.lineItems?.length
           ? existingSale.lineItems
-          : getDefaultLineItems(
-              {
-                kind: nextKind,
-                salePrice: existingSale.salePrice,
-                quantity: existingSale.quantity,
-              },
+          : getFallbackLineItems(
+              nextKind,
+              existingSale.salePrice,
+              existingSale.quantity,
               {
                 _id: existingSale.product ?? '',
                 name: existingSale.productSnapshot?.name ?? 'Item',
@@ -895,18 +931,17 @@ export const updateSaleWorkspace = async (
     normalizedLineItems,
   );
   await assertSerializedLineItemsAreAtomic(normalizedLineItems);
+  await assertLineItemCatalogProductIds(normalizedLineItems);
 
   const currentStockLines = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
     existingSale.status || 'new',
     (existingSale.lineItems?.length
       ? existingSale.lineItems
-      : getDefaultLineItems(
-          {
-            kind: existingSale.kind === 'sale' ? 'sale' : 'repair',
-            salePrice: existingSale.salePrice,
-            quantity: existingSale.quantity,
-          },
+      : getFallbackLineItems(
+          existingSale.kind === 'sale' ? 'sale' : 'repair',
+          existingSale.salePrice,
+          existingSale.quantity,
           {
             _id: existingSale.product ?? '',
             name: existingSale.productSnapshot?.name ?? 'Item',

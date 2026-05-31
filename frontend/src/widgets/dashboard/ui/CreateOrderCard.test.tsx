@@ -15,10 +15,6 @@ vi.mock('../../../entities/client-device/api/clientDeviceApi', () => ({
   getClientDevices: vi.fn(async () => []),
 }));
 
-vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', () => ({
-  getWarehouseSettings: vi.fn(async () => ({ warehouses: [] })),
-}));
-
 const product = (patch: Partial<Product>): Product => ({
   id: 'p1',
   name: 'iPhone 14',
@@ -92,7 +88,6 @@ const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(asy
       sales={[]}
       onClose={vi.fn()}
       onSave={onSave}
-      onUpdateProductModel={vi.fn(async () => true)}
       onError={vi.fn()}
     />,
 );
@@ -118,6 +113,8 @@ describe('CreateOrderCard', () => {
     });
 
     fireEvent.click(screen.getByText('iPhone 14'));
+
+    expect(screen.queryByRole('button', { name: 'iPhone 14' })).toBeNull();
 
     const quantityInput = screen
       .getByText('Qty')

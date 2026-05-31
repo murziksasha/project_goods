@@ -144,6 +144,10 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
           productId:
             toNonEmptyString((item as { productId?: unknown })?.productId) ||
             undefined,
+          catalogProductId:
+            toNonEmptyString(
+              (item as { catalogProductId?: unknown })?.catalogProductId,
+            ) || undefined,
           serviceId:
             toNonEmptyString((item as { serviceId?: unknown })?.serviceId) ||
             undefined,

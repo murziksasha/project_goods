@@ -20,6 +20,7 @@ export type CreateOrderRequestPayload = {
   saleItems?: Array<{
     id: string;
     productId: string;
+    catalogProductId?: string;
     name: string;
     article: string;
     serialNumber: string;

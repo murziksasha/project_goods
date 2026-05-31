@@ -785,7 +785,6 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   sales={state.sales}
                   onSave={actions.saveOrderRequest}
-                  onUpdateProductModel={actions.updateProductModelCard}
                   onError={actions.showError}
               />
             ) : (
