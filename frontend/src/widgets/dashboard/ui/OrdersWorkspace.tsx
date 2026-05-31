@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
@@ -97,7 +98,10 @@ import { ProductModelModal } from './ProductModelModal';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
+  customLabelSizePresetId,
   defaultPrintForms,
+  labelSizePresets,
+  normalizeLabelSize,
   normalizePrintFormsForView,
   printDocumentStyles,
   renderPrintTemplate as renderSettingsPrintTemplate,
@@ -916,6 +920,7 @@ const renderLineItemsTable = (
         <tr>
           <td>${escapeHtml(item.name)}</td>
           <td>${escapeHtml(String(item.quantity))}</td>
+          <td>${escapeHtml(formatCurrency(item.price))}</td>
           <td>${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
         </tr>
       `,
@@ -928,6 +933,7 @@ const renderLineItemsTable = (
         <tr>
           <th>Назва</th>
           <th>К-сть</th>
+          <th>Ціна</th>
           <th>Сума</th>
         </tr>
       </thead>
@@ -1143,6 +1149,7 @@ const getPrintTemplateData = (
     (item) => item.kind === 'service',
   );
   const createdAt = formatDateTime(sale.createdAt);
+  const isRepair = isRepairOrder(sale);
   return {
     id: sale.id,
     orderNumber,
@@ -1150,9 +1157,9 @@ const getPrintTemplateData = (
     status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
     clientName: sale.client.name,
     clientPhone: sale.client.phone,
-    deviceName: sale.product.name,
-    serialNumber: sale.product.serialNumber,
-    article: sale.product.article,
+    deviceName: isRepair ? sale.product.name : '',
+    serialNumber: isRepair ? sale.product.serialNumber : '',
+    article: isRepair ? sale.product.article : '',
     defect: sale.note || '-',
     comment: sale.note || '-',
     total: formatCurrency(total),
@@ -1261,15 +1268,28 @@ const buildOrderPrintBody = (
   forms: PrintForm[],
   templateData: PrintTemplateData,
   copies: number,
+  pageSize: PrintForm['pageSize'],
+  activeLabelSize: NonNullable<PrintForm['labelSize']>,
 ) =>
   Array.from({ length: Math.max(1, copies) })
     .flatMap(() => forms)
     .map(
-      (form) => `
-        <section class="print-form ${form.pageSize === 'label' ? 'print-form-label' : ''}">
+      (form) => {
+        const isLabel = pageSize === 'label' || form.pageSize === 'label';
+        const labelSize = pageSize === 'label'
+          ? activeLabelSize
+          : normalizeLabelSize(form.labelSize);
+        const labelStyle =
+          isLabel
+            ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm;"`
+            : '';
+
+        return `
+        <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>
           ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
         </section>
-      `,
+      `;
+      },
     )
     .join('');
 
@@ -1277,11 +1297,13 @@ const buildOrderPrintHtml = ({
   title,
   body,
   pageSize,
+  labelSize,
   orientation,
 }: {
   title: string;
   body: string;
   pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
   orientation: PrintForm['orientation'];
 }) => `
   <!doctype html>
@@ -1289,7 +1311,7 @@ const buildOrderPrintHtml = ({
     <head>
       <title>${title}</title>
       <style>
-        @page { size: ${pageSize === 'label' ? '58mm 40mm' : 'A4'} ${orientation}; margin: 0; }
+        @page { size: ${pageSize === 'label' ? `${labelSize.widthMm}mm ${labelSize.heightMm}mm` : `A4 ${orientation}`}; margin: 0; }
         ${printDocumentStyles}
       </style>
     </head>
@@ -1301,6 +1323,7 @@ const openOrderPrintWindow = async ({
   title,
   body,
   pageSize,
+  labelSize,
   orientation,
   orderNumber,
   shouldPrint,
@@ -1309,6 +1332,7 @@ const openOrderPrintWindow = async ({
   title: string;
   body: string;
   pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
   orientation: PrintForm['orientation'];
   orderNumber: string;
   shouldPrint: boolean;
@@ -1318,7 +1342,7 @@ const openOrderPrintWindow = async ({
   if (!printWindow) return;
 
   printWindow.document.write(
-    buildOrderPrintHtml({ title, body, pageSize, orientation }),
+    buildOrderPrintHtml({ title, body, pageSize, labelSize, orientation }),
   );
   printWindow.document.close();
   await renderOrderPrintCodes(printWindow.document, orderNumber);
@@ -1336,11 +1360,24 @@ const openOrderPrintWindow = async ({
 const OrderPrintPreview = ({
   html,
   orderNumber,
+  pageSize,
+  labelSize,
 }: {
   html: string;
   orderNumber: string;
+  pageSize: PrintForm['pageSize'];
+  labelSize: NonNullable<PrintForm['labelSize']>;
 }) => {
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const previewStyle =
+    pageSize === 'label'
+      ? ({
+          '--label-width': `${labelSize.widthMm}mm`,
+          '--label-height': `${labelSize.heightMm}mm`,
+          width: `${labelSize.widthMm}mm`,
+          minHeight: `${labelSize.heightMm}mm`,
+        } as CSSProperties)
+      : undefined;
 
   useEffect(() => {
     if (previewRef.current) {
@@ -1351,7 +1388,12 @@ const OrderPrintPreview = ({
   return (
     <div
       ref={previewRef}
-      className='order-print-preview-page settings-print-preview-page'
+      className={
+        pageSize === 'label'
+          ? 'order-print-preview-page settings-print-preview-page settings-print-preview-page-label'
+          : 'order-print-preview-page settings-print-preview-page'
+      }
+      style={previewStyle}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -1383,6 +1425,9 @@ const OrderPrintDialog = ({
   const [pageSize, setPageSize] = useState<PrintForm['pageSize']>(
     firstSelectedForm?.pageSize ?? 'A4',
   );
+  const [labelSize, setLabelSize] = useState<NonNullable<PrintForm['labelSize']>>(
+    normalizeLabelSize(firstSelectedForm?.labelSize),
+  );
   const [orientation, setOrientation] = useState<PrintForm['orientation']>(
     firstSelectedForm?.orientation ?? 'portrait',
   );
@@ -1395,12 +1440,19 @@ const OrderPrintDialog = ({
     request.orderNumber,
     companySettings,
   );
-  const previewBody = buildOrderPrintBody(selectedForms, templateData, copies);
+  const previewBody = buildOrderPrintBody(
+    selectedForms,
+    templateData,
+    copies,
+    pageSize,
+    labelSize,
+  );
   const canPrint = selectedForms.length > 0;
 
   useEffect(() => {
     if (!firstSelectedForm) return;
     setPageSize(firstSelectedForm.pageSize);
+    setLabelSize(normalizeLabelSize(firstSelectedForm.labelSize));
     setOrientation(firstSelectedForm.orientation);
   }, [firstSelectedForm?.id]);
 
@@ -1412,11 +1464,36 @@ const OrderPrintDialog = ({
     );
   };
 
+  const updateLabelPreset = (presetId: string) => {
+    const preset = labelSizePresets.find((item) => item.id === presetId);
+    setLabelSize(
+      preset
+        ? {
+            presetId: preset.id,
+            widthMm: preset.widthMm,
+            heightMm: preset.heightMm,
+          }
+        : {
+            ...labelSize,
+            presetId: customLabelSizePresetId,
+          },
+    );
+  };
+
+  const updateLabelSize = (field: 'widthMm' | 'heightMm', value: number) => {
+    setLabelSize((current) => ({
+      ...current,
+      presetId: customLabelSizePresetId,
+      [field]: value,
+    }));
+  };
+
   const openPreviewWindow = () =>
     openOrderPrintWindow({
       title: `Preview ${request.orderNumber}`,
       body: previewBody,
       pageSize,
+      labelSize,
       orientation,
       orderNumber: request.orderNumber,
       shouldPrint: false,
@@ -1428,6 +1505,7 @@ const OrderPrintDialog = ({
       title: `Print forms ${request.orderNumber}`,
       body: previewBody,
       pageSize,
+      labelSize,
       orientation,
       orderNumber: request.orderNumber,
       shouldPrint: true,
@@ -1486,6 +1564,52 @@ const OrderPrintDialog = ({
                 <option value='label'>Label</option>
               </select>
             </label>
+            {pageSize === 'label' ? (
+              <>
+                <label className='field'>
+                  <span>Label size</span>
+                  <select
+                    value={labelSize.presetId}
+                    onChange={(event) => updateLabelPreset(event.target.value)}
+                  >
+                    {labelSizePresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </option>
+                    ))}
+                    <option value={customLabelSizePresetId}>Custom</option>
+                  </select>
+                </label>
+                <label className='field'>
+                  <span>Width, mm</span>
+                  <input
+                    type='number'
+                    min={10}
+                    max={120}
+                    step={1}
+                    value={labelSize.widthMm}
+                    disabled={labelSize.presetId !== customLabelSizePresetId}
+                    onChange={(event) =>
+                      updateLabelSize('widthMm', Number(event.target.value))
+                    }
+                  />
+                </label>
+                <label className='field'>
+                  <span>Height, mm</span>
+                  <input
+                    type='number'
+                    min={10}
+                    max={120}
+                    step={1}
+                    value={labelSize.heightMm}
+                    disabled={labelSize.presetId !== customLabelSizePresetId}
+                    onChange={(event) =>
+                      updateLabelSize('heightMm', Number(event.target.value))
+                    }
+                  />
+                </label>
+              </>
+            ) : null}
             <label className='field'>
               <span>Orientation</span>
               <select
@@ -1524,7 +1648,12 @@ const OrderPrintDialog = ({
 
           <main className='order-print-preview'>
             {canPrint ? (
-              <OrderPrintPreview html={previewBody} orderNumber={request.orderNumber} />
+              <OrderPrintPreview
+                html={previewBody}
+                orderNumber={request.orderNumber}
+                pageSize={pageSize}
+                labelSize={labelSize}
+              />
             ) : (
               <p className='empty-state'>Select at least one print form.</p>
             )}

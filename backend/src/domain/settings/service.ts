@@ -1,5 +1,6 @@
 import {
   Settings,
+  defaultLabelSize,
   defaultPrintForms,
   legacyDefaultPrintFormTitles,
   type SettingsDocument,
@@ -51,20 +52,35 @@ const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
 
   return [
     ...rawPrintForms.map((form) => {
+      const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
       const isPreviousDefaultInvoice =
         form.id === 'invoice' &&
         form.title === 'Рахунок' &&
         form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
-      const normalizedForm = isPreviousDefaultInvoice
-        ? defaultPrintForms.find((defaultForm) => defaultForm.id === 'invoice') ?? form
+      const isLegacyStandardPrintForm =
+        Boolean(defaultForm) &&
+        form.title === defaultForm?.title &&
+        form.id !== 'invoice' &&
+        form.id !== 'barcode' &&
+        ((form.id === 'completion-act' && form.content.includes('{{deviceName}}')) ||
+          !form.content.includes('{{products_table}}') ||
+          !form.content.includes('{{services_table}}'));
+      const normalizedForm = isPreviousDefaultInvoice || isLegacyStandardPrintForm
+        ? defaultForm ?? form
         : form;
+
+      const pageSize =
+        normalizedForm.pageSize ||
+        (String(normalizedForm.type) === 'barcode' ? 'label' : 'A4');
 
       return {
         ...normalizedForm,
         contentFormat: normalizedForm.contentFormat ?? 'text',
-        pageSize:
-          normalizedForm.pageSize ??
-          (normalizedForm.type === 'barcode' ? 'label' : 'A4'),
+        pageSize,
+        labelSize:
+          pageSize === 'label'
+            ? { ...defaultLabelSize, ...(normalizedForm.labelSize ?? {}) }
+            : normalizedForm.labelSize,
         orientation: normalizedForm.orientation ?? 'portrait',
       };
     }),

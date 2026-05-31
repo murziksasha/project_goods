@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import type {
@@ -10,7 +10,11 @@ import type {
   PrintForm,
 } from '../../../entities/settings/model/types';
 import {
+  customLabelSizePresetId,
+  defaultLabelSize,
+  labelSizePresets,
   normalizePrintFormsForView,
+  normalizeLabelSize,
   printFormVariableGroups,
   renderPrintTemplate,
 } from '../../../entities/settings/model/printForms';
@@ -70,6 +74,20 @@ const printFormTypeOptions = [
   'barcode',
   'custom',
 ];
+
+const getLabelPreviewStyle = (
+  form: PrintForm | undefined,
+): CSSProperties => {
+  if (!form || form.pageSize !== 'label') return {};
+
+  const labelSize = normalizeLabelSize(form.labelSize);
+  return {
+    '--label-width': `${labelSize.widthMm}mm`,
+    '--label-height': `${labelSize.heightMm}mm`,
+    width: `${labelSize.widthMm}mm`,
+    minHeight: `${labelSize.heightMm}mm`,
+  } as CSSProperties;
+};
 
 const demoPrintValues = {
   id: 'demo-sale-id',
@@ -137,18 +155,26 @@ const htmlEditorCommandButtons = [
   { command: 'bold', label: 'B', title: 'Жирний' },
   { command: 'italic', label: 'I', title: 'Курсив' },
   { command: 'underline', label: 'U', title: 'Підкреслений' },
-  { command: 'justifyLeft', label: '⯇', title: 'Ліворуч' },
-  { command: 'justifyCenter', label: '≡', title: 'По центру' },
-  { command: 'justifyRight', label: '⯈', title: 'Праворуч' },
+  { command: 'justifyLeft', label: 'L', title: 'Ліворуч' },
+  { command: 'justifyCenter', label: 'C', title: 'По центру' },
+  { command: 'justifyRight', label: 'R', title: 'Праворуч' },
   { command: 'insertUnorderedList', label: '•', title: 'Маркірований список' },
   { command: 'insertOrderedList', label: '1.', title: 'Нумерований список' },
 ];
 
 const insertTableHtml =
-  '<table class="print-line-table"><thead><tr><th>Назва</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Позиція</td><td>1</td><td>{{total}}</td></tr></tbody></table>';
+  '<table class="print-line-table"><thead><tr><th>Назва</th><th>К-сть</th><th>Ціна</th><th>Сума</th></tr></thead><tbody><tr><td>Позиція</td><td>1</td><td>{{total}}</td><td>{{total}}</td></tr></tbody></table>';
 
 const imagePlaceholderHtml =
   '<div class="print-image-placeholder">Місце для зображення</div>';
+
+const specialPrintBlockButtons = [
+  { label: 'Barcode', html: '{{barcode}}' },
+  { label: 'QR', html: '{{qrcode}}' },
+  { label: 'Товари', html: '<h3>Товари</h3>{{products_table}}' },
+  { label: 'Послуги', html: '<h3>Послуги</h3>{{services_table}}' },
+  { label: 'Рахунок', html: '{{invoice_items_table}}' },
+];
 
 const normalizeEditorHtml = (html: string): string => {
   if (typeof window === 'undefined') return html;
@@ -165,6 +191,7 @@ const normalizeEditorHtml = (html: string): string => {
   });
 
   container.querySelectorAll<HTMLElement>('span').forEach((spanNode) => {
+    if (spanNode.classList.contains('settings-print-variable-token')) return;
     if (spanNode.attributes.length === 0) return;
     if (!spanNode.textContent?.includes('{{')) return;
     spanNode.removeAttribute('style');
@@ -213,10 +240,13 @@ const renderSpecialCodes = (root: HTMLElement | Document) => {
 
 const PrintPreview = ({
   html,
+  form,
 }: {
   html: string;
+  form: PrintForm | undefined;
 }) => {
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const previewStyle = getLabelPreviewStyle(form);
 
   useEffect(() => {
     if (previewRef.current) {
@@ -227,7 +257,12 @@ const PrintPreview = ({
   return (
     <div
       ref={previewRef}
-      className="settings-print-preview-page"
+      className={
+        form?.pageSize === 'label'
+          ? 'settings-print-preview-page settings-print-preview-page-label'
+          : 'settings-print-preview-page'
+      }
+      style={previewStyle}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -278,6 +313,9 @@ export const SettingsPanel = ({
         selectedForm.contentFormat,
       )
     : '';
+  const selectedLabelSize = selectedForm
+    ? normalizeLabelSize(selectedForm.labelSize)
+    : defaultLabelSize;
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
@@ -326,6 +364,45 @@ export const SettingsPanel = ({
   const updateSelectedForm = (patch: Partial<PrintForm>) => {
     if (!selectedForm) return;
     updateFormById(selectedForm.id, patch);
+  };
+
+  const updateSelectedFormPageSize = (pageSize: PrintForm['pageSize']) => {
+    updateSelectedForm({
+      pageSize,
+      labelSize:
+        pageSize === 'label'
+          ? normalizeLabelSize(selectedForm?.labelSize)
+          : selectedForm?.labelSize,
+    });
+  };
+
+  const updateSelectedLabelPreset = (presetId: string) => {
+    const preset = labelSizePresets.find((item) => item.id === presetId);
+    updateSelectedForm({
+      labelSize: preset
+        ? {
+            presetId: preset.id,
+            widthMm: preset.widthMm,
+            heightMm: preset.heightMm,
+          }
+        : {
+            ...normalizeLabelSize(selectedForm?.labelSize),
+            presetId: customLabelSizePresetId,
+          },
+    });
+  };
+
+  const updateSelectedLabelSize = (
+    field: 'widthMm' | 'heightMm',
+    value: number,
+  ) => {
+    updateSelectedForm({
+      labelSize: {
+        ...normalizeLabelSize(selectedForm?.labelSize),
+        presetId: customLabelSizePresetId,
+        [field]: value,
+      },
+    });
   };
 
   const addPrintForm = () => {
@@ -451,7 +528,9 @@ export const SettingsPanel = ({
   };
 
   const insertVariable = (variable: string) => {
-    insertHtmlIntoEditor(`{{${variable}}}`);
+    insertHtmlIntoEditor(
+      `<span class="settings-print-variable-token" contenteditable="false">{{${variable}}}</span>&nbsp;`,
+    );
   };
 
   const runEditorCommand = (command: string, value?: string) => {
@@ -694,10 +773,9 @@ export const SettingsPanel = ({
                       <select
                         value={selectedForm.pageSize}
                         onChange={(event) =>
-                          updateSelectedForm({
-                            pageSize:
-                              event.target.value === 'label' ? 'label' : 'A4',
-                          })
+                          updateSelectedFormPageSize(
+                            event.target.value === 'label' ? 'label' : 'A4',
+                          )
                         }
                       >
                         <option value="A4">A4</option>
@@ -722,6 +800,54 @@ export const SettingsPanel = ({
                       </select>
                     </label>
                   </div>
+                  {selectedForm.pageSize === 'label' ? (
+                    <div className="settings-print-options-row settings-label-size-row">
+                      <label className="field">
+                        <span>Label size</span>
+                        <select
+                          value={selectedLabelSize.presetId}
+                          onChange={(event) =>
+                            updateSelectedLabelPreset(event.target.value)
+                          }
+                        >
+                          {labelSizePresets.map((preset) => (
+                            <option key={preset.id} value={preset.id}>
+                              {preset.label}
+                            </option>
+                          ))}
+                          <option value={customLabelSizePresetId}>Custom</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Width, mm</span>
+                        <input
+                          type="number"
+                          min={10}
+                          max={120}
+                          step={1}
+                          value={selectedLabelSize.widthMm}
+                          disabled={selectedLabelSize.presetId !== customLabelSizePresetId}
+                          onChange={(event) =>
+                            updateSelectedLabelSize('widthMm', Number(event.target.value))
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Height, mm</span>
+                        <input
+                          type="number"
+                          min={10}
+                          max={120}
+                          step={1}
+                          value={selectedLabelSize.heightMm}
+                          disabled={selectedLabelSize.presetId !== customLabelSizePresetId}
+                          onChange={(event) =>
+                            updateSelectedLabelSize('heightMm', Number(event.target.value))
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : null}
                   <label className="settings-check">
                     <input
                       type="checkbox"
@@ -777,6 +903,17 @@ export const SettingsPanel = ({
                       >
                         Зображення
                       </button>
+                      {specialPrintBlockButtons.map((button) => (
+                        <button
+                          key={button.label}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => insertHtmlIntoEditor(button.html)}
+                          disabled={isHtmlMode}
+                        >
+                          {button.label}
+                        </button>
+                      ))}
                       <button
                         type="button"
                         className={isHtmlMode ? 'settings-rich-mode-active' : ''}
@@ -851,7 +988,7 @@ export const SettingsPanel = ({
                 <aside className="settings-print-preview">
                   <p className="section-label">Live preview</p>
                   <h3>{selectedForm.title}</h3>
-                  <PrintPreview html={selectedPreview} />
+                  <PrintPreview html={selectedPreview} form={selectedForm} />
                 </aside>
               </div>
             ) : null}
