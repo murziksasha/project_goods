@@ -5,6 +5,8 @@ export type FinanceCurrency = (typeof financeCurrencies)[number];
 
 export const transactionTypes = ['deposit', 'withdraw', 'transfer'] as const;
 export type TransactionType = (typeof transactionTypes)[number];
+export const transactionStatuses = ['active', 'cancelled'] as const;
+export type TransactionStatus = (typeof transactionStatuses)[number];
 
 const balancesSchema = new mongoose.Schema(
   {
@@ -93,6 +95,34 @@ export const financeTransactionSchema = new mongoose.Schema(
     },
     toSnapshot: {
       name: { type: String, required: false },
+    },
+    status: {
+      type: String,
+      enum: transactionStatuses,
+      required: true,
+      default: 'active',
+      index: true,
+    },
+    isCancellation: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
+    cancelsTransaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FinanceTransaction',
+      default: null,
+      index: true,
+    },
+    cancellationTransaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FinanceTransaction',
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
     },
   },
   {

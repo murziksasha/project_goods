@@ -1,5 +1,6 @@
 ﻿import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  cancelFinanceTransaction,
   createCashbox,
   createFinanceTransaction,
   getCashboxes,
@@ -207,6 +208,7 @@ export const AccountingPanel = ({
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
   const [supplierOrdersQueue, setSupplierOrdersQueue] = useState<SupplierOrderPaymentQueueItem[]>([]);
   const [selectedSupplierOrder, setSelectedSupplierOrder] = useState<SupplierOrder | null>(null);
+  const [transferToCancel, setTransferToCancel] = useState<FinanceTransaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newCashboxName, setNewCashboxName] = useState('');
@@ -982,6 +984,35 @@ export const AccountingPanel = ({
     }
   };
 
+  const canCancelTransferTransaction = (transaction: FinanceTransaction) =>
+    canCreateTransfer &&
+    transaction.type === 'transfer' &&
+    Boolean(transaction.fromCashbox && transaction.toCashbox) &&
+    (transaction.status ?? 'active') !== 'cancelled' &&
+    !transaction.isCancellation &&
+    !transaction.cancelsTransactionId;
+
+  const handleCancelTransfer = async () => {
+    if (!transferToCancel) return;
+    if (!canCancelTransferTransaction(transferToCancel)) {
+      onError('Only active transfers between cashboxes can be cancelled.');
+      setTransferToCancel(null);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await cancelFinanceTransaction(transferToCancel.id);
+      onSuccess('Transfer cancelled. A reverse transaction was created.');
+      setTransferToCancel(null);
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to cancel transfer.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderCashboxes = () => (
     <>
       <div className='finance-toolbar'>
@@ -1654,29 +1685,42 @@ export const AccountingPanel = ({
       <div className='finance-table-wrap'>
         <table className='orders-table'>
           <thead>
-            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Total</th><th>From</th><th>To</th><th>Note</th></tr>
+            <tr><th>Date</th><th>Type</th><th>Amount</th><th>Total</th><th>From</th><th>To</th><th>Note</th><th>Action</th></tr>
           </thead>
           <tbody>
             {filteredTransactions.length === 0 ? (
-              <tr><td colSpan={7} className='orders-empty'>Transactions not found.</td></tr>
+              <tr><td colSpan={8} className='orders-empty'>Transactions not found.</td></tr>
             ) : (
                             paginatedTransactions.map((transaction, index) => {
                 const currentDay = transaction.transactionDate.slice(0, 10);
                 const previousDay = paginatedTransactions[index - 1]?.transactionDate.slice(0, 10);
                 const isNewDay = index === 0 || currentDay !== previousDay;
+                const isCancelled = (transaction.status ?? 'active') === 'cancelled';
+                const isCancellation = transaction.isCancellation || Boolean(transaction.cancelsTransactionId);
+                const canCancelTransfer = canCancelTransferTransaction(transaction);
                 return (
                   <Fragment key={transaction.id}>
                     {isNewDay ? (
                       <tr className='finance-day-separator-row'>
-                        <td colSpan={7} className='finance-day-separator-cell'>
+                        <td colSpan={8} className='finance-day-separator-cell'>
                           {formatTransactionDayLabel(transaction.transactionDate)}
                         </td>
                       </tr>
                     ) : null}
-                    <tr>
+                    <tr className={isCancelled ? 'finance-transaction-row-cancelled' : undefined}>
                       <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
                       <td className={`finance-transaction-type finance-transaction-type-${transaction.type}`}>
                         {transactionLabels[transaction.type]}
+                        {isCancelled ? (
+                          <span className='finance-transaction-badge finance-transaction-badge-cancelled'>
+                            Cancelled
+                          </span>
+                        ) : null}
+                        {isCancellation ? (
+                          <span className='finance-transaction-badge finance-transaction-badge-cancellation'>
+                            Cancellation
+                          </span>
+                        ) : null}
                       </td>
                       <td>{formatMoney(transaction.amount, transaction.currency)}</td>
                       <td>
@@ -1732,6 +1776,17 @@ export const AccountingPanel = ({
                             </button>
                           );
                         })()}
+                      </td>
+                      <td className='finance-transaction-action-cell'>
+                        {canCancelTransfer ? (
+                          <button
+                            type='button'
+                            className='toolbar-filter-button finance-transaction-cancel-button'
+                            onClick={() => setTransferToCancel(transaction)}
+                          >
+                            Cancel transfer
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   </Fragment>
@@ -2425,6 +2480,74 @@ export const AccountingPanel = ({
         onSuccess={onSuccess}
         onError={onError}
       />
+      {transferToCancel ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSaving) {
+              setTransferToCancel(null);
+            }
+          }}
+        >
+          <div
+            className='catalog-edit-modal finance-cancel-transfer-modal'
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='cancel-transfer-title'
+          >
+            <header className='catalog-edit-header'>
+              <h2 id='cancel-transfer-title'>Cancel transfer</h2>
+              <button
+                type='button'
+                className='ghost-button'
+                disabled={isSaving}
+                onClick={() => setTransferToCancel(null)}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>
+                This will create a reverse transaction and return funds from{' '}
+                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong> to{' '}
+                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>.
+              </p>
+              <div className='finance-cancel-transfer-summary'>
+                <span>Date</span>
+                <strong>{formatDateDdMmYyyy(transferToCancel.transactionDate)}</strong>
+                <span>Amount</span>
+                <strong>{formatMoney(transferToCancel.amount, transferToCancel.currency)}</strong>
+                <span>From</span>
+                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>
+                <span>To</span>
+                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong>
+              </div>
+              <p className='muted-copy'>
+                The original transfer will stay in history with a Cancelled badge.
+              </p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                disabled={isSaving}
+                onClick={() => setTransferToCancel(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button finance-danger-button'
+                disabled={isSaving}
+                onClick={handleCancelTransfer}
+              >
+                {isSaving ? 'Cancelling...' : 'Confirm cancellation'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
       {withoutPaymentOrder ? (
         <div
           className='modal-backdrop'

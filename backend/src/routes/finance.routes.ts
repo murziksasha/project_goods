@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  cancelFinanceTransaction,
   createCashbox,
   createFinanceTransaction,
   getFinanceReport,
@@ -77,6 +78,18 @@ financeRouter.post('/finance/transactions', async (req, res, next) => {
       permission ?? 'finance.transactions.deposit',
     );
     res.status(201).json(await createFinanceTransaction(req.body));
+  } catch (error) {
+    next(error);
+  }
+});
+
+financeRouter.post('/finance/transactions/:transactionId/cancel', async (req, res, next) => {
+  try {
+    await requirePermissionByToken(
+      getBearerToken(req.headers.authorization),
+      'finance.transactions.transfer',
+    );
+    res.json(await cancelFinanceTransaction(req.params.transactionId));
   } catch (error) {
     next(error);
   }

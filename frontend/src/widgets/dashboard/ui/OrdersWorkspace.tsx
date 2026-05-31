@@ -83,6 +83,7 @@ import {
   mergeSupplierOrderItemUpdate,
 } from '../model/supplier-order-utils';
 import {
+  canRemoveLineItemAfterPayment,
   patchLineItemsById,
   removeLineItemsById,
 } from '../model/line-item-ops';
@@ -3201,9 +3202,18 @@ export const OrdersWorkspace = ({
       currentItems.find((item) => item.id === itemId) ??
       (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
     if (!removedItem) return;
-    if (getPaidAmount(sale) > 0) {
+    const paidAmount = getPaidAmount(sale);
+    if (
+      !canRemoveLineItemAfterPayment(
+        currentItems,
+        itemId,
+        itemIndex,
+        paidAmount,
+        getDiscount(sale),
+      )
+    ) {
       onError(
-        'Cannot remove product or service from a paid order before refund.',
+        'Refund the line item amount before removing it from the order.',
       );
       return;
     }
@@ -3225,13 +3235,13 @@ export const OrdersWorkspace = ({
     if (nextItems.length === 0) {
       void persistSaleWorkspace(sale, {
         lineItems: [],
-        paidAmount: getPaidAmount(sale),
+        paidAmount,
       });
       return;
     }
     void persistSaleWorkspace(sale, {
       lineItems: nextItems,
-      paidAmount: getPaidAmount(sale),
+      paidAmount,
       timeline: [
         appendTimelineEntry(
           removedItem.kind === 'product'
@@ -5333,6 +5343,7 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={productItems}
+              allItems={lineItems}
               products={products}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -5340,7 +5351,8 @@ const OrderDetailCard = ({
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isOrderPaid={paidAmount > 0}
+              paidAmount={paidAmount}
+              discount={getDiscount(sale)}
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
@@ -5374,6 +5386,7 @@ const OrderDetailCard = ({
               currentClientId={sale.client.id}
               currentStatus={status}
               items={serviceItems}
+              allItems={lineItems}
               products={products}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -5381,7 +5394,8 @@ const OrderDetailCard = ({
               onRemoveItem={onRemoveLineItem}
               onUpdateItem={onUpdateLineItem}
               onReturnItem={onReturnLineItem}
-              isOrderPaid={paidAmount > 0}
+              paidAmount={paidAmount}
+              discount={getDiscount(sale)}
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
@@ -5763,6 +5777,7 @@ type LineItemsPanelProps = {
   currentClientId: string;
   currentStatus: OrderStatus;
   items: OrderLineItem[];
+  allItems: OrderLineItem[];
   products: Product[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
@@ -5788,7 +5803,8 @@ type LineItemsPanelProps = {
     >,
   ) => void;
   onReturnItem: (item: OrderLineItem) => void;
-  isOrderPaid: boolean;
+  paidAmount: number;
+  discount: ReturnType<typeof getDiscount>;
   isReadOnly: boolean;
   onSupplierOrderCreated: () => Promise<void>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
@@ -5805,13 +5821,15 @@ const LineItemsPanel = ({
   currentClientId,
   currentStatus,
   items,
+  allItems,
   products,
   onAddItem,
   onReplaceItem,
   onRemoveItem,
   onUpdateItem,
   onReturnItem,
-  isOrderPaid,
+  paidAmount,
+  discount,
   isReadOnly,
   onSupplierOrderCreated,
   onUpdateProductModel,
@@ -5933,12 +5951,21 @@ const LineItemsPanel = ({
   }, [currentSaleId, sales, serialsEditingItem]);
   const getProductSuggestionState = (product: Product) =>
     getProductSerialAvailability(product, serialUsage);
-  const canRemoveServiceItem = !isReadOnly && !isOrderPaid;
+  const canRemoveItemAfterPayment = (item: OrderLineItem) =>
+    canRemoveLineItemAfterPayment(
+      allItems,
+      item.id,
+      undefined,
+      paidAmount,
+      discount,
+    );
+  const canRemoveServiceItem = (item: OrderLineItem) =>
+    !isReadOnly && canRemoveItemAfterPayment(item);
   const isIssuedSale = currentStatus === 'issued';
   const canDirectRemoveProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
     !isReadOnly &&
-    !isOrderPaid &&
+    canRemoveItemAfterPayment(item) &&
     (item.serialNumbers ?? []).length === 0;
   const isRepairFinalStockStatus =
     stockLockedRepairStatuses.has(currentStatus as RepairStatus);
@@ -5958,8 +5985,8 @@ const LineItemsPanel = ({
     if (isReadOnly) {
       return 'Use Return flow for shipped serialized product.';
     }
-    if (isOrderPaid) {
-      return 'Refund is required before removing items.';
+    if (!canRemoveItemAfterPayment(item)) {
+      return 'Refund the line item amount before removing it.';
     }
     if ((item.serialNumbers ?? []).length > 0) {
       return 'Unbind serial numbers before removing this product.';
@@ -6547,10 +6574,11 @@ const LineItemsPanel = ({
                     (item.serialNumbers ?? []).length > 0;
                   const canDirectRemove = canDirectRemoveProductItem(item);
                   const canReturnIssued = canReturnIssuedProductItem(item);
+                  const canRemoveService = canRemoveServiceItem(item);
                   const canOpenSerials = !isReadOnly || hasBoundSerials;
                   const actionDisabled = isProduct
                     ? !canDirectRemove && !canReturnIssued
-                    : !canRemoveServiceItem;
+                    : !canRemoveService;
                   const actionLabel = isProduct
                     ? canReturnIssued
                       ? 'Return'
@@ -6562,7 +6590,7 @@ const LineItemsPanel = ({
                       : !isProduct && actionDisabled
                         ? isReadOnly
                           ? 'Editing is blocked for current order status.'
-                          : 'Refund is required before removing items.'
+                          : 'Refund the line item amount before removing it.'
                         : '';
                   return (
                     <>

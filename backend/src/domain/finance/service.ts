@@ -102,6 +102,17 @@ const formatTransaction = (transaction: FinanceTransactionDocument) => ({
     : null,
   note: transaction.note,
   transactionDate: transaction.transactionDate.toISOString(),
+  status: transaction.status ?? 'active',
+  isCancellation: Boolean(transaction.isCancellation),
+  cancelsTransactionId: transaction.cancelsTransaction
+    ? transaction.cancelsTransaction.toString()
+    : undefined,
+  cancellationTransactionId: transaction.cancellationTransaction
+    ? transaction.cancellationTransaction.toString()
+    : undefined,
+  cancelledAt: transaction.cancelledAt
+    ? transaction.cancelledAt.toISOString()
+    : undefined,
   createdAt: transaction.createdAt.toISOString(),
   updatedAt: transaction.updatedAt.toISOString(),
 });
@@ -280,6 +291,89 @@ export const createFinanceTransaction = async (payload: TransactionPayload) => {
     if (toCashbox) {
       await applyCashboxDelta(toCashbox._id, currency, -amount);
     }
+    throw error;
+  }
+};
+
+export const cancelFinanceTransaction = async (transactionId: string) => {
+  isValidObjectIdOrThrow(transactionId, 'transactionId');
+
+  const transaction = await FinanceTransaction.findById(transactionId)
+    .lean<FinanceTransactionDocument | null>();
+  if (!transaction) {
+    throw new Error('Transaction not found.');
+  }
+
+  if (transaction.type !== 'transfer' || !transaction.fromCashbox || !transaction.toCashbox) {
+    throw new Error('Only transfers between cashboxes can be cancelled.');
+  }
+  if ((transaction.status ?? 'active') === 'cancelled') {
+    throw new Error('Transaction is already cancelled.');
+  }
+  if (transaction.isCancellation || transaction.cancelsTransaction) {
+    throw new Error('Cancellation transactions cannot be cancelled.');
+  }
+
+  const fromCashbox = await Cashbox.findById(transaction.fromCashbox)
+    .lean<CashboxDocument | null>();
+  const toCashbox = await Cashbox.findById(transaction.toCashbox)
+    .lean<CashboxDocument | null>();
+  if (!fromCashbox || !toCashbox) {
+    throw new Error('Transaction cashbox not found.');
+  }
+
+  let fromDeltaApplied = false;
+  await applyCashboxDelta(toCashbox._id, transaction.currency, -transaction.amount);
+  try {
+    await applyCashboxDelta(fromCashbox._id, transaction.currency, transaction.amount);
+    fromDeltaApplied = true;
+
+    const cancellation = new FinanceTransaction({
+      type: 'transfer',
+      amount: transaction.amount,
+      currency: transaction.currency,
+      fromCashbox: toCashbox._id,
+      toCashbox: fromCashbox._id,
+      fromSnapshot: { name: toCashbox.name },
+      toSnapshot: { name: fromCashbox.name },
+      note: `Cancellation of transfer ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`,
+      transactionDate: new Date(),
+      isCancellation: true,
+      cancelsTransaction: transaction._id,
+    });
+
+    await cancellation.validate();
+    await cancellation.save();
+
+    const cancelled = await FinanceTransaction.findOneAndUpdate(
+      {
+        _id: transaction._id,
+        status: { $ne: 'cancelled' },
+        isCancellation: { $ne: true },
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationTransaction: cancellation._id,
+        },
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<FinanceTransactionDocument | null>();
+
+    if (!cancelled) {
+      await FinanceTransaction.findByIdAndDelete(cancellation._id);
+      await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
+      fromDeltaApplied = false;
+      throw new Error('Transaction is already cancelled.');
+    }
+
+    return formatTransaction(cancelled);
+  } catch (error) {
+    if (fromDeltaApplied) {
+      await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
+    }
+    await applyCashboxDelta(toCashbox._id, transaction.currency, transaction.amount);
     throw error;
   }
 };
