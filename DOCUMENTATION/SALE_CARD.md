@@ -67,6 +67,16 @@
 - In desktop layout, payment panel is displayed in the right column beside line-item sections.
 - In responsive layout, payment panel falls back to normal vertical flow.
 
+## Print Dialog
+
+- `Order card` and `Sale card` use the same print dialog behavior.
+- Opening the print dialog must not preselect any print form; all form checkboxes start unchecked.
+- Print form selection is single-choice even though the UI uses checkboxes:
+  - selecting a form checks only that form
+  - selecting another form automatically clears the previous form
+  - clicking the currently selected form clears the selection
+- Print action stays disabled while no form is selected.
+
 ## Payment Discount
 
 - `Payment` panel contains editable `Discount` row under `Repair cost`.

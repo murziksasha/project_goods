@@ -18,23 +18,45 @@
 - Search suggestions are rendered in a separate block below the entry row.
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
-- In `Sales order`, `Product search` looks up records from `Products & Services -> Products` (`catalog-products`), not from warehouse `products`.
+- In `Sales order`, `Product search` can suggest:
+  - records from `Products & Services -> Products` (`catalog-products`)
+  - selectable warehouse stock products (`products`) when the item is available
+- Operator may type a product by:
+  - product name
+  - serial number
+  - article
 
 ## Product Suggestions
 
 - Product search starts from 2+ characters.
-- Suggestions are loaded from product catalog lookup.
+- Suggestions are loaded from product catalog lookup and available stock lookup.
+- Lookup must match by normalized product `name`, stock `serialNumber`, stock `article`, and relevant notes.
 - Clicking a suggestion fills:
   - product name into search input
   - suggested price from product sale price (fallback to base price)
   - quantity to `1`
   - warranty to `None`
-- Selected suggestion binds `catalog-products.id` and sends that value to backend as `productId` for the sale line item.
+- Selected catalog suggestion binds `catalog-products.id` and sends that value to backend as `catalogProductId` for the sale line item.
+- Selected stock suggestion binds warehouse `products.id` and sends that value to backend as `productId` for the sale line item.
+- If the selected stock suggestion has a serial number, the sale line auto-binds that serial immediately:
+  - `lineItems[].productId = products.id`
+  - `lineItems[].serialNumbers = [products.serialNumber]`
+  - `lineItems[].quantity = 1`
+- Manual item text is allowed and sends neither `productId` nor `catalogProductId` at creation time.
+- `productId` and `catalogProductId` must stay separate; empty strings must not be persisted into ObjectId fields.
 
 ## Sale Creation: Product/Device Linking Rules
 
-- Creating a `Sales order` must not auto-create warehouse product cards when a catalog match is absent.
+- Creating a `Sales order` from a typed product name is allowed even if there is no stock match.
+- If a typed/manual product is not linked to existing stock, it must be treated as a catalog/procurement item, not as stock already on hand.
+- On save/update of a sale/order, product row names are upserted into `catalog-products`; this may create a new catalog product record for future suggestions.
+- Creating a `Sales order` must not auto-create warehouse stock product cards when a catalog match is absent.
 - Sales line items may be saved without `productId` (manual item text), to avoid fake stock entries before receipt.
+- Sales line items with `catalogProductId` are catalog-only and must not affect warehouse stock quantity.
+- Sales line items with `productId` are linked to exact warehouse stock products and follow normal stock commit rules when status changes.
+- If the item is not yet in stock, the existing supplier-order/procurement and warehouse receipt flow is used later to order and receive the product.
+- Receipt/take-on-charge remains the only flow that creates warehouse `products` rows and assigns warehouse serial numbers for new stock.
+- After receipt, subsequent serial binding/stock linking follows the existing sale-card and warehouse rules; this document does not change those downstream flows.
 - Creating a `Sales order` must not auto-create entries in `Clients goods` (`client-devices`).
 - `Clients goods` auto-link/create behavior is applied only for `Repair order` flows.
 
@@ -108,6 +130,7 @@
 - `Products & Services -> Products` tab acts as managed DB list for suggestions.
 - On save/update of sales/orders, product row names are upserted into this list automatically.
 - Upsert source is restricted to explicit product row names (`lineItems.kind = product`) only.
+- Manual product names entered in `Create order -> Sales order` are catalogized through this upsert rule, so they can be selected from product catalog later.
 - Device names from `Clients goods` (`client-devices`) must not be copied/synced into `Products` catalog.
 - This catalog is separate from:
   - warehouse `products` (stock cards)

@@ -1217,6 +1217,7 @@ export const createDashboardActions = ({
                 saleItems.map((item) => ({
                   id: item.id || crypto.randomUUID(),
                   productId: item.productId,
+                  catalogProductId: item.catalogProductId,
                   name: item.name,
                   article: item.article,
                   serialNumber: item.serialNumber,

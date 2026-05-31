@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeEmployeePayload,
   normalizeProductPayload,
+  normalizeSalePayload,
   normalizeSettingsPayload,
 } from './parsers';
 
@@ -108,6 +109,55 @@ describe('normalizeEmployeePayload', () => {
       ]),
     );
     expect(defaults.permissions).not.toContain('employees.manage');
+  });
+});
+
+describe('normalizeSalePayload', () => {
+  it('normalizes empty line item ids away and preserves catalog product ids', () => {
+    const result = normalizeSalePayload({
+      clientId: '507f1f77bcf86cd799439011',
+      productId: '',
+      quantity: '1',
+      salePrice: '400',
+      lineItems: [
+        {
+          id: 'li-catalog',
+          kind: 'product',
+          productId: '',
+          catalogProductId: '507f1f77bcf86cd799439012',
+          serviceId: '',
+          name: 'USB hub',
+          price: '400',
+          quantity: '1',
+          warrantyPeriod: '0',
+        },
+        {
+          id: 'li-manual',
+          kind: 'product',
+          productId: '',
+          catalogProductId: '',
+          name: 'Manual item',
+          price: '200',
+          quantity: '2',
+          warrantyPeriod: '0',
+        },
+      ],
+    });
+
+    expect(result.productId).toBe('');
+    expect(result.lineItems).toEqual([
+      expect.objectContaining({
+        id: 'li-catalog',
+        productId: undefined,
+        catalogProductId: '507f1f77bcf86cd799439012',
+        serviceId: undefined,
+      }),
+      expect.objectContaining({
+        id: 'li-manual',
+        productId: undefined,
+        catalogProductId: undefined,
+      }),
+    ]);
   });
 });
 
