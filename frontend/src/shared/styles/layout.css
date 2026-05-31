@@ -2005,6 +2005,18 @@
   color: #4d637a;
 }
 
+.order-detail-serial-value,
+.order-line-item-serials {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-line-item-serials {
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
 .order-detail-list .order-detail-notes-row {
   grid-column: 1 / -1;
   align-items: start;
@@ -2633,6 +2645,10 @@
 .order-print-icon-button {
   display: inline-grid;
   place-items: center;
+}
+
+.order-products-print-button {
+  margin: 10px 0 0;
 }
 
 .order-print-dialog {

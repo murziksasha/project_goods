@@ -204,11 +204,11 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
 const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
   { key: 'home', label: 'Main' },
   { key: 'orders', label: 'Orders' },
-  { key: 'employees', label: 'Employees' },
-  { key: 'clients', label: 'Clients & Suppliers' },
   { key: 'accounting', label: 'Accounting' },
-  { key: 'warehouse', label: 'Warehouses' },
+  { key: 'warehouse', label: 'Warehouse' },
   { key: 'catalog', label: 'Products & Services' },
+  { key: 'clients', label: 'Clients & suppliers' },
+  { key: 'employees', label: 'Employees' },
   { key: 'settings', label: 'Settings' },
 ];
 

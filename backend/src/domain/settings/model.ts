@@ -24,7 +24,7 @@ export const defaultPrintForms = [
     title: 'Чек',
     type: 'check',
     content:
-      '<div class="print-document"><h1>Чек оплати</h1><table class="print-summary-table"><tbody><tr><td>Замовлення</td><td>{{orderNumber}}</td></tr><tr><td>Клієнт</td><td>{{clientName}}</td></tr><tr><td>Сума</td><td><strong>{{total}}</strong></td></tr><tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr><tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr></tbody></table><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<div class="print-code-row">{{qrcode}}{{barcode}}</div></div>',
+      '<div class="print-document"><h1>Чек оплати</h1><table class="print-summary-table"><tbody><tr><td>Замовлення</td><td>{{orderNumber}}</td></tr><tr><td>Клієнт</td><td>{{clientName}}</td></tr><tr><td>Сума</td><td><strong>{{total}}</strong></td></tr><tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr><tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr></tbody></table><h3>Послуги</h3>{{services_table}}<h3>Товари</h3>{{products_table}}<div class="print-code-row">{{barcode}}</div></div>',
     contentFormat: 'html',
     pageSize: 'A4',
     orientation: 'portrait',
