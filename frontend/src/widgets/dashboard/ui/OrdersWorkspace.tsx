@@ -6853,6 +6853,10 @@ const LineItemsPanel = ({
                   key={product.id}
                   type='button'
                   className='create-suggestion-item'
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    applyProductSuggestion(product);
+                  }}
                   onClick={() => applyProductSuggestion(product)}
                   disabled={isReadOnly || !state.selectable}
                   title={state.selectable ? undefined : state.label}
