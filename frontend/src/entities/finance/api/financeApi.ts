@@ -65,6 +65,17 @@ export const createFinanceTransaction = async (
   }
 };
 
+export const cancelFinanceTransaction = async (transactionId: string) => {
+  try {
+    const response = await apiClient.post<FinanceTransaction>(
+      `/finance/transactions/${transactionId}/cancel`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const getFinanceReport = async () => {
   try {
     const response = await apiClient.get<FinanceReport>('/finance/report');
