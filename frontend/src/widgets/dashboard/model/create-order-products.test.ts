@@ -80,8 +80,23 @@ describe('create order product helpers', () => {
     expect(suggestions[0].article).toBe('HUB-USB');
   });
 
-  it('labels occupied and unavailable stock suggestions as blocked', () => {
-    const sale = {
+  it('excludes occupied and unavailable stock suggestions', () => {
+    const currentSale = {
+      id: '',
+      product: { id: '', article: '', name: '', serialNumber: '' },
+      lineItems: [
+        {
+          id: 'li-current',
+          kind: 'product',
+          name: 'iPhone 14',
+          price: 1200,
+          quantity: 1,
+          warrantyPeriod: 12,
+          serialNumbers: ['S000003'],
+        },
+      ],
+    } as Pick<Sale, 'id' | 'product' | 'lineItems'>;
+    const otherSale = {
       id: 'sale-1',
       product: { id: '', article: '', name: '', serialNumber: '' },
       lineItems: [
@@ -92,41 +107,74 @@ describe('create order product helpers', () => {
           price: 1200,
           quantity: 1,
           warrantyPeriod: 12,
-          serialNumbers: ['S000003'],
+          serialNumbers: ['S000004'],
         },
       ],
     } as Pick<Sale, 'id' | 'product' | 'lineItems'>;
 
     const suggestions = buildCreateOrderProductSuggestions({
       products: [
-        product({ id: 'occupied', serialNumber: 'S000003' }),
+        product({ id: 'current', serialNumber: 'S000003' }),
+        product({ id: 'occupied', serialNumber: 'S000004' }),
         product({
           id: 'empty',
-          serialNumber: 'S000004',
+          serialNumber: 'S000005',
           freeQuantity: 0,
           quantity: 0,
           isInStock: false,
         }),
+        product({ id: 'inactive', serialNumber: 'S000006', isActive: false }),
+        product({ id: 'free', serialNumber: 'S000007' }),
       ],
       catalogProducts: [],
-      sales: [sale],
+      sales: [currentSale, otherSale],
       query: 'S00000',
     });
 
-    expect(suggestions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          productId: 'occupied',
-          availabilityLabel: 'Linked to another order',
-          selectable: false,
+    expect(suggestions.map((item) => item.productId)).toEqual(['free']);
+    expect(suggestions[0]).toMatchObject({
+      availabilityLabel: 'Free',
+      selectable: true,
+    });
+  });
+
+  it('keeps catalog fallback when stock matches are unavailable', () => {
+    const sale = {
+      id: 'sale-1',
+      product: { id: '', article: '', name: '', serialNumber: '' },
+      lineItems: [
+        {
+          id: 'li-1',
+          kind: 'product',
+          name: 'USB hub',
+          price: 1200,
+          quantity: 1,
+          warrantyPeriod: 12,
+          serialNumbers: ['HUB-001'],
+        },
+      ],
+    } as Pick<Sale, 'id' | 'product' | 'lineItems'>;
+
+    const suggestions = buildCreateOrderProductSuggestions({
+      products: [
+        product({
+          id: 'occupied',
+          name: 'USB hub',
+          serialNumber: 'HUB-001',
         }),
-        expect.objectContaining({
-          productId: 'empty',
-          availabilityLabel: 'No free stock',
-          selectable: false,
-        }),
-      ]),
-    );
+      ],
+      catalogProducts: [catalogProduct({ id: 'c-hub', name: 'USB hub' })],
+      sales: [sale],
+      query: 'hub',
+    });
+
+    expect(suggestions).toEqual([
+      expect.objectContaining({
+        source: 'catalog',
+        catalogProductId: 'c-hub',
+        selectable: true,
+      }),
+    ]);
   });
 
   it('maps create-order sale items to linked line items', () => {

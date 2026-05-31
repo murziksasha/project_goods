@@ -6288,6 +6288,9 @@ const LineItemsPanel = ({
           setProductSuggestions(
             products
               .filter((product) => {
+                if (!getProductSuggestionState(product).selectable) {
+                  return false;
+                }
                 const lookupFields = [
                   product.name,
                   product.article,
@@ -6311,15 +6314,7 @@ const LineItemsPanel = ({
                 if (firstExactSerial !== secondExactSerial) {
                   return firstExactSerial - secondExactSerial;
                 }
-                const firstSelectable = getProductSuggestionState(first)
-                  .selectable
-                  ? 0
-                  : 1;
-                const secondSelectable = getProductSuggestionState(second)
-                  .selectable
-                  ? 0
-                  : 1;
-                return firstSelectable - secondSelectable;
+                return first.name.localeCompare(second.name);
               })
               .slice(0, 8),
           );

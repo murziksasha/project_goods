@@ -107,11 +107,9 @@ export const buildCreateOrderProductSuggestions = ({
         rank: getStockProductRank(product, normalizedQuery),
       };
     })
+    .filter((product) => product.selectable)
     .sort((first, second) => {
       if (first.rank !== second.rank) return first.rank - second.rank;
-      if (first.selectable !== second.selectable) {
-        return first.selectable ? -1 : 1;
-      }
       return first.name.localeCompare(second.name);
     });
 
