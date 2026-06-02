@@ -5415,6 +5415,118 @@
   padding: 7px 10px;
 }
 
+.print-builder-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.print-builder-workspace {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.print-builder-block-list,
+.print-builder-block-editor,
+.settings-legacy-editor {
+  border: 1px solid #d6e0eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.print-builder-block-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.print-builder-block-item {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d7e2ee;
+  border-radius: 7px;
+  background: #fff;
+  color: #38506b;
+  cursor: pointer;
+  font: inherit;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.print-builder-block-item-active {
+  border-color: #66a4dd;
+  background: #edf6ff;
+  color: #1d5f9d;
+}
+
+.print-builder-block-item small,
+.print-builder-muted {
+  color: #738396;
+}
+
+.print-builder-block-actions,
+.print-block-editor-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.print-builder-block-actions {
+  margin-bottom: 12px;
+}
+
+.print-builder-table-editor {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.print-builder-field-row,
+.print-builder-custom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.print-builder-custom-row {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
+}
+
+.settings-print-preview-page .print-align-center {
+  text-align: center;
+}
+
+.settings-print-preview-page .print-align-right {
+  text-align: right;
+}
+
+.settings-print-preview-page .print-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.settings-print-preview-page .print-divider {
+  border: 0;
+  border-top: 1px solid #d1d5db;
+  margin: 14px 0;
+}
+
+.settings-print-preview-page .print-spacer-small {
+  height: 6px;
+}
+
+.settings-print-preview-page .print-spacer-medium {
+  height: 14px;
+}
+
+.settings-print-preview-page .print-spacer-large {
+  height: 26px;
+}
+
 .settings-print-preview {
   border: 1px solid #d4deea;
   border-radius: 8px;

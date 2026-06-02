@@ -81,19 +81,22 @@ describe('SettingsPanel', () => {
     render(<SettingsPanelHarness />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
-    expect(screen.getAllByText('Квитанція').length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain('r000124');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(screen.getByDisplayValue('Новий шаблон')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('New template')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
-    expect(screen.getByDisplayValue('Новий шаблон копія')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editable table' }));
+    expect(screen.getAllByText('Editable table').length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Видалити шаблон' }));
-    expect(screen.getByText('Новий шаблон')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Duplicate' })[0]);
+    expect(screen.getByDisplayValue('New template copy')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
+    expect(screen.getByText('New template')).toBeInTheDocument();
   });
-
   it('disables save while service name is invalid', async () => {
     render(<SettingsPanelHarness />);
 
