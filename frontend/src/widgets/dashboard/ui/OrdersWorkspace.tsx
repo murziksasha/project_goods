@@ -132,10 +132,13 @@ type OrdersWorkspaceProps = {
 };
 
 type PrintCompanySettings = {
+  serviceName: string;
   company: string;
   companyAddress: string;
   companyId: string;
   companyIban: string;
+  companyEmail: string;
+  companySite: string;
 };
 
 type OrderPrintRequest = {
@@ -1172,11 +1175,15 @@ const getPrintTemplateData = (
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
-    company: companySettings.company || '-',
+    company: companySettings.serviceName || companySettings.company || '-',
     company_address: companySettings.companyAddress || '-',
     company_id: companySettings.companyId || '-',
     company_iban: companySettings.companyIban || '-',
-    customer_reg_id: '-',
+    company_email: companySettings.companyEmail || '',
+    company_site: companySettings.companySite || '',
+    customer_reg_id: sale.client.registrationId || '',
+    customer_address: sale.client.address || '',
+    customer_iban: sale.client.iban || '',
     due_date: createdAt.split(',')[0] ?? createdAt,
     warehouse: getWarehouseLabel(sale),
     warehouse_address: '-',

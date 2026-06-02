@@ -84,7 +84,11 @@ export type PrintFormVariable =
   | 'company_address'
   | 'company_id'
   | 'company_iban'
+  | 'company_email'
+  | 'company_site'
   | 'customer_reg_id'
+  | 'customer_address'
+  | 'customer_iban'
   | 'due_date'
   | 'net_amount'
   | 'vat_amount'
@@ -123,6 +127,8 @@ export const printFormVariableGroups: Array<{
       { key: 'clientName', label: 'ПІБ або назва клієнта' },
       { key: 'clientPhone', label: 'Телефон клієнта' },
       { key: 'customer_reg_id', label: 'ЄДРПОУ або ІПН клієнта' },
+      { key: 'customer_address', label: 'Адреса клієнта' },
+      { key: 'customer_iban', label: 'IBAN клієнта' },
     ],
   },
   {
@@ -164,6 +170,8 @@ export const printFormVariableGroups: Array<{
       { key: 'company_address', label: 'Адреса компанії' },
       { key: 'company_id', label: 'ЄДРПОУ або ІПН компанії' },
       { key: 'company_iban', label: 'IBAN компанії' },
+      { key: 'company_email', label: 'E-mail компанії' },
+      { key: 'company_site', label: 'Сайт компанії' },
       { key: 'warehouse', label: 'Склад' },
       { key: 'warehouse_address', label: 'Адреса складу' },
       { key: 'warehouse_phone', label: 'Телефон складу' },
@@ -332,9 +340,10 @@ export const defaultPrintForms: PrintForm[] = [
         <strong>Одержувач</strong>
         <div>
           <b>{{clientName}}</b><br>
+          Адреса: {{customer_address}}<br>
           ЄДРПОУ або ІПН: {{customer_reg_id}}<br>
           {{clientPhone}}<br>
-          {{warehouse_address}}
+          <b>Р/р {{customer_iban}}</b>
         </div>
       </div>
       <div class="invoice-title">
@@ -403,7 +412,9 @@ export const legacyDefaultPrintFormIds = new Set([
 const isPreviousDefaultInvoice = (form: PrintForm) =>
   form.id === 'invoice' &&
   form.title === 'Рахунок' &&
-  form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+  (form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>') ||
+    !form.content.includes('{{customer_address}}') ||
+    !form.content.includes('{{customer_iban}}'));
 
 const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
@@ -421,6 +432,8 @@ export const createDefaultSettingsForm = () => ({
   companyAddress: '',
   companyId: '',
   companyIban: '',
+  companyEmail: '',
+  companySite: '',
   printForms: defaultPrintForms,
   orderDefaults: {
     defaultRepairTermDays: 7,

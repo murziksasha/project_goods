@@ -25,10 +25,14 @@ describe('renderPrintTemplate', () => {
   it('renders supported print variables', () => {
     expect(
       renderPrintTemplate(
-        '{{orderNumber}} {{clientName}} {{deviceName}} {{total}} {{masterName}}',
-        templateData,
+        '{{orderNumber}} {{clientName}} {{deviceName}} {{total}} {{masterName}} {{customer_address}} {{customer_iban}}',
+        {
+          ...templateData,
+          customer_address: 'Kyiv, Main street 1',
+          customer_iban: 'UA123456789123456789123456789',
+        },
       ),
-    ).toContain('r000124 Ivan iPhone 100 UAH Master');
+    ).toContain('r000124 Ivan iPhone 100 UAH Master Kyiv, Main street 1 UA123456789123456789123456789');
   });
 
   it('leaves unknown variables visible', () => {
@@ -120,5 +124,15 @@ describe('normalizePrintFormsForView', () => {
 
     expect(normalized.find((form) => form.id === 'receipt')?.content).toContain('{{products_table}}');
     expect(normalized.find((form) => form.id === 'custom-receipt')?.content).toBe('<div>{{orderNumber}}</div>');
+  });
+
+  it('keeps invoice defaults aligned with client requisites', () => {
+    const invoice = normalizePrintFormsForView(defaultPrintForms).find(
+      (form) => form.id === 'invoice',
+    );
+
+    expect(invoice?.content).toContain('{{customer_address}}');
+    expect(invoice?.content).toContain('{{customer_reg_id}}');
+    expect(invoice?.content).toContain('{{customer_iban}}');
   });
 });

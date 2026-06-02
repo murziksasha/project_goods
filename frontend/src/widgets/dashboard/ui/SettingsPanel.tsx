@@ -112,7 +112,11 @@ const demoPrintValues = {
   company_address: '10001, м. Житомир, пл. Лесі Українки, 16',
   company_id: '12345678',
   company_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
+  company_email: 'service@example.com',
+  company_site: 'https://service.example.com',
   customer_reg_id: '87654321',
+  customer_address: 'м. Чорноморськ, вул. Віталія Шума 2Б',
+  customer_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
   due_date: '01.06.2026',
   warehouse: 'Основний склад',
   warehouse_address: '82707, м. Вінниця, вул. Гагаріна, 12',
@@ -287,12 +291,22 @@ export const SettingsPanel = ({
   const previewValues = useMemo(
     () => ({
       ...demoPrintValues,
-      company: form.company || demoPrintValues.company,
+      company: form.serviceName || form.company || demoPrintValues.company,
       company_address: form.companyAddress || demoPrintValues.company_address,
       company_id: form.companyId || demoPrintValues.company_id,
       company_iban: form.companyIban || demoPrintValues.company_iban,
+      company_email: form.companyEmail || demoPrintValues.company_email,
+      company_site: form.companySite || demoPrintValues.company_site,
     }),
-    [form.company, form.companyAddress, form.companyIban, form.companyId],
+    [
+      form.company,
+      form.companyAddress,
+      form.companyEmail,
+      form.companyIban,
+      form.companyId,
+      form.companySite,
+      form.serviceName,
+    ],
   );
   const selectedPreview = selectedForm
     ? renderPrintTemplate(
@@ -678,6 +692,26 @@ export const SettingsPanel = ({
               {!isCompanyIbanValid ? (
                 <small>IBAN must match UA + 27 digits (spaces are allowed).</small>
               ) : null}
+            </label>
+            <label className="field">
+              <span>Company e-mail ({'{{company_email}}'})</span>
+              <input
+                value={form.companyEmail}
+                onChange={(event) =>
+                  onChange('companyEmail', event.target.value)
+                }
+                placeholder="service@example.com"
+              />
+            </label>
+            <label className="field">
+              <span>Company site ({'{{company_site}}'})</span>
+              <input
+                value={form.companySite}
+                onChange={(event) =>
+                  onChange('companySite', event.target.value)
+                }
+                placeholder="https://example.com"
+              />
             </label>
           </div>
         </section>

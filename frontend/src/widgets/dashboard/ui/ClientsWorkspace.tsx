@@ -59,7 +59,6 @@ type ClientFilters = {
 };
 
 type ClientCardTab = 'main' | 'services' | 'sales';
-type CreateClientTab = 'person' | 'company';
 
 type ClientStats = {
   visits: number;
@@ -71,7 +70,6 @@ type ClientStats = {
 
 const clientsFiltersStorageKey = 'project-goods.clients-active-filters';
 const clientCardTabStorageKey = 'project-goods.client-card-tab';
-const createClientTabStorageKey = 'project-goods.create-client-tab';
 
 const emptyFilters: ClientFilters = {
   query: '',
@@ -97,6 +95,25 @@ const parseNumber = (value: string) => {
 };
 
 const MAX_PHONE_LENGTH = 10;
+const emptyClientDraft = {
+  phone: '+380',
+  name: '',
+  address: '',
+  email: '',
+  registrationId: '',
+  iban: '',
+  note: '',
+};
+
+const normalizeIban = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+const isOptionalAddressValid = (value: string) =>
+  value.trim().length === 0 || value.trim().length >= 5;
+const isOptionalRegistrationIdValid = (value: string) =>
+  value.trim().length === 0 || /^[0-9A-Za-z-]{8,12}$/.test(value.trim());
+const isOptionalIbanValid = (value: string) => {
+  const normalized = normalizeIban(value);
+  return normalized.length === 0 || /^UA\d{27}$/.test(normalized);
+};
 
 const getDateStart = (value: string) => {
   if (!value) return null;
@@ -156,18 +173,6 @@ const getStoredClientCardTab = (): ClientCardTab => {
   }
 };
 
-const getStoredCreateClientTab = (): CreateClientTab => {
-  try {
-    const storedTab = window.localStorage.getItem(createClientTabStorageKey);
-    return storedTab === 'person' || storedTab === 'company'
-      ? storedTab
-      : 'person';
-  } catch {
-    return 'person';
-  }
-};
-
-
 const getMetaFieldFromNote = (
   note: string,
   key: 'Address' | 'Email',
@@ -202,6 +207,16 @@ const getPlainNote = (note: string) =>
     )
     .join('\n')
     .trim();
+
+const getLegacyClientEmail = (client: Client) =>
+  client.email ||
+  getMetaFieldFromNote(client.note, 'Email') ||
+  getMetaFieldFromNoteLegacy(client.note, 'Електронна пошта');
+
+const getLegacyClientAddress = (client: Client) =>
+  client.address ||
+  getMetaFieldFromNote(client.note, 'Address') ||
+  getMetaFieldFromNoteLegacy(client.note, 'Адреса');
 
 const formatItemList = (sale: Sale, tab: ClientCardTab) => {
   const targetKind = tab === 'services' ? 'service' : 'product';
@@ -243,65 +258,19 @@ const getClientStatsMap = (sales: Sale[]) => {
   return map;
 };
 
-const mapClientToCreatePayload = (
-  tab: CreateClientTab,
-  personForm: {
-    phone: string;
-    name: string;
-    address: string;
-    email: string;
-    note: string;
-  },
-  companyForm: {
-    organizationName: string;
-    phone: string;
-    registration1: string;
-    registration2: string;
-    legalAddress: string;
-    factualAddress: string;
-    email: string;
-    note: string;
-  },
-): ClientFormValues => {
-  if (tab === 'person') {
-    const noteParts = [
-      personForm.note,
-      personForm.address && `Адреса: ${personForm.address}`,
-      personForm.email && `Електронна пошта: ${personForm.email}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    return {
-      phone: personForm.phone.trim(),
-      name: personForm.name.trim(),
-      note: noteParts,
-      status: 'new',
-    };
-  }
-
-  const noteParts = [
-    companyForm.note,
-    companyForm.registration1 &&
-      `Реєстраційні дані 1: ${companyForm.registration1}`,
-    companyForm.registration2 &&
-      `Реєстраційні дані 2: ${companyForm.registration2}`,
-    companyForm.legalAddress &&
-      `Юридична адреса: ${companyForm.legalAddress}`,
-    companyForm.factualAddress &&
-      `Фактична адреса: ${companyForm.factualAddress}`,
-    companyForm.email && `Електронна пошта: ${companyForm.email}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  return {
-    phone: companyForm.phone.trim(),
-    name: companyForm.organizationName.trim(),
-    note: noteParts,
-    status: 'new',
-  };
-};
+const mapClientDraftToPayload = (
+  draft: typeof emptyClientDraft,
+  status: ClientStatus | '' = 'new',
+): ClientFormValues => ({
+  phone: draft.phone.trim(),
+  name: draft.name.trim(),
+  email: draft.email.trim(),
+  address: draft.address.trim(),
+  registrationId: draft.registrationId.trim(),
+  iban: normalizeIban(draft.iban),
+  note: draft.note.trim(),
+  status,
+});
 
 export const ClientsWorkspace = ({
   clients,
@@ -373,24 +342,8 @@ export const ClientsWorkspace = ({
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
   const [clientCardTab, setClientCardTab] =
     useState<ClientCardTab>(getStoredClientCardTab);
-  const [createClientTab, setCreateClientTab] =
-    useState<CreateClientTab>(getStoredCreateClientTab);
   const [personForm, setPersonForm] = useState({
-    phone: '+380',
-    name: '',
-    address: '',
-    email: '',
-    note: '',
-  });
-  const [companyForm, setCompanyForm] = useState({
-    organizationName: '',
-    phone: '+380',
-    registration1: '',
-    registration2: '',
-    legalAddress: '',
-    factualAddress: '',
-    email: '',
-    note: '',
+    ...emptyClientDraft,
   });
   const [mergeTargetQuery, setMergeTargetQuery] = useState('');
   const [mergeSourceQuery, setMergeSourceQuery] = useState('');
@@ -405,6 +358,8 @@ export const ClientsWorkspace = ({
     phone: '',
     email: '',
     address: '',
+    registrationId: '',
+    iban: '',
     note: '',
     status: '' as ClientStatus | '',
   });
@@ -511,15 +466,10 @@ export const ClientsWorkspace = ({
     setMainTabForm({
       name: selectedClient.name,
       phone: selectedClient.phone,
-      email:
-        getMetaFieldFromNote(selectedClient.note, 'Email') ||
-        getMetaFieldFromNoteLegacy(
-          selectedClient.note,
-          'Електронна пошта',
-        ),
-      address:
-        getMetaFieldFromNote(selectedClient.note, 'Address') ||
-        getMetaFieldFromNoteLegacy(selectedClient.note, 'Адреса'),
+      email: getLegacyClientEmail(selectedClient),
+      address: getLegacyClientAddress(selectedClient),
+      registrationId: selectedClient.registrationId,
+      iban: selectedClient.iban,
       note: getPlainNote(selectedClient.note),
       status: selectedClient.status || '',
     });
@@ -634,14 +584,6 @@ export const ClientsWorkspace = ({
     }
   }, [clientCardTab]);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(createClientTabStorageKey, createClientTab);
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [createClientTab]);
-
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);
     setClientCardTab('main');
@@ -672,34 +614,22 @@ export const ClientsWorkspace = ({
   };
 
   const handleCreateClient = async () => {
-    const payload = mapClientToCreatePayload(
-      createClientTab,
-      personForm,
-      companyForm,
-    );
+    const payload = mapClientDraftToPayload(personForm);
     if (!payload.phone || !payload.name) return;
+    if (
+      !isOptionalAddressValid(payload.address) ||
+      !isOptionalRegistrationIdValid(payload.registrationId) ||
+      !isOptionalIbanValid(payload.iban)
+    ) {
+      return;
+    }
 
     const isSuccess = await onCreateClient(payload);
     if (!isSuccess) return;
 
     setIsCreateModalOpen(false);
-    setCreateClientTab('person');
     setPersonForm({
-      phone: '+380',
-      name: '',
-      address: '',
-      email: '',
-      note: '',
-    });
-    setCompanyForm({
-      organizationName: '',
-      phone: '+380',
-      registration1: '',
-      registration2: '',
-      legalAddress: '',
-      factualAddress: '',
-      email: '',
-      note: '',
+      ...emptyClientDraft,
     });
   };
 
@@ -727,20 +657,22 @@ export const ClientsWorkspace = ({
   const handleMainTabSave = async () => {
     if (!selectedClientId) return;
 
-    const noteParts = [
-      mainTabForm.note.trim(),
-      mainTabForm.address.trim()
-        ? `Адреса: ${mainTabForm.address.trim()}`
-        : '',
-      mainTabForm.email.trim()
-        ? `Електронна пошта: ${mainTabForm.email.trim()}`
-        : '',
-    ].filter(Boolean);
+    if (
+      !isOptionalAddressValid(mainTabForm.address) ||
+      !isOptionalRegistrationIdValid(mainTabForm.registrationId) ||
+      !isOptionalIbanValid(mainTabForm.iban)
+    ) {
+      return;
+    }
 
     await onUpdateClient(selectedClientId, {
       name: mainTabForm.name.trim(),
       phone: mainTabForm.phone.trim(),
-      note: noteParts.join('\n'),
+      email: mainTabForm.email.trim(),
+      address: mainTabForm.address.trim(),
+      registrationId: mainTabForm.registrationId.trim(),
+      iban: normalizeIban(mainTabForm.iban),
+      note: mainTabForm.note.trim(),
       status: mainTabForm.status as ClientStatus | '',
     });
   };
@@ -1151,202 +1083,119 @@ export const ClientsWorkspace = ({
                 x
               </button>
             </header>
-            <div className='clients-modal-tabs'>
-              <button
-                type='button'
-                className={
-                  createClientTab === 'person'
-                    ? 'catalog-tab catalog-tab-active'
-                    : 'catalog-tab'
-                }
-                onClick={() => setCreateClientTab('person')}
-              >
-                Фіз. ос.
-              </button>
-              <button
-                type='button'
-                className={
-                  createClientTab === 'company'
-                    ? 'catalog-tab catalog-tab-active'
-                    : 'catalog-tab'
-                }
-                onClick={() => setCreateClientTab('company')}
-              >
-                Юр. ос.
-              </button>
-            </div>
             <div className='catalog-edit-body clients-modal-body'>
-              {createClientTab === 'person' ? (
-                <div className='form-grid compact-form-grid'>
-                  <label className='field field-wide'>
-                    <span>Телефон</span>
-                    <input
-                      value={personForm.phone}
-                      onChange={(event) => {
-                        setPersonForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }));
-                      }}
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>ПІБ</span>
-                    <input
-                      value={personForm.name}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Адреса</span>
-                    <input
-                      value={personForm.address}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          address: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Електронна пошта</span>
-                    <input
-                      value={personForm.email}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Примітка</span>
-                    <textarea
-                      rows={4}
-                      value={personForm.note}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div className='form-grid compact-form-grid'>
-                  <label className='field field-wide'>
-                    <span>Назва організації</span>
-                    <input
-                      value={companyForm.organizationName}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          organizationName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Телефон</span>
-                    <input
-                      value={companyForm.phone}
-                      onChange={(event) => {
-                        setCompanyForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }));
-                      }}
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Реєстраційні дані 1</span>
-                    <input
-                      value={companyForm.registration1}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          registration1: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Реєстраційні дані 2</span>
-                    <input
-                      value={companyForm.registration2}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          registration2: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Юридична адреса</span>
-                    <input
-                      value={companyForm.legalAddress}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          legalAddress: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Фактична адреса</span>
-                    <input
-                      value={companyForm.factualAddress}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          factualAddress: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Електронна пошта</span>
-                    <input
-                      value={companyForm.email}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Примітка</span>
-                    <textarea
-                      rows={4}
-                      value={companyForm.note}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              )}
+              <div className='form-grid compact-form-grid'>
+                <label className='field field-wide'>
+                  <span>Телефон</span>
+                  <input
+                    value={personForm.phone}
+                    onChange={(event) => {
+                      setPersonForm((current) => ({
+                        ...current,
+                        phone: event.target.value,
+                      }));
+                    }}
+                  />
+                </label>
+                <label className='field field-wide'>
+                  <span>ПІБ</span>
+                  <input
+                    value={personForm.name}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className='field field-wide'>
+                  <span>Адреса</span>
+                  <input
+                    value={personForm.address}
+                    aria-invalid={!isOptionalAddressValid(personForm.address)}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        address: event.target.value,
+                      }))
+                    }
+                  />
+                  {!isOptionalAddressValid(personForm.address) ? (
+                    <small>Адреса має містити щонайменше 5 символів.</small>
+                  ) : null}
+                </label>
+                <label className='field field-wide'>
+                  <span>Електронна пошта</span>
+                  <input
+                    value={personForm.email}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className='field field-wide'>
+                  <span>Примітка</span>
+                  <textarea
+                    rows={4}
+                    value={personForm.note}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        note: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className='field field-wide'>
+                  <span>ЄДРПОУ або ІПН</span>
+                  <input
+                    value={personForm.registrationId}
+                    aria-invalid={!isOptionalRegistrationIdValid(personForm.registrationId)}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        registrationId: event.target.value,
+                      }))
+                    }
+                  />
+                  {!isOptionalRegistrationIdValid(personForm.registrationId) ? (
+                    <small>Значення має містити 8-12 символів: літери, цифри або дефіс.</small>
+                  ) : null}
+                </label>
+                <label className='field field-wide'>
+                  <span>IBAN</span>
+                  <input
+                    value={personForm.iban}
+                    aria-invalid={!isOptionalIbanValid(personForm.iban)}
+                    onChange={(event) =>
+                      setPersonForm((current) => ({
+                        ...current,
+                        iban: event.target.value,
+                      }))
+                    }
+                  />
+                  {!isOptionalIbanValid(personForm.iban) ? (
+                    <small>IBAN має відповідати UA + 27 цифр, пробіли дозволені.</small>
+                  ) : null}
+                </label>
+              </div>
             </div>
             <footer className='catalog-edit-footer'>
               <button
                 type='button'
                 className='primary-button'
-                disabled={isSaving}
+                disabled={
+                  isSaving ||
+                  !personForm.phone.trim() ||
+                  !personForm.name.trim() ||
+                  !isOptionalAddressValid(personForm.address) ||
+                  !isOptionalRegistrationIdValid(personForm.registrationId) ||
+                  !isOptionalIbanValid(personForm.iban)
+                }
                 onClick={() => {
                   void handleCreateClient();
                 }}
@@ -1590,6 +1439,7 @@ export const ClientsWorkspace = ({
                     <span>Адреса</span>
                     <input
                       value={mainTabForm.address}
+                      aria-invalid={!isOptionalAddressValid(mainTabForm.address)}
                       onChange={(event) =>
                         setMainTabForm((current) => ({
                           ...current,
@@ -1597,6 +1447,9 @@ export const ClientsWorkspace = ({
                         }))
                       }
                     />
+                    {!isOptionalAddressValid(mainTabForm.address) ? (
+                      <small>Адреса має містити щонайменше 5 символів.</small>
+                    ) : null}
                   </label>
                   <label className='field field-wide'>
                     <span>Телефон</span>
@@ -1644,6 +1497,38 @@ export const ClientsWorkspace = ({
                     </select>
                   </label>
                   <label className='field field-wide'>
+                    <span>ЄДРПОУ або ІПН</span>
+                    <input
+                      value={mainTabForm.registrationId}
+                      aria-invalid={!isOptionalRegistrationIdValid(mainTabForm.registrationId)}
+                      onChange={(event) =>
+                        setMainTabForm((current) => ({
+                          ...current,
+                          registrationId: event.target.value,
+                        }))
+                      }
+                    />
+                    {!isOptionalRegistrationIdValid(mainTabForm.registrationId) ? (
+                      <small>Значення має містити 8-12 символів: літери, цифри або дефіс.</small>
+                    ) : null}
+                  </label>
+                  <label className='field field-wide'>
+                    <span>IBAN</span>
+                    <input
+                      value={mainTabForm.iban}
+                      aria-invalid={!isOptionalIbanValid(mainTabForm.iban)}
+                      onChange={(event) =>
+                        setMainTabForm((current) => ({
+                          ...current,
+                          iban: event.target.value,
+                        }))
+                      }
+                    />
+                    {!isOptionalIbanValid(mainTabForm.iban) ? (
+                      <small>IBAN має відповідати UA + 27 цифр, пробіли дозволені.</small>
+                    ) : null}
+                  </label>
+                  <label className='field field-wide'>
                     <span>Примітка</span>
                     <textarea
                       rows={4}
@@ -1663,7 +1548,10 @@ export const ClientsWorkspace = ({
                       disabled={
                         isSaving ||
                         !mainTabForm.name.trim() ||
-                        !mainTabForm.phone.trim()
+                        !mainTabForm.phone.trim() ||
+                        !isOptionalAddressValid(mainTabForm.address) ||
+                        !isOptionalRegistrationIdValid(mainTabForm.registrationId) ||
+                        !isOptionalIbanValid(mainTabForm.iban)
                       }
                       onClick={() => {
                         void handleMainTabSave();

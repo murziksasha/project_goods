@@ -48,6 +48,10 @@ export type Sale = {
     name: string;
     phone: string;
     status: string;
+    email?: string;
+    address?: string;
+    registrationId?: string;
+    iban?: string;
   };
   product: {
     id: string;

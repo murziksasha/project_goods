@@ -96,6 +96,8 @@ const formatSettings = (settings: SettingsDocument) => {
     companyAddress: settings.companyAddress ?? '',
     companyId: settings.companyId ?? '',
     companyIban: settings.companyIban ?? '',
+    companyEmail: settings.companyEmail ?? '',
+    companySite: settings.companySite ?? '',
     printForms: normalizePrintForms(settings.printForms),
     orderDefaults: {
       ...defaultOrderDefaults,

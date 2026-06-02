@@ -27,6 +27,10 @@ export type ProductModelUpdatePayload = {
 export type ClientPayload = {
   phone?: unknown;
   name?: unknown;
+  email?: unknown;
+  address?: unknown;
+  registrationId?: unknown;
+  iban?: unknown;
   note?: unknown;
   status?: unknown;
 };
@@ -81,6 +85,8 @@ export type SettingsPayload = {
   companyAddress?: unknown;
   companyId?: unknown;
   companyIban?: unknown;
+  companyEmail?: unknown;
+  companySite?: unknown;
   printForms?: unknown;
   orderDefaults?: unknown;
   numbering?: unknown;

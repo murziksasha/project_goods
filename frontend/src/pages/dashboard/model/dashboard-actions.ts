@@ -800,6 +800,8 @@ export const createDashboardActions = ({
           companyAddress: updated.companyAddress,
           companyId: updated.companyId,
           companyIban: updated.companyIban,
+          companyEmail: updated.companyEmail,
+          companySite: updated.companySite,
           printForms: updated.printForms,
           orderDefaults: updated.orderDefaults,
           numbering: updated.numbering,
@@ -1179,6 +1181,10 @@ export const createDashboardActions = ({
           (await mutateCreateClient({
             phone: normalizedPhone,
             name: clientName,
+            email: '',
+            address: '',
+            registrationId: '',
+            iban: '',
             note: payload.discountCode ? `Discount code: ${payload.discountCode.trim()}` : '',
             status: 'new',
           }));
