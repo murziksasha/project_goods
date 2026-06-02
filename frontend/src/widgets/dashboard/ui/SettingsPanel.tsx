@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import JsBarcode from 'jsbarcode';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   AppSettingsFormValues,
   FinanceDefaults,
@@ -9,16 +8,9 @@ import type {
   PrintForm,
 } from '../../../entities/settings/model/types';
 import {
-  customLabelSizePresetId,
-  defaultLabelSize,
-  labelSizePresets,
   normalizePrintFormsForView,
-  normalizeLabelSize,
-  printFormVariableGroups,
-  renderPrintTemplate,
 } from '../../../entities/settings/model/printForms';
-
-const EDITOR_PERSIST_DEBOUNCE_MS = 250;
+import { createNewPrintForm, PrintFormBuilder } from './PrintFormBuilder';
 
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
@@ -62,30 +54,6 @@ const getStoredSettingsTab = (): SettingsTab => {
   } catch {
     return 'company';
   }
-};
-
-const printFormTypeOptions = [
-  'receipt',
-  'check',
-  'warranty',
-  'completion-act',
-  'invoice',
-  'barcode',
-  'custom',
-];
-
-const getLabelPreviewStyle = (
-  form: PrintForm | undefined,
-): CSSProperties => {
-  if (!form || form.pageSize !== 'label') return {};
-
-  const labelSize = normalizeLabelSize(form.labelSize);
-  return {
-    '--label-width': `${labelSize.widthMm}mm`,
-    '--label-height': `${labelSize.heightMm}mm`,
-    width: `${labelSize.widthMm}mm`,
-    minHeight: `${labelSize.heightMm}mm`,
-  } as CSSProperties;
 };
 
 const demoPrintValues = {
@@ -138,128 +106,6 @@ const demoPrintValues = {
   createdAt: '29.05.2026 10:30',
 };
 
-const createPrintForm = (sortOrder: number): PrintForm => ({
-  id: `form-${Date.now()}`,
-  title: 'Новий шаблон',
-  type: 'custom',
-  content:
-    '<div class="print-document"><h1>Новий шаблон</h1><p>Замовлення: {{orderNumber}}</p><p>Клієнт: {{clientName}}</p><p>Сума: {{total}}</p></div>',
-  contentFormat: 'html',
-  pageSize: 'A4',
-  orientation: 'portrait',
-  isActive: true,
-  sortOrder,
-});
-
-const htmlEditorCommandButtons = [
-  { command: 'undo', label: '↶', title: 'Скасувати' },
-  { command: 'redo', label: '↷', title: 'Повторити' },
-  { command: 'bold', label: 'B', title: 'Жирний' },
-  { command: 'italic', label: 'I', title: 'Курсив' },
-  { command: 'underline', label: 'U', title: 'Підкреслений' },
-  { command: 'justifyLeft', label: 'L', title: 'Ліворуч' },
-  { command: 'justifyCenter', label: 'C', title: 'По центру' },
-  { command: 'justifyRight', label: 'R', title: 'Праворуч' },
-  { command: 'insertUnorderedList', label: '•', title: 'Маркірований список' },
-  { command: 'insertOrderedList', label: '1.', title: 'Нумерований список' },
-];
-
-const insertTableHtml =
-  '<table class="print-line-table"><thead><tr><th>Назва</th><th>К-сть</th><th>Ціна</th><th>Сума</th></tr></thead><tbody><tr><td>Позиція</td><td>1</td><td>{{total}}</td><td>{{total}}</td></tr></tbody></table>';
-
-const imagePlaceholderHtml =
-  '<div class="print-image-placeholder">Місце для зображення</div>';
-
-const specialPrintBlockButtons = [
-  { label: 'Barcode', html: '{{barcode}}' },
-  { label: 'Товари', html: '<h3>Товари</h3>{{products_table}}' },
-  { label: 'Послуги', html: '<h3>Послуги</h3>{{services_table}}' },
-  { label: 'Рахунок', html: '{{invoice_items_table}}' },
-];
-
-const normalizeEditorHtml = (html: string): string => {
-  if (typeof window === 'undefined') return html;
-
-  const container = window.document.createElement('div');
-  container.innerHTML = html;
-
-  container.querySelectorAll('font').forEach((fontNode) => {
-    const parent = fontNode.parentNode;
-    while (fontNode.firstChild) {
-      parent?.insertBefore(fontNode.firstChild, fontNode);
-    }
-    parent?.removeChild(fontNode);
-  });
-
-  container.querySelectorAll<HTMLElement>('span').forEach((spanNode) => {
-    if (spanNode.classList.contains('settings-print-variable-token')) return;
-    if (spanNode.attributes.length === 0) return;
-    if (!spanNode.textContent?.includes('{{')) return;
-    spanNode.removeAttribute('style');
-    if (spanNode.attributes.length === 0) {
-      const parent = spanNode.parentNode;
-      while (spanNode.firstChild) {
-        parent?.insertBefore(spanNode.firstChild, spanNode);
-      }
-      parent?.removeChild(spanNode);
-    }
-  });
-
-  return container.innerHTML;
-};
-
-const renderSpecialCodes = (root: HTMLElement | Document) => {
-  root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
-    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
-      return;
-    }
-    const value = node.dataset.barcodeValue || 'EMPTY';
-    const isLabelBarcode = Boolean(node.closest('.print-label'));
-    try {
-      JsBarcode(node, value, {
-        format: 'CODE128',
-        displayValue: !isLabelBarcode,
-        fontSize: isLabelBarcode ? 18 : 12,
-        textMargin: isLabelBarcode ? 1 : 2,
-        height: isLabelBarcode ? 38 : 44,
-        margin: 0,
-      });
-    } catch {
-      node.replaceWith(document.createTextNode(value));
-    }
-  });
-};
-
-const PrintPreview = ({
-  html,
-  form,
-}: {
-  html: string;
-  form: PrintForm | undefined;
-}) => {
-  const previewRef = useRef<HTMLDivElement | null>(null);
-  const previewStyle = getLabelPreviewStyle(form);
-
-  useEffect(() => {
-    if (previewRef.current) {
-      renderSpecialCodes(previewRef.current);
-    }
-  }, [html]);
-
-  return (
-    <div
-      ref={previewRef}
-      className={
-        form?.pageSize === 'label'
-          ? 'settings-print-preview-page settings-print-preview-page-label'
-          : 'settings-print-preview-page'
-      }
-      style={previewStyle}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-};
-
 export const SettingsPanel = ({
   form,
   isSaving,
@@ -274,20 +120,9 @@ export const SettingsPanel = ({
   const [selectedFormId, setSelectedFormId] = useState(
     () => printForms[0]?.id ?? '',
   );
-  const [isHtmlMode, setIsHtmlMode] = useState(false);
-  const [draftHtmlByFormId, setDraftHtmlByFormId] = useState<Record<string, string>>({});
-  const editorRef = useRef<HTMLDivElement | null>(null);
-  const printFormsRef = useRef(printForms);
-  const draftHtmlByFormIdRef = useRef(draftHtmlByFormId);
-  const persistTimerRef = useRef<number | null>(null);
   const selectedForm =
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
-  const selectedFormContent = selectedForm?.content ?? '';
-  const selectedEditorContent =
-    selectedForm && draftHtmlByFormId[selectedForm.id] !== undefined
-      ? draftHtmlByFormId[selectedForm.id]
-      : selectedFormContent;
   const previewValues = useMemo(
     () => ({
       ...demoPrintValues,
@@ -308,16 +143,6 @@ export const SettingsPanel = ({
       form.serviceName,
     ],
   );
-  const selectedPreview = selectedForm
-    ? renderPrintTemplate(
-        selectedEditorContent,
-        previewValues,
-        selectedForm.contentFormat,
-      )
-    : '';
-  const selectedLabelSize = selectedForm
-    ? normalizeLabelSize(selectedForm.labelSize)
-    : defaultLabelSize;
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
@@ -343,83 +168,30 @@ export const SettingsPanel = ({
     hasInvalidPrintForms ||
     hasInvalidCompanyFields;
 
-  useEffect(() => {
-    printFormsRef.current = printForms;
-  }, [printForms]);
-
-  useEffect(() => {
-    draftHtmlByFormIdRef.current = draftHtmlByFormId;
-  }, [draftHtmlByFormId]);
-
   const updatePrintForms = (nextForms: PrintForm[]) => {
     onChange('printForms', normalizePrintFormsForView(nextForms));
   };
 
   const updateFormById = (formId: string, patch: Partial<PrintForm>) => {
     updatePrintForms(
-      printFormsRef.current.map((printForm) =>
+      printForms.map((printForm) =>
         printForm.id === formId ? { ...printForm, ...patch } : printForm,
       ),
     );
   };
 
-  const updateSelectedForm = (patch: Partial<PrintForm>) => {
-    if (!selectedForm) return;
-    updateFormById(selectedForm.id, patch);
-  };
-
-  const updateSelectedFormPageSize = (pageSize: PrintForm['pageSize']) => {
-    updateSelectedForm({
-      pageSize,
-      labelSize:
-        pageSize === 'label'
-          ? normalizeLabelSize(selectedForm?.labelSize)
-          : selectedForm?.labelSize,
-    });
-  };
-
-  const updateSelectedLabelPreset = (presetId: string) => {
-    const preset = labelSizePresets.find((item) => item.id === presetId);
-    updateSelectedForm({
-      labelSize: preset
-        ? {
-            presetId: preset.id,
-            widthMm: preset.widthMm,
-            heightMm: preset.heightMm,
-          }
-        : {
-            ...normalizeLabelSize(selectedForm?.labelSize),
-            presetId: customLabelSizePresetId,
-          },
-    });
-  };
-
-  const updateSelectedLabelSize = (
-    field: 'widthMm' | 'heightMm',
-    value: number,
-  ) => {
-    updateSelectedForm({
-      labelSize: {
-        ...normalizeLabelSize(selectedForm?.labelSize),
-        presetId: customLabelSizePresetId,
-        [field]: value,
-      },
-    });
-  };
-
   const addPrintForm = () => {
-    const nextForm = createPrintForm((printForms.length + 1) * 10);
+    const nextForm = createNewPrintForm((printForms.length + 1) * 10);
     updatePrintForms([...printForms, nextForm]);
     setSelectedFormId(nextForm.id);
   };
 
   const duplicateSelectedForm = () => {
     if (!selectedForm) return;
-
     const nextForm = {
       ...selectedForm,
       id: `form-${Date.now()}`,
-      title: `${selectedForm.title} копія`,
+      title: `${selectedForm.title} copy`,
       sortOrder: (printForms.length + 1) * 10,
     };
     updatePrintForms([...printForms, nextForm]);
@@ -428,53 +200,9 @@ export const SettingsPanel = ({
 
   const deleteSelectedForm = () => {
     if (!selectedForm || printForms.length <= 1) return;
-
-    const nextForms = printForms.filter(
-      (printForm) => printForm.id !== selectedForm.id,
-    );
+    const nextForms = printForms.filter((printForm) => printForm.id !== selectedForm.id);
     updatePrintForms(nextForms);
-    setDraftHtmlByFormId((current) => {
-      const next = { ...current };
-      delete next[selectedForm.id];
-      return next;
-    });
     setSelectedFormId(nextForms[0]?.id ?? '');
-  };
-
-  const flushDraftToForm = (formId: string, content?: string) => {
-    const nextContent = normalizeEditorHtml(
-      content ?? draftHtmlByFormIdRef.current[formId] ?? '',
-    );
-    if (!nextContent.trim()) return;
-
-    const currentForm = printFormsRef.current.find((printForm) => printForm.id === formId);
-    if (!currentForm) return;
-    if (currentForm.content === nextContent && currentForm.contentFormat === 'html') return;
-    updateFormById(formId, { content: nextContent, contentFormat: 'html' });
-  };
-
-  const scheduleDraftPersist = (formId: string, content: string) => {
-    if (persistTimerRef.current !== null) {
-      window.clearTimeout(persistTimerRef.current);
-    }
-    persistTimerRef.current = window.setTimeout(() => {
-      flushDraftToForm(formId, content);
-      persistTimerRef.current = null;
-    }, EDITOR_PERSIST_DEBOUNCE_MS);
-  };
-
-  const syncDraftContent = (formId: string, content: string, persist = true) => {
-    setDraftHtmlByFormId((current) =>
-      current[formId] === content ? current : { ...current, [formId]: content },
-    );
-    if (persist) {
-      scheduleDraftPersist(formId, content);
-    }
-  };
-
-  const updateEditorContent = (content: string) => {
-    if (!selectedForm) return;
-    syncDraftContent(selectedForm.id, content);
   };
 
   useEffect(() => {
@@ -484,70 +212,6 @@ export const SettingsPanel = ({
       // Ignore localStorage write errors.
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    if (!selectedForm) return;
-    setDraftHtmlByFormId((current) =>
-      current[selectedForm.id] !== undefined
-        ? current
-        : { ...current, [selectedForm.id]: selectedForm.content },
-    );
-  }, [selectedForm?.id, selectedFormContent]);
-
-  useEffect(() => {
-    if (!selectedForm || isHtmlMode || !editorRef.current) return;
-    if (editorRef.current.innerHTML !== selectedEditorContent) {
-      editorRef.current.innerHTML = selectedEditorContent;
-    }
-  }, [isHtmlMode, selectedEditorContent, selectedForm?.id]);
-
-  useEffect(
-    () => () => {
-      if (persistTimerRef.current !== null) {
-        window.clearTimeout(persistTimerRef.current);
-      }
-    },
-    [],
-  );
-
-  const insertHtmlIntoEditor = (html: string) => {
-    if (!selectedForm) return;
-
-    if (isHtmlMode) {
-      const nextContent = `${selectedEditorContent}${selectedEditorContent ? '\n' : ''}${html}`;
-      syncDraftContent(selectedForm.id, nextContent);
-      return;
-    }
-
-    editorRef.current?.focus();
-    document.execCommand('insertHTML', false, html);
-    const nextContent =
-      normalizeEditorHtml(editorRef.current?.innerHTML ?? `${selectedEditorContent}${html}`);
-    if (editorRef.current && editorRef.current.innerHTML !== nextContent) {
-      editorRef.current.innerHTML = nextContent;
-    }
-    syncDraftContent(selectedForm.id, nextContent);
-  };
-
-  const insertVariable = (variable: string) => {
-    insertHtmlIntoEditor(
-      `<span class="settings-print-variable-token" contenteditable="false">{{${variable}}}</span>&nbsp;`,
-    );
-  };
-
-  const runEditorCommand = (command: string, value?: string) => {
-    if (!selectedForm || isHtmlMode) return;
-    editorRef.current?.focus();
-    document.execCommand(command, false, value);
-    const nextContent = normalizeEditorHtml(
-      editorRef.current?.innerHTML ?? selectedEditorContent,
-    );
-    if (editorRef.current && editorRef.current.innerHTML !== nextContent) {
-      editorRef.current.innerHTML = nextContent;
-    }
-    syncDraftContent(selectedForm.id, nextContent);
-  };
-
   const updateOrderDefaults = <K extends keyof OrderDefaults>(
     field: K,
     value: OrderDefaults[K],
@@ -579,17 +243,6 @@ export const SettingsPanel = ({
     });
   };
 
-  const handleSubmit = () => {
-    if (persistTimerRef.current !== null) {
-      window.clearTimeout(persistTimerRef.current);
-      persistTimerRef.current = null;
-    }
-    Object.entries(draftHtmlByFormIdRef.current).forEach(([formId, content]) => {
-      flushDraftToForm(formId, content);
-    });
-    onSubmit();
-  };
-
   return (
     <section className="panel settings-page">
       <div className="panel-header panel-header-row">
@@ -604,7 +257,7 @@ export const SettingsPanel = ({
         <button
           className="primary-button"
           type="button"
-          onClick={handleSubmit}
+          onClick={onSubmit}
           disabled={isSaveDisabled}
         >
           {isSaving ? 'Saving...' : 'Save settings'}
@@ -763,256 +416,15 @@ export const SettingsPanel = ({
             </div>
 
             {selectedForm ? (
-              <div className="settings-print-builder">
-                <div className="settings-print-editor">
-                  <label className="field">
-                    <span>Назва шаблону</span>
-                    <input
-                      value={selectedForm.title}
-                      onChange={(event) =>
-                        updateSelectedForm({ title: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Тип документа</span>
-                    <select
-                      value={selectedForm.type}
-                      onChange={(event) =>
-                        updateSelectedForm({ type: event.target.value })
-                      }
-                    >
-                      {printFormTypeOptions.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="settings-print-options-row">
-                    <label className="field">
-                      <span>Формат сторінки</span>
-                      <select
-                        value={selectedForm.pageSize}
-                        onChange={(event) =>
-                          updateSelectedFormPageSize(
-                            event.target.value === 'label' ? 'label' : 'A4',
-                          )
-                        }
-                      >
-                        <option value="A4">A4</option>
-                        <option value="label">Етикетка</option>
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Орієнтація</span>
-                      <select
-                        value={selectedForm.orientation}
-                        onChange={(event) =>
-                          updateSelectedForm({
-                            orientation:
-                              event.target.value === 'landscape'
-                                ? 'landscape'
-                                : 'portrait',
-                          })
-                        }
-                      >
-                        <option value="portrait">Портретна</option>
-                        <option value="landscape">Альбомна</option>
-                      </select>
-                    </label>
-                  </div>
-                  {selectedForm.pageSize === 'label' ? (
-                    <div className="settings-print-options-row settings-label-size-row">
-                      <label className="field">
-                        <span>Label size</span>
-                        <select
-                          value={selectedLabelSize.presetId}
-                          onChange={(event) =>
-                            updateSelectedLabelPreset(event.target.value)
-                          }
-                        >
-                          {labelSizePresets.map((preset) => (
-                            <option key={preset.id} value={preset.id}>
-                              {preset.label}
-                            </option>
-                          ))}
-                          <option value={customLabelSizePresetId}>Custom</option>
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>Width, mm</span>
-                        <input
-                          type="number"
-                          min={10}
-                          max={120}
-                          step={1}
-                          value={selectedLabelSize.widthMm}
-                          disabled={selectedLabelSize.presetId !== customLabelSizePresetId}
-                          onChange={(event) =>
-                            updateSelectedLabelSize('widthMm', Number(event.target.value))
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Height, mm</span>
-                        <input
-                          type="number"
-                          min={10}
-                          max={120}
-                          step={1}
-                          value={selectedLabelSize.heightMm}
-                          disabled={selectedLabelSize.presetId !== customLabelSizePresetId}
-                          onChange={(event) =>
-                            updateSelectedLabelSize('heightMm', Number(event.target.value))
-                          }
-                        />
-                      </label>
-                    </div>
-                  ) : null}
-                  <label className="settings-check">
-                    <input
-                      type="checkbox"
-                      checked={selectedForm.isActive}
-                      onChange={(event) =>
-                        updateSelectedForm({ isActive: event.target.checked })
-                      }
-                    />
-                    <span>Активний у меню друку оплати</span>
-                  </label>
-                  <div className="settings-rich-editor">
-                    <div className="settings-rich-toolbar" aria-label="Template editor toolbar">
-                      {htmlEditorCommandButtons.map((button) => (
-                        <button
-                          key={button.command}
-                          type="button"
-                          title={button.title}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => runEditorCommand(button.command)}
-                          disabled={isHtmlMode}
-                        >
-                          {button.label}
-                        </button>
-                      ))}
-                      <select
-                        aria-label="Розмір шрифту"
-                        value=""
-                        onChange={(event) => {
-                          runEditorCommand('fontSize', event.target.value);
-                          event.target.value = '';
-                        }}
-                        disabled={isHtmlMode}
-                      >
-                        <option value="">Розмір</option>
-                        <option value="2">10pt</option>
-                        <option value="3">12pt</option>
-                        <option value="4">14pt</option>
-                        <option value="5">18pt</option>
-                      </select>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => insertHtmlIntoEditor(insertTableHtml)}
-                        disabled={isHtmlMode}
-                      >
-                        Таблиця
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => insertHtmlIntoEditor(imagePlaceholderHtml)}
-                        disabled={isHtmlMode}
-                      >
-                        Зображення
-                      </button>
-                      {specialPrintBlockButtons.map((button) => (
-                        <button
-                          key={button.label}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => insertHtmlIntoEditor(button.html)}
-                          disabled={isHtmlMode}
-                        >
-                          {button.label}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className={isHtmlMode ? 'settings-rich-mode-active' : ''}
-                        onClick={() => setIsHtmlMode((current) => !current)}
-                      >
-                        HTML
-                      </button>
-                    </div>
-                    {isHtmlMode ? (
-                      <textarea
-                        className="settings-html-source"
-                        rows={16}
-                        value={selectedEditorContent}
-                        onChange={(event) => updateEditorContent(event.target.value)}
-                        onBlur={() =>
-                          selectedForm && flushDraftToForm(selectedForm.id, selectedEditorContent)
-                        }
-                      />
-                    ) : (
-                      <div
-                        ref={editorRef}
-                        className="settings-content-editable"
-                        contentEditable
-                        suppressContentEditableWarning
-                        onInput={(event) =>
-                          selectedForm &&
-                          syncDraftContent(
-                            selectedForm.id,
-                            normalizeEditorHtml(event.currentTarget.innerHTML),
-                          )
-                        }
-                        onBlur={() =>
-                          selectedForm &&
-                          flushDraftToForm(
-                            selectedForm.id,
-                            editorRef.current?.innerHTML ?? selectedEditorContent,
-                          )
-                        }
-                      />
-                    )}
-                  </div>
-                  <div className="settings-variable-catalog">
-                    <h3>Змінні шаблону</h3>
-                    <div className="settings-variable-grid">
-                      {printFormVariableGroups.map((group) => (
-                        <div key={group.title} className="settings-variable-group">
-                          <strong>{group.title}</strong>
-                          {group.variables.map((variable) => (
-                            <button
-                              key={variable.key}
-                              type="button"
-                              className="settings-variable-row"
-                              onClick={() => insertVariable(variable.key)}
-                            >
-                              <code>{`{{${variable.key}}}`}</code>
-                              <span>{variable.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    onClick={deleteSelectedForm}
-                    disabled={printForms.length <= 1}
-                  >
-                    Видалити шаблон
-                  </button>
-                </div>
-                <aside className="settings-print-preview">
-                  <p className="section-label">Live preview</p>
-                  <h3>{selectedForm.title}</h3>
-                  <PrintPreview html={selectedPreview} form={selectedForm} />
-                </aside>
-              </div>
+              <PrintFormBuilder
+                forms={printForms}
+                selectedForm={selectedForm}
+                previewValues={previewValues}
+                onSelectForm={setSelectedFormId}
+                onUpdateForms={updatePrintForms}
+                onUpdateForm={updateFormById}
+                onDeleteForm={deleteSelectedForm}
+              />
             ) : null}
           </div>
         </section>

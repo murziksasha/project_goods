@@ -119,6 +119,15 @@ const printFormSchema = new mongoose.Schema(
       enum: ['html', 'text'],
       default: 'text',
     },
+    layoutVersion: {
+      type: Number,
+      enum: [1],
+      required: false,
+    },
+    layoutBlocks: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: undefined,
+    },
     pageSize: {
       type: String,
       enum: ['A4', 'label'],

@@ -349,6 +349,11 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
                 : 'A4';
             const labelSize = readObject(source.labelSize);
             const presetId = toNonEmptyString(labelSize.presetId);
+            const layoutVersion =
+              Number(source.layoutVersion) === 1 ? 1 : undefined;
+            const layoutBlocks = Array.isArray(source.layoutBlocks)
+              ? source.layoutBlocks.filter((block) => typeof block === 'object' && block !== null)
+              : undefined;
 
             return {
               id:
@@ -361,6 +366,9 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
                 toNonEmptyString(source.contentFormat) === 'html'
                   ? 'html'
                   : 'text',
+              ...(layoutVersion && layoutBlocks && layoutBlocks.length > 0
+                ? { layoutVersion, layoutBlocks }
+                : {}),
               pageSize,
               labelSize:
                 pageSize === 'label'

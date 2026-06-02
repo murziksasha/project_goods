@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLayoutPrintForm,
+  createPrintLayoutBlock,
   defaultPrintForms,
   normalizePrintFormsForView,
+  renderPrintLayout,
   renderPrintTemplate,
 } from './printForms';
 
@@ -73,7 +76,97 @@ describe('renderPrintTemplate', () => {
   });
 });
 
+describe('renderPrintLayout', () => {
+  it('renders supported layout blocks to stable html', () => {
+    const rendered = renderPrintLayout([
+      { id: 'h', type: 'heading', level: 1, text: 'Order {{orderNumber}}' },
+      { id: 'p', type: 'paragraph', text: 'Client {{clientName}}' },
+      {
+        id: 'fields',
+        type: 'fieldGrid',
+        columns: 2,
+        fields: [
+          { label: 'Phone', value: '{{clientPhone}}' },
+          { label: 'Total', value: '{{total}}' },
+        ],
+      },
+      { id: 'products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+      { id: 'services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+      { id: 'invoice', type: 'invoiceItemsTable' },
+      { id: 'code', type: 'barcode' },
+      { id: 'sign', type: 'signatures', left: 'Manager', right: 'Client' },
+      { id: 'divider', type: 'divider' },
+      { id: 'spacer', type: 'spacer', size: 'medium' },
+      {
+        id: 'cols',
+        type: 'columns',
+        columns: [
+          { id: 'left', blocks: [{ id: 'left-text', type: 'paragraph', text: '{{company}}' }] },
+          { id: 'right', blocks: [{ id: 'right-text', type: 'paragraph', text: '{{clientName}}' }] },
+        ],
+      },
+    ]);
+
+    expect(rendered).toContain('<div class="print-document">');
+    expect(rendered).toContain('<h1 class="print-block-heading">Order {{orderNumber}}</h1>');
+    expect(rendered).toContain('{{products_table}}');
+    expect(rendered).toContain('{{services_table}}');
+    expect(rendered).toContain('{{invoice_items_table}}');
+    expect(rendered).toContain('{{barcode}}');
+    expect(rendered).toContain('print-signatures');
+    expect(rendered).toContain('print-columns');
+  });
+
+  it('escapes literal html while preserving variables', () => {
+    const rendered = renderPrintLayout([
+      { id: 'p', type: 'paragraph', text: '<script>x</script> {{clientName}}' },
+    ]);
+
+    expect(rendered).toContain('&lt;script&gt;x&lt;/script&gt; {{clientName}}');
+    expect(rendered).not.toContain('<script>');
+  });
+});
+
 describe('normalizePrintFormsForView', () => {
+  it('generates content from layout blocks', () => {
+    const form = createLayoutPrintForm({
+      id: 'custom-layout',
+      title: 'Custom layout',
+      type: 'custom',
+      content: 'old html',
+      contentFormat: 'html',
+      layoutVersion: 1,
+      layoutBlocks: [createPrintLayoutBlock('heading', 1)],
+      pageSize: 'A4',
+      orientation: 'portrait',
+      isActive: true,
+      sortOrder: 10,
+    });
+    const normalized = normalizePrintFormsForView([form]);
+
+    expect(normalized.find((item) => item.id === 'custom-layout')?.content).toContain('New heading');
+    expect(normalized.find((item) => item.id === 'custom-layout')?.content).not.toBe('old html');
+  });
+
+  it('keeps legacy custom html unchanged', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'legacy-custom',
+        title: 'Legacy custom',
+        type: 'custom',
+        content: '<div>{{orderNumber}}</div>',
+        contentFormat: 'html',
+        pageSize: 'A4',
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 10,
+      },
+    ]);
+
+    expect(normalized.find((form) => form.id === 'legacy-custom')?.content).toBe('<div>{{orderNumber}}</div>');
+    expect(normalized.find((form) => form.id === 'legacy-custom')?.layoutBlocks).toBeUndefined();
+  });
+
   it('adds the default label size to label forms', () => {
     const normalized = normalizePrintFormsForView([
       {
