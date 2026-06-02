@@ -107,6 +107,8 @@ describe('settings service', () => {
       companyAddress: '',
       companyId: '',
       companyIban: '',
+      companyEmail: '',
+      companySite: '',
       printForms: defaultPrintForms,
       orderDefaults: {
         defaultRepairTermDays: 7,
@@ -124,6 +126,8 @@ describe('settings service', () => {
       companyAddress: 'Kyiv, Main street 1',
       companyId: '12345678',
       companyIban: 'UA123456789123456789123456789',
+      companyEmail: 'billing@example.com',
+      companySite: 'https://example.com',
       printForms: [
         {
           id: 'invoice',
@@ -149,6 +153,8 @@ describe('settings service', () => {
       companyAddress: ' Kyiv, Main street 1 ',
       companyId: ' 12345678 ',
       companyIban: ' UA123456789123456789123456789 ',
+      companyEmail: ' billing@example.com ',
+      companySite: ' https://example.com ',
       printForms: updateResult.printForms,
       financeDefaults: updateResult.financeDefaults,
     });
@@ -161,6 +167,8 @@ describe('settings service', () => {
         companyAddress: 'Kyiv, Main street 1',
         companyId: '12345678',
         companyIban: 'UA123456789123456789123456789',
+        companyEmail: 'billing@example.com',
+        companySite: 'https://example.com',
         printForms: [
           expect.objectContaining({
             id: 'invoice',
@@ -215,6 +223,8 @@ describe('settings service', () => {
       companyAddress: '',
       companyId: '',
       companyIban: '',
+      companyEmail: '',
+      companySite: '',
     });
   });
 

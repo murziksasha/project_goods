@@ -8,6 +8,7 @@ import { cleanup } from '@testing-library/react';
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 const SettingsPanelHarness = () => {
@@ -34,6 +35,8 @@ describe('SettingsPanel', () => {
     expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('');
     expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('');
     expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('');
+    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('');
+    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 
@@ -59,10 +62,18 @@ describe('SettingsPanel', () => {
     fireEvent.change(screen.getByLabelText('Company IBAN ({{company_iban}})'), {
       target: { value: 'UA123456789123456789123456789' },
     });
+    fireEvent.change(screen.getByLabelText('Company e-mail ({{company_email}})'), {
+      target: { value: 'billing@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Company site ({{company_site}})'), {
+      target: { value: 'https://example.com' },
+    });
 
     expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('Kyiv, Main street 1');
     expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('12345678');
     expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('UA123456789123456789123456789');
+    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('billing@example.com');
+    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('https://example.com');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 

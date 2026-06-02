@@ -699,6 +699,10 @@ export const CreateOrderCard = ({
       const createdClient = await createClient({
         phone: normalizedPhone,
         name: normalizedName,
+        email: '',
+        address: '',
+        registrationId: '',
+        iban: '',
         note: '',
         status: 'new',
       });

@@ -615,6 +615,10 @@ export const createSale = async (payloadInput: SalePayload) => {
         name: client.name,
         phone: client.phone,
         status: client.status,
+        email: client.email ?? '',
+        address: client.address ?? '',
+        registrationId: client.registrationId ?? '',
+        iban: client.iban ?? '',
       },
       managerSnapshot: manager
         ? { name: manager.name, role: manager.role }
@@ -800,6 +804,10 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           name: client.name,
           phone: client.phone,
           status: client.status,
+          email: client.email ?? '',
+          address: client.address ?? '',
+          registrationId: client.registrationId ?? '',
+          iban: client.iban ?? '',
         },
         managerSnapshot: manager
           ? { name: manager.name, role: manager.role }

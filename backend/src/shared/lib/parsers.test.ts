@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  normalizeClientPayload,
   normalizeEmployeePayload,
   normalizeProductPayload,
   normalizeSalePayload,
@@ -112,6 +113,32 @@ describe('normalizeEmployeePayload', () => {
   });
 });
 
+describe('normalizeClientPayload', () => {
+  it('normalizes structured client requisites', () => {
+    const result = normalizeClientPayload({
+      phone: ' +38 (067) 111-22-33 ',
+      name: ' Ivan Petrenko ',
+      email: ' ivan@example.com ',
+      address: ' Kyiv, Main street 1 ',
+      registrationId: ' 12345678 ',
+      iban: ' ua12 3456 7891 2345 6789 1234 5678 9 ',
+      note: ' Note ',
+      status: 'vip',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+380671112233',
+      name: 'Ivan Petrenko',
+      email: 'ivan@example.com',
+      address: 'Kyiv, Main street 1',
+      registrationId: '12345678',
+      iban: 'UA123456789123456789123456789',
+      note: 'Note',
+      status: 'vip',
+    });
+  });
+});
+
 describe('normalizeSalePayload', () => {
   it('normalizes empty line item ids away and preserves catalog product ids', () => {
     const result = normalizeSalePayload({
@@ -169,6 +196,8 @@ describe('normalizeSettingsPayload', () => {
       companyAddress: '  Kyiv, Main street 1  ',
       companyId: '  12345678  ',
       companyIban: '  UA123456789123456789123456789  ',
+      companyEmail: '  billing@example.com  ',
+      companySite: '  https://example.com  ',
       printForms: [
         {
           id: ' receipt ',
@@ -211,6 +240,8 @@ describe('normalizeSettingsPayload', () => {
       companyAddress: 'Kyiv, Main street 1',
       companyId: '12345678',
       companyIban: 'UA123456789123456789123456789',
+      companyEmail: 'billing@example.com',
+      companySite: 'https://example.com',
       printForms: [
         {
           id: 'receipt',
@@ -302,6 +333,8 @@ describe('normalizeSettingsPayload', () => {
     expect(result.companyAddress).toBe('');
     expect(result.companyId).toBe('');
     expect(result.companyIban).toBe('');
+    expect(result.companyEmail).toBe('');
+    expect(result.companySite).toBe('');
     expect(result.printForms).toEqual([]);
     expect(result.orderDefaults.defaultRepairTermDays).toBe(0);
     expect(result.orderDefaults.defaultWarrantyMonths).toBe(1);

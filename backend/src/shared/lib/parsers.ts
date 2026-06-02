@@ -77,6 +77,10 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
 export const normalizeClientPayload = (payload: ClientPayload) => ({
   phone: normalizePhone(payload.phone),
   name: toNonEmptyString(payload.name),
+  email: toNonEmptyString(payload.email),
+  address: toNonEmptyString(payload.address),
+  registrationId: toNonEmptyString(payload.registrationId),
+  iban: toNonEmptyString(payload.iban).replace(/\s+/g, '').toUpperCase(),
   note: toNonEmptyString(payload.note),
   status: clientStatuses.includes(String(payload.status ?? '') as ClientStatus)
     ? (payload.status as ClientStatus)
@@ -329,6 +333,8 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
     companyAddress: toNonEmptyString(payload.companyAddress),
     companyId: toNonEmptyString(payload.companyId),
     companyIban: toNonEmptyString(payload.companyIban),
+    companyEmail: toNonEmptyString(payload.companyEmail),
+    companySite: toNonEmptyString(payload.companySite),
     printForms: Array.isArray(payload.printForms)
       ? payload.printForms
           .map((item, index) => {

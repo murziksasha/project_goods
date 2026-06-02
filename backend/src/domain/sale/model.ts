@@ -168,6 +168,10 @@ export const saleSchema = new mongoose.Schema(
       name: { type: String, required: true },
       phone: { type: String, required: true },
       status: { type: String, required: true },
+      email: { type: String, required: false, default: '' },
+      address: { type: String, required: false, default: '' },
+      registrationId: { type: String, required: false, default: '' },
+      iban: { type: String, required: false, default: '' },
     },
     managerSnapshot: {
       name: { type: String, required: false },

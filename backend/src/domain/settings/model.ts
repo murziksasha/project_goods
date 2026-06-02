@@ -60,7 +60,7 @@ export const defaultPrintForms = [
     title: 'Рахунок',
     type: 'invoice',
     content:
-      '<div class="print-document"><div class="invoice-party"><strong>Постачальник</strong><div><b>{{company}}</b><br>Адреса: {{company_address}}<br>ЄДРПОУ або ІПН: {{company_id}}<br>не є платником податку на прибуток на загальних умовах<br><b>Р/р {{company_iban}}</b></div></div><div class="invoice-party"><strong>Одержувач</strong><div><b>{{clientName}}</b><br>ЄДРПОУ або ІПН: {{customer_reg_id}}<br>{{clientPhone}}<br>{{warehouse_address}}</div></div><div class="invoice-title"><h1>Рахунок фактура № {{orderNumber}}</h1><p>від {{date}} р.</p></div>{{invoice_items_table}}<table class="invoice-totals"><tbody><tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr><tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr><tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr></tbody></table><div class="invoice-written"><p>Всього на суму: <strong>{{total_written}}</strong></p><p>ПДВ: {{vat_amount}}</p></div><div class="invoice-payable"><strong>Загальна сума до оплати:</strong><strong>{{total_amount}}</strong></div><div class="invoice-signature"><strong><em>{{seller_occupation}}</em></strong><span></span><strong><em>{{seller_name}}</em></strong></div><p class="invoice-note"><strong>{{note_label}}:</strong> {{note}}</p></div>',
+      '<div class="print-document"><div class="invoice-party"><strong>Постачальник</strong><div><b>{{company}}</b><br>Адреса: {{company_address}}<br>ЄДРПОУ або ІПН: {{company_id}}<br>не є платником податку на прибуток на загальних умовах<br><b>Р/р {{company_iban}}</b></div></div><div class="invoice-party"><strong>Одержувач</strong><div><b>{{clientName}}</b><br>Адреса: {{customer_address}}<br>ЄДРПОУ або ІПН: {{customer_reg_id}}<br>{{clientPhone}}<br><b>Р/р {{customer_iban}}</b></div></div><div class="invoice-title"><h1>Рахунок фактура № {{orderNumber}}</h1><p>від {{date}} р.</p></div>{{invoice_items_table}}<table class="invoice-totals"><tbody><tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr><tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr><tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr></tbody></table><div class="invoice-written"><p>Всього на суму: <strong>{{total_written}}</strong></p><p>ПДВ: {{vat_amount}}</p></div><div class="invoice-payable"><strong>Загальна сума до оплати:</strong><strong>{{total_amount}}</strong></div><div class="invoice-signature"><strong><em>{{seller_occupation}}</em></strong><span></span><strong><em>{{seller_name}}</em></strong></div><p class="invoice-note"><strong>{{note_label}}:</strong> {{note}}</p></div>',
     contentFormat: 'html',
     pageSize: 'A4',
     orientation: 'portrait',
@@ -180,6 +180,16 @@ export const settingsSchema = new mongoose.Schema(
       default: '',
     },
     companyIban: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companyEmail: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    companySite: {
       type: String,
       trim: true,
       default: '',

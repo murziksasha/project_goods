@@ -58,6 +58,8 @@ export type AppSettings = {
   companyAddress: string;
   companyId: string;
   companyIban: string;
+  companyEmail: string;
+  companySite: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;
@@ -73,6 +75,8 @@ export type AppSettingsFormValues = {
   companyAddress: string;
   companyId: string;
   companyIban: string;
+  companyEmail: string;
+  companySite: string;
   printForms: PrintForm[];
   orderDefaults: OrderDefaults;
   numbering: NumberingSettings;
