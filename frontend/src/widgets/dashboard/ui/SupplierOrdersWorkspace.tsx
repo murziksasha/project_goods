@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct, CatalogProductFormValues } from '../../../entities/catalog-product/model/types';
+import { createPortal } from 'react-dom';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import {
   cancelSupplierOrder,
@@ -282,7 +283,14 @@ export const SupplierOrdersWorkspace = ({
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
-  const [openStatusOrderId, setOpenStatusOrderId] = useState<string | null>(null);
+  const [openStatusOrder, setOpenStatusOrder] = useState<{
+    key: string;
+    order: SupplierOrder;
+  } | null>(null);
+  const [statusMenuPosition, setStatusMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [statusQuery, setStatusQuery] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -332,10 +340,11 @@ export const SupplierOrdersWorkspace = ({
       }
 
       if (
-        openStatusOrderId &&
-        !target.closest('.supplier-order-status-picker')
+        openStatusOrder &&
+        !target.closest('.supplier-order-status-picker') &&
+        !target.closest('.supplier-order-status-menu-portal')
       ) {
-        setOpenStatusOrderId(null);
+        setOpenStatusOrder(null);
       }
 
       if (
@@ -351,7 +360,37 @@ export const SupplierOrdersWorkspace = ({
     return () => {
       document.removeEventListener('mousedown', closeMenusOnOutsideClick);
     };
-  }, [isColumnsMenuOpen, isOrderStatusOpen, isPaymentStatusOpen, openStatusOrderId]);
+  }, [isColumnsMenuOpen, isOrderStatusOpen, isPaymentStatusOpen, openStatusOrder]);
+
+  useEffect(() => {
+    if (!openStatusOrder) {
+      setStatusMenuPosition(null);
+      return;
+    }
+
+    const closeStatusMenu = () => {
+      setOpenStatusOrder(null);
+    };
+
+    const closeStatusMenuOnOutsideScroll = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.supplier-order-status-menu-portal')) {
+        return;
+      }
+      closeStatusMenu();
+    };
+
+    window.addEventListener('resize', closeStatusMenu);
+    window.addEventListener('scroll', closeStatusMenuOnOutsideScroll, true);
+    return () => {
+      window.removeEventListener('resize', closeStatusMenu);
+      window.removeEventListener(
+        'scroll',
+        closeStatusMenuOnOutsideScroll,
+        true,
+      );
+    };
+  }, [openStatusOrder]);
 
   const refreshOrders = async () => {
     setIsLoading(true);
@@ -478,7 +517,7 @@ export const SupplierOrdersWorkspace = ({
   ) => {
     try {
       if (nextStatus === order.status) {
-        setOpenStatusOrderId(null);
+        setOpenStatusOrder(null);
         return;
       }
 
@@ -509,7 +548,7 @@ export const SupplierOrdersWorkspace = ({
           items: order.items,
         });
       }
-      setOpenStatusOrderId(null);
+      setOpenStatusOrder(null);
       await refreshOrders();
       onSuccess('Supplier order status updated.');
     } catch (error) {
@@ -916,35 +955,20 @@ export const SupplierOrdersWorkspace = ({
                             type='button'
                             className={getSupplierOrderStatusClass(order.status)}
                             disabled={order.paymentStatus === 'cancelled'}
-                            aria-expanded={openStatusOrderId === order.id}
-                            onClick={() =>
-                              setOpenStatusOrderId((current) =>
-                                current === order.id ? null : order.id,
-                              )
-                            }
+                            aria-expanded={openStatusOrder?.key === id}
+                            onClick={(event) => {
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              setStatusMenuPosition({
+                                top: rect.bottom + 4,
+                                left: rect.left,
+                              });
+                              setOpenStatusOrder((current) =>
+                                current?.key === id ? null : { key: id, order },
+                              );
+                            }}
                           >
                             {getSupplierOrderStatusLabel(order.status)}
                           </button>
-                          {openStatusOrderId === order.id ? (
-                            <div className='supplier-order-status-menu'>
-                              {orderStatuses.map((status) => (
-                                <button
-                                  key={status.key}
-                                  type='button'
-                                  className={
-                                    status.key === order.status
-                                      ? 'supplier-order-status-option supplier-order-status-option-active'
-                                      : 'supplier-order-status-option'
-                                  }
-                                  onClick={() =>
-                                    void updateSupplierOrderStatus(order, status.key)
-                                  }
-                                >
-                                  {status.label}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
                         </div>
                       </td> : null}
                       {visibleColumns.includes('paymentStatus') ? <td>
@@ -964,6 +988,41 @@ export const SupplierOrdersWorkspace = ({
           <PaginationPanel totalItems={filteredOrders.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }} />
         </>
       )}
+
+      {openStatusOrder &&
+      statusMenuPosition &&
+      typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className='supplier-order-status-menu supplier-order-status-menu-portal'
+              style={{
+                top: statusMenuPosition.top,
+                left: statusMenuPosition.left,
+              }}
+            >
+              {orderStatuses.map((status) => (
+                <button
+                  key={status.key}
+                  type='button'
+                  className={
+                    status.key === openStatusOrder.order.status
+                      ? 'supplier-order-status-option supplier-order-status-option-active'
+                      : 'supplier-order-status-option'
+                  }
+                  onClick={() =>
+                    void updateSupplierOrderStatus(
+                      openStatusOrder.order,
+                      status.key,
+                    )
+                  }
+                >
+                  {status.label}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
 
       <SupplierOrderModal
         isOpen={isModalOpen}

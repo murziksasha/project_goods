@@ -214,6 +214,36 @@
   - both: include records with `dateFrom <= deliveryDate <= dateTo`.
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
 
+## Supplier Order Row Status Window (2026-06-03)
+
+- In `Orders -> Supplier Order`, each row `Status` value is an interactive badge-style button, not a native select.
+- Clicking the row status button opens the available supplier-order statuses:
+  - `Purchase request`
+  - `Ordered`
+  - `Approved`
+  - `Stocked`
+  - `Overdue`
+  - `Cancelled`
+  - `Unavailable`
+- The status window is rendered in a portal attached to `document.body`, using fixed viewport coordinates measured from the clicked status button.
+- Portal rendering is required because the supplier-order table has horizontal scrolling; the status window must not be clipped by the table wrapper.
+- Opening the status window must not change row height, table height, pagination position, or horizontal scrollbar position.
+- If the same supplier order appears as multiple item rows, the opened status window is keyed by the visible row number so it anchors to the exact clicked badge.
+- The status window has internal vertical scroll with fixed maximum height.
+- Mouse-wheel scrolling inside the status window must keep the window open and scroll only the status list.
+- Wheel momentum from the status window must not scroll the page/table behind it.
+- Clicking outside the status button/window closes the status window.
+- Page/table scrolling outside the status window closes it.
+- Browser resize closes it, because the measured fixed position may no longer match the clicked badge.
+- Selecting the current status closes the window without sending an update request.
+- Selecting another status:
+  - closes the status window,
+  - updates the supplier order status,
+  - refreshes the supplier-order list,
+  - shows success or error feedback.
+- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
+- If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
+
 ## Supplier Order Information Tab (2026-05-29)
 
 - `Orders` has a fourth tab after `Supplier Order` named `Information`.

@@ -1199,7 +1199,37 @@
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.topbar-current-user {
+  min-width: 0;
+  max-width: min(260px, 28vw);
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: #425974;
+  line-height: 1.1;
+}
+
+.topbar-current-user-name,
+.topbar-current-user-role {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-current-user-name {
+  font-weight: 800;
+}
+
+.topbar-current-user-role {
+  color: #7a8da3;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .topbar-icon-button {
@@ -3805,13 +3835,20 @@
   display: grid;
   gap: 4px;
   width: 210px;
-  max-height: 260px;
+  max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 6px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 16px 30px rgba(31, 52, 77, 0.18);
+}
+
+.supplier-order-status-menu-portal {
+  position: fixed;
+  z-index: 4000;
 }
 
 .supplier-order-status-option {
