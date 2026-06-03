@@ -445,7 +445,7 @@ export const ProductCatalogPanel = ({
             if (ok) setSelectedClientDevice(null);
           }}
           onRemove={async () => {
-            if (!window.confirm(`Remove device \"${selectedClientDevice.name}\"?`)) return;
+            if (!window.confirm(`Remove device "${selectedClientDevice.name}"?`)) return;
             const ok = await onDeleteClientDevice(selectedClientDevice.id);
             if (ok) setSelectedClientDevice(null);
           }}
@@ -461,7 +461,7 @@ export const ProductCatalogPanel = ({
             if (ok) setSelectedCatalogProduct(null);
           }}
           onRemove={async () => {
-            if (!window.confirm(`Remove product \"${selectedCatalogProduct.name}\"?`)) return;
+            if (!window.confirm(`Remove product "${selectedCatalogProduct.name}"?`)) return;
             const ok = await onDeleteCatalogProduct(selectedCatalogProduct.id);
             if (ok) setSelectedCatalogProduct(null);
           }}

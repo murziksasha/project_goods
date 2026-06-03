@@ -127,6 +127,8 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 5) Receipts Source
 - `Warehouse -> Receipts` is projected from supplier orders.
 - One supplier order with multiple items is rendered as multiple receipt rows.
+- Frontend source of truth for supplier-order-backed receipt rows is the TanStack Query `supplierOrders` cache.
+- Manual receipt rows created only inside the warehouse UI remain local UI/session rows and are composed after supplier-order-backed rows.
 
 ### 6) Row Click Behavior
 - Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
@@ -177,6 +179,7 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 11) Warehouse/Location Required On Take-On-Charge
 - Operator must select `warehouse` and `location`.
 - API payload must include `warehouseId` and `locationId`.
+- Successful take-on-charge must invalidate/refetch supplier orders and product stock data so receipt status and stock balances stay in sync.
 
 ### 11.1) Article Behavior In Take-On-Charge Modal
 - In `Оприходование` modal, checkbox `Автогенерация артикулов` is disabled by default.
@@ -204,6 +207,7 @@ This document defines current warehouse requirements for stock balances, receipt
 - `Warehouse -> Transfers` moves existing stock items between configured warehouses and locations.
 - Target warehouse/location options are loaded from `Warehouse -> Settings -> Warehouses`.
 - Locations created later in settings must become available in transfer target selectors without code changes.
+- Warehouse settings are loaded through the TanStack Query `warehouseSettings` cache; the panel may mirror them into editable local form state while the operator is changing settings.
 
 ### 12.1) Transfer Item Selection
 - The right-side stock list shows filtered stock items for the current `Transfers` tab.

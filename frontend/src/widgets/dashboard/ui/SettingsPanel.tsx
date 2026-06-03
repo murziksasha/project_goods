@@ -7,10 +7,17 @@ import type {
   OrderDefaults,
   PrintForm,
 } from '../../../entities/settings/model/types';
+import { normalizePrintFormsForView } from '../../../entities/settings/model/printForms';
+import { createNewPrintForm } from '../model/print-form-builder';
 import {
-  normalizePrintFormsForView,
-} from '../../../entities/settings/model/printForms';
-import { createNewPrintForm, PrintFormBuilder } from './PrintFormBuilder';
+  getCompanyValidation,
+  getSettingsPreviewValues,
+  getStoredSettingsTab,
+  settingsTabs,
+  settingsTabStorageKey,
+  type SettingsTab,
+} from '../model/settings-panel';
+import { PrintFormBuilder } from './PrintFormBuilder';
 
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
@@ -22,89 +29,389 @@ type SettingsPanelProps = {
   onSubmit: () => void;
 };
 
-type SettingsTab =
-  | 'company'
-  | 'print'
-  | 'orders'
-  | 'numbering'
-  | 'finance'
-  | 'notifications';
+type SettingsChangeHandler = SettingsPanelProps['onChange'];
 
-const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'company', label: 'Company' },
-  { key: 'print', label: 'Print forms' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'numbering', label: 'Numbering' },
-  { key: 'finance', label: 'Finance' },
-  { key: 'notifications', label: 'Notifications' },
-];
-const settingsTabStorageKey = 'project-goods.settings-tab';
+type CompanyValidation = ReturnType<typeof getCompanyValidation>;
 
-const getStoredSettingsTab = (): SettingsTab => {
-  try {
-    const storedTab = window.localStorage.getItem(settingsTabStorageKey);
-    return storedTab === 'company' ||
-      storedTab === 'print' ||
-      storedTab === 'orders' ||
-      storedTab === 'numbering' ||
-      storedTab === 'finance' ||
-      storedTab === 'notifications'
-      ? storedTab
-      : 'company';
-  } catch {
-    return 'company';
-  }
+type CompanySettingsSectionProps = {
+  form: AppSettingsFormValues;
+  validation: CompanyValidation;
+  onChange: SettingsChangeHandler;
 };
 
-const demoPrintValues = {
-  id: 'demo-sale-id',
-  orderNumber: 'r000124',
-  date: '29.05.2026',
-  status: 'Новий ремонт',
-  clientName: 'Ivan Petrenko',
-  clientPhone: '+38 067 111 22 33',
-  deviceName: 'iPhone 13 Pro',
-  serialNumber: 'SN-2026-001',
-  article: 'IPH13P',
-  defect: 'Не працює дисплей',
-  comment: 'Заміна дисплея та діагностика',
-  total: '4 800 UAH',
-  paid: '1 000 UAH',
-  toPay: '3 800 UAH',
-  currency: 'UAH',
-  discount: '0 UAH',
-  note: 'Display replacement and diagnostics',
-  managerName: 'Olena Manager',
-  masterName: 'Andrii Master',
-  company: 'Сервісний центр',
-  company_address: '10001, м. Житомир, пл. Лесі Українки, 16',
-  company_id: '12345678',
-  company_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
-  company_email: 'service@example.com',
-  company_site: 'https://service.example.com',
-  customer_reg_id: '87654321',
-  customer_address: 'м. Чорноморськ, вул. Віталія Шума 2Б',
-  customer_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
-  due_date: '01.06.2026',
-  warehouse: 'Основний склад',
-  warehouse_address: '82707, м. Вінниця, вул. Гагаріна, 12',
-  warehouse_phone: '+38 067 000 00 00',
-  net_amount: '4 800,00 грн',
-  vat_amount: '0,00 грн',
-  total_amount: '4 800,00 грн',
-  total_written: 'чотири тисячі вісімсот гривень 00 копійок',
-  seller_occupation: 'Директор',
-  seller_name: 'Петро Степаненко',
-  note_label: 'Примітка',
-  barcode: 'r000124',
-  products_table:
-    '<table class="print-line-table"><thead><tr><th>Товар</th><th>К-сть</th><th>Сума</th></tr></thead><tbody><tr><td>Дисплейний модуль</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
-  services_table:
-    '<table class="print-line-table"><thead><tr><th>Послуга</th><th>Сума</th></tr></thead><tbody><tr><td>Діагностика та заміна</td><td>1 000 UAH</td></tr></tbody></table>',
-  invoice_items_table:
-    '<table class="invoice-items-table"><thead><tr><th style="width: 34px;">№</th><th>Назва</th><th style="width: 74px;">Кількість</th><th style="width: 72px;">Ціна без ПДВ</th><th style="width: 64px;">Ставка ПДВ</th><th style="width: 82px;">Сума без ПДВ</th><th style="width: 82px;">Сума з ПДВ</th></tr></thead><tbody><tr><td>1.</td><td><strong>Заміна дисплейного модуля</strong><span class="invoice-item-description">Робота та встановлення комплектуючих</span></td><td>1,000</td><td>4 800,00</td><td>0%</td><td>4 800,00</td><td>4 800,00</td></tr></tbody></table>',
-  createdAt: '29.05.2026 10:30',
+const CompanySettingsSection = ({
+  form,
+  validation,
+  onChange,
+}: CompanySettingsSectionProps) => (
+  <section className="settings-section">
+    <div className="form-grid">
+      <label className="field field-wide">
+        <span>Service name in header</span>
+        <input
+          value={form.serviceName}
+          onChange={(event) => onChange('serviceName', event.target.value)}
+          placeholder="Service CRM"
+        />
+      </label>
+      <label className="field">
+        <span>Company name ({'{{company}}'})</span>
+        <input
+          value={form.company}
+          onChange={(event) => onChange('company', event.target.value)}
+          placeholder="РќР°Р·РІР° РєРѕРјРїР°РЅС–С—"
+          aria-invalid={!validation.isCompanyNameValid}
+        />
+        {!validation.isCompanyNameValid ? (
+          <small>Company name must be at least 2 characters.</small>
+        ) : null}
+      </label>
+      <label className="field">
+        <span>Company ID ({'{{company_id}}'})</span>
+        <input
+          value={form.companyId}
+          onChange={(event) => onChange('companyId', event.target.value)}
+          placeholder="Р„Р”Р РџРћРЈ Р°Р±Рѕ Р†РџРќ РєРѕРјРїР°РЅС–С—"
+          aria-invalid={!validation.isCompanyIdValid}
+        />
+        {!validation.isCompanyIdValid ? (
+          <small>Company ID must be 8-12 characters (letters, digits, dash).</small>
+        ) : null}
+      </label>
+      <label className="field field-wide">
+        <span>Company address ({'{{company_address}}'})</span>
+        <input
+          value={form.companyAddress}
+          onChange={(event) => onChange('companyAddress', event.target.value)}
+          placeholder="РђРґСЂРµСЃР° РєРѕРјРїР°РЅС–С—"
+          aria-invalid={!validation.isCompanyAddressValid}
+        />
+        {!validation.isCompanyAddressValid ? (
+          <small>Company address must be at least 5 characters.</small>
+        ) : null}
+      </label>
+      <label className="field field-wide">
+        <span>Company IBAN ({'{{company_iban}}'})</span>
+        <input
+          value={form.companyIban}
+          onChange={(event) => onChange('companyIban', event.target.value)}
+          placeholder="UA00 0000 0000 0000 0000 0000 0000 000"
+          aria-invalid={!validation.isCompanyIbanValid}
+        />
+        {!validation.isCompanyIbanValid ? (
+          <small>IBAN must match UA + 27 digits (spaces are allowed).</small>
+        ) : null}
+      </label>
+      <label className="field">
+        <span>Company e-mail ({'{{company_email}}'})</span>
+        <input
+          value={form.companyEmail}
+          onChange={(event) => onChange('companyEmail', event.target.value)}
+          placeholder="service@example.com"
+        />
+      </label>
+      <label className="field">
+        <span>Company site ({'{{company_site}}'})</span>
+        <input
+          value={form.companySite}
+          onChange={(event) => onChange('companySite', event.target.value)}
+          placeholder="https://example.com"
+        />
+      </label>
+    </div>
+  </section>
+);
+
+type PrintFormsSectionProps = {
+  printForms: PrintForm[];
+  selectedForm?: PrintForm;
+  previewValues: Record<string, string>;
+  onAddPrintForm: () => void;
+  onDuplicateSelectedForm: () => void;
+  onDeleteSelectedForm: () => void;
+  onSelectForm: (formId: string) => void;
+  onUpdateForm: (formId: string, patch: Partial<PrintForm>) => void;
+  onUpdateForms: (forms: PrintForm[]) => void;
 };
+
+const PrintFormsSection = ({
+  printForms,
+  selectedForm,
+  previewValues,
+  onAddPrintForm,
+  onDuplicateSelectedForm,
+  onDeleteSelectedForm,
+  onSelectForm,
+  onUpdateForm,
+  onUpdateForms,
+}: PrintFormsSectionProps) => (
+  <section className="settings-section settings-print-section">
+    <div className="panel-header panel-header-row">
+      <div>
+        <p className="section-label">Print forms</p>
+        <h2>Order documents</h2>
+      </div>
+      <div className="settings-actions">
+        <button type="button" className="secondary-button" onClick={onAddPrintForm}>
+          Add
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onDuplicateSelectedForm}
+          disabled={!selectedForm}
+        >
+          Duplicate
+        </button>
+      </div>
+    </div>
+
+    <div className="settings-print-grid">
+      <div className="settings-print-list">
+        {printForms.map((printForm) => (
+          <button
+            key={printForm.id}
+            type="button"
+            className={
+              printForm.id === selectedForm?.id
+                ? 'settings-print-list-item settings-print-list-item-active'
+                : 'settings-print-list-item'
+            }
+            onClick={() => onSelectForm(printForm.id)}
+          >
+            <span>{printForm.title}</span>
+            <small>{printForm.isActive ? printForm.type : 'inactive'}</small>
+          </button>
+        ))}
+      </div>
+
+      {selectedForm ? (
+        <PrintFormBuilder
+          forms={printForms}
+          selectedForm={selectedForm}
+          previewValues={previewValues}
+          onSelectForm={onSelectForm}
+          onUpdateForms={onUpdateForms}
+          onUpdateForm={onUpdateForm}
+          onDeleteForm={onDeleteSelectedForm}
+        />
+      ) : null}
+    </div>
+  </section>
+);
+
+type OrderDefaultsSectionProps = {
+  values: OrderDefaults;
+  onChange: <K extends keyof OrderDefaults>(
+    field: K,
+    value: OrderDefaults[K],
+  ) => void;
+};
+
+const OrderDefaultsSection = ({
+  values,
+  onChange,
+}: OrderDefaultsSectionProps) => (
+  <section className="settings-section">
+    <div className="form-grid">
+      <label className="field">
+        <span>Default repair term, days</span>
+        <input
+          type="number"
+          min={0}
+          value={values.defaultRepairTermDays}
+          onChange={(event) =>
+            onChange('defaultRepairTermDays', Number(event.target.value))
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Default warranty, months</span>
+        <input
+          type="number"
+          min={0}
+          value={values.defaultWarrantyMonths}
+          onChange={(event) =>
+            onChange('defaultWarrantyMonths', Number(event.target.value))
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Default repair status</span>
+        <input
+          value={values.defaultRepairStatus}
+          onChange={(event) =>
+            onChange('defaultRepairStatus', event.target.value)
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Default sale status</span>
+        <input
+          value={values.defaultSaleStatus}
+          onChange={(event) => onChange('defaultSaleStatus', event.target.value)}
+        />
+      </label>
+    </div>
+  </section>
+);
+
+type NumberingSectionProps = {
+  values: NumberingSettings;
+  onChange: <K extends keyof NumberingSettings>(
+    field: K,
+    value: NumberingSettings[K],
+  ) => void;
+};
+
+const NumberingSection = ({ values, onChange }: NumberingSectionProps) => (
+  <section className="settings-section">
+    <div className="form-grid">
+      <label className="field">
+        <span>Repair prefix</span>
+        <input
+          value={values.repairPrefix}
+          onChange={(event) => onChange('repairPrefix', event.target.value)}
+        />
+      </label>
+      <label className="field">
+        <span>Next repair number</span>
+        <input
+          type="number"
+          min={1}
+          value={values.nextRepairNumber}
+          onChange={(event) =>
+            onChange('nextRepairNumber', Number(event.target.value))
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Sale prefix</span>
+        <input
+          value={values.salePrefix}
+          onChange={(event) => onChange('salePrefix', event.target.value)}
+        />
+      </label>
+      <label className="field">
+        <span>Next sale number</span>
+        <input
+          type="number"
+          min={1}
+          value={values.nextSaleNumber}
+          onChange={(event) =>
+            onChange('nextSaleNumber', Number(event.target.value))
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Supplier order prefix</span>
+        <input
+          value={values.supplierOrderPrefix}
+          onChange={(event) =>
+            onChange('supplierOrderPrefix', event.target.value)
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Next supplier order number</span>
+        <input
+          type="number"
+          min={1}
+          value={values.nextSupplierOrderNumber}
+          onChange={(event) =>
+            onChange('nextSupplierOrderNumber', Number(event.target.value))
+          }
+        />
+      </label>
+    </div>
+  </section>
+);
+
+type FinanceDefaultsSectionProps = {
+  values: FinanceDefaults;
+  onChange: <K extends keyof FinanceDefaults>(
+    field: K,
+    value: FinanceDefaults[K],
+  ) => void;
+};
+
+const FinanceDefaultsSection = ({
+  values,
+  onChange,
+}: FinanceDefaultsSectionProps) => (
+  <section className="settings-section">
+    <div className="form-grid">
+      <label className="field">
+        <span>Currency</span>
+        <input
+          value={values.currency}
+          onChange={(event) =>
+            onChange('currency', event.target.value.toUpperCase())
+          }
+        />
+      </label>
+      <label className="field">
+        <span>Default payment method</span>
+        <select
+          value={values.paymentMethod}
+          onChange={(event) =>
+            onChange(
+              'paymentMethod',
+              event.target.value === 'non-cash' ? 'non-cash' : 'cash',
+            )
+          }
+        >
+          <option value="cash">Cash</option>
+          <option value="non-cash">Non-cash</option>
+        </select>
+      </label>
+    </div>
+  </section>
+);
+
+type NotificationSettingsSectionProps = {
+  values: NotificationSettings;
+  onChange: <K extends keyof NotificationSettings>(
+    field: K,
+    value: NotificationSettings[K],
+  ) => void;
+};
+
+const NotificationSettingsSection = ({
+  values,
+  onChange,
+}: NotificationSettingsSectionProps) => (
+  <section className="settings-section">
+    <div className="settings-toggle-grid">
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={values.smsEnabled}
+          onChange={(event) => onChange('smsEnabled', event.target.checked)}
+        />
+        <span>SMS notifications</span>
+      </label>
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={values.messengerEnabled}
+          onChange={(event) =>
+            onChange('messengerEnabled', event.target.checked)
+          }
+        />
+        <span>Messenger notifications</span>
+      </label>
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={values.emailEnabled}
+          onChange={(event) => onChange('emailEnabled', event.target.checked)}
+        />
+        <span>Email notifications</span>
+      </label>
+    </div>
+  </section>
+);
 
 export const SettingsPanel = ({
   form,
@@ -124,15 +431,7 @@ export const SettingsPanel = ({
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
   const previewValues = useMemo(
-    () => ({
-      ...demoPrintValues,
-      company: form.serviceName || form.company || demoPrintValues.company,
-      company_address: form.companyAddress || demoPrintValues.company_address,
-      company_id: form.companyId || demoPrintValues.company_id,
-      company_iban: form.companyIban || demoPrintValues.company_iban,
-      company_email: form.companyEmail || demoPrintValues.company_email,
-      company_site: form.companySite || demoPrintValues.company_site,
-    }),
+    () => getSettingsPreviewValues(form),
     [
       form.company,
       form.companyAddress,
@@ -143,30 +442,18 @@ export const SettingsPanel = ({
       form.serviceName,
     ],
   );
+  const companyValidation = useMemo(
+    () => getCompanyValidation(form),
+    [form.company, form.companyAddress, form.companyIban, form.companyId],
+  );
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
-  const companyName = form.company.trim();
-  const companyAddress = form.companyAddress.trim();
-  const companyId = form.companyId.trim();
-  const companyIbanNormalized = form.companyIban.replace(/\s+/g, '').toUpperCase();
-  const isCompanyNameValid = companyName.length >= 2;
-  const isCompanyAddressValid =
-    companyAddress.length === 0 || companyAddress.length >= 5;
-  const isCompanyIdValid =
-    companyId.length === 0 || /^[0-9A-Za-z-]{8,12}$/.test(companyId);
-  const isCompanyIbanValid =
-    companyIbanNormalized.length === 0 || /^UA\d{27}$/.test(companyIbanNormalized);
-  const hasInvalidCompanyFields =
-    !isCompanyNameValid ||
-    !isCompanyAddressValid ||
-    !isCompanyIdValid ||
-    !isCompanyIbanValid;
   const isSaveDisabled =
     isSaving ||
     form.serviceName.trim().length < 2 ||
     hasInvalidPrintForms ||
-    hasInvalidCompanyFields;
+    companyValidation.hasInvalidCompanyFields;
 
   const updatePrintForms = (nextForms: PrintForm[]) => {
     onChange('printForms', normalizePrintFormsForView(nextForms));
@@ -200,7 +487,9 @@ export const SettingsPanel = ({
 
   const deleteSelectedForm = () => {
     if (!selectedForm || printForms.length <= 1) return;
-    const nextForms = printForms.filter((printForm) => printForm.id !== selectedForm.id);
+    const nextForms = printForms.filter(
+      (printForm) => printForm.id !== selectedForm.id,
+    );
     updatePrintForms(nextForms);
     setSelectedFormId(nextForms[0]?.id ?? '');
   };
@@ -212,6 +501,7 @@ export const SettingsPanel = ({
       // Ignore localStorage write errors.
     }
   }, [activeTab]);
+
   const updateOrderDefaults = <K extends keyof OrderDefaults>(
     field: K,
     value: OrderDefaults[K],
@@ -282,355 +572,50 @@ export const SettingsPanel = ({
       </div>
 
       {activeTab === 'company' ? (
-        <section className="settings-section">
-          <div className="form-grid">
-            <label className="field field-wide">
-              <span>Service name in header</span>
-              <input
-                value={form.serviceName}
-                onChange={(event) =>
-                  onChange('serviceName', event.target.value)
-                }
-                placeholder="Service CRM"
-              />
-            </label>
-            <label className="field">
-              <span>Company name ({'{{company}}'})</span>
-              <input
-                value={form.company}
-                onChange={(event) => onChange('company', event.target.value)}
-                placeholder="Назва компанії"
-                aria-invalid={!isCompanyNameValid}
-              />
-              {!isCompanyNameValid ? (
-                <small>Company name must be at least 2 characters.</small>
-              ) : null}
-            </label>
-            <label className="field">
-              <span>Company ID ({'{{company_id}}'})</span>
-              <input
-                value={form.companyId}
-                onChange={(event) => onChange('companyId', event.target.value)}
-                placeholder="ЄДРПОУ або ІПН компанії"
-                aria-invalid={!isCompanyIdValid}
-              />
-              {!isCompanyIdValid ? (
-                <small>Company ID must be 8-12 characters (letters, digits, dash).</small>
-              ) : null}
-            </label>
-            <label className="field field-wide">
-              <span>Company address ({'{{company_address}}'})</span>
-              <input
-                value={form.companyAddress}
-                onChange={(event) =>
-                  onChange('companyAddress', event.target.value)
-                }
-                placeholder="Адреса компанії"
-                aria-invalid={!isCompanyAddressValid}
-              />
-              {!isCompanyAddressValid ? (
-                <small>Company address must be at least 5 characters.</small>
-              ) : null}
-            </label>
-            <label className="field field-wide">
-              <span>Company IBAN ({'{{company_iban}}'})</span>
-              <input
-                value={form.companyIban}
-                onChange={(event) =>
-                  onChange('companyIban', event.target.value)
-                }
-                placeholder="UA00 0000 0000 0000 0000 0000 0000 000"
-                aria-invalid={!isCompanyIbanValid}
-              />
-              {!isCompanyIbanValid ? (
-                <small>IBAN must match UA + 27 digits (spaces are allowed).</small>
-              ) : null}
-            </label>
-            <label className="field">
-              <span>Company e-mail ({'{{company_email}}'})</span>
-              <input
-                value={form.companyEmail}
-                onChange={(event) =>
-                  onChange('companyEmail', event.target.value)
-                }
-                placeholder="service@example.com"
-              />
-            </label>
-            <label className="field">
-              <span>Company site ({'{{company_site}}'})</span>
-              <input
-                value={form.companySite}
-                onChange={(event) =>
-                  onChange('companySite', event.target.value)
-                }
-                placeholder="https://example.com"
-              />
-            </label>
-          </div>
-        </section>
+        <CompanySettingsSection
+          form={form}
+          validation={companyValidation}
+          onChange={onChange}
+        />
       ) : null}
 
       {activeTab === 'print' ? (
-        <section className="settings-section settings-print-section">
-          <div className="panel-header panel-header-row">
-            <div>
-              <p className="section-label">Print forms</p>
-              <h2>Order documents</h2>
-            </div>
-            <div className="settings-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={addPrintForm}
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={duplicateSelectedForm}
-                disabled={!selectedForm}
-              >
-                Duplicate
-              </button>
-            </div>
-          </div>
-
-          <div className="settings-print-grid">
-            <div className="settings-print-list">
-              {printForms.map((printForm) => (
-                <button
-                  key={printForm.id}
-                  type="button"
-                  className={
-                    printForm.id === selectedForm?.id
-                      ? 'settings-print-list-item settings-print-list-item-active'
-                      : 'settings-print-list-item'
-                  }
-                  onClick={() => setSelectedFormId(printForm.id)}
-                >
-                  <span>{printForm.title}</span>
-                  <small>{printForm.isActive ? printForm.type : 'inactive'}</small>
-                </button>
-              ))}
-            </div>
-
-            {selectedForm ? (
-              <PrintFormBuilder
-                forms={printForms}
-                selectedForm={selectedForm}
-                previewValues={previewValues}
-                onSelectForm={setSelectedFormId}
-                onUpdateForms={updatePrintForms}
-                onUpdateForm={updateFormById}
-                onDeleteForm={deleteSelectedForm}
-              />
-            ) : null}
-          </div>
-        </section>
+        <PrintFormsSection
+          printForms={printForms}
+          selectedForm={selectedForm}
+          previewValues={previewValues}
+          onAddPrintForm={addPrintForm}
+          onDuplicateSelectedForm={duplicateSelectedForm}
+          onDeleteSelectedForm={deleteSelectedForm}
+          onSelectForm={setSelectedFormId}
+          onUpdateForm={updateFormById}
+          onUpdateForms={updatePrintForms}
+        />
       ) : null}
 
       {activeTab === 'orders' ? (
-        <section className="settings-section">
-          <div className="form-grid">
-            <label className="field">
-              <span>Default repair term, days</span>
-              <input
-                type="number"
-                min={0}
-                value={form.orderDefaults.defaultRepairTermDays}
-                onChange={(event) =>
-                  updateOrderDefaults(
-                    'defaultRepairTermDays',
-                    Number(event.target.value),
-                  )
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Default warranty, months</span>
-              <input
-                type="number"
-                min={0}
-                value={form.orderDefaults.defaultWarrantyMonths}
-                onChange={(event) =>
-                  updateOrderDefaults(
-                    'defaultWarrantyMonths',
-                    Number(event.target.value),
-                  )
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Default repair status</span>
-              <input
-                value={form.orderDefaults.defaultRepairStatus}
-                onChange={(event) =>
-                  updateOrderDefaults(
-                    'defaultRepairStatus',
-                    event.target.value,
-                  )
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Default sale status</span>
-              <input
-                value={form.orderDefaults.defaultSaleStatus}
-                onChange={(event) =>
-                  updateOrderDefaults('defaultSaleStatus', event.target.value)
-                }
-              />
-            </label>
-          </div>
-        </section>
+        <OrderDefaultsSection
+          values={form.orderDefaults}
+          onChange={updateOrderDefaults}
+        />
       ) : null}
 
       {activeTab === 'numbering' ? (
-        <section className="settings-section">
-          <div className="form-grid">
-            <label className="field">
-              <span>Repair prefix</span>
-              <input
-                value={form.numbering.repairPrefix}
-                onChange={(event) =>
-                  updateNumbering('repairPrefix', event.target.value)
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Next repair number</span>
-              <input
-                type="number"
-                min={1}
-                value={form.numbering.nextRepairNumber}
-                onChange={(event) =>
-                  updateNumbering('nextRepairNumber', Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Sale prefix</span>
-              <input
-                value={form.numbering.salePrefix}
-                onChange={(event) =>
-                  updateNumbering('salePrefix', event.target.value)
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Next sale number</span>
-              <input
-                type="number"
-                min={1}
-                value={form.numbering.nextSaleNumber}
-                onChange={(event) =>
-                  updateNumbering('nextSaleNumber', Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Supplier order prefix</span>
-              <input
-                value={form.numbering.supplierOrderPrefix}
-                onChange={(event) =>
-                  updateNumbering('supplierOrderPrefix', event.target.value)
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Next supplier order number</span>
-              <input
-                type="number"
-                min={1}
-                value={form.numbering.nextSupplierOrderNumber}
-                onChange={(event) =>
-                  updateNumbering(
-                    'nextSupplierOrderNumber',
-                    Number(event.target.value),
-                  )
-                }
-              />
-            </label>
-          </div>
-        </section>
+        <NumberingSection values={form.numbering} onChange={updateNumbering} />
       ) : null}
 
       {activeTab === 'finance' ? (
-        <section className="settings-section">
-          <div className="form-grid">
-            <label className="field">
-              <span>Currency</span>
-              <input
-                value={form.financeDefaults.currency}
-                onChange={(event) =>
-                  updateFinanceDefaults(
-                    'currency',
-                    event.target.value.toUpperCase(),
-                  )
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Default payment method</span>
-              <select
-                value={form.financeDefaults.paymentMethod}
-                onChange={(event) =>
-                  updateFinanceDefaults(
-                    'paymentMethod',
-                    event.target.value === 'non-cash' ? 'non-cash' : 'cash',
-                  )
-                }
-              >
-                <option value="cash">Cash</option>
-                <option value="non-cash">Non-cash</option>
-              </select>
-            </label>
-          </div>
-        </section>
+        <FinanceDefaultsSection
+          values={form.financeDefaults}
+          onChange={updateFinanceDefaults}
+        />
       ) : null}
 
       {activeTab === 'notifications' ? (
-        <section className="settings-section">
-          <div className="settings-toggle-grid">
-            <label className="settings-check">
-              <input
-                type="checkbox"
-                checked={form.notificationSettings.smsEnabled}
-                onChange={(event) =>
-                  updateNotificationSettings('smsEnabled', event.target.checked)
-                }
-              />
-              <span>SMS notifications</span>
-            </label>
-            <label className="settings-check">
-              <input
-                type="checkbox"
-                checked={form.notificationSettings.messengerEnabled}
-                onChange={(event) =>
-                  updateNotificationSettings(
-                    'messengerEnabled',
-                    event.target.checked,
-                  )
-                }
-              />
-              <span>Messenger notifications</span>
-            </label>
-            <label className="settings-check">
-              <input
-                type="checkbox"
-                checked={form.notificationSettings.emailEnabled}
-                onChange={(event) =>
-                  updateNotificationSettings(
-                    'emailEnabled',
-                    event.target.checked,
-                  )
-                }
-              />
-              <span>Email notifications</span>
-            </label>
-          </div>
-        </section>
+        <NotificationSettingsSection
+          values={form.notificationSettings}
+          onChange={updateNotificationSettings}
+        />
       ) : null}
     </section>
   );

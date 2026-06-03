@@ -1,3 +1,5 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   SupplierOrder,
@@ -67,3 +69,54 @@ export const takeOnChargeSupplierOrder = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const useSupplierOrdersQuery = () =>
+  useQuery({
+    queryKey: queryKeys.supplierOrders,
+    queryFn: () => getSupplierOrders(),
+  });
+
+export const useCreateSupplierOrderMutation = () =>
+  useMutation({
+    mutationFn: createSupplierOrder,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+    },
+  });
+
+export const useUpdateSupplierOrderMutation = () =>
+  useMutation({
+    mutationFn: ({
+      supplierOrderId,
+      payload,
+    }: {
+      supplierOrderId: string;
+      payload: SupplierOrderFormValues;
+    }) => updateSupplierOrder(supplierOrderId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+    },
+  });
+
+export const useCancelSupplierOrderMutation = () =>
+  useMutation({
+    mutationFn: cancelSupplierOrder,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+    },
+  });
+
+export const useTakeOnChargeSupplierOrderMutation = () =>
+  useMutation({
+    mutationFn: ({
+      supplierOrderId,
+      payload,
+    }: {
+      supplierOrderId: string;
+      payload?: TakeOnChargePayload;
+    }) => takeOnChargeSupplierOrder(supplierOrderId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });

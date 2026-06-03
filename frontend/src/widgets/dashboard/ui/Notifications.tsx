@@ -123,8 +123,9 @@ export const Notifications = ({
   };
 
   const handleToastMouseLeave = (toastId: string) => {
-    const pausedStartedAt = pauseStartedAtRef.current ?? Date.now();
-    const pausedDuration = Date.now() - pausedStartedAt;
+    const now = new Date().getTime();
+    const pausedStartedAt = pauseStartedAtRef.current ?? now;
+    const pausedDuration = now - pausedStartedAt;
 
     setToasts((current) =>
       current.map((toast) => {
@@ -133,7 +134,7 @@ export const Notifications = ({
         }
 
         const nextExpiresAt = toast.expiresAt + pausedDuration;
-        const remainingMs = nextExpiresAt - Date.now();
+        const remainingMs = nextExpiresAt - now;
         scheduleToastRemoval(toast.id, remainingMs);
 
         return {

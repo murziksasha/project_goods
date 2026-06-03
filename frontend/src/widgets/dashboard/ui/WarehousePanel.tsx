@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -22,10 +23,13 @@ import {
 } from '../../../shared/lib/format';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
-import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { cancelSupplierOrder, takeOnChargeSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import {
+  useCancelSupplierOrderMutation,
+  useCreateSupplierOrderMutation,
+  useSupplierOrdersQuery,
+  useTakeOnChargeSupplierOrderMutation,
+  useUpdateSupplierOrderMutation,
+} from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
@@ -40,8 +44,8 @@ import type {
 } from '../../../entities/supplier-order/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
-  getWarehouseSettings,
-  updateWarehouseSettings,
+  useUpdateWarehouseSettingsMutation,
+  useWarehouseSettingsQuery,
 } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import {
   buildSupplierOrderItemNumber,
@@ -297,6 +301,7 @@ const initialServiceCenters: ServiceCenter[] = [];
 const initialWarehouses: WarehouseItem[] = [];
 
 const initialAdministrators: Administrator[] = [];
+const emptySupplierOrders: SupplierOrder[] = [];
 const transferPageSize = 8;
 const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
 const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
@@ -463,8 +468,19 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
-  const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
-    useState(false);
+  const supplierOrdersQuery = useSupplierOrdersQuery();
+  const warehouseSettingsQuery = useWarehouseSettingsQuery();
+  const createSupplierOrderMutation = useCreateSupplierOrderMutation();
+  const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const takeOnChargeSupplierOrderMutation =
+    useTakeOnChargeSupplierOrderMutation();
+  const updateWarehouseSettingsMutation =
+    useUpdateWarehouseSettingsMutation();
+  const supplierOrders =
+    supplierOrdersQuery.data ?? emptySupplierOrders;
+  const isWarehouseSettingsSaving =
+    updateWarehouseSettingsMutation.isPending;
   const [selectedProductModelName, setSelectedProductModelName] =
     useState<string | null>(null);
   const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
@@ -643,9 +659,6 @@ export const WarehousePanel = ({
     editingSupplierOrderItemIndex,
     setEditingSupplierOrderItemIndex,
   ] = useState<number | null>(null);
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
-    [],
-  );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
@@ -675,7 +688,7 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
+  const [manualReceiptRows, setManualReceiptRows] = useState<ReceiptRow[]>([]);
   const [transferForm, setTransferForm] = useState<TransferFormState>({
     productId: '',
     toWarehouseId: '',
@@ -695,9 +708,8 @@ export const WarehousePanel = ({
     const nextWarehouses = payload?.warehouses ?? warehouses;
     const nextAdministrators = payload?.administrators ?? administrators;
 
-    setIsWarehouseSettingsSaving(true);
     try {
-      const saved = await updateWarehouseSettings({
+      const saved = await updateWarehouseSettingsMutation.mutateAsync({
         serviceCenters: nextServiceCenters,
         warehouses: nextWarehouses,
         administrators: nextAdministrators,
@@ -714,8 +726,6 @@ export const WarehousePanel = ({
           ? error.message
           : 'Failed to save warehouse settings.',
       );
-    } finally {
-      setIsWarehouseSettingsSaving(false);
     }
   };
 
@@ -751,18 +761,20 @@ export const WarehousePanel = ({
     );
   };
 
-  const refreshSupplierOrders = async () => {
-    const orders = await getSupplierOrders();
-    setSupplierOrders(orders);
-    const rows = buildReceiptRows(orders);
-    setReceiptHistory((current) => {
-      const manualRows = current.filter((row) => !row.id.startsWith('so-'));
-      return [
-        ...rows.map((row) => ({ ...row, id: `so-${row.id}` })),
-        ...manualRows,
-      ];
-    });
-  };
+  const receiptHistory = useMemo(
+    () => [
+      ...buildReceiptRows(supplierOrders).map((row) => ({
+        ...row,
+        id: `so-${row.id}`,
+      })),
+      ...manualReceiptRows,
+    ],
+    [manualReceiptRows, supplierOrders],
+  );
+
+  const refreshSupplierOrders = useCallback(async () => {
+    await supplierOrdersQuery.refetch();
+  }, [supplierOrdersQuery]);
 
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
@@ -780,21 +792,24 @@ export const WarehousePanel = ({
 
     await Promise.all(
       ordersToUpdate.map((order) =>
-        updateSupplierOrder(order.id, {
-          orderBaseId: order.orderBaseId,
-          supplierId: order.supplierId,
-          deliveryDate: order.deliveryDate,
-          supplyType: order.supplyType,
-          number: order.number,
-          note: order.note,
-          createdBy: order.createdBy,
-          status: order.status,
-          paymentStatus: order.paymentStatus,
-          items: order.items.map((item) =>
-            item.catalogProductId === catalogProductId
-              ? { ...item, productName: nextName }
-              : item,
-          ),
+        updateSupplierOrderMutation.mutateAsync({
+          supplierOrderId: order.id,
+          payload: {
+            orderBaseId: order.orderBaseId,
+            supplierId: order.supplierId,
+            deliveryDate: order.deliveryDate,
+            supplyType: order.supplyType,
+            number: order.number,
+            note: order.note,
+            createdBy: order.createdBy,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            items: order.items.map((item) =>
+              item.catalogProductId === catalogProductId
+                ? { ...item, productName: nextName }
+                : item,
+            ),
+          },
         }),
       ),
     );
@@ -821,9 +836,6 @@ export const WarehousePanel = ({
   };
 
   useEffect(() => {
-    void refreshSupplierOrders().catch(() => undefined);
-  }, []);
-  useEffect(() => {
     const refreshOnFinanceUpdate = () => {
       void refreshSupplierOrders().catch(() => undefined);
     };
@@ -831,23 +843,21 @@ export const WarehousePanel = ({
     return () => {
       window.removeEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
     };
-  }, []);
+  }, [refreshSupplierOrders]);
   useEffect(() => {
-    void (async () => {
-      try {
-        const settings = await getWarehouseSettings();
-        setServiceCenters(settings.serviceCenters);
-        setWarehouses(settings.warehouses);
-        setAdministrators(settings.administrators);
-      } catch (error) {
-        onError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load warehouse settings.',
-        );
-      }
-    })();
-  }, [onError]);
+    if (!warehouseSettingsQuery.data) return;
+    setServiceCenters(warehouseSettingsQuery.data.serviceCenters);
+    setWarehouses(warehouseSettingsQuery.data.warehouses);
+    setAdministrators(warehouseSettingsQuery.data.administrators);
+  }, [warehouseSettingsQuery.data]);
+  useEffect(() => {
+    if (!warehouseSettingsQuery.error) return;
+    onError(
+      warehouseSettingsQuery.error instanceof Error
+        ? warehouseSettingsQuery.error.message
+        : 'Failed to load warehouse settings.',
+    );
+  }, [onError, warehouseSettingsQuery.error]);
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
@@ -1426,7 +1436,7 @@ export const WarehousePanel = ({
 
     const amount = quantity * price;
     const now = new Date().toISOString();
-    setReceiptHistory((current) => [
+    setManualReceiptRows((current) => [
       {
         id: `manual-${Date.now()}`,
         number: `R-${23000 + current.length + 1}`,
@@ -2721,17 +2731,20 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          const result = await takeOnChargeSupplierOrder(orderId, {
-            autoGenerateSerialNumbers,
-            serialNumbers,
-            autoGenerateArticles,
-            articleBase: articleBase.trim().toUpperCase(),
-            itemIndex:
-              editingSupplierOrderItemIndex === null
-                ? undefined
-                : editingSupplierOrderItemIndex,
-            warehouseId,
-            locationId,
+          const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
+            supplierOrderId: orderId,
+            payload: {
+              autoGenerateSerialNumbers,
+              serialNumbers,
+              autoGenerateArticles,
+              articleBase: articleBase.trim().toUpperCase(),
+              itemIndex:
+                editingSupplierOrderItemIndex === null
+                  ? undefined
+                  : editingSupplierOrderItemIndex,
+              warehouseId,
+              locationId,
+            },
           });
           onSuccess('Order taken on charge.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
@@ -2743,7 +2756,7 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          await cancelSupplierOrder(orderId);
+          await cancelSupplierOrderMutation.mutateAsync(orderId);
           onSuccess('Order cancelled.');
           await refreshSupplierOrders();
         }}
@@ -2799,15 +2812,18 @@ export const WarehousePanel = ({
                       selectedItemIndex: editingSupplierOrderItemIndex,
                       updatedItem: payload.items[0],
                     });
-              await updateSupplierOrder(orderSource.id, {
-                ...supplierOrderPayload,
-                number: orderSource.number,
-                orderBaseId: orderSource.orderBaseId,
-                items: mergedItems,
+              await updateSupplierOrderMutation.mutateAsync({
+                supplierOrderId: orderSource.id,
+                payload: {
+                  ...supplierOrderPayload,
+                  number: orderSource.number,
+                  orderBaseId: orderSource.orderBaseId,
+                  items: mergedItems,
+                },
               });
               onSuccess('Receipt order updated.');
             } else {
-              await createSupplierOrder({
+              await createSupplierOrderMutation.mutateAsync({
                 ...supplierOrderPayload,
                 orderBaseId: `SO-${Date.now()}`,
               });

@@ -1,4 +1,4 @@
-﻿import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelFinanceTransaction,
   createCashbox,
@@ -14,7 +14,6 @@ import {
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   Cashbox,
-  CreateFinanceTransactionPayload,
   FinanceCurrency,
   FinanceReport,
   FinanceTransaction,
@@ -24,13 +23,47 @@ import type {
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { SupplierOrderModal } from './SupplierOrderModal';
-import { formatDateTime } from '../../../shared/lib/format';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import { formatMetric } from '../model/sales-analytics';
 import { getSupplierOrderDisplayNumber } from '../model/supplier-order-utils';
+import {
+  CancelTransferModal,
+  IssueWithoutPaymentModal,
+} from './AccountingConfirmModals';
+import { AccountingFinanceSettings } from './AccountingFinanceSettings';
+import {
+  accountingCashboxCurrencyActivityStorageKey,
+  accountingCashboxOrderStorageKey,
+  accountingCurrenciesStorageKey,
+  accountingCurrencyActivityStorageKey,
+  accountingExpandedFinanceSettingsCardStorageKey,
+  accountingFinanceSettingsTabStorageKey,
+  accountingLastTargetCashboxByTypeStorageKey,
+  accountingSettingsOpenStorageKey,
+  accountingTabStorageKey,
+  applyCashboxOrder,
+  currencyOptions,
+  formatCurrencyTotals,
+  formatDateDdMmYyyy,
+  formatMoney,
+  formatPercent,
+  formatTransactionDayLabel,
+  getAccountingTabFromUrl,
+  getLocalDateKey,
+  getStoredAccountingSettingsOpen,
+  getStoredAccountingTab,
+  getStoredExpandedFinanceSettingsCard,
+  initialTransactionFilters,
+  initialTransactionForm,
+  transactionLabels,
+  truncateLabel,
+  type AccountingTab,
+  type TransactionFilters,
+  type TransactionTargetMemory,
+} from '../model/accounting';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -38,157 +71,6 @@ type AccountingPanelProps = {
   onSuccess: (message: string) => void;
   sales: Sale[];
   onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
-};
-
-type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
-const accountingTabStorageKey = 'project-goods.accounting-tab';
-const accountingSettingsOpenStorageKey = 'project-goods.accounting-settings-open';
-const accountingExpandedFinanceSettingsCardStorageKey =
-  'project-goods.accounting-expanded-finance-settings-card';
-const accountingCashboxOrderStorageKey = 'project-goods.accounting-cashbox-order';
-const accountingCurrenciesStorageKey = 'project-goods.accounting-currencies';
-const accountingCurrencyActivityStorageKey = 'project-goods.accounting-currency-activity';
-const accountingCashboxCurrencyActivityStorageKey = 'project-goods.accounting-cashbox-currency-activity';
-const accountingLastTargetCashboxByTypeStorageKey = 'project-goods.accounting-last-target-cashbox-by-type';
-const accountingFinanceSettingsTabStorageKey = 'project-goods.accounting-finance-settings-tab';
-
-const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
-const transactionLabels: Record<FinanceTransactionType, string> = {
-  withdraw: 'Withdraw',
-  deposit: 'Deposit',
-  transfer: 'Transfer',
-};
-
-const formatMoney = (value: number, currency: string) =>
-  `${new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ${currency}`;
-const formatDateDdMmYyyy = (value: string) => {
-  if (!value) return '-';
-  const normalized = value.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    return formatDateTime(value);
-  }
-  const [year, month, day] = normalized.split('-');
-  return `${day}.${month}.${year}`;
-};
-
-const formatPercent = (value: number) => `${Math.round(value)}%`;
-
-const formatCurrencyTotals = (totalsByCurrency: Record<string, number>) => {
-  const rows = Object.entries(totalsByCurrency).filter(([, amount]) => amount !== 0);
-  if (rows.length === 0) return formatMoney(0, 'UAH');
-  return rows.map(([currency, amount]) => formatMoney(amount, currency)).join(' / ');
-};
-
-const getLocalDateKey = (value: string | Date) => {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-};
-
-const truncateLabel = (value: string, maxLength: number) => {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
-};
-
-const formatTransactionDayLabel = (value: string) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return formatDateDdMmYyyy(value);
-  const label = new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-  return label.slice(0, 1).toUpperCase() + label.slice(1);
-};
-
-const initialTransactionForm: CreateFinanceTransactionPayload = {
-  type: 'deposit',
-  amount: '',
-  currency: 'UAH',
-  fromCashboxId: '',
-  toCashboxId: '',
-  note: '',
-};
-
-type TransactionTargetMemory = Partial<Record<'deposit' | 'transfer', string>>;
-
-type TransactionFilters = {
-  type: '' | FinanceTransactionType;
-  currency: '' | FinanceCurrency;
-  fromCashboxId: string;
-  toCashboxId: string;
-  note: string;
-  dateFrom: string;
-  dateTo: string;
-  sortBy: 'date' | 'type' | 'amount' | 'currency' | 'from' | 'to';
-  sortDirection: 'asc' | 'desc';
-};
-
-const initialTransactionFilters: TransactionFilters = {
-  type: '',
-  currency: '',
-  fromCashboxId: '',
-  toCashboxId: '',
-  note: '',
-  dateFrom: '',
-  dateTo: '',
-  sortBy: 'date',
-  sortDirection: 'desc',
-};
-
-const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
-  if (orderedIds.length === 0) return items;
-  const byId = new Map(items.map((cashbox) => [cashbox.id, cashbox]));
-  const ordered = orderedIds
-    .map((id) => byId.get(id))
-    .filter((cashbox): cashbox is Cashbox => Boolean(cashbox));
-  const unordered = items.filter((cashbox) => !orderedIds.includes(cashbox.id));
-  return [...ordered, ...unordered];
-};
-
-const isAccountingTab = (value: string | null): value is AccountingTab =>
-  value === 'cashboxes' ||
-  value === 'transactions' ||
-  value === 'orders' ||
-  value === 'reports';
-
-const getAccountingTabFromUrl = (): AccountingTab | null => {
-  try {
-    const tab = new URLSearchParams(window.location.search).get('accountingTab');
-    return isAccountingTab(tab) ? tab : null;
-  } catch {
-    return null;
-  }
-};
-
-const getStoredAccountingTab = (): AccountingTab => {
-  try {
-    const storedTab = window.localStorage.getItem(accountingTabStorageKey);
-    return isAccountingTab(storedTab) ? storedTab : 'cashboxes';
-  } catch {
-    return 'cashboxes';
-  }
-};
-
-const getStoredAccountingSettingsOpen = (): boolean => {
-  try {
-    return window.localStorage.getItem(accountingSettingsOpenStorageKey) === 'true';
-  } catch {
-    return false;
-  }
-};
-
-const getStoredExpandedFinanceSettingsCard = (): string | null => {
-  try {
-    return window.localStorage.getItem(accountingExpandedFinanceSettingsCardStorageKey);
-  } catch {
-    return null;
-  }
 };
 
 export const AccountingPanel = ({
@@ -832,6 +714,14 @@ export const AccountingPanel = ({
     });
   };
 
+  const handleRemoveCurrency = (code: string) => {
+    if (currencyOptions.includes(code as FinanceCurrency)) {
+      setCurrencyActivity((current) => ({ ...current, [code]: false }));
+      return;
+    }
+    removeCurrencyCode(code);
+  };
+
   const toggleFinanceSettingsCard = (cardId: string) => {
     setExpandedFinanceSettingsCard((current) => (current === cardId ? null : cardId));
   };
@@ -1008,6 +898,22 @@ export const AccountingPanel = ({
       await refreshFinance();
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Failed to cancel transfer.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleIssueWithoutPayment = async () => {
+    if (!withoutPaymentOrder) return;
+    setIsSaving(true);
+    try {
+      await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
+      onSuccess('Order issued without payment.');
+      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      setWithoutPaymentOrder(null);
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to issue order without payment.');
     } finally {
       setIsSaving(false);
     }
@@ -2097,309 +2003,40 @@ export const AccountingPanel = ({
   );
 
   const renderFinanceSettings = () => (
-    <section className='warehouse-settings-panel finance-settings-panel'>
-      <div className='warehouse-settings-tabs'>
-        <button
-          type='button'
-          className={
-            financeSettingsTab === 'cashboxes'
-              ? 'warehouse-settings-tab warehouse-settings-tab-active'
-              : 'warehouse-settings-tab'
-          }
-          onClick={() => {
-            setFinanceSettingsTab('cashboxes');
-            setExpandedFinanceSettingsCard(null);
-          }}
-        >
-          Cashboxes
-        </button>
-        <button
-          type='button'
-          className={
-            financeSettingsTab === 'currencies'
-              ? 'warehouse-settings-tab warehouse-settings-tab-active'
-              : 'warehouse-settings-tab'
-          }
-          onClick={() => {
-            setFinanceSettingsTab('currencies');
-            setExpandedFinanceSettingsCard(null);
-          }}
-        >
-          Currencies
-        </button>
-      </div>
-
-      {financeSettingsTab === 'cashboxes' ? (
-        <div className='finance-settings-body'>
-          <article className='catalog-edit-modal finance-settings-card'>
-            <header className='catalog-edit-header finance-settings-accordion-header'>
-              <button
-                type='button'
-                className='finance-settings-accordion-toggle'
-                aria-expanded={expandedFinanceSettingsCard === 'cashboxes-create'}
-                onClick={() => toggleFinanceSettingsCard('cashboxes-create')}
-              >
-                <h2>Create cashbox</h2>
-                <span>{expandedFinanceSettingsCard === 'cashboxes-create' ? '-' : '+'}</span>
-              </button>
-            </header>
-            {expandedFinanceSettingsCard === 'cashboxes-create' ? (
-              <>
-                <div className='catalog-edit-body'>
-                  <label className='field'>
-                    <span>Name</span>
-                    <input
-                      value={newCashboxName}
-                      onChange={(event) => setNewCashboxName(event.target.value)}
-                      placeholder='Enter cashbox name'
-                    />
-                  </label>
-                </div>
-                <footer className='catalog-edit-footer'>
-                  <button
-                    type='button'
-                    className='primary-button'
-                    disabled={isSaving || newCashboxName.trim().length < 2}
-                    onClick={handleCreateCashbox}
-                  >
-                    Create
-                  </button>
-                </footer>
-              </>
-            ) : null}
-          </article>
-
-          {allCashboxes.map((cashbox) => (
-            <article
-              key={`settings-${cashbox.id}`}
-              className={
-                cashbox.isArchived
-                  ? 'catalog-edit-modal finance-settings-cashbox finance-settings-cashbox-archived'
-                  : 'catalog-edit-modal finance-settings-cashbox'
-              }
-            >
-              <header className='catalog-edit-header finance-settings-accordion-header'>
-                <button
-                  type='button'
-                  className='finance-settings-accordion-toggle'
-                  aria-expanded={expandedFinanceSettingsCard === `cashbox-${cashbox.id}`}
-                  onClick={() => toggleFinanceSettingsCard(`cashbox-${cashbox.id}`)}
-                >
-                  <h2>{`Edit cashbox ${cashbox.name}`}</h2>
-                  <span>{expandedFinanceSettingsCard === `cashbox-${cashbox.id}` ? '-' : '+'}</span>
-                </button>
-              </header>
-              {expandedFinanceSettingsCard === `cashbox-${cashbox.id}` ? (
-                <>
-                  <div className='catalog-edit-body'>
-                    <label className='field'>
-                      <span>Name</span>
-                      <input
-                        disabled={editingCashboxId !== cashbox.id || isSaving}
-                        value={editingCashboxId === cashbox.id ? editingCashboxName : cashbox.name}
-                        onChange={(event) => setEditingCashboxName(event.target.value)}
-                      />
-                    </label>
-                    <label className='field-inline'>
-                      <input
-                        type='checkbox'
-                        checked={!cashbox.isArchived}
-                        disabled={cashbox.isDefault || isSaving}
-                        onChange={() => toggleCashboxArchived(cashbox)}
-                      />
-                      <span>{cashbox.isDefault ? 'Active (default)' : 'Active'}</span>
-                    </label>
-                    <div className='finance-currency-activity-list'>
-                      {allCurrencyCodes.map((currencyCode) => {
-                        const isGloballyActive = isGlobalCurrencyActive(currencyCode);
-                        const isCashboxActive = isCashboxCurrencyActive(cashbox.id, currencyCode);
-                        const isAcceptActive = isGloballyActive && isCashboxActive;
-                        const balance = getCurrencyBalance(cashbox, currencyCode);
-                        const canWithdrawOnly = !isAcceptActive && balance > 0;
-                        return (
-                          <div key={`cashbox-currency-${cashbox.id}-${currencyCode}`} className='finance-currency-activity-item'>
-                            <label className='field-inline finance-currency-activity-toggle'>
-                              <input
-                                type='checkbox'
-                                checked={isAcceptActive}
-                                disabled={currencyCode === 'UAH'}
-                                onChange={() => toggleCashboxCurrencyActivity(cashbox.id, currencyCode)}
-                              />
-                              <span>{currencyCode}</span>
-                              <span
-                                className={
-                                  isAcceptActive
-                                    ? 'finance-currency-activity-badge'
-                                    : 'finance-currency-activity-badge finance-currency-activity-badge-off'
-                                }
-                                title={
-                                  canWithdrawOnly
-                                    ? 'Currency is inactive for receiving, but cashbox still has balance. Withdraw is allowed.'
-                                    : (isGloballyActive
-                                      ? 'Currency is inactive for this cashbox.'
-                                      : 'Currency is globally inactive and cannot be received.')
-                                }
-                              >
-                                {isAcceptActive ? 'Active' : (canWithdrawOnly ? 'Withdraw only' : 'Inactive')}
-                              </span>
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <footer className='catalog-edit-footer'>
-                    {editingCashboxId === cashbox.id ? (
-                      <>
-                        <button
-                          type='button'
-                          className='primary-button'
-                          disabled={isSaving || editingCashboxName.trim().length < 2}
-                          onClick={saveCashbox}
-                        >
-                          Save
-                        </button>
-                        <button
-                          type='button'
-                          className='secondary-button'
-                          disabled={isSaving}
-                          onClick={() => {
-                            setEditingCashboxId(null);
-                            setEditingCashboxName('');
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type='button'
-                        className='toolbar-filter-button'
-                        onClick={() => startEditCashbox(cashbox)}
-                      >
-                        Edit cashbox
-                      </button>
-                    )}
-                  </footer>
-                </>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className='finance-settings-body'>
-          <article className='catalog-edit-modal finance-settings-card'>
-            <header className='catalog-edit-header finance-settings-accordion-header'>
-              <button
-                type='button'
-                className='finance-settings-accordion-toggle'
-                aria-expanded={expandedFinanceSettingsCard === 'currencies-create'}
-                onClick={() => toggleFinanceSettingsCard('currencies-create')}
-              >
-                <h2>Create currency</h2>
-                <span>{expandedFinanceSettingsCard === 'currencies-create' ? '-' : '+'}</span>
-              </button>
-            </header>
-            {expandedFinanceSettingsCard === 'currencies-create' ? (
-              <>
-                <div className='catalog-edit-body'>
-                  <p className='section-label'>
-                    System currencies are fixed in transaction engine. Added currencies are stored for planning.
-                  </p>
-                  <label className='field'>
-                    <span>Currency code</span>
-                    <input
-                      value={newCurrencyCode}
-                      onChange={(event) => setNewCurrencyCode(event.target.value)}
-                      placeholder='EUR'
-                    />
-                  </label>
-                </div>
-                <footer className='catalog-edit-footer'>
-                  <button
-                    type='button'
-                    className='primary-button'
-                    onClick={addCurrencyCode}
-                    disabled={newCurrencyCode.trim().length < 3}
-                  >
-                    Add currency
-                  </button>
-                </footer>
-              </>
-            ) : null}
-          </article>
-          <article className='catalog-edit-modal finance-settings-card'>
-            <header className='catalog-edit-header finance-settings-accordion-header'>
-              <button
-                type='button'
-                className='finance-settings-accordion-toggle'
-                aria-expanded={expandedFinanceSettingsCard === 'currency-activity'}
-                onClick={() => toggleFinanceSettingsCard('currency-activity')}
-              >
-                <h2>Currency activity</h2>
-                <span>{expandedFinanceSettingsCard === 'currency-activity' ? '-' : '+'}</span>
-              </button>
-            </header>
-            {expandedFinanceSettingsCard === 'currency-activity' ? (
-              <div className='catalog-edit-body'>
-                <p className='section-label'>
-                  Turn a currency off to hide empty balances everywhere. Cashboxes that already
-                  have money in that currency keep showing it, but it becomes withdraw-only.
-                </p>
-                <div className='finance-currency-activity-list'>
-                  {allCurrencyCodes.map((currency) => {
-                    const isActive = isGlobalCurrencyActive(currency);
-                    const isSystemCurrency = currencyOptions.includes(currency as FinanceCurrency);
-                    const hasFundsInActiveCashboxes = allCashboxes.some(
-                      (cashbox) => !cashbox.isArchived && getCurrencyBalance(cashbox, currency) > 0,
-                    );
-                    const isRemovableCurrency = currency !== 'UAH';
-                    const canRemove = isRemovableCurrency && !hasFundsInActiveCashboxes;
-                    return (
-                      <div key={`activity-${currency}`} className='finance-currency-activity-item'>
-                        <label className='field-inline finance-currency-activity-toggle'>
-                          <input
-                            type='checkbox'
-                            checked={isActive}
-                            disabled={currency === 'UAH'}
-                            onChange={() => toggleCurrencyActivity(currency)}
-                          />
-                          <span>{currency}</span>
-                          <span className={isActive ? 'finance-currency-activity-badge' : 'finance-currency-activity-badge finance-currency-activity-badge-off'}>
-                            {isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </label>
-                        {isRemovableCurrency ? (
-                          <button
-                            type='button'
-                            className='orders-filter-delete-button finance-currency-remove-button'
-                            disabled={!canRemove}
-                            title={
-                              canRemove
-                                ? 'Remove currency'
-                                : 'Cannot remove currency while any active cashbox has balance in it.'
-                            }
-                            onClick={() => {
-                              if (isSystemCurrency) {
-                                setCurrencyActivity((current) => ({ ...current, [currency]: false }));
-                                return;
-                              }
-                              removeCurrencyCode(currency);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-          </article>
-        </div>
-      )}
-    </section>
+    <AccountingFinanceSettings
+      activeTab={financeSettingsTab}
+      allCashboxes={allCashboxes}
+      allCurrencyCodes={allCurrencyCodes}
+      editingCashboxId={editingCashboxId}
+      editingCashboxName={editingCashboxName}
+      expandedCard={expandedFinanceSettingsCard}
+      isSaving={isSaving}
+      newCashboxName={newCashboxName}
+      newCurrencyCode={newCurrencyCode}
+      getCurrencyBalance={getCurrencyBalance}
+      isCashboxCurrencyActive={isCashboxCurrencyActive}
+      isGlobalCurrencyActive={isGlobalCurrencyActive}
+      onAddCurrency={addCurrencyCode}
+      onCancelCashboxEdit={() => {
+        setEditingCashboxId(null);
+        setEditingCashboxName('');
+      }}
+      onCreateCashbox={handleCreateCashbox}
+      onEditingCashboxNameChange={setEditingCashboxName}
+      onNewCashboxNameChange={setNewCashboxName}
+      onNewCurrencyCodeChange={setNewCurrencyCode}
+      onRemoveCurrency={handleRemoveCurrency}
+      onSaveCashbox={saveCashbox}
+      onStartEditCashbox={startEditCashbox}
+      onTabChange={(tab) => {
+        setFinanceSettingsTab(tab);
+        setExpandedFinanceSettingsCard(null);
+      }}
+      onToggleCard={toggleFinanceSettingsCard}
+      onToggleCashboxArchived={toggleCashboxArchived}
+      onToggleCashboxCurrencyActivity={toggleCashboxCurrencyActivity}
+      onToggleCurrencyActivity={toggleCurrencyActivity}
+    />
   );
 
   return (
@@ -2481,126 +2118,20 @@ export const AccountingPanel = ({
         onError={onError}
       />
       {transferToCancel ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !isSaving) {
-              setTransferToCancel(null);
-            }
-          }}
-        >
-          <div
-            className='catalog-edit-modal finance-cancel-transfer-modal'
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='cancel-transfer-title'
-          >
-            <header className='catalog-edit-header'>
-              <h2 id='cancel-transfer-title'>Cancel transfer</h2>
-              <button
-                type='button'
-                className='ghost-button'
-                disabled={isSaving}
-                onClick={() => setTransferToCancel(null)}
-              >
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <p>
-                This will create a reverse transaction and return funds from{' '}
-                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong> to{' '}
-                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>.
-              </p>
-              <div className='finance-cancel-transfer-summary'>
-                <span>Date</span>
-                <strong>{formatDateDdMmYyyy(transferToCancel.transactionDate)}</strong>
-                <span>Amount</span>
-                <strong>{formatMoney(transferToCancel.amount, transferToCancel.currency)}</strong>
-                <span>From</span>
-                <strong>{transferToCancel.fromCashbox?.name ?? '-'}</strong>
-                <span>To</span>
-                <strong>{transferToCancel.toCashbox?.name ?? '-'}</strong>
-              </div>
-              <p className='muted-copy'>
-                The original transfer will stay in history with a Cancelled badge.
-              </p>
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='secondary-button'
-                disabled={isSaving}
-                onClick={() => setTransferToCancel(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type='button'
-                className='primary-button finance-danger-button'
-                disabled={isSaving}
-                onClick={handleCancelTransfer}
-              >
-                {isSaving ? 'Cancelling...' : 'Confirm cancellation'}
-              </button>
-            </footer>
-          </div>
-        </div>
+        <CancelTransferModal
+          isSaving={isSaving}
+          transfer={transferToCancel}
+          onClose={() => setTransferToCancel(null)}
+          onConfirm={handleCancelTransfer}
+        />
       ) : null}
       {withoutPaymentOrder ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setWithoutPaymentOrder(null);
-            }
-          }}
-        >
-          <div className='catalog-edit-modal finance-without-payment-modal' role='dialog' aria-modal='true' aria-labelledby='issue-without-payment-title'>
-            <header className='catalog-edit-header'>
-              <h2 id='issue-without-payment-title'>Confirm issue without payment</h2>
-              <button type='button' className='ghost-button' onClick={() => setWithoutPaymentOrder(null)}>
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <p>
-                Order <strong>{getSupplierOrderDisplayNumber(withoutPaymentOrder)}</strong> will be
-                marked as <strong>issued without payment</strong>.
-              </p>
-              <p>No finance transaction will be created. Continue?</p>
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button type='button' className='secondary-button' onClick={() => setWithoutPaymentOrder(null)}>
-                Cancel
-              </button>
-              <button
-                type='button'
-                className='primary-button'
-                disabled={isSaving}
-                onClick={async () => {
-                  if (!withoutPaymentOrder) return;
-                  setIsSaving(true);
-                  try {
-                    await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
-                    onSuccess('Order issued without payment.');
-                    window.dispatchEvent(new Event('project-goods:finance-updated'));
-                    setWithoutPaymentOrder(null);
-                    await refreshFinance();
-                  } catch (error) {
-                    onError(error instanceof Error ? error.message : 'Failed to issue order without payment.');
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-              >
-                Confirm
-              </button>
-            </footer>
-          </div>
-        </div>
+        <IssueWithoutPaymentModal
+          isSaving={isSaving}
+          order={withoutPaymentOrder}
+          onClose={() => setWithoutPaymentOrder(null)}
+          onConfirm={handleIssueWithoutPayment}
+        />
       ) : null}
     </section>
   );
