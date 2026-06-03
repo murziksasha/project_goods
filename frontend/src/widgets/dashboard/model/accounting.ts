@@ -2,7 +2,10 @@ import type {
   Cashbox,
   CreateFinanceTransactionPayload,
   FinanceCurrency,
+  FinanceReport,
+  FinanceTransaction,
   FinanceTransactionType,
+  SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
 import { formatDateTime } from '../../../shared/lib/format';
 
@@ -160,4 +163,433 @@ export const getStoredExpandedFinanceSettingsCard = (): string | null => {
   } catch {
     return null;
   }
+};
+
+export type CashboxCurrencyRow = {
+  currency: string;
+  balance: number;
+  canAccept: boolean;
+  canWithdraw: boolean;
+};
+
+export type FinanceOverview = {
+  currencyRows: Array<{
+    currency: string;
+    total: number;
+    todayTurnover: number;
+    cashboxes: Array<{
+      id: string;
+      name: string;
+      balance: number;
+    }>;
+  }>;
+  todayByType: Record<FinanceTransactionType, Record<string, number>>;
+  pendingSupplierTotal: number;
+  pendingSupplierCount: number;
+  recentTransactions: FinanceTransaction[];
+  activeCashboxCount: number;
+  archivedCashboxCount: number;
+  transactionCount: number;
+  todayTransactionCount: number;
+};
+
+type CurrencyBalanceGetter = (cashbox: Cashbox, currencyCode: string) => number;
+
+export const getAccountingTotals = (cashboxes: Cashbox[]) =>
+  cashboxes.reduce(
+    (summary, cashbox) => ({
+      UAH: summary.UAH + (cashbox.balances.UAH ?? 0),
+      USD: summary.USD + (cashbox.balances.USD ?? 0),
+    }),
+    { UAH: 0, USD: 0 },
+  );
+
+export const getAccountingCashboxCurrencyRows = ({
+  allCurrencyCodes,
+  cashbox,
+  getCurrencyBalance,
+  isCashboxCurrencyActive,
+  isGlobalCurrencyActive,
+}: {
+  allCurrencyCodes: string[];
+  cashbox: Cashbox;
+  getCurrencyBalance: CurrencyBalanceGetter;
+  isCashboxCurrencyActive: (cashboxId: string, currencyCode: string) => boolean;
+  isGlobalCurrencyActive: (currencyCode: string) => boolean;
+}): CashboxCurrencyRow[] =>
+  allCurrencyCodes
+    .map((currencyCode) => {
+      const balance = getCurrencyBalance(cashbox, currencyCode);
+      const canAccept =
+        isGlobalCurrencyActive(currencyCode) &&
+        isCashboxCurrencyActive(cashbox.id, currencyCode);
+      const canWithdraw = canAccept || balance > 0;
+      return {
+        currency: currencyCode,
+        balance,
+        canAccept,
+        canWithdraw,
+      };
+    })
+    .filter((item) => item.canWithdraw);
+
+export const getFinanceOverview = ({
+  allCashboxes,
+  allCurrencyCodes,
+  cashboxes,
+  getCurrencyBalance,
+  isGlobalCurrencyActive,
+  report,
+  supplierOrdersQueue,
+  transactions,
+}: {
+  allCashboxes: Cashbox[];
+  allCurrencyCodes: string[];
+  cashboxes: Cashbox[];
+  getCurrencyBalance: CurrencyBalanceGetter;
+  isGlobalCurrencyActive: (currencyCode: string) => boolean;
+  report: FinanceReport | null;
+  supplierOrdersQueue: SupplierOrderPaymentQueueItem[];
+  transactions: FinanceTransaction[];
+}): FinanceOverview => {
+  const todayKey = getLocalDateKey(new Date());
+  const currencyRows = allCurrencyCodes
+    .map((currency) => {
+      const total =
+        report?.totals[currency] ??
+        cashboxes.reduce(
+          (sum, cashbox) => sum + getCurrencyBalance(cashbox, currency),
+          0,
+        );
+      const todayTurnover = report?.todayTurnover[currency] ?? 0;
+
+      return {
+        currency,
+        total,
+        todayTurnover,
+        cashboxes: cashboxes
+          .map((cashbox) => ({
+            id: cashbox.id,
+            name: cashbox.name,
+            balance: getCurrencyBalance(cashbox, currency),
+          }))
+          .filter((item) => item.balance !== 0 || currency === 'UAH'),
+      };
+    })
+    .filter(
+      (row) =>
+        row.total !== 0 ||
+        row.todayTurnover !== 0 ||
+        isGlobalCurrencyActive(row.currency),
+    );
+
+  const todayTransactions = transactions.filter(
+    (transaction) => getLocalDateKey(transaction.transactionDate) === todayKey,
+  );
+  const todayByType = todayTransactions.reduce<
+    Record<FinanceTransactionType, Record<string, number>>
+  >(
+    (acc, transaction) => {
+      acc[transaction.type][transaction.currency] =
+        (acc[transaction.type][transaction.currency] ?? 0) + transaction.amount;
+      return acc;
+    },
+    { deposit: {}, withdraw: {}, transfer: {} },
+  );
+  const pendingSupplierTotal = supplierOrdersQueue.reduce(
+    (sum, order) => sum + order.total,
+    0,
+  );
+  const recentTransactions = [...transactions]
+    .sort(
+      (left, right) =>
+        new Date(right.transactionDate).getTime() -
+        new Date(left.transactionDate).getTime(),
+    )
+    .slice(0, 6);
+
+  return {
+    currencyRows,
+    todayByType,
+    pendingSupplierTotal,
+    pendingSupplierCount: supplierOrdersQueue.length,
+    recentTransactions,
+    activeCashboxCount: cashboxes.length,
+    archivedCashboxCount: allCashboxes.filter((cashbox) => cashbox.isArchived)
+      .length,
+    transactionCount: report?.transactionCount ?? transactions.length,
+    todayTransactionCount:
+      report?.todayTransactionCount ?? todayTransactions.length,
+  };
+};
+
+export const getBalanceAfterByTransactionId = ({
+  cashboxes,
+  transactions,
+}: {
+  cashboxes: Cashbox[];
+  transactions: FinanceTransaction[];
+}) => {
+  const balancesByCashboxCurrency = new Map<string, number>();
+  cashboxes.forEach((cashbox) => {
+    currencyOptions.forEach((currency) => {
+      balancesByCashboxCurrency.set(
+        `${cashbox.id}:${currency}`,
+        cashbox.balances[currency],
+      );
+    });
+  });
+
+  const chronologicalDesc = [...transactions].sort((first, second) =>
+    second.transactionDate.localeCompare(first.transactionDate),
+  );
+  const result: Record<string, number | null> = {};
+  chronologicalDesc.forEach((transaction) => {
+    const fromKey = transaction.fromCashbox?.id
+      ? `${transaction.fromCashbox.id}:${transaction.currency}`
+      : '';
+    const toKey = transaction.toCashbox?.id
+      ? `${transaction.toCashbox.id}:${transaction.currency}`
+      : '';
+
+    const senderBalanceAfter =
+      fromKey.length > 0 ? (balancesByCashboxCurrency.get(fromKey) ?? 0) : null;
+    const recipientBalanceAfter =
+      toKey.length > 0 ? (balancesByCashboxCurrency.get(toKey) ?? 0) : null;
+
+    if (transaction.type === 'deposit') {
+      result[transaction.id] = recipientBalanceAfter;
+    } else {
+      result[transaction.id] = senderBalanceAfter;
+    }
+
+    if (transaction.fromCashbox?.id) {
+      balancesByCashboxCurrency.set(
+        fromKey,
+        (senderBalanceAfter ?? 0) + transaction.amount,
+      );
+    }
+
+    if (transaction.toCashbox?.id) {
+      balancesByCashboxCurrency.set(
+        toKey,
+        (recipientBalanceAfter ?? 0) - transaction.amount,
+      );
+    }
+  });
+  return result;
+};
+
+export const filterFinanceTransactions = ({
+  filters,
+  selectedCashboxId,
+  transactions,
+}: {
+  filters: TransactionFilters;
+  selectedCashboxId: string;
+  transactions: FinanceTransaction[];
+}) => {
+  const normalizedNote = filters.note.trim().toLowerCase();
+  const filtered = transactions.filter((transaction) => {
+    if (filters.type && transaction.type !== filters.type) return false;
+    if (filters.currency && transaction.currency !== filters.currency) return false;
+    if (
+      filters.fromCashboxId &&
+      transaction.fromCashbox?.id !== filters.fromCashboxId
+    ) {
+      return false;
+    }
+    if (
+      filters.toCashboxId &&
+      transaction.toCashbox?.id !== filters.toCashboxId
+    ) {
+      return false;
+    }
+    if (normalizedNote) {
+      const transactionNote = transaction.note.trim().toLowerCase();
+      if (!transactionNote.includes(normalizedNote)) return false;
+    }
+    if (
+      selectedCashboxId &&
+      transaction.fromCashbox?.id !== selectedCashboxId &&
+      transaction.toCashbox?.id !== selectedCashboxId
+    ) {
+      return false;
+    }
+    if (filters.dateFrom) {
+      const txDate = transaction.transactionDate.slice(0, 10);
+      if (txDate < filters.dateFrom) return false;
+    }
+    if (filters.dateTo) {
+      const txDate = transaction.transactionDate.slice(0, 10);
+      if (txDate > filters.dateTo) return false;
+    }
+    return true;
+  });
+
+  return [...filtered].sort((first, second) => {
+    const direction = filters.sortDirection === 'asc' ? 1 : -1;
+    switch (filters.sortBy) {
+      case 'type':
+        return first.type.localeCompare(second.type) * direction;
+      case 'amount':
+        return (first.amount - second.amount) * direction;
+      case 'currency':
+        return first.currency.localeCompare(second.currency) * direction;
+      case 'from':
+        return (
+          (first.fromCashbox?.name ?? '').localeCompare(
+            second.fromCashbox?.name ?? '',
+          ) * direction
+        );
+      case 'to':
+        return (
+          (first.toCashbox?.name ?? '').localeCompare(
+            second.toCashbox?.name ?? '',
+          ) * direction
+        );
+      case 'date':
+      default:
+        return first.transactionDate.localeCompare(second.transactionDate) * direction;
+    }
+  });
+};
+
+export const paginateAccountingItems = <T>(
+  items: T[],
+  page: number,
+  pageSize: number,
+) => {
+  const start = (page - 1) * pageSize;
+  return items.slice(start, start + pageSize);
+};
+
+export const getActiveTransactionFiltersCount = (filters: TransactionFilters) =>
+  (filters.type ? 1 : 0) +
+  (filters.currency ? 1 : 0) +
+  (filters.fromCashboxId ? 1 : 0) +
+  (filters.toCashboxId ? 1 : 0) +
+  (filters.note.trim() ? 1 : 0) +
+  (filters.dateFrom ? 1 : 0) +
+  (filters.dateTo ? 1 : 0);
+
+export const getAllowedAccountingTransactionCurrencies = ({
+  allCurrencyCodes,
+  cashboxes,
+  fromCashboxId,
+  getCurrencyBalance,
+  isCashboxCurrencyActive,
+  isGlobalCurrencyActive,
+  toCashboxId,
+  type,
+}: {
+  allCurrencyCodes: string[];
+  cashboxes: Cashbox[];
+  fromCashboxId?: string;
+  getCurrencyBalance: CurrencyBalanceGetter;
+  isCashboxCurrencyActive: (cashboxId: string, currencyCode: string) => boolean;
+  isGlobalCurrencyActive: (currencyCode: string) => boolean;
+  toCashboxId?: string;
+  type: FinanceTransactionType;
+}) => {
+  const fromCashbox = cashboxes.find(
+    (cashbox) => cashbox.id === (fromCashboxId ?? ''),
+  );
+  const toCashbox = cashboxes.find(
+    (cashbox) => cashbox.id === (toCashboxId ?? ''),
+  );
+  const canAcceptIn = (cashbox: Cashbox | undefined, currency: string) => {
+    if (!cashbox) return false;
+    return (
+      isGlobalCurrencyActive(currency) &&
+      isCashboxCurrencyActive(cashbox.id, currency)
+    );
+  };
+  const canWithdrawFrom = (cashbox: Cashbox | undefined, currency: string) => {
+    if (!cashbox) return false;
+    return canAcceptIn(cashbox, currency) || getCurrencyBalance(cashbox, currency) > 0;
+  };
+
+  if (type === 'withdraw') {
+    return allCurrencyCodes.filter((currency) =>
+      canWithdrawFrom(fromCashbox, currency),
+    );
+  }
+  if (type === 'deposit') {
+    return allCurrencyCodes.filter((currency) => canAcceptIn(toCashbox, currency));
+  }
+  return allCurrencyCodes.filter(
+    (currency) =>
+      canWithdrawFrom(fromCashbox, currency) && canAcceptIn(toCashbox, currency),
+  );
+};
+
+export const normalizeCurrencyActivity = (
+  current: Record<string, boolean>,
+  allCurrencyCodes: string[],
+) => {
+  let changed = false;
+  const normalized = allCurrencyCodes.reduce<Record<string, boolean>>(
+    (acc, currency) => {
+      const nextValue = currency === 'UAH' ? true : (current[currency] ?? true);
+      acc[currency] = nextValue;
+      if (!changed && current[currency] !== nextValue) {
+        changed = true;
+      }
+      return acc;
+    },
+    {},
+  );
+  if (!changed) {
+    const currentKeys = Object.keys(current).sort();
+    const nextKeys = Object.keys(normalized).sort();
+    changed =
+      currentKeys.length !== nextKeys.length ||
+      currentKeys.some((key, index) => key !== nextKeys[index]);
+  }
+  return changed ? normalized : current;
+};
+
+export const normalizeCashboxCurrencyActivity = ({
+  allCashboxes,
+  allCurrencyCodes,
+  current,
+}: {
+  allCashboxes: Cashbox[];
+  allCurrencyCodes: string[];
+  current: Record<string, Record<string, boolean>>;
+}) => {
+  let changed = false;
+  const nextByCashbox = allCashboxes.reduce<Record<string, Record<string, boolean>>>(
+    (acc, cashbox) => {
+      const currentCashboxActivity = current[cashbox.id] ?? {};
+      const nextCurrencyMap = allCurrencyCodes.reduce<Record<string, boolean>>(
+        (currencyAcc, currencyCode) => {
+          const nextValue =
+            currencyCode === 'UAH'
+              ? true
+              : (currentCashboxActivity[currencyCode] ?? true);
+          currencyAcc[currencyCode] = nextValue;
+          if (!changed && currentCashboxActivity[currencyCode] !== nextValue) {
+            changed = true;
+          }
+          return currencyAcc;
+        },
+        {},
+      );
+      acc[cashbox.id] = nextCurrencyMap;
+      return acc;
+    },
+    {},
+  );
+
+  if (!changed) {
+    const currentKeys = Object.keys(current).sort();
+    const nextKeys = Object.keys(nextByCashbox).sort();
+    changed =
+      currentKeys.length !== nextKeys.length ||
+      currentKeys.some((key, index) => key !== nextKeys[index]);
+  }
+
+  return changed ? nextByCashbox : current;
 };
