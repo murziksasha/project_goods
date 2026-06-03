@@ -1,7 +1,7 @@
 import type { Sale } from '../../../entities/sale/model/types';
 import { SalesList } from '../../../entities/sale/ui/SalesList';
 
-type SalesPanelProps = {
+export type SalesPanelProps = {
   sales: Sale[];
   isLoading: boolean;
   onEdit: (sale: Sale) => void;
@@ -22,6 +22,11 @@ export const SalesPanel = ({
       </div>
     </div>
 
-    <SalesList sales={sales} isLoading={isLoading} onEdit={onEdit} onDelete={onDelete} />
+    <SalesList
+      sales={sales}
+      isLoading={isLoading}
+      onEdit={onEdit}
+      onDelete={onDelete}
+    />
   </section>
 );

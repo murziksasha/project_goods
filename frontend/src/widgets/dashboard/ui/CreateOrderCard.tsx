@@ -10,13 +10,36 @@ import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 import {
   buildCreateOrderProductSuggestions,
   type CreateOrderProductSuggestion,
 } from '../model/create-order-products';
 import { normalizeSerialNumber } from '../model/order-line-serials';
+import {
+  createOrderClientRequestsTabStorageKey,
+  createOrderTabStorageKey,
+  createSaleOrderItem,
+  extraOptionsLeft,
+  extraOptionsRight,
+  extractDeviceKit,
+  filterActiveDevicesByQuery,
+  formatPhone,
+  getDeviceHistory,
+  parseDecimalInput,
+  phoneDigitsOnly,
+  saleExtraOptionsLeft,
+  saleExtraOptionsRight,
+  toApiPhone,
+  toNameKey,
+  topTabs,
+  type ClientRequestTab,
+  type SaleOrderItem,
+} from './create-order-card-shared';
+import { CreateOrderDeviceModal } from './CreateOrderDeviceModal';
+import { CreateOrderRepairSection } from './CreateOrderRepairSection';
+import { CreateOrderSaleSection } from './CreateOrderSaleSection';
+import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
 type CreateOrderCardProps = {
   isSaving: boolean;
@@ -29,164 +52,6 @@ type CreateOrderCardProps = {
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
   onError: (message: string) => void;
-};
-
-const topTabs: Array<{ key: CreateOrderRequestPayload['sourceTab']; label: string }> = [
-  { key: 'repair', label: 'Repair order' },
-  { key: 'sale', label: 'Sales order' },
-];
-
-const extraOptionsLeft = [
-  'Device stays with client',
-  'Urgent repair',
-  'Accepted by post',
-  'Start work without confirmation',
-  'Client can wait for parts',
-];
-
-const extraOptionsRight = [
-  'Courier took device',
-  'Replacement device issued',
-  'Home master call',
-];
-
-const saleExtraOptionsLeft = [
-  'New sale',
-  'Issued',
-  'At postal company',
-  'Waiting for supply',
-];
-
-const saleExtraOptionsRight = [
-  'Reserved for client',
-  'Needs invoice',
-  'Warranty card issued',
-  'Delivery required',
-];
-
-type SaleOrderItem = {
-  id: string;
-  query: string;
-  source: '' | 'stock' | 'catalog';
-  productId: string;
-  catalogProductId: string;
-  article: string;
-  serialNumber: string;
-  price: string;
-  unitPrice: string;
-  quantity: string;
-  warrantyPeriod: string;
-};
-type ClientRequestTab = 'orders' | 'sales';
-const createOrderTabStorageKey = 'project-goods.create-order-tab';
-const createOrderClientRequestsTabStorageKey =
-  'project-goods.create-order-client-requests-tab';
-
-const createSaleOrderItem = (): SaleOrderItem => ({
-  id: crypto.randomUUID(),
-  query: '',
-  source: '',
-  productId: '',
-  catalogProductId: '',
-  article: '',
-  serialNumber: '',
-  price: '',
-  unitPrice: '',
-  quantity: '1',
-  warrantyPeriod: '0',
-});
-
-const formatPhone = (input: string) => {
-  const digitsOnly = input.replace(/\D/g, '');
-  if (!digitsOnly) return '';
-  const normalizedDigits = digitsOnly.startsWith('380')
-    ? digitsOnly.slice(3)
-    : digitsOnly.startsWith('0')
-      ? digitsOnly.slice(1)
-      : digitsOnly;
-  const localDigits = normalizedDigits.slice(0, 9);
-
-  let result = '+380';
-  if (localDigits.length > 0) result += ` ${localDigits.slice(0, 2)}`;
-  if (localDigits.length > 2) result += ` ${localDigits.slice(2, 5)}`;
-  if (localDigits.length > 5) result += ` ${localDigits.slice(5, 7)}`;
-  if (localDigits.length > 7) result += ` ${localDigits.slice(7, 9)}`;
-  return result;
-};
-
-const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '');
-const toNameKey = (value: string) =>
-  value.trim().toLowerCase().replace(/\s+/g, ' ');
-const toDeviceLookupKey = (value: string) =>
-  value.toLowerCase().replace(/\s+/g, ' ').trim();
-const parseDecimalInput = (value: string) => {
-  const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
-  const numeric = Number.parseFloat(normalized || '0');
-  return Number.isFinite(numeric) ? numeric : 0;
-};
-const toApiPhone = (input: string) => {
-  const digits = phoneDigitsOnly(input);
-  if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
-  if (digits.startsWith('0') && digits.length === 10) return `+380${digits.slice(1)}`;
-  if (digits.length === 9) return `+380${digits}`;
-  return '';
-};
-
-const extractDeviceKit = (note: string) =>
-  note
-    .split('|')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(', ');
-
-const filterActiveDevicesByQuery = (
-  devices: ClientDevice[],
-  rawQuery: string,
-) => {
-  const normalizedQuery = toDeviceLookupKey(rawQuery);
-  const activeDevices = devices.filter((device) => device.isActive);
-  if (!normalizedQuery) return activeDevices;
-
-  return activeDevices.filter((device) => {
-    const lookupFields = [
-      device.name,
-      device.serialNumber,
-      device.clientName,
-      device.clientPhone,
-      device.note,
-    ];
-    return lookupFields.some((field) =>
-      toDeviceLookupKey(field || '').includes(normalizedQuery),
-    );
-  });
-};
-
-const getDeviceHistory = (history: ClientHistory | null) => {
-  if (!history) return [];
-
-  const seen = new Set<string>();
-  return history.sales.filter((sale) => {
-    if (sale.kind !== 'repair') return false;
-    const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
-    const deviceName = (deviceItem?.name?.trim() || sale.product.name || '').toLowerCase();
-    const serial = (sale.product.serialNumber || '').trim().toLowerCase();
-    const dedupeKey = `${deviceName}::${serial}`;
-    if (seen.has(dedupeKey)) {
-      return false;
-    }
-    seen.add(dedupeKey);
-    return true;
-  });
-};
-
-const getOrderLink = (saleId: string, kind: 'repair' | 'sale') => {
-  const url = new URL(window.location.href);
-  url.searchParams.set('page', 'orders');
-  url.searchParams.set('ordersTab', kind === 'sale' ? 'sales' : 'orders');
-  url.searchParams.delete('createOrder');
-  url.searchParams.set('saleId', saleId);
-  return `${url.pathname}${url.search}${url.hash}`;
 };
 
 export const CreateOrderCard = ({
@@ -715,6 +580,18 @@ export const CreateOrderCard = ({
     }
   };
 
+  const openCreateDeviceModal = async () => {
+    const resolvedClient =
+      resolvedClientForDeviceCreate ?? (await ensureClientForDevice());
+    if (!resolvedClient) return;
+
+    setSelectedClientId(resolvedClient.id);
+    setSelectedClient(resolvedClient);
+    setNewDeviceName(deviceName.trim());
+    setNewDeviceIsActive(true);
+    setIsCreateDeviceModalOpen(true);
+  };
+
   const handleSave = async () => {
     const normalizedSaleItems = saleItems.map((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
@@ -835,243 +712,52 @@ export const CreateOrderCard = ({
             ) : null}
 
             {activeTab === 'sale' ? (
-              <>
-                <h3 className="create-section-title">Products</h3>
-                <div className="sale-items-list">
-                  {saleItems.map((item, index) => {
-                    return (
-                      <div key={item.id} className="sale-item-row">
-                        <label className="field sale-item-product">
-                          <span>{`Product ${index + 1} *`}</span>
-                          <input
-                            value={item.query}
-                            onFocus={() => setFocusedSaleItemId(item.id)}
-                            onChange={(event) => {
-                              setFocusedSaleItemId(item.id);
-                              updateSaleItem(item.id, {
-                                query: event.target.value,
-                                source: '',
-                                productId: '',
-                                catalogProductId: '',
-                                article: '',
-                                serialNumber: '',
-                              });
-                            }}
-                            placeholder="Name, serial or article"
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Qty</span>
-                          <NumberStepper
-                            min={1}
-                            value={item.quantity}
-                            onChange={(value) => handleSaleItemQuantityChange(item, value)}
-                            disabled={item.source === 'stock' && Boolean(item.serialNumber)}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Price</span>
-                          <NumberStepper
-                            min={0}
-                            value={item.price}
-                            onChange={(value) => {
-                              handleSaleItemPriceChange(item, value);
-                            }}
-                            placeholder="0"
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Warranty</span>
-                          <select
-                            value={item.warrantyPeriod}
-                            onChange={(event) =>
-                              updateSaleItem(item.id, { warrantyPeriod: event.target.value })
-                            }
-                          >
-                            <option value="0">None</option>
-                            <option value="1">30 day</option>
-                            <option value="3">3 month</option>
-                            <option value="6">6 month</option>
-                            <option value="12">1 year</option>
-                            <option value="24">2 year</option>
-                            <option value="36">3 year</option>
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>&nbsp;</span>
-                          <button
-                          type="button"
-                          className="toolbar-square-button sale-item-add-button"
-                          onClick={index === saleItems.length - 1 ? addSaleItem : () => removeSaleItem(item.id)}
-                          aria-label={index === saleItems.length - 1 ? 'Add product position' : 'Remove product position'}
-                        >
-                          {index === saleItems.length - 1 ? '+' : '-'}
-                        </button>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {(visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading) ? (
-                  <div className="create-suggestions">
-                    {isSaleProductLookupLoading ? <p>Searching products...</p> : null}
-                    {visibleSaleProductSuggestions.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        className="create-suggestion-item"
-                        disabled={!product.selectable}
-                        title={product.selectable ? undefined : product.availabilityLabel}
-                        onClick={() => focusedSaleItem && applySaleProduct(focusedSaleItem.id, product)}
-                      >
-                        <strong>{product.name}</strong>
-                        <span>
-                          {product.source === 'stock'
-                            ? `${product.article || '-'} / ${product.serialNumber || '-'} / ${product.availabilityLabel}`
-                            : product.note}
-                        </span>
-                      </button>
-                    ))}
-                    <div className="sale-order-unavailable">
-                      <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
-                    </div>
-                  </div>
-                ) : null}
-
-                <label className="field">
-                  <span>Notes</span>
-                  <textarea
-                    rows={3}
-                    value={issueFromClient}
-                    onChange={(event) => setIssueFromClient(event.target.value)}
-                    placeholder="Sale notes"
-                  />
-                </label>
-              </>
+              <CreateOrderSaleSection
+                saleItems={saleItems}
+                focusedSaleItem={focusedSaleItem}
+                visibleSaleProductSuggestions={visibleSaleProductSuggestions}
+                isSaleProductLookupLoading={isSaleProductLookupLoading}
+                saleItemsTotal={saleItemsTotal}
+                issueFromClient={issueFromClient}
+                onIssueFromClientChange={setIssueFromClient}
+                onFocusSaleItem={setFocusedSaleItemId}
+                onUpdateSaleItem={updateSaleItem}
+                onSaleItemQuantityChange={handleSaleItemQuantityChange}
+                onSaleItemPriceChange={handleSaleItemPriceChange}
+                onAddSaleItem={addSaleItem}
+                onRemoveSaleItem={removeSaleItem}
+                onApplySaleProduct={applySaleProduct}
+              />
             ) : (
-              <>
-                <h3 className="create-section-title">Device</h3>
-                <div className="create-device-search">
-                  <label className="field">
-                    <span>Device #1 *</span>
-                    <input
-                      value={deviceName}
-                      onFocus={() => {
-                        void ensureClientForDevice();
-                      }}
-                      onChange={(event) => {
-                        setSelectedDeviceSuggestionId(null);
-                        setDeviceName(event.target.value);
-                      }}
-                      placeholder="Enter device name"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={!canCreateClientDevice || isClientEnsuring}
-                    title={
-                      selectedDeviceSuggestionId
-                        ? 'Selected existing device'
-                        : hasExactDeviceMatch
-                          ? 'Device already exists'
-                          : undefined
-                    }
-                    onClick={async () => {
-                      const resolvedClient = resolvedClientForDeviceCreate ?? (await ensureClientForDevice());
-                      if (!resolvedClient) return;
-
-                      setSelectedClientId(resolvedClient.id);
-                      setSelectedClient(resolvedClient);
-                      setNewDeviceName(deviceName.trim());
-                      setNewDeviceIsActive(true);
-                      setIsCreateDeviceModalOpen(true);
-                    }}
-                  >
-                    Create new
-                  </button>
-                </div>
-                {hasExactDeviceMatch ? (
-                  <p>Found existing device with this name.</p>
-                ) : null}
-                {(visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading) ? (
-                  <div className="create-suggestions">
-                    {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
-                    {visibleDeviceSuggestions.map((device) => (
-                      <button
-                        key={device.id}
-                        type="button"
-                        className="create-suggestion-item"
-                        onClick={() => applyDevice(device)}
-                    >
-                      <strong>{device.name}</strong>
-                      <span>{device.serialNumber || '-'}</span>
-                    </button>
-                  ))}
-                </div>
-                ) : null}
-
-                <div className="create-row-2">
-                  <label className="field">
-                    <span>&nbsp;</span>
-                    <input
-                      value={deviceColor}
-                      onChange={(event) => setDeviceColor(event.target.value)}
-                      placeholder="Device color"
-                    />
-                  </label>
-                  <label className="field">
-                    <span>&nbsp;</span>
-                    <input
-                      value={deviceSerialNumber}
-                      onChange={(event) => {
-                        setSelectedDeviceSuggestionId(null);
-                        setDeviceSerialNumber(event.target.value);
-                      }}
-                      placeholder="Serial number"
-                    />
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>Kit</span>
-                  <input
-                    value={deviceKit}
-                    onChange={(event) => setDeviceKit(event.target.value)}
-                    placeholder="Describe accessories"
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Repair type</span>
-                  <select value={repairType} onChange={(event) => setRepairType(event.target.value)}>
-                    <option>Paid</option>
-                    <option>Warranty</option>
-                  </select>
-                </label>
-
-                <label className="field">
-                  <span>Issue from client</span>
-                  <textarea
-                    rows={3}
-                    value={issueFromClient}
-                    onChange={(event) => setIssueFromClient(event.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>External condition</span>
-                  <textarea
-                    rows={3}
-                    value={externalView}
-                    onChange={(event) => setExternalView(event.target.value)}
-                    placeholder="Scratches, dents..."
-                  />
-                </label>
-              </>
+              <CreateOrderRepairSection
+                deviceName={deviceName}
+                deviceSerialNumber={deviceSerialNumber}
+                deviceColor={deviceColor}
+                deviceKit={deviceKit}
+                repairType={repairType}
+                issueFromClient={issueFromClient}
+                externalView={externalView}
+                canCreateClientDevice={canCreateClientDevice}
+                isClientEnsuring={isClientEnsuring}
+                selectedDeviceSuggestionId={selectedDeviceSuggestionId}
+                hasExactDeviceMatch={hasExactDeviceMatch}
+                visibleDeviceSuggestions={visibleDeviceSuggestions}
+                isDeviceLookupLoading={isDeviceLookupLoading}
+                onDeviceNameChange={setDeviceName}
+                onDeviceSerialNumberChange={setDeviceSerialNumber}
+                onDeviceColorChange={setDeviceColor}
+                onDeviceKitChange={setDeviceKit}
+                onRepairTypeChange={setRepairType}
+                onIssueFromClientChange={setIssueFromClient}
+                onExternalViewChange={setExternalView}
+                onClearSelectedDeviceSuggestion={() =>
+                  setSelectedDeviceSuggestionId(null)
+                }
+                onEnsureClientForDevice={ensureClientForDevice}
+                onOpenCreateDevice={openCreateDeviceModal}
+                onApplyDevice={applyDevice}
+              />
             )}
-
             <div className="create-prepay-row">
               <label className="field">
                 <span>Estimated ready date</span>
@@ -1153,172 +839,35 @@ export const CreateOrderCard = ({
             </div>
           </div>
 
-          <aside className="create-order-right">
-            <section className="create-side-box">
-              <h4>Client devices</h4>
-              {deviceHistory.length ? (
-                <div className="create-side-list">
-                  {deviceHistory.map((sale) => (
-                    (() => {
-                      const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
-                      const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
-                      const serialValue = sale.product.serialNumber?.trim();
-                      const displaySerial =
-                        serialValue && serialValue.toUpperCase() !== 'REPAIR-PLACEHOLDER'
-                          ? serialValue
-                          : '';
-                      return (
-                        <button
-                          key={sale.id}
-                          type="button"
-                          className="create-side-list-button"
-                          onClick={() =>
-                            applyDevice({
-                              id: sale.product.id,
-                              clientId: sale.client.id,
-                              clientName: sale.client.name,
-                              clientPhone: sale.client.phone,
-                              name: deviceNameValue,
-                              serialNumber: displaySerial,
-                              note: '',
-                              source: 'repairOrder',
-                              isActive: true,
-                              createdAt: sale.createdAt,
-                              updatedAt: sale.updatedAt,
-                            })
-                          }
-                        >
-                          <strong>{deviceNameValue}</strong>
-                          <span>{displaySerial || '-'}</span>
-                        </button>
-                      );
-                    })()
-                  ))}
-                </div>
-              ) : (
-                <p>Select client to view devices that were already in service.</p>
-              )}
-            </section>
-
-            <section className="create-side-box">
-              <h4>Client requests</h4>
-              <div className="order-related-tabs">
-                <button
-                  type="button"
-                  className={
-                    activeClientRequestTab === 'orders'
-                      ? 'order-related-tab order-related-tab-active'
-                      : 'order-related-tab'
-                  }
-                  onClick={() => setActiveClientRequestTab('orders')}
-                >
-                  Orders
-                </button>
-                <button
-                  type="button"
-                  className={
-                    activeClientRequestTab === 'sales'
-                      ? 'order-related-tab order-related-tab-active'
-                      : 'order-related-tab'
-                  }
-                  onClick={() => setActiveClientRequestTab('sales')}
-                >
-                  Sales
-                </button>
-              </div>
-              {activeClientRequests.length ? (
-                <div className="create-side-list">
-                  {activeClientRequests.slice(0, 5).map((sale) => (
-                    (() => {
-                      const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
-                      const deviceNameValue = deviceItem?.name?.trim() || sale.product.name;
-                      return (
-                        <div key={sale.id} className="create-side-list-item">
-                          <a
-                            className="create-side-list-link"
-                            href={getOrderLink(sale.id, sale.kind)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {sale.recordNumber ?? 'r------'}
-                          </a>
-                          <span>{deviceNameValue}</span>
-                        </div>
-                      );
-                    })()
-                  ))}
-                </div>
-              ) : (
-                <p>
-                  {activeClientRequestTab === 'orders'
-                    ? 'No repair orders for this client yet.'
-                    : 'No sales orders for this client yet.'}
-                </p>
-              )}
-            </section>
-
-            <section className="create-side-box">
-              <h4>Selected flags</h4>
-              <p>{selectedFlags.length > 0 ? selectedFlags.join(', ') : 'No flags selected.'}</p>
-            </section>
-          </aside>
+          <CreateOrderSidePanel
+            deviceHistory={deviceHistory}
+            activeClientRequests={activeClientRequests}
+            activeClientRequestTab={activeClientRequestTab}
+            selectedFlags={selectedFlags}
+            onApplyDevice={applyDevice}
+            onClientRequestTabChange={setActiveClientRequestTab}
+          />
         </div>
       </div>
       {isCreateDeviceModalOpen ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-            <header className="catalog-edit-header">
-              <div className="catalog-edit-title">
-                <h2>Create device</h2>
-              </div>
-              <button
-                type="button"
-                className="create-order-close"
-                onClick={() => setIsCreateDeviceModalOpen(false)}
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </header>
-            <div className="catalog-edit-body">
-              <label className="field">
-                <span>Name</span>
-                <input
-                  value={newDeviceName}
-                  onChange={(event) => setNewDeviceName(event.target.value)}
-                  placeholder="Device name"
-                />
-              </label>
-              <label className="create-inline-checkbox">
-                <input
-                  type="checkbox"
-                  checked={newDeviceIsActive}
-                  onChange={(event) => setNewDeviceIsActive(event.target.checked)}
-                />
-                <span>Activity</span>
-              </label>
-            </div>
-            <footer className="catalog-edit-footer">
-              <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={
-                  isDeviceCreating ||
-                  !selectedClientId ||
-                  !selectedClient ||
-                  newDeviceName.trim().length < 2
-                }
-                onClick={() => void createDeviceFromModal()}
-              >
-                {isDeviceCreating ? 'Saving...' : 'Save'}
-              </button>
-            </footer>
-          </section>
-        </div>
+        <CreateOrderDeviceModal
+          name={newDeviceName}
+          isActive={newDeviceIsActive}
+          isSaving={isDeviceCreating}
+          canSave={
+            Boolean(selectedClientId) &&
+            Boolean(selectedClient) &&
+            newDeviceName.trim().length >= 2
+          }
+          onNameChange={setNewDeviceName}
+          onIsActiveChange={setNewDeviceIsActive}
+          onClose={() => setIsCreateDeviceModalOpen(false)}
+          onSave={() => void createDeviceFromModal()}
+        />
       ) : null}
     </section>
   );
 };
+
+
+
