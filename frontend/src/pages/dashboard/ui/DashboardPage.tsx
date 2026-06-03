@@ -758,6 +758,10 @@ export const DashboardPage = () => {
             </small>
           ) : null}
           <div className="topbar-actions">
+            <div className="topbar-current-user" title={currentEmployee.name}>
+              <span className="topbar-current-user-name">{currentEmployee.name}</span>
+              <span className="topbar-current-user-role">{currentEmployee.role}</span>
+            </div>
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
             </button>
