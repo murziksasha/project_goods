@@ -11,7 +11,6 @@ import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
   customLabelSizePresetId,
-  defaultLabelSize,
   labelSizePresets,
   normalizeLabelSize,
   printFormVariableGroups,
@@ -333,7 +332,8 @@ const BlockEditor = ({
                       ...block,
                       columns: block.columns.filter((_, columnIndex) => columnIndex !== index),
                       rows: block.rows.map((row) => {
-                        const { [column.id]: _removed, ...cells } = row.cells;
+                        const cells = { ...row.cells };
+                        delete cells[column.id];
                         return { ...row, cells };
                       }),
                     })
@@ -714,16 +714,3 @@ export const PrintFormBuilder = ({
   );
 };
 
-export const createNewPrintForm = (sortOrder: number): PrintForm =>
-  createLayoutPrintForm({
-    id: `form-${Date.now()}`,
-    title: 'New template',
-    type: 'custom',
-    content: '',
-    contentFormat: 'html',
-    pageSize: 'A4',
-    labelSize: defaultLabelSize,
-    orientation: 'portrait',
-    isActive: true,
-    sortOrder,
-  });

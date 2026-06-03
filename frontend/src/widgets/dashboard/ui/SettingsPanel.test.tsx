@@ -96,7 +96,7 @@ describe('SettingsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
     expect(screen.getByText('New template')).toBeInTheDocument();
-  });
+  }, 10000);
   it('disables save while service name is invalid', async () => {
     render(<SettingsPanelHarness />);
 

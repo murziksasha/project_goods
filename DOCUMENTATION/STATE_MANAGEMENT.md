@@ -88,3 +88,12 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added loading flag: `isCatalogProductsLoading`.
 - Added refresh/update flow for `catalog-products` through `useDashboardPage` actions.
 - `ProductCatalogPanel` consumes `catalogProducts` and `onUpdateCatalogProduct`.
+
+## Warehouse Query Cache Update (2026-06-03)
+
+- Added React Query keys: `supplierOrders` and `warehouseSettings`.
+- `WarehousePanel` now reads supplier orders through `useSupplierOrdersQuery` instead of storing fetched supplier orders in component state.
+- Supplier-order create/update/cancel/take-on-charge flows now use mutation hooks and invalidate `supplierOrders`; take-on-charge also invalidates `products`.
+- `WarehousePanel` now reads warehouse settings through `useWarehouseSettingsQuery`.
+- Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.
+- Receipt rows from supplier orders are derived from query data; manually created local receipt rows remain local UI/session state.

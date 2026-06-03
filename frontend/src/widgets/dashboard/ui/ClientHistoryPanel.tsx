@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { ClientHistory } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { SalesList } from '../../../entities/sale/ui/SalesList';
@@ -10,12 +11,23 @@ type ClientHistoryPanelProps = {
 };
 
 type HistoryPeriod = 'all' | 'year' | 'lastMonth';
+type HistoryStats = {
+  totalSales: number;
+  totalRevenue: number;
+  totalItemsSold: number;
+};
 
 const periodOptions: Array<{ value: HistoryPeriod; label: string }> = [
   { value: 'all', label: 'All time' },
   { value: 'year', label: 'This year' },
   { value: 'lastMonth', label: 'Last month' },
 ];
+
+const emptyHistoryStats: HistoryStats = {
+  totalSales: 0,
+  totalRevenue: 0,
+  totalItemsSold: 0,
+};
 
 const filterSalesByPeriod = (sales: Sale[], period: HistoryPeriod) => {
   if (period === 'all') {
@@ -36,6 +48,89 @@ const filterSalesByPeriod = (sales: Sale[], period: HistoryPeriod) => {
   return sales.filter((sale) => new Date(sale.saleDate) >= monthAgo);
 };
 
+const calculateHistoryStats = (sales: Sale[]): HistoryStats =>
+  sales.reduce<HistoryStats>(
+    (stats, sale) => ({
+      totalSales: stats.totalSales + 1,
+      totalRevenue: stats.totalRevenue + sale.salePrice * sale.quantity,
+      totalItemsSold: stats.totalItemsSold + sale.quantity,
+    }),
+    emptyHistoryStats,
+  );
+
+const ClientHistoryPanelShell = ({
+  children,
+  header,
+  isStacked = false,
+}: {
+  children: ReactNode;
+  header: ReactNode;
+  isStacked?: boolean;
+}) => (
+  <section className="panel">
+    <div
+      className={
+        isStacked ? 'panel-header panel-header-stacked' : 'panel-header'
+      }
+    >
+      {header}
+    </div>
+    {children}
+  </section>
+);
+
+const EmptyClientHistoryPanel = ({ message }: { message: string }) => (
+  <ClientHistoryPanelShell
+    header={
+      <div>
+        <p className="section-label">History</p>
+        <h2>Client card</h2>
+      </div>
+    }
+  >
+    <p className="empty-state">{message}</p>
+  </ClientHistoryPanelShell>
+);
+
+const PeriodSelect = ({
+  value,
+  onChange,
+}: {
+  value: HistoryPeriod;
+  onChange: (value: HistoryPeriod) => void;
+}) => (
+  <label className="search-field">
+    <span>Period</span>
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value as HistoryPeriod)}
+    >
+      {periodOptions.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+const HistoryStatsGrid = ({ stats }: { stats: HistoryStats }) => (
+  <div className="history-stats">
+    <div className="metric-card compact">
+      <span className="metric-label">Sales</span>
+      <strong>{stats.totalSales}</strong>
+    </div>
+    <div className="metric-card compact">
+      <span className="metric-label">Items sold</span>
+      <strong>{stats.totalItemsSold}</strong>
+    </div>
+    <div className="metric-card compact">
+      <span className="metric-label">Revenue</span>
+      <strong>{formatCurrency(stats.totalRevenue)}</strong>
+    </div>
+  </div>
+);
+
 export const ClientHistoryPanel = ({
   history,
   isLoading,
@@ -46,87 +141,44 @@ export const ClientHistoryPanel = ({
     [history?.sales, period],
   );
   const filteredStats = useMemo(
-    () => ({
-      totalSales: filteredSales.length,
-      totalRevenue: filteredSales.reduce(
-        (sum, sale) => sum + sale.salePrice * sale.quantity,
-        0,
-      ),
-      totalItemsSold: filteredSales.reduce((sum, sale) => sum + sale.quantity, 0),
-    }),
+    () => calculateHistoryStats(filteredSales),
     [filteredSales],
   );
 
   if (isLoading) {
-    return (
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="section-label">History</p>
-            <h2>Client card</h2>
-          </div>
-        </div>
-        <p className="empty-state">Loading client history...</p>
-      </section>
-    );
+    return <EmptyClientHistoryPanel message="Loading client history..." />;
   }
 
   if (!history) {
     return (
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="section-label">History</p>
-            <h2>Client card</h2>
-          </div>
-        </div>
-        <p className="empty-state">Click a client to view all purchases.</p>
-      </section>
+      <EmptyClientHistoryPanel message="Click a client to view all purchases." />
     );
   }
 
   return (
-    <section className="panel">
-      <div className="panel-header panel-header-stacked">
-        <div className="panel-header-row">
-          <div>
-            <p className="section-label">History</p>
-            <h2>{history.client.name}</h2>
-            <p className="panel-subtitle">{history.client.phone}</p>
+    <ClientHistoryPanelShell
+      isStacked
+      header={
+        <>
+          <div className="panel-header-row">
+            <div>
+              <p className="section-label">History</p>
+              <h2>{history.client.name}</h2>
+              <p className="panel-subtitle">{history.client.phone}</p>
+            </div>
           </div>
-        </div>
 
-        <label className="search-field">
-          <span>Period</span>
-          <select
-            value={period}
-            onChange={(event) => setPeriod(event.target.value as HistoryPeriod)}
-          >
-            {periodOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+          <PeriodSelect value={period} onChange={setPeriod} />
+        </>
+      }
+    >
+      <HistoryStatsGrid stats={filteredStats} />
 
-      <div className="history-stats">
-        <div className="metric-card compact">
-          <span className="metric-label">Sales</span>
-          <strong>{filteredStats.totalSales}</strong>
-        </div>
-        <div className="metric-card compact">
-          <span className="metric-label">Items sold</span>
-          <strong>{filteredStats.totalItemsSold}</strong>
-        </div>
-        <div className="metric-card compact">
-          <span className="metric-label">Revenue</span>
-          <strong>{formatCurrency(filteredStats.totalRevenue)}</strong>
-        </div>
-      </div>
-
-      <SalesList sales={filteredSales} isLoading={false} emptyText="No purchases found for this period." />
-    </section>
+      <SalesList
+        sales={filteredSales}
+        isLoading={false}
+        emptyText="No purchases found for this period."
+      />
+    </ClientHistoryPanelShell>
   );
 };

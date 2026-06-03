@@ -75,6 +75,13 @@ import {
   type SupplierOrderModalSubmitPayload,
 } from './SupplierOrderModal';
 import {
+  MessageModal,
+  PaymentModal,
+  RefundModal,
+  ReturnLineItemModal,
+  ReturnSaleModal,
+} from './OrderPaymentModals';
+import {
   buildMissingServicePayload,
   shouldCreateMissingServiceOnSubmit,
 } from '../model/missingService';
@@ -822,6 +829,31 @@ const getRemainingPayment = (
     : getDefaultLineItems(sale),
 ) => Math.max(getOrderTotal(sale, lineItems) - paidAmount, 0);
 
+const isIssueWithoutPaymentBlockedForSale = (
+  sale: Sale,
+  paymentTargetStatus: PaymentTargetStatus,
+  lineItems: OrderLineItem[],
+  currentPaymentRemaining: number,
+) => {
+  const hasProductLineItems = lineItems.some(
+    (item) => item.kind === 'product' && item.quantity > 0,
+  );
+  return (
+    isRepairStatusChangeLockedByStock(
+      sale,
+      paymentTargetStatus,
+      lineItems,
+    ) ||
+    (!isRepairOrder(sale) &&
+      paymentTargetStatus === 'issued' &&
+      currentPaymentRemaining > 0) ||
+    (isRepairOrder(sale) &&
+      paymentTargetStatus !== 'paid' &&
+      hasProductLineItems &&
+      currentPaymentRemaining > 0)
+  );
+};
+
 const getLatestDepositPaymentMethod = (
   sale: Sale,
 ): PaymentMethod | null => {
@@ -1212,7 +1244,10 @@ const formatReadyDate = (value: string) =>
     month: 'short',
   }).format(new Date(value));
 
-const getWarehouseLabel = (_sale: Sale) => 'Service center';
+const getWarehouseLabel = (sale: Sale) => {
+  void sale;
+  return 'Service center';
+};
 
 const PrinterIcon = () => (
   <svg
@@ -2562,6 +2597,17 @@ export const OrdersWorkspace = ({
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
+  const getLineItems = (sale: Sale) => {
+    const sourceItems = Array.isArray(sale.lineItems)
+      ? sale.lineItems
+      : getDefaultLineItems(sale);
+    return sourceItems.filter(
+      (item) => !isRepairDevicePlaceholderLineItem(sale, item),
+    );
+  };
+
+  const getPaidAmount = getSalePaidAmount;
+
   const openPrintDialog = (
     sale: Sale,
     lineItems = getLineItems(sale),
@@ -2624,17 +2670,6 @@ export const OrdersWorkspace = ({
     normalizeOrderStatus(sale.status);
 
   const getStatusOptions = getStatusOptionsForSale;
-
-  const getLineItems = (sale: Sale) => {
-    const sourceItems = Array.isArray(sale.lineItems)
-      ? sale.lineItems
-      : getDefaultLineItems(sale);
-    return sourceItems.filter(
-      (item) => !isRepairDevicePlaceholderLineItem(sale, item),
-    );
-  };
-
-  const getPaidAmount = getSalePaidAmount;
 
   const getOrderRemainingPayment = (sale: Sale) =>
     getRemainingPayment(
@@ -4673,33 +4708,57 @@ export const OrdersWorkspace = ({
           )
         : null}
 
-      {paymentSale ? (
-        <PaymentModal
-          sale={paymentSale}
-          paymentTargetStatus={paymentTargetStatus}
-          lineItems={getLineItems(paymentSale)}
-          printForms={printForms}
-          cashboxes={cashboxes}
-          selectedCashboxId={selectedCashboxId}
-          paymentMethod={paymentMethod}
-          amount={paymentAmount}
-          paidAmount={getPaidAmount(paymentSale)}
-          isLoading={isPaymentModalLoading}
-          isSaving={isPaymentSaving}
-          onCashboxChange={setSelectedCashboxId}
-          onPaymentMethodChange={setPaymentMethod}
-          onAmountChange={setPaymentAmount}
-          onClose={() => setPaymentSale(null)}
-          onOpenPrint={() =>
-            openPrintDialog(
+      {paymentSale
+        ? (() => {
+            const lineItems = getLineItems(paymentSale);
+            const paidAmount = getPaidAmount(paymentSale);
+            const currentPaymentRemaining = getRemainingPayment(
               paymentSale,
-              getLineItems(paymentSale),
-              getPaidAmount(paymentSale),
-            )
-          }
-          onSubmit={acceptPayment}
-        />
-      ) : null}
+              paidAmount,
+              lineItems,
+            );
+            return (
+              <PaymentModal
+                sale={paymentSale}
+                paymentTargetStatus={paymentTargetStatus}
+                printForms={printForms}
+                cashboxes={cashboxes}
+                selectedCashboxId={selectedCashboxId}
+                paymentMethod={paymentMethod}
+                amount={paymentAmount}
+                paidAmount={paidAmount}
+                total={getOrderBaseTotal(paymentSale, lineItems)}
+                discount={getDiscount(paymentSale)}
+                currentPaymentRemaining={currentPaymentRemaining}
+                isRepairTargetStatusBlockedByStock={isRepairStatusChangeLockedByStock(
+                  paymentSale,
+                  paymentTargetStatus,
+                  lineItems,
+                )}
+                isIssueWithoutPaymentBlocked={isIssueWithoutPaymentBlockedForSale(
+                  paymentSale,
+                  paymentTargetStatus,
+                  lineItems,
+                  currentPaymentRemaining,
+                )}
+                isLoading={isPaymentModalLoading}
+                isSaving={isPaymentSaving}
+                onCashboxChange={setSelectedCashboxId}
+                onPaymentMethodChange={setPaymentMethod}
+                onAmountChange={setPaymentAmount}
+                onClose={() => setPaymentSale(null)}
+                onOpenPrint={() =>
+                  openPrintDialog(
+                    paymentSale,
+                    lineItems,
+                    paidAmount,
+                  )
+                }
+                onSubmit={acceptPayment}
+              />
+            );
+          })()
+        : null}
 
       {printRequest ? (
         <OrderPrintDialog
@@ -4712,12 +4771,11 @@ export const OrdersWorkspace = ({
 
       {refundSale ? (
         <RefundModal
-          sale={refundSale}
-          lineItems={getLineItems(refundSale)}
           cashboxes={cashboxes}
           selectedCashboxId={selectedRefundCashboxId}
           amount={refundAmount}
           paidAmount={getPaidAmount(refundSale)}
+          total={getOrderTotal(refundSale, getLineItems(refundSale))}
           isLoading={isRefundModalLoading}
           isSaving={isRefundSaving}
           onCashboxChange={setSelectedRefundCashboxId}
@@ -7317,717 +7375,3 @@ const useLockBodyScroll = () => {
     };
   }, []);
 };
-
-type PaymentModalProps = {
-  sale: Sale;
-  paymentTargetStatus: PaymentTargetStatus;
-  lineItems: OrderLineItem[];
-  printForms: PrintForm[];
-  cashboxes: Cashbox[];
-  selectedCashboxId: string;
-  paymentMethod: PaymentMethod;
-  amount: string;
-  paidAmount: number;
-  isLoading: boolean;
-  isSaving: boolean;
-  onCashboxChange: (cashboxId: string) => void;
-  onPaymentMethodChange: (method: PaymentMethod) => void;
-  onAmountChange: (amount: string) => void;
-  onClose: () => void;
-  onOpenPrint: () => void;
-  onSubmit: (action: PaymentAction) => void;
-};
-
-const PaymentModal = ({
-  sale,
-  paymentTargetStatus,
-  lineItems,
-  printForms,
-  cashboxes,
-  selectedCashboxId,
-  paymentMethod,
-  amount,
-  paidAmount,
-  isLoading,
-  isSaving,
-  onCashboxChange,
-  onPaymentMethodChange,
-  onAmountChange,
-  onClose,
-  onOpenPrint,
-  onSubmit,
-}: PaymentModalProps) => {
-  const total = getOrderBaseTotal(sale, lineItems);
-  const discount = getDiscount(sale);
-  const numericAmount = Number(amount);
-  const currentPaymentRemaining = getRemainingPayment(
-    sale,
-    paidAmount,
-    lineItems,
-  );
-  const nextPaymentRemaining = Math.max(
-    currentPaymentRemaining -
-      (Number.isFinite(numericAmount) ? numericAmount : 0),
-    0,
-  );
-  const submitWithStatusLabel =
-    paymentTargetStatus === 'paid'
-      ? 'Accept and mark paid'
-      : 'Accept and issue';
-  const submitWithoutPaymentLabel =
-    paymentTargetStatus === 'paid'
-      ? 'Mark paid without payment'
-      : 'Issue without payment';
-  const hasAvailablePrintForms = normalizePrintFormsForView(
-    printForms.length > 0 ? printForms : defaultPrintForms,
-  ).some((form) => form.isActive);
-  const isSubmitDisabled =
-    isLoading ||
-    isSaving ||
-    !selectedCashboxId ||
-    !Number.isFinite(numericAmount) ||
-    numericAmount <= 0 ||
-    numericAmount > currentPaymentRemaining;
-  const hasProductLineItems = lineItems.some(
-    (item) => item.kind === 'product' && item.quantity > 0,
-  );
-  const isRepairTargetStatusBlockedByStock =
-    isRepairStatusChangeLockedByStock(
-      sale,
-      paymentTargetStatus,
-      lineItems,
-    );
-  const isIssueWithoutPaymentBlocked =
-    isRepairTargetStatusBlockedByStock ||
-    (!isRepairOrder(sale) &&
-      paymentTargetStatus === 'issued' &&
-      currentPaymentRemaining > 0) ||
-    (isRepairOrder(sale) &&
-      paymentTargetStatus !== 'paid' &&
-      hasProductLineItems &&
-      currentPaymentRemaining > 0);
-  const isIssueDisabled =
-    isLoading || isSaving || isIssueWithoutPaymentBlocked;
-
-  return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label='Accept payment'
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label='Close payment modal'
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>Repair cost</dt>
-              <dd>{formatCurrency(total)}</dd>
-            </div>
-            <div>
-              <dt>Paid</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-            <div>
-              <dt>
-                <span className='payment-summary-discount-label'>
-                  Discount
-                  <span className='payment-summary-discount-badge'>
-                    {discount.mode === 'percent' ? '%' : '₴'}
-                  </span>
-                </span>
-              </dt>
-              <dd>
-                {discount.value > 0
-                  ? `${discount.value}${discount.mode === 'percent' ? '%' : ' ₴'}`
-                  : '-'}
-              </dd>
-            </div>
-            <div>
-              <dt>To pay</dt>
-              <dd>{formatCurrency(currentPaymentRemaining)}</dd>
-            </div>
-          </dl>
-          <button
-            type='button'
-            className={
-              paymentMethod === 'non-cash'
-                ? 'payment-cash-badge payment-cash-badge-non-cash'
-                : 'payment-cash-badge'
-            }
-            onClick={() =>
-              onPaymentMethodChange(
-                paymentMethod === 'cash' ? 'non-cash' : 'cash',
-              )
-            }
-            disabled={isLoading || isSaving}
-          >
-            {paymentMethod === 'cash' ? 'Cash' : 'Non-cash'}
-          </button>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field payment-cashbox-field'>
-            <span>* Cashbox</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>Amount</span>
-            <NumberStepper
-              min={0}
-              max={currentPaymentRemaining}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field'>
-            <span>To pay</span>
-            <input
-              value={String(nextPaymentRemaining)}
-              disabled
-              readOnly
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <button
-            type='button'
-            className='secondary-button print-action-button'
-            onClick={onOpenPrint}
-            disabled={isSaving || !hasAvailablePrintForms}
-          >
-            <PrinterIcon />
-            Print
-          </button>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSubmit('deposit');
-              }}
-              disabled={isSubmitDisabled}
-            >
-              {isSaving ? 'Saving...' : 'Accept to cashbox'}
-            </button>
-            <button
-              type='button'
-              className='payment-issue-button'
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSubmit('depositAndIssue');
-              }}
-              disabled={
-                isSubmitDisabled || isRepairTargetStatusBlockedByStock
-              }
-              title={
-                isRepairTargetStatusBlockedByStock
-                  ? 'Return shipped products to stock first.'
-                  : undefined
-              }
-            >
-              {submitWithStatusLabel}
-            </button>
-            <button
-              type='button'
-              className='payment-issue-secondary-button'
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSubmit('issueWithoutPayment');
-              }}
-              disabled={isIssueDisabled}
-              title={
-                isIssueWithoutPaymentBlocked
-                  ? isRepairTargetStatusBlockedByStock
-                    ? 'Return shipped products to stock first.'
-                    : isRepairOrder(sale)
-                    ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
-                    : 'Issued sale requires payment to cashbox unless total is 0.'
-                  : undefined
-              }
-            >
-              {submitWithoutPaymentLabel}
-            </button>
-          </div>
-        </footer>
-      </section>
-    </div>
-  );
-};
-
-type RefundModalProps = {
-  sale: Sale;
-  lineItems: OrderLineItem[];
-  cashboxes: Cashbox[];
-  selectedCashboxId: string;
-  amount: string;
-  paidAmount: number;
-  isLoading: boolean;
-  isSaving: boolean;
-  onCashboxChange: (cashboxId: string) => void;
-  onAmountChange: (amount: string) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-};
-
-const RefundModal = ({
-  sale,
-  lineItems,
-  cashboxes,
-  selectedCashboxId,
-  amount,
-  paidAmount,
-  isLoading,
-  isSaving,
-  onCashboxChange,
-  onAmountChange,
-  onClose,
-  onSubmit,
-}: RefundModalProps) => {
-  const total = getOrderTotal(sale, lineItems);
-  const numericAmount = Number(amount);
-  const isSubmitDisabled =
-    isLoading ||
-    isSaving ||
-    !selectedCashboxId ||
-    !Number.isFinite(numericAmount) ||
-    numericAmount <= 0 ||
-    numericAmount > paidAmount;
-
-  return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label='Refund payment'
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label='Close refund modal'
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>Order total</dt>
-              <dd>{formatCurrency(total)}</dd>
-            </div>
-            <div>
-              <dt>Paid</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-            <div>
-              <dt>Refund amount</dt>
-              <dd>
-                {formatCurrency(
-                  Number.isFinite(numericAmount) ? numericAmount : 0,
-                )}
-              </dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>Refund</span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field payment-cashbox-field'>
-            <span>* Cashbox</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>Amount</span>
-            <NumberStepper
-              min={0}
-              max={paidAmount}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field'>
-            <span>Available</span>
-            <input value={String(paidAmount)} disabled readOnly />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <div />
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type='button'
-              className='payment-issue-secondary-button'
-              onClick={onSubmit}
-              disabled={isSubmitDisabled}
-            >
-              {isSaving ? 'Saving...' : 'Refund to client'}
-            </button>
-          </div>
-        </footer>
-      </section>
-    </div>
-  );
-};
-
-type ReturnLineItemModalProps = {
-  sale: Sale;
-  item: OrderLineItem;
-  warehouse: string;
-  isLoading: boolean;
-  isSaving: boolean;
-  onWarehouseChange: (warehouse: string) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-};
-
-type ReturnSaleModalProps = {
-  sale: Sale;
-  lineItems: OrderLineItem[];
-  cashboxes: Cashbox[];
-  selectedCashboxId: string;
-  amount: string;
-  warehouse: string;
-  paidAmount: number;
-  isLoading: boolean;
-  isSaving: boolean;
-  onCashboxChange: (cashboxId: string) => void;
-  onAmountChange: (amount: string) => void;
-  onWarehouseChange: (warehouse: string) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-};
-
-const ReturnSaleModal = ({
-  sale,
-  lineItems,
-  cashboxes,
-  selectedCashboxId,
-  amount,
-  warehouse,
-  paidAmount,
-  isLoading,
-  isSaving,
-  onCashboxChange,
-  onAmountChange,
-  onWarehouseChange,
-  onClose,
-  onSubmit,
-}: ReturnSaleModalProps) => {
-  const productItems = lineItems.filter(
-    (item) => item.kind === 'product',
-  );
-  const serviceItems = lineItems.filter(
-    (item) => item.kind !== 'product',
-  );
-  const productTotal = getLineItemsTotal(productItems);
-  const serviceTotal = getLineItemsTotal(serviceItems);
-  const numericAmount = Number(amount);
-  const minRefund = Math.max(paidAmount - serviceTotal, 0);
-  const maxRefund = Math.min(productTotal, paidAmount);
-  const suggestedCashboxName =
-    cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
-      ?.name ?? 'Cashbox';
-  const isSubmitDisabled =
-    isLoading ||
-    isSaving ||
-    !selectedCashboxId ||
-    !warehouse.trim() ||
-    !Number.isFinite(numericAmount) ||
-    numericAmount < minRefund ||
-    numericAmount <= 0 ||
-    numericAmount > maxRefund;
-
-  return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label='Return sale'
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label='Close return modal'
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>Order</dt>
-              <dd>{sale.recordNumber ?? 'r------'}</dd>
-            </div>
-            <div>
-              <dt>Products to stock</dt>
-              <dd>
-                {productItems
-                  .map((item) => `${item.name} x${item.quantity}`)
-                  .join(', ')}
-              </dd>
-            </div>
-            <div>
-              <dt>Product total</dt>
-              <dd>{formatCurrency(productTotal)}</dd>
-            </div>
-            <div>
-              <dt>Paid</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>Return</span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field'>
-            <span>Receive to warehouse</span>
-            <input
-              value={warehouse}
-              onChange={(event) =>
-                onWarehouseChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field payment-cashbox-field'>
-            <span>Refund from cashbox</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>Refund amount</span>
-            <NumberStepper
-              min={minRefund}
-              max={maxRefund}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <p className='muted-copy'>{`Suggested cashbox: ${suggestedCashboxName}`}</p>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type='button'
-              className='payment-issue-secondary-button'
-              onClick={onSubmit}
-              disabled={isSubmitDisabled}
-            >
-              {isSaving ? 'Saving...' : 'Return sale'}
-            </button>
-          </div>
-        </footer>
-      </section>
-    </div>
-  );
-};
-
-const ReturnLineItemModal = ({
-  sale,
-  item,
-  warehouse,
-  isLoading,
-  isSaving,
-  onWarehouseChange,
-  onClose,
-  onSubmit,
-}: ReturnLineItemModalProps) => {
-  const itemTotal = item.price * item.quantity;
-  const isSubmitDisabled =
-    isLoading ||
-    isSaving ||
-    !warehouse.trim();
-
-  return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label='Return product'
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label='Close return modal'
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>Product</dt>
-              <dd>{item.name}</dd>
-            </div>
-            <div>
-              <dt>Order</dt>
-              <dd>{sale.recordNumber ?? 'r------'}</dd>
-            </div>
-            <div>
-              <dt>Item total</dt>
-              <dd>{formatCurrency(itemTotal)}</dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>Return</span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field'>
-            <span>Receive to warehouse</span>
-            <input
-              value={warehouse}
-              onChange={(event) =>
-                onWarehouseChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <p className='muted-copy'>
-            Refund must be completed via "Refund to client" before stock return.
-          </p>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type='button'
-              className='payment-issue-secondary-button'
-              onClick={onSubmit}
-              disabled={isSubmitDisabled}
-            >
-              {isSaving ? 'Saving...' : 'Return product'}
-            </button>
-          </div>
-        </footer>
-      </section>
-    </div>
-  );
-};
-
-type MessageModalProps = {
-  title: string;
-  message: string;
-  onClose: () => void;
-};
-
-const MessageModal = ({
-  title,
-  message,
-  onClose,
-}: MessageModalProps) => (
-  <div className='modal-backdrop' role='presentation'>
-    <section
-      className='payment-modal payment-modal-message'
-      role='dialog'
-      aria-modal='true'
-      aria-label={title}
-    >
-      <div className='payment-modal-summary'>
-        <h3>{title}</h3>
-        <p>{message}</p>
-      </div>
-      <footer className='payment-modal-footer'>
-        <div />
-        <div className='payment-modal-actions'>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={onClose}
-          >
-            OK
-          </button>
-        </div>
-      </footer>
-    </section>
-  </div>
-);

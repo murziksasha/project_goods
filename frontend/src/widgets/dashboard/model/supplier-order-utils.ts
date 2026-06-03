@@ -256,16 +256,19 @@ export const buildSupplierOrderAnalytics = (
     });
   });
 
-  const products = Array.from(productStats.values()).map(
-    ({ orderIds: _orderIds, ...item }) => ({
-      ...item,
-      total: roundMoney(item.total),
-      averagePrice:
-        item.quantity > 0
-          ? roundMoney(item.total / item.quantity)
-          : 0,
-    }),
-  );
+  const products = Array.from(productStats.values()).map((item) => ({
+    productName: item.productName,
+    quantity: item.quantity,
+    total: roundMoney(item.total),
+    lineCount: item.lineCount,
+    orderCount: item.orderCount,
+    minPrice: item.minPrice,
+    maxPrice: item.maxPrice,
+    averagePrice:
+      item.quantity > 0
+        ? roundMoney(item.total / item.quantity)
+        : 0,
+  }));
   const suppliers = Array.from(supplierStats.values()).map((item) => ({
     ...item,
     total: roundMoney(item.total),
