@@ -372,11 +372,23 @@ export const SupplierOrdersWorkspace = ({
       setOpenStatusOrder(null);
     };
 
+    const closeStatusMenuOnOutsideScroll = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.supplier-order-status-menu-portal')) {
+        return;
+      }
+      closeStatusMenu();
+    };
+
     window.addEventListener('resize', closeStatusMenu);
-    window.addEventListener('scroll', closeStatusMenu, true);
+    window.addEventListener('scroll', closeStatusMenuOnOutsideScroll, true);
     return () => {
       window.removeEventListener('resize', closeStatusMenu);
-      window.removeEventListener('scroll', closeStatusMenu, true);
+      window.removeEventListener(
+        'scroll',
+        closeStatusMenuOnOutsideScroll,
+        true,
+      );
     };
   }, [openStatusOrder]);
 

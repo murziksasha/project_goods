@@ -3835,8 +3835,10 @@
   display: grid;
   gap: 4px;
   width: 210px;
-  max-height: 260px;
+  max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 6px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
