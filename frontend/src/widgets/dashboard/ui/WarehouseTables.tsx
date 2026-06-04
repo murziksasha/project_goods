@@ -430,20 +430,14 @@ export const StockTable = ({
                         ) : columnKey === 'note' ? (
                           <button
                             type='button'
-                            className='settings-link-button'
-                            onClick={() => onEdit(product)}
+                            className='settings-link-button warehouse-stock-note-button'
+                            onClick={() => onOpenModel(product)}
+                            title={product.note || ''}
                           >
                             {product.note || '-'}
                           </button>
                         ) : (
                           <div className='catalog-row-actions'>
-                            <button
-                              type='button'
-                              className='ghost-button'
-                              onClick={() => onEdit(product)}
-                            >
-                              Edit
-                            </button>
                             <button
                               type='button'
                               className='danger-button'

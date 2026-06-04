@@ -75,7 +75,9 @@ This document defines current warehouse requirements for stock balances, receipt
 2. rows use compact spacing for dense scanning
 3. `Warehouse` and `Location` are displayed as readable badges
 4. `Client order` and `Supplier order` links are displayed as compact badges
-5. empty state must explicitly suggest adjusting search or filters
+5. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
+6. `Action` contains only the delete `X` control for the stock row
+7. empty state must explicitly suggest adjusting search or filters
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
@@ -103,7 +105,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - Backend workspace validation must enforce the same invariant before stock deltas are calculated.
 
 ### 4.4) Product Model Detail Modal
-- In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, or `Article` opens the shared product model modal for the row's exact product name.
+- In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
+- `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:
 1. read-only model name

@@ -7,19 +7,11 @@ import {
 
 export type SettingsTab =
   | 'company'
-  | 'print'
-  | 'orders'
-  | 'numbering'
-  | 'finance'
-  | 'notifications';
+  | 'print';
 
 export const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'company', label: 'Company' },
   { key: 'print', label: 'Print forms' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'numbering', label: 'Numbering' },
-  { key: 'finance', label: 'Finance' },
-  { key: 'notifications', label: 'Notifications' },
 ];
 
 export const settingsTabStorageKey = 'project-goods.settings-tab';
@@ -40,14 +32,14 @@ export const demoPrintValues: Record<string, string> = {
   id: 'demo-sale-id',
   orderNumber: 'r000124',
   date: '29.05.2026',
-  status: 'РќРѕРІРёР№ СЂРµРјРѕРЅС‚',
+  status: 'New repair',
   clientName: 'Ivan Petrenko',
   clientPhone: '+38 067 111 22 33',
   deviceName: 'iPhone 13 Pro',
   serialNumber: 'SN-2026-001',
   article: 'IPH13P',
-  defect: 'РќРµ РїСЂР°С†СЋС” РґРёСЃРїР»РµР№',
-  comment: 'Р—Р°РјС–РЅР° РґРёСЃРїР»РµСЏ С‚Р° РґС–Р°РіРЅРѕСЃС‚РёРєР°',
+  defect: 'Display does not work',
+  comment: 'Display replacement and diagnostics',
   total: '4 800 UAH',
   paid: '1 000 UAH',
   toPay: '3 800 UAH',
@@ -56,33 +48,33 @@ export const demoPrintValues: Record<string, string> = {
   note: 'Display replacement and diagnostics',
   managerName: 'Olena Manager',
   masterName: 'Andrii Master',
-  company: 'РЎРµСЂРІС–СЃРЅРёР№ С†РµРЅС‚СЂ',
-  company_address: '10001, Рј. Р–РёС‚РѕРјРёСЂ, РїР». Р›РµСЃС– РЈРєСЂР°С—РЅРєРё, 16',
+  company: 'Service center',
+  company_address: '10001, Zhytomyr, Lesi Ukrainky Square, 16',
   company_id: '12345678',
   company_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
   company_email: 'service@example.com',
   company_site: 'https://service.example.com',
   customer_reg_id: '87654321',
-  customer_address: 'Рј. Р§РѕСЂРЅРѕРјРѕСЂСЃСЊРє, РІСѓР». Р’С–С‚Р°Р»С–СЏ РЁСѓРјР° 2Р‘',
+  customer_address: 'Chornomorsk, Vitalii Shuma Street 2B',
   customer_iban: 'UA12 3456 7891 2345 6789 1234 5678 9',
   due_date: '01.06.2026',
-  warehouse: 'РћСЃРЅРѕРІРЅРёР№ СЃРєР»Р°Рґ',
-  warehouse_address: '82707, Рј. Р’С–РЅРЅРёС†СЏ, РІСѓР». Р“Р°РіР°СЂС–РЅР°, 12',
+  warehouse: 'Main warehouse',
+  warehouse_address: '82707, Vinnytsia, Haharina Street, 12',
   warehouse_phone: '+38 067 000 00 00',
-  net_amount: '4 800,00 РіСЂРЅ',
-  vat_amount: '0,00 РіСЂРЅ',
-  total_amount: '4 800,00 РіСЂРЅ',
-  total_written: 'С‡РѕС‚РёСЂРё С‚РёСЃСЏС‡С– РІС–СЃС–РјСЃРѕС‚ РіСЂРёРІРµРЅСЊ 00 РєРѕРїС–Р№РѕРє',
-  seller_occupation: 'Р”РёСЂРµРєС‚РѕСЂ',
-  seller_name: 'РџРµС‚СЂРѕ РЎС‚РµРїР°РЅРµРЅРєРѕ',
-  note_label: 'РџСЂРёРјС–С‚РєР°',
+  net_amount: '4 800.00 UAH',
+  vat_amount: '0.00 UAH',
+  total_amount: '4 800.00 UAH',
+  total_written: 'four thousand eight hundred hryvnias 00 kopecks',
+  seller_occupation: 'Director',
+  seller_name: 'Petro Stepanenko',
+  note_label: 'Note',
   barcode: 'r000124',
   products_table:
-    '<table class="print-line-table"><thead><tr><th>РўРѕРІР°СЂ</th><th>Рљ-СЃС‚СЊ</th><th>РЎСѓРјР°</th></tr></thead><tbody><tr><td>Р”РёСЃРїР»РµР№РЅРёР№ РјРѕРґСѓР»СЊ</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
+    '<table class="print-line-table"><thead><tr><th>Product</th><th>Qty</th><th>Amount</th></tr></thead><tbody><tr><td>Display module</td><td>1</td><td>3 800 UAH</td></tr></tbody></table>',
   services_table:
-    '<table class="print-line-table"><thead><tr><th>РџРѕСЃР»СѓРіР°</th><th>РЎСѓРјР°</th></tr></thead><tbody><tr><td>Р”С–Р°РіРЅРѕСЃС‚РёРєР° С‚Р° Р·Р°РјС–РЅР°</td><td>1 000 UAH</td></tr></tbody></table>',
+    '<table class="print-line-table"><thead><tr><th>Service</th><th>Amount</th></tr></thead><tbody><tr><td>Diagnostics and replacement</td><td>1 000 UAH</td></tr></tbody></table>',
   invoice_items_table:
-    '<table class="invoice-items-table"><thead><tr><th style="width: 34px;">в„–</th><th>РќР°Р·РІР°</th><th style="width: 74px;">РљС–Р»СЊРєС–СЃС‚СЊ</th><th style="width: 72px;">Р¦С–РЅР° Р±РµР· РџР”Р’</th><th style="width: 64px;">РЎС‚Р°РІРєР° РџР”Р’</th><th style="width: 82px;">РЎСѓРјР° Р±РµР· РџР”Р’</th><th style="width: 82px;">РЎСѓРјР° Р· РџР”Р’</th></tr></thead><tbody><tr><td>1.</td><td><strong>Р—Р°РјС–РЅР° РґРёСЃРїР»РµР№РЅРѕРіРѕ РјРѕРґСѓР»СЏ</strong><span class="invoice-item-description">Р РѕР±РѕС‚Р° С‚Р° РІСЃС‚Р°РЅРѕРІР»РµРЅРЅСЏ РєРѕРјРїР»РµРєС‚СѓСЋС‡РёС…</span></td><td>1,000</td><td>4 800,00</td><td>0%</td><td>4 800,00</td><td>4 800,00</td></tr></tbody></table>',
+    '<table class="invoice-items-table"><thead><tr><th style="width: 34px;">No.</th><th>Name</th><th style="width: 74px;">Quantity</th><th style="width: 72px;">Price without VAT</th><th style="width: 64px;">VAT rate</th><th style="width: 82px;">Amount without VAT</th><th style="width: 82px;">Amount with VAT</th></tr></thead><tbody><tr><td>1.</td><td><strong>Display module replacement</strong><span class="invoice-item-description">Work and parts installation</span></td><td>1.000</td><td>4 800.00</td><td>0%</td><td>4 800.00</td><td>4 800.00</td></tr></tbody></table>',
   createdAt: '29.05.2026 10:30',
 };
 
