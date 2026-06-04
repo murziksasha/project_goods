@@ -5,6 +5,7 @@ import {
   getCompanyValidation,
   getSettingsPreviewValues,
   getStoredSettingsTab,
+  settingsTabs,
   settingsTabStorageKey,
 } from './settings-panel';
 
@@ -61,11 +62,22 @@ describe('settings panel model', () => {
       company_site: 'https://example.com',
       orderNumber: demoPrintValues.orderNumber,
     });
+    expect(Object.values(getSettingsPreviewValues(form)).join(' ')).not.toContain('Р');
   });
 
-  it('reads a stored tab and falls back for invalid values', () => {
+  it('exposes only company and print form tabs', () => {
+    expect(settingsTabs.map((tab) => tab.label)).toEqual([
+      'Company',
+      'Print forms',
+    ]);
+  });
+
+  it('reads a stored visible tab and falls back for hidden or invalid values', () => {
+    window.localStorage.setItem(settingsTabStorageKey, 'print');
+    expect(getStoredSettingsTab()).toBe('print');
+
     window.localStorage.setItem(settingsTabStorageKey, 'finance');
-    expect(getStoredSettingsTab()).toBe('finance');
+    expect(getStoredSettingsTab()).toBe('company');
 
     window.localStorage.setItem(settingsTabStorageKey, 'unknown');
     expect(getStoredSettingsTab()).toBe('company');

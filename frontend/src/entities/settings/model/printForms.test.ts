@@ -38,6 +38,18 @@ describe('renderPrintTemplate', () => {
     ).toContain('r000124 Ivan iPhone 100 UAH Master Kyiv, Main street 1 UA123456789123456789123456789');
   });
 
+  it('renders English empty table fallbacks', () => {
+    const rendered = renderPrintTemplate(
+      '{{products_table}} {{services_table}}',
+      templateData,
+      'html',
+    );
+
+    expect(rendered).toContain('No products');
+    expect(rendered).toContain('No services');
+    expect(rendered).not.toContain('Р');
+  });
+
   it('leaves unknown variables visible', () => {
     expect(
       renderPrintTemplate('Order {{orderNumber}} {{unknownValue}}', templateData),
@@ -193,7 +205,7 @@ describe('normalizePrintFormsForView', () => {
     const normalized = normalizePrintFormsForView([
       {
         id: 'receipt',
-        title: defaultPrintForms.find((form) => form.id === 'receipt')?.title ?? '',
+        title: 'Квитанція',
         type: 'receipt',
         content: '<div>{{orderNumber}}</div>',
         contentFormat: 'html',
@@ -216,7 +228,20 @@ describe('normalizePrintFormsForView', () => {
     ]);
 
     expect(normalized.find((form) => form.id === 'receipt')?.content).toContain('{{products_table}}');
+    expect(normalized.find((form) => form.id === 'receipt')?.title).toBe('Receipt');
     expect(normalized.find((form) => form.id === 'custom-receipt')?.content).toBe('<div>{{orderNumber}}</div>');
+  });
+
+  it('keeps built-in defaults in English', () => {
+    expect(defaultPrintForms.map((form) => form.title)).toEqual([
+      'Receipt',
+      'Check',
+      'Warranty card',
+      'Completion act',
+      'Invoice',
+      'Barcode',
+    ]);
+    expect(defaultPrintForms.map((form) => form.content).join(' ')).not.toContain('Р');
   });
 
   it('keeps invoice defaults aligned with client requisites', () => {

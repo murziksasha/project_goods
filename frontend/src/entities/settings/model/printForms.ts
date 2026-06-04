@@ -117,82 +117,82 @@ export const printFormVariableGroups: Array<{
   variables: Array<{ key: PrintFormVariable; label: string }>;
 }> = [
   {
-    title: 'Замовлення',
+    title: 'Order',
     variables: [
-      { key: 'id', label: 'ID замовлення' },
-      { key: 'orderNumber', label: 'Номер замовлення' },
-      { key: 'date', label: 'Дата створення' },
-      { key: 'createdAt', label: 'Дата та час створення' },
-      { key: 'due_date', label: 'Сплатити до' },
-      { key: 'status', label: 'Статус' },
+      { key: 'id', label: 'Order ID' },
+      { key: 'orderNumber', label: 'Order number' },
+      { key: 'date', label: 'Created date' },
+      { key: 'createdAt', label: 'Created date and time' },
+      { key: 'due_date', label: 'Due date' },
+      { key: 'status', label: 'Status' },
     ],
   },
   {
-    title: 'Клієнт',
+    title: 'Client',
     variables: [
-      { key: 'clientName', label: 'ПІБ або назва клієнта' },
-      { key: 'clientPhone', label: 'Телефон клієнта' },
-      { key: 'customer_reg_id', label: 'ЄДРПОУ або ІПН клієнта' },
-      { key: 'customer_address', label: 'Адреса клієнта' },
-      { key: 'customer_iban', label: 'IBAN клієнта' },
+      { key: 'clientName', label: 'Client name' },
+      { key: 'clientPhone', label: 'Client phone' },
+      { key: 'customer_reg_id', label: 'Client registration ID' },
+      { key: 'customer_address', label: 'Client address' },
+      { key: 'customer_iban', label: 'Client IBAN' },
     ],
   },
   {
-    title: 'Пристрій',
+    title: 'Device',
     variables: [
-      { key: 'deviceName', label: 'Пристрій' },
-      { key: 'serialNumber', label: 'Серійний номер' },
-      { key: 'article', label: 'Артикул' },
-      { key: 'defect', label: 'Несправність' },
-      { key: 'comment', label: 'Коментар' },
-      { key: 'note', label: 'Примітка' },
+      { key: 'deviceName', label: 'Device' },
+      { key: 'serialNumber', label: 'Serial number' },
+      { key: 'article', label: 'Article' },
+      { key: 'defect', label: 'Defect' },
+      { key: 'comment', label: 'Comment' },
+      { key: 'note', label: 'Note' },
     ],
   },
   {
-    title: 'Фінанси',
+    title: 'Finance',
     variables: [
-      { key: 'total', label: 'Сума' },
-      { key: 'paid', label: 'Сплачено' },
-      { key: 'toPay', label: 'До сплати' },
-      { key: 'currency', label: 'Валюта' },
-      { key: 'discount', label: 'Знижка' },
-      { key: 'net_amount', label: 'Разом без ПДВ' },
-      { key: 'vat_amount', label: 'ПДВ' },
-      { key: 'total_amount', label: 'Всього з ПДВ' },
-      { key: 'total_written', label: 'Сума прописом' },
+      { key: 'total', label: 'Total' },
+      { key: 'paid', label: 'Paid' },
+      { key: 'toPay', label: 'To pay' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'discount', label: 'Discount' },
+      { key: 'net_amount', label: 'Total without VAT' },
+      { key: 'vat_amount', label: 'VAT' },
+      { key: 'total_amount', label: 'Total with VAT' },
+      { key: 'total_written', label: 'Total in words' },
     ],
   },
   {
-    title: 'Команда',
+    title: 'Team',
     variables: [
-      { key: 'managerName', label: 'Менеджер' },
-      { key: 'masterName', label: 'Майстер' },
+      { key: 'managerName', label: 'Manager' },
+      { key: 'masterName', label: 'Master' },
     ],
   },
   {
-    title: 'Сервіс і склад',
+    title: 'Company and warehouse',
     variables: [
-      { key: 'company', label: 'Назва компанії' },
-      { key: 'company_address', label: 'Адреса компанії' },
-      { key: 'company_id', label: 'ЄДРПОУ або ІПН компанії' },
-      { key: 'company_iban', label: 'IBAN компанії' },
-      { key: 'company_email', label: 'E-mail компанії' },
-      { key: 'company_site', label: 'Сайт компанії' },
-      { key: 'warehouse', label: 'Склад' },
-      { key: 'warehouse_address', label: 'Адреса складу' },
-      { key: 'warehouse_phone', label: 'Телефон складу' },
-      { key: 'seller_occupation', label: 'Посада підписанта' },
-      { key: 'seller_name', label: 'ПІБ підписанта' },
-      { key: 'note_label', label: 'Назва примітки' },
+      { key: 'company', label: 'Company name' },
+      { key: 'company_address', label: 'Company address' },
+      { key: 'company_id', label: 'Company registration ID' },
+      { key: 'company_iban', label: 'Company IBAN' },
+      { key: 'company_email', label: 'Company e-mail' },
+      { key: 'company_site', label: 'Company site' },
+      { key: 'warehouse', label: 'Warehouse' },
+      { key: 'warehouse_address', label: 'Warehouse address' },
+      { key: 'warehouse_phone', label: 'Warehouse phone' },
+      { key: 'seller_occupation', label: 'Signer position' },
+      { key: 'seller_name', label: 'Signer name' },
+      { key: 'note_label', label: 'Note label' },
     ],
   },
   {
-    title: 'Спец-блоки',
+    title: 'Special blocks',
     variables: [
-      { key: 'barcode', label: 'Штрих-код' },
-      { key: 'products_table', label: 'Товари' },
-      { key: 'services_table', label: 'Послуги' },
-      { key: 'invoice_items_table', label: 'Позиції рахунку з ПДВ' },
+      { key: 'barcode', label: 'Barcode' },
+      { key: 'products_table', label: 'Products' },
+      { key: 'services_table', label: 'Services' },
+      { key: 'invoice_items_table', label: 'Invoice items with VAT' },
     ],
   },
 ];
@@ -311,26 +311,26 @@ export const renderPrintLayout = (blocks: PrintLayoutBlock[]) =>
 const detailsTable = `
   <table class="print-details-table">
     <tbody>
-      <tr><td>Вид ремонту:</td><td><strong>{{comment}}</strong></td><td>Пристрій:</td><td><strong>{{deviceName}}</strong></td></tr>
-      <tr><td>Замовник:</td><td><strong>{{clientName}}</strong></td><td>Серійний №:</td><td><strong>{{serialNumber}}</strong></td></tr>
-      <tr><td>Контактні дані:</td><td><strong>{{clientPhone}}</strong></td><td>Артикул:</td><td><strong>{{article}}</strong></td></tr>
-      <tr><td>Заявлена несправність:</td><td><strong>{{defect}}</strong></td><td>Передплата:</td><td><strong>{{paid}}</strong></td></tr>
-      <tr><td>Орієнтована вартість:</td><td><strong>{{total}}</strong></td><td>До сплати:</td><td><strong>{{toPay}}</strong></td></tr>
+      <tr><td>Repair type:</td><td><strong>{{comment}}</strong></td><td>Device:</td><td><strong>{{deviceName}}</strong></td></tr>
+      <tr><td>Customer:</td><td><strong>{{clientName}}</strong></td><td>Serial No.:</td><td><strong>{{serialNumber}}</strong></td></tr>
+      <tr><td>Contact details:</td><td><strong>{{clientPhone}}</strong></td><td>Article:</td><td><strong>{{article}}</strong></td></tr>
+      <tr><td>Reported defect:</td><td><strong>{{defect}}</strong></td><td>Prepayment:</td><td><strong>{{paid}}</strong></td></tr>
+      <tr><td>Estimated cost:</td><td><strong>{{total}}</strong></td><td>To pay:</td><td><strong>{{toPay}}</strong></td></tr>
     </tbody>
   </table>
 `;
 
 const lineItemsSections = `
-  <h3>Послуги</h3>
+  <h3>Services</h3>
   {{services_table}}
-  <h3>Товари</h3>
+  <h3>Products</h3>
   {{products_table}}
 `;
 
 export const defaultPrintForms: PrintForm[] = [
   {
     id: 'receipt',
-    title: 'Квитанція',
+    title: 'Receipt',
     type: 'receipt',
     content: documentShell(`
       <div class="print-header print-header-right">
@@ -340,19 +340,19 @@ export const defaultPrintForms: PrintForm[] = [
         </div>
       </div>
       <div class="print-title-row">
-        <h1>Квитанція №{{orderNumber}} від {{date}}</h1>
+        <h1>Receipt #{{orderNumber}} from {{date}}</h1>
         <div class="print-code-block">{{barcode}}</div>
       </div>
       ${detailsTable}
       ${lineItemsSections}
       <ol class="print-terms">
-        <li>Сервісний центр не несе відповідальності за втрату даних в індивідуальній пам'яті пристрою.</li>
-        <li>Термін проведення діагностики - від 1 до 3-х днів. Ремонт проводиться після погодження вартості.</li>
-        <li>Гарантія поширюється тільки на виконані роботи та встановлені деталі.</li>
+        <li>The service center is not responsible for data loss in the device memory.</li>
+        <li>Diagnostics takes 1 to 3 days. Repair starts after the cost is approved.</li>
+        <li>Warranty applies only to completed work and installed parts.</li>
       </ol>
       <div class="print-signatures">
-        <span>Прийняв: {{managerName}}</span>
-        <span>Клієнт: __________________</span>
+        <span>Accepted by: {{managerName}}</span>
+        <span>Client: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -363,17 +363,17 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'check',
-    title: 'Чек',
+    title: 'Check',
     type: 'check',
     content: documentShell(`
-      <h1>Чек оплати</h1>
+      <h1>Payment check</h1>
       <table class="print-summary-table">
         <tbody>
-          <tr><td>Замовлення</td><td>{{orderNumber}}</td></tr>
-          <tr><td>Клієнт</td><td>{{clientName}}</td></tr>
-          <tr><td>Сума</td><td><strong>{{total}}</strong></td></tr>
-          <tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr>
-          <tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr>
+          <tr><td>Order</td><td>{{orderNumber}}</td></tr>
+          <tr><td>Client</td><td>{{clientName}}</td></tr>
+          <tr><td>Total</td><td><strong>{{total}}</strong></td></tr>
+          <tr><td>Paid</td><td><strong>{{paid}}</strong></td></tr>
+          <tr><td>To pay</td><td><strong>{{toPay}}</strong></td></tr>
         </tbody>
       </table>
       ${lineItemsSections}
@@ -387,18 +387,18 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'warranty',
-    title: 'Гарантійний талон',
+    title: 'Warranty card',
     type: 'warranty',
     content: documentShell(`
-      <h1>Гарантійний талон</h1>
-      <p>Замовлення №{{orderNumber}} від {{date}}</p>
+      <h1>Warranty card</h1>
+      <p>Order #{{orderNumber}} from {{date}}</p>
       ${detailsTable}
       ${lineItemsSections}
-      <p><strong>Майстер:</strong> {{masterName}}</p>
-      <p>Гарантійні зобов'язання діють за умови відсутності механічних пошкоджень та слідів стороннього втручання.</p>
+      <p><strong>Master:</strong> {{masterName}}</p>
+      <p>Warranty is valid if there are no mechanical damages or third-party intervention traces.</p>
       <div class="print-signatures">
-        <span>Сервіс: __________________</span>
-        <span>Клієнт: __________________</span>
+        <span>Service: __________________</span>
+        <span>Client: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -409,17 +409,17 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'completion-act',
-    title: 'Акт виконаних робіт',
+    title: 'Completion act',
     type: 'completion-act',
     content: documentShell(`
-      <h1>Акт виконаних робіт №{{orderNumber}}</h1>
-      <p>Дата: {{date}}</p>
-      <p><strong>Клієнт:</strong> {{clientName}}, {{clientPhone}}</p>
+      <h1>Completion act #{{orderNumber}}</h1>
+      <p>Date: {{date}}</p>
+      <p><strong>Client:</strong> {{clientName}}, {{clientPhone}}</p>
       ${lineItemsSections}
-      <p class="print-total-line">Разом: <strong>{{total}}</strong></p>
+      <p class="print-total-line">Total: <strong>{{total}}</strong></p>
       <div class="print-signatures">
-        <span>Виконавець: {{masterName}}</span>
-        <span>Замовник: __________________</span>
+        <span>Executor: {{masterName}}</span>
+        <span>Customer: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -430,47 +430,47 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'invoice',
-    title: 'Рахунок',
+    title: 'Invoice',
     type: 'invoice',
     content: documentShell(`
       <div class="invoice-party">
-        <strong>Постачальник</strong>
+        <strong>Supplier</strong>
         <div>
           <b>{{company}}</b><br>
-          Адреса: {{company_address}}<br>
-          ЄДРПОУ або ІПН: {{company_id}}<br>
-          не є платником податку на прибуток на загальних умовах<br>
-          <b>Р/р {{company_iban}}</b>
+          Address: {{company_address}}<br>
+          ID: {{company_id}}<br>
+          Not a VAT payer<br>
+          <b>Account {{company_iban}}</b>
         </div>
       </div>
       <div class="invoice-party">
-        <strong>Одержувач</strong>
+        <strong>Customer</strong>
         <div>
           <b>{{clientName}}</b><br>
-          Адреса: {{customer_address}}<br>
-          ЄДРПОУ або ІПН: {{customer_reg_id}}<br>
+          Address: {{customer_address}}<br>
+          ID: {{customer_reg_id}}<br>
           {{clientPhone}}<br>
-          <b>Р/р {{customer_iban}}</b>
+          <b>Account {{customer_iban}}</b>
         </div>
       </div>
       <div class="invoice-title">
-        <h1>Рахунок фактура № {{orderNumber}}</h1>
-        <p>від {{date}} р.</p>
+        <h1>Invoice #{{orderNumber}}</h1>
+        <p>from {{date}}</p>
       </div>
       {{invoice_items_table}}
       <table class="invoice-totals">
         <tbody>
-          <tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr>
-          <tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr>
-          <tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr>
+          <tr><td>Total without VAT:</td><td>{{net_amount}}</td></tr>
+          <tr><td>VAT:</td><td>{{vat_amount}}</td></tr>
+          <tr><td>Total with VAT:</td><td>{{total_amount}}</td></tr>
         </tbody>
       </table>
       <div class="invoice-written">
-        <p>Всього на суму: <strong>{{total_written}}</strong></p>
-        <p>ПДВ: {{vat_amount}}</p>
+        <p>Total in words: <strong>{{total_written}}</strong></p>
+        <p>VAT: {{vat_amount}}</p>
       </div>
       <div class="invoice-payable">
-        <strong>Загальна сума до оплати:</strong>
+        <strong>Amount payable:</strong>
         <strong>{{total_amount}}</strong>
       </div>
       <div class="invoice-signature">
@@ -488,7 +488,7 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'barcode',
-    title: 'Штрих-код',
+    title: 'Barcode',
     type: 'barcode',
     content: `
       <div class="print-label">
@@ -515,6 +515,15 @@ export const legacyDefaultPrintFormIds = new Set([
   'invoice',
   'barcode',
 ]);
+
+const legacyDefaultPrintFormTitles: Record<string, string[]> = {
+  receipt: ['Квитанція', 'РљРІРёС‚Р°РЅС†С–СЏ'],
+  check: ['Чек', 'Р§РµРє'],
+  warranty: ['Гарантійний талон', 'Р“Р°СЂР°РЅС‚С–Р№РЅРёР№ С‚Р°Р»РѕРЅ'],
+  'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
+  invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
+  barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
+};
 
 export const createPrintLayoutBlock = (
   type: PrintLayoutBlock['type'],
@@ -763,17 +772,26 @@ const withGeneratedContent = (form: PrintForm): PrintForm =>
       }
     : form;
 
+const hasBuiltInDefaultTitle = (form: PrintForm) => {
+  const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
+  return (
+    form.title === defaultForm?.title ||
+    (legacyDefaultPrintFormTitles[form.id] ?? []).includes(form.title)
+  );
+};
+
 const isPreviousDefaultInvoice = (form: PrintForm) =>
   form.id === 'invoice' &&
-  form.title === 'Рахунок' &&
+  hasBuiltInDefaultTitle(form) &&
   (form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>') ||
+    form.content.includes('<h1>Р Р°С…СѓРЅРѕРє РЅР° РѕРїР»Р°С‚Рё в„–{{orderNumber}}</h1>') ||
     !form.content.includes('{{customer_address}}') ||
     !form.content.includes('{{customer_iban}}'));
 
 const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
-  if (!defaultForm || form.title !== defaultForm.title) return false;
+  if (!defaultForm || !hasBuiltInDefaultTitle(form)) return false;
   if (form.id === 'invoice' || form.id === 'barcode') return false;
   if (form.id === 'completion-act' && form.content.includes('{{deviceName}}')) return true;
   return !form.content.includes('{{products_table}}') ||
@@ -782,7 +800,7 @@ const isLegacyStandardPrintForm = (form: PrintForm) => {
 
 const isRecognizableDefaultPrintForm = (form: PrintForm) => {
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
-  return Boolean(defaultForm) && form.title === defaultForm?.title;
+  return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
 };
 
 const hasLayoutBlocks = (form: PrintForm) =>
@@ -879,10 +897,10 @@ const textToHtml = (value: string) =>
   `<div class="print-document">${escapeHtml(value).replace(/\r?\n/g, '<br />')}</div>`;
 
 const renderProductsTable = (html: string) =>
-  html || '<p class="print-muted">Товари відсутні</p>';
+  html || '<p class="print-muted">No products</p>';
 
 const renderServicesTable = (html: string) =>
-  html || '<p class="print-muted">Послуги відсутні</p>';
+  html || '<p class="print-muted">No services</p>';
 
 const unwrapEditorTokens = (html: string) =>
   html.replace(

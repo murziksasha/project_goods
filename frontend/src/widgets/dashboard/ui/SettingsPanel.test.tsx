@@ -29,6 +29,17 @@ const SettingsPanelHarness = () => {
 };
 
 describe('SettingsPanel', () => {
+  it('shows only company and print form settings tabs', async () => {
+    render(<SettingsPanelHarness />);
+
+    expect(screen.getByRole('button', { name: 'Company' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Orders' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Numbering' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Finance' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
+  });
+
   it('allows saving default optional company print fields', async () => {
     render(<SettingsPanelHarness />);
 
@@ -81,10 +92,17 @@ describe('SettingsPanel', () => {
     render(<SettingsPanelHarness />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
-    expect(document.body.textContent).toContain('r000124');
+    expect(screen.getByLabelText('Document template')).toHaveValue('receipt');
+    expect(document.body.textContent).toContain('Receipt');
+    expect(document.body.textContent).toContain('Services');
+    expect(document.body.textContent).toContain('Products');
+    expect(document.body.textContent).not.toContain('Р');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(screen.getByDisplayValue('New template')).toBeInTheDocument();
+    expect(screen.getByLabelText('Template name')).toHaveValue('New template');
+    expect((screen.getByLabelText('Document template') as HTMLSelectElement).value).toMatch(
+      /^form-/,
+    );
     expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Editable table' }));
@@ -92,7 +110,7 @@ describe('SettingsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Duplicate' })[0]);
-    expect(screen.getByDisplayValue('New template copy')).toBeInTheDocument();
+    expect(screen.getByLabelText('Template name')).toHaveValue('New template copy');
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
     expect(screen.getByText('New template')).toBeInTheDocument();
