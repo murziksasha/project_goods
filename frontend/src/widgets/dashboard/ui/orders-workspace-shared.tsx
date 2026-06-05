@@ -428,12 +428,11 @@ export const finalRepairStatuses: RepairStatus[] = [
   'issuedWithoutRepair',
 ];
 export const stockLockedRepairStatuses = new Set<RepairStatus>([
-  'issued',
   'clientRejected',
   'issuedWithoutRepair',
 ]);
 export const stockLockedRepairStatusMessage =
-  'Cannot change repair status to final while a warehouse serial is shipped. Return shipped products back to stock first.';
+  'Refund the client for bound products and return them to stock before using a refusal status.';
 export const emptyOrdersFilters: OrdersFilters = {
   statuses: [],
   orderNumber: '',

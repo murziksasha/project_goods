@@ -276,7 +276,7 @@ export const PaymentModal = ({
               }
               title={
                 isRepairTargetStatusBlockedByStock
-                  ? 'Return shipped products to stock first.'
+                  ? 'Refund client payment for bound products and return them to stock first.'
                   : undefined
               }
             >
@@ -294,9 +294,9 @@ export const PaymentModal = ({
               title={
                 isIssueWithoutPaymentBlocked
                   ? isRepairTargetStatusBlockedByStock
-                    ? 'Return shipped products to stock first.'
+                    ? 'Refund client payment for bound products and return them to stock first.'
                     : isRepairOrder(sale)
-                    ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+                    ? 'Repair orders with products can be issued after full payment.'
                     : 'Issued sale requires payment to cashbox unless total is 0.'
                   : undefined
               }
