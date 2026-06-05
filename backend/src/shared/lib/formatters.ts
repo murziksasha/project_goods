@@ -24,6 +24,11 @@ export const formatProduct = (product: ProductDocument) => {
     purchasePlace: product.purchasePlace,
     warehouseId: product.warehouseId ?? '',
     locationId: product.locationId ?? '',
+    supplierOrderId: product.supplierOrderId ?? '',
+    supplierOrderItemIndex:
+      typeof product.supplierOrderItemIndex === 'number'
+        ? product.supplierOrderItemIndex
+        : undefined,
     purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,

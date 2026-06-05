@@ -36,6 +36,21 @@ This document defines current warehouse requirements for stock balances, receipt
 3. fallback `-`
 - Search mode `By supplier`, the supplier filter, and the `Supplier` column must use this same priority so the visible value and filtering behavior stay consistent.
 
+### 2.1) Supplier Order Provenance Is Unit-Level
+- `Supplier order` in `Stock balances` is provenance of a конкретная складская единица (`Product` row / serial), not of a product name or catalog model.
+- Source of truth for the supplier-order badge/link:
+1. `product.supplierOrderId`
+2. `product.supplierOrderItemIndex`
+- The badge is shown only when both fields point to an existing supplier order and exact supplier-order item.
+- Forbidden matching logic:
+1. product name equality or similarity
+2. article equality
+3. `catalogProductId` shared by supplier-order items
+4. substring/fuzzy matching between supplier-order item names and stock product names
+- If a stock `Product` is absent from `Stock balances` by regular stock visibility rules (for example sold/issued stock), its supplier-order badge is not displayed there.
+- If a legacy/historical stock row has no explicit supplier-order provenance fields, `Supplier order` must stay empty; the UI must not backfill or guess automatically.
+- Take-on-charge must persist `supplierOrderId` and `supplierOrderItemIndex` on every created serialized `Product` row.
+
 ### 3) Product Warehouse Mapping Priority
 - Stock display mapping priority:
 1. `product.warehouseId` + `product.locationId`

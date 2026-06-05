@@ -34,6 +34,7 @@ import {
   mergeSupplierOrderItemUpdate,
 } from '../model/supplier-order-utils';
 import {
+  buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
   filterStockProducts,
 } from '../model/stock-balance';
@@ -70,7 +71,6 @@ import {
   type ServiceCenterFormState,
   type SettingsTab,
   type StockColumnKey,
-  type SupplierOrderLink,
   type TransferFormState,
   type TransferHistoryRow,
   type WarehouseColumnVisibility,
@@ -699,51 +699,8 @@ export const WarehousePanel = ({
     }, {});
   }, [products, sales]);
   const supplierOrdersByProductId = useMemo(() => {
-    const byCatalogProductName = catalogProducts.reduce<
-      Record<string, string[]>
-    >((acc, catalogProduct) => {
-      const key = catalogProduct.name.trim().toLowerCase();
-      if (!key) return acc;
-      acc[key] = [...(acc[key] ?? []), catalogProduct.id];
-      return acc;
-    }, {});
-
-    const byCatalogProductId = supplierOrders.reduce<
-      Record<string, SupplierOrderLink[]>
-    >((acc, order) => {
-      order.items.forEach((item) => {
-        if (!item.catalogProductId) return;
-        acc[item.catalogProductId] = [
-          ...(acc[item.catalogProductId] ?? []),
-          {
-            order,
-            itemIndex: item.itemIndex,
-            displayNumber: buildSupplierOrderItemNumber(
-              order,
-              item.itemIndex,
-            ),
-          },
-        ];
-      });
-      return acc;
-    }, {});
-
-    return products.reduce<Record<string, SupplierOrderLink[]>>(
-      (acc, product) => {
-        const matchedCatalogIds =
-          byCatalogProductName[product.name.trim().toLowerCase()] ?? [];
-        const orderMap = new Map<string, SupplierOrderLink>();
-        matchedCatalogIds.forEach((catalogId) => {
-          (byCatalogProductId[catalogId] ?? []).forEach((link) =>
-            orderMap.set(`${link.order.id}-${link.itemIndex}`, link),
-          );
-        });
-        acc[product.id] = Array.from(orderMap.values());
-        return acc;
-      },
-      {},
-    );
-  }, [catalogProducts, products, supplierOrders]);
+    return buildSupplierOrdersByProductId({ products, supplierOrders });
+  }, [products, supplierOrders]);
   const filteredProducts = useMemo(
     () =>
       filterStockProducts({

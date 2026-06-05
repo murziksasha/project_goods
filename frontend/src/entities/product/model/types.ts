@@ -13,6 +13,8 @@ export type Product = {
   purchasePlace: string;
   warehouseId?: string;
   locationId?: string;
+  supplierOrderId?: string;
+  supplierOrderItemIndex?: number;
   purchaseDate: string | null;
   warrantyPeriod: number;
   isActive: boolean;

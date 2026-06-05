@@ -482,6 +482,8 @@ export const takeOnChargeSupplierOrder = async (
         purchasePlace: matchedWarehouse?.name ?? supplier?.name ?? '',
         warehouseId: matchedWarehouse?.id ?? '',
         locationId: matchedLocation?.id ?? '',
+        supplierOrderId: supplierOrderId,
+        supplierOrderItemIndex: item.itemIndex,
         purchaseDate: new Date(),
         warrantyPeriod: 0,
         isActive: true,

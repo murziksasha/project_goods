@@ -71,6 +71,17 @@ export const productSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    supplierOrderId: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
+    supplierOrderItemIndex: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     purchaseDate: {
       type: Date,
       default: null,
