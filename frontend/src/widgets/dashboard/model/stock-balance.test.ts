@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
+  buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
   filterStockProducts,
   getStockSupplierLabel,
@@ -57,6 +59,39 @@ const sale = (overrides: Partial<Sale>): Sale => ({
   manager: null,
   master: null,
   issuedBy: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
+const supplierOrder = (
+  overrides: Partial<SupplierOrder> = {},
+): SupplierOrder => ({
+  id: 'so-1',
+  orderBaseId: 'SO-1',
+  supplierId: 'supplier-1',
+  supplierName: 'Linked supplier',
+  deliveryDate: '2026-01-01T00:00:00.000Z',
+  supplyType: 'Local',
+  number: 'SO-1',
+  note: '',
+  createdBy: 'Owner',
+  status: 'stocked',
+  paymentStatus: 'pending',
+  receiptStatus: 'received',
+  total: 100,
+  paid: 0,
+  items: [
+    {
+      lineId: 'line-1',
+      itemIndex: 0,
+      catalogProductId: 'catalog-1',
+      productName: 'Airmouse G10S',
+      quantity: 1,
+      price: 100,
+      receiptStatus: 'received',
+    },
+  ],
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -189,5 +224,74 @@ describe('stock balance', () => {
       ]),
     ).toBe('Linked supplier');
     expect(getStockSupplierLabel(stockProduct, [])).toBe('Legacy supplier');
+  });
+
+  it('links supplier order only through exact product provenance', () => {
+    const products = [
+      product({
+        id: 'p-linked',
+        supplierOrderId: 'so-1',
+        supplierOrderItemIndex: 0,
+      }),
+      product({ id: 'p-legacy', name: 'Airmouse G10S' }),
+    ];
+    const links = buildSupplierOrdersByProductId({
+      products,
+      supplierOrders: [supplierOrder()],
+    });
+
+    expect(links['p-linked'].map((link) => link.displayNumber)).toEqual([
+      'SO-1',
+    ]);
+    expect(links['p-legacy']).toEqual([]);
+  });
+
+  it('does not infer supplier order from matching name or catalog product', () => {
+    const products = [
+      product({
+        id: 'p-new',
+        name: 'Patchcord 1m',
+        supplierOrderId: '',
+        supplierOrderItemIndex: undefined,
+      }),
+    ];
+    const links = buildSupplierOrdersByProductId({
+      products,
+      supplierOrders: [
+        supplierOrder({
+          id: 'so-old',
+          number: 'SO-OLD',
+          orderBaseId: 'SO-OLD',
+          items: [
+            {
+              lineId: 'line-old',
+              itemIndex: 0,
+              catalogProductId: 'catalog-patchcord',
+              productName: 'Patchcord 1m',
+              quantity: 1,
+              price: 35,
+              receiptStatus: 'received',
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(links['p-new']).toEqual([]);
+  });
+
+  it('ignores product provenance that points to a missing supplier order item', () => {
+    const links = buildSupplierOrdersByProductId({
+      products: [
+        product({
+          id: 'p-linked',
+          supplierOrderId: 'so-1',
+          supplierOrderItemIndex: 9,
+        }),
+      ],
+      supplierOrders: [supplierOrder()],
+    });
+
+    expect(links['p-linked']).toEqual([]);
   });
 });

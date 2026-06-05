@@ -116,7 +116,7 @@ export type SupplierOrderLink = {
   order: SupplierOrder;
   itemIndex: number;
   displayNumber: string;
-} & StockSupplierOrderLink;
+} & StockSupplierOrderLink<SupplierOrder>;
 export type WarehouseItem = {
   id: string;
   name: string;

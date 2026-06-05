@@ -1,6 +1,7 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import { buildSupplierOrderItemNumber } from './supplier-order-utils';
 
 export type StockSearchMode =
   | 'serial'
@@ -35,8 +36,13 @@ export type StockWarehouseMeta = {
   locationName: string;
 };
 
-export type StockSupplierOrderLink = {
-  order: Pick<SupplierOrder, 'id' | 'supplierName'>;
+export type StockSupplierOrderLink<
+  TOrder extends Pick<SupplierOrder, 'id' | 'supplierName'> = Pick<
+    SupplierOrder,
+    'id' | 'supplierName'
+  >,
+> = {
+  order: TOrder;
   itemIndex: number;
   displayNumber: string;
 };
@@ -150,6 +156,49 @@ export const getStockSupplierLabel = (
   product: Product,
   links: StockSupplierOrderLink[] = [],
 ) => links[0]?.order.supplierName || product.purchasePlace || '-';
+
+export const buildSupplierOrdersByProductId = ({
+  products,
+  supplierOrders,
+}: {
+  products: Product[];
+  supplierOrders: SupplierOrder[];
+}) => {
+  const supplierOrderById = new Map(
+    supplierOrders.map((order) => [order.id, order]),
+  );
+
+  return products.reduce<Record<string, StockSupplierOrderLink<SupplierOrder>[]>>(
+    (acc, product) => {
+      const supplierOrderId = product.supplierOrderId?.trim();
+      const supplierOrderItemIndex = product.supplierOrderItemIndex;
+      if (!supplierOrderId || typeof supplierOrderItemIndex !== 'number') {
+        acc[product.id] = [];
+        return acc;
+      }
+
+      const order = supplierOrderById.get(supplierOrderId);
+      const item = order?.items.find(
+        (candidate) => candidate.itemIndex === supplierOrderItemIndex,
+      );
+      acc[product.id] =
+        order && item
+          ? [
+              {
+                order,
+                itemIndex: supplierOrderItemIndex,
+                displayNumber: buildSupplierOrderItemNumber(
+                  order,
+                  supplierOrderItemIndex,
+                ),
+              },
+            ]
+          : [];
+      return acc;
+    },
+    {},
+  );
+};
 
 export const getStockSearchText = (
   product: Product,
