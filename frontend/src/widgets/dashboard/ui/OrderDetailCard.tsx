@@ -57,6 +57,7 @@ import {
   getSupplierOrderStatusLabel,
   hasSaleReturnObligations,
   isProductAvailableForOrder,
+  isRepairDevicePlaceholderLineItem,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
   isSystemTimelineMessage,
@@ -292,17 +293,35 @@ export const OrderDetailCard = ({
     statusDraft,
     lineItems,
   );
+  const hasRepairProductLineItems =
+    isRepairOrder(sale) &&
+    lineItems
+      .filter((item) => !isRepairDevicePlaceholderLineItem(sale, item))
+      .some((item) => item.kind === 'product' && item.quantity > 0);
+  const isRepairIssuedDraftBlockedByPayment =
+    hasRepairProductLineItems &&
+    statusDraft === 'issued' &&
+    getRemainingPayment(sale, paidAmount, lineItems) > 0;
   const isSaleReturnStatusDraftBlocked =
     !isRepairOrder(sale) &&
     statusDraft === 'returned' &&
     hasSaleReturnObligations(sale, lineItems);
   const isStatusDraftBlocked =
-    isStatusDraftLockedByStock || isSaleReturnStatusDraftBlocked;
+    isStatusDraftLockedByStock ||
+    isRepairIssuedDraftBlockedByPayment ||
+    isSaleReturnStatusDraftBlocked;
   const getStatusOptionBlockedReason = (statusOption: OrderStatus) => {
     if (
       isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
     ) {
-      return 'Return shipped products to stock first.';
+      return 'Refund client payment for bound products and return them to stock first.';
+    }
+    if (
+      hasRepairProductLineItems &&
+      statusOption === 'issued' &&
+      getRemainingPayment(sale, paidAmount, lineItems) > 0
+    ) {
+      return 'Accept full payment before issuing attached products.';
     }
     if (
       !isRepairOrder(sale) &&
@@ -545,7 +564,9 @@ export const OrderDetailCard = ({
               isStatusDraftBlocked
                 ? isSaleReturnStatusDraftBlocked
                   ? 'Return products to stock and refund client payment first.'
-                  : 'Return shipped products to stock first.'
+                  : isRepairIssuedDraftBlockedByPayment
+                    ? 'Accept full payment before issuing attached products.'
+                    : 'Refund client payment for bound products and return them to stock first.'
                 : undefined
             }
           >
@@ -671,7 +692,9 @@ export const OrderDetailCard = ({
                       isStatusDraftBlocked
                         ? isSaleReturnStatusDraftBlocked
                           ? 'Return products to stock and refund client payment first.'
-                          : 'Return shipped products to stock first.'
+                          : isRepairIssuedDraftBlockedByPayment
+                            ? 'Accept full payment before issuing attached products.'
+                            : 'Refund client payment for bound products and return them to stock first.'
                         : undefined
                     }
                     onClick={async () => {

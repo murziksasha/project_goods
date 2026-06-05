@@ -442,7 +442,12 @@ const assertWorkspaceState = (
   kind: 'repair' | 'sale',
   status: string,
   paidAmount: number,
-  lineItems: Array<{ kind: string; price: number; quantity: number }>,
+  lineItems: Array<{
+    kind: string;
+    price: number;
+    quantity: number;
+    serialNumbers?: string[];
+  }>,
   discount?: { mode?: string; value?: number } | null,
 ) => {
   if (!Number.isFinite(paidAmount) || paidAmount < 0) {
@@ -455,6 +460,24 @@ const assertWorkspaceState = (
   }
 
   const hasAttachedProducts = lineItems.some((item) => item.kind === 'product');
+  const hasBoundProductSerials = lineItems.some(
+    (item) =>
+      item.kind === 'product' &&
+      (item.serialNumbers ?? []).some((serial) => String(serial ?? '').trim()),
+  );
+  const normalizedStatus = status.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  const isRepairRefusalStatus =
+    kind === 'repair' &&
+    (normalizedStatus === 'clientrejected' ||
+      normalizedStatus === 'issuedwithoutrepair' ||
+      normalizedStatus === 'issuedwithoutrepairing');
+
+  if (isRepairRefusalStatus && hasBoundProductSerials) {
+    throw new Error(
+      'Refund client payment for bound products and return them to stock first.',
+    );
+  }
+
   const isClosingStatus =
     kind === 'repair'
       ? status === 'issued' || status === 'issuedWithoutRepair'

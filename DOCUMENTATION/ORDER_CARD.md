@@ -25,6 +25,8 @@
   - `client rejected`
   - `issued without repair`
 - For any other saved status, `Issued` employee is cleared.
+- If attached product line items are not fully paid, saving status `issued` is blocked.
+- If product line items still have bound warehouse serials, saving status `client rejected` or `issued without repair` is blocked until the client is refunded for those serials and the serials are returned/unbound to stock.
 
 ## Live Feed
 

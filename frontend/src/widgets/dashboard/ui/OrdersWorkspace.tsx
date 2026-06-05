@@ -1742,7 +1742,7 @@ export const OrdersWorkspace = ({
     ) {
       setWarningMessage(
         isRepairOrder(paymentSale)
-          ? 'For repair orders with products, issue without payment is blocked until products are returned to stock.'
+          ? 'Repair orders with products can be issued after full payment.'
           : 'Product shipped but payment has not been received.',
       );
       return;
@@ -2101,12 +2101,22 @@ export const OrdersWorkspace = ({
         onError(stockLockedRepairStatusMessage);
         return;
       }
+      const lineItems = getLineItems(sale);
+      if (
+        isRepairOrder(sale) &&
+        payload.status === 'issued' &&
+        lineItems.some((item) => item.kind === 'product') &&
+        getRemainingPayment(sale, getPaidAmount(sale), lineItems) > 0
+      ) {
+        onError('Accept full payment before issuing attached products.');
+        return;
+      }
       if (
         !isRepairOrder(sale) &&
         payload.status === 'returned' &&
-        hasSaleReturnObligations(sale, getLineItems(sale))
+        hasSaleReturnObligations(sale, lineItems)
       ) {
-        if (getLineItems(sale).some((item) => item.kind === 'product')) {
+        if (lineItems.some((item) => item.kind === 'product')) {
           await openReturnSaleModal(sale);
         } else {
           onError(
@@ -2879,7 +2889,7 @@ export const OrdersWorkspace = ({
                       openStatusSale,
                       statusOption.key,
                     )
-                      ? 'Return shipped products to stock first.'
+                      ? 'Refund client payment for bound products and return them to stock first.'
                       : undefined
                   }
                   onClick={() => {
