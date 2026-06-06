@@ -2,22 +2,15 @@ import { Router } from 'express';
 import { getSettings, updateSettings } from '../domain/settings/service';
 import { getBearerToken, requireOwnerByToken } from '../domain/auth/service';
 import type { SettingsPayload } from '../domain/shared/types';
+import { asyncHandler } from '../shared/lib/http';
 
 export const settingsRouter = Router();
 
-settingsRouter.get('/settings', async (_req, res, next) => {
-  try {
-    res.json(await getSettings());
-  } catch (error) {
-    next(error);
-  }
-});
+settingsRouter.get('/settings', asyncHandler(async (_req, res) => {
+  res.json(await getSettings());
+}));
 
-settingsRouter.put('/settings', async (req, res, next) => {
-  try {
-    await requireOwnerByToken(getBearerToken(req.headers.authorization));
-    res.json(await updateSettings(req.body as SettingsPayload));
-  } catch (error) {
-    next(error);
-  }
-});
+settingsRouter.put('/settings', asyncHandler(async (req, res) => {
+  await requireOwnerByToken(getBearerToken(req.headers.authorization));
+  res.json(await updateSettings(req.body as SettingsPayload));
+}));

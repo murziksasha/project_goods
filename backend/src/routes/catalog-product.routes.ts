@@ -6,42 +6,27 @@ import {
   updateCatalogProduct,
   type CatalogProductPayload,
 } from '../domain/catalog-product/service';
+import { asyncHandler, routeParam } from '../shared/lib/http';
 
 export const catalogProductRouter = Router();
 
-catalogProductRouter.get('/catalog-products', async (req, res, next) => {
-  try {
-    res.json(await listCatalogProducts(req.query.query));
-  } catch (error) {
-    next(error);
-  }
-});
+catalogProductRouter.get('/catalog-products', asyncHandler(async (req, res) => {
+  res.json(await listCatalogProducts(req.query.query));
+}));
 
-catalogProductRouter.post('/catalog-products', async (req, res, next) => {
-  try {
-    res.status(201).json(await createCatalogProduct(req.body as CatalogProductPayload));
-  } catch (error) {
-    next(error);
-  }
-});
+catalogProductRouter.post('/catalog-products', asyncHandler(async (req, res) => {
+  res.status(201).json(await createCatalogProduct(req.body as CatalogProductPayload));
+}));
 
-catalogProductRouter.put('/catalog-products/:catalogProductId', async (req, res, next) => {
-  try {
-    res.json(
-      await updateCatalogProduct(
-        req.params.catalogProductId,
-        req.body as CatalogProductPayload,
-      ),
-    );
-  } catch (error) {
-    next(error);
-  }
-});
+catalogProductRouter.put('/catalog-products/:catalogProductId', asyncHandler(async (req, res) => {
+  res.json(
+    await updateCatalogProduct(
+      routeParam(req, 'catalogProductId'),
+      req.body as CatalogProductPayload,
+    ),
+  );
+}));
 
-catalogProductRouter.delete('/catalog-products/:catalogProductId', async (req, res, next) => {
-  try {
-    res.json(await deleteCatalogProduct(req.params.catalogProductId));
-  } catch (error) {
-    next(error);
-  }
-});
+catalogProductRouter.delete('/catalog-products/:catalogProductId', asyncHandler(async (req, res) => {
+  res.json(await deleteCatalogProduct(routeParam(req, 'catalogProductId')));
+}));

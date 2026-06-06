@@ -2,120 +2,24 @@ import mongoose from 'mongoose';
 import {
   Cashbox,
   FinanceTransaction,
-  financeCurrencies,
-  transactionTypes,
   type CashboxDocument,
   type FinanceCurrency,
   type FinanceTransactionDocument,
-  type TransactionType,
 } from './model';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
-
-type CashboxPayload = {
-  name?: unknown;
-};
-type UpdateCashboxPayload = {
-  name?: unknown;
-  isArchived?: unknown;
-};
-
-type TransactionPayload = {
-  type?: unknown;
-  amount?: unknown;
-  currency?: unknown;
-  fromCashboxId?: unknown;
-  toCashboxId?: unknown;
-  note?: unknown;
-  transactionDate?: unknown;
-};
+import { formatCashbox, formatTransaction } from './formatters';
+import {
+  normalizeAmount,
+  normalizeCurrency,
+  normalizeDate,
+  normalizeName,
+  normalizeType,
+  type CashboxPayload,
+  type TransactionPayload,
+  type UpdateCashboxPayload,
+} from './normalizers';
 
 const defaultCashboxName = 'Основная';
-
-const normalizeName = (value: unknown) => String(value ?? '').trim();
-
-const normalizeAmount = (value: unknown) => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('Transaction amount must be greater than 0.');
-  }
-
-  return Math.round(amount * 100) / 100;
-};
-
-const normalizeCurrency = (value: unknown): FinanceCurrency => {
-  const currency = String(value ?? 'UAH').toUpperCase();
-  if (!financeCurrencies.includes(currency as FinanceCurrency)) {
-    throw new Error('Unsupported transaction currency.');
-  }
-
-  return currency as FinanceCurrency;
-};
-
-const normalizeType = (value: unknown): TransactionType => {
-  const type = String(value ?? '');
-  if (!transactionTypes.includes(type as TransactionType)) {
-    throw new Error('Unsupported transaction type.');
-  }
-
-  return type as TransactionType;
-};
-
-const normalizeDate = (value: unknown) => {
-  if (!value) return new Date();
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) {
-    throw new Error('Invalid transaction date.');
-  }
-
-  return date;
-};
-
-const formatCashbox = (cashbox: CashboxDocument) => ({
-  id: cashbox._id.toString(),
-  name: cashbox.name,
-  balances: {
-    UAH: cashbox.balances?.UAH ?? 0,
-    USD: cashbox.balances?.USD ?? 0,
-  },
-  isDefault: cashbox.isDefault,
-  isArchived: cashbox.isArchived,
-  createdAt: cashbox.createdAt.toISOString(),
-  updatedAt: cashbox.updatedAt.toISOString(),
-});
-
-const formatTransaction = (transaction: FinanceTransactionDocument) => ({
-  id: transaction._id.toString(),
-  type: transaction.type,
-  amount: transaction.amount,
-  currency: transaction.currency,
-  fromCashbox: transaction.fromCashbox
-    ? {
-        id: transaction.fromCashbox.toString(),
-        name: transaction.fromSnapshot?.name ?? '',
-      }
-    : null,
-  toCashbox: transaction.toCashbox
-    ? {
-        id: transaction.toCashbox.toString(),
-        name: transaction.toSnapshot?.name ?? '',
-      }
-    : null,
-  note: transaction.note,
-  transactionDate: transaction.transactionDate.toISOString(),
-  status: transaction.status ?? 'active',
-  isCancellation: Boolean(transaction.isCancellation),
-  cancelsTransactionId: transaction.cancelsTransaction
-    ? transaction.cancelsTransaction.toString()
-    : undefined,
-  cancellationTransactionId: transaction.cancellationTransaction
-    ? transaction.cancellationTransaction.toString()
-    : undefined,
-  cancelledAt: transaction.cancelledAt
-    ? transaction.cancelledAt.toISOString()
-    : undefined,
-  createdAt: transaction.createdAt.toISOString(),
-  updatedAt: transaction.updatedAt.toISOString(),
-});
 
 export const ensureDefaultCashbox = async () => {
   let cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();

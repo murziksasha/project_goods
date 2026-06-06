@@ -13,6 +13,17 @@ import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
 import { upsertCatalogProducts } from '../catalog-product/service';
+import {
+  getStockDeltas,
+  getStockLines,
+  type SaleLineItem,
+  type StockLine,
+} from './stock';
+import {
+  assertLineItemCatalogProductIds,
+  assertSerialNumbersNotBoundToOtherSales,
+  assertSerializedLineItemsAreAtomic,
+} from './validators';
 
 const ensureFreeStock = async (
   productId: mongoose.Types.ObjectId | string,
@@ -67,223 +78,6 @@ const receiveProductToWarehouse = async (
   }
 
   return product;
-};
-
-type StockLine = {
-  productId: string;
-  quantity: number;
-};
-
-type SaleLineItem = {
-  id: string;
-  kind: string;
-  productId?: string | mongoose.Types.ObjectId | null;
-  catalogProductId?: string | mongoose.Types.ObjectId | null;
-  serviceId?: string | mongoose.Types.ObjectId | null;
-  name: string;
-  price: number;
-  quantity: number;
-  warrantyPeriod?: number;
-  serialNumbers?: string[];
-};
-
-const isStockCommittedSaleStatus = (status: string) => {
-  const normalized = status.trim().toLowerCase();
-  return (
-    normalized === 'paid' ||
-    normalized === 'issued'
-  );
-};
-
-const isStockCommittedRepairStatus = (status: string) => {
-  const normalized = status.trim().toLowerCase();
-  return (
-    normalized === 'issued' ||
-    normalized === 'issuedwithoutrepair'
-  );
-};
-
-const addStockQuantity = (
-  stockMap: Map<string, number>,
-  productId: string,
-  quantity: number,
-) => {
-  stockMap.set(productId, (stockMap.get(productId) ?? 0) + quantity);
-};
-
-const getStockLines = (
-  kind: 'repair' | 'sale',
-  status: string,
-  lineItems: SaleLineItem[],
-  fallbackQuantity: number,
-  fallbackProductId?: mongoose.Types.ObjectId | string | null,
-): StockLine[] => {
-  const isStockCommitted =
-    kind === 'sale'
-      ? isStockCommittedSaleStatus(status)
-      : isStockCommittedRepairStatus(status);
-
-  if (!isStockCommitted) {
-    return [];
-  }
-
-  const stockMap = new Map<string, number>();
-
-  lineItems.forEach((item) => {
-    const productId = item.productId?.toString();
-
-    if (item.kind === 'product' && productId) {
-      addStockQuantity(stockMap, productId, item.quantity);
-    }
-  });
-
-  const normalizedFallbackProductId = fallbackProductId?.toString().trim();
-  if (stockMap.size === 0 && normalizedFallbackProductId) {
-    addStockQuantity(stockMap, normalizedFallbackProductId, fallbackQuantity);
-  }
-
-  return Array.from(stockMap.entries()).map(([productId, quantity]) => ({
-    productId,
-    quantity,
-  }));
-};
-
-const assertSerialNumbersNotBoundToOtherSales = async (
-  saleId: string,
-  lineItems: SaleLineItem[],
-) => {
-  const requestedSerials = Array.from(
-    new Set(
-      lineItems
-        .filter((item) => item.kind === 'product')
-        .flatMap((item) => item.serialNumbers ?? [])
-        .map((serial) => String(serial ?? '').trim().toUpperCase())
-        .filter(Boolean),
-    ),
-  );
-
-  if (requestedSerials.length === 0) return;
-
-  const query = {
-    ...(saleId ? { _id: { $ne: saleId } } : {}),
-    'lineItems.serialNumbers.0': { $exists: true },
-  };
-
-  const otherSales = await Sale.find(query)
-    .select({ lineItems: 1 })
-    .lean<SaleDocument[]>();
-
-  const occupied = new Set<string>();
-  otherSales.forEach((sale) => {
-    (sale.lineItems ?? []).forEach((item) => {
-      if (item.kind !== 'product') return;
-      (item.serialNumbers ?? [])
-        .map((serial) => String(serial ?? '').trim().toUpperCase())
-        .filter(Boolean)
-        .forEach((serial) => occupied.add(serial));
-    });
-  });
-
-  const duplicates = requestedSerials.filter((serial) =>
-    occupied.has(serial),
-  );
-  if (duplicates.length > 0) {
-    throw new Error(
-      `Serial numbers are already bound to another order: ${duplicates.join(', ')}`,
-    );
-  }
-};
-
-const assertSerializedLineItemsAreAtomic = async (
-  lineItems: SaleLineItem[],
-) => {
-  for (const item of lineItems) {
-    if (item.kind !== 'product' || !item.productId) continue;
-
-    const serialNumbers = Array.from(
-      new Set(
-        (item.serialNumbers ?? [])
-          .map((serial) => String(serial ?? '').trim().toUpperCase())
-          .filter(Boolean),
-      ),
-    );
-
-    if (serialNumbers.length > 0) {
-      if (serialNumbers.length !== 1 || item.quantity !== 1) {
-        throw new Error(
-          'Serialized product line items must contain exactly one serial number and quantity 1.',
-        );
-      }
-
-      isValidObjectIdOrThrow(item.productId.toString(), 'lineItems.productId');
-      const product = await Product.findById(item.productId).lean<ProductDocument | null>();
-      if (!product) {
-        throw new Error('Product not found.');
-      }
-
-      const productSerial = String(product.serialNumber ?? '').trim().toUpperCase();
-      if (!productSerial || productSerial !== serialNumbers[0]) {
-        throw new Error(
-          'Serialized product line item must reference the matching stock product.',
-        );
-      }
-      continue;
-    }
-
-    if (item.quantity > 1) {
-      isValidObjectIdOrThrow(item.productId.toString(), 'lineItems.productId');
-      const product = await Product.findById(item.productId).lean<ProductDocument | null>();
-      const productSerial = String(product?.serialNumber ?? '').trim();
-      if (productSerial) {
-        throw new Error(
-          'Serialized stock products cannot be sold with quantity greater than 1.',
-        );
-      }
-    }
-  }
-};
-
-const assertLineItemCatalogProductIds = async (
-  lineItems: SaleLineItem[],
-) => {
-  const catalogProductIds = Array.from(
-    new Set(
-      lineItems
-        .map((item) => item.catalogProductId?.toString().trim())
-        .filter((value): value is string => Boolean(value)),
-    ),
-  );
-
-  if (catalogProductIds.length === 0) return;
-
-  catalogProductIds.forEach((catalogProductId) =>
-    isValidObjectIdOrThrow(catalogProductId, 'lineItems.catalogProductId'),
-  );
-
-  const count = await CatalogProduct.countDocuments({
-    _id: { $in: catalogProductIds },
-  });
-  if (count !== catalogProductIds.length) {
-    throw new Error('Catalog product not found.');
-  }
-};
-
-const getStockDeltas = (
-  currentLines: StockLine[],
-  nextLines: StockLine[],
-) => {
-  const deltaMap = new Map<string, number>();
-
-  currentLines.forEach((line) => {
-    addStockQuantity(deltaMap, line.productId, -line.quantity);
-  });
-  nextLines.forEach((line) => {
-    addStockQuantity(deltaMap, line.productId, line.quantity);
-  });
-
-  return Array.from(deltaMap.entries())
-    .map(([productId, quantity]) => ({ productId, quantity }))
-    .filter((line) => line.quantity !== 0);
 };
 
 const assertStockDeltasAvailable = async (deltas: StockLine[]) => {
