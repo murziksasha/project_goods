@@ -116,6 +116,8 @@ export const useDashboardEffects = ({
             companyAddress: settingsResult.value.companyAddress,
             companyId: settingsResult.value.companyId,
             companyIban: settingsResult.value.companyIban,
+            companyEmail: settingsResult.value.companyEmail,
+            companySite: settingsResult.value.companySite,
             printForms: settingsResult.value.printForms,
             orderDefaults: settingsResult.value.orderDefaults,
             numbering: settingsResult.value.numbering,

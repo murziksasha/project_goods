@@ -24,6 +24,11 @@ export const formatProduct = (product: ProductDocument) => {
     purchasePlace: product.purchasePlace,
     warehouseId: product.warehouseId ?? '',
     locationId: product.locationId ?? '',
+    supplierOrderId: product.supplierOrderId ?? '',
+    supplierOrderItemIndex:
+      typeof product.supplierOrderItemIndex === 'number'
+        ? product.supplierOrderItemIndex
+        : undefined,
     purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,
@@ -36,6 +41,10 @@ export const formatClient = (client: ClientDocument) => ({
   id: client._id.toString(),
   phone: client.phone,
   name: client.name,
+  email: client.email ?? '',
+  address: client.address ?? '',
+  registrationId: client.registrationId ?? '',
+  iban: client.iban ?? '',
   note: client.note,
   status: client.status,
   createdAt: client.createdAt.toISOString(),

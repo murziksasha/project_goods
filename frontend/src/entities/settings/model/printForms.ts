@@ -1,4 +1,10 @@
-import type { PrintForm } from './types';
+import type {
+  PrintForm,
+  PrintLayoutBlock,
+  PrintLayoutField,
+  PrintLayoutTableColumn,
+  PrintLayoutTableRow,
+} from './types';
 
 export type LabelSizePreset = {
   id: string;
@@ -84,7 +90,11 @@ export type PrintFormVariable =
   | 'company_address'
   | 'company_id'
   | 'company_iban'
+  | 'company_email'
+  | 'company_site'
   | 'customer_reg_id'
+  | 'customer_address'
+  | 'customer_iban'
   | 'due_date'
   | 'net_amount'
   | 'vat_amount'
@@ -107,78 +117,82 @@ export const printFormVariableGroups: Array<{
   variables: Array<{ key: PrintFormVariable; label: string }>;
 }> = [
   {
-    title: 'Замовлення',
+    title: 'Order',
     variables: [
-      { key: 'id', label: 'ID замовлення' },
-      { key: 'orderNumber', label: 'Номер замовлення' },
-      { key: 'date', label: 'Дата створення' },
-      { key: 'createdAt', label: 'Дата та час створення' },
-      { key: 'due_date', label: 'Сплатити до' },
-      { key: 'status', label: 'Статус' },
+      { key: 'id', label: 'Order ID' },
+      { key: 'orderNumber', label: 'Order number' },
+      { key: 'date', label: 'Created date' },
+      { key: 'createdAt', label: 'Created date and time' },
+      { key: 'due_date', label: 'Due date' },
+      { key: 'status', label: 'Status' },
     ],
   },
   {
-    title: 'Клієнт',
+    title: 'Client',
     variables: [
-      { key: 'clientName', label: 'ПІБ або назва клієнта' },
-      { key: 'clientPhone', label: 'Телефон клієнта' },
-      { key: 'customer_reg_id', label: 'ЄДРПОУ або ІПН клієнта' },
+      { key: 'clientName', label: 'Client name' },
+      { key: 'clientPhone', label: 'Client phone' },
+      { key: 'customer_reg_id', label: 'Client registration ID' },
+      { key: 'customer_address', label: 'Client address' },
+      { key: 'customer_iban', label: 'Client IBAN' },
     ],
   },
   {
-    title: 'Пристрій',
+    title: 'Device',
     variables: [
-      { key: 'deviceName', label: 'Пристрій' },
-      { key: 'serialNumber', label: 'Серійний номер' },
-      { key: 'article', label: 'Артикул' },
-      { key: 'defect', label: 'Несправність' },
-      { key: 'comment', label: 'Коментар' },
-      { key: 'note', label: 'Примітка' },
+      { key: 'deviceName', label: 'Device' },
+      { key: 'serialNumber', label: 'Serial number' },
+      { key: 'article', label: 'Article' },
+      { key: 'defect', label: 'Defect' },
+      { key: 'comment', label: 'Comment' },
+      { key: 'note', label: 'Note' },
     ],
   },
   {
-    title: 'Фінанси',
+    title: 'Finance',
     variables: [
-      { key: 'total', label: 'Сума' },
-      { key: 'paid', label: 'Сплачено' },
-      { key: 'toPay', label: 'До сплати' },
-      { key: 'currency', label: 'Валюта' },
-      { key: 'discount', label: 'Знижка' },
-      { key: 'net_amount', label: 'Разом без ПДВ' },
-      { key: 'vat_amount', label: 'ПДВ' },
-      { key: 'total_amount', label: 'Всього з ПДВ' },
-      { key: 'total_written', label: 'Сума прописом' },
+      { key: 'total', label: 'Total' },
+      { key: 'paid', label: 'Paid' },
+      { key: 'toPay', label: 'To pay' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'discount', label: 'Discount' },
+      { key: 'net_amount', label: 'Total without VAT' },
+      { key: 'vat_amount', label: 'VAT' },
+      { key: 'total_amount', label: 'Total with VAT' },
+      { key: 'total_written', label: 'Total in words' },
     ],
   },
   {
-    title: 'Команда',
+    title: 'Team',
     variables: [
-      { key: 'managerName', label: 'Менеджер' },
-      { key: 'masterName', label: 'Майстер' },
+      { key: 'managerName', label: 'Manager' },
+      { key: 'masterName', label: 'Master' },
     ],
   },
   {
-    title: 'Сервіс і склад',
+    title: 'Company and warehouse',
     variables: [
-      { key: 'company', label: 'Назва компанії' },
-      { key: 'company_address', label: 'Адреса компанії' },
-      { key: 'company_id', label: 'ЄДРПОУ або ІПН компанії' },
-      { key: 'company_iban', label: 'IBAN компанії' },
-      { key: 'warehouse', label: 'Склад' },
-      { key: 'warehouse_address', label: 'Адреса складу' },
-      { key: 'warehouse_phone', label: 'Телефон складу' },
-      { key: 'seller_occupation', label: 'Посада підписанта' },
-      { key: 'seller_name', label: 'ПІБ підписанта' },
-      { key: 'note_label', label: 'Назва примітки' },
+      { key: 'company', label: 'Company name' },
+      { key: 'company_address', label: 'Company address' },
+      { key: 'company_id', label: 'Company registration ID' },
+      { key: 'company_iban', label: 'Company IBAN' },
+      { key: 'company_email', label: 'Company e-mail' },
+      { key: 'company_site', label: 'Company site' },
+      { key: 'warehouse', label: 'Warehouse' },
+      { key: 'warehouse_address', label: 'Warehouse address' },
+      { key: 'warehouse_phone', label: 'Warehouse phone' },
+      { key: 'seller_occupation', label: 'Signer position' },
+      { key: 'seller_name', label: 'Signer name' },
+      { key: 'note_label', label: 'Note label' },
     ],
   },
   {
-    title: 'Спец-блоки',
+    title: 'Special blocks',
     variables: [
-      { key: 'barcode', label: 'Штрих-код' },
-      { key: 'products_table', label: 'Товари' },
-      { key: 'services_table', label: 'Послуги' },
-      { key: 'invoice_items_table', label: 'Позиції рахунку з ПДВ' },
+      { key: 'barcode', label: 'Barcode' },
+      { key: 'products_table', label: 'Products' },
+      { key: 'services_table', label: 'Services' },
+      { key: 'invoice_items_table', label: 'Invoice items with VAT' },
     ],
   },
 ];
@@ -193,29 +207,130 @@ const documentShell = (body: string) => `
   </div>
 `;
 
+const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
+
+const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
+  align && align !== 'left' ? ` print-align-${align}` : '';
+
+const renderInlineTemplate = (value: string) => escapeHtml(value).replace(
+  /\{\{([a-zA-Z0-9_]+)\}\}/g,
+  '{{$1}}',
+).replace(/\r?\n/g, '<br>');
+
+const renderFieldLabel = (label: string) =>
+  label.trim() ? `<td>${renderInlineTemplate(label)}</td>` : '<td></td>';
+
+const renderFieldValue = (value: string) =>
+  `<td><strong>${renderInlineTemplate(value)}</strong></td>`;
+
+const renderFieldRows = (fields: PrintLayoutField[], columns: number) => {
+  const safeColumns = Math.max(1, Math.min(columns, 4));
+  const rows: PrintLayoutField[][] = [];
+  for (let index = 0; index < fields.length; index += safeColumns) {
+    rows.push(fields.slice(index, index + safeColumns));
+  }
+
+  return rows
+    .map((row) => {
+      const cells = Array.from({ length: safeColumns }).flatMap((_, index) => {
+        const field = row[index] ?? { label: '', value: '' };
+        return [renderFieldLabel(field.label), renderFieldValue(field.value)];
+      });
+      return `<tr>${cells.join('')}</tr>`;
+    })
+    .join('');
+};
+
+const renderCustomTable = (
+  columns: PrintLayoutTableColumn[],
+  rows: PrintLayoutTableRow[],
+) => {
+  const safeColumns = columns.length > 0
+    ? columns
+    : [{ id: 'name', label: 'Name' }];
+  const header = safeColumns
+    .map((column) => `<th>${renderInlineTemplate(column.label)}</th>`)
+    .join('');
+  const bodyRows = (rows.length > 0
+    ? rows
+    : [{ id: 'row-1', cells: Object.fromEntries(safeColumns.map((column) => [column.id, ''])) }]
+  )
+    .map((row) =>
+      `<tr>${safeColumns
+        .map((column) => `<td>${renderInlineTemplate(row.cells[column.id] ?? '')}</td>`)
+        .join('')}</tr>`,
+    )
+    .join('');
+
+  return `<table class="print-line-table"><thead><tr>${header}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+};
+
+export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
+  blocks
+    .map((block) => {
+      switch (block.type) {
+        case 'heading': {
+          const level = block.level === 1 || block.level === 2 || block.level === 3
+            ? block.level
+            : 2;
+          return `<h${level} class="print-block-heading${alignClass(block.align)}">${renderInlineTemplate(block.text)}</h${level}>`;
+        }
+        case 'paragraph':
+          return `<p class="print-block-paragraph${alignClass(block.align)}">${renderInlineTemplate(block.text)}</p>`;
+        case 'fieldRow':
+          return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, 2)}</tbody></table>`;
+        case 'fieldGrid':
+          return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, block.columns ?? 2)}</tbody></table>`;
+        case 'customTable':
+          return renderCustomTable(block.columns, block.rows);
+        case 'lineItemsTable':
+          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}${block.kind === 'services' ? '{{services_table}}' : '{{products_table}}'}`;
+        case 'invoiceItemsTable':
+          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}`;
+        case 'barcode':
+          return `<div class="print-code-row">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}{{barcode}}</div>`;
+        case 'signatures':
+          return `<div class="print-signatures"><span>${renderInlineTemplate(block.left)}</span><span>${renderInlineTemplate(block.right)}</span></div>`;
+        case 'divider':
+          return '<hr class="print-divider" />';
+        case 'spacer':
+          return `<div class="print-spacer print-spacer-${block.size}"></div>`;
+        case 'columns':
+          return `<div class="print-columns">${block.columns
+            .map((column) => `<div>${renderPrintLayoutBlocks(column.blocks)}</div>`)
+            .join('')}</div>`;
+        default:
+          return '';
+      }
+    })
+    .join('');
+
+export const renderPrintLayout = (blocks: PrintLayoutBlock[]) =>
+  documentShell(renderPrintLayoutBlocks(blocks));
+
 const detailsTable = `
   <table class="print-details-table">
     <tbody>
-      <tr><td>Вид ремонту:</td><td><strong>{{comment}}</strong></td><td>Пристрій:</td><td><strong>{{deviceName}}</strong></td></tr>
-      <tr><td>Замовник:</td><td><strong>{{clientName}}</strong></td><td>Серійний №:</td><td><strong>{{serialNumber}}</strong></td></tr>
-      <tr><td>Контактні дані:</td><td><strong>{{clientPhone}}</strong></td><td>Артикул:</td><td><strong>{{article}}</strong></td></tr>
-      <tr><td>Заявлена несправність:</td><td><strong>{{defect}}</strong></td><td>Передплата:</td><td><strong>{{paid}}</strong></td></tr>
-      <tr><td>Орієнтована вартість:</td><td><strong>{{total}}</strong></td><td>До сплати:</td><td><strong>{{toPay}}</strong></td></tr>
+      <tr><td>Repair type:</td><td><strong>{{comment}}</strong></td><td>Device:</td><td><strong>{{deviceName}}</strong></td></tr>
+      <tr><td>Customer:</td><td><strong>{{clientName}}</strong></td><td>Serial No.:</td><td><strong>{{serialNumber}}</strong></td></tr>
+      <tr><td>Contact details:</td><td><strong>{{clientPhone}}</strong></td><td>Article:</td><td><strong>{{article}}</strong></td></tr>
+      <tr><td>Reported defect:</td><td><strong>{{defect}}</strong></td><td>Prepayment:</td><td><strong>{{paid}}</strong></td></tr>
+      <tr><td>Estimated cost:</td><td><strong>{{total}}</strong></td><td>To pay:</td><td><strong>{{toPay}}</strong></td></tr>
     </tbody>
   </table>
 `;
 
 const lineItemsSections = `
-  <h3>Послуги</h3>
+  <h3>Services</h3>
   {{services_table}}
-  <h3>Товари</h3>
+  <h3>Products</h3>
   {{products_table}}
 `;
 
 export const defaultPrintForms: PrintForm[] = [
   {
     id: 'receipt',
-    title: 'Квитанція',
+    title: 'Receipt',
     type: 'receipt',
     content: documentShell(`
       <div class="print-header print-header-right">
@@ -225,19 +340,19 @@ export const defaultPrintForms: PrintForm[] = [
         </div>
       </div>
       <div class="print-title-row">
-        <h1>Квитанція №{{orderNumber}} від {{date}}</h1>
+        <h1>Receipt #{{orderNumber}} from {{date}}</h1>
         <div class="print-code-block">{{barcode}}</div>
       </div>
       ${detailsTable}
       ${lineItemsSections}
       <ol class="print-terms">
-        <li>Сервісний центр не несе відповідальності за втрату даних в індивідуальній пам'яті пристрою.</li>
-        <li>Термін проведення діагностики - від 1 до 3-х днів. Ремонт проводиться після погодження вартості.</li>
-        <li>Гарантія поширюється тільки на виконані роботи та встановлені деталі.</li>
+        <li>The service center is not responsible for data loss in the device memory.</li>
+        <li>Diagnostics takes 1 to 3 days. Repair starts after the cost is approved.</li>
+        <li>Warranty applies only to completed work and installed parts.</li>
       </ol>
       <div class="print-signatures">
-        <span>Прийняв: {{managerName}}</span>
-        <span>Клієнт: __________________</span>
+        <span>Accepted by: {{managerName}}</span>
+        <span>Client: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -248,17 +363,17 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'check',
-    title: 'Чек',
+    title: 'Check',
     type: 'check',
     content: documentShell(`
-      <h1>Чек оплати</h1>
+      <h1>Payment check</h1>
       <table class="print-summary-table">
         <tbody>
-          <tr><td>Замовлення</td><td>{{orderNumber}}</td></tr>
-          <tr><td>Клієнт</td><td>{{clientName}}</td></tr>
-          <tr><td>Сума</td><td><strong>{{total}}</strong></td></tr>
-          <tr><td>Сплачено</td><td><strong>{{paid}}</strong></td></tr>
-          <tr><td>До сплати</td><td><strong>{{toPay}}</strong></td></tr>
+          <tr><td>Order</td><td>{{orderNumber}}</td></tr>
+          <tr><td>Client</td><td>{{clientName}}</td></tr>
+          <tr><td>Total</td><td><strong>{{total}}</strong></td></tr>
+          <tr><td>Paid</td><td><strong>{{paid}}</strong></td></tr>
+          <tr><td>To pay</td><td><strong>{{toPay}}</strong></td></tr>
         </tbody>
       </table>
       ${lineItemsSections}
@@ -272,18 +387,18 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'warranty',
-    title: 'Гарантійний талон',
+    title: 'Warranty card',
     type: 'warranty',
     content: documentShell(`
-      <h1>Гарантійний талон</h1>
-      <p>Замовлення №{{orderNumber}} від {{date}}</p>
+      <h1>Warranty card</h1>
+      <p>Order #{{orderNumber}} from {{date}}</p>
       ${detailsTable}
       ${lineItemsSections}
-      <p><strong>Майстер:</strong> {{masterName}}</p>
-      <p>Гарантійні зобов'язання діють за умови відсутності механічних пошкоджень та слідів стороннього втручання.</p>
+      <p><strong>Master:</strong> {{masterName}}</p>
+      <p>Warranty is valid if there are no mechanical damages or third-party intervention traces.</p>
       <div class="print-signatures">
-        <span>Сервіс: __________________</span>
-        <span>Клієнт: __________________</span>
+        <span>Service: __________________</span>
+        <span>Client: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -294,17 +409,17 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'completion-act',
-    title: 'Акт виконаних робіт',
+    title: 'Completion act',
     type: 'completion-act',
     content: documentShell(`
-      <h1>Акт виконаних робіт №{{orderNumber}}</h1>
-      <p>Дата: {{date}}</p>
-      <p><strong>Клієнт:</strong> {{clientName}}, {{clientPhone}}</p>
+      <h1>Completion act #{{orderNumber}}</h1>
+      <p>Date: {{date}}</p>
+      <p><strong>Client:</strong> {{clientName}}, {{clientPhone}}</p>
       ${lineItemsSections}
-      <p class="print-total-line">Разом: <strong>{{total}}</strong></p>
+      <p class="print-total-line">Total: <strong>{{total}}</strong></p>
       <div class="print-signatures">
-        <span>Виконавець: {{masterName}}</span>
-        <span>Замовник: __________________</span>
+        <span>Executor: {{masterName}}</span>
+        <span>Customer: __________________</span>
       </div>
     `),
     contentFormat: 'html',
@@ -315,46 +430,47 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'invoice',
-    title: 'Рахунок',
+    title: 'Invoice',
     type: 'invoice',
     content: documentShell(`
       <div class="invoice-party">
-        <strong>Постачальник</strong>
+        <strong>Supplier</strong>
         <div>
           <b>{{company}}</b><br>
-          Адреса: {{company_address}}<br>
-          ЄДРПОУ або ІПН: {{company_id}}<br>
-          не є платником податку на прибуток на загальних умовах<br>
-          <b>Р/р {{company_iban}}</b>
+          Address: {{company_address}}<br>
+          ID: {{company_id}}<br>
+          Not a VAT payer<br>
+          <b>Account {{company_iban}}</b>
         </div>
       </div>
       <div class="invoice-party">
-        <strong>Одержувач</strong>
+        <strong>Customer</strong>
         <div>
           <b>{{clientName}}</b><br>
-          ЄДРПОУ або ІПН: {{customer_reg_id}}<br>
+          Address: {{customer_address}}<br>
+          ID: {{customer_reg_id}}<br>
           {{clientPhone}}<br>
-          {{warehouse_address}}
+          <b>Account {{customer_iban}}</b>
         </div>
       </div>
       <div class="invoice-title">
-        <h1>Рахунок фактура № {{orderNumber}}</h1>
-        <p>від {{date}} р.</p>
+        <h1>Invoice #{{orderNumber}}</h1>
+        <p>from {{date}}</p>
       </div>
       {{invoice_items_table}}
       <table class="invoice-totals">
         <tbody>
-          <tr><td>Разом без ПДВ:</td><td>{{net_amount}}</td></tr>
-          <tr><td>ПДВ:</td><td>{{vat_amount}}</td></tr>
-          <tr><td>Всього з ПДВ:</td><td>{{total_amount}}</td></tr>
+          <tr><td>Total without VAT:</td><td>{{net_amount}}</td></tr>
+          <tr><td>VAT:</td><td>{{vat_amount}}</td></tr>
+          <tr><td>Total with VAT:</td><td>{{total_amount}}</td></tr>
         </tbody>
       </table>
       <div class="invoice-written">
-        <p>Всього на суму: <strong>{{total_written}}</strong></p>
-        <p>ПДВ: {{vat_amount}}</p>
+        <p>Total in words: <strong>{{total_written}}</strong></p>
+        <p>VAT: {{vat_amount}}</p>
       </div>
       <div class="invoice-payable">
-        <strong>Загальна сума до оплати:</strong>
+        <strong>Amount payable:</strong>
         <strong>{{total_amount}}</strong>
       </div>
       <div class="invoice-signature">
@@ -372,7 +488,7 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'barcode',
-    title: 'Штрих-код',
+    title: 'Barcode',
     type: 'barcode',
     content: `
       <div class="print-label">
@@ -400,20 +516,295 @@ export const legacyDefaultPrintFormIds = new Set([
   'barcode',
 ]);
 
+const legacyDefaultPrintFormTitles: Record<string, string[]> = {
+  receipt: ['Квитанція', 'РљРІРёС‚Р°РЅС†С–СЏ'],
+  check: ['Чек', 'Р§РµРє'],
+  warranty: ['Гарантійний талон', 'Р“Р°СЂР°РЅС‚С–Р№РЅРёР№ С‚Р°Р»РѕРЅ'],
+  'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
+  invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
+  barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
+};
+
+export const createPrintLayoutBlock = (
+  type: PrintLayoutBlock['type'],
+  index = Date.now(),
+): PrintLayoutBlock => {
+  const id = makeBlockId(type, index);
+  switch (type) {
+    case 'heading':
+      return { id, type, level: 1, text: 'New heading', align: 'left' };
+    case 'paragraph':
+      return { id, type, text: 'New text {{orderNumber}}', align: 'left' };
+    case 'fieldRow':
+      return {
+        id,
+        type,
+        fields: [
+          { label: 'Order', value: '{{orderNumber}}' },
+          { label: 'Client', value: '{{clientName}}' },
+        ],
+      };
+    case 'fieldGrid':
+      return {
+        id,
+        type,
+        columns: 2,
+        fields: [
+          { label: 'Phone', value: '{{clientPhone}}' },
+          { label: 'Total', value: '{{total}}' },
+          { label: 'Paid', value: '{{paid}}' },
+          { label: 'To pay', value: '{{toPay}}' },
+        ],
+      };
+    case 'customTable':
+      return {
+        id,
+        type,
+        columns: [
+          { id: 'name', label: 'Name' },
+          { id: 'qty', label: 'Qty' },
+          { id: 'price', label: 'Price' },
+          { id: 'sum', label: 'Sum' },
+        ],
+        rows: [
+          {
+            id: `${id}-row-1`,
+            cells: {
+              name: 'Item',
+              qty: '1',
+              price: '{{total}}',
+              sum: '{{total}}',
+            },
+          },
+        ],
+      };
+    case 'lineItemsTable':
+      return { id, type, kind: 'products', title: 'Products' };
+    case 'invoiceItemsTable':
+      return { id, type, title: '' };
+    case 'barcode':
+      return { id, type, label: '' };
+    case 'signatures':
+      return {
+        id,
+        type,
+        left: 'Manager: {{managerName}}',
+        right: 'Client: __________________',
+      };
+    case 'divider':
+      return { id, type };
+    case 'spacer':
+      return { id, type, size: 'medium' };
+    case 'columns':
+      return {
+        id,
+        type,
+        columns: [
+          { id: `${id}-left`, blocks: [createPrintLayoutBlock('paragraph', index + 1)] },
+          { id: `${id}-right`, blocks: [createPrintLayoutBlock('paragraph', index + 2)] },
+        ],
+      };
+    default:
+      return { id, type: 'paragraph', text: 'New text', align: 'left' };
+  }
+};
+
+const receiptLayoutBlocks: PrintLayoutBlock[] = [
+  {
+    id: 'receipt-company',
+    type: 'paragraph',
+    text: '{{company}}\n{{warehouse_address}} {{warehouse_phone}}',
+    align: 'right',
+  },
+  { id: 'receipt-title', type: 'heading', level: 1, text: 'Receipt #{{orderNumber}} from {{date}}' },
+  { id: 'receipt-barcode', type: 'barcode' },
+  {
+    id: 'receipt-details',
+    type: 'fieldGrid',
+    columns: 2,
+    fields: [
+      { label: 'Order', value: '{{orderNumber}}' },
+      { label: 'Client', value: '{{clientName}}' },
+      { label: 'Phone', value: '{{clientPhone}}' },
+      { label: 'Device', value: '{{deviceName}}' },
+      { label: 'Paid', value: '{{paid}}' },
+      { label: 'To pay', value: '{{toPay}}' },
+      { label: 'Total', value: '{{total}}' },
+      { label: 'Manager', value: '{{managerName}}' },
+    ],
+  },
+  { id: 'receipt-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+  { id: 'receipt-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+  {
+    id: 'receipt-terms',
+    type: 'paragraph',
+    text: 'Service center is not responsible for data loss. Diagnostics term is 1-3 days. Warranty covers completed works and installed parts.',
+  },
+  { id: 'receipt-signatures', type: 'signatures', left: 'Accepted by: {{managerName}}', right: 'Client: __________________' },
+];
+
+const checkLayoutBlocks: PrintLayoutBlock[] = [
+  { id: 'check-title', type: 'heading', level: 1, text: 'Payment check' },
+  {
+    id: 'check-summary',
+    type: 'fieldRow',
+    fields: [
+      { label: 'Order', value: '{{orderNumber}}' },
+      { label: 'Client', value: '{{clientName}}' },
+      { label: 'Total', value: '{{total}}' },
+      { label: 'Paid', value: '{{paid}}' },
+      { label: 'To pay', value: '{{toPay}}' },
+    ],
+  },
+  { id: 'check-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+  { id: 'check-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+  { id: 'check-barcode', type: 'barcode' },
+];
+
+const warrantyLayoutBlocks: PrintLayoutBlock[] = [
+  { id: 'warranty-title', type: 'heading', level: 1, text: 'Warranty card' },
+  { id: 'warranty-order', type: 'paragraph', text: 'Order #{{orderNumber}} from {{date}}' },
+  {
+    id: 'warranty-details',
+    type: 'fieldGrid',
+    columns: 2,
+    fields: [
+      { label: 'Client', value: '{{clientName}}' },
+      { label: 'Phone', value: '{{clientPhone}}' },
+      { label: 'Device', value: '{{deviceName}}' },
+      { label: 'Serial', value: '{{serialNumber}}' },
+      { label: 'Master', value: '{{masterName}}' },
+      { label: 'Total', value: '{{total}}' },
+    ],
+  },
+  { id: 'warranty-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+  { id: 'warranty-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+  { id: 'warranty-text', type: 'paragraph', text: 'Warranty is valid if there are no mechanical damages or third-party intervention traces.' },
+  { id: 'warranty-signatures', type: 'signatures', left: 'Service: __________________', right: 'Client: __________________' },
+];
+
+const completionActLayoutBlocks: PrintLayoutBlock[] = [
+  { id: 'act-title', type: 'heading', level: 1, text: 'Completion act #{{orderNumber}}' },
+  { id: 'act-date', type: 'paragraph', text: 'Date: {{date}}' },
+  { id: 'act-client', type: 'paragraph', text: 'Client: {{clientName}}, {{clientPhone}}' },
+  { id: 'act-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+  { id: 'act-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+  { id: 'act-total', type: 'paragraph', text: 'Total: {{total}}', align: 'right' },
+  { id: 'act-signatures', type: 'signatures', left: 'Executor: {{masterName}}', right: 'Customer: __________________' },
+];
+
+const invoiceLayoutBlocks: PrintLayoutBlock[] = [
+  {
+    id: 'invoice-parties',
+    type: 'columns',
+    columns: [
+      {
+        id: 'invoice-seller',
+        blocks: [
+          { id: 'invoice-seller-text', type: 'paragraph', text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nID: {{company_id}}\nIBAN: {{company_iban}}' },
+        ],
+      },
+      {
+        id: 'invoice-customer',
+        blocks: [
+          { id: 'invoice-customer-text', type: 'paragraph', text: 'Customer\n{{clientName}}\nAddress: {{customer_address}}\nID: {{customer_reg_id}}\n{{clientPhone}}\nIBAN: {{customer_iban}}' },
+        ],
+      },
+    ],
+  },
+  { id: 'invoice-title', type: 'heading', level: 1, text: 'Invoice #{{orderNumber}}', align: 'center' },
+  { id: 'invoice-date', type: 'paragraph', text: 'from {{date}}', align: 'center' },
+  { id: 'invoice-items', type: 'invoiceItemsTable' },
+  {
+    id: 'invoice-totals',
+    type: 'fieldRow',
+    fields: [
+      { label: 'Total without VAT', value: '{{net_amount}}' },
+      { label: 'VAT', value: '{{vat_amount}}' },
+      { label: 'Total with VAT', value: '{{total_amount}}' },
+    ],
+  },
+  { id: 'invoice-written', type: 'paragraph', text: 'Total in words: {{total_written}}\nVAT: {{vat_amount}}' },
+  { id: 'invoice-payable', type: 'paragraph', text: 'Amount payable: {{total_amount}}', align: 'right' },
+  { id: 'invoice-signature', type: 'signatures', left: '{{seller_occupation}}', right: '{{seller_name}}' },
+  { id: 'invoice-note', type: 'paragraph', text: '{{note_label}}: {{note}}' },
+];
+
+const barcodeLayoutBlocks: PrintLayoutBlock[] = [
+  { id: 'barcode-code', type: 'barcode' },
+  { id: 'barcode-number', type: 'heading', level: 3, text: '{{orderNumber}}', align: 'center' },
+  { id: 'barcode-phone', type: 'paragraph', text: '{{clientPhone}}', align: 'center' },
+  { id: 'barcode-device', type: 'paragraph', text: '{{deviceName}}', align: 'center' },
+];
+
+export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
+  receipt: receiptLayoutBlocks,
+  check: checkLayoutBlocks,
+  warranty: warrantyLayoutBlocks,
+  'completion-act': completionActLayoutBlocks,
+  invoice: invoiceLayoutBlocks,
+  barcode: barcodeLayoutBlocks,
+};
+
+export const getDefaultPrintLayoutBlocks = (formType: string) =>
+  defaultPrintLayouts[formType]?.map((block) => ({ ...block })) ?? [
+    createPrintLayoutBlock('heading', 1),
+    createPrintLayoutBlock('fieldGrid', 2),
+    createPrintLayoutBlock('signatures', 3),
+  ];
+
+export const createLayoutPrintForm = (form: PrintForm): PrintForm =>
+  withGeneratedContent({
+    ...form,
+    layoutVersion: 1,
+    layoutBlocks: form.layoutBlocks?.length
+      ? form.layoutBlocks
+      : getDefaultPrintLayoutBlocks(form.type || form.id),
+  });
+
+const withGeneratedContent = (form: PrintForm): PrintForm =>
+  form.layoutBlocks && form.layoutBlocks.length > 0
+    ? {
+        ...form,
+        layoutVersion: 1,
+        content: renderPrintLayout(form.layoutBlocks),
+        contentFormat: 'html',
+      }
+    : form;
+
+const hasBuiltInDefaultTitle = (form: PrintForm) => {
+  const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
+  return (
+    form.title === defaultForm?.title ||
+    (legacyDefaultPrintFormTitles[form.id] ?? []).includes(form.title)
+  );
+};
+
 const isPreviousDefaultInvoice = (form: PrintForm) =>
   form.id === 'invoice' &&
-  form.title === 'Рахунок' &&
-  form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>');
+  hasBuiltInDefaultTitle(form) &&
+  (form.content.includes('<h1>Рахунок на оплату №{{orderNumber}}</h1>') ||
+    form.content.includes('<h1>Р Р°С…СѓРЅРѕРє РЅР° РѕРїР»Р°С‚Рё в„–{{orderNumber}}</h1>') ||
+    !form.content.includes('{{customer_address}}') ||
+    !form.content.includes('{{customer_iban}}'));
 
 const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
-  if (!defaultForm || form.title !== defaultForm.title) return false;
+  if (!defaultForm || !hasBuiltInDefaultTitle(form)) return false;
   if (form.id === 'invoice' || form.id === 'barcode') return false;
   if (form.id === 'completion-act' && form.content.includes('{{deviceName}}')) return true;
   return !form.content.includes('{{products_table}}') ||
     !form.content.includes('{{services_table}}');
 };
+
+const isRecognizableDefaultPrintForm = (form: PrintForm) => {
+  const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
+  return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
+};
+
+const hasLayoutBlocks = (form: PrintForm) =>
+  form.layoutVersion === 1 && Array.isArray(form.layoutBlocks) && form.layoutBlocks.length > 0;
 
 export const createDefaultSettingsForm = () => ({
   serviceName: 'Service CRM',
@@ -421,7 +812,9 @@ export const createDefaultSettingsForm = () => ({
   companyAddress: '',
   companyId: '',
   companyIban: '',
-  printForms: defaultPrintForms,
+  companyEmail: '',
+  companySite: '',
+  printForms: defaultPrintForms.map(createLayoutPrintForm),
   orderDefaults: {
     defaultRepairTermDays: 7,
     defaultWarrantyMonths: 1,
@@ -450,8 +843,15 @@ export const createDefaultSettingsForm = () => ({
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
     (form, index) => {
-      const normalizedForm = isPreviousDefaultInvoice(form) || isLegacyStandardPrintForm(form)
-        ? defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form
+      const shouldUseDefaultLayout =
+        !hasLayoutBlocks(form) &&
+        (isPreviousDefaultInvoice(form) ||
+          isLegacyStandardPrintForm(form) ||
+          isRecognizableDefaultPrintForm(form));
+      const normalizedForm = shouldUseDefaultLayout
+        ? createLayoutPrintForm(defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form)
+        : hasLayoutBlocks(form)
+          ? withGeneratedContent(form)
         : form;
 
       const pageSize =
@@ -477,7 +877,9 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const existingIds = new Set(normalized.map((form) => form.id));
   const withMissingDefaults = [
     ...normalized,
-    ...defaultPrintForms.filter((form) => !existingIds.has(form.id)),
+    ...defaultPrintForms
+      .filter((form) => !existingIds.has(form.id))
+      .map(createLayoutPrintForm),
   ];
 
   return withMissingDefaults.sort((first, second) => first.sortOrder - second.sortOrder);
@@ -495,10 +897,10 @@ const textToHtml = (value: string) =>
   `<div class="print-document">${escapeHtml(value).replace(/\r?\n/g, '<br />')}</div>`;
 
 const renderProductsTable = (html: string) =>
-  html || '<p class="print-muted">Товари відсутні</p>';
+  html || '<p class="print-muted">No products</p>';
 
 const renderServicesTable = (html: string) =>
-  html || '<p class="print-muted">Послуги відсутні</p>';
+  html || '<p class="print-muted">No services</p>';
 
 const unwrapEditorTokens = (html: string) =>
   html.replace(
@@ -572,6 +974,14 @@ export const printDocumentStyles = `
   .print-signatures { display: flex; justify-content: space-between; gap: 32px; margin-top: 28px; }
   .print-total-line { text-align: right; font-size: 16px; }
   .print-muted { color: #6b7280; }
+  .print-align-center { text-align: center; }
+  .print-align-right { text-align: right; }
+  .print-block-paragraph { white-space: normal; }
+  .print-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .print-divider { border: 0; border-top: 1px solid #d1d5db; margin: 14px 0; }
+  .print-spacer-small { height: 6px; }
+  .print-spacer-medium { height: 14px; }
+  .print-spacer-large { height: 26px; }
   .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.6mm; overflow: hidden; padding: 1.5mm; text-align: center; font-size: 8px; line-height: 1.1; }
   .print-label-code { width: 100%; display: flex; justify-content: center; }
   .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 3mm); max-width: 100%; height: 10mm; }

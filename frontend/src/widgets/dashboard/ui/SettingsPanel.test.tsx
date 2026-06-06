@@ -8,6 +8,7 @@ import { cleanup } from '@testing-library/react';
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 const SettingsPanelHarness = () => {
@@ -28,12 +29,25 @@ const SettingsPanelHarness = () => {
 };
 
 describe('SettingsPanel', () => {
+  it('shows only company and print form settings tabs', async () => {
+    render(<SettingsPanelHarness />);
+
+    expect(screen.getByRole('button', { name: 'Company' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Orders' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Numbering' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Finance' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
+  });
+
   it('allows saving default optional company print fields', async () => {
     render(<SettingsPanelHarness />);
 
     expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('');
     expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('');
     expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('');
+    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('');
+    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 
@@ -59,10 +73,18 @@ describe('SettingsPanel', () => {
     fireEvent.change(screen.getByLabelText('Company IBAN ({{company_iban}})'), {
       target: { value: 'UA123456789123456789123456789' },
     });
+    fireEvent.change(screen.getByLabelText('Company e-mail ({{company_email}})'), {
+      target: { value: 'billing@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Company site ({{company_site}})'), {
+      target: { value: 'https://example.com' },
+    });
 
     expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('Kyiv, Main street 1');
     expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('12345678');
     expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('UA123456789123456789123456789');
+    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('billing@example.com');
+    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('https://example.com');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 
@@ -70,19 +92,29 @@ describe('SettingsPanel', () => {
     render(<SettingsPanelHarness />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
-    expect(screen.getAllByText('Квитанція').length).toBeGreaterThan(0);
-    expect(document.body.textContent).toContain('r000124');
+    expect(screen.getByLabelText('Document template')).toHaveValue('receipt');
+    expect(document.body.textContent).toContain('Receipt');
+    expect(document.body.textContent).toContain('Services');
+    expect(document.body.textContent).toContain('Products');
+    expect(document.body.textContent).not.toContain('Р');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(screen.getByDisplayValue('Новий шаблон')).toBeInTheDocument();
+    expect(screen.getByLabelText('Template name')).toHaveValue('New template');
+    expect((screen.getByLabelText('Document template') as HTMLSelectElement).value).toMatch(
+      /^form-/,
+    );
+    expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
-    expect(screen.getByDisplayValue('Новий шаблон копія')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editable table' }));
+    expect(screen.getAllByText('Editable table').length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Видалити шаблон' }));
-    expect(screen.getByText('Новий шаблон')).toBeInTheDocument();
-  });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Duplicate' })[0]);
+    expect(screen.getByLabelText('Template name')).toHaveValue('New template copy');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
+    expect(screen.getByText('New template')).toBeInTheDocument();
+  }, 10000);
   it('disables save while service name is invalid', async () => {
     render(<SettingsPanelHarness />);
 

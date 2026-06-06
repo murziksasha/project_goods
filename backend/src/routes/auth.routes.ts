@@ -1,55 +1,32 @@
 import { Router } from 'express';
 import {
   acceptInvitation,
+  getBearerToken,
   getCurrentEmployee,
   getInvitationDetails,
   loginEmployee,
   logoutEmployee,
 } from '../domain/auth/service';
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  const headerValue = typeof authorizationHeader === 'string' ? authorizationHeader : '';
-  return headerValue.startsWith('Bearer ') ? headerValue.slice(7).trim() : '';
-};
+import { asyncHandler } from '../shared/lib/http';
 
 export const authRouter = Router();
 
-authRouter.post('/auth/login', async (req, res, next) => {
-  try {
-    res.json(await loginEmployee(req.body?.username, req.body?.password));
-  } catch (error) {
-    next(error);
-  }
-});
+authRouter.post('/auth/login', asyncHandler(async (req, res) => {
+  res.json(await loginEmployee(req.body?.username, req.body?.password));
+}));
 
-authRouter.get('/auth/me', async (req, res, next) => {
-  try {
-    res.json(await getCurrentEmployee(getBearerToken(req.headers.authorization)));
-  } catch (error) {
-    next(error);
-  }
-});
+authRouter.get('/auth/me', asyncHandler(async (req, res) => {
+  res.json(await getCurrentEmployee(getBearerToken(req.headers.authorization)));
+}));
 
-authRouter.post('/auth/logout', async (req, res, next) => {
-  try {
-    res.json(await logoutEmployee(getBearerToken(req.headers.authorization)));
-  } catch (error) {
-    next(error);
-  }
-});
+authRouter.post('/auth/logout', asyncHandler(async (req, res) => {
+  res.json(await logoutEmployee(getBearerToken(req.headers.authorization)));
+}));
 
-authRouter.get('/auth/invitations/:token', async (req, res, next) => {
-  try {
-    res.json(await getInvitationDetails(req.params.token));
-  } catch (error) {
-    next(error);
-  }
-});
+authRouter.get('/auth/invitations/:token', asyncHandler(async (req, res) => {
+  res.json(await getInvitationDetails(req.params.token));
+}));
 
-authRouter.post('/auth/invitations/:token/register', async (req, res, next) => {
-  try {
-    res.json(await acceptInvitation(req.params.token, req.body?.username, req.body?.password));
-  } catch (error) {
-    next(error);
-  }
-});
+authRouter.post('/auth/invitations/:token/register', asyncHandler(async (req, res) => {
+  res.json(await acceptInvitation(req.params.token, req.body?.username, req.body?.password));
+}));

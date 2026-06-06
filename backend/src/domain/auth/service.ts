@@ -1,4 +1,4 @@
-import { Employee } from '../employee/model';
+import { Employee, type EmployeeDocument } from '../employee/model';
 import type { EmployeePermission } from '../employee/constants';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { createAuthToken, hashPassword, verifyPassword } from '../../shared/lib/auth';
@@ -7,7 +7,12 @@ import { HttpError } from '../../shared/lib/errors';
 
 const authProjection = '+passwordHash +authToken +inviteToken +inviteExpiresAt';
 
-const createSession = async (employee: any) => {
+type EmployeeRecord = EmployeeDocument & {
+  save: () => Promise<unknown>;
+  toObject: () => EmployeeDocument;
+};
+
+const createSession = async (employee: EmployeeRecord) => {
   employee.authToken = createAuthToken();
   await employee.save();
 

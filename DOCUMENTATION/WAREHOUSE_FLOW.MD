@@ -36,6 +36,21 @@ This document defines current warehouse requirements for stock balances, receipt
 3. fallback `-`
 - Search mode `By supplier`, the supplier filter, and the `Supplier` column must use this same priority so the visible value and filtering behavior stay consistent.
 
+### 2.1) Supplier Order Provenance Is Unit-Level
+- `Supplier order` in `Stock balances` is provenance of a конкретная складская единица (`Product` row / serial), not of a product name or catalog model.
+- Source of truth for the supplier-order badge/link:
+1. `product.supplierOrderId`
+2. `product.supplierOrderItemIndex`
+- The badge is shown only when both fields point to an existing supplier order and exact supplier-order item.
+- Forbidden matching logic:
+1. product name equality or similarity
+2. article equality
+3. `catalogProductId` shared by supplier-order items
+4. substring/fuzzy matching between supplier-order item names and stock product names
+- If a stock `Product` is absent from `Stock balances` by regular stock visibility rules (for example sold/issued stock), its supplier-order badge is not displayed there.
+- If a legacy/historical stock row has no explicit supplier-order provenance fields, `Supplier order` must stay empty; the UI must not backfill or guess automatically.
+- Take-on-charge must persist `supplierOrderId` and `supplierOrderItemIndex` on every created serialized `Product` row.
+
 ### 3) Product Warehouse Mapping Priority
 - Stock display mapping priority:
 1. `product.warehouseId` + `product.locationId`
@@ -75,7 +90,9 @@ This document defines current warehouse requirements for stock balances, receipt
 2. rows use compact spacing for dense scanning
 3. `Warehouse` and `Location` are displayed as readable badges
 4. `Client order` and `Supplier order` links are displayed as compact badges
-5. empty state must explicitly suggest adjusting search or filters
+5. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
+6. `Action` contains only the delete `X` control for the stock row
+7. empty state must explicitly suggest adjusting search or filters
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
@@ -103,7 +120,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - Backend workspace validation must enforce the same invariant before stock deltas are calculated.
 
 ### 4.4) Product Model Detail Modal
-- In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, or `Article` opens the shared product model modal for the row's exact product name.
+- In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
+- `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:
 1. read-only model name
@@ -127,6 +145,8 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 5) Receipts Source
 - `Warehouse -> Receipts` is projected from supplier orders.
 - One supplier order with multiple items is rendered as multiple receipt rows.
+- Frontend source of truth for supplier-order-backed receipt rows is the TanStack Query `supplierOrders` cache.
+- Manual receipt rows created only inside the warehouse UI remain local UI/session rows and are composed after supplier-order-backed rows.
 
 ### 6) Row Click Behavior
 - Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
@@ -177,6 +197,7 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 11) Warehouse/Location Required On Take-On-Charge
 - Operator must select `warehouse` and `location`.
 - API payload must include `warehouseId` and `locationId`.
+- Successful take-on-charge must invalidate/refetch supplier orders and product stock data so receipt status and stock balances stay in sync.
 
 ### 11.1) Article Behavior In Take-On-Charge Modal
 - In `Оприходование` modal, checkbox `Автогенерация артикулов` is disabled by default.
@@ -187,8 +208,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - `SO-*` pattern is not used for article generation anymore (legacy branch removed).
 
 ### 11.2) Manual Status Change To `Оприбутковано` In `Warehouse -> Supplier Order`
-- Scope: only manual status change in `Warehouse -> Supplier Order` list (`status` select in row).
-- Status field in row must stay manually editable as `select` for all supplier order statuses.
+- Scope: only manual status change in `Orders -> Supplier Order` list (`Status` badge/window in row).
+- Status field in row must stay manually editable through the supplier-order status window for all supplier order statuses.
 - Edit lock exception: when `paymentStatus = cancelled`, status control is disabled.
 - If operator changes status to `stocked` (`Оприбутковано`) from that list:
 1. UI must skip take-on-charge modals.
@@ -196,6 +217,7 @@ This document defines current warehouse requirements for stock balances, receipt
 3. Target warehouse/location: default warehouse pair (first active warehouse and its first location).
 4. Serial numbers: auto-generated (equivalent to modal flow where user keeps defaults and clicks `Оприбуткувати`).
 - For all other flows and entry points, existing сценарий must stay unchanged (modals + explicit operator choices).
+- Status window visual/scroll behavior is documented in `ORDER_FLOW.md` under `Supplier Order Row Status Window`.
 
 ## Transfers Requirements
 
@@ -203,6 +225,7 @@ This document defines current warehouse requirements for stock balances, receipt
 - `Warehouse -> Transfers` moves existing stock items between configured warehouses and locations.
 - Target warehouse/location options are loaded from `Warehouse -> Settings -> Warehouses`.
 - Locations created later in settings must become available in transfer target selectors without code changes.
+- Warehouse settings are loaded through the TanStack Query `warehouseSettings` cache; the panel may mirror them into editable local form state while the operator is changing settings.
 
 ### 12.1) Transfer Item Selection
 - The right-side stock list shows filtered stock items for the current `Transfers` tab.

@@ -1,3 +1,9 @@
 node_modules/
+dist/
+coverage/
+backend/dist/
+backend/coverage/
+frontend/dist/
+frontend/coverage/
 backend/backend-dev.log
 frontend/frontend-dev.log

@@ -155,3 +155,10 @@ Backend собран по модульному практическому пат
 - `ProductCatalogPanel` now has an additional tab: `Products`.
 - `Products` tab reads from `catalog-products` collection (MongoDB) and is independent from warehouse `products` and `client-devices`.
 - Auto-sync rule: on create/update/workspace save for sales/orders, backend extracts product-like names and upserts them into `catalog-products`.
+
+## Warehouse Query Cache Update (2026-06-03)
+
+- Frontend query keys now include `supplierOrders` and `warehouseSettings`.
+- Supplier-order and warehouse-settings API modules expose TanStack Query hooks next to their raw Axios functions.
+- `WarehousePanel` treats supplier orders and warehouse settings as server state owned by the query cache.
+- Warehouse UI state such as active tab, filters, selected rows, modals, drafts, and manual receipt rows remains local component state.

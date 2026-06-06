@@ -660,6 +660,32 @@
   min-width: 150px;
 }
 
+.warehouse-stock-cell-note {
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+}
+
+.warehouse-stock-cell-action {
+  width: 76px;
+  min-width: 76px;
+  text-align: center;
+}
+
+.warehouse-stock-cell-note .warehouse-stock-note-button {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-stock-cell-action .catalog-row-actions {
+  justify-content: center;
+}
+
 .warehouse-data-badge,
 .warehouse-link-badge {
   min-height: 24px;
@@ -1199,7 +1225,37 @@
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.topbar-current-user {
+  min-width: 0;
+  max-width: min(260px, 28vw);
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: #425974;
+  line-height: 1.1;
+}
+
+.topbar-current-user-name,
+.topbar-current-user-role {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-current-user-name {
+  font-weight: 800;
+}
+
+.topbar-current-user-role {
+  color: #7a8da3;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .topbar-icon-button {
@@ -3805,13 +3861,20 @@
   display: grid;
   gap: 4px;
   width: 210px;
-  max-height: 260px;
+  max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 6px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 16px 30px rgba(31, 52, 77, 0.18);
+}
+
+.supplier-order-status-menu-portal {
+  position: fixed;
+  z-index: 4000;
 }
 
 .supplier-order-status-option {
@@ -5182,14 +5245,53 @@
   gap: 10px;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .settings-print-section {
   border-top: 0;
   padding-top: 0;
 }
 
+.settings-print-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-print-title-row h2 {
+  margin: 0;
+}
+
+.settings-print-document-select {
+  min-width: 220px;
+}
+
+.settings-print-document-select select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #cbd7e5;
+  border-radius: 7px;
+  background: #fff;
+  color: #263f5d;
+  font: inherit;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
 .settings-print-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -5413,6 +5515,118 @@
   font-size: 0.82rem;
   font-weight: 800;
   padding: 7px 10px;
+}
+
+.print-builder-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.print-builder-workspace {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.print-builder-block-list,
+.print-builder-block-editor,
+.settings-legacy-editor {
+  border: 1px solid #d6e0eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.print-builder-block-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.print-builder-block-item {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d7e2ee;
+  border-radius: 7px;
+  background: #fff;
+  color: #38506b;
+  cursor: pointer;
+  font: inherit;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.print-builder-block-item-active {
+  border-color: #66a4dd;
+  background: #edf6ff;
+  color: #1d5f9d;
+}
+
+.print-builder-block-item small,
+.print-builder-muted {
+  color: #738396;
+}
+
+.print-builder-block-actions,
+.print-block-editor-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.print-builder-block-actions {
+  margin-bottom: 12px;
+}
+
+.print-builder-table-editor {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.print-builder-field-row,
+.print-builder-custom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.print-builder-custom-row {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
+}
+
+.settings-print-preview-page .print-align-center {
+  text-align: center;
+}
+
+.settings-print-preview-page .print-align-right {
+  text-align: right;
+}
+
+.settings-print-preview-page .print-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.settings-print-preview-page .print-divider {
+  border: 0;
+  border-top: 1px solid #d1d5db;
+  margin: 14px 0;
+}
+
+.settings-print-preview-page .print-spacer-small {
+  height: 6px;
+}
+
+.settings-print-preview-page .print-spacer-medium {
+  height: 14px;
+}
+
+.settings-print-preview-page .print-spacer-large {
+  height: 26px;
 }
 
 .settings-print-preview {

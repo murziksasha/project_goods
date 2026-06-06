@@ -96,8 +96,17 @@
   - `Reserved`
   - `Paid`
   - `Issued`
-  - `Completed`
   - `Returned`
+- Backend/API status values are `new`, `reserved`, `paid`, `issued`, and `returned`; there is no separate `completed` sale-card status.
+
+## Sale Status Change Rules
+
+- Status `paid` is a payment state and may be selected from the list or sale card.
+- If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
+- Status `issued` is allowed only when `To pay = 0`.
+- If `issued` is selected while `To pay > 0`, payment must be accepted first; accepting money without issuing leaves the status as `paid`.
+- `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
+- Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
 
 ## Read-Only Lock For Sales Card
 
@@ -125,9 +134,8 @@
 
 - In sales card, product return is split into two distinct steps:
   1. `Refund to client` (finance operation)
-  2. `Remove` on product row (stock operation via return-to-warehouse modal)
-- Product `Remove` opens stock-return modal (warehouse destination only).
-- Product `Remove` must NOT open refund modal.
+  2. Product row action (line removal or stock return, depending on status)
+- Product row action must NOT open refund modal.
 - Product `Remove` is enabled only when all conditions are true:
   - order is not paid (`paidAmount = 0`)
   - card status is editable (`new`, `reserved`, `paid`)
@@ -136,6 +144,8 @@
 - Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
 - `Remove` deletes line item from sale card only (no warehouse receive modal and no stock movement).
 - For `issued` sale, product stock acceptance must use `Return` action and warehouse modal.
+- `Return` is shown only for issued serialized product rows with a bound sold serial.
+- `Return` is blocked until the required refund for that line has already been completed.
 - For `issued` sale return completion:
   - after required refund is completed and product is received back to stock,
   - if product line items are fully returned and `paidAmount = 0`,

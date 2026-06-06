@@ -422,6 +422,86 @@ describe('updateSaleWorkspace line items', () => {
     );
   });
 
+  it('decrements stock for paid repair orders with bound serials when status becomes issued', async () => {
+    const existingSale = buildExistingSale('repair');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    productModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: serializedLineItem.productId,
+        quantity: 1,
+        reservedQuantity: 0,
+        serialNumber: 'S000020',
+      }),
+    });
+    saleModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        ...existingSale,
+        status: 'issued',
+        paidAmount: 500,
+        lineItems: [serializedLineItem],
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'repair',
+      status: 'issued',
+      paidAmount: 500,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [serializedLineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await updateSaleWorkspace(existingSale._id, {
+      kind: 'repair',
+      status: 'issued',
+      paidAmount: 500,
+      lineItems: [serializedLineItem],
+    });
+
+    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      serializedLineItem.productId,
+      { $inc: { quantity: -1 } },
+      { returnDocument: 'after' },
+    );
+  });
+
+  it('rejects repair refusal status while bound serials are still attached', async () => {
+    const existingSale = buildExistingSale('repair');
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'repair',
+      status: 'issuedWithoutRepair',
+      paidAmount: 500,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [serializedLineItem],
+      masterId: '',
+      issuedById: '',
+    });
+
+    await expect(
+      updateSaleWorkspace(existingSale._id, {
+        kind: 'repair',
+        status: 'issuedWithoutRepair',
+        paidAmount: 500,
+        lineItems: [serializedLineItem],
+      }),
+    ).rejects.toThrow(
+      'Refund client payment for bound products and return them to stock first.',
+    );
+  });
+
   it('does not decrement stock for repair orders in non-closing status', async () => {
     const existingSale = buildExistingSale('repair');
     saleModel.findById.mockReturnValue({

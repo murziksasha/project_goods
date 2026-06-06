@@ -1,3 +1,5 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   WarehouseSettings,
@@ -14,6 +16,20 @@ export const getWarehouseSettings = async () => {
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const useWarehouseSettingsQuery = () =>
+  useQuery({
+    queryKey: queryKeys.warehouseSettings,
+    queryFn: getWarehouseSettings,
+  });
+
+export const useUpdateWarehouseSettingsMutation = () =>
+  useMutation({
+    mutationFn: updateWarehouseSettings,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.warehouseSettings });
+    },
+  });
 
 export const updateWarehouseSettings = async (
   payload: WarehouseSettingsPayload,

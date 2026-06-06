@@ -1,447 +1,87 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from 'react';
-import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import type { Employee } from '../../../entities/employee/model/types';
-import type {
-  Product,
-  ProductFormValues,
-  ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
-import type {
-  CatalogProduct,
-  CatalogProductFormValues,
-} from '../../../entities/catalog-product/model/types';
-import {
-  formatCurrency,
-  formatDate,
-} from '../../../shared/lib/format';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
-import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { createSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { updateSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
-import { cancelSupplierOrder, takeOnChargeSupplierOrder } from '../../../entities/supplier-order/api/supplierOrderApi';
+import {
+  useCancelSupplierOrderMutation,
+  useCreateSupplierOrderMutation,
+  useSupplierOrdersQuery,
+  useTakeOnChargeSupplierOrderMutation,
+  useUpdateSupplierOrderMutation,
+} from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
 } from './SupplierOrderModal';
-import type {
-  Supplier,
-  SupplierFormValues,
-} from '../../../entities/supplier/model/types';
+import type { Supplier } from '../../../entities/supplier/model/types';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
 } from '../../../entities/supplier-order/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
-  getWarehouseSettings,
-  updateWarehouseSettings,
+  useUpdateWarehouseSettingsMutation,
+  useWarehouseSettingsQuery,
 } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import {
   buildSupplierOrderItemNumber,
   mergeSupplierOrderItemUpdate,
 } from '../model/supplier-order-utils';
 import {
+  buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
   filterStockProducts,
-  getStockSupplierLabel,
-  type StockSupplierOrderLink,
-  type StockWarehouseMeta,
 } from '../model/stock-balance';
 import { ProductModelModal } from './ProductModelModal';
-
-type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
-type WarehouseColumnsTab = 'stock' | 'receipts';
-type StockColumnKey =
-  | 'select'
-  | 'name'
-  | 'serial'
-  | 'article'
-  | 'date'
-  | 'purchase'
-  | 'warehouse'
-  | 'location'
-  | 'clientOrder'
-  | 'supplierOrder'
-  | 'supplier'
-  | 'note'
-  | 'action';
-type ReceiptsColumnKey =
-  | 'number'
-  | 'product'
-  | 'quantity'
-  | 'price'
-  | 'amount'
-  | 'paid'
-  | 'supplier'
-  | 'receiptDate'
-  | 'acceptedBy'
-  | 'approvedBy'
-  | 'status'
-  | 'payment';
-type WarehouseColumnVisibility = {
-  stock: StockColumnKey[];
-  receipts: ReceiptsColumnKey[];
-};
-type WarehouseSearchMode =
-  | 'serial'
-  | 'name'
-  | 'article'
-  | 'warehouse'
-  | 'supplier';
-type WarehouseFilters = {
-  name: string;
-  serial: string;
-  article: string;
-  warehouse: string;
-  supplier: string;
-  buyer: string;
-  location: string;
-};
-type SavedWarehouseFilter = {
-  id: string;
-  employeeName: string;
-  name: string;
-  icon: string;
-  tab: WarehouseTab;
-  filters: WarehouseFilters;
-  createdAt: string;
-};
-type SettingsTab =
-  | 'service-centers'
-  | 'warehouses'
-  | 'administrators';
-
-type ServiceCenter = {
-  id: string;
-  name: string;
-  color: string;
-  address: string;
-  phone: string;
-};
-type WarehouseLocation = { id: string; name: string };
-type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
-type ReceiptRow = {
-  id: string;
-  number: string;
-  supplierOrderId?: string;
-  supplierOrderItemIndex?: number;
-  catalogProductId?: string;
-  productName: string;
-  quantity: number;
-  price: number;
-  amount: number;
-  paid: number;
-  supplierName: string;
-  createdAt: string;
-  acceptedBy: string;
-  approvedBy: string;
-  acceptedAt: string;
-  status: ReceiptStatus;
-  paymentStatus?: 'pending' | 'paid' | 'without_payment' | 'cancelled';
-  note: string;
-};
-
-const getReceiptPaymentStatusLabel = (
-  status: NonNullable<ReceiptRow['paymentStatus']>,
-) => {
-  switch (status) {
-    case 'pending':
-      return 'Awaiting payment';
-    case 'paid':
-      return 'Paid';
-    case 'without_payment':
-      return 'Issued without payment';
-    case 'cancelled':
-      return 'Cancelled';
-    default:
-      return status;
-  }
-};
-
-const getReceiptPaymentStatusClass = (
-  status: NonNullable<ReceiptRow['paymentStatus']>,
-) => `receipt-payment-status receipt-payment-status-${status}`;
-
-type SupplierOrderLink = {
-  order: SupplierOrder;
-  itemIndex: number;
-  displayNumber: string;
-} & StockSupplierOrderLink;
-type WarehouseItem = {
-  id: string;
-  name: string;
-  isActive: boolean;
-  serviceCenterId: string;
-  receiptAddress: string;
-  receiptPhone: string;
-  locations: WarehouseLocation[];
-};
-type Administrator = {
-  employeeId: string;
-  warehouseIds: string[];
-  defaultWarehouseId: string;
-  defaultLocationId: string;
-};
-type ServiceCenterFormState = {
-  name: string;
-  color: string;
-  address: string;
-  phone: string;
-};
-type WarehouseFormState = {
-  name: string;
-  isActive: boolean;
-  serviceCenterId: string;
-  receiptAddress: string;
-  receiptPhone: string;
-  locations: string[];
-};
-type ProductWarehouseMeta = StockWarehouseMeta;
-type TransferFormState = {
-  productId: string;
-  toWarehouseId: string;
-  toLocationId: string;
-  note: string;
-};
-type TransferHistoryRow = {
-  id: string;
-  productName: string;
-  serialNumber: string;
-  fromWarehouseName: string;
-  fromLocationName: string;
-  toWarehouseName: string;
-  toLocationName: string;
-  note: string;
-  createdAt: string;
-  createdBy: string;
-};
-
-type WarehousePanelProps = {
-  products: Product[];
-  sales: Sale[];
-  catalogProducts: CatalogProduct[];
-  employees: Employee[];
-  isLoading: boolean;
-  productForm: ProductFormValues;
-  isProductSaving: boolean;
-  isProductEditing: boolean;
-  onProductChange: <K extends keyof ProductFormValues>(
-    field: K,
-    value: ProductFormValues[K],
-  ) => void;
-  onProductSubmit: () => void;
-  onProductCancelEdit: () => void;
-  onProductEdit: (product: Product) => void;
-  onProductDelete: (product: Product) => void;
-  onProductTransfer: (
-    product: Product,
-    target: {
-      warehouseId: string;
-      locationId: string;
-      note: string;
-    },
-  ) => Promise<boolean>;
-  suppliers: Supplier[];
-  onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
-  onUpdateSupplier: (
-    supplierId: string,
-    payload: SupplierFormValues,
-  ) => Promise<boolean>;
-  onUpdateCatalogProduct: (
-    catalogProductId: string,
-    payload: CatalogProductFormValues,
-  ) => Promise<boolean>;
-  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
-  currentEmployeeName: string;
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
-};
-
-const tabs: Array<{
-  key: WarehouseTab;
-  label: string;
-  badge?: string;
-}> = [
-  { key: 'stock', label: 'Stock balances' },
-  { key: 'receipts', label: 'Receipts', badge: '10' },
-  { key: 'transfers', label: 'Transfers' },
-  { key: 'settings', label: 'Settings' },
-];
-
-const searchModes: Array<{
-  key: WarehouseSearchMode;
-  label: string;
-}> = [
-  { key: 'serial', label: 'By serial #' },
-  { key: 'name', label: 'By name' },
-  { key: 'article', label: 'By article' },
-  { key: 'warehouse', label: 'By warehouse' },
-  { key: 'supplier', label: 'By supplier' },
-];
-
-const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'service-centers', label: 'Service Centers' },
-  { key: 'warehouses', label: 'Warehouses' },
-  { key: 'administrators', label: 'Administrators' },
-];
-
-const initialServiceCenters: ServiceCenter[] = [];
-
-const initialWarehouses: WarehouseItem[] = [];
-
-const initialAdministrators: Administrator[] = [];
-const transferPageSize = 8;
-const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
-const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
-const savedWarehouseFiltersStorageKey =
-  'project-goods.saved-warehouse-filters';
-const initialWarehouseFilters: WarehouseFilters = {
-  name: '',
-  serial: '',
-  article: '',
-  warehouse: '',
-  supplier: '',
-  buyer: '',
-  location: '',
-};
-const warehouseFilterIconOptions = [
-  '*',
-  '#',
-  '@',
-  '$',
-  '%',
-  '+',
-  '\u2753',
-  '\u2702\ufe0f',
-  '\ud83e\udd16',
-  '\ud83d\udcc8',
-  '\ud83e\ude9f',
-  '\ud83d\udc26',
-  '\u2733\ufe0f',
-  '\u00a9\ufe0f',
-  '\ud83d\udd07',
-  '\u2795',
-  '\ud83d\udc19',
-  '\u2195\ufe0f',
-  '\u2716\ufe0f',
-  '\ud83d\udc4d',
-  '\ud83d\udc4e',
-  '\u261d\ufe0f',
-  '\ud83d\udcde',
-  '\ud83d\udd2d',
-  '\ud83d\udd12',
-  'VISA',
-  '\ud83d\udd17',
-  '\ud83c\udf4e',
-  '\ud83d\udcb2',
-  '\u21a9\ufe0f',
-  '\ud83e\uddee',
-  '\u2620\ufe0f',
-  '\ud83d\udd0c',
-  '\u2796',
-  '\ud83d\udcbc',
-  '\ud83d\ude97',
-  '\ud83d\ude80',
-  '\u2708\ufe0f',
-  '\ud83d\udeb4',
-  '\u267f\ufe0f',
-  '\u2194\ufe0f',
-  '\u2605',
-  '\u2606',
-  '\u2728',
-];
-const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
-  stock: [
-    'select',
-    'name',
-    'serial',
-    'article',
-    'date',
-    'purchase',
-    'warehouse',
-    'location',
-    'clientOrder',
-    'supplierOrder',
-    'supplier',
-    'note',
-    'action',
-  ],
-  receipts: [
-    'number',
-    'product',
-    'quantity',
-    'price',
-    'amount',
-    'paid',
-    'supplier',
-    'receiptDate',
-    'acceptedBy',
-    'approvedBy',
-    'status',
-    'payment',
-  ],
-};
-const availableWarehouseColumns: {
-  stock: StockColumnKey[];
-  receipts: ReceiptsColumnKey[];
-} = {
-  stock: [...defaultWarehouseVisibleColumns.stock],
-  receipts: [...defaultWarehouseVisibleColumns.receipts],
-};
-const lockedWarehouseColumns: {
-  stock: StockColumnKey[];
-  receipts: ReceiptsColumnKey[];
-} = {
-  stock: ['select'],
-  receipts: ['number'],
-};
-
-const toServiceCenterForm = (
-  c?: ServiceCenter,
-): ServiceCenterFormState => ({
-  name: c?.name ?? '',
-  color: c?.color ?? '#000000',
-  address: c?.address ?? '',
-  phone: c?.phone ?? '+380',
-});
-const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
-  name: w?.name ?? '',
-  isActive: w?.isActive ?? true,
-  serviceCenterId: w?.serviceCenterId ?? '',
-  receiptAddress: w?.receiptAddress ?? '',
-  receiptPhone: w?.receiptPhone ?? '',
-  locations: w?.locations.map((x) => x.name) ?? [''],
-});
-const normalizeProductName = (value: string) =>
-  value.trim().toLowerCase();
-const hexColorToRgb = (value: string) => {
-  const normalized = value.trim().replace(/^#/, '');
-  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
-  return {
-    r: Number.parseInt(normalized.slice(0, 2), 16),
-    g: Number.parseInt(normalized.slice(2, 4), 16),
-    b: Number.parseInt(normalized.slice(4, 6), 16),
-  };
-};
-const getWarehouseBadgeAccentStyle = (
-  color?: string,
-): CSSProperties | undefined => {
-  if (!color) return undefined;
-  const rgb = hexColorToRgb(color);
-  if (!rgb) return undefined;
-  return {
-    '--warehouse-badge-accent': color,
-    '--warehouse-badge-accent-bg': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
-    '--warehouse-badge-accent-border': `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`,
-  } as CSSProperties;
-};
+import { ModalShell } from './WarehouseModalShell';
+import { WarehouseSettings } from './WarehouseSettingsSection';
+import { ServiceCenterModal, WarehouseEditModal } from './WarehouseSettingsModals';
+import { StockTable, ReceiptsTable } from './WarehouseTables';
+import { TransferWorkspace } from './WarehouseTransferWorkspace';
+import { WarehouseToolbar } from './WarehouseToolbar';
+import {
+  availableWarehouseColumns,
+  defaultWarehouseVisibleColumns,
+  emptySupplierOrders,
+  initialAdministrators,
+  initialServiceCenters,
+  initialWarehouseFilters,
+  initialWarehouses,
+  lockedWarehouseColumns,
+  normalizeProductName,
+  savedWarehouseFiltersStorageKey,
+  tabs,
+  toServiceCenterForm,
+  toWarehouseForm,
+  transferPageSize,
+  warehouseColumnsStorageKey,
+  warehouseFilterIconOptions,
+  warehouseFiltersStorageKey,
+  type Administrator,
+  type ReceiptRow,
+  type ReceiptsColumnKey,
+  type SavedWarehouseFilter,
+  type ServiceCenter,
+  type ServiceCenterFormState,
+  type SettingsTab,
+  type StockColumnKey,
+  type TransferFormState,
+  type TransferHistoryRow,
+  type WarehouseColumnVisibility,
+  type WarehouseColumnsTab,
+  type WarehouseFilters,
+  type WarehouseFormState,
+  type WarehouseItem,
+  type WarehousePanelProps,
+  type WarehouseSearchMode,
+  type WarehouseTab,
+} from '../model/warehouse-panel';
 export const WarehousePanel = ({
   products,
   sales,
@@ -463,8 +103,19 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
-  const [isWarehouseSettingsSaving, setIsWarehouseSettingsSaving] =
-    useState(false);
+  const supplierOrdersQuery = useSupplierOrdersQuery();
+  const warehouseSettingsQuery = useWarehouseSettingsQuery();
+  const createSupplierOrderMutation = useCreateSupplierOrderMutation();
+  const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const takeOnChargeSupplierOrderMutation =
+    useTakeOnChargeSupplierOrderMutation();
+  const updateWarehouseSettingsMutation =
+    useUpdateWarehouseSettingsMutation();
+  const supplierOrders =
+    supplierOrdersQuery.data ?? emptySupplierOrders;
+  const isWarehouseSettingsSaving =
+    updateWarehouseSettingsMutation.isPending;
   const [selectedProductModelName, setSelectedProductModelName] =
     useState<string | null>(null);
   const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
@@ -643,9 +294,6 @@ export const WarehousePanel = ({
     editingSupplierOrderItemIndex,
     setEditingSupplierOrderItemIndex,
   ] = useState<number | null>(null);
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
-    [],
-  );
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
@@ -675,7 +323,7 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [receiptHistory, setReceiptHistory] = useState<ReceiptRow[]>([]);
+  const [manualReceiptRows, setManualReceiptRows] = useState<ReceiptRow[]>([]);
   const [transferForm, setTransferForm] = useState<TransferFormState>({
     productId: '',
     toWarehouseId: '',
@@ -695,9 +343,8 @@ export const WarehousePanel = ({
     const nextWarehouses = payload?.warehouses ?? warehouses;
     const nextAdministrators = payload?.administrators ?? administrators;
 
-    setIsWarehouseSettingsSaving(true);
     try {
-      const saved = await updateWarehouseSettings({
+      const saved = await updateWarehouseSettingsMutation.mutateAsync({
         serviceCenters: nextServiceCenters,
         warehouses: nextWarehouses,
         administrators: nextAdministrators,
@@ -714,8 +361,6 @@ export const WarehousePanel = ({
           ? error.message
           : 'Failed to save warehouse settings.',
       );
-    } finally {
-      setIsWarehouseSettingsSaving(false);
     }
   };
 
@@ -751,18 +396,20 @@ export const WarehousePanel = ({
     );
   };
 
-  const refreshSupplierOrders = async () => {
-    const orders = await getSupplierOrders();
-    setSupplierOrders(orders);
-    const rows = buildReceiptRows(orders);
-    setReceiptHistory((current) => {
-      const manualRows = current.filter((row) => !row.id.startsWith('so-'));
-      return [
-        ...rows.map((row) => ({ ...row, id: `so-${row.id}` })),
-        ...manualRows,
-      ];
-    });
-  };
+  const receiptHistory = useMemo(
+    () => [
+      ...buildReceiptRows(supplierOrders).map((row) => ({
+        ...row,
+        id: `so-${row.id}`,
+      })),
+      ...manualReceiptRows,
+    ],
+    [manualReceiptRows, supplierOrders],
+  );
+
+  const refreshSupplierOrders = useCallback(async () => {
+    await supplierOrdersQuery.refetch();
+  }, [supplierOrdersQuery]);
 
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
@@ -780,21 +427,24 @@ export const WarehousePanel = ({
 
     await Promise.all(
       ordersToUpdate.map((order) =>
-        updateSupplierOrder(order.id, {
-          orderBaseId: order.orderBaseId,
-          supplierId: order.supplierId,
-          deliveryDate: order.deliveryDate,
-          supplyType: order.supplyType,
-          number: order.number,
-          note: order.note,
-          createdBy: order.createdBy,
-          status: order.status,
-          paymentStatus: order.paymentStatus,
-          items: order.items.map((item) =>
-            item.catalogProductId === catalogProductId
-              ? { ...item, productName: nextName }
-              : item,
-          ),
+        updateSupplierOrderMutation.mutateAsync({
+          supplierOrderId: order.id,
+          payload: {
+            orderBaseId: order.orderBaseId,
+            supplierId: order.supplierId,
+            deliveryDate: order.deliveryDate,
+            supplyType: order.supplyType,
+            number: order.number,
+            note: order.note,
+            createdBy: order.createdBy,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            items: order.items.map((item) =>
+              item.catalogProductId === catalogProductId
+                ? { ...item, productName: nextName }
+                : item,
+            ),
+          },
         }),
       ),
     );
@@ -821,9 +471,6 @@ export const WarehousePanel = ({
   };
 
   useEffect(() => {
-    void refreshSupplierOrders().catch(() => undefined);
-  }, []);
-  useEffect(() => {
     const refreshOnFinanceUpdate = () => {
       void refreshSupplierOrders().catch(() => undefined);
     };
@@ -831,23 +478,21 @@ export const WarehousePanel = ({
     return () => {
       window.removeEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
     };
-  }, []);
+  }, [refreshSupplierOrders]);
   useEffect(() => {
-    void (async () => {
-      try {
-        const settings = await getWarehouseSettings();
-        setServiceCenters(settings.serviceCenters);
-        setWarehouses(settings.warehouses);
-        setAdministrators(settings.administrators);
-      } catch (error) {
-        onError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load warehouse settings.',
-        );
-      }
-    })();
-  }, [onError]);
+    if (!warehouseSettingsQuery.data) return;
+    setServiceCenters(warehouseSettingsQuery.data.serviceCenters);
+    setWarehouses(warehouseSettingsQuery.data.warehouses);
+    setAdministrators(warehouseSettingsQuery.data.administrators);
+  }, [warehouseSettingsQuery.data]);
+  useEffect(() => {
+    if (!warehouseSettingsQuery.error) return;
+    onError(
+      warehouseSettingsQuery.error instanceof Error
+        ? warehouseSettingsQuery.error.message
+        : 'Failed to load warehouse settings.',
+    );
+  }, [onError, warehouseSettingsQuery.error]);
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
@@ -1054,51 +699,8 @@ export const WarehousePanel = ({
     }, {});
   }, [products, sales]);
   const supplierOrdersByProductId = useMemo(() => {
-    const byCatalogProductName = catalogProducts.reduce<
-      Record<string, string[]>
-    >((acc, catalogProduct) => {
-      const key = catalogProduct.name.trim().toLowerCase();
-      if (!key) return acc;
-      acc[key] = [...(acc[key] ?? []), catalogProduct.id];
-      return acc;
-    }, {});
-
-    const byCatalogProductId = supplierOrders.reduce<
-      Record<string, SupplierOrderLink[]>
-    >((acc, order) => {
-      order.items.forEach((item) => {
-        if (!item.catalogProductId) return;
-        acc[item.catalogProductId] = [
-          ...(acc[item.catalogProductId] ?? []),
-          {
-            order,
-            itemIndex: item.itemIndex,
-            displayNumber: buildSupplierOrderItemNumber(
-              order,
-              item.itemIndex,
-            ),
-          },
-        ];
-      });
-      return acc;
-    }, {});
-
-    return products.reduce<Record<string, SupplierOrderLink[]>>(
-      (acc, product) => {
-        const matchedCatalogIds =
-          byCatalogProductName[product.name.trim().toLowerCase()] ?? [];
-        const orderMap = new Map<string, SupplierOrderLink>();
-        matchedCatalogIds.forEach((catalogId) => {
-          (byCatalogProductId[catalogId] ?? []).forEach((link) =>
-            orderMap.set(`${link.order.id}-${link.itemIndex}`, link),
-          );
-        });
-        acc[product.id] = Array.from(orderMap.values());
-        return acc;
-      },
-      {},
-    );
-  }, [catalogProducts, products, supplierOrders]);
+    return buildSupplierOrdersByProductId({ products, supplierOrders });
+  }, [products, supplierOrders]);
   const filteredProducts = useMemo(
     () =>
       filterStockProducts({
@@ -1426,7 +1028,7 @@ export const WarehousePanel = ({
 
     const amount = quantity * price;
     const now = new Date().toISOString();
-    setReceiptHistory((current) => [
+    setManualReceiptRows((current) => [
       {
         id: `manual-${Date.now()}`,
         number: `R-${23000 + current.length + 1}`,
@@ -1526,62 +1128,6 @@ export const WarehousePanel = ({
     setSavedFilters((current) =>
       current.filter((item) => item.id !== filterId),
     );
-  };
-  const getWarehouseColumnLabel = (
-    columnKey: StockColumnKey | ReceiptsColumnKey,
-  ) => {
-    switch (columnKey) {
-      case 'select':
-        return 'Select';
-      case 'name':
-        return 'Name';
-      case 'serial':
-        return 'Serial #';
-      case 'article':
-        return 'Article';
-      case 'date':
-        return 'Date';
-      case 'purchase':
-        return 'Purchase';
-      case 'warehouse':
-        return 'Warehouse';
-      case 'location':
-        return 'Location';
-      case 'clientOrder':
-        return 'Client order';
-      case 'supplierOrder':
-        return 'Supplier order';
-      case 'supplier':
-        return 'Supplier';
-      case 'note':
-        return 'Note';
-      case 'action':
-        return 'Action';
-      case 'number':
-        return '#';
-      case 'product':
-        return 'Product';
-      case 'quantity':
-        return 'Quantity';
-      case 'price':
-        return 'Price';
-      case 'amount':
-        return 'Amount';
-      case 'paid':
-        return 'Paid';
-      case 'receiptDate':
-        return 'Receipt Date';
-      case 'acceptedBy':
-        return 'Accepted By';
-      case 'approvedBy':
-        return 'Approved By';
-      case 'status':
-        return 'Status';
-      case 'payment':
-        return 'Payment';
-      default:
-        return '';
-    }
   };
   const toggleColumnVisibility = (
     columnKey: StockColumnKey | ReceiptsColumnKey,
@@ -1698,164 +1244,31 @@ export const WarehousePanel = ({
       </div>
 
       {activeTab !== 'settings' ? (
-        <div className='warehouse-toolbar'>
-          <button
-            type='button'
-            className='toolbar-square-button'
-            aria-label='Previous page'
-            onClick={() => setCurrentPage((current) => current - 1)}
-            disabled={currentPage <= 1}
-          >
-            &lsaquo;
-          </button>
-          <span className='warehouse-page-number'>{currentPage}</span>
-          <button
-            type='button'
-            className='toolbar-square-button'
-            aria-label='Next page'
-            onClick={() => setCurrentPage((current) => current + 1)}
-            disabled={currentPage >= pageCount}
-          >
-            &rsaquo;
-          </button>
-          <span className='warehouse-stock-count'>{stockSummaryText}</span>
-          {activeColumnsTab ? (
-            <div className='toolbar-settings' ref={columnsMenuRef}>
-              <button
-                type='button'
-                className='toolbar-square-button'
-                aria-label='Toggle table columns'
-                aria-expanded={isColumnsMenuOpen}
-                onClick={() =>
-                  setIsColumnsMenuOpen((current) => !current)
-                }
-              >
-                <svg
-                  xmlns='http://www.w3.org/2000/svg'
-                  viewBox='0 0 24 24'
-                  className='toolbar-square-button-icon'
-                  fill='currentColor'
-                >
-                  <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
-                </svg>
-              </button>
-              {isColumnsMenuOpen ? (
-                <div className='toolbar-settings-menu'>
-                  {activeColumnsTab === 'stock'
-                    ? availableWarehouseColumns.stock.map(
-                        (columnKey) => (
-                          <label
-                            key={`${activeTab}-${columnKey}`}
-                            className='toolbar-settings-option'
-                          >
-                            <input
-                              type='checkbox'
-                              checked={visibleColumnKeySet.has(
-                                columnKey,
-                              )}
-                              disabled={lockedWarehouseColumns.stock.includes(
-                                columnKey,
-                              )}
-                              onChange={() =>
-                                toggleColumnVisibility(columnKey)
-                              }
-                            />
-                            <span>
-                              {getWarehouseColumnLabel(columnKey)}
-                            </span>
-                          </label>
-                        ),
-                      )
-                    : availableWarehouseColumns.receipts.map(
-                        (columnKey) => (
-                          <label
-                            key={`${activeTab}-${columnKey}`}
-                            className='toolbar-settings-option'
-                          >
-                            <input
-                              type='checkbox'
-                              checked={visibleColumnKeySet.has(
-                                columnKey,
-                              )}
-                              disabled={lockedWarehouseColumns.receipts.includes(
-                                columnKey,
-                              )}
-                              onChange={() =>
-                                toggleColumnVisibility(columnKey)
-                              }
-                            />
-                            <span>
-                              {getWarehouseColumnLabel(columnKey)}
-                            </span>
-                          </label>
-                        ),
-                      )}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={() => setIsFilterPanelOpen((current) => !current)}
-          >
-            {activeFilterCount > 0
-              ? `Filter (${activeFilterCount})`
-              : 'Filter'}
-          </button>
-          <div className='orders-search-group warehouse-search-group'>
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder={searchPlaceholder}
-            />
-            {query ? (
-              <span
-                role='button'
-                tabIndex={0}
-                className='warehouse-search-clear'
-                aria-label='Clear search text'
-                onClick={() => {
-                  setQuery('');
-                  setCurrentPage(1);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setQuery('');
-                    setCurrentPage(1);
-                  }
-                }}
-              >
-                x
-              </span>
-            ) : null}
-          </div>
-          <div className='warehouse-search-modes'>
-            {searchModes.map((mode) => (
-              <button
-                key={mode.key}
-                type='button'
-                className={
-                  mode.key === searchMode
-                    ? 'warehouse-mode-button warehouse-mode-button-active'
-                    : 'warehouse-mode-button'
-                }
-                onClick={() => {
-                  setSearchMode(mode.key);
-                  setCurrentPage(1);
-                }}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {activeTab !== 'settings' ? (
+        <WarehouseToolbar
+          activeTab={activeTab}
+          currentPage={currentPage}
+          pageCount={pageCount}
+          stockSummaryText={stockSummaryText}
+          activeColumnsTab={activeColumnsTab}
+          columnsMenuRef={columnsMenuRef}
+          isColumnsMenuOpen={isColumnsMenuOpen}
+          visibleColumnKeySet={visibleColumnKeySet}
+          activeFilterCount={activeFilterCount}
+          query={query}
+          searchMode={searchMode}
+          searchPlaceholder={searchPlaceholder}
+          onPreviousPage={() => setCurrentPage((current) => current - 1)}
+          onNextPage={() => setCurrentPage((current) => current + 1)}
+          onToggleColumnsMenu={() =>
+            setIsColumnsMenuOpen((current) => !current)
+          }
+          onToggleColumnVisibility={toggleColumnVisibility}
+          onToggleFilters={() => setIsFilterPanelOpen((current) => !current)}
+          setQuery={setQuery}
+          setSearchMode={setSearchMode}
+          setCurrentPage={setCurrentPage}
+        />
+      ) : null}      {activeTab !== 'settings' ? (
         <section
           className={
             isFilterPanelOpen
@@ -2397,216 +1810,22 @@ export const WarehousePanel = ({
           This warehouse section is ready for the next workflow.
         </p>
       )}
-      {serviceCenterModalId ? (
-        <ModalShell
-          title={
-            serviceCenterModalId === 'new'
-              ? 'create service center'
-              : 'edit service center'
-          }
-          onClose={() => setServiceCenterModalId(null)}
-          onSubmit={saveServiceCenter}
-          submitLabel={
-            serviceCenterModalId === 'new' ? 'create' : 'save'
-          }
-          canSubmit={serviceCenterForm.name.trim().length > 1}
-        >
-          <label className='field'>
-            <span>name:</span>
-            <input
-              value={serviceCenterForm.name}
-              onChange={(event) =>
-                setServiceCenterForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-              placeholder='name'
-            />
-          </label>
-          <label className='field'>
-            <span>color (#000000):</span>
-            <div className='warehouse-settings-color-field'>
-              <input
-                value={serviceCenterForm.color}
-                onChange={(event) =>
-                  setServiceCenterForm((current) => ({
-                    ...current,
-                    color: event.target.value,
-                  }))
-                }
-                placeholder='#000000'
-              />
-              <input
-                className='warehouse-settings-color-picker'
-                type='color'
-                aria-label='color'
-                value={serviceCenterForm.color}
-                onChange={(event) =>
-                  setServiceCenterForm((current) => ({
-                    ...current,
-                    color: event.target.value,
-                  }))
-                }
-              />
-            </div>
-          </label>
-          <label className='field'>
-            <span>address:</span>
-            <input
-              value={serviceCenterForm.address}
-              onChange={(event) =>
-                setServiceCenterForm((current) => ({
-                  ...current,
-                  address: event.target.value,
-                }))
-              }
-              placeholder='address'
-            />
-          </label>
-          <label className='field'>
-            <span>phone:</span>
-            <input
-              value={serviceCenterForm.phone}
-              onChange={(event) =>
-                setServiceCenterForm((current) => ({
-                  ...current,
-                  phone: event.target.value,
-                }))
-              }
-              placeholder='+380'
-            />
-          </label>
-        </ModalShell>
-      ) : null}
+      <ServiceCenterModal
+        modalId={serviceCenterModalId}
+        form={serviceCenterForm}
+        onFormChange={setServiceCenterForm}
+        onClose={() => setServiceCenterModalId(null)}
+        onSubmit={saveServiceCenter}
+      />
 
-      {warehouseModalId ? (
-        <ModalShell
-          title={
-            warehouseModalId === 'new'
-              ? 'create warehouse'
-              : 'edit warehouse'
-          }
-          onClose={() => setWarehouseModalId(null)}
-          onSubmit={saveWarehouse}
-          submitLabel={warehouseModalId === 'new' ? 'create' : 'save'}
-          canSubmit={
-            warehouseForm.name.trim().length > 1 &&
-            Boolean(warehouseForm.serviceCenterId) &&
-            warehouseForm.locations.some(
-              (location) => location.trim().length > 0,
-            )
-          }
-        >
-          <label className='field'>
-            <span>name:</span>
-            <input
-              value={warehouseForm.name}
-              onChange={(event) =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-              placeholder='name'
-            />
-          </label>
-          <label className='create-inline-checkbox'>
-            <input
-              type='checkbox'
-              checked={warehouseForm.isActive}
-              onChange={(event) =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  isActive: event.target.checked,
-                }))
-              }
-            />
-            <span>active</span>
-          </label>
-          <label className='field'>
-            <span>Location to Service Center:</span>
-            <select
-              value={warehouseForm.serviceCenterId}
-              onChange={(event) =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  serviceCenterId: event.target.value,
-                }))
-              }
-            >
-              <option value=''>select service center</option>
-              {serviceCenters.map((serviceCenter) => (
-                <option
-                  key={serviceCenter.id}
-                  value={serviceCenter.id}
-                >
-                  {serviceCenter.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>address for suppliers:</span>
-            <input
-              value={warehouseForm.receiptAddress}
-              onChange={(event) =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  receiptAddress: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='field'>
-            <span>phone for suppliers:</span>
-            <input
-              value={warehouseForm.receiptPhone}
-              onChange={(event) =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  receiptPhone: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <div className='field'>
-            <span>locations:</span>
-            <div className='warehouse-settings-locations'>
-              {warehouseForm.locations.map((location, index) => (
-                <input
-                  key={`${warehouseModalId}-location-${index}`}
-                  value={location}
-                  onChange={(event) => {
-                    const nextLocations = [
-                      ...warehouseForm.locations,
-                    ];
-                    nextLocations[index] = event.target.value;
-                    setWarehouseForm((current) => ({
-                      ...current,
-                      locations: nextLocations,
-                    }));
-                  }}
-                  placeholder='enter location name'
-                />
-              ))}
-            </div>
-            <button
-              type='button'
-              className='warehouse-settings-add-location'
-              onClick={() =>
-                setWarehouseForm((current) => ({
-                  ...current,
-                  locations: [...current.locations, ''],
-                }))
-              }
-            >
-              location
-            </button>
-          </div>
-        </ModalShell>
-      ) : null}
-
+      <WarehouseEditModal
+        modalId={warehouseModalId}
+        form={warehouseForm}
+        serviceCenters={serviceCenters}
+        onFormChange={setWarehouseForm}
+        onClose={() => setWarehouseModalId(null)}
+        onSubmit={saveWarehouse}
+      />
       {isReceiptModalOpen ? (
         <ModalShell
           title='create receipt order'
@@ -2721,17 +1940,20 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          const result = await takeOnChargeSupplierOrder(orderId, {
-            autoGenerateSerialNumbers,
-            serialNumbers,
-            autoGenerateArticles,
-            articleBase: articleBase.trim().toUpperCase(),
-            itemIndex:
-              editingSupplierOrderItemIndex === null
-                ? undefined
-                : editingSupplierOrderItemIndex,
-            warehouseId,
-            locationId,
+          const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
+            supplierOrderId: orderId,
+            payload: {
+              autoGenerateSerialNumbers,
+              serialNumbers,
+              autoGenerateArticles,
+              articleBase: articleBase.trim().toUpperCase(),
+              itemIndex:
+                editingSupplierOrderItemIndex === null
+                  ? undefined
+                  : editingSupplierOrderItemIndex,
+              warehouseId,
+              locationId,
+            },
           });
           onSuccess('Order taken on charge.');
           window.dispatchEvent(new Event('project-goods:finance-updated'));
@@ -2743,7 +1965,7 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          await cancelSupplierOrder(orderId);
+          await cancelSupplierOrderMutation.mutateAsync(orderId);
           onSuccess('Order cancelled.');
           await refreshSupplierOrders();
         }}
@@ -2799,15 +2021,18 @@ export const WarehousePanel = ({
                       selectedItemIndex: editingSupplierOrderItemIndex,
                       updatedItem: payload.items[0],
                     });
-              await updateSupplierOrder(orderSource.id, {
-                ...supplierOrderPayload,
-                number: orderSource.number,
-                orderBaseId: orderSource.orderBaseId,
-                items: mergedItems,
+              await updateSupplierOrderMutation.mutateAsync({
+                supplierOrderId: orderSource.id,
+                payload: {
+                  ...supplierOrderPayload,
+                  number: orderSource.number,
+                  orderBaseId: orderSource.orderBaseId,
+                  items: mergedItems,
+                },
               });
               onSuccess('Receipt order updated.');
             } else {
-              await createSupplierOrder({
+              await createSupplierOrderMutation.mutateAsync({
                 ...supplierOrderPayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
@@ -3023,1242 +2248,3 @@ export const WarehousePanel = ({
   );
 };
 
-const ReceiptsTable = ({
-  receipts,
-  visibleColumns,
-  onOpenOrder,
-  onOpenProduct,
-  onOpenSupplier,
-}: {
-  receipts: ReceiptRow[];
-  visibleColumns: ReceiptsColumnKey[];
-  onOpenOrder: (receipt: ReceiptRow) => void;
-  onOpenProduct: (receipt: ReceiptRow) => void;
-  onOpenSupplier: (receipt: ReceiptRow) => void;
-}) => {
-  if (receipts.length === 0)
-    return <p className='empty-state'>No receipt orders created.</p>;
-  return (
-    <div className='catalog-table-wrap'>
-      <table className='catalog-table warehouse-receipts-table'>
-        <thead>
-          <tr>
-            {visibleColumns.map((columnKey) => (
-              <th key={columnKey}>
-                {columnKey === 'number'
-                  ? '#'
-                  : columnKey === 'product'
-                    ? 'Product'
-                    : columnKey === 'quantity'
-                      ? 'Quantity'
-                      : columnKey === 'price'
-                        ? 'Price'
-                        : columnKey === 'amount'
-                          ? 'Amount'
-                          : columnKey === 'paid'
-                            ? 'Paid'
-                            : columnKey === 'supplier'
-                              ? 'Supplier'
-                              : columnKey === 'receiptDate'
-                                ? 'Receipt Date'
-                                : columnKey === 'acceptedBy'
-                                  ? 'Accepted By'
-                                  : columnKey === 'approvedBy'
-                                    ? 'Approved By'
-                                    : columnKey === 'status'
-                                      ? 'Status'
-                                      : 'Payment'}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {receipts.map((receipt) => (
-            <tr key={receipt.id}>
-              {visibleColumns.map((columnKey) => (
-                <td key={`${receipt.id}-${columnKey}`}>
-                  {columnKey === 'number' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                      {receipt.number}
-                    </button>
-                  ) : columnKey === 'product' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
-                      {receipt.productName}
-                    </button>
-                  ) : columnKey === 'quantity' ? (
-                    `${receipt.quantity} pcs`
-                  ) : columnKey === 'price' ? (
-                    formatCurrency(receipt.price)
-                  ) : columnKey === 'amount' ? (
-                    formatCurrency(receipt.amount)
-                  ) : columnKey === 'paid' ? (
-                    formatCurrency(receipt.paid)
-                  ) : columnKey === 'supplier' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenSupplier(receipt)}>
-                      {receipt.supplierName}
-                    </button>
-                  ) : columnKey === 'receiptDate' ? (
-                    formatDate(receipt.createdAt)
-                  ) : columnKey === 'acceptedBy' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                      {receipt.acceptedBy}
-                    </button>
-                  ) : columnKey === 'approvedBy' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                      {receipt.approvedBy}
-                    </button>
-                  ) : columnKey === 'status' ? (
-                    <span
-                      className={
-                        receipt.status === 'cancelled'
-                          ? 'receipt-status receipt-status-cancelled'
-                          : receipt.status === 'received'
-                            ? 'receipt-status receipt-status-received'
-                            : receipt.status === 'new'
-                              ? 'receipt-status receipt-status-new'
-                              : 'receipt-status receipt-status-approved'
-                      }
-                    >
-                      {receipt.status === 'cancelled'
-                        ? 'Cancelled'
-                        : receipt.status === 'received'
-                          ? 'Taken on charge'
-                          : receipt.status === 'new'
-                            ? 'New'
-                            : 'Approved'}
-                    </span>
-                  ) : receipt.status === 'new' ? (
-                    '-'
-                  ) : receipt.paymentStatus ? (
-                    <span
-                      className={getReceiptPaymentStatusClass(
-                        receipt.paymentStatus,
-                      )}
-                    >
-                      {getReceiptPaymentStatusLabel(
-                        receipt.paymentStatus,
-                      )}
-                    </span>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-const WarehouseSettings = ({
-  tab,
-  onTabChange,
-  employees,
-  serviceCenters,
-  warehouses,
-  administrators,
-  warehousesByServiceCenter,
-  onCreateServiceCenter,
-  onEditServiceCenter,
-  onCreateWarehouse,
-  onEditWarehouse,
-  onAdministratorChange,
-  onSaveAdministrators,
-  isSaving,
-}: {
-  tab: SettingsTab;
-  onTabChange: (tab: SettingsTab) => void;
-  employees: Employee[];
-  serviceCenters: ServiceCenter[];
-  warehouses: WarehouseItem[];
-  administrators: Administrator[];
-  warehousesByServiceCenter: Record<string, number>;
-  onCreateServiceCenter: () => void;
-  onEditServiceCenter: (serviceCenter: ServiceCenter) => void;
-  onCreateWarehouse: () => void;
-  onEditWarehouse: (warehouse: WarehouseItem) => void;
-  onAdministratorChange: (
-    updater:
-      | Administrator[]
-      | ((current: Administrator[]) => Administrator[]),
-  ) => void;
-  onSaveAdministrators: () => void;
-  isSaving: boolean;
-}) => {
-  const serviceCenterMap = useMemo(
-    () =>
-      serviceCenters.reduce<Record<string, ServiceCenter>>(
-        (acc, x) => {
-          acc[x.id] = x;
-          return acc;
-        },
-        {},
-      ),
-    [serviceCenters],
-  );
-  const warehouseMap = useMemo(
-    () =>
-      warehouses.reduce<Record<string, WarehouseItem>>((acc, x) => {
-        acc[x.id] = x;
-        return acc;
-      }, {}),
-    [warehouses],
-  );
-  const [adminWarehouseSearch, setAdminWarehouseSearch] = useState<
-    Record<string, string>
-  >({});
-
-  const buildDefaultForWarehouses = (warehouseIds: string[]) => {
-    const firstWarehouseId = warehouseIds[0];
-    if (!firstWarehouseId)
-      return { defaultWarehouseId: '', defaultLocationId: '' };
-    const firstLocationId =
-      warehouseMap[firstWarehouseId]?.locations[0]?.id ?? '';
-    return {
-      defaultWarehouseId: firstWarehouseId,
-      defaultLocationId: firstLocationId,
-    };
-  };
-
-  const ensureAdminDefaults = (
-    administrator: Administrator,
-    warehouseIds: string[],
-  ) => {
-    const hasDefaultWarehouse = warehouseIds.includes(
-      administrator.defaultWarehouseId,
-    );
-    const hasDefaultLocation =
-      warehouseMap[administrator.defaultWarehouseId]?.locations.some(
-        (location) => location.id === administrator.defaultLocationId,
-      ) ?? false;
-    if (hasDefaultWarehouse && hasDefaultLocation)
-      return administrator;
-    return {
-      ...administrator,
-      ...buildDefaultForWarehouses(warehouseIds),
-    };
-  };
-
-  return (
-    <div className='warehouse-settings-panel'>
-      <div
-        className='warehouse-settings-tabs'
-        role='tablist'
-        aria-label='Warehouse settings sections'
-      >
-        {settingsTabs.map((settingsTab) => (
-          <button
-            key={settingsTab.key}
-            type='button'
-            className={
-              settingsTab.key === tab
-                ? 'warehouse-settings-tab warehouse-settings-tab-active'
-                : 'warehouse-settings-tab'
-            }
-            onClick={() => onTabChange(settingsTab.key)}
-          >
-            {settingsTab.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'service-centers' ? (
-        <>
-          <div className='warehouse-settings-actions'>
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={onCreateServiceCenter}
-            >
-              Create
-            </button>
-          </div>
-          <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table'>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>color</th>
-                  <th>Address</th>
-                  <th>Phone</th>
-                  <th>Number of Warehouses</th>
-                </tr>
-              </thead>
-              <tbody>
-                {serviceCenters.map((serviceCenter) => (
-                  <tr key={serviceCenter.id}>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.name}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-color-dot'
-                        style={{
-                          backgroundColor: serviceCenter.color,
-                        }}
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                        aria-label={`Edit ${serviceCenter.name}`}
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.address}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.phone}
-                      </button>
-                    </td>
-                    <td>
-                      {warehousesByServiceCenter[serviceCenter.id] ??
-                        0}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : null}
-
-      {tab === 'warehouses' ? (
-        <>
-          <div className='warehouse-settings-actions'>
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={onCreateWarehouse}
-            >
-              Create Warehouse
-            </button>
-          </div>
-          <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table'>
-              <thead>
-                <tr>
-                  <th>Id</th>
-                  <th>Name</th>
-                  <th>Location</th>
-                  <th>Address</th>
-                  <th>Phone</th>
-                  <th>Locations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {warehouses.map((warehouse) => {
-                  const center =
-                    serviceCenterMap[warehouse.serviceCenterId];
-                  return (
-                    <tr key={warehouse.id}>
-                      <td>{warehouse.id.replace('w-', '')}</td>
-                      <td>
-                        <button
-                          type='button'
-                          className='settings-link-button'
-                          onClick={() => onEditWarehouse(warehouse)}
-                        >
-                          {warehouse.name}
-                        </button>
-                      </td>
-                      <td>
-                        <span className='warehouse-settings-center-chip'>
-                          <i
-                            style={{
-                              color: center?.color ?? '#94a3b8',
-                            }}
-                          >
-                            &bull;
-                          </i>{' '}
-                          {center?.name ?? '-'}
-                        </span>
-                      </td>
-                      <td>{warehouse.receiptAddress || '-'}</td>
-                      <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>{warehouse.locations.length} pcs</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : null}
-
-      {tab === 'administrators' ? (
-        <>
-          <div className='catalog-table-wrap warehouse-admin-table-wrap'>
-            <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
-              <thead>
-                <tr>
-                  <th>Administrator</th>
-                  <th>
-                    View Warehouses, to which the administrator has
-                    access
-                  </th>
-                  <th>
-                    View Warehouse and Location, to which the
-                    administrator has access
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {administrators.map((administrator) => {
-                  const employee = employees.find(
-                    (item) => item.id === administrator.employeeId,
-                  );
-                  if (!employee) return null;
-                  const availableLocations =
-                    administrator.warehouseIds.flatMap(
-                      (warehouseId) => {
-                        const warehouse = warehouseMap[warehouseId];
-                        if (!warehouse) return [];
-                        return warehouse.locations.map(
-                          (location) => ({
-                            warehouseId: warehouse.id,
-                            locationId: location.id,
-                            label: `${warehouse.name} ${location.name}`,
-                          }),
-                        );
-                      },
-                    );
-                  const selectedWarehouseNames =
-                    administrator.warehouseIds
-                      .map(
-                        (warehouseId) =>
-                          warehouseMap[warehouseId]?.name,
-                      )
-                      .filter(Boolean);
-                  const isAllSelected =
-                    administrator.warehouseIds.length > 0 &&
-                    administrator.warehouseIds.length ===
-                      warehouses.length;
-                  const warehouseSearch =
-                    adminWarehouseSearch[administrator.employeeId] ??
-                    '';
-                  const filteredWarehouses = warehouses.filter(
-                    (warehouse) =>
-                      warehouse.name
-                        .toLowerCase()
-                        .includes(
-                          warehouseSearch.trim().toLowerCase(),
-                        ),
-                  );
-                  const defaultValue = `${administrator.defaultWarehouseId}:${administrator.defaultLocationId}`;
-                  return (
-                    <tr key={administrator.employeeId}>
-                      <td>{employee.name}</td>
-                      <td>
-                        <details className='warehouse-admin-multiselect'>
-                          <summary>
-                            {isAllSelected
-                              ? `All (${administrator.warehouseIds.length})`
-                              : selectedWarehouseNames.join(', ') ||
-                                'Select Warehouses'}
-                          </summary>
-                          <div className='warehouse-admin-multiselect-menu'>
-                            <input
-                              value={warehouseSearch}
-                              onChange={(event) =>
-                                setAdminWarehouseSearch(
-                                  (current) => ({
-                                    ...current,
-                                    [administrator.employeeId]:
-                                      event.target.value,
-                                  }),
-                                )
-                              }
-                              placeholder='Search'
-                            />
-                            <label className='warehouse-admin-checkline'>
-                              <input
-                                type='checkbox'
-                                checked={isAllSelected}
-                                onChange={(event) => {
-                                  const nextWarehouseIds = event
-                                    .target.checked
-                                    ? warehouses.map(
-                                        (warehouse) => warehouse.id,
-                                      )
-                                    : [];
-                                  onAdministratorChange((current) =>
-                                    current.map((item) =>
-                                      item.employeeId ===
-                                      administrator.employeeId
-                                        ? ensureAdminDefaults(
-                                            {
-                                              ...item,
-                                              warehouseIds:
-                                                nextWarehouseIds,
-                                            },
-                                            nextWarehouseIds,
-                                          )
-                                        : item,
-                                    ),
-                                  );
-                                }}
-                              />
-                              <span>Select All</span>
-                            </label>
-                            <div className='warehouse-admin-options'>
-                              {filteredWarehouses.map((warehouse) => (
-                                <label
-                                  key={warehouse.id}
-                                  className='warehouse-admin-checkline'
-                                >
-                                  <input
-                                    type='checkbox'
-                                    checked={administrator.warehouseIds.includes(
-                                      warehouse.id,
-                                    )}
-                                    onChange={(event) => {
-                                      const nextWarehouseIds = event
-                                        .target.checked
-                                        ? [
-                                            ...administrator.warehouseIds,
-                                            warehouse.id,
-                                          ]
-                                        : administrator.warehouseIds.filter(
-                                            (warehouseId) =>
-                                              warehouseId !==
-                                              warehouse.id,
-                                          );
-                                      onAdministratorChange(
-                                        (current) =>
-                                          current.map((item) =>
-                                            item.employeeId ===
-                                            administrator.employeeId
-                                              ? ensureAdminDefaults(
-                                                  {
-                                                    ...item,
-                                                    warehouseIds:
-                                                      nextWarehouseIds,
-                                                  },
-                                                  nextWarehouseIds,
-                                                )
-                                              : item,
-                                          ),
-                                      );
-                                    }}
-                                  />
-                                  <span>{warehouse.name}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </details>
-                      </td>
-                      <td>
-                        <select
-                          className='warehouse-admin-default-select'
-                          value={defaultValue}
-                          onChange={(event) => {
-                            const [
-                              defaultWarehouseId,
-                              defaultLocationId,
-                            ] = event.target.value.split(':');
-                            onAdministratorChange((current) =>
-                              current.map((item) =>
-                                item.employeeId ===
-                                administrator.employeeId
-                                  ? {
-                                      ...item,
-                                      defaultWarehouseId,
-                                      defaultLocationId,
-                                    }
-                                  : item,
-                              ),
-                            );
-                          }}
-                        >
-                          {availableLocations.length === 0 ? (
-                            <option value=''>Select Location</option>
-                          ) : null}
-                          {availableLocations.map((location) => (
-                            <option
-                              key={`${location.warehouseId}:${location.locationId}`}
-                              value={`${location.warehouseId}:${location.locationId}`}
-                            >
-                              {location.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={onSaveAdministrators}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </>
-      ) : null}
-    </div>
-  );
-};
-
-const TransferWorkspace = ({
-  products,
-  selectableProducts,
-  warehouses,
-  productWarehouseMetaById,
-  form,
-  selectedProduct,
-  targetLocations,
-  history,
-  isSaving,
-  onFormChange,
-  onSubmit,
-}: {
-  products: Product[];
-  selectableProducts: Product[];
-  warehouses: WarehouseItem[];
-  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
-  form: TransferFormState;
-  selectedProduct: Product | null;
-  targetLocations: WarehouseLocation[];
-  history: TransferHistoryRow[];
-  isSaving: boolean;
-  onFormChange: Dispatch<SetStateAction<TransferFormState>>;
-  onSubmit: () => void;
-}) => {
-  const currentMeta = selectedProduct
-    ? productWarehouseMetaById[selectedProduct.id]
-    : undefined;
-  const isSameLocation =
-    Boolean(selectedProduct) &&
-    currentMeta?.warehouseId === form.toWarehouseId &&
-    currentMeta?.locationId === form.toLocationId;
-  const canSubmit =
-    Boolean(selectedProduct) &&
-    Boolean(form.toWarehouseId) &&
-    Boolean(form.toLocationId) &&
-    !isSameLocation &&
-    !isSaving;
-
-  return (
-    <section className='warehouse-transfer-panel'>
-      <div className='warehouse-transfer-grid'>
-        <div className='warehouse-transfer-form'>
-          <label className='orders-filter-field'>
-            <span>Product</span>
-            <select
-              value={form.productId}
-              onChange={(event) =>
-                onFormChange((current) => ({
-                  ...current,
-                  productId: event.target.value,
-                }))
-              }
-              disabled={isSaving}
-            >
-              <option value=''>Select stock item</option>
-              {selectableProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {`${product.name} / ${product.serialNumber || product.article}`}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className='warehouse-transfer-current'>
-            <span>Current location</span>
-            <strong>
-              {currentMeta
-                ? `${currentMeta.warehouseName} / ${currentMeta.locationName}`
-                : '-'}
-            </strong>
-          </div>
-
-          <label className='orders-filter-field'>
-            <span>Target warehouse</span>
-            <select
-              value={form.toWarehouseId}
-              onChange={(event) => {
-                const nextWarehouseId = event.target.value;
-                const nextWarehouse = warehouses.find(
-                  (warehouse) => warehouse.id === nextWarehouseId,
-                );
-                onFormChange((current) => ({
-                  ...current,
-                  toWarehouseId: nextWarehouseId,
-                  toLocationId: nextWarehouse?.locations[0]?.id ?? '',
-                }));
-              }}
-              disabled={isSaving || warehouses.length === 0}
-            >
-              <option value=''>
-                {warehouses.length === 0
-                  ? 'Create warehouse in Settings'
-                  : 'Select warehouse'}
-              </option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>Target location</span>
-            <select
-              value={form.toLocationId}
-              onChange={(event) =>
-                onFormChange((current) => ({
-                  ...current,
-                  toLocationId: event.target.value,
-                }))
-              }
-              disabled={isSaving || targetLocations.length === 0}
-            >
-              {targetLocations.length === 0 ? (
-                <option value=''>Create location in Settings</option>
-              ) : null}
-              {targetLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className='orders-filter-field warehouse-transfer-note'>
-            <span>Note</span>
-            <textarea
-              value={form.note}
-              onChange={(event) =>
-                onFormChange((current) => ({
-                  ...current,
-                  note: event.target.value,
-                }))
-              }
-              disabled={isSaving}
-              rows={3}
-              placeholder='Reason or document number'
-            />
-          </label>
-
-          <div className='warehouse-transfer-actions'>
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={onSubmit}
-              disabled={!canSubmit}
-            >
-              {isSaving ? 'Transferring...' : 'Transfer stock'}
-            </button>
-          </div>
-        </div>
-
-        <div
-          className='catalog-table-wrap warehouse-transfer-list'
-          data-global-scrollbar='off'
-        >
-          <table className='catalog-table'>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Serial #</th>
-                <th>Warehouse</th>
-                <th>Location</th>
-                <th>Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No stock rows found.</td>
-                </tr>
-              ) : (
-                products.map((product) => {
-                  const meta = productWarehouseMetaById[product.id];
-                  return (
-                    <tr
-                      key={product.id}
-                      className={
-                        product.id === form.productId
-                          ? 'warehouse-transfer-row warehouse-transfer-row-selected'
-                          : 'warehouse-transfer-row'
-                      }
-                      role='button'
-                      tabIndex={0}
-                      aria-pressed={product.id === form.productId}
-                      onClick={() =>
-                        onFormChange((current) => ({
-                          ...current,
-                          productId: product.id,
-                        }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') {
-                          return;
-                        }
-                        event.preventDefault();
-                        onFormChange((current) => ({
-                          ...current,
-                          productId: product.id,
-                        }));
-                      }}
-                    >
-                      <td className='catalog-name-cell'>{product.name}</td>
-                      <td>{product.serialNumber || '-'}</td>
-                      <td>{meta?.warehouseName ?? '-'}</td>
-                      <td>{meta?.locationName ?? '-'}</td>
-                      <td>{product.quantity}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className='warehouse-transfer-history'>
-        <table className='catalog-table'>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Product</th>
-              <th>From</th>
-              <th>To</th>
-              <th>By</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.length === 0 ? (
-              <tr>
-                <td colSpan={6}>No transfers in this session.</td>
-              </tr>
-            ) : (
-              history.map((transfer) => (
-                <tr key={transfer.id}>
-                  <td>{formatDate(transfer.createdAt)}</td>
-                  <td>
-                    {transfer.productName}
-                    {transfer.serialNumber
-                      ? ` / ${transfer.serialNumber}`
-                      : ''}
-                  </td>
-                  <td>
-                    {transfer.fromWarehouseName} /{' '}
-                    {transfer.fromLocationName}
-                  </td>
-                  <td>
-                    {transfer.toWarehouseName} / {transfer.toLocationName}
-                  </td>
-                  <td>{transfer.createdBy}</td>
-                  <td>{transfer.note || '-'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-};
-
-const ModalShell = ({
-  title,
-  children,
-  onClose,
-  onSubmit,
-  submitLabel,
-  canSubmit,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-  onSubmit: () => void;
-  submitLabel: string;
-  canSubmit: boolean;
-}) => (
-  <div className='modal-backdrop' role='dialog' aria-modal='true'>
-    <div className='catalog-edit-modal warehouse-settings-modal'>
-      <header className='catalog-edit-header'>
-        <h2>{title}</h2>
-        <button
-          type='button'
-          className='ghost-button'
-          onClick={onClose}
-        >
-          &times;
-        </button>
-      </header>
-      <div className='catalog-edit-body warehouse-settings-modal-body'>
-        {children}
-      </div>
-      <footer className='catalog-edit-footer warehouse-settings-modal-footer'>
-        <button
-          type='button'
-          className='secondary-button'
-          onClick={onClose}
-        >
-          cancel
-        </button>
-        <button
-          type='button'
-          className='primary-button'
-          onClick={onSubmit}
-          disabled={!canSubmit}
-        >
-          {submitLabel}
-        </button>
-      </footer>
-    </div>
-  </div>
-);
-
-const StockTable = ({
-  products,
-  isLoading,
-  visibleColumns,
-  selectedProductIds,
-  warehouses,
-  serviceCenters,
-  salesByProductId,
-  supplierOrdersByProductId,
-  productWarehouseMetaById,
-  onToggleProductSelection,
-  onTogglePageSelection,
-  onEdit,
-  onOpenModel,
-  onDelete,
-  onOpenSupplierOrder,
-}: {
-  products: Product[];
-  isLoading: boolean;
-  visibleColumns: StockColumnKey[];
-  selectedProductIds: string[];
-  warehouses: WarehouseItem[];
-  serviceCenters: ServiceCenter[];
-  salesByProductId: Record<string, Sale[]>;
-  supplierOrdersByProductId: Record<string, SupplierOrderLink[]>;
-  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
-  onToggleProductSelection: (productId: string) => void;
-  onTogglePageSelection: () => void;
-  onEdit: (product: Product) => void;
-  onOpenModel: (product: Product) => void;
-  onDelete: (product: Product) => void;
-  onOpenSupplierOrder: (
-    supplierOrderId: string,
-    itemIndex: number,
-  ) => void;
-}) => {
-  const isPageSelected =
-    products.length > 0 &&
-    products.every((product) => selectedProductIds.includes(product.id));
-  const isPagePartiallySelected =
-    !isPageSelected &&
-    products.some((product) => selectedProductIds.includes(product.id));
-  const selectAllRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = isPagePartiallySelected;
-    }
-  }, [isPagePartiallySelected]);
-
-  const warehouseById = useMemo(
-    () =>
-      warehouses.reduce<Record<string, WarehouseItem>>((acc, warehouse) => {
-        acc[warehouse.id] = warehouse;
-        return acc;
-      }, {}),
-    [warehouses],
-  );
-  const serviceCenterById = useMemo(
-    () =>
-      serviceCenters.reduce<Record<string, ServiceCenter>>(
-        (acc, serviceCenter) => {
-          acc[serviceCenter.id] = serviceCenter;
-          return acc;
-        },
-        {},
-      ),
-    [serviceCenters],
-  );
-
-  if (isLoading)
-    return (
-      <p className='empty-state warehouse-stock-empty'>
-        Loading warehouse stock...
-      </p>
-    );
-  if (products.length === 0)
-    return (
-      <div className='empty-state warehouse-stock-empty'>
-        <strong>No stock rows found.</strong>
-        <span>Adjust search or filters to see available stock.</span>
-      </div>
-    );
-  return (
-    <div className='catalog-table-wrap'>
-      <table className='catalog-table warehouse-stock-table'>
-        <thead>
-          <tr>
-            {visibleColumns.map((columnKey) => (
-              <th
-                key={columnKey}
-                className={`warehouse-stock-cell-${columnKey}`}
-              >
-                {columnKey === 'select' ? (
-                  <input
-                    ref={selectAllRef}
-                    type='checkbox'
-                    aria-label='Select all stock rows'
-                    checked={isPageSelected}
-                    onChange={onTogglePageSelection}
-                  />
-                ) : columnKey === 'name' ? (
-                  'Name'
-                ) : columnKey === 'serial' ? (
-                  'Serial #'
-                ) : columnKey === 'article' ? (
-                  'Article'
-                ) : columnKey === 'date' ? (
-                  'Date'
-                ) : columnKey === 'purchase' ? (
-                  'Purchase'
-                ) : columnKey === 'warehouse' ? (
-                  'Warehouse'
-                ) : columnKey === 'location' ? (
-                  'Location'
-                ) : columnKey === 'clientOrder' ? (
-                  'Client order'
-                ) : columnKey === 'supplierOrder' ? (
-                  'Supplier order'
-                ) : columnKey === 'supplier' ? (
-                  'Supplier'
-                ) : columnKey === 'note' ? (
-                  'Note'
-                ) : (
-                  'Action'
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
-            <tr key={product.id}>
-              {(() => {
-                const linkedSales = salesByProductId[product.id] ?? [];
-                const linkedSupplierOrders =
-                  supplierOrdersByProductId[product.id] ?? [];
-                const supplierLabel = getStockSupplierLabel(
-                  product,
-                  linkedSupplierOrders,
-                );
-                const warehouse = warehouseById[
-                  productWarehouseMetaById[product.id]?.warehouseId ?? ''
-                ];
-                const serviceCenterColor = warehouse
-                  ? serviceCenterById[warehouse.serviceCenterId]?.color
-                  : '';
-                const warehouseBadgeStyle =
-                  getWarehouseBadgeAccentStyle(serviceCenterColor);
-                const getOrderHref = (
-                  sale: Sale,
-                  tab: 'orders' | 'sales',
-                ) => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('page', 'orders');
-                  url.searchParams.set('ordersTab', tab);
-                  url.searchParams.set('saleId', sale.id);
-                  url.searchParams.delete('createOrder');
-                  return `${url.pathname}${url.search}${url.hash}`;
-                };
-
-                return (
-                  <>
-                    {visibleColumns.map((columnKey) => (
-                      <td
-                        key={`${product.id}-${columnKey}`}
-                        className={[
-                          `warehouse-stock-cell-${columnKey}`,
-                          columnKey === 'name' ? 'catalog-name-cell' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                      >
-                        {columnKey === 'select' ? (
-                          <input
-                            type='checkbox'
-                            aria-label={`Select ${product.name}`}
-                            checked={selectedProductIds.includes(product.id)}
-                            onChange={() => onToggleProductSelection(product.id)}
-                          />
-                        ) : columnKey === 'name' ? (
-                          <button
-                            type='button'
-                            className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
-                          >
-                            {product.name}
-                          </button>
-                        ) : columnKey === 'serial' ? (
-                          <button
-                            type='button'
-                            className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
-                          >
-                            {product.serialNumber}
-                          </button>
-                        ) : columnKey === 'article' ? (
-                          <button
-                            type='button'
-                            className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
-                          >
-                            {product.article}
-                          </button>
-                        ) : columnKey === 'date' ? (
-                          formatDate(product.purchaseDate)
-                        ) : columnKey === 'purchase' ? (
-                          formatCurrency(product.price)
-                        ) : columnKey === 'warehouse' ? (
-                          <span
-                            className={[
-                              'warehouse-data-badge',
-                              'warehouse-data-badge-warehouse',
-                              serviceCenterColor
-                                ? 'warehouse-data-badge-warehouse-colored'
-                                : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            style={warehouseBadgeStyle}
-                          >
-                            {productWarehouseMetaById[product.id]
-                              ?.warehouseName ?? '-'}
-                          </span>
-                        ) : columnKey === 'location' ? (
-                          <span className='warehouse-data-badge warehouse-data-badge-location'>
-                            {productWarehouseMetaById[product.id]
-                              ?.locationName ?? '-'}
-                          </span>
-                        ) : columnKey === 'clientOrder' ? (
-                          linkedSales.length === 0
-                            ? '-'
-                            : linkedSales.map((sale, index) => (
-                                <span key={`${product.id}-sale-${sale.id}`}>
-                                  {index > 0 ? ', ' : null}
-                                  <a
-                                    className='warehouse-link-badge'
-                                    href={getOrderHref(
-                                      sale,
-                                      sale.kind === 'sale'
-                                        ? 'sales'
-                                        : 'orders',
-                                    )}
-                                  >
-                                    {sale.recordNumber ||
-                                      sale.id.slice(0, 8)}
-                                  </a>
-                                </span>
-                              ))
-                        ) : columnKey === 'supplierOrder' ? (
-                          linkedSupplierOrders.length === 0
-                            ? '-'
-                            : linkedSupplierOrders.map(
-                                (order, index) => (
-                                  <span
-                                    key={`${product.id}-supplier-${order.order.id}-${order.itemIndex}`}
-                                  >
-                                    {index > 0 ? ', ' : null}
-                                    <button
-                                      type='button'
-                                      className='warehouse-link-badge'
-                                      onClick={() =>
-                                        onOpenSupplierOrder(
-                                          order.order.id,
-                                          order.itemIndex,
-                                        )
-                                      }
-                                    >
-                                      {order.displayNumber}
-                                    </button>
-                                  </span>
-                                ),
-                              )
-                        ) : columnKey === 'supplier' ? (
-                          <button
-                            type='button'
-                            className='settings-link-button'
-                            onClick={() => onEdit(product)}
-                          >
-                            {supplierLabel}
-                          </button>
-                        ) : columnKey === 'note' ? (
-                          <button
-                            type='button'
-                            className='settings-link-button'
-                            onClick={() => onEdit(product)}
-                          >
-                            {product.note || '-'}
-                          </button>
-                        ) : (
-                          <div className='catalog-row-actions'>
-                            <button
-                              type='button'
-                              className='ghost-button'
-                              onClick={() => onEdit(product)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type='button'
-                              className='danger-button'
-                              onClick={() => onDelete(product)}
-                            >
-                              &times;
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                  </>
-                );
-              })()}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};

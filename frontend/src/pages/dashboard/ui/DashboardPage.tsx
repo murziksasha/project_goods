@@ -758,6 +758,10 @@ export const DashboardPage = () => {
             </small>
           ) : null}
           <div className="topbar-actions">
+            <div className="topbar-current-user" title={currentEmployee.name}>
+              <span className="topbar-current-user-name">{currentEmployee.name}</span>
+              <span className="topbar-current-user-role">{currentEmployee.role}</span>
+            </div>
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
             </button>
@@ -827,11 +831,17 @@ export const DashboardPage = () => {
                   onOpenClientCard={openClientCardFromOrders}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
                   printCompanySettings={{
+                    serviceName:
+                      state.settings?.serviceName ?? state.settingsForm.serviceName,
                     company: state.settings?.company ?? state.settingsForm.company,
                     companyAddress:
                       state.settings?.companyAddress ?? state.settingsForm.companyAddress,
                     companyId: state.settings?.companyId ?? state.settingsForm.companyId,
                     companyIban: state.settings?.companyIban ?? state.settingsForm.companyIban,
+                    companyEmail:
+                      state.settings?.companyEmail ?? state.settingsForm.companyEmail,
+                    companySite:
+                      state.settings?.companySite ?? state.settingsForm.companySite,
                   }}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />

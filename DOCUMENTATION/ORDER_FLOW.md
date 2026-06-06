@@ -74,10 +74,11 @@
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Status dropdown in list always opens downward and is rendered in overlay (portal) above table/content.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
-- For repair orders, status change to `issued`, `client rejected`, or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
-- Product line items without bound warehouse serial numbers do not trigger this final-status stock lock.
-- To unlock final-status change, shipped serialized products must be returned back to stock first (line-item return flow).
-- The line-item `Return` action remains available for serialized products in these final repair statuses, so the user can move the shipped item back to stock and unlock the order.
+- For repair orders with attached warehouse products, status change to `issued` is allowed only after the attached products are fully paid.
+- When a paid repair order changes to `issued`, bound warehouse serials stay attached to the order and stock is shipped by the workspace save flow.
+- For repair orders, status change to `client rejected` or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
+- To unlock `client rejected` / `issued without repair`, refund the client at least the refundable amount for the product serials that will be unbound, then return those serials back to stock through the line-item return flow.
+- Product line items without bound warehouse serial numbers do not trigger this refusal-status stock lock.
 
 ## Payment Method In Accept Payment Modal
 
@@ -93,9 +94,9 @@
   - `Accept and mark paid` adds a deposit and marks the order `paid`.
   - `Mark paid without payment` changes only the status to `paid`.
 - Repair status `paid` is a payment state, not a final issue/close state: it does not fill `Issued`, does not set completion date, and does not trigger final repair stock-lock behavior.
-- For `Repair order`, action `Issue without payment` is allowed even when `To pay > 0`.
+- For `Repair order`, action `Issue without payment` is allowed even when `To pay > 0` if the order has no attached product line items.
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
-- Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until those products are returned to stock.
+- Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until the attached products are fully paid.
 - For `Sales`, `Issue without payment` remains blocked for target status `issued` while `To pay > 0`.
 
 ## Repair Order Refund Guard
@@ -118,7 +119,9 @@
 - `Article` is removed from order card main information.
 - `Save changes` button appears only when main information or status was modified (dirty state), and persists changes atomically.
 - Status in order card is applied on `Save changes` (not immediately on select).
-- In order card `Save changes`, status change is blocked by the same stock rule as in Orders list: selecting `issued`, `client rejected`, or `issued without repair` must fail while any product line has a bound warehouse serial number.
+- In order card `Save changes`, status change follows the same rules as in Orders list:
+  - `issued` is blocked while attached product line items have unpaid balance.
+  - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
 - In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
 - If saved status is NOT one of final issued statuses:
   - `issued`
@@ -213,6 +216,36 @@
   - only `Date to`: include records with `deliveryDate <= dateTo`,
   - both: include records with `dateFrom <= deliveryDate <= dateTo`.
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
+
+## Supplier Order Row Status Window (2026-06-03)
+
+- In `Orders -> Supplier Order`, each row `Status` value is an interactive badge-style button, not a native select.
+- Clicking the row status button opens the available supplier-order statuses:
+  - `Purchase request`
+  - `Ordered`
+  - `Approved`
+  - `Stocked`
+  - `Overdue`
+  - `Cancelled`
+  - `Unavailable`
+- The status window is rendered in a portal attached to `document.body`, using fixed viewport coordinates measured from the clicked status button.
+- Portal rendering is required because the supplier-order table has horizontal scrolling; the status window must not be clipped by the table wrapper.
+- Opening the status window must not change row height, table height, pagination position, or horizontal scrollbar position.
+- If the same supplier order appears as multiple item rows, the opened status window is keyed by the visible row number so it anchors to the exact clicked badge.
+- The status window has internal vertical scroll with fixed maximum height.
+- Mouse-wheel scrolling inside the status window must keep the window open and scroll only the status list.
+- Wheel momentum from the status window must not scroll the page/table behind it.
+- Clicking outside the status button/window closes the status window.
+- Page/table scrolling outside the status window closes it.
+- Browser resize closes it, because the measured fixed position may no longer match the clicked badge.
+- Selecting the current status closes the window without sending an update request.
+- Selecting another status:
+  - closes the status window,
+  - updates the supplier order status,
+  - refreshes the supplier-order list,
+  - shows success or error feedback.
+- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
+- If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
 
 ## Supplier Order Information Tab (2026-05-29)
 

@@ -6,6 +6,10 @@ export type Client = {
   id: string;
   phone: string;
   name: string;
+  email: string;
+  address: string;
+  registrationId: string;
+  iban: string;
   note: string;
   status: ClientStatus | '';
   createdAt: string;
@@ -15,6 +19,10 @@ export type Client = {
 export type ClientFormValues = {
   phone: string;
   name: string;
+  email: string;
+  address: string;
+  registrationId: string;
+  iban: string;
   note: string;
   status: ClientStatus | '';
 };

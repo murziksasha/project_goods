@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type {
   Client,
   ClientFormValues,
@@ -7,19 +7,37 @@ import type {
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
-  getClientStatusColor,
-  getClientStatusClass,
-  getEffectiveClientStatusLogic,
-} from '../../../entities/client/model/constants';
-import {
-  formatCurrency,
-  formatDateTime,
-} from '../../../shared/lib/format';
-import {
   isValidUkrainianPhone,
   normalizePhone,
 } from '../../../shared/lib/phoneFormatter';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import { ClientCardModal } from './ClientCardModal';
+import { ClientCreateModal } from './ClientCreateModal';
+import { ClientMergeModal, type ClientMergeField } from './ClientMergeModal';
+import { ClientsFilterPanel } from './ClientsFilterPanel';
+import { ClientsTable } from './ClientsTable';
+import { ClientsToolbar } from './ClientsToolbar';
+import {
+  clientCardTabStorageKey,
+  clientsFiltersStorageKey,
+  defaultClientStats,
+  emptyClientDraft,
+  emptyFilters,
+  getActiveClientFiltersCount,
+  getClientSubtitle,
+  getFilteredClients,
+  getStoredClientCardTab,
+  isOptionalAddressValid,
+  isOptionalIbanValid,
+  isOptionalRegistrationIdValid,
+  normalizeClientFiltersForApply,
+  normalizeIban,
+  normalizeText,
+  type ClientCardTab,
+  type ClientFilters,
+  type ClientMainForm,
+  type ClientStats,
+} from '../model/clients-workspace';
 
 type ClientsWorkspaceProps = {
   clients: Client[];
@@ -45,89 +63,7 @@ type ClientsWorkspaceProps = {
   onOpenClientCardHandled?: () => void;
 };
 
-type ClientFilters = {
-  query: string;
-  clientId: string;
-  orderNumber: string;
-  dateFrom: string;
-  dateTo: string;
-  visitsFrom: string;
-  visitsTo: string;
-  incomeFrom: string;
-  incomeTo: string;
-  status: ClientStatus | '' | 'all';
-};
-
-type ClientCardTab = 'main' | 'services' | 'sales';
-type CreateClientTab = 'person' | 'company';
-
-type ClientStats = {
-  visits: number;
-  income: number;
-  serviceCount: number;
-  salesCount: number;
-  orderNumbers: string[];
-};
-
-const clientsFiltersStorageKey = 'project-goods.clients-active-filters';
-const clientCardTabStorageKey = 'project-goods.client-card-tab';
-const createClientTabStorageKey = 'project-goods.create-client-tab';
-
-const emptyFilters: ClientFilters = {
-  query: '',
-  clientId: '',
-  orderNumber: '',
-  dateFrom: '',
-  dateTo: '',
-  visitsFrom: '',
-  visitsTo: '',
-  incomeFrom: '',
-  incomeTo: '',
-  status: 'all',
-};
-
-const normalizeText = (value: string) => value.trim().toLowerCase();
-
-const parseNumber = (value: string) => {
-  const normalized = value.trim().replace(',', '.');
-  if (!normalized) return null;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const MAX_PHONE_LENGTH = 10;
-
-const getDateStart = (value: string) => {
-  if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date.getTime();
-};
-
-const getDateEnd = (value: string) => {
-  if (!value) return null;
-  const date = new Date(`${value}T23:59:59.999`);
-  return Number.isNaN(date.getTime()) ? null : date.getTime();
-};
-
-const getClientSubtitle = (client: Client) =>
-  `${client.name} (${client.phone})`;
-
-const defaultClientStats: ClientStats = {
-  visits: 0,
-  income: 0,
-  serviceCount: 0,
-  salesCount: 0,
-  orderNumbers: [],
-};
-
-const formatClientIncome = (value: number) =>
-  `${formatCurrency(value)
-    .replace(/[^\d,\s.-]/g, '')
-    .trim()} грн`;
-
-
-
 const clientStatusOptions: Array<{
   label: string;
   value: ClientStatus | '';
@@ -145,29 +81,6 @@ const filterStatusOptions: Array<{
   value: ClientStatus | '' | 'all';
 }> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
 
-const getStoredClientCardTab = (): ClientCardTab => {
-  try {
-    const storedTab = window.localStorage.getItem(clientCardTabStorageKey);
-    return storedTab === 'main' || storedTab === 'services' || storedTab === 'sales'
-      ? storedTab
-      : 'main';
-  } catch {
-    return 'main';
-  }
-};
-
-const getStoredCreateClientTab = (): CreateClientTab => {
-  try {
-    const storedTab = window.localStorage.getItem(createClientTabStorageKey);
-    return storedTab === 'person' || storedTab === 'company'
-      ? storedTab
-      : 'person';
-  } catch {
-    return 'person';
-  }
-};
-
-
 const getMetaFieldFromNote = (
   note: string,
   key: 'Address' | 'Email',
@@ -181,7 +94,7 @@ const getMetaFieldFromNote = (
 
 const getMetaFieldFromNoteLegacy = (
   note: string,
-  key: 'Адреса' | 'Електронна пошта',
+  key: 'Address' | 'Email',
 ) => {
   const prefix = `${key}:`;
   const line = note
@@ -197,26 +110,21 @@ const getPlainNote = (note: string) =>
       (line) =>
         !line.startsWith('Address:') &&
         !line.startsWith('Email:') &&
-        !line.startsWith('Адреса:') &&
-        !line.startsWith('Електронна пошта:'),
+        !line.startsWith('Address:') &&
+        !line.startsWith('Email:'),
     )
     .join('\n')
     .trim();
 
-const formatItemList = (sale: Sale, tab: ClientCardTab) => {
-  const targetKind = tab === 'services' ? 'service' : 'product';
-  const lineItems = (sale.lineItems ?? []).filter(
-    (item) => item.kind === targetKind,
-  );
+const getLegacyClientEmail = (client: Client) =>
+  client.email ||
+  getMetaFieldFromNote(client.note, 'Email') ||
+  getMetaFieldFromNoteLegacy(client.note, 'Email');
 
-  if (lineItems.length > 0) {
-    return lineItems
-      .map((item) => `${item.name} x${item.quantity}`)
-      .join(', ');
-  }
-
-  return sale.product.name;
-};
+const getLegacyClientAddress = (client: Client) =>
+  client.address ||
+  getMetaFieldFromNote(client.note, 'Address') ||
+  getMetaFieldFromNoteLegacy(client.note, 'Address');
 
 const getClientStatsMap = (sales: Sale[]) => {
   const map = new Map<string, ClientStats>();
@@ -243,65 +151,19 @@ const getClientStatsMap = (sales: Sale[]) => {
   return map;
 };
 
-const mapClientToCreatePayload = (
-  tab: CreateClientTab,
-  personForm: {
-    phone: string;
-    name: string;
-    address: string;
-    email: string;
-    note: string;
-  },
-  companyForm: {
-    organizationName: string;
-    phone: string;
-    registration1: string;
-    registration2: string;
-    legalAddress: string;
-    factualAddress: string;
-    email: string;
-    note: string;
-  },
-): ClientFormValues => {
-  if (tab === 'person') {
-    const noteParts = [
-      personForm.note,
-      personForm.address && `Адреса: ${personForm.address}`,
-      personForm.email && `Електронна пошта: ${personForm.email}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    return {
-      phone: personForm.phone.trim(),
-      name: personForm.name.trim(),
-      note: noteParts,
-      status: 'new',
-    };
-  }
-
-  const noteParts = [
-    companyForm.note,
-    companyForm.registration1 &&
-      `Реєстраційні дані 1: ${companyForm.registration1}`,
-    companyForm.registration2 &&
-      `Реєстраційні дані 2: ${companyForm.registration2}`,
-    companyForm.legalAddress &&
-      `Юридична адреса: ${companyForm.legalAddress}`,
-    companyForm.factualAddress &&
-      `Фактична адреса: ${companyForm.factualAddress}`,
-    companyForm.email && `Електронна пошта: ${companyForm.email}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  return {
-    phone: companyForm.phone.trim(),
-    name: companyForm.organizationName.trim(),
-    note: noteParts,
-    status: 'new',
-  };
-};
+const mapClientDraftToPayload = (
+  draft: typeof emptyClientDraft,
+  status: ClientStatus | '' = 'new',
+): ClientFormValues => ({
+  phone: draft.phone.trim(),
+  name: draft.name.trim(),
+  email: draft.email.trim(),
+  address: draft.address.trim(),
+  registrationId: draft.registrationId.trim(),
+  iban: normalizeIban(draft.iban),
+  note: draft.note.trim(),
+  status,
+});
 
 export const ClientsWorkspace = ({
   clients,
@@ -373,24 +235,8 @@ export const ClientsWorkspace = ({
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
   const [clientCardTab, setClientCardTab] =
     useState<ClientCardTab>(getStoredClientCardTab);
-  const [createClientTab, setCreateClientTab] =
-    useState<CreateClientTab>(getStoredCreateClientTab);
   const [personForm, setPersonForm] = useState({
-    phone: '+380',
-    name: '',
-    address: '',
-    email: '',
-    note: '',
-  });
-  const [companyForm, setCompanyForm] = useState({
-    organizationName: '',
-    phone: '+380',
-    registration1: '',
-    registration2: '',
-    legalAddress: '',
-    factualAddress: '',
-    email: '',
-    note: '',
+    ...emptyClientDraft,
   });
   const [mergeTargetQuery, setMergeTargetQuery] = useState('');
   const [mergeSourceQuery, setMergeSourceQuery] = useState('');
@@ -400,11 +246,13 @@ export const ClientsWorkspace = ({
     useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergeSourceId, setMergeSourceId] = useState('');
-  const [mainTabForm, setMainTabForm] = useState({
+  const [mainTabForm, setMainTabForm] = useState<ClientMainForm>({
     name: '',
     phone: '',
     email: '',
     address: '',
+    registrationId: '',
+    iban: '',
     note: '',
     status: '' as ClientStatus | '',
   });
@@ -420,79 +268,14 @@ export const ClientsWorkspace = ({
   );
 
   const activeFiltersCount = useMemo(
-    () =>
-      (appliedFilters.query ? 1 : 0) +
-      (appliedFilters.clientId ? 1 : 0) +
-      (appliedFilters.orderNumber ? 1 : 0) +
-      (appliedFilters.dateFrom ? 1 : 0) +
-      (appliedFilters.dateTo ? 1 : 0) +
-      (appliedFilters.visitsFrom ? 1 : 0) +
-      (appliedFilters.visitsTo ? 1 : 0) +
-      (appliedFilters.incomeFrom ? 1 : 0) +
-      (appliedFilters.incomeTo ? 1 : 0) +
-      (appliedFilters.status !== 'all' ? 1 : 0),
+    () => getActiveClientFiltersCount(appliedFilters),
     [appliedFilters],
   );
 
-  const filteredClients = useMemo(() => {
-    const query = normalizeText(appliedFilters.query);
-    const byOrder = normalizeText(appliedFilters.orderNumber);
-    const dateFrom = getDateStart(appliedFilters.dateFrom);
-    const dateTo = getDateEnd(appliedFilters.dateTo);
-    const visitsFrom = parseNumber(appliedFilters.visitsFrom);
-    const visitsTo = parseNumber(appliedFilters.visitsTo);
-    const incomeFrom = parseNumber(appliedFilters.incomeFrom);
-    const incomeTo = parseNumber(appliedFilters.incomeTo);
-
-    return [...clients]
-      .filter((client) => {
-        const stats =
-          statsByClient.get(client.id) ?? defaultClientStats;
-        const searchable =
-          `${client.id} ${client.name} ${client.phone} ${client.note}`.toLowerCase();
-        const createdAt = new Date(client.createdAt).getTime();
-        const effectiveStatus = getEffectiveClientStatusLogic(
-          client.status || '',
-          stats.visits,
-        );
-
-        if (query && !searchable.includes(query)) return false;
-        if (
-          appliedFilters.clientId &&
-          !client.id
-            .toLowerCase()
-            .includes(appliedFilters.clientId.trim().toLowerCase())
-        ) {
-          return false;
-        }
-        if (
-          byOrder &&
-          !stats.orderNumbers.some((number) =>
-            number.toLowerCase().includes(byOrder),
-          )
-        ) {
-          return false;
-        }
-        if (dateFrom !== null && createdAt < dateFrom) return false;
-        if (dateTo !== null && createdAt > dateTo) return false;
-        if (visitsFrom !== null && stats.visits < visitsFrom)
-          return false;
-        if (visitsTo !== null && stats.visits > visitsTo)
-          return false;
-        if (incomeFrom !== null && stats.income < incomeFrom)
-          return false;
-        if (incomeTo !== null && stats.income > incomeTo)
-          return false;
-        if (
-          appliedFilters.status !== 'all' &&
-          effectiveStatus !== appliedFilters.status
-        )
-          return false;
-
-        return true;
-      })
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [appliedFilters, clients, statsByClient]);
+  const filteredClients = useMemo(
+    () => getFilteredClients(clients, appliedFilters, statsByClient),
+    [appliedFilters, clients, statsByClient],
+  );
   const paginatedClients = useMemo(() => {
     const start = (clientsPage - 1) * clientsPageSize;
     return filteredClients.slice(start, start + clientsPageSize);
@@ -511,15 +294,10 @@ export const ClientsWorkspace = ({
     setMainTabForm({
       name: selectedClient.name,
       phone: selectedClient.phone,
-      email:
-        getMetaFieldFromNote(selectedClient.note, 'Email') ||
-        getMetaFieldFromNoteLegacy(
-          selectedClient.note,
-          'Електронна пошта',
-        ),
-      address:
-        getMetaFieldFromNote(selectedClient.note, 'Address') ||
-        getMetaFieldFromNoteLegacy(selectedClient.note, 'Адреса'),
+      email: getLegacyClientEmail(selectedClient),
+      address: getLegacyClientAddress(selectedClient),
+      registrationId: selectedClient.registrationId,
+      iban: selectedClient.iban,
       note: getPlainNote(selectedClient.note),
       status: selectedClient.status || '',
     });
@@ -581,17 +359,40 @@ export const ClientsWorkspace = ({
       .slice(0, 6);
   }, [clients, mergeSourceQuery]);
 
+  const handleMergeQueryChange = (
+    field: ClientMergeField,
+    value: string,
+  ) => {
+    if (field === 'target') {
+      setMergeTargetQuery(value);
+      setMergeTargetId('');
+      setShowMergeTargetSuggestions(true);
+      return;
+    }
+
+    setMergeSourceQuery(value);
+    setMergeSourceId('');
+    setShowMergeSourceSuggestions(true);
+  };
+
+  const handleMergeClientSelect = (
+    field: ClientMergeField,
+    client: Client,
+  ) => {
+    if (field === 'target') {
+      setMergeTargetId(client.id);
+      setMergeTargetQuery(getClientSubtitle(client));
+      setShowMergeTargetSuggestions(false);
+      return;
+    }
+
+    setMergeSourceId(client.id);
+    setMergeSourceQuery(getClientSubtitle(client));
+    setShowMergeSourceSuggestions(false);
+  };
+
   const applyFilters = () => {
-    const next = {
-      ...draftFilters,
-      query: draftFilters.query.trim(),
-      clientId: draftFilters.clientId.trim(),
-      orderNumber: draftFilters.orderNumber.trim(),
-      visitsFrom: draftFilters.visitsFrom.trim(),
-      visitsTo: draftFilters.visitsTo.trim(),
-      incomeFrom: draftFilters.incomeFrom.trim(),
-      incomeTo: draftFilters.incomeTo.trim(),
-    };
+    const next = normalizeClientFiltersForApply(draftFilters);
 
     setDraftFilters(next);
     setAppliedFilters(next);
@@ -634,14 +435,6 @@ export const ClientsWorkspace = ({
     }
   }, [clientCardTab]);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(createClientTabStorageKey, createClientTab);
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [createClientTab]);
-
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);
     setClientCardTab('main');
@@ -656,15 +449,15 @@ export const ClientsWorkspace = ({
   const validatePhone = (phone: string): boolean => {
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
-      setMainTabPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Invalid phone number format');
       return false;
     }
     if (normalized.length > MAX_PHONE_LENGTH) {
-      setMainTabPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Invalid phone number format');
       return false;
     }
     if (!isValidUkrainianPhone(phone)) {
-      setMainTabPhoneError('Не вірний формат номеру телефона');
+      setMainTabPhoneError('Invalid phone number format');
       return false;
     }
     setMainTabPhoneError(null);
@@ -672,34 +465,22 @@ export const ClientsWorkspace = ({
   };
 
   const handleCreateClient = async () => {
-    const payload = mapClientToCreatePayload(
-      createClientTab,
-      personForm,
-      companyForm,
-    );
+    const payload = mapClientDraftToPayload(personForm);
     if (!payload.phone || !payload.name) return;
+    if (
+      !isOptionalAddressValid(payload.address) ||
+      !isOptionalRegistrationIdValid(payload.registrationId) ||
+      !isOptionalIbanValid(payload.iban)
+    ) {
+      return;
+    }
 
     const isSuccess = await onCreateClient(payload);
     if (!isSuccess) return;
 
     setIsCreateModalOpen(false);
-    setCreateClientTab('person');
     setPersonForm({
-      phone: '+380',
-      name: '',
-      address: '',
-      email: '',
-      note: '',
-    });
-    setCompanyForm({
-      organizationName: '',
-      phone: '+380',
-      registration1: '',
-      registration2: '',
-      legalAddress: '',
-      factualAddress: '',
-      email: '',
-      note: '',
+      ...emptyClientDraft,
     });
   };
 
@@ -727,20 +508,22 @@ export const ClientsWorkspace = ({
   const handleMainTabSave = async () => {
     if (!selectedClientId) return;
 
-    const noteParts = [
-      mainTabForm.note.trim(),
-      mainTabForm.address.trim()
-        ? `Адреса: ${mainTabForm.address.trim()}`
-        : '',
-      mainTabForm.email.trim()
-        ? `Електронна пошта: ${mainTabForm.email.trim()}`
-        : '',
-    ].filter(Boolean);
+    if (
+      !isOptionalAddressValid(mainTabForm.address) ||
+      !isOptionalRegistrationIdValid(mainTabForm.registrationId) ||
+      !isOptionalIbanValid(mainTabForm.iban)
+    ) {
+      return;
+    }
 
     await onUpdateClient(selectedClientId, {
       name: mainTabForm.name.trim(),
       phone: mainTabForm.phone.trim(),
-      note: noteParts.join('\n'),
+      email: mainTabForm.email.trim(),
+      address: mainTabForm.address.trim(),
+      registrationId: mainTabForm.registrationId.trim(),
+      iban: normalizeIban(mainTabForm.iban),
+      note: mainTabForm.note.trim(),
       status: mainTabForm.status as ClientStatus | '',
     });
   };
@@ -752,372 +535,57 @@ export const ClientsWorkspace = ({
 
   return (
     <section className='panel clients-workspace'>
-      <div className='orders-toolbar clients-toolbar'>
-        <div className='orders-toolbar-left'>
-          <button
-            type='button'
-            className='toolbar-filter-button toolbar-filter-toggle-button'
-            aria-expanded={isFilterOpen}
-            onClick={() => setIsFilterOpen((current) => !current)}
-          >
-            Фільтр
-            {activeFiltersCount > 0 ? (
-              <span className='toolbar-filter-count'>
-                {activeFiltersCount}
-              </span>
-            ) : null}
-          </button>
-          <div className='orders-search-group orders-search-group-clearable clients-search-group'>
-            <input
-              value={searchValue}
-              onChange={(event) => {
-                const nextQuery = event.target.value;
-                setSearchValue(nextQuery);
-                setDraftFilters((current) => ({
-                  ...current,
-                  query: nextQuery.trim(),
-                }));
-                setAppliedFilters((current) => ({
-                  ...current,
-                  query: nextQuery.trim(),
-                }));
-                setClientsPage(1);
-              }}
-              placeholder='Пошук за імʼям або телефоном'
-              aria-label='Пошук клієнта'
-            />
-            {searchValue ? (
-              <span
-                role='button'
-                tabIndex={0}
-                className='orders-search-clear'
-                aria-label='Clear search text'
-                onClick={() => {
-                  setSearchValue('');
-                  setDraftFilters((current) => ({
-                    ...current,
-                    query: '',
-                  }));
-                  setAppliedFilters((current) => ({
-                    ...current,
-                    query: '',
-                  }));
-                  setClientsPage(1);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setSearchValue('');
-                    setDraftFilters((current) => ({
-                      ...current,
-                      query: '',
-                    }));
-                    setAppliedFilters((current) => ({
-                      ...current,
-                      query: '',
-                    }));
-                    setClientsPage(1);
-                  }
-                }}
-              >
-                x
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className='orders-toolbar-actions clients-toolbar-actions'>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={() => setIsMergeModalOpen(true)}
-          >
-            Обʼєднати
-          </button>
-          <button
-            type='button'
-            className='orders-create-button'
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            Створити клієнта
-          </button>
-        </div>
-      </div>
+      <ClientsToolbar
+        activeFiltersCount={activeFiltersCount}
+        isFilterOpen={isFilterOpen}
+        searchValue={searchValue}
+        onToggleFilters={() => setIsFilterOpen((current) => !current)}
+        onSearchChange={(nextQuery) => {
+          setSearchValue(nextQuery);
+          setDraftFilters((current) => ({
+            ...current,
+            query: nextQuery.trim(),
+          }));
+          setAppliedFilters((current) => ({
+            ...current,
+            query: nextQuery.trim(),
+          }));
+          setClientsPage(1);
+        }}
+        onClearSearch={() => {
+          setSearchValue('');
+          setDraftFilters((current) => ({
+            ...current,
+            query: '',
+          }));
+          setAppliedFilters((current) => ({
+            ...current,
+            query: '',
+          }));
+          setClientsPage(1);
+        }}
+        onOpenCreateModal={() => setIsCreateModalOpen(true)}
+        onOpenMergeModal={() => setIsMergeModalOpen(true)}
+      />
 
-      <section
-        className={
-          isFilterOpen
-            ? 'orders-filter-panel orders-filter-panel-open'
-            : 'orders-filter-panel'
-        }
-      >
-        <div className='orders-filter-grid'>
-          <label className='orders-filter-field'>
-            <span>Телефон / ПІБ</span>
-            <input
-              type='text'
-              value={draftFilters.query}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  query: event.target.value,
-                }))
-              }
-              placeholder='+380..., Іван'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>ID клієнта</span>
-            <input
-              type='text'
-              value={draftFilters.clientId}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  clientId: event.target.value,
-                }))
-              }
-              placeholder='ID'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>№ замовлення</span>
-            <input
-              type='text'
-              value={draftFilters.orderNumber}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  orderNumber: event.target.value,
-                }))
-              }
-              placeholder='r000001'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Дата від</span>
-            <input
-              type='date'
-              value={draftFilters.dateFrom}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  dateFrom: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Дата до</span>
-            <input
-              type='date'
-              value={draftFilters.dateTo}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  dateTo: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Status</span>
-            <select
-              value={draftFilters.status}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  status: event.target.value as
-                    | ClientStatus
-                    | ''
-                    | 'all',
-                }))
-              }
-            >
-              {filterStatusOptions.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  style={{
-                    color: option.value && option.value !== 'all' ? getClientStatusColor(option.value as ClientStatus) : '#6B7280'
-                  }}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='orders-filter-field'>
-            <span>Кількість звернень від</span>
-            <input
-              type='number'
-              min='0'
-              value={draftFilters.visitsFrom}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  visitsFrom: event.target.value,
-                }))
-              }
-              placeholder='0'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Кількість звернень до</span>
-            <input
-              type='number'
-              min='0'
-              value={draftFilters.visitsTo}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  visitsTo: event.target.value,
-                }))
-              }
-              placeholder='0'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Дохід від клієнта від</span>
-            <input
-              type='number'
-              min='0'
-              value={draftFilters.incomeFrom}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  incomeFrom: event.target.value,
-                }))
-              }
-              placeholder='0'
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>Дохід від клієнта до</span>
-            <input
-              type='number'
-              min='0'
-              value={draftFilters.incomeTo}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  incomeTo: event.target.value,
-                }))
-              }
-              placeholder='0'
-            />
-          </label>
-        </div>
-        <div className='orders-filter-actions'>
-          <button
-            type='button'
-            className='toolbar-filter-button orders-filter-apply'
-            onClick={applyFilters}
-          >
-            Застосувати
-          </button>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={clearFilters}
-          >
-            Очистити фільтр
-          </button>
-        </div>
-      </section>
+      <ClientsFilterPanel
+        draftFilters={draftFilters}
+        isOpen={isFilterOpen}
+        statusOptions={filterStatusOptions}
+        onApply={applyFilters}
+        onChange={setDraftFilters}
+        onClear={clearFilters}
+      />
 
-      <div className='orders-table-wrap'>
-        <table className='orders-table clients-table'>
-          <thead>
-            <tr>
-              <th>Id</th>
-              <th>Тег</th>
-              <th>ПІБ</th>
-              <th>Телефон</th>
-              <th>Дата реєстрації</th>
-              <th>Кількість звернень</th>
-              <th>Дохід від клієнта</th>
-              <th aria-label='actions' />
-            </tr>
-          </thead>
-          <tbody>
-            {isClientsLoading ? (
-              <tr>
-                <td colSpan={8} className='orders-empty'>
-                  Завантаження клієнтів...
-                </td>
-              </tr>
-            ) : filteredClients.length === 0 ? (
-              <tr>
-                <td colSpan={8} className='orders-empty'>
-                  Клієнтів за заданими фільтрами не знайдено.
-                </td>
-              </tr>
-            ) : (
-              paginatedClients.map((client) => {
-                const stats =
-                  statsByClient.get(client.id) ?? defaultClientStats;
-                const isActive = selectedClientId === client.id;
-
-                return (
-                  <tr
-                    key={client.id}
-                    className={
-                      isActive
-                        ? 'clients-table-row clients-table-row-active'
-                        : 'clients-table-row'
-                    }
-                    onClick={() => openClientCard(client.id)}
-                  >
-                    <td>{client.id.slice(-6)}</td>
-                    <td>
-                      <span
-                        className={`client-status-badge ${getClientStatusClass(getEffectiveClientStatusLogic(client.status || '', stats.visits) || '')}`}
-                        style={{
-                          backgroundColor: getClientStatusColor(getEffectiveClientStatusLogic(client.status || '', stats.visits) || ''),
-                          color: 'white'
-                        }}
-                      >
-                        {getEffectiveClientStatusLogic(client.status || '', stats.visits) || '-'}
-                      </span>
-                    </td>
-                    <td>{client.name}</td>
-                    <td>
-                      <a
-                        href={`tel:${client.phone}`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {client.phone}
-                      </a>
-                    </td>
-                    <td>{formatDateTime(client.createdAt)}</td>
-                    <td>{stats.visits}</td>
-                    <td>{formatClientIncome(stats.income)}</td>
-                    <td>
-                      <button
-                        type='button'
-                        className='clients-delete-button'
-                        disabled={stats.visits > 0}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void onDeleteClient(client);
-                        }}
-                        aria-label={`Видалити ${client.name}`}
-                        title={
-                          stats.visits > 0
-                            ? 'Неможливо видалити клієнта із замовленнями або продажами.'
-                            : 'Видалити клієнта'
-                        }
-                      >
-                        x
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ClientsTable
+        clients={paginatedClients}
+        filteredClientsCount={filteredClients.length}
+        isLoading={isClientsLoading}
+        selectedClientId={selectedClientId}
+        statsByClient={statsByClient}
+        onDeleteClient={onDeleteClient}
+        onOpenClientCard={openClientCard}
+      />
       <PaginationPanel
         totalItems={filteredClients.length}
         page={clientsPage}
@@ -1130,613 +598,59 @@ export const ClientsWorkspace = ({
       />
 
       {isCreateModalOpen ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onClick={() => setIsCreateModalOpen(false)}
-        >
-          <article
-            className='catalog-edit-modal clients-modal'
-            role='dialog'
-            aria-modal='true'
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className='catalog-edit-header'>
-              <h2>Додати клієнта</h2>
-              <button
-                type='button'
-                className='ghost-button'
-                onClick={() => setIsCreateModalOpen(false)}
-              >
-                x
-              </button>
-            </header>
-            <div className='clients-modal-tabs'>
-              <button
-                type='button'
-                className={
-                  createClientTab === 'person'
-                    ? 'catalog-tab catalog-tab-active'
-                    : 'catalog-tab'
-                }
-                onClick={() => setCreateClientTab('person')}
-              >
-                Фіз. ос.
-              </button>
-              <button
-                type='button'
-                className={
-                  createClientTab === 'company'
-                    ? 'catalog-tab catalog-tab-active'
-                    : 'catalog-tab'
-                }
-                onClick={() => setCreateClientTab('company')}
-              >
-                Юр. ос.
-              </button>
-            </div>
-            <div className='catalog-edit-body clients-modal-body'>
-              {createClientTab === 'person' ? (
-                <div className='form-grid compact-form-grid'>
-                  <label className='field field-wide'>
-                    <span>Телефон</span>
-                    <input
-                      value={personForm.phone}
-                      onChange={(event) => {
-                        setPersonForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }));
-                      }}
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>ПІБ</span>
-                    <input
-                      value={personForm.name}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Адреса</span>
-                    <input
-                      value={personForm.address}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          address: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Електронна пошта</span>
-                    <input
-                      value={personForm.email}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Примітка</span>
-                    <textarea
-                      rows={4}
-                      value={personForm.note}
-                      onChange={(event) =>
-                        setPersonForm((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div className='form-grid compact-form-grid'>
-                  <label className='field field-wide'>
-                    <span>Назва організації</span>
-                    <input
-                      value={companyForm.organizationName}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          organizationName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Телефон</span>
-                    <input
-                      value={companyForm.phone}
-                      onChange={(event) => {
-                        setCompanyForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }));
-                      }}
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Реєстраційні дані 1</span>
-                    <input
-                      value={companyForm.registration1}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          registration1: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Реєстраційні дані 2</span>
-                    <input
-                      value={companyForm.registration2}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          registration2: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Юридична адреса</span>
-                    <input
-                      value={companyForm.legalAddress}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          legalAddress: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Фактична адреса</span>
-                    <input
-                      value={companyForm.factualAddress}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          factualAddress: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Електронна пошта</span>
-                    <input
-                      value={companyForm.email}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Примітка</span>
-                    <textarea
-                      rows={4}
-                      value={companyForm.note}
-                      onChange={(event) =>
-                        setCompanyForm((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='primary-button'
-                disabled={isSaving}
-                onClick={() => {
-                  void handleCreateClient();
-                }}
-              >
-                {isSaving ? 'Збереження...' : 'Додати'}
-              </button>
-            </footer>
-          </article>
-        </div>
+        <ClientCreateModal
+          form={personForm}
+          isSaving={isSaving}
+          onChange={setPersonForm}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSave={() => {
+            void handleCreateClient();
+          }}
+        />
       ) : null}
 
       {isMergeModalOpen ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onClick={() => setIsMergeModalOpen(false)}
-        >
-          <article
-            className='catalog-edit-modal clients-modal'
-            role='dialog'
-            aria-modal='true'
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className='catalog-edit-header'>
-              <h2>Обʼєднати клієнтів</h2>
-              <button
-                type='button'
-                className='ghost-button'
-                onClick={() => setIsMergeModalOpen(false)}
-              >
-                x
-              </button>
-            </header>
-            <div className='catalog-edit-body clients-modal-body'>
-              <p className='muted-copy'>
-                Виберіть клієнта 1 та клієнта 2. Дані з клієнта 2
-                будуть обʼєднані в клієнта 1, після чого клієнта 2
-                буде видалено.
-              </p>
-              <label className='field field-wide modal-suggestions-anchor'>
-                <span>Клієнт 1</span>
-                <input
-                  value={mergeTargetQuery}
-                  placeholder='Введіть ПІБ або телефон'
-                  onChange={(event) => {
-                    setMergeTargetQuery(event.target.value);
-                    setMergeTargetId('');
-                    setShowMergeTargetSuggestions(true);
-                  }}
-                />
-              </label>
-                {showMergeTargetSuggestions &&
-                mergeTargetOptions.length > 0 ? (
-                  <div className='suggestions-panel'>
-                    {mergeTargetOptions.map((client) => (
-                      <button
-                        key={client.id}
-                        type='button'
-                        className='suggestion-item'
-                        onClick={() => {
-                          setMergeTargetId(client.id);
-                          setMergeTargetQuery(
-                            getClientSubtitle(client),
-                          );
-                          setShowMergeTargetSuggestions(false);
-                        }}
-                      >
-                        <strong>{client.name}</strong>
-                        <span>{client.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              <label className='field field-wide modal-suggestions-anchor'>
-                <span>Клієнт 2</span>
-                <input
-                  value={mergeSourceQuery}
-                  placeholder='Введіть ПІБ або телефон'
-                  onChange={(event) => {
-                    setMergeSourceQuery(event.target.value);
-                    setMergeSourceId('');
-                    setShowMergeSourceSuggestions(true);
-                  }}
-                />
-              </label>
-                {showMergeSourceSuggestions &&
-                mergeSourceOptions.length > 0 ? (
-                  <div className='suggestions-panel'>
-                    {mergeSourceOptions.map((client) => (
-                      <button
-                        key={client.id}
-                        type='button'
-                        className='suggestion-item'
-                        onClick={() => {
-                          setMergeSourceId(client.id);
-                          setMergeSourceQuery(
-                            getClientSubtitle(client),
-                          );
-                          setShowMergeSourceSuggestions(false);
-                        }}
-                      >
-                        <strong>{client.name}</strong>
-                        <span>{client.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='primary-button'
-                disabled={
-                  isSaving ||
-                  !mergeTargetId ||
-                  !mergeSourceId ||
-                  mergeTargetId === mergeSourceId
-                }
-                onClick={() => {
-                  void handleMergeClients();
-                }}
-              >
-                {isSaving ? 'Обʼєднання...' : 'Обʼєднати клієнтів'}
-              </button>
-            </footer>
-          </article>
-        </div>
+        <ClientMergeModal
+          isSaving={isSaving}
+          sourceId={mergeSourceId}
+          sourceOptions={mergeSourceOptions}
+          sourceQuery={mergeSourceQuery}
+          targetId={mergeTargetId}
+          targetOptions={mergeTargetOptions}
+          targetQuery={mergeTargetQuery}
+          showSourceSuggestions={showMergeSourceSuggestions}
+          showTargetSuggestions={showMergeTargetSuggestions}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={() => {
+            void handleMergeClients();
+          }}
+          onQueryChange={handleMergeQueryChange}
+          onSelectClient={handleMergeClientSelect}
+        />
       ) : null}
 
       {isClientCardOpen ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onClick={closeClientCard}
-        >
-          <article
-            className='clients-card-modal'
-            role='dialog'
-            aria-modal='true'
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className='clients-card-header'>
-              <div>
-                <p className='section-label'>Клієнт</p>
-                <h2>
-                  {selectedClient?.name ??
-                    history?.client.name ??
-                    'Картка клієнта'}
-                </h2>
-                <p className='panel-subtitle'>
-                  {selectedClient?.phone ??
-                    history?.client.phone ??
-                    ''}
-                </p>
-              </div>
-              <button
-                type='button'
-                className='ghost-button'
-                onClick={closeClientCard}
-              >
-                x
-              </button>
-            </header>
-
-            <div
-              className='orders-tabs clients-card-tabs'
-              role='tablist'
-              aria-label='Картка клієнта'
-            >
-              <button
-                type='button'
-                className={
-                  clientCardTab === 'main'
-                    ? 'orders-tab orders-tab-active'
-                    : 'orders-tab'
-                }
-                onClick={() => setClientCardTab('main')}
-              >
-                Основні
-              </button>
-              <button
-                type='button'
-                className={
-                  clientCardTab === 'services'
-                    ? 'orders-tab orders-tab-active'
-                    : 'orders-tab'
-                }
-                onClick={() => setClientCardTab('services')}
-              >
-                Послуги
-              </button>
-              <button
-                type='button'
-                className={
-                  clientCardTab === 'sales'
-                    ? 'orders-tab orders-tab-active'
-                    : 'orders-tab'
-                }
-                onClick={() => setClientCardTab('sales')}
-              >
-                Продажі
-              </button>
-            </div>
-
-            <div className='clients-card-body'>
-              {isHistoryLoading && clientCardTab !== 'main' ? (
-                <p className='empty-state'>
-                  Завантаження історії клієнта...
-                </p>
-              ) : !selectedClientId ? (
-                <p className='empty-state'>
-                  Оберіть клієнта зі списку.
-                </p>
-              ) : clientCardTab === 'main' ? (
-                <div className='form-grid compact-form-grid'>
-                  <label className='field field-wide'>
-                    <span>ПІБ</span>
-                    <input
-                      value={mainTabForm.name}
-                      onChange={(event) =>
-                        setMainTabForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Електронна пошта</span>
-                    <input
-                      value={mainTabForm.email}
-                      onChange={(event) =>
-                        setMainTabForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Адреса</span>
-                    <input
-                      value={mainTabForm.address}
-                      onChange={(event) =>
-                        setMainTabForm((current) => ({
-                          ...current,
-                          address: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Телефон</span>
-                    <input
-                      value={mainTabForm.phone}
-                      onChange={(event) => {
-                        setMainTabForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }));
-                        setMainTabPhoneError(null);
-                      }}
-                      onBlur={() => validatePhone(mainTabForm.phone)}
-                    />
-                    {mainTabPhoneError && (
-                      <span className='error-message'>
-                        {mainTabPhoneError}
-                      </span>
-                    )}
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Статус</span>
-                    <select
-                      value={mainTabForm.status}
-                      onChange={(event) =>
-                        setMainTabForm((current) => ({
-                          ...current,
-                          status: event.target.value as
-                            | ClientStatus
-                            | '',
-                        }))
-                      }
-                    >
-                      {clientStatusOptions.map((option) => (
-                        <option
-                          key={option.value}
-                          value={option.value}
-                          style={{
-                            color: option.value ? getClientStatusColor(option.value as ClientStatus) : '#6B7280'
-                          }}
-                        >
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className='field field-wide'>
-                    <span>Примітка</span>
-                    <textarea
-                      rows={4}
-                      value={mainTabForm.note}
-                      onChange={(event) =>
-                        setMainTabForm((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <div className='field field-wide'>
-                    <button
-                      type='button'
-                      className='primary-button clients-main-save'
-                      disabled={
-                        isSaving ||
-                        !mainTabForm.name.trim() ||
-                        !mainTabForm.phone.trim()
-                      }
-                      onClick={() => {
-                        void handleMainTabSave();
-                      }}
-                    >
-                      {isSaving
-                        ? 'Збереження...'
-                        : 'Зберегти клієнта'}
-                    </button>
-                  </div>
-                </div>
-              ) : activeHistoryRows.length === 0 ? (
-                <p className='empty-state'>
-                  {clientCardTab === 'services'
-                    ? 'Для цього клієнта не знайдено послуг.'
-                    : 'Для цього клієнта не знайдено продажів.'}
-                </p>
-              ) : (
-                <div className='orders-table-wrap'>
-                  <table className='orders-table clients-card-table'>
-                    <thead>
-                      <tr>
-                        <th>No.</th>
-                        <th>Дата</th>
-                        <th>
-                          {clientCardTab === 'services'
-                            ? 'Послуга'
-                            : 'Продаж'}
-                        </th>
-                        <th>Статус</th>
-                        <th>Сума</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeHistoryRows.map((sale) => (
-                        <tr
-                          key={sale.id}
-                          className='clients-history-row'
-                          onClick={() =>
-                            openSaleCardFromClientModal(sale)
-                          }
-                        >
-                          <td>
-                            <button
-                              type='button'
-                              className='order-number-button'
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openSaleCardFromClientModal(sale);
-                              }}
-                            >
-                              {sale.recordNumber ?? sale.id.slice(-6)}
-                            </button>
-                          </td>
-                          <td>{formatDateTime(sale.saleDate)}</td>
-                          <td>
-                            {formatItemList(sale, clientCardTab)}
-                          </td>
-                          <td>{sale.status}</td>
-                          <td>
-                            {formatClientIncome(
-                              sale.salePrice * sale.quantity,
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </article>
-        </div>
+        <ClientCardModal
+          activeHistoryRows={activeHistoryRows}
+          clientCardTab={clientCardTab}
+          historyClient={history?.client ?? null}
+          isHistoryLoading={isHistoryLoading}
+          isSaving={isSaving}
+          mainTabForm={mainTabForm}
+          mainTabPhoneError={mainTabPhoneError}
+          selectedClient={selectedClient}
+          selectedClientId={selectedClientId}
+          statusOptions={clientStatusOptions}
+          onClearPhoneError={() => setMainTabPhoneError(null)}
+          onClose={closeClientCard}
+          onMainTabFormChange={setMainTabForm}
+          onOpenSaleCard={openSaleCardFromClientModal}
+          onSaveMainTab={() => {
+            void handleMainTabSave();
+          }}
+          onTabChange={setClientCardTab}
+          onValidatePhone={validatePhone}
+        />
       ) : null}
     </section>
   );
