@@ -8,56 +8,33 @@ import {
   updateClient,
 } from '../domain/client/service';
 import type { ClientPayload, MergeClientsPayload } from '../domain/shared/types';
+import { asyncHandler, routeParam } from '../shared/lib/http';
 
 export const clientRouter = Router();
 
-clientRouter.get('/clients', async (req, res, next) => {
-  try {
-    res.json(await listClients(req.query.query, req.query.status));
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.get('/clients', asyncHandler(async (req, res) => {
+  res.json(await listClients(req.query.query, req.query.status));
+}));
 
-clientRouter.post('/clients', async (req, res, next) => {
-  try {
-    res.status(201).json(await createClient(req.body as ClientPayload));
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.post('/clients', asyncHandler(async (req, res) => {
+  res.status(201).json(await createClient(req.body as ClientPayload));
+}));
 
-clientRouter.post('/clients/merge', async (req, res, next) => {
-  try {
-    const payload = req.body as MergeClientsPayload;
-    res.json(
-      await mergeClients(payload.targetClientId, payload.sourceClientId),
-    );
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.post('/clients/merge', asyncHandler(async (req, res) => {
+  const payload = req.body as MergeClientsPayload;
+  res.json(
+    await mergeClients(payload.targetClientId, payload.sourceClientId),
+  );
+}));
 
-clientRouter.put('/clients/:clientId', async (req, res, next) => {
-  try {
-    res.json(await updateClient(req.params.clientId, req.body as ClientPayload));
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.put('/clients/:clientId', asyncHandler(async (req, res) => {
+  res.json(await updateClient(routeParam(req, 'clientId'), req.body as ClientPayload));
+}));
 
-clientRouter.delete('/clients/:clientId', async (req, res, next) => {
-  try {
-    res.json(await deleteClient(req.params.clientId));
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.delete('/clients/:clientId', asyncHandler(async (req, res) => {
+  res.json(await deleteClient(routeParam(req, 'clientId')));
+}));
 
-clientRouter.get('/clients/:clientId/history', async (req, res, next) => {
-  try {
-    res.json(await getClientHistory(req.params.clientId));
-  } catch (error) {
-    next(error);
-  }
-});
+clientRouter.get('/clients/:clientId/history', asyncHandler(async (req, res) => {
+  res.json(await getClientHistory(routeParam(req, 'clientId')));
+}));

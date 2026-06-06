@@ -14,10 +14,11 @@ import {
   paySupplierOrder,
 } from '../domain/supplier-order/service';
 import {
-  getBearerToken,
-  requireAnyPermissionByToken,
-  requirePermissionByToken,
-} from '../domain/auth/service';
+  asyncHandler,
+  requireAnyPermission,
+  requirePermission,
+  routeParam,
+} from '../shared/lib/http';
 import type { EmployeePermission } from '../domain/employee/constants';
 import type { TransactionType } from '../domain/finance/model';
 
@@ -29,107 +30,55 @@ const transactionPermissionByType: Record<TransactionType, EmployeePermission> =
   transfer: 'finance.transactions.transfer',
 };
 
-financeRouter.get('/finance/cashboxes', async (req, res, next) => {
-  try {
-    await requireAnyPermissionByToken(
-      getBearerToken(req.headers.authorization),
-      ['finance.cashboxes.view', 'finance.view'],
-    );
-    const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
-    res.json(await listCashboxes({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.get('/finance/cashboxes', asyncHandler(async (req, res) => {
+  await requireAnyPermission(req, ['finance.cashboxes.view', 'finance.view']);
+  const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
+  res.json(await listCashboxes({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
+}));
 
-financeRouter.post('/finance/cashboxes', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.cashboxes.manage');
-    res.status(201).json(await createCashbox(req.body));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.post('/finance/cashboxes', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.status(201).json(await createCashbox(req.body));
+}));
 
-financeRouter.patch('/finance/cashboxes/:cashboxId', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.cashboxes.manage');
-    res.json(await updateCashbox(req.params.cashboxId, req.body as { name?: unknown; isArchived?: unknown }));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.patch('/finance/cashboxes/:cashboxId', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown }));
+}));
 
-financeRouter.get('/finance/transactions', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.view');
-    res.json(await listFinanceTransactions());
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await listFinanceTransactions());
+}));
 
-financeRouter.post('/finance/transactions', async (req, res, next) => {
-  try {
-    const type = String((req.body as { type?: unknown })?.type ?? '') as TransactionType;
-    const permission = transactionPermissionByType[type];
-    await requirePermissionByToken(
-      getBearerToken(req.headers.authorization),
-      permission ?? 'finance.transactions.deposit',
-    );
-    res.status(201).json(await createFinanceTransaction(req.body));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {
+  const type = String((req.body as { type?: unknown })?.type ?? '') as TransactionType;
+  const permission = transactionPermissionByType[type];
+  await requirePermission(req, permission ?? 'finance.transactions.deposit');
+  res.status(201).json(await createFinanceTransaction(req.body));
+}));
 
-financeRouter.post('/finance/transactions/:transactionId/cancel', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(
-      getBearerToken(req.headers.authorization),
-      'finance.transactions.transfer',
-    );
-    res.json(await cancelFinanceTransaction(req.params.transactionId));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.transactions.transfer');
+  res.json(await cancelFinanceTransaction(routeParam(req, 'transactionId')));
+}));
 
-financeRouter.get('/finance/report', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.view');
-    res.json(await getFinanceReport());
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.get('/finance/report', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await getFinanceReport());
+}));
 
-financeRouter.get('/finance/supplier-orders', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.view');
-    res.json(await listSupplierOrdersForAccounting());
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.get('/finance/supplier-orders', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await listSupplierOrdersForAccounting());
+}));
 
-financeRouter.post('/finance/supplier-orders/:supplierOrderId/pay', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.supplierOrders.pay');
-    res.json(await paySupplierOrder(req.params.supplierOrderId, req.body as { cashboxId?: unknown; note?: unknown; transactionDate?: unknown }));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.post('/finance/supplier-orders/:supplierOrderId/pay', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.supplierOrders.pay');
+  res.json(await paySupplierOrder(routeParam(req, 'supplierOrderId'), req.body as { cashboxId?: unknown; note?: unknown; transactionDate?: unknown }));
+}));
 
-financeRouter.post('/finance/supplier-orders/:supplierOrderId/issue-without-payment', async (req, res, next) => {
-  try {
-    await requirePermissionByToken(
-      getBearerToken(req.headers.authorization),
-      'finance.supplierOrders.issueWithoutPayment',
-    );
-    res.json(await issueSupplierOrderWithoutPayment(req.params.supplierOrderId));
-  } catch (error) {
-    next(error);
-  }
-});
+financeRouter.post('/finance/supplier-orders/:supplierOrderId/issue-without-payment', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.supplierOrders.issueWithoutPayment');
+  res.json(await issueSupplierOrderWithoutPayment(routeParam(req, 'supplierOrderId')));
+}));
