@@ -9,6 +9,15 @@ This document defines financial behavior for supplier-order related operations i
 - Clicking such note opens supplier order details in a modal.
 - The modal opened from `Accounting -> Транзакції` is strictly read-only.
 
+## Transfer Cancellation Rules
+- Only active cashbox-to-cashbox transfer transactions can be cancelled.
+- Cancellation is available only until the end of the transaction's business day.
+- Business day is calculated in `Europe/Kiev` until company timezone settings exist.
+- After the transaction business day ends, `Cancel transfer` is hidden in the UI.
+- Backend must reject old transfer cancellation attempts with:
+  - `Transfer can be cancelled only during the transaction day.`
+- Cancellation creates a linked reverse transfer and marks the original transaction as `cancelled`.
+
 ## Supplier Order Lock Rules
 - Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or `receiptStatus = received`), order content fields are locked.
 - Locked fields include supplier, delivery date, supply type, order number, note, item name, quantity, and price.

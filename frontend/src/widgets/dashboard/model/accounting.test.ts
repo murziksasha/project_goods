@@ -5,6 +5,7 @@ import type {
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
 import {
+  canCancelAccountingTransferTransaction,
   filterFinanceTransactions,
   getAccountingTotals,
   getActiveTransactionFiltersCount,
@@ -165,5 +166,85 @@ describe('accounting model helpers', () => {
         USD: false,
       },
     });
+  });
+
+  it('allows cancelling an eligible transfer on the same business day', () => {
+    const transfer = createTransaction({
+      type: 'transfer',
+      fromCashbox: { id: 'cash-1', name: 'Main' },
+      toCashbox: { id: 'cash-2', name: 'Reserve' },
+      transactionDate: '2026-05-31T08:00:00.000Z',
+    });
+
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now: new Date('2026-05-31T20:59:00.000Z'),
+        transaction: transfer,
+      }),
+    ).toBe(true);
+  });
+
+  it('hides cancellation for transfers from a previous business day', () => {
+    const transfer = createTransaction({
+      type: 'transfer',
+      fromCashbox: { id: 'cash-1', name: 'Main' },
+      toCashbox: { id: 'cash-2', name: 'Reserve' },
+      transactionDate: '2026-05-30T08:00:00.000Z',
+    });
+
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now: new Date('2026-05-31T08:00:00.000Z'),
+        transaction: transfer,
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects cancellation for ineligible transaction states', () => {
+    const transfer = createTransaction({
+      type: 'transfer',
+      fromCashbox: { id: 'cash-1', name: 'Main' },
+      toCashbox: { id: 'cash-2', name: 'Reserve' },
+      transactionDate: '2026-05-31T08:00:00.000Z',
+    });
+    const now = new Date('2026-05-31T12:00:00.000Z');
+
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: false,
+        now,
+        transaction: transfer,
+      }),
+    ).toBe(false);
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, status: 'cancelled' },
+      }),
+    ).toBe(false);
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, isCancellation: true },
+      }),
+    ).toBe(false);
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, cancelsTransactionId: 'tx-old' },
+      }),
+    ).toBe(false);
+    expect(
+      canCancelAccountingTransferTransaction({
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, type: 'deposit' },
+      }),
+    ).toBe(false);
   });
 });
