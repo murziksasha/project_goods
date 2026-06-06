@@ -26,6 +26,7 @@ export const accountingFinanceSettingsTabStorageKey =
   'project-goods.accounting-finance-settings-tab';
 
 export const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
+export const accountingBusinessTimeZone = 'Europe/Kiev';
 export const transactionLabels: Record<FinanceTransactionType, string> = {
   withdraw: 'Withdraw',
   deposit: 'Deposit',
@@ -61,6 +62,40 @@ export const getLocalDateKey = (value: string | Date) => {
   if (Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 };
+
+export const getAccountingBusinessDateKey = (
+  value: string | Date,
+  timeZone = accountingBusinessTimeZone,
+) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone,
+    year: 'numeric',
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+};
+
+export const canCancelAccountingTransferTransaction = ({
+  canCreateTransfer,
+  now = new Date(),
+  transaction,
+}: {
+  canCreateTransfer: boolean;
+  now?: Date;
+  transaction: FinanceTransaction;
+}) =>
+  canCreateTransfer &&
+  transaction.type === 'transfer' &&
+  Boolean(transaction.fromCashbox && transaction.toCashbox) &&
+  (transaction.status ?? 'active') !== 'cancelled' &&
+  !transaction.isCancellation &&
+  !transaction.cancelsTransactionId &&
+  getAccountingBusinessDateKey(transaction.transactionDate) ===
+    getAccountingBusinessDateKey(now);
 
 export const truncateLabel = (value: string, maxLength: number) => {
   if (value.length <= maxLength) return value;
