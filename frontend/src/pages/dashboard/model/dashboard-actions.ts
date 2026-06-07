@@ -1041,7 +1041,11 @@ export const createDashboardActions = ({
         setProductSearchQuery('');
         setClientSearchQuery('');
         setClientStatusFilter('all');
-        setSuccessMessage(result.message);
+        setSuccessMessage(
+          result.safetyBackupId
+            ? `${result.message} Safety backup: ${result.safetyBackupId}.`
+            : result.message,
+        );
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to seed demo data.'));
       } finally {

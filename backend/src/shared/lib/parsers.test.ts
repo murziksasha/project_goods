@@ -125,6 +125,18 @@ describe('normalizeEmployeePayload', () => {
     expect(defaults.permissions).toEqual([...employeePermissions]);
     expect(defaults.permissions).toContain('system.backups.manage');
   });
+
+  it('keeps employees.manage for owner even when an explicit payload omits it', () => {
+    const parsed = normalizeEmployeePayload({
+      name: 'Owner',
+      username: 'owner',
+      password: 'pass',
+      role: 'owner',
+      permissions: ['orders.view'],
+    });
+
+    expect(parsed.permissions).toEqual(['orders.view', 'employees.manage']);
+  });
 });
 
 describe('normalizeClientPayload', () => {

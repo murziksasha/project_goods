@@ -108,7 +108,6 @@ export const CreateOrderCard = ({
     (employee) =>
       employee.isActive &&
       (employee.role === 'owner' ||
-        employee.role === 'manager' ||
         employee.permissions.includes('orders.manage')),
   );
   const masters = employees.filter(
@@ -121,7 +120,6 @@ export const CreateOrderCard = ({
   const canCurrentEmployeeManageOrders =
     currentEmployee?.isActive === true &&
     (currentEmployee.role === 'owner' ||
-      currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
 
   const phoneDigits = clientPhone.replace(/\D/g, '');

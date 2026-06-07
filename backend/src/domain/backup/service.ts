@@ -338,6 +338,20 @@ export const createManualBackup = async (
   }
 };
 
+export const createSafetyBackup = async (
+  author: string,
+  options: BackupServiceOptions = {},
+) => {
+  assertNoActiveJob();
+  activeJob = { type: 'create', startedAt: new Date() };
+
+  try {
+    return await createBackup(author, 'safety', options);
+  } finally {
+    activeJob = null;
+  }
+};
+
 export const createScheduledBackup = async (
   author = 'System',
   options: BackupServiceOptions = {},
