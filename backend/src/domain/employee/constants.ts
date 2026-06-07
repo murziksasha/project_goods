@@ -13,6 +13,8 @@ export type EmployeeRole = (typeof employeeRoles)[number];
 export const employeePermissions = [
   'orders.view',
   'orders.manage',
+  'supplierOrders.view',
+  'supplierOrders.manage',
   'repairs.execute',
   'sales.manage',
   'clients.manage',

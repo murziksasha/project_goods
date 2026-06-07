@@ -87,6 +87,8 @@ export const WarehousePanel = ({
   sales,
   catalogProducts,
   employees,
+  canViewSupplierOrders,
+  canManageSupplierOrders,
   isLoading,
   isProductSaving,
   onProductChange,
@@ -103,7 +105,7 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
-  const supplierOrdersQuery = useSupplierOrdersQuery();
+  const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
   const createSupplierOrderMutation = useCreateSupplierOrderMutation();
   const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
@@ -408,13 +410,15 @@ export const WarehousePanel = ({
   );
 
   const refreshSupplierOrders = useCallback(async () => {
+    if (!canViewSupplierOrders) return;
     await supplierOrdersQuery.refetch();
-  }, [supplierOrdersQuery]);
+  }, [canViewSupplierOrders, supplierOrdersQuery]);
 
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
     nextName: string,
   ) => {
+    if (!canManageSupplierOrders) return;
     const nextNormalized = normalizeProductName(nextName);
     if (!catalogProductId || !nextNormalized) return;
 
@@ -1559,16 +1563,18 @@ export const WarehousePanel = ({
             receipts order creation is in progress, but you can add
             receipt manually by clicking the button below
           </p>
-          <button
-            type='button'
-            className='orders-create-button'
-            onClick={() => {
-              setEditingSupplierOrder(null);
-              setIsSupplierOrderModalOpen(true);
-            }}
-          >
-            receipt order
-          </button>
+          {canManageSupplierOrders ? (
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={() => {
+                setEditingSupplierOrder(null);
+                setIsSupplierOrderModalOpen(true);
+              }}
+            >
+              receipt order
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -1920,6 +1926,7 @@ export const WarehousePanel = ({
         isOpen={isSupplierOrderModalOpen}
         suppliers={suppliers}
         editingOrder={editingSupplierOrder}
+        forceReadOnly={!canManageSupplierOrders}
         onClose={() => {
           setIsSupplierOrderModalOpen(false);
           setEditingSupplierOrder(null);
@@ -1937,6 +1944,7 @@ export const WarehousePanel = ({
           warehouseId,
           locationId,
         }) => {
+          if (!canManageSupplierOrders) return;
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
@@ -1962,6 +1970,7 @@ export const WarehousePanel = ({
           return result;
         }}
         onCancelOrder={async () => {
+          if (!canManageSupplierOrders) return;
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
@@ -1972,6 +1981,10 @@ export const WarehousePanel = ({
         onSubmit={async (
           payload: SupplierOrderModalSubmitPayload,
         ) => {
+          if (!canManageSupplierOrders) {
+            onError('Current employee does not have permission to manage supplier orders.');
+            return;
+          }
           try {
             if (editingSupplierOrder) {
               const sourceOrder =

@@ -18,10 +18,10 @@ Defaults are applied by backend when an employee is created or updated with an e
 | Role | Default permissions | Intent |
 | --- | --- | --- |
 | `owner` | all permissions | Full system owner and recovery role. |
-| `manager` | `orders.view`, `orders.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Operational manager who can create/manage orders and accept client payments. |
+| `manager` | `orders.view`, `orders.manage`, `supplierOrders.view`, `supplierOrders.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Operational manager who can create/manage orders, supplier orders, and accept client payments. |
 | `master` | `orders.view`, `repairs.execute` | Repair employee who can work with assigned repair flow. |
-| `accountant` | `orders.view`, `sales.manage`, full finance permissions | Finance role for accounting workspace and cashbox operations. |
-| `warehouse` | `orders.view`, `inventory.manage` | Warehouse/stock operations. |
+| `accountant` | `orders.view`, `supplierOrders.view`, `supplierOrders.manage`, `sales.manage`, full finance permissions | Finance role for accounting workspace, supplier-order flow, and cashbox operations. |
+| `warehouse` | `orders.view`, `supplierOrders.view`, `supplierOrders.manage`, `inventory.manage` | Warehouse/stock operations including supplier-order receipt. |
 | `sales` | `orders.view`, `sales.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Sales employee who can sell and accept client payments. |
 | `support` | `orders.view` | Basic read-oriented service role. |
 
@@ -32,6 +32,8 @@ Defaults are applied by backend when an employee is created or updated with an e
 | --- | --- |
 | `orders.view` | View order/sale context where the UI exposes it. |
 | `orders.manage` | Create and manage orders; used by order creation flows. |
+| `supplierOrders.view` | View supplier orders and supplier-order information. |
+| `supplierOrders.manage` | Create, edit, cancel, change status, and take supplier orders on charge. |
 | `repairs.execute` | Be assigned/executed as repair master. |
 | `sales.manage` | Manage sale-oriented workflows. |
 
@@ -110,11 +112,20 @@ Defaults are applied by backend when an employee is created or updated with an e
 | Sales return flows that create finance withdraw transaction | `finance.transactions.withdraw`. |
 | Supplier-order fallback `POST /supplier-orders/:supplierOrderId/issue-without-payment` | `finance.supplierOrders.issueWithoutPayment`. |
 
+### Supplier Orders
+| Endpoint | Required access |
+| --- | --- |
+| `GET /supplier-orders` | `supplierOrders.view` or `supplierOrders.manage`. |
+| `POST /supplier-orders` | `supplierOrders.manage`. |
+| `PUT /supplier-orders/:supplierOrderId` | `supplierOrders.manage`. |
+| `POST /supplier-orders/:supplierOrderId/cancel` | `supplierOrders.manage`. |
+| `POST /supplier-orders/:supplierOrderId/take-on-charge` | `supplierOrders.manage`. |
+
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
 - Sidebar always shows `Main`.
-- Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`.
+- Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`, `supplierOrders.view`, `supplierOrders.manage`.
 - Sidebar shows `Clients & suppliers` when employee is `owner` or has `clients.manage`.
 - Sidebar shows `Warehouse` and `Products & Services` when employee is `owner` or has `inventory.manage`.
 - Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage`.
@@ -130,6 +141,9 @@ Defaults are applied by backend when an employee is created or updated with an e
 - Orders payment modal requires `finance.transactions.deposit`.
 - Orders refund/return flows that return money require `finance.transactions.withdraw`.
 - Cashbox list loading in payment/refund forms requires `finance.cashboxes.view` or `finance.view`.
+- Orders `Supplier Order` and `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
+- Supplier-order create, edit, cancel, status change, and take-on-charge actions require `supplierOrders.manage`.
+- Warehouse supplier-order-backed receipt rows require `supplierOrders.view` or `supplierOrders.manage` to load; receipt-order create/edit/cancel/take-on-charge actions require `supplierOrders.manage`.
 
 ## Maintenance Notes
 - Backend and frontend permission lists must stay in sync:

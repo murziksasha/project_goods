@@ -51,6 +51,8 @@ type SupplierOrdersToolbarProps = {
   selectedStatuses: SupplierOrderStatus[];
   statusQuery: string;
   visibleColumns: SupplierOrdersColumnKey[];
+  visibleTabs: OrdersTab[];
+  canManageSupplierOrders: boolean;
   onActiveTabChange: (tab: OrdersTab) => void;
   onCreateOrder: () => void;
   onColumnsMenuOpenChange: Dispatch<SetStateAction<boolean>>;
@@ -85,6 +87,8 @@ export const SupplierOrdersToolbar = ({
   selectedStatuses,
   statusQuery,
   visibleColumns,
+  visibleTabs,
+  canManageSupplierOrders,
   onActiveTabChange,
   onCreateOrder,
   onColumnsMenuOpenChange,
@@ -101,7 +105,7 @@ export const SupplierOrdersToolbar = ({
 }: SupplierOrdersToolbarProps) => (
   <>
     <div className='orders-tabs' role='tablist' aria-label='Order categories'>
-      {supplierOrderTabs.map((tab) => (
+      {supplierOrderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
         <button
           key={tab.key}
           type='button'
@@ -286,13 +290,15 @@ export const SupplierOrdersToolbar = ({
       </div>
 
       <div className='orders-toolbar-actions'>
-        <button
-          type='button'
-          className='orders-create-button'
-          onClick={onCreateOrder}
-        >
-          Order from supplier
-        </button>
+        {canManageSupplierOrders ? (
+          <button
+            type='button'
+            className='orders-create-button'
+            onClick={onCreateOrder}
+          >
+            Order from supplier
+          </button>
+        ) : null}
       </div>
     </div>
   </>
@@ -583,6 +589,7 @@ type SupplierOrdersTableProps = {
   paginatedOrders: SupplierOrder[];
   suppliers: Supplier[];
   visibleColumns: SupplierOrdersColumnKey[];
+  canManageSupplierOrders: boolean;
   onError: (message: string) => void;
   onEditOrder: (order: SupplierOrder) => void;
   onOpenCatalogProduct: (product: CatalogProduct) => void;
@@ -606,6 +613,7 @@ export const SupplierOrdersTable = ({
   paginatedOrders,
   suppliers,
   visibleColumns,
+  canManageSupplierOrders,
   onError,
   onEditOrder,
   onOpenCatalogProduct,
@@ -662,6 +670,7 @@ export const SupplierOrdersTable = ({
                       className='catalog-name-button'
                       onClick={() => {
                         if (
+                          !canManageSupplierOrders ||
                           order.paymentStatus === 'paid' ||
                           order.paymentStatus === 'without_payment'
                         ) {
@@ -692,6 +701,10 @@ export const SupplierOrdersTable = ({
                             );
                         if (!matchedProduct) {
                           onError('Product was not found in the Products catalog.');
+                          return;
+                        }
+                        if (!canManageSupplierOrders) {
+                          onError('Current employee does not have permission to manage supplier orders.');
                           return;
                         }
                         onOpenCatalogProduct(matchedProduct);
@@ -726,6 +739,10 @@ export const SupplierOrdersTable = ({
                           onError('Supplier was not found.');
                           return;
                         }
+                        if (!canManageSupplierOrders) {
+                          onError('Current employee does not have permission to manage supplier orders.');
+                          return;
+                        }
                         onOpenSupplier(matchedSupplier);
                       }}
                     >
@@ -742,7 +759,10 @@ export const SupplierOrdersTable = ({
                       <button
                         type='button'
                         className={getSupplierOrderStatusClass(order.status)}
-                        disabled={order.paymentStatus === 'cancelled'}
+                        disabled={
+                          !canManageSupplierOrders ||
+                          order.paymentStatus === 'cancelled'
+                        }
                         aria-expanded={openStatusOrder?.key === id}
                         onClick={(event) =>
                           onOpenStatusOrder(

@@ -171,6 +171,8 @@ export type WarehousePanelProps = {
   sales: Sale[];
   catalogProducts: CatalogProduct[];
   employees: Employee[];
+  canViewSupplierOrders: boolean;
+  canManageSupplierOrders: boolean;
   isLoading: boolean;
   productForm: ProductFormValues;
   isProductSaving: boolean;

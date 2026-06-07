@@ -93,6 +93,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 
 - Added React Query keys: `supplierOrders` and `warehouseSettings`.
 - `WarehousePanel` now reads supplier orders through `useSupplierOrdersQuery` instead of storing fetched supplier orders in component state.
+- `useSupplierOrdersQuery` supports an `enabled` flag; `WarehousePanel` disables it when the current employee lacks `supplierOrders.view` / `supplierOrders.manage` to avoid forbidden supplier-order reads.
 - Supplier-order create/update/cancel/take-on-charge flows now use mutation hooks and invalidate `supplierOrders`; take-on-charge also invalidates `products`.
 - `WarehousePanel` now reads warehouse settings through `useWarehouseSettingsQuery`.
 - Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.

@@ -146,6 +146,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - `Warehouse -> Receipts` is projected from supplier orders.
 - One supplier order with multiple items is rendered as multiple receipt rows.
 - Frontend source of truth for supplier-order-backed receipt rows is the TanStack Query `supplierOrders` cache.
+- Loading supplier-order-backed receipt rows requires `supplierOrders.view` or `supplierOrders.manage`; without it the query is disabled and only local/manual receipt rows remain available.
+- Creating/editing/cancelling/taking-on-charge supplier-order-backed receipt rows requires `supplierOrders.manage`.
 - Manual receipt rows created only inside the warehouse UI remain local UI/session rows and are composed after supplier-order-backed rows.
 
 ### 6) Row Click Behavior
@@ -189,6 +191,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 9) New Receipt Order Initial State
 - New supplier order created from `Warehouse -> Receipts` starts as `approved` (not auto-`stocked`) to allow later receiving.
+- Creating this receipt order is a supplier-order mutation and requires `supplierOrders.manage`.
 
 ### 10) Per-Unit Materialization
 - Take-on-charge creates one product row per unit (`quantity = 1` each), each with unique `serialNumber`.
