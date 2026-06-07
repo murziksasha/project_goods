@@ -269,7 +269,9 @@ export const DashboardPage = () => {
       currentEmployee.permissions.includes('orders.manage'));
   const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
   const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
-  const canManageSettings = currentEmployee?.role === 'owner';
+  const canEditSettings = currentEmployee?.role === 'owner';
+  const canManageBackups = hasEmployeePermission(currentEmployee, 'system.backups.manage');
+  const canManageSettings = canEditSettings || canManageBackups;
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -889,6 +891,8 @@ export const DashboardPage = () => {
             <SettingsPanel
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
+              canEditSettings={canEditSettings}
+              canManageBackups={canManageBackups}
               onChange={actions.onSettingsChange}
               onSubmit={actions.saveSettings}
             />

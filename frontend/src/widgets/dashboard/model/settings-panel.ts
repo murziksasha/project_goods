@@ -7,11 +7,13 @@ import {
 
 export type SettingsTab =
   | 'company'
-  | 'print';
+  | 'print'
+  | 'backups';
 
 export const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'company', label: 'Company' },
   { key: 'print', label: 'Print forms' },
+  { key: 'backups', label: 'Backups' },
 ];
 
 export const settingsTabStorageKey = 'project-goods.settings-tab';

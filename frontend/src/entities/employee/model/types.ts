@@ -26,6 +26,7 @@ export const employeePermissionOptions = [
   'finance.supplierOrders.pay',
   'finance.supplierOrders.issueWithoutPayment',
   'employees.manage',
+  'system.backups.manage',
 ] as const;
 
 export type EmployeePermission = (typeof employeePermissionOptions)[number];

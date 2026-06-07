@@ -7,6 +7,9 @@ describe('parseEnv', () => {
       port: 5000,
       mongoUri: 'mongodb://127.0.0.1:27017/inventory',
       clientOrigin: undefined,
+      backupDir: './backups',
+      backupCreateCommand: undefined,
+      backupRestoreCommand: undefined,
     });
   });
 
@@ -16,11 +19,17 @@ describe('parseEnv', () => {
         PORT: '7000',
         MONGO_URI: 'mongodb://db:27017/app',
         CLIENT_ORIGIN: 'http://localhost:5173',
+        BACKUP_DIR: '/app/backups',
+        BACKUP_CREATE_COMMAND: 'custom-create',
+        BACKUP_RESTORE_COMMAND: 'custom-restore',
       }),
     ).toEqual({
       port: 7000,
       mongoUri: 'mongodb://db:27017/app',
       clientOrigin: 'http://localhost:5173',
+      backupDir: '/app/backups',
+      backupCreateCommand: 'custom-create',
+      backupRestoreCommand: 'custom-restore',
     });
   });
 

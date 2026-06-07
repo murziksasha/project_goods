@@ -41,6 +41,10 @@ const permissionGroups: Array<{
     title: 'Employees',
     permissions: ['employees.manage'],
   },
+  {
+    title: 'System',
+    permissions: ['system.backups.manage'],
+  },
 ];
 
 type EmployeeManagementPanelProps = {
@@ -81,7 +85,11 @@ export const EmployeeManagementPanel = ({
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   const togglePermission = (permission: EmployeePermission) => {
-    if (permission === 'employees.manage' && !canManageOwnerAccounts) {
+    if (
+      (permission === 'employees.manage' ||
+        permission === 'system.backups.manage') &&
+      !canManageOwnerAccounts
+    ) {
       return;
     }
     if (form.permissions.includes(permission)) {
@@ -270,7 +278,11 @@ export const EmployeeManagementPanel = ({
                 <input
                   type="checkbox"
                   checked={form.permissions.includes(permission)}
-                  disabled={permission === 'employees.manage' && !canManageOwnerAccounts}
+                  disabled={
+                    (permission === 'employees.manage' ||
+                      permission === 'system.backups.manage') &&
+                    !canManageOwnerAccounts
+                  }
                   onChange={() => togglePermission(permission)}
                 />
                 <span>{permission}</span>

@@ -9,7 +9,7 @@ import type { EmployeePayload } from '../shared/types';
 
 type EmployeeActor = Pick<EmployeeDocument, '_id' | 'role' | 'permissions'>;
 
-const ensureCanWriteEmployee = (
+export const ensureCanWriteEmployee = (
   actor: EmployeeActor,
   normalizedPayload: ReturnType<typeof normalizeEmployeePayload>,
   existingEmployee?: EmployeeDocument | null,
@@ -24,6 +24,10 @@ const ensureCanWriteEmployee = (
 
   if (normalizedPayload.permissions.includes('employees.manage')) {
     throw new HttpError(403, 'Only owners can grant employees.manage permission.');
+  }
+
+  if (normalizedPayload.permissions.includes('system.backups.manage')) {
+    throw new HttpError(403, 'Only owners can grant system.backups.manage permission.');
   }
 };
 

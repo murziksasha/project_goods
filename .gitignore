@@ -5,5 +5,7 @@ backend/dist/
 backend/coverage/
 frontend/dist/
 frontend/coverage/
+backups/
+backend/backups/
 backend/backend-dev.log
 frontend/frontend-dev.log

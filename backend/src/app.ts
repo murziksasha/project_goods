@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { env } from './config/env';
 import { clientRouter } from './routes/client.routes';
 import { authRouter } from './routes/auth.routes';
+import { backupRouter } from './routes/backup.routes';
 import { demoRouter } from './routes/demo.routes';
 import { employeeRouter } from './routes/employee.routes';
 import { financeRouter } from './routes/finance.routes';
@@ -32,6 +33,7 @@ app.use(express.json());
 
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
+app.use('/api', backupRouter);
 app.use('/api', productRouter);
 app.use('/api', clientRouter);
 app.use('/api', saleRouter);

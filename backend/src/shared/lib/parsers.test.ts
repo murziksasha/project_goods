@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { employeePermissions } from '../../domain/employee/constants';
 import {
   normalizeClientPayload,
   normalizeEmployeePayload,
@@ -110,6 +111,19 @@ describe('normalizeEmployeePayload', () => {
       ]),
     );
     expect(defaults.permissions).not.toContain('employees.manage');
+  });
+
+  it('applies every permission to owner defaults', () => {
+    const defaults = normalizeEmployeePayload({
+      name: 'Owner',
+      username: 'owner',
+      password: 'pass',
+      role: 'owner',
+      permissions: [],
+    });
+
+    expect(defaults.permissions).toEqual([...employeePermissions]);
+    expect(defaults.permissions).toContain('system.backups.manage');
   });
 });
 
