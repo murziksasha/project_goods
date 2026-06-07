@@ -65,10 +65,11 @@ describe('settings panel model', () => {
     expect(Object.values(getSettingsPreviewValues(form)).join(' ')).not.toContain('Р');
   });
 
-  it('exposes only company and print form tabs', () => {
+  it('exposes company, print form and backup tabs', () => {
     expect(settingsTabs.map((tab) => tab.label)).toEqual([
       'Company',
       'Print forms',
+      'Backups',
     ]);
   });
 
@@ -78,6 +79,9 @@ describe('settings panel model', () => {
 
     window.localStorage.setItem(settingsTabStorageKey, 'finance');
     expect(getStoredSettingsTab()).toBe('company');
+
+    window.localStorage.setItem(settingsTabStorageKey, 'backups');
+    expect(getStoredSettingsTab()).toBe('backups');
 
     window.localStorage.setItem(settingsTabStorageKey, 'unknown');
     expect(getStoredSettingsTab()).toBe('company');
