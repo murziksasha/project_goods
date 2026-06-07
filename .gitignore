@@ -4,6 +4,7 @@ coverage/
 backend/dist/
 backend/coverage/
 frontend/dist/
+frontend/dev-dist/
 frontend/coverage/
 backups/
 backend/backups/
