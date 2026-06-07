@@ -29,6 +29,7 @@ export type OrdersWorkspaceProps = {
   employees: Employee[];
   isLoading: boolean;
   activeTab: OrdersTab;
+  visibleTabs: OrdersTab[];
   searchValue: string;
   currentEmployee: Employee | null;
   canCreateOrders: boolean;

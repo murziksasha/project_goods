@@ -204,6 +204,8 @@
 - `Orders -> Supplier Order` toolbar follows `Order Flow` visual pattern:
   - left: `Data` button, columns settings (gear), persistent `Search`, `Order status`, `Payment status`,
   - right: `Order from supplier`.
+- `Supplier Order` and `Information` tabs are visible only to `owner` or employees with `supplierOrders.view` / `supplierOrders.manage`.
+- `Order from supplier` is visible only with `supplierOrders.manage`.
 - In `Supplier Order`, the date-panel toggle is named `Data` (instead of `Filter`) because it controls date range fields.
 - `Data` toggles a smooth expandable panel using the same animated filter-panel behavior as order-flow tabs.
 - The panel includes:
@@ -220,6 +222,7 @@
 ## Supplier Order Row Status Window (2026-06-03)
 
 - In `Orders -> Supplier Order`, each row `Status` value is an interactive badge-style button, not a native select.
+- Status badge editing requires `supplierOrders.manage`; employees with only `supplierOrders.view` see supplier orders read-only.
 - Clicking the row status button opens the available supplier-order statuses:
   - `Purchase request`
   - `Ordered`
@@ -251,6 +254,7 @@
 
 - `Orders` has a fourth tab after `Supplier Order` named `Information`.
 - `Information` is rendered by the same supplier-order workspace as `Supplier Order`.
+- Access to `Information` follows supplier-order read access: `supplierOrders.view` or `supplierOrders.manage`.
 - The `Information` tab reuses the supplier-order working set after current filters are applied:
   - search by number, product, supplier,
   - order status,

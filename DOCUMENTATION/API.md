@@ -56,6 +56,15 @@ http://localhost:5000/api
 - `POST /finance/transactions` - создать финансовую операцию
 - `GET /finance/report` - получить финансовый отчет
 
+## Supplier Orders
+
+- `GET /supplier-orders` - list supplier orders; requires `supplierOrders.view` or `supplierOrders.manage`.
+- `POST /supplier-orders` - create supplier order; requires `supplierOrders.manage`.
+- `PUT /supplier-orders/:supplierOrderId` - update supplier order; requires `supplierOrders.manage`.
+- `POST /supplier-orders/:supplierOrderId/cancel` - cancel supplier order; requires `supplierOrders.manage`.
+- `POST /supplier-orders/:supplierOrderId/take-on-charge` - receive supplier order into stock; requires `supplierOrders.manage`.
+- `POST /supplier-orders/:supplierOrderId/issue-without-payment` - finance fallback for issue without payment; requires `finance.supplierOrders.issueWithoutPayment`.
+
 ## Demo Data
 
 - `POST /demo/seed` - заполнить систему демо-данными для локальной разработки

@@ -227,6 +227,8 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
     manager: [
       'orders.view',
       'orders.manage',
+      'supplierOrders.view',
+      'supplierOrders.manage',
       'clients.manage',
       'finance.cashboxes.view',
       'finance.transactions.deposit',
@@ -234,6 +236,8 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
     master: ['orders.view', 'repairs.execute'],
     accountant: [
       'orders.view',
+      'supplierOrders.view',
+      'supplierOrders.manage',
       'sales.manage',
       'finance.view',
       'finance.cashboxes.view',
@@ -244,7 +248,12 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
       'finance.supplierOrders.pay',
       'finance.supplierOrders.issueWithoutPayment',
     ],
-    warehouse: ['orders.view', 'inventory.manage'],
+    warehouse: [
+      'orders.view',
+      'supplierOrders.view',
+      'supplierOrders.manage',
+      'inventory.manage',
+    ],
     sales: [
       'orders.view',
       'sales.manage',

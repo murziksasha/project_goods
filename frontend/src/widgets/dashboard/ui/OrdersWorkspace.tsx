@@ -125,6 +125,7 @@ export const OrdersWorkspace = ({
   employees,
   isLoading,
   activeTab,
+  visibleTabs,
   searchValue,
   currentEmployee,
   canCreateOrders,
@@ -2270,7 +2271,7 @@ export const OrdersWorkspace = ({
         role='tablist'
         aria-label='Order categories'
       >
-        {orderTabs.map((tab) => (
+        {orderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
           <button
             key={tab.key}
             type='button'

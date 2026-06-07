@@ -274,12 +274,30 @@ export const DashboardPage = () => {
     currentEmployee?.isActive === true &&
     (currentEmployee.role === 'owner' ||
       currentEmployee.permissions.includes('orders.manage'));
-  const canViewOrders = hasAnyEmployeePermission(currentEmployee, [
+  const canViewRepairSalesOrders = hasAnyEmployeePermission(currentEmployee, [
     'orders.view',
     'orders.manage',
     'repairs.execute',
     'sales.manage',
   ]);
+  const canViewSupplierOrders = hasAnyEmployeePermission(currentEmployee, [
+    'supplierOrders.view',
+    'supplierOrders.manage',
+  ]);
+  const canManageSupplierOrders = hasEmployeePermission(
+    currentEmployee,
+    'supplierOrders.manage',
+  );
+  const canViewOrders = canViewRepairSalesOrders || canViewSupplierOrders;
+  const availableOrdersTabs = ordersTabs.filter((tab) =>
+    tab === 'supplierOrders' || tab === 'supplierInformation'
+      ? canViewSupplierOrders
+      : canViewRepairSalesOrders,
+  );
+  const fallbackOrdersTab = availableOrdersTabs[0] ?? 'orders';
+  const effectiveOrdersTab = availableOrdersTabs.includes(activeOrdersTab)
+    ? activeOrdersTab
+    : fallbackOrdersTab;
   const canManageClients = hasEmployeePermission(currentEmployee, 'clients.manage');
   const canManageInventory = hasEmployeePermission(currentEmployee, 'inventory.manage');
   const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
@@ -462,6 +480,14 @@ export const DashboardPage = () => {
   ]);
 
   useEffect(() => {
+    if (!canViewOrders || availableOrdersTabs.includes(activeOrdersTab)) {
+      return;
+    }
+
+    changeOrdersTab(fallbackOrdersTab);
+  }, [activeOrdersTab, canViewOrders, fallbackOrdersTab]);
+
+  useEffect(() => {
     const syncPageFromHistory = () => {
       const createOrderTab = getCreateOrderFromUrl();
       setActivePage(getPageFromUrl() ?? getStoredActivePage());
@@ -483,10 +509,17 @@ export const DashboardPage = () => {
       return;
     }
     setActivePage('orders');
+    if (!availableOrdersTabs.includes(activeOrdersTab)) {
+      changeOrdersTab(fallbackOrdersTab);
+    }
     setIsCreateOrderOpen(false);
   };
 
   const changeOrdersTab = (tab: OrdersTab) => {
+    if (!availableOrdersTabs.includes(tab)) {
+      actions.showError('Current employee does not have permission to open this tab.');
+      return;
+    }
     setOrdersTabPreference(tab);
     setActiveOrdersTab(tab);
   };
@@ -827,14 +860,14 @@ export const DashboardPage = () => {
 
           {activePage === 'orders' && canViewOrders ? (
             isCreateOrderOpen &&
-            activeOrdersTab !== 'supplierOrders' &&
-            activeOrdersTab !== 'supplierInformation' ? (
+            effectiveOrdersTab !== 'supplierOrders' &&
+            effectiveOrdersTab !== 'supplierInformation' ? (
                 <CreateOrderCard
                   isSaving={state.isSaleSaving}
                   employees={state.allEmployees}
                   currentEmployee={currentEmployee}
                   onClose={openOrdersPage}
-                  initialTab={activeOrdersTab === 'sales' ? 'sale' : 'repair'}
+                  initialTab={effectiveOrdersTab === 'sales' ? 'sale' : 'repair'}
                   catalogProducts={state.catalogProducts}
                   products={state.allProducts}
                   sales={state.sales}
@@ -842,14 +875,16 @@ export const DashboardPage = () => {
                   onError={actions.showError}
               />
             ) : (
-              activeOrdersTab === 'supplierOrders' ||
-              activeOrdersTab === 'supplierInformation' ? (
+              effectiveOrdersTab === 'supplierOrders' ||
+              effectiveOrdersTab === 'supplierInformation' ? (
                 <SupplierOrdersWorkspace
-                  activeTab={activeOrdersTab}
+                  activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}
+                  visibleTabs={availableOrdersTabs}
                   suppliers={state.suppliers}
                   catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
+                  canManageSupplierOrders={canManageSupplierOrders}
                   onCreateSupplier={actions.createSupplierCard}
                   onUpdateSupplier={actions.updateSupplierCard}
                   onUpdateCatalogProduct={actions.updateCatalogProductCard}
@@ -862,14 +897,15 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
-                  activeTab={activeOrdersTab}
+                  activeTab={effectiveOrdersTab}
+                  visibleTabs={availableOrdersTabs}
                   searchValue={state.productSearchQuery}
                   onActiveTabChange={changeOrdersTab}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
                   createOrderHref={getDashboardHref('orders', {
-                    ordersTab: activeOrdersTab,
-                    createOrder: getCreateOrderForOrdersTab(activeOrdersTab),
+                    ordersTab: effectiveOrdersTab,
+                    createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
                   })}
                   currentEmployee={currentEmployee}
                   canCreateOrders={canCreateOrders}
@@ -1000,6 +1036,8 @@ export const DashboardPage = () => {
               sales={state.sales}
               catalogProducts={state.catalogProducts}
               employees={state.allEmployees}
+              canViewSupplierOrders={canViewSupplierOrders}
+              canManageSupplierOrders={canManageSupplierOrders}
               suppliers={state.suppliers}
               isLoading={state.isProductsLoading}
               productForm={state.productForm}
