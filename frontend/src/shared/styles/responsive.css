@@ -66,6 +66,17 @@
     font-size: 1.1rem;
   }
 
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .topbar-install-button {
+    max-width: 112px;
+    padding-inline: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .page-shell {
     width: min(100% - 16px, 1540px);
     padding-top: 12px;
