@@ -17,6 +17,8 @@ type AnalyticsHeroSectionProps = {
   isSeeding: boolean;
   isExporting: boolean;
   hasProducts: boolean;
+  canEraseAllData: boolean;
+  canExportProducts: boolean;
   statsPeriod: StatsPeriod;
   onStatsPeriodChange: (value: StatsPeriod) => void;
   onSeed: () => void;
@@ -162,6 +164,8 @@ export const AnalyticsHeroSection = ({
   isSeeding,
   isExporting,
   hasProducts,
+  canEraseAllData,
+  canExportProducts,
   statsPeriod,
   onStatsPeriodChange,
   onSeed,
@@ -196,17 +200,21 @@ export const AnalyticsHeroSection = ({
               </button>
             ))}
           </div>
-          <button className="secondary-button" type="button" onClick={onSeed} disabled={isSeeding}>
-            {isSeeding ? 'Loading...' : 'Erase all data'}
-          </button>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={onExport}
-            disabled={isExporting || !hasProducts}
-          >
-            {isExporting ? 'Exporting...' : 'Export'}
-          </button>
+          {canEraseAllData ? (
+            <button className="secondary-button" type="button" onClick={onSeed} disabled={isSeeding}>
+              {isSeeding ? 'Loading...' : 'Erase all data'}
+            </button>
+          ) : null}
+          {canExportProducts ? (
+            <button
+              className="primary-button"
+              type="button"
+              onClick={onExport}
+              disabled={isExporting || !hasProducts}
+            >
+              {isExporting ? 'Exporting...' : 'Export'}
+            </button>
+          ) : null}
         </div>
       </div>
 

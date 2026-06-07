@@ -9,6 +9,31 @@ import type { EmployeePayload } from '../shared/types';
 
 type EmployeeActor = Pick<EmployeeDocument, '_id' | 'role' | 'permissions'>;
 
+const isTemporaryAdmin = (employee: Pick<EmployeeDocument, 'role' | 'username'>) =>
+  employee.role === 'owner' && employee.username === 'admin';
+
+const hasOtherActiveEmployeeManager = async (employeeId: string) =>
+  Boolean(
+    await Employee.exists({
+      _id: { $ne: employeeId },
+      isActive: true,
+      permissions: 'employees.manage',
+    }),
+  );
+
+const ensureTemporaryAdminCanBeChanged = async (employee: EmployeeDocument) => {
+  if (!isTemporaryAdmin(employee)) {
+    return;
+  }
+
+  if (!(await hasOtherActiveEmployeeManager(employee._id.toString()))) {
+    throw new HttpError(
+      403,
+      'Temporary Admin can be changed or deleted only after another active employee has employees.manage permission.',
+    );
+  }
+};
+
 export const ensureCanWriteEmployee = (
   actor: EmployeeActor,
   normalizedPayload: ReturnType<typeof normalizeEmployeePayload>,
@@ -93,6 +118,7 @@ export const updateEmployee = async (
       throw new HttpError(404, 'Employee not found.');
     }
     ensureCanWriteEmployee(actor, normalizedPayload, existingEmployee);
+    await ensureTemporaryAdminCanBeChanged(existingEmployee);
   }
   if (!normalizedPayload.username) {
     throw new HttpError(400, 'Username is required.');
@@ -131,15 +157,18 @@ export const updateEmployee = async (
 
 export const deleteEmployee = async (employeeId: string, actor?: EmployeeActor) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
+  const existingEmployee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
+  if (!existingEmployee) {
+    throw new HttpError(404, 'Employee not found.');
+  }
+
   if (actor?.role !== 'owner') {
-    const existingEmployee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
-    if (!existingEmployee) {
-      throw new HttpError(404, 'Employee not found.');
-    }
     if (existingEmployee.role === 'owner') {
       throw new HttpError(403, 'Only owners can delete owner accounts.');
     }
   }
+
+  await ensureTemporaryAdminCanBeChanged(existingEmployee);
 
   const deletedEmployee = await Employee.findByIdAndDelete(employeeId).lean<EmployeeDocument | null>();
   if (!deletedEmployee) {

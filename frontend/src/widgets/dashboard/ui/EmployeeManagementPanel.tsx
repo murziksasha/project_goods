@@ -5,6 +5,7 @@ import type {
   EmployeePermission,
 } from '../../../entities/employee/model/types';
 import {
+  defaultEmployeePermissionsByRole,
   employeeRoleOptions,
 } from '../../../entities/employee/model/types';
 
@@ -83,8 +84,12 @@ export const EmployeeManagementPanel = ({
 }: EmployeeManagementPanelProps) => {
   const formTopRef = useRef<HTMLDivElement | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const isOwnerRoleSelected = form.role === 'owner';
 
   const togglePermission = (permission: EmployeePermission) => {
+    if (isOwnerRoleSelected && permission === 'employees.manage') {
+      return;
+    }
     if (
       (permission === 'employees.manage' ||
         permission === 'system.backups.manage') &&
@@ -100,6 +105,11 @@ export const EmployeeManagementPanel = ({
       return;
     }
     onChange('permissions', [...form.permissions, permission]);
+  };
+
+  const handleRoleChange = (role: EmployeeFormValues['role']) => {
+    onChange('role', role);
+    onChange('permissions', defaultEmployeePermissionsByRole[role]);
   };
 
   const confirmDelete = () => {
@@ -238,7 +248,7 @@ export const EmployeeManagementPanel = ({
           <span>Role</span>
           <select
             value={form.role}
-            onChange={(event) => onChange('role', event.target.value as EmployeeFormValues['role'])}
+            onChange={(event) => handleRoleChange(event.target.value as EmployeeFormValues['role'])}
           >
             {employeeRoleOptions
               .filter((role) => canManageOwnerAccounts || role !== 'owner')
@@ -277,11 +287,15 @@ export const EmployeeManagementPanel = ({
               <label key={permission} className="create-inline-checkbox">
                 <input
                   type="checkbox"
-                  checked={form.permissions.includes(permission)}
+                  checked={
+                    form.permissions.includes(permission) ||
+                    (isOwnerRoleSelected && permission === 'employees.manage')
+                  }
                   disabled={
-                    (permission === 'employees.manage' ||
+                    (isOwnerRoleSelected && permission === 'employees.manage') ||
+                    ((permission === 'employees.manage' ||
                       permission === 'system.backups.manage') &&
-                    !canManageOwnerAccounts
+                    !canManageOwnerAccounts)
                   }
                   onChange={() => togglePermission(permission)}
                 />

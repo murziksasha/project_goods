@@ -1,4 +1,4 @@
-import type { Employee, EmployeeFormValues } from './types';
+import { defaultEmployeePermissionsByRole, type Employee, type EmployeeFormValues } from './types';
 
 export const initialEmployeeForm: EmployeeFormValues = {
   name: '',
@@ -7,7 +7,7 @@ export const initialEmployeeForm: EmployeeFormValues = {
   username: '',
   password: '',
   role: 'manager',
-  permissions: ['orders.view', 'orders.manage'],
+  permissions: defaultEmployeePermissionsByRole.manager,
   isActive: true,
   note: '',
 };
