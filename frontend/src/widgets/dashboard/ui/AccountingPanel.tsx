@@ -19,6 +19,7 @@ import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
+  canCancelAccountingTransferTransaction,
   currencyOptions,
   filterFinanceTransactions,
   getAccountingCashboxCurrencyRows,
@@ -618,17 +619,15 @@ export const AccountingPanel = ({
   };
 
   const canCancelTransferTransaction = (transaction: FinanceTransaction) =>
-    canCreateTransfer &&
-    transaction.type === 'transfer' &&
-    Boolean(transaction.fromCashbox && transaction.toCashbox) &&
-    (transaction.status ?? 'active') !== 'cancelled' &&
-    !transaction.isCancellation &&
-    !transaction.cancelsTransactionId;
+    canCancelAccountingTransferTransaction({
+      canCreateTransfer,
+      transaction,
+    });
 
   const handleCancelTransfer = async () => {
     if (!transferToCancel) return;
     if (!canCancelTransferTransaction(transferToCancel)) {
-      onError('Only active transfers between cashboxes can be cancelled.');
+      onError('Transfer can be cancelled only during the transaction day.');
       setTransferToCancel(null);
       return;
     }

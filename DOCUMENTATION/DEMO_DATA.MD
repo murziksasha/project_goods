@@ -4,9 +4,13 @@
 This document defines what must be removed when `Erase all data` is triggered from dashboard main tab.
 
 ## Erase Contract
+- `Erase all data` is available only to Temporary Admin: active `owner` with username `admin`.
+- Backend must reject direct erase requests from every other employee.
+- Backend must create a completed safety backup before deleting data; if backup creation fails, erase must not start.
 - Keep: `employees`.
 - Delete all business/demo data and catalogs.
 - UI after erase must reflect empty collections without requiring manual page reload.
+- Successful erase responses include `safetyBackupId`.
 
 ## Backend Collections To Clear
 Source of truth: `backend/src/domain/demo/service.ts` -> `eraseAllDataExceptEmployees`.

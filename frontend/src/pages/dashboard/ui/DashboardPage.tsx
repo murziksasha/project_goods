@@ -8,7 +8,10 @@ import {
   authTokenStorageKey,
 } from '../../../entities/auth/api/authApi';
 import type { Employee } from '../../../entities/employee/model/types';
-import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
+import {
+  hasAnyEmployeePermission,
+  hasEmployeePermission,
+} from '../../../entities/employee/model/permissions';
 import { setApiAuthToken } from '../../../shared/api/http';
 import {
   isNetworkRequestError,
@@ -230,6 +233,9 @@ const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   !event.shiftKey &&
   !event.altKey;
 
+const isTemporaryAdmin = (employee: Employee | null) =>
+  employee?.role === 'owner' && employee.username === 'admin';
+
 export const DashboardPage = () => {
   const [isOnline, setIsOnline] = useState(
     () => (typeof navigator === 'undefined' ? true : navigator.onLine),
@@ -265,11 +271,33 @@ export const DashboardPage = () => {
   const canCreateOrders =
     currentEmployee?.isActive === true &&
     (currentEmployee.role === 'owner' ||
-      currentEmployee.role === 'manager' ||
       currentEmployee.permissions.includes('orders.manage'));
+  const canViewOrders = hasAnyEmployeePermission(currentEmployee, [
+    'orders.view',
+    'orders.manage',
+    'repairs.execute',
+    'sales.manage',
+  ]);
+  const canManageClients = hasEmployeePermission(currentEmployee, 'clients.manage');
+  const canManageInventory = hasEmployeePermission(currentEmployee, 'inventory.manage');
   const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
   const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
-  const canManageSettings = currentEmployee?.role === 'owner';
+  const canEditSettings = currentEmployee?.role === 'owner';
+  const canManageBackups = hasEmployeePermission(currentEmployee, 'system.backups.manage');
+  const canManageSettings = canEditSettings || canManageBackups;
+  const canEraseAllData = isTemporaryAdmin(currentEmployee);
+  const canAccessPage = (page: PageKey | 'other') => {
+    if (page === 'other') return false;
+    if (page === 'home') return true;
+    if (page === 'orders') return canViewOrders;
+    if (page === 'clients') return canManageClients;
+    if (page === 'warehouse' || page === 'catalog') return canManageInventory;
+    if (page === 'employees') return canManageEmployees;
+    if (page === 'settings') return canManageSettings;
+    if (page === 'accounting') return canViewAccounting;
+
+    return false;
+  };
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -417,18 +445,19 @@ export const DashboardPage = () => {
       return;
     }
 
-    if (activePage === 'employees' && !canManageEmployees) {
-      setActivePage('home');
-      return;
-    }
-    if (activePage === 'accounting' && !canViewAccounting) {
-      setActivePage('home');
-      return;
-    }
-    if (activePage === 'settings' && !canManageSettings) {
+    if (!canAccessPage(activePage)) {
       setActivePage('home');
     }
-  }, [activePage, canManageEmployees, canManageSettings, canViewAccounting, isAuthLoading]);
+  }, [
+    activePage,
+    canManageClients,
+    canManageEmployees,
+    canManageInventory,
+    canManageSettings,
+    canViewAccounting,
+    canViewOrders,
+    isAuthLoading,
+  ]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
@@ -447,6 +476,10 @@ export const DashboardPage = () => {
   }, []);
 
   const openOrdersPage = () => {
+    if (!canViewOrders) {
+      actions.showError('Current employee does not have permission to view orders.');
+      return;
+    }
     setActivePage('orders');
     setIsCreateOrderOpen(false);
   };
@@ -468,6 +501,10 @@ export const DashboardPage = () => {
   };
 
   const openPage = (page: PageKey) => {
+    if (!canAccessPage(page)) {
+      actions.showError('Current employee does not have permission to open this page.');
+      return;
+    }
     setActivePage(page);
     setIsCreateOrderOpen(false);
   };
@@ -480,6 +517,10 @@ export const DashboardPage = () => {
   };
 
   const openClientCardFromOrders = (clientId: string) => {
+    if (!canManageClients) {
+      actions.showError('Current employee does not have permission to manage clients.');
+      return;
+    }
     setActivePage('clients');
     setIsCreateOrderOpen(false);
     setOpenClientCardRequestId(clientId);
@@ -682,9 +723,7 @@ export const DashboardPage = () => {
 
         <nav className="sidebar-nav" aria-label="Main menu">
           {sidebarItems
-            .filter((item) => item.key !== 'employees' || canManageEmployees)
-            .filter((item) => item.key !== 'accounting' || canViewAccounting)
-            .filter((item) => item.key !== 'settings' || canManageSettings)
+            .filter((item) => canAccessPage(item.key))
             .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
@@ -775,7 +814,7 @@ export const DashboardPage = () => {
             isOffline={isOffline}
           />
 
-          {activePage === 'orders' ? (
+          {activePage === 'orders' && canViewOrders ? (
             isCreateOrderOpen &&
             activeOrdersTab !== 'supplierOrders' &&
             activeOrdersTab !== 'supplierInformation' ? (
@@ -847,7 +886,7 @@ export const DashboardPage = () => {
                 />
               )
             )
-          ) : activePage === 'employees' ? (
+          ) : activePage === 'employees' && canManageEmployees ? (
             <EmployeeManagementPanel
               employees={state.allEmployees}
               form={state.employeeForm}
@@ -863,7 +902,7 @@ export const DashboardPage = () => {
               onEdit={actions.editEmployee}
               onDelete={actions.deleteEmployee}
             />
-          ) : activePage === 'clients' ? (
+          ) : activePage === 'clients' && canManageClients ? (
             <ClientsSuppliersWorkspace
               clients={state.allClients}
               suppliers={state.suppliers}
@@ -889,10 +928,12 @@ export const DashboardPage = () => {
             <SettingsPanel
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
+              canEditSettings={canEditSettings}
+              canManageBackups={canManageBackups}
               onChange={actions.onSettingsChange}
               onSubmit={actions.saveSettings}
             />
-          ) : activePage === 'accounting' ? (
+          ) : activePage === 'accounting' && canViewAccounting ? (
             <AccountingPanel
               currentEmployee={currentEmployee}
               onError={actions.showError}
@@ -900,7 +941,7 @@ export const DashboardPage = () => {
               sales={state.sales}
               onOpenSaleCard={openSaleFromClientCard}
             />
-          ) : activePage === 'catalog' ? (
+          ) : activePage === 'catalog' && canManageInventory ? (
             <ProductCatalogPanel
               products={state.products}
               clientDevices={state.clientDevices}
@@ -942,7 +983,7 @@ export const DashboardPage = () => {
               onCreateCatalogProduct={actions.createCatalogProductCard}
               onDeleteCatalogProduct={actions.deleteCatalogProductCard}
             />
-          ) : activePage === 'warehouse' ? (
+          ) : activePage === 'warehouse' && canManageInventory ? (
             <WarehousePanel
               products={state.allProducts}
               sales={state.sales}
@@ -977,6 +1018,8 @@ export const DashboardPage = () => {
               isSeeding={state.isSeeding}
               isExporting={state.isExporting}
               hasProducts={state.products.length > 0}
+              canEraseAllData={canEraseAllData}
+              canExportProducts={canManageInventory}
               statsPeriod={state.statsPeriod}
               onStatsPeriodChange={actions.setStatsPeriod}
               onSeed={actions.eraseAllData}

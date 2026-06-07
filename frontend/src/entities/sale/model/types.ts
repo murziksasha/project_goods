@@ -149,4 +149,5 @@ export type SeedResponse = {
   products: Product[];
   clients: Client[];
   sales: Sale[];
+  safetyBackupId?: string;
 };

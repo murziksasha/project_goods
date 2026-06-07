@@ -6,13 +6,14 @@ This document defines employee access rules for Project Goods. The source of tru
 ## Core Principles
 - Every authenticated employee has a `role` and a list of string `permissions`.
 - `owner` has backend bypass for all permission checks.
+- `owner` must always retain `employees.manage`; the checkbox is locked in the UI and backend normalization re-adds it if a direct payload omits it.
 - UI must hide unavailable actions, but backend must still return `401` or `403` when access is missing.
 - Permissions are additive: a non-owner employee may do an action only when their explicit permission allows it.
 - Existing employees are not auto-migrated. Their permissions update when an owner or allowed employee edits them.
 
 ## Roles And Default Permissions
 
-Defaults are applied only when an employee is created or updated with an empty permissions list.
+Defaults are applied by backend when an employee is created or updated with an empty permissions list. In the employee form, changing `Role` also activates that role's default permission checkboxes so the visible checkboxes match the selected role.
 
 | Role | Default permissions | Intent |
 | --- | --- | --- |
@@ -61,12 +62,15 @@ Defaults are applied only when an employee is created or updated with an empty p
 - `owner` can create, edit, and delete employees except deleting their own account.
 - `owner` can create/edit `owner` accounts.
 - `owner` can grant or revoke `employees.manage`.
+- `owner` accounts cannot lose `employees.manage`.
 - A non-owner with `employees.manage` can create, edit, and delete non-owner employees.
 - A non-owner with `employees.manage` cannot:
   - create an employee with role `owner`,
   - edit an existing `owner`,
   - delete an existing `owner`,
   - grant `employees.manage`.
+- Temporary Admin is the active `owner` account with username `admin`.
+- Temporary Admin may be changed or deleted only after at least one other active employee has `employees.manage`.
 
 ## Backend Authorization Matrix
 
@@ -76,6 +80,12 @@ Defaults are applied only when an employee is created or updated with an empty p
 | `POST /employees` | `owner` or `employees.manage`; owner-only constraints still apply. |
 | `PUT /employees/:employeeId` | `owner` or `employees.manage`; owner-only constraints still apply. |
 | `DELETE /employees/:employeeId` | `owner` or `employees.manage`; cannot delete self; owner deletion is owner-only. |
+
+### Demo Data Erase
+| Endpoint | Required access |
+| --- | --- |
+| `POST /demo/erase` | Temporary Admin only; creates a safety backup before erase. |
+| `POST /demo/seed?kind=erase` | Temporary Admin only; legacy erase path with the same safety backup rule. |
 
 ### Finance
 | Endpoint | Required access |
@@ -103,6 +113,13 @@ Defaults are applied only when an employee is created or updated with an empty p
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
+- Sidebar always shows `Main`.
+- Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`.
+- Sidebar shows `Clients & suppliers` when employee is `owner` or has `clients.manage`.
+- Sidebar shows `Warehouse` and `Products & Services` when employee is `owner` or has `inventory.manage`.
+- Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage`.
+- Main `Erase all data` is visible only to Temporary Admin.
+- Main product export is visible only to `owner` or employees with `inventory.manage`.
 - Accounting cashbox settings gear, create cashbox, edit cashbox, and archive/reactivate controls require `finance.cashboxes.manage`.
 - Accounting direct operation buttons require their matching transaction permission:
   - Deposit: `finance.transactions.deposit`

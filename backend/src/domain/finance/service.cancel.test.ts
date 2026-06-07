@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
   cashboxes: new Map<string, any>(),
@@ -156,11 +156,17 @@ const seedTransaction = (patch: Record<string, unknown> = {}) => {
 
 describe('cancelFinanceTransaction', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-31T12:00:00.000Z'));
     store.cashboxes.clear();
     store.transactions.clear();
     store.nextTransactionId = 100;
     seedCashboxes();
     seedTransaction();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('cancels an active transfer and creates a linked reverse transaction', async () => {
@@ -210,6 +216,22 @@ describe('cancelFinanceTransaction', () => {
     await expect(cancelFinanceTransaction(transferId)).rejects.toThrow(
       'Cancellation transactions cannot be cancelled.',
     );
+  });
+
+  it('rejects cancelling transfers from a previous business day without changing balances', async () => {
+    seedTransaction({ transactionDate: new Date('2026-05-30T09:00:00.000Z') });
+
+    await expect(cancelFinanceTransaction(transferId)).rejects.toThrow(
+      'Transfer can be cancelled only during the transaction day.',
+    );
+
+    const reverseTransaction = [...store.transactions.values()].find(
+      (transaction) => transaction.cancelsTransaction === transferId,
+    );
+    expect(reverseTransaction).toBeUndefined();
+    expect(store.transactions.get(transferId).status).toBe('active');
+    expect(store.cashboxes.get(fromCashboxId).balances.UAH).toBe(100);
+    expect(store.cashboxes.get(toCashboxId).balances.UAH).toBe(50);
   });
 
   it('rejects cancellation when the destination balance is insufficient', async () => {

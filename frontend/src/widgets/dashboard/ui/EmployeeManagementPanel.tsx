@@ -5,6 +5,7 @@ import type {
   EmployeePermission,
 } from '../../../entities/employee/model/types';
 import {
+  defaultEmployeePermissionsByRole,
   employeeRoleOptions,
 } from '../../../entities/employee/model/types';
 
@@ -40,6 +41,10 @@ const permissionGroups: Array<{
   {
     title: 'Employees',
     permissions: ['employees.manage'],
+  },
+  {
+    title: 'System',
+    permissions: ['system.backups.manage'],
   },
 ];
 
@@ -79,9 +84,17 @@ export const EmployeeManagementPanel = ({
 }: EmployeeManagementPanelProps) => {
   const formTopRef = useRef<HTMLDivElement | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const isOwnerRoleSelected = form.role === 'owner';
 
   const togglePermission = (permission: EmployeePermission) => {
-    if (permission === 'employees.manage' && !canManageOwnerAccounts) {
+    if (isOwnerRoleSelected && permission === 'employees.manage') {
+      return;
+    }
+    if (
+      (permission === 'employees.manage' ||
+        permission === 'system.backups.manage') &&
+      !canManageOwnerAccounts
+    ) {
       return;
     }
     if (form.permissions.includes(permission)) {
@@ -92,6 +105,11 @@ export const EmployeeManagementPanel = ({
       return;
     }
     onChange('permissions', [...form.permissions, permission]);
+  };
+
+  const handleRoleChange = (role: EmployeeFormValues['role']) => {
+    onChange('role', role);
+    onChange('permissions', defaultEmployeePermissionsByRole[role]);
   };
 
   const confirmDelete = () => {
@@ -230,7 +248,7 @@ export const EmployeeManagementPanel = ({
           <span>Role</span>
           <select
             value={form.role}
-            onChange={(event) => onChange('role', event.target.value as EmployeeFormValues['role'])}
+            onChange={(event) => handleRoleChange(event.target.value as EmployeeFormValues['role'])}
           >
             {employeeRoleOptions
               .filter((role) => canManageOwnerAccounts || role !== 'owner')
@@ -269,8 +287,16 @@ export const EmployeeManagementPanel = ({
               <label key={permission} className="create-inline-checkbox">
                 <input
                   type="checkbox"
-                  checked={form.permissions.includes(permission)}
-                  disabled={permission === 'employees.manage' && !canManageOwnerAccounts}
+                  checked={
+                    form.permissions.includes(permission) ||
+                    (isOwnerRoleSelected && permission === 'employees.manage')
+                  }
+                  disabled={
+                    (isOwnerRoleSelected && permission === 'employees.manage') ||
+                    ((permission === 'employees.manage' ||
+                      permission === 'system.backups.manage') &&
+                    !canManageOwnerAccounts)
+                  }
                   onChange={() => togglePermission(permission)}
                 />
                 <span>{permission}</span>

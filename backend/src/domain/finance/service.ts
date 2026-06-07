@@ -21,6 +21,26 @@ import {
 
 const defaultCashboxName = 'Основная';
 
+const accountingBusinessTimeZone = 'Europe/Kiev';
+const transferCancellationDayError =
+  'Transfer can be cancelled only during the transaction day.';
+
+const getAccountingBusinessDateKey = (
+  value: string | Date,
+  timeZone = accountingBusinessTimeZone,
+) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone,
+    year: 'numeric',
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+};
+
 export const ensureDefaultCashbox = async () => {
   let cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
   if (cashbox) return cashbox;
@@ -216,6 +236,12 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
   }
   if (transaction.isCancellation || transaction.cancelsTransaction) {
     throw new Error('Cancellation transactions cannot be cancelled.');
+  }
+  if (
+    getAccountingBusinessDateKey(transaction.transactionDate) !==
+    getAccountingBusinessDateKey(new Date())
+  ) {
+    throw new Error(transferCancellationDayError);
   }
 
   const fromCashbox = await Cashbox.findById(transaction.fromCashbox)

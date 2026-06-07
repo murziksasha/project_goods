@@ -255,6 +255,15 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
     support: ['orders.view'],
   };
 
+  const normalizedPermissions =
+    parsedPermissions.length > 0
+      ? Array.from(new Set(parsedPermissions))
+      : defaultRolePermissions[role];
+  const permissions =
+    role === 'owner' && !normalizedPermissions.includes('employees.manage')
+      ? [...normalizedPermissions, 'employees.manage']
+      : normalizedPermissions;
+
   return {
     name: toNonEmptyString(payload.name),
     phone: normalizePhone(payload.phone),
@@ -262,10 +271,7 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
     username: toNonEmptyString(payload.username).toLowerCase(),
     password: toNonEmptyString(payload.password),
     role,
-    permissions:
-      parsedPermissions.length > 0
-        ? Array.from(new Set(parsedPermissions))
-        : defaultRolePermissions[role],
+    permissions,
     isActive:
       payload.isActive === undefined
         ? true

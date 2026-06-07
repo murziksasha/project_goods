@@ -5,6 +5,7 @@ import {
   ensureProductArticleIsNotUnique,
   ensureProductNameIsNotUnique,
 } from './domain/product/service';
+import { startBackupScheduler } from './domain/backup/scheduler';
 
 const getStartupErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -19,6 +20,7 @@ const startServer = async () => {
     await connectDatabase();
     await ensureProductNameIsNotUnique();
     await ensureProductArticleIsNotUnique();
+    startBackupScheduler();
     app.listen(env.port, () => {
       console.log(`Backend started on http://localhost:${env.port}`);
     });
