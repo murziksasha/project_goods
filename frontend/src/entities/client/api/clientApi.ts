@@ -3,6 +3,7 @@ import type {
   Client,
   ClientFormValues,
   ClientHistory,
+  ClientImportReport,
   ClientStatus,
 } from '../model/types';
 
@@ -81,6 +82,45 @@ export const mergeClients = async (
       sourceClientId,
     });
     return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const importClients = async (file: File) => {
+  try {
+    const response = await apiClient.post<ClientImportReport>(
+      '/clients/import',
+      file,
+      {
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        timeout: 120000,
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const exportClients = async () => {
+  try {
+    const response = await apiClient.get<Blob>('/clients/export', {
+      responseType: 'blob',
+      timeout: 120000,
+    });
+
+    const downloadUrl = window.URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'clients.xls';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

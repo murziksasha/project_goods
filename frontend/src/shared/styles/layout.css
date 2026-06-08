@@ -1,5 +1,7 @@
 .dashboard-shell {
   min-height: 100vh;
+  width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   background: linear-gradient(180deg, #d4dae2 0%, #dce2ea 100%);
@@ -205,6 +207,7 @@
 }
 
 .app-sidebar {
+  min-width: 0;
   background: linear-gradient(180deg, #223447 0%, #2a3f55 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   color: #dbe6f3;
@@ -214,6 +217,7 @@
 }
 
 .sidebar-profile {
+  min-width: 0;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 12px;
@@ -238,12 +242,20 @@
 }
 
 .sidebar-user-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.98rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .sidebar-user-role {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.85rem;
   color: #8ea4bb;
 }
@@ -256,6 +268,7 @@
 }
 
 .sidebar-nav-item {
+  min-width: 0;
   border: 0;
   background: transparent;
   color: #d3deea;
@@ -289,6 +302,13 @@
   line-height: 1;
 }
 
+.sidebar-nav-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar-nav-item-label-hidden {
   display: none;
 }
@@ -319,6 +339,7 @@
 
 .dashboard-main {
   min-width: 0;
+  max-width: 100%;
 }
 
 .catalog-table-panel {
@@ -373,6 +394,8 @@
 }
 
 .catalog-table-wrap {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-gutter: stable;
 }
@@ -1381,7 +1404,8 @@
 }
 
 .topbar {
-  height: 62px;
+  min-width: 0;
+  min-height: 62px;
   background: #f5f7fa;
   border-bottom: 1px solid #d5dde7;
   display: flex;
@@ -1403,12 +1427,20 @@
 }
 
 .topbar-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-right: auto;
   color: #4b5d73;
   font-size: 1.45rem;
 }
 
 .topbar-sync-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #6f839a;
   font-size: 0.85rem;
   margin-right: auto;
@@ -1477,6 +1509,8 @@
 }
 
 .page-shell {
+  min-width: 0;
+  max-width: 100%;
   width: min(100% - 28px, 1540px);
   margin: 0 auto;
   padding: 20px 0 40px;
@@ -2041,6 +2075,8 @@
 }
 
 .panel {
+  min-width: 0;
+  max-width: 100%;
   border-radius: 10px;
   padding: 16px;
 }
@@ -2698,11 +2734,13 @@
   place-items: center;
   padding: 20px;
   background: rgba(22, 31, 43, 0.42);
+  overflow: auto;
 }
 
 .payment-modal {
   position: relative;
-  width: min(760px, 100%);
+  width: min(760px, calc(100vw - 40px));
+  min-width: 0;
   max-height: calc(100vh - 48px);
   display: grid;
   grid-template-rows: auto auto auto;
@@ -3606,11 +3644,13 @@
 }
 
 .orders-table-wrap {
+  min-width: 0;
   border: 1px solid #d0d8e3;
   border-radius: 8px;
   background: #fff;
   overflow-x: auto;
   max-width: 100%;
+  scrollbar-gutter: stable;
 }
 
 .orders-table {
@@ -4421,6 +4461,48 @@
   justify-content: center;
 }
 
+.clients-import-input {
+  display: none;
+}
+
+.clients-import-button,
+.clients-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  border: 0;
+  border-radius: 7px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clients-import-button {
+  background: #0fafa8;
+  color: #fff;
+}
+
+.clients-export-button {
+  background: #e5edf8;
+  color: #344a63;
+  border: 1px solid #cad4e0;
+}
+
+.clients-import-button:hover:not(:disabled),
+.clients-export-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.clients-import-button:disabled,
+.clients-export-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .clients-search-group {
   grid-template-columns: minmax(280px, 420px) 82px;
 }
@@ -4739,7 +4821,10 @@
 }
 
 .finance-table-wrap {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
 .finance-report-grid {

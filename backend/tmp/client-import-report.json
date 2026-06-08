@@ -1,0 +1,67 @@
+{
+  "dryRun": false,
+  "file": "C:\\Users\\user\\Downloads\\Клієнти.xlsx",
+  "sheetName": "Клієнти",
+  "reportPath": "F:\\SSD PROJECT\\project_goods\\backend\\tmp\\client-import-report.json",
+  "totalRows": 7879,
+  "prepared": 7871,
+  "created": 7871,
+  "skippedMissingRequired": 5,
+  "skippedExisting": 0,
+  "validationFailed": 3,
+  "skipped": [
+    {
+      "rowNumber": 4047,
+      "reason": "missingName",
+      "name": "",
+      "phone": "38931100010"
+    },
+    {
+      "rowNumber": 5739,
+      "reason": "missingName",
+      "name": "",
+      "phone": "380967488264"
+    },
+    {
+      "rowNumber": 5800,
+      "reason": "missingName",
+      "name": "",
+      "phone": "380935016892"
+    },
+    {
+      "rowNumber": 5963,
+      "reason": "missingName",
+      "name": "",
+      "phone": "380677249043"
+    },
+    {
+      "rowNumber": 6406,
+      "reason": "missingPhone",
+      "name": "Валерий Бобик",
+      "phone": ""
+    }
+  ],
+  "validationErrors": [
+    {
+      "rowNumber": 3804,
+      "reason": "validationFailed",
+      "name": "ОБСЛУГОВУЮЧИЙ КООПЕРАТИВ «БУЛЬВАР.СЕРВІС» М.Чорноморськ,вул.1 Травня,42-А ЄДРПОУ 45486221 Банк- АТ «УКРСИББАНК» Р-р: UA433510050000026007879225687",
+      "phone": "380952776700",
+      "details": "Client validation failed: name: Client name must contain no more than 120 characters"
+    },
+    {
+      "rowNumber": 5183,
+      "reason": "validationFailed",
+      "name": "Паата  проживає на кольоровому",
+      "phone": "380503267883",
+      "details": "Client validation failed: address: Client address must contain no more than 240 characters"
+    },
+    {
+      "rowNumber": 6854,
+      "reason": "validationFailed",
+      "name": "Павел Ковалев",
+      "phone": "380635567173",
+      "details": "Client validation failed: address: Client address must contain at least 5 characters"
+    }
+  ]
+}

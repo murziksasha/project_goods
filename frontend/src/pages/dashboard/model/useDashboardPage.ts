@@ -5,6 +5,7 @@ import type { Client, ClientFormValues, ClientHistory, ClientStatus } from '../.
 import {
   createClient,
   deleteClient,
+  getClients,
   updateClient,
 } from '../../../entities/client/api/clientApi';
 import { initialEmployeeForm } from '../../../entities/employee/model/forms';
@@ -131,6 +132,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [isProductSaving, setIsProductSaving] = useState(false);
   const [isServiceSaving, setIsServiceSaving] = useState(false);
   const [isClientSaving, setIsClientSaving] = useState(false);
+  const [isClientImporting, setIsClientImporting] = useState(false);
+  const [isClientExporting, setIsClientExporting] = useState(false);
   const [isSaleSaving, setIsSaleSaving] = useState(false);
   const [isEmployeeSaving, setIsEmployeeSaving] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
@@ -393,6 +396,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     setIsProductSaving,
     setIsServiceSaving,
     setIsClientSaving,
+    setIsClientImporting,
+    setIsClientExporting,
     setIsSaleSaving,
     setIsEmployeeSaving,
     setIsSettingsSaving,
@@ -428,6 +433,15 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
         queryFn: () => getClientDevices(),
       });
       setClientDevices(nextDevices);
+      setLastSyncAt(new Date().toISOString());
+    },
+    refreshClients: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
+      const nextClients = await queryClient.fetchQuery({
+        queryKey: queryKeys.clients,
+        queryFn: () => getClients(),
+      });
+      setAllClients(nextClients);
       setLastSyncAt(new Date().toISOString());
     },
     mutateCreateProduct: async (payload) => createProductMutation.mutateAsync(payload),
@@ -512,6 +526,8 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       isProductSaving,
       isServiceSaving,
       isClientSaving,
+      isClientImporting,
+      isClientExporting,
       isSaleSaving,
       isEmployeeSaving,
       isSettingsSaving,

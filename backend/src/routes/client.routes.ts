@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import {
   createClient,
   deleteClient,
@@ -7,10 +7,22 @@ import {
   mergeClients,
   updateClient,
 } from '../domain/client/service';
+import {
+  exportClientsWorkbook,
+  importClientsWorkbook,
+} from '../domain/client/excel';
 import type { ClientPayload, MergeClientsPayload } from '../domain/shared/types';
 import { asyncHandler, routeParam } from '../shared/lib/http';
 
 export const clientRouter = Router();
+const excelBodyParser = raw({
+  type: [
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/octet-stream',
+  ],
+  limit: '25mb',
+});
 
 clientRouter.get('/clients', asyncHandler(async (req, res) => {
   res.json(await listClients(req.query.query, req.query.status));
@@ -18,6 +30,25 @@ clientRouter.get('/clients', asyncHandler(async (req, res) => {
 
 clientRouter.post('/clients', asyncHandler(async (req, res) => {
   res.status(201).json(await createClient(req.body as ClientPayload));
+}));
+
+clientRouter.post(
+  '/clients/import',
+  excelBodyParser,
+  asyncHandler(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new Error('Excel file is required.');
+    }
+
+    res.status(201).json(await importClientsWorkbook(req.body));
+  }),
+);
+
+clientRouter.get('/clients/export', asyncHandler(async (_req, res) => {
+  const buffer = await exportClientsWorkbook();
+  res.setHeader('Content-Disposition', 'attachment; filename="clients.xls"');
+  res.setHeader('Content-Type', 'application/vnd.ms-excel');
+  res.send(buffer);
 }));
 
 clientRouter.post('/clients/merge', asyncHandler(async (req, res) => {

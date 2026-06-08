@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
   createClientDevice,
   getClientDevices,
@@ -107,20 +108,17 @@ export const CreateOrderCard = ({
   const managers = employees.filter(
     (employee) =>
       employee.isActive &&
-      (employee.role === 'owner' ||
-        employee.permissions.includes('orders.manage')),
+      hasEmployeePermission(employee, 'orders.manage'),
   );
   const masters = employees.filter(
     (employee) =>
       employee.isActive &&
-      (employee.role === 'owner' ||
-        employee.role === 'master' ||
-        employee.permissions.includes('repairs.execute')),
+      (employee.role === 'master' ||
+        hasEmployeePermission(employee, 'repairs.execute')),
   );
   const canCurrentEmployeeManageOrders =
     currentEmployee?.isActive === true &&
-    (currentEmployee.role === 'owner' ||
-      currentEmployee.permissions.includes('orders.manage'));
+    hasEmployeePermission(currentEmployee, 'orders.manage');
 
   const phoneDigits = clientPhone.replace(/\D/g, '');
   const normalizedPhoneDigits = phoneDigits.startsWith('380')
