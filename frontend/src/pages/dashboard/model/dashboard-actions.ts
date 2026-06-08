@@ -1,5 +1,7 @@
 import {
+  exportClients,
   getClientHistory,
+  importClients,
   mergeClients as mergeClientsApi,
 } from '../../../entities/client/api/clientApi';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
@@ -111,6 +113,8 @@ type DashboardActionParams = {
   setIsProductSaving: Setter<boolean>;
   setIsServiceSaving: Setter<boolean>;
   setIsClientSaving: Setter<boolean>;
+  setIsClientImporting: Setter<boolean>;
+  setIsClientExporting: Setter<boolean>;
   setIsSaleSaving: Setter<boolean>;
   setIsEmployeeSaving: Setter<boolean>;
   setIsSettingsSaving: Setter<boolean>;
@@ -122,6 +126,7 @@ type DashboardActionParams = {
   refreshSales: () => Promise<void>;
   refreshProducts: () => Promise<void>;
   refreshClientDevices: () => Promise<void>;
+  refreshClients: () => Promise<void>;
   mutateCreateProduct: (payload: ProductFormValues) => Promise<Product>;
   mutateUpdateProduct: (
     productId: string,
@@ -222,6 +227,8 @@ export const createDashboardActions = ({
   setIsProductSaving,
   setIsServiceSaving,
   setIsClientSaving,
+  setIsClientImporting,
+  setIsClientExporting,
   setIsSaleSaving,
   setIsEmployeeSaving,
   setIsSettingsSaving,
@@ -233,6 +240,7 @@ export const createDashboardActions = ({
   refreshSales,
   refreshProducts,
   refreshClientDevices,
+  refreshClients,
   mutateCreateProduct,
   mutateUpdateProduct,
   mutateUpdateProductModel,
@@ -1022,6 +1030,37 @@ export const createDashboardActions = ({
         setError(getRequestErrorMessage(requestError, 'Failed to export products.'));
       } finally {
         setIsExporting(false);
+      }
+    },
+    importClientsFromFile: async (file: File) => {
+      setIsClientImporting(true);
+      clearNotifications();
+      try {
+        const report = await importClients(file);
+        await safeRefresh(refreshClients, 'Failed to refresh clients.');
+        setSuccessMessage(
+          `Client import completed: created ${report.created}, skipped existing ${report.skippedExisting}, skipped invalid ${
+            report.skippedMissingRequired + report.validationFailed
+          }.`,
+        );
+        return true;
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to import clients.'));
+        return false;
+      } finally {
+        setIsClientImporting(false);
+      }
+    },
+    exportClients: async () => {
+      setIsClientExporting(true);
+      clearNotifications();
+      try {
+        await exportClients();
+        setSuccessMessage('Client export prepared.');
+      } catch (requestError) {
+        setError(getRequestErrorMessage(requestError, 'Failed to export clients.'));
+      } finally {
+        setIsClientExporting(false);
       }
     },
     seedDemoData: async (kind: DemoSeedKind = 'all') => {

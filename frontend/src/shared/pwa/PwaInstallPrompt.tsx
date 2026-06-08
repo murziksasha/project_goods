@@ -1,57 +1,9 @@
-import { useEffect, useState } from 'react';
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
-
-const isStandaloneDisplay = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  ('standalone' in window.navigator && window.navigator.standalone === true);
+import { usePwaInstallPrompt } from './usePwaInstallPrompt';
 
 export const PwaInstallPrompt = () => {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isStandalone, setIsStandalone] = useState(() =>
-    typeof window === 'undefined' ? false : isStandaloneDisplay(),
-  );
+  const { canPromptInstall, dismissInstallPrompt, installApp } = usePwaInstallPrompt();
 
-  useEffect(() => {
-    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
-    const handleDisplayModeChange = () => {
-      setIsStandalone(isStandaloneDisplay());
-    };
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const handleInstalled = () => {
-      setInstallPrompt(null);
-      setIsStandalone(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleInstalled);
-    standaloneMedia.addEventListener('change', handleDisplayModeChange);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleInstalled);
-      standaloneMedia.removeEventListener('change', handleDisplayModeChange);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) {
-      return;
-    }
-
-    const promptEvent = installPrompt;
-    setInstallPrompt(null);
-    await promptEvent.prompt();
-    await promptEvent.userChoice;
-  };
-
-  if (!installPrompt || isStandalone) {
+  if (!canPromptInstall) {
     return null;
   }
 
@@ -62,10 +14,10 @@ export const PwaInstallPrompt = () => {
         <span>Open it from your desktop or home screen like a regular app.</span>
       </div>
       <div className="pwa-prompt-actions">
-        <button type="button" className="secondary-button" onClick={() => setInstallPrompt(null)}>
+        <button type="button" className="secondary-button" onClick={dismissInstallPrompt}>
           Later
         </button>
-        <button type="button" className="primary-button" onClick={() => void handleInstall()}>
+        <button type="button" className="primary-button" onClick={() => void installApp()}>
           Install app
         </button>
       </div>

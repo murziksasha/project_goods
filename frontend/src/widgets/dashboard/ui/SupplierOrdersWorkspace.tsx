@@ -50,9 +50,11 @@ import {
 type Props = {
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
+  visibleTabs: OrdersTab[];
   suppliers: Supplier[];
   catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
+  canManageSupplierOrders: boolean;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (
     supplierId: string,
@@ -69,9 +71,11 @@ type Props = {
 export const SupplierOrdersWorkspace = ({
   activeTab,
   onActiveTabChange,
+  visibleTabs,
   suppliers,
   catalogProducts,
   currentEmployeeName,
+  canManageSupplierOrders,
   onCreateSupplier,
   onUpdateSupplier,
   onUpdateCatalogProduct,
@@ -468,8 +472,14 @@ export const SupplierOrdersWorkspace = ({
         selectedStatuses={selectedStatuses}
         statusQuery={statusQuery}
         visibleColumns={visibleColumns}
+        visibleTabs={visibleTabs}
+        canManageSupplierOrders={canManageSupplierOrders}
         onActiveTabChange={onActiveTabChange}
         onCreateOrder={() => {
+          if (!canManageSupplierOrders) {
+            onError('Current employee does not have permission to manage supplier orders.');
+            return;
+          }
           setEditingOrder(null);
           setIsModalOpen(true);
         }}
@@ -525,6 +535,7 @@ export const SupplierOrdersWorkspace = ({
           paginatedOrders={paginatedOrders}
           suppliers={suppliers}
           visibleColumns={visibleColumns}
+          canManageSupplierOrders={canManageSupplierOrders}
           onError={onError}
           onEditOrder={(order) => {
             setEditingOrder(order);
@@ -533,6 +544,10 @@ export const SupplierOrdersWorkspace = ({
           onOpenCatalogProduct={setSelectedCatalogProductForEdit}
           onOpenSupplier={setSelectedSupplierForEdit}
           onOpenStatusOrder={(key, order, rect) => {
+            if (!canManageSupplierOrders) {
+              onError('Current employee does not have permission to manage supplier orders.');
+              return;
+            }
             setStatusMenuPosition({
               top: rect.bottom + 4,
               left: rect.left,
@@ -563,10 +578,11 @@ export const SupplierOrdersWorkspace = ({
         editingOrder={editingOrder}
         forceReadOnly={Boolean(
           editingOrder &&
+            (!canManageSupplierOrders ||
             (editingOrder.status === 'stocked' ||
               editingOrder.receiptStatus === 'received' ||
               editingOrder.status === 'cancelled' ||
-              editingOrder.paymentStatus === 'cancelled'),
+              editingOrder.paymentStatus === 'cancelled')),
         )}
         onClose={() => {
           setIsModalOpen(false);
@@ -583,6 +599,7 @@ export const SupplierOrdersWorkspace = ({
           warehouseId,
           locationId,
         }) => {
+          if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
           const result = await takeOnChargeSupplierOrder(editingOrder.id, {
             autoGenerateSerialNumbers,
@@ -599,12 +616,17 @@ export const SupplierOrdersWorkspace = ({
           return result;
         }}
         onCancelOrder={async () => {
+          if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
           await cancelSupplierOrder(editingOrder.id);
           onSuccess('Supplier order cancelled.');
           await refreshOrders();
         }}
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
+          if (!canManageSupplierOrders) {
+            onError('Current employee does not have permission to manage supplier orders.');
+            return;
+          }
           try {
             const basePayload: SupplierOrderFormValues = {
               supplierId: payload.supplierId,

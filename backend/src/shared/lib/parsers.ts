@@ -1,5 +1,6 @@
 import { clientStatuses, type ClientStatus } from '../../domain/client/constants';
 import {
+  defaultEmployeePermissionsByRole,
   employeePermissions,
   employeeRoles,
   type EmployeePermission,
@@ -222,43 +223,10 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
           employeePermissions.includes(value as EmployeePermission),
         );
 
-  const defaultRolePermissions: Record<EmployeeRole, EmployeePermission[]> = {
-    owner: [...employeePermissions],
-    manager: [
-      'orders.view',
-      'orders.manage',
-      'clients.manage',
-      'finance.cashboxes.view',
-      'finance.transactions.deposit',
-    ],
-    master: ['orders.view', 'repairs.execute'],
-    accountant: [
-      'orders.view',
-      'sales.manage',
-      'finance.view',
-      'finance.cashboxes.view',
-      'finance.cashboxes.manage',
-      'finance.transactions.deposit',
-      'finance.transactions.withdraw',
-      'finance.transactions.transfer',
-      'finance.supplierOrders.pay',
-      'finance.supplierOrders.issueWithoutPayment',
-    ],
-    warehouse: ['orders.view', 'inventory.manage'],
-    sales: [
-      'orders.view',
-      'sales.manage',
-      'clients.manage',
-      'finance.cashboxes.view',
-      'finance.transactions.deposit',
-    ],
-    support: ['orders.view'],
-  };
-
   const normalizedPermissions =
     parsedPermissions.length > 0
       ? Array.from(new Set(parsedPermissions))
-      : defaultRolePermissions[role];
+      : defaultEmployeePermissionsByRole[role];
   const permissions =
     role === 'owner' && !normalizedPermissions.includes('employees.manage')
       ? [...normalizedPermissions, 'employees.manage']

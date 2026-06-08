@@ -70,10 +70,11 @@ export const takeOnChargeSupplierOrder = async (
   }
 };
 
-export const useSupplierOrdersQuery = () =>
+export const useSupplierOrdersQuery = (enabled = true) =>
   useQuery({
     queryKey: queryKeys.supplierOrders,
     queryFn: () => getSupplierOrders(),
+    enabled,
   });
 
 export const useCreateSupplierOrderMutation = () =>

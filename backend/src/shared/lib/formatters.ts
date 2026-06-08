@@ -5,6 +5,7 @@ import type { SaleDocument } from '../../domain/sale/model';
 import type { SupplierDocument } from '../../domain/supplier/model';
 import type { ClientDeviceDocument } from '../../domain/client-device/model';
 import type { CatalogProductDocument } from '../../domain/catalog-product/model';
+import { getEffectiveEmployeePermissions } from '../../domain/employee/constants';
 
 export const formatProduct = (product: ProductDocument) => {
   const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
@@ -98,7 +99,7 @@ export const formatEmployee = (employee: EmployeeDocument) => ({
   email: employee.email ?? '',
   username: employee.username ?? '',
   role: employee.role,
-  permissions: employee.permissions,
+  permissions: getEffectiveEmployeePermissions(employee),
   isActive: employee.isActive,
   isRegistered: Boolean(employee.username),
   note: employee.note,

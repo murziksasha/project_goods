@@ -47,7 +47,31 @@ describe('EmployeeManagementPanel', () => {
 
     expect(screen.getByLabelText('orders.view')).toBeChecked();
     expect(screen.getByLabelText('inventory.manage')).toBeChecked();
+    expect(screen.getByLabelText('supplierOrders.view')).toBeChecked();
+    expect(screen.getByLabelText('supplierOrders.manage')).toBeChecked();
     expect(screen.getByLabelText('orders.manage')).not.toBeChecked();
+  });
+
+  it('activates supplier-order and inventory defaults for manager role', () => {
+    render(<PanelHarness />);
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'manager' },
+    });
+
+    expect(screen.getByLabelText('orders.view')).toBeChecked();
+    expect(screen.getByLabelText('orders.manage')).toBeChecked();
+    expect(screen.getByLabelText('inventory.manage')).toBeChecked();
+    expect(screen.getByLabelText('supplierOrders.view')).toBeChecked();
+    expect(screen.getByLabelText('supplierOrders.manage')).toBeChecked();
+  });
+
+  it('renders supplier-order permission checkboxes', () => {
+    render(<PanelHarness />);
+
+    expect(screen.getByText('Supplier Orders')).toBeInTheDocument();
+    expect(screen.getByLabelText('supplierOrders.view')).toBeInTheDocument();
+    expect(screen.getByLabelText('supplierOrders.manage')).toBeInTheDocument();
   });
 
   it('keeps employees.manage checked and locked for owner role', () => {

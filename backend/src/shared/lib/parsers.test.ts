@@ -64,7 +64,10 @@ describe('normalizeEmployeePayload', () => {
       permissions: [
         'orders.view',
         'orders.manage',
+        'supplierOrders.view',
+        'supplierOrders.manage',
         'clients.manage',
+        'inventory.manage',
         'finance.cashboxes.view',
         'finance.transactions.deposit',
       ],
@@ -102,6 +105,8 @@ describe('normalizeEmployeePayload', () => {
     expect(defaults.permissions).toEqual(
       expect.arrayContaining([
         'finance.view',
+        'supplierOrders.view',
+        'supplierOrders.manage',
         'finance.cashboxes.manage',
         'finance.transactions.deposit',
         'finance.transactions.withdraw',
@@ -111,6 +116,63 @@ describe('normalizeEmployeePayload', () => {
       ]),
     );
     expect(defaults.permissions).not.toContain('employees.manage');
+  });
+
+  it('adds warehouse access to manager defaults', () => {
+    const defaults = normalizeEmployeePayload({
+      name: 'Default Manager',
+      username: 'default-manager',
+      password: 'pass',
+      role: 'manager',
+      permissions: [],
+    });
+
+    expect(defaults.permissions).toEqual(
+      expect.arrayContaining([
+        'orders.view',
+        'orders.manage',
+        'supplierOrders.view',
+        'supplierOrders.manage',
+        'inventory.manage',
+      ]),
+    );
+  });
+
+  it('accepts supplier-order permissions and applies supplier defaults', () => {
+    const parsed = normalizeEmployeePayload({
+      name: 'Supplier manager',
+      username: 'supplier-manager',
+      password: 'pass',
+      role: 'manager',
+      permissions: [
+        'supplierOrders.view',
+        'supplierOrders.manage',
+        'finance.supplierOrders.pay',
+        'invalid.permission',
+      ],
+    });
+
+    expect(parsed.permissions).toEqual([
+      'supplierOrders.view',
+      'supplierOrders.manage',
+      'finance.supplierOrders.pay',
+    ]);
+
+    const warehouseDefaults = normalizeEmployeePayload({
+      name: 'Warehouse',
+      username: 'warehouse',
+      password: 'pass',
+      role: 'warehouse',
+      permissions: [],
+    });
+
+    expect(warehouseDefaults.permissions).toEqual(
+      expect.arrayContaining([
+        'supplierOrders.view',
+        'supplierOrders.manage',
+        'inventory.manage',
+      ]),
+    );
   });
 
   it('applies every permission to owner defaults', () => {
@@ -123,6 +185,8 @@ describe('normalizeEmployeePayload', () => {
     });
 
     expect(defaults.permissions).toEqual([...employeePermissions]);
+    expect(defaults.permissions).toContain('supplierOrders.view');
+    expect(defaults.permissions).toContain('supplierOrders.manage');
     expect(defaults.permissions).toContain('system.backups.manage');
   });
 

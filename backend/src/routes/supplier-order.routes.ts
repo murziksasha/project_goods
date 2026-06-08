@@ -8,27 +8,37 @@ import {
   updateSupplierOrder,
   type SupplierOrderPayload,
 } from '../domain/supplier-order/service';
-import { asyncHandler, requirePermission, routeParam } from '../shared/lib/http';
+import {
+  asyncHandler,
+  requireAnyPermission,
+  requirePermission,
+  routeParam,
+} from '../shared/lib/http';
 
 export const supplierOrderRouter = Router();
 
 supplierOrderRouter.get('/supplier-orders', asyncHandler(async (req, res) => {
+  await requireAnyPermission(req, ['supplierOrders.view', 'supplierOrders.manage']);
   res.json(await listSupplierOrders(req.query.query));
 }));
 
 supplierOrderRouter.post('/supplier-orders', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
   res.status(201).json(await createSupplierOrder(req.body as SupplierOrderPayload));
 }));
 
 supplierOrderRouter.put('/supplier-orders/:supplierOrderId', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
   res.json(await updateSupplierOrder(routeParam(req, 'supplierOrderId'), req.body as SupplierOrderPayload));
 }));
 
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/cancel', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
   res.json(await cancelSupplierOrder(routeParam(req, 'supplierOrderId')));
 }));
 
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
   res.json(
     await takeOnChargeSupplierOrder(
       routeParam(req, 'supplierOrderId'),

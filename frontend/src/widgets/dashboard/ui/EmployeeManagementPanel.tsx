@@ -18,6 +18,10 @@ const permissionGroups: Array<{
     permissions: ['orders.view', 'orders.manage', 'repairs.execute', 'sales.manage'],
   },
   {
+    title: 'Supplier Orders',
+    permissions: ['supplierOrders.view', 'supplierOrders.manage'],
+  },
+  {
     title: 'Clients',
     permissions: ['clients.manage'],
   },

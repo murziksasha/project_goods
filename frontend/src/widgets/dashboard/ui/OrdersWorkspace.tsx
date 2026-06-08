@@ -125,6 +125,7 @@ export const OrdersWorkspace = ({
   employees,
   isLoading,
   activeTab,
+  visibleTabs,
   searchValue,
   currentEmployee,
   canCreateOrders,
@@ -153,6 +154,9 @@ export const OrdersWorkspace = ({
     currentEmployee,
     'finance.transactions.withdraw',
   );
+  const canViewSupplierOrders =
+    hasEmployeePermission(currentEmployee, 'supplierOrders.view') ||
+    hasEmployeePermission(currentEmployee, 'supplierOrders.manage');
   const [visibleColumns, setVisibleColumns] =
     useState<OrdersColumnVisibility>(readVisibleColumns);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
@@ -448,6 +452,11 @@ export const OrdersWorkspace = ({
   }, [currentPage, currentPageSize, filteredOrders]);
 
   const loadSupplierOrders = useCallback(async () => {
+    if (!canViewSupplierOrders) {
+      setSupplierOrders([]);
+      return;
+    }
+
     try {
       setSupplierOrders(await getSupplierOrders(''));
     } catch (error) {
@@ -457,11 +466,7 @@ export const OrdersWorkspace = ({
           : 'Failed to load supplier orders.',
       );
     }
-  }, [onError]);
-
-  useEffect(() => {
-    void loadSupplierOrders();
-  }, [loadSupplierOrders]);
+  }, [canViewSupplierOrders, onError]);
 
   useEffect(() => {
     const sanitizeFilters = (current: OrdersFilters) => {
@@ -783,6 +788,11 @@ export const OrdersWorkspace = ({
     () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
     [sales, selectedSaleId],
   );
+
+  useEffect(() => {
+    if (!selectedSale || !canViewSupplierOrders) return;
+    void loadSupplierOrders();
+  }, [canViewSupplierOrders, loadSupplierOrders, selectedSale]);
   const getLineItems = (sale: Sale) => {
     const sourceItems = Array.isArray(sale.lineItems)
       ? sale.lineItems
@@ -2270,7 +2280,7 @@ export const OrdersWorkspace = ({
         role='tablist'
         aria-label='Order categories'
       >
-        {orderTabs.map((tab) => (
+        {orderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
           <button
             key={tab.key}
             type='button'

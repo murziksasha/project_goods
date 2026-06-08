@@ -13,6 +13,8 @@ export type EmployeeRole = (typeof employeeRoleOptions)[number];
 export const employeePermissionOptions = [
   'orders.view',
   'orders.manage',
+  'supplierOrders.view',
+  'supplierOrders.manage',
   'repairs.execute',
   'sales.manage',
   'clients.manage',
@@ -36,13 +38,18 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
   manager: [
     'orders.view',
     'orders.manage',
+    'supplierOrders.view',
+    'supplierOrders.manage',
     'clients.manage',
+    'inventory.manage',
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],
   master: ['orders.view', 'repairs.execute'],
   accountant: [
     'orders.view',
+    'supplierOrders.view',
+    'supplierOrders.manage',
     'sales.manage',
     'finance.view',
     'finance.cashboxes.view',
@@ -53,7 +60,12 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
     'finance.supplierOrders.pay',
     'finance.supplierOrders.issueWithoutPayment',
   ],
-  warehouse: ['orders.view', 'inventory.manage'],
+  warehouse: [
+    'orders.view',
+    'supplierOrders.view',
+    'supplierOrders.manage',
+    'inventory.manage',
+  ],
   sales: [
     'orders.view',
     'sales.manage',

@@ -36,3 +36,24 @@ export type ClientHistory = {
     totalItemsSold: number;
   };
 };
+
+export type ClientImportReportEntry = {
+  rowNumber: number;
+  reason: string;
+  name?: string;
+  phone?: string;
+  details?: string;
+};
+
+export type ClientImportReport = {
+  sheetName: string;
+  totalRows: number;
+  prepared: number;
+  created: number;
+  skippedMissingRequired: number;
+  skippedExisting: number;
+  validationFailed: number;
+  skipped: ClientImportReportEntry[];
+  validationErrors: ClientImportReportEntry[];
+  clients: Client[];
+};

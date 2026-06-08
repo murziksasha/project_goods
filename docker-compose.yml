@@ -36,12 +36,12 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5000/api
     container_name: project_goods_frontend
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      VITE_API_URL: http://localhost:5000/api
     ports:
       - "5173:5173"
 
