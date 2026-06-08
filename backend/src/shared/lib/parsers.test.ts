@@ -67,6 +67,7 @@ describe('normalizeEmployeePayload', () => {
         'supplierOrders.view',
         'supplierOrders.manage',
         'clients.manage',
+        'inventory.manage',
         'finance.cashboxes.view',
         'finance.transactions.deposit',
       ],
@@ -115,6 +116,26 @@ describe('normalizeEmployeePayload', () => {
       ]),
     );
     expect(defaults.permissions).not.toContain('employees.manage');
+  });
+
+  it('adds warehouse access to manager defaults', () => {
+    const defaults = normalizeEmployeePayload({
+      name: 'Default Manager',
+      username: 'default-manager',
+      password: 'pass',
+      role: 'manager',
+      permissions: [],
+    });
+
+    expect(defaults.permissions).toEqual(
+      expect.arrayContaining([
+        'orders.view',
+        'orders.manage',
+        'supplierOrders.view',
+        'supplierOrders.manage',
+        'inventory.manage',
+      ]),
+    );
   });
 
   it('accepts supplier-order permissions and applies supplier defaults', () => {

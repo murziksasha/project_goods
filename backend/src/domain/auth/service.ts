@@ -1,5 +1,8 @@
 import { Employee, type EmployeeDocument } from '../employee/model';
-import type { EmployeePermission } from '../employee/constants';
+import {
+  getEffectiveEmployeePermissions,
+  type EmployeePermission,
+} from '../employee/constants';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { createAuthToken, hashPassword, verifyPassword } from '../../shared/lib/auth';
 import { toNonEmptyString } from '../../shared/lib/parsers';
@@ -99,12 +102,21 @@ export const getBearerToken = (authorizationHeader: unknown) => {
 export const employeeHasPermission = (
   employee: { role?: string; permissions?: readonly string[] },
   permission: EmployeePermission,
-) => employee.role === 'owner' || Boolean(employee.permissions?.includes(permission));
+) => {
+  if (employee.role === 'owner') return true;
+  return getEffectiveEmployeePermissions(employee).includes(permission);
+};
 
 export const employeeHasAnyPermission = (
   employee: { role?: string; permissions?: readonly string[] },
   permissions: readonly EmployeePermission[],
-) => employee.role === 'owner' || permissions.some((permission) => employee.permissions?.includes(permission));
+) => {
+  if (employee.role === 'owner') return true;
+  const effectivePermissions = getEffectiveEmployeePermissions(employee);
+  return permissions.some((permission) =>
+    effectivePermissions.includes(permission),
+  );
+};
 
 export const requirePermissionByToken = async (
   tokenValue: unknown,

@@ -51,7 +51,7 @@ export const clientSchema = new mongoose.Schema(
     note: {
       type: String,
       trim: true,
-      maxlength: [500, 'Client note must contain no more than 500 characters'],
+      maxlength: [2000, 'Client note must contain no more than 2000 characters'],
       default: '',
     },
     status: {

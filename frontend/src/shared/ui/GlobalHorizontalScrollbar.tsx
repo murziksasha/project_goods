@@ -20,7 +20,9 @@ const isVisibleOverflow = (element: HTMLDivElement) => {
 
 const pickBestTableWrap = () => {
   const candidates = Array.from(
-    document.querySelectorAll<HTMLDivElement>('.catalog-table-wrap'),
+    document.querySelectorAll<HTMLDivElement>(
+      '.catalog-table-wrap, .orders-table-wrap, .finance-table-wrap',
+    ),
   ).filter(isVisibleOverflow);
 
   if (candidates.length === 0) return null;

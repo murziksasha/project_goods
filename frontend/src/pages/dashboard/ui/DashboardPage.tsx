@@ -272,8 +272,7 @@ export const DashboardPage = () => {
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
     currentEmployee?.isActive === true &&
-    (currentEmployee.role === 'owner' ||
-      currentEmployee.permissions.includes('orders.manage'));
+    hasEmployeePermission(currentEmployee, 'orders.manage');
   const canViewRepairSalesOrders = hasAnyEmployeePermission(currentEmployee, [
     'orders.view',
     'orders.manage',
@@ -959,9 +958,13 @@ export const DashboardPage = () => {
               isClientsLoading={state.isClientsLoading}
               isHistoryLoading={state.isClientHistoryLoading}
               isSaving={state.isClientSaving}
+              isClientImporting={state.isClientImporting}
+              isClientExporting={state.isClientExporting}
               onSelectClient={actions.setSelectedClientId}
               onDeleteClient={actions.deleteClient}
               onCreateClient={actions.createClientCard}
+              onImportClients={actions.importClientsFromFile}
+              onExportClients={actions.exportClients}
               onMergeClients={actions.mergeClients}
               onMergeSuppliers={actions.mergeSuppliers}
               onUpdateClient={actions.updateClientCard}

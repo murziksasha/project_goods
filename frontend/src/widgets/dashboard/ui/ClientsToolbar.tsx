@@ -6,7 +6,12 @@ type ClientsToolbarProps = {
   onSearchChange: (value: string) => void;
   onClearSearch: () => void;
   onOpenCreateModal: () => void;
+  onOpenExport: () => void;
+  onOpenImport: () => void;
   onOpenMergeModal: () => void;
+  isExporting: boolean;
+  isImporting: boolean;
+  isBusy: boolean;
 };
 
 export const ClientsToolbar = ({
@@ -17,7 +22,12 @@ export const ClientsToolbar = ({
   onSearchChange,
   onClearSearch,
   onOpenCreateModal,
+  onOpenExport,
+  onOpenImport,
   onOpenMergeModal,
+  isExporting,
+  isImporting,
+  isBusy,
 }: ClientsToolbarProps) => (
   <div className='orders-toolbar clients-toolbar'>
     <div className='orders-toolbar-left'>
@@ -63,8 +73,25 @@ export const ClientsToolbar = ({
     <div className='orders-toolbar-actions clients-toolbar-actions'>
       <button
         type='button'
+        className='clients-import-button'
+        onClick={onOpenImport}
+        disabled={isBusy || isImporting || isExporting}
+      >
+        {isImporting ? 'Importing...' : 'Import XLS'}
+      </button>
+      <button
+        type='button'
+        className='clients-export-button'
+        onClick={onOpenExport}
+        disabled={isBusy || isImporting || isExporting}
+      >
+        {isExporting ? 'Exporting...' : 'Export XLS'}
+      </button>
+      <button
+        type='button'
         className='toolbar-filter-button'
         onClick={onOpenMergeModal}
+        disabled={isBusy || isImporting}
       >
         Merge
       </button>
@@ -72,6 +99,7 @@ export const ClientsToolbar = ({
         type='button'
         className='orders-create-button'
         onClick={onOpenCreateModal}
+        disabled={isBusy || isImporting}
       >
         Create client
       </button>

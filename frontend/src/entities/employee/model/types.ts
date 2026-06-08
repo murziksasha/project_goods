@@ -41,6 +41,7 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
     'supplierOrders.view',
     'supplierOrders.manage',
     'clients.manage',
+    'inventory.manage',
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],

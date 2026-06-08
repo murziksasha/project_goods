@@ -115,9 +115,13 @@ type Props = {
   isClientsLoading: boolean;
   isHistoryLoading: boolean;
   isSaving: boolean;
+  isClientImporting: boolean;
+  isClientExporting: boolean;
   onSelectClient: (clientId: string | null) => void;
   onDeleteClient: (client: Client) => Promise<void>;
   onCreateClient: (payload: ClientFormValues) => Promise<boolean>;
+  onImportClients: (file: File) => Promise<boolean>;
+  onExportClients: () => Promise<void>;
   onMergeClients: (
     targetClientId: string,
     sourceClientId: string,
@@ -149,9 +153,13 @@ export const ClientsSuppliersWorkspace = ({
   isClientsLoading,
   isHistoryLoading,
   isSaving,
+  isClientImporting,
+  isClientExporting,
   onSelectClient,
   onDeleteClient,
   onCreateClient,
+  onImportClients,
+  onExportClients,
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
@@ -306,9 +314,13 @@ export const ClientsSuppliersWorkspace = ({
           isClientsLoading={isClientsLoading}
           isHistoryLoading={isHistoryLoading}
           isSaving={isSaving}
+          isClientImporting={isClientImporting}
+          isClientExporting={isClientExporting}
           onSelectClient={onSelectClient}
           onDeleteClient={onDeleteClient}
           onCreateClient={onCreateClient}
+          onImportClients={onImportClients}
+          onExportClients={onExportClients}
           onMergeClients={onMergeClients}
           onUpdateClient={onUpdateClient}
           onOpenSaleCard={onOpenSaleCard}

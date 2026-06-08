@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import { useRef } from 'react';
 import type {
   Client,
   ClientFormValues,
@@ -47,9 +48,13 @@ type ClientsWorkspaceProps = {
   isClientsLoading: boolean;
   isHistoryLoading: boolean;
   isSaving: boolean;
+  isClientImporting: boolean;
+  isClientExporting: boolean;
   onSelectClient: (clientId: string | null) => void;
   onDeleteClient: (client: Client) => Promise<void>;
   onCreateClient: (payload: ClientFormValues) => Promise<boolean>;
+  onImportClients: (file: File) => Promise<boolean>;
+  onExportClients: () => Promise<void>;
   onMergeClients: (
     targetClientId: string,
     sourceClientId: string,
@@ -173,9 +178,13 @@ export const ClientsWorkspace = ({
   isClientsLoading,
   isHistoryLoading,
   isSaving,
+  isClientImporting,
+  isClientExporting,
   onSelectClient,
   onDeleteClient,
   onCreateClient,
+  onImportClients,
+  onExportClients,
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
@@ -261,6 +270,7 @@ export const ClientsWorkspace = ({
   >(null);
   const [clientsPage, setClientsPage] = useState(1);
   const [clientsPageSize, setClientsPageSize] = useState(10);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const statsByClient = useMemo(
     () => getClientStatsMap(sales),
@@ -528,6 +538,15 @@ export const ClientsWorkspace = ({
     });
   };
 
+  const handleImportFileSelect = async (file: File | null) => {
+    if (!file) return;
+
+    const isSuccess = await onImportClients(file);
+    if (isSuccess) {
+      setClientsPage(1);
+    }
+  };
+
   const openSaleCardFromClientModal = (sale: Sale) => {
     closeClientCard();
     onOpenSaleCard(sale);
@@ -565,7 +584,25 @@ export const ClientsWorkspace = ({
           setClientsPage(1);
         }}
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
+        onOpenExport={() => {
+          void onExportClients();
+        }}
+        onOpenImport={() => importInputRef.current?.click()}
         onOpenMergeModal={() => setIsMergeModalOpen(true)}
+        isExporting={isClientExporting}
+        isImporting={isClientImporting}
+        isBusy={isSaving}
+      />
+      <input
+        ref={importInputRef}
+        type='file'
+        className='clients-import-input'
+        accept='.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = '';
+          void handleImportFileSelect(file);
+        }}
       />
 
       <ClientsFilterPanel

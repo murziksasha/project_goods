@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
@@ -279,8 +280,7 @@ export const OrderDetailCard = ({
         (employee) =>
           employee.isActive &&
           (employee.role === 'master' ||
-            employee.role === 'owner' ||
-            employee.permissions.includes('repairs.execute')),
+            hasEmployeePermission(employee, 'repairs.execute')),
       ),
     [employees],
   );
