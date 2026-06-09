@@ -2280,6 +2280,7 @@
 
 .order-detail-list div,
 .order-payment-list div {
+  min-width: 0;
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
   gap: 10px;
@@ -2296,8 +2297,11 @@
 
 .order-detail-list dd,
 .order-payment-list dd {
+  min-width: 0;
   margin: 0;
   color: #4d637a;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .order-detail-serial-value,
@@ -2305,6 +2309,19 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.order-device-name,
+.order-detail-serial-value span,
+.order-detail-master-select {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-master-select {
+  width: 100%;
 }
 
 .order-line-item-serials {

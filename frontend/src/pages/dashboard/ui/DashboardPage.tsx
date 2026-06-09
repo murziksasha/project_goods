@@ -123,6 +123,13 @@ const getStoredOrdersTab = (): OrdersTab => {
 };
 
 const getStoredSidebarCollapsed = (): boolean => {
+  if (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 720px)').matches
+  ) {
+    return false;
+  }
+
   const rawValue = window.localStorage.getItem(sidebarCollapsedStorageKey);
 
   return rawValue === 'true';
