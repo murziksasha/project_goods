@@ -41,6 +41,33 @@ describe('isManualCommentWorkspacePatch', () => {
     ).toBe(true);
   });
 
+  it('treats omitted unchanged workspace fields as comment-only changes', () => {
+    expect(
+      isManualCommentWorkspacePatch(
+        {
+          ...existingSale,
+          master: 'master-1',
+        },
+        {
+          kind: 'repair',
+          status: 'new',
+          paidAmount: 0,
+          discount: { mode: 'amount', value: 0 },
+          timeline: [
+            {
+              id: 'comment-1',
+              author: 'Master',
+              message: 'Diagnostics started.',
+              createdAt: '2026-06-09T10:00:00.000Z',
+            },
+          ],
+          paymentHistory: [],
+          lineItems: [],
+        },
+      ),
+    ).toBe(true);
+  });
+
   it('returns false when workspace data changes together with timeline', () => {
     expect(
       isManualCommentWorkspacePatch(existingSale, {

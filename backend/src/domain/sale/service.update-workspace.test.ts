@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   saleModel,
+  employeeModel,
   productModel,
   normalizeSalePayloadMock,
   upsertCatalogProductsMock,
@@ -10,6 +11,9 @@ const {
     find: vi.fn(),
     findById: vi.fn(),
     findByIdAndUpdate: vi.fn(),
+  },
+  employeeModel: {
+    findById: vi.fn(),
   },
   productModel: {
     findById: vi.fn(),
@@ -28,9 +32,7 @@ vi.mock('../client/model', () => ({
 }));
 
 vi.mock('../employee/model', () => ({
-  Employee: {
-    findById: vi.fn(),
-  },
+  Employee: employeeModel,
 }));
 
 vi.mock('../catalog-product/model', () => ({
@@ -148,6 +150,9 @@ describe('updateSaleWorkspace line items', () => {
         quantity: 9,
         reservedQuantity: 0,
       }),
+    });
+    employeeModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(null),
     });
   });
 
@@ -575,5 +580,57 @@ describe('updateSaleWorkspace line items', () => {
       { $inc: { quantity: -1 } },
       { returnDocument: 'after' },
     );
+  });
+
+  it('persists updated master and master snapshot from workspace main info', async () => {
+    const existingSale = buildExistingSale('repair');
+    const master = {
+      _id: '507f1f77bcf86cd799439099',
+      name: 'Vadim',
+      role: 'master',
+      permissions: [],
+      isActive: true,
+    };
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(existingSale),
+    });
+    employeeModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(master),
+    });
+    saleModel.findByIdAndUpdate.mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        ...existingSale,
+        master: master._id,
+        masterSnapshot: { name: master.name, role: master.role },
+      }),
+    });
+    normalizeSalePayloadMock.mockReturnValue({
+      kind: 'repair',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: 'System Block',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [],
+      masterId: master._id,
+      issuedById: '',
+    });
+
+    await updateSaleWorkspace(existingSale._id, {
+      kind: 'repair',
+      status: 'new',
+      masterId: master._id,
+      deviceName: 'System Block',
+      serialNumber: '',
+    });
+
+    const updatePayload = saleModel.findByIdAndUpdate.mock.calls[0]?.[1];
+    expect(updatePayload.master).toBe(master._id);
+    expect(updatePayload.masterSnapshot).toEqual({
+      name: 'Vadim',
+      role: 'master',
+    });
   });
 });

@@ -926,6 +926,7 @@ export const DashboardPage = () => {
                   onSuccess={actions.showSuccessMessage}
                   externalSelectedSaleId={externalSelectedSaleId}
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
+                  onSelectedSaleIdChange={setUrlSelectedSaleId}
                   onOpenClientCard={openClientCardFromOrders}
                   catalogProducts={state.catalogProducts}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
