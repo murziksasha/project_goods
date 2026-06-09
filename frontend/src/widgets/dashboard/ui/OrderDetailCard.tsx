@@ -67,8 +67,8 @@ import {
   normalizeProductLookupValue,
   orderDetailRelatedTabStorageKey,
   orderTabs,
+  isOrderEditableStatus,
   readOrderDetailSectionsState,
-  saleEditableStatuses,
   stockLockedRepairStatuses,
   warrantyOptions,
   withSupplierOrderLinkNote,
@@ -94,6 +94,7 @@ type OrderDetailCardProps = {
   catalogProducts: CatalogProduct[];
   paidAmount: number;
   isReadOnly: boolean;
+  canAddComment: boolean;
   canAcceptPayment: boolean;
   canRefundPayment: boolean;
   onClose: () => void;
@@ -158,6 +159,7 @@ export const OrderDetailCard = ({
   catalogProducts,
   paidAmount,
   isReadOnly,
+  canAddComment,
   canAcceptPayment,
   canRefundPayment: canRefundPaymentPermission,
   onClose,
@@ -228,7 +230,7 @@ export const OrderDetailCard = ({
   const isProductBlockReadOnly =
     isSaleCard
       ? isReadOnly
-      : !saleEditableStatuses.has(normalizeOrderStatus(sale.status));
+      : !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   useEffect(() => {
     const storedState = readOrderDetailSectionsState()[sale.id];
     const productsOpenByDefault = isSaleCard;
@@ -480,6 +482,7 @@ export const OrderDetailCard = ({
       new Date(secondItem.createdAt).getTime() -
       new Date(firstItem.createdAt).getTime(),
   );
+  const isCommentComposerDisabled = isReadOnly || !canAddComment;
 
   const submitComment = () => {
     onAddComment(comment);
@@ -757,13 +760,13 @@ export const OrderDetailCard = ({
               rows={2}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
-              disabled={isReadOnly}
+              disabled={isCommentComposerDisabled}
             />
             <button
               type='button'
               className='primary-button'
               onClick={submitComment}
-              disabled={!comment.trim() || isReadOnly}
+              disabled={!comment.trim() || isCommentComposerDisabled}
             >
               Add
             </button>

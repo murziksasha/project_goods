@@ -10,11 +10,88 @@ import {
   updateSaleWorkspace,
   updateSale,
 } from '../domain/sale/service';
+import { Sale } from '../domain/sale/model';
 import { getBearerToken, requirePermissionByToken } from '../domain/auth/service';
 import type { SalePayload } from '../domain/shared/types';
+import { normalizeSalePayload } from '../shared/lib/parsers';
 import { asyncHandler, routeParam } from '../shared/lib/http';
 
 export const saleRouter = Router();
+
+type WorkspaceComparableSale = {
+  kind?: string;
+  status?: string;
+  paidAmount?: number;
+  master?: { toString: () => string } | string | null;
+  issuedBy?: { toString: () => string } | string | null;
+  productSnapshot?: {
+    name?: string;
+    serialNumber?: string | null;
+  } | null;
+  discount?: unknown;
+  paymentHistory?: unknown[];
+  lineItems?: unknown[];
+  timeline?: unknown[];
+};
+
+const toComparableWorkspaceState = (
+  sale: WorkspaceComparableSale,
+  payloadInput: SalePayload,
+) => {
+  const payload = normalizeSalePayload(payloadInput);
+  return {
+    current: {
+      kind: sale.kind === 'sale' ? 'sale' : 'repair',
+      status: String(sale.status ?? ''),
+      paidAmount: sale.paidAmount ?? 0,
+      masterId: sale.master ? String(sale.master) : '',
+      issuedById: sale.issuedBy ? String(sale.issuedBy) : '',
+      deviceName: sale.productSnapshot?.name ?? '',
+      serialNumber: sale.productSnapshot?.serialNumber ?? '',
+      discount: sale.discount ?? { mode: 'amount', value: 0 },
+      paymentHistory: sale.paymentHistory ?? [],
+      lineItems: sale.lineItems ?? [],
+      timeline: sale.timeline ?? [],
+    },
+    next: {
+      kind: payload.kind,
+      status: payload.status,
+      paidAmount: payload.paidAmount,
+      masterId: payload.masterId,
+      issuedById: payload.issuedById,
+      deviceName: payload.deviceName,
+      serialNumber: payload.serialNumber,
+      discount: payload.discount,
+      paymentHistory: payload.paymentHistory,
+      lineItems: payload.lineItems,
+      timeline: payload.timeline,
+    },
+  };
+};
+
+export const isManualCommentWorkspacePatch = (
+  sale: WorkspaceComparableSale,
+  payloadInput: SalePayload,
+) => {
+  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
+  if (JSON.stringify(current.timeline) === JSON.stringify(next.timeline)) {
+    return false;
+  }
+
+  return (
+    current.kind === next.kind &&
+    current.status === next.status &&
+    current.paidAmount === next.paidAmount &&
+    current.masterId === next.masterId &&
+    current.issuedById === next.issuedById &&
+    current.deviceName === next.deviceName &&
+    current.serialNumber === next.serialNumber &&
+    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.paymentHistory) ===
+      JSON.stringify(next.paymentHistory) &&
+    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+  );
+};
 
 saleRouter.get('/sales', asyncHandler(async (_req, res) => {
   res.json(await listSales());
@@ -29,6 +106,18 @@ saleRouter.put('/sales/:saleId', asyncHandler(async (req, res) => {
 }));
 
 saleRouter.patch('/sales/:saleId/workspace', asyncHandler(async (req, res) => {
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new Error('Sale not found.');
+  }
+  if (isManualCommentWorkspacePatch(existingSale, req.body as SalePayload)) {
+    await requirePermissionByToken(
+      getBearerToken(req.headers.authorization),
+      'orders.chat',
+      'Current employee does not have permission to add live feed comments.',
+    );
+  }
   res.json(await updateSaleWorkspace(routeParam(req, 'saleId'), req.body as SalePayload));
 }));
 

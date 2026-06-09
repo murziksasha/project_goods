@@ -76,6 +76,7 @@ import {
   getWarehouseLabel,
   hasNonCashPayment,
   hasSaleReturnObligations,
+  isOrderEditableStatus,
   isClosingStatus,
   isIssueWithoutPaymentBlockedForSale,
   isIsoDateWithinRange,
@@ -93,7 +94,6 @@ import {
   readSavedOrderFilters,
   readVisibleColumns,
   repairStatuses,
-  saleEditableStatuses,
   saleStatuses,
   savedOrdersFiltersStorageKey,
   shouldCaptureReceivedBy,
@@ -154,6 +154,10 @@ export const OrdersWorkspace = ({
   const canCreateFinanceWithdraw = hasEmployeePermission(
     currentEmployee,
     'finance.transactions.withdraw',
+  );
+  const canChatInOrders = hasEmployeePermission(
+    currentEmployee,
+    'orders.chat',
   );
   const canViewSupplierOrders =
     hasEmployeePermission(currentEmployee, 'supplierOrders.view') ||
@@ -1415,7 +1419,7 @@ export const OrdersWorkspace = ({
       (isIssuedSaleStatus || isRepairFinalStockStatus) &&
       hasBoundSerials;
     const canEditAndRemove =
-      saleEditableStatuses.has(saleStatus) &&
+      isOrderEditableStatus(sale, saleStatus) &&
       getPaidAmount(sale) <= 0 &&
       !hasBoundSerials;
 
@@ -1567,11 +1571,7 @@ export const OrdersWorkspace = ({
       );
       return;
     }
-    if (
-      !saleEditableStatuses.has(
-        normalizeOrderStatus(sale.status),
-      )
-    ) {
+    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
       onError(
         'This order status does not allow line item removal.',
       );
@@ -2223,10 +2223,12 @@ export const OrdersWorkspace = ({
           paidAmount={getPaidAmount(selectedSale)}
           isReadOnly={
             !isRepairOrder(selectedSale) &&
-            !saleEditableStatuses.has(
+            !isOrderEditableStatus(
+              selectedSale,
               normalizeOrderStatus(selectedSale.status),
             )
           }
+          canAddComment={canChatInOrders}
           canAcceptPayment={canAcceptFinanceDeposit}
           canRefundPayment={canCreateFinanceWithdraw}
           onClose={() => setSelectedSaleId(null)}

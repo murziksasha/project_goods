@@ -111,26 +111,39 @@ const renderCard = ({
   catalogProducts = [catalogProduct()],
   onAddLineItem = vi.fn(),
   onError = vi.fn(),
+  canAddComment = true,
+  isReadOnly = false,
+  saleOverride,
+  status,
+  lineItems = [],
 }: {
   products?: Product[];
   catalogProducts?: CatalogProduct[];
   onAddLineItem?: (item: Omit<OrderLineItem, 'id'>) => void;
   onError?: (message: string) => void;
+  canAddComment?: boolean;
+  isReadOnly?: boolean;
+  saleOverride?: Partial<Sale>;
+  status?: OrderStatus;
+  lineItems?: OrderLineItem[];
 } = {}) => {
+  const cardSale = sale(saleOverride);
+  const cardStatus = status ?? (cardSale.status as OrderStatus);
   render(
     <OrderDetailCard
-      sale={sale()}
-      sales={[sale()]}
+      sale={cardSale}
+      sales={[cardSale]}
       supplierOrders={[]}
       employees={[]}
-      status={'new' as OrderStatus}
-      statusOptions={[{ key: 'new' as OrderStatus, label: 'New sale' }]}
+      status={cardStatus}
+      statusOptions={[{ key: cardStatus, label: 'Test status' }]}
       comments={[]}
-      lineItems={[]}
+      lineItems={lineItems}
       products={products}
       catalogProducts={catalogProducts}
       paidAmount={0}
-      isReadOnly={false}
+      isReadOnly={isReadOnly}
+      canAddComment={canAddComment}
       canAcceptPayment={true}
       canRefundPayment={true}
       onClose={vi.fn()}
@@ -219,5 +232,75 @@ describe('OrderDetailCard product entry', () => {
         serialNumbers: ['S000003'],
       }),
     );
+  });
+
+  it('keeps repair products editable in client approved status', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(screen.getByPlaceholderText('Add product')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add product' })).not.toBeDisabled();
+  });
+
+  it('disables live feed composer without orders.chat permission', () => {
+    renderCard({ canAddComment: false });
+
+    expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
+  it('keeps repair card editable while still blocking comment add without orders.chat', () => {
+    render(
+      <OrderDetailCard
+        sale={sale({ kind: 'repair' })}
+        sales={[sale({ kind: 'repair' })]}
+        supplierOrders={[]}
+        employees={[]}
+        status={'new' as OrderStatus}
+        statusOptions={[{ key: 'new' as OrderStatus, label: 'New repair' }]}
+        comments={[]}
+        lineItems={[]}
+        products={[product()]}
+        catalogProducts={[catalogProduct()]}
+        paidAmount={0}
+        isReadOnly={false}
+        canAddComment={false}
+        canAcceptPayment={true}
+        canRefundPayment={true}
+        onClose={vi.fn()}
+        onAddComment={vi.fn()}
+        onAddLineItem={vi.fn()}
+        onReplaceLineItem={vi.fn()}
+        onRemoveLineItem={vi.fn()}
+        onUpdateLineItem={vi.fn()}
+        onReturnLineItem={vi.fn()}
+        onOpenRelatedSale={vi.fn()}
+        onAcceptPayment={vi.fn()}
+        onOpenPrint={vi.fn()}
+        onRefundPayment={vi.fn()}
+        onDiscountChange={vi.fn()}
+        onOpenClientCard={vi.fn()}
+        onSupplierOrderCreated={vi.fn(async () => undefined)}
+        onUpdateProductModel={vi.fn(async () => true)}
+        onError={vi.fn()}
+        onSuccess={vi.fn()}
+        onSaveMainInfo={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
+    expect(screen.getByLabelText('Repair status')).not.toBeDisabled();
   });
 });
