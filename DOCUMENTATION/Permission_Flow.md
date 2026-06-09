@@ -18,8 +18,8 @@ Defaults are applied by backend when an employee is created or updated with an e
 | Role | Default permissions | Intent |
 | --- | --- | --- |
 | `owner` | all permissions | Full system owner and recovery role. |
-| `manager` | `orders.view`, `orders.manage`, `supplierOrders.view`, `supplierOrders.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Operational manager who can create/manage orders, supplier orders, and accept client payments. |
-| `master` | `orders.view`, `repairs.execute` | Repair employee who can work with assigned repair flow. |
+| `manager` | `orders.view`, `orders.manage`, `orders.chat`, `supplierOrders.view`, `supplierOrders.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Operational manager who can create/manage orders, supplier orders, add Live feed comments, and accept client payments. |
+| `master` | `orders.view`, `orders.chat`, `repairs.execute` | Repair employee who can work with assigned repair flow and add Live feed comments. |
 | `accountant` | `orders.view`, `supplierOrders.view`, `supplierOrders.manage`, `sales.manage`, full finance permissions | Finance role for accounting workspace, supplier-order flow, and cashbox operations. |
 | `warehouse` | `orders.view`, `supplierOrders.view`, `supplierOrders.manage`, `inventory.manage` | Warehouse/stock operations including supplier-order receipt. |
 | `sales` | `orders.view`, `sales.manage`, `clients.manage`, `finance.cashboxes.view`, `finance.transactions.deposit` | Sales employee who can sell and accept client payments. |
@@ -32,6 +32,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 | --- | --- |
 | `orders.view` | View order/sale context where the UI exposes it. |
 | `orders.manage` | Create and manage orders; used by order creation flows. |
+| `orders.chat` | Add manual `Live feed` comments in order cards. System-generated timeline entries continue to come from the underlying order/payment/stock actions. |
 | `supplierOrders.view` | View supplier orders and supplier-order information. |
 | `supplierOrders.manage` | Create, edit, cancel, change status, and take supplier orders on charge. |
 | `repairs.execute` | Be assigned/executed as repair master. |

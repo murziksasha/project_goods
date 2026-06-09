@@ -136,6 +136,8 @@ Client status localization rule: keep client status values in original English (
 ## Sale Workspace Serialized Line Items (2026-05-28)
 
 - `PATCH /sales/:saleId/workspace`
+  - Manual `Live feed` comment-only saves require `orders.chat`.
+  - System-generated timeline entries attached to other workspace actions are still authorized by those actions, not by `orders.chat`.
   - Serialized stock product line items are validated as atomic units.
   - If a product line item has `serialNumbers.length > 0`:
     - `quantity` must be `1`

@@ -15,7 +15,13 @@ const permissionGroups: Array<{
 }> = [
   {
     title: 'Orders',
-    permissions: ['orders.view', 'orders.manage', 'repairs.execute', 'sales.manage'],
+    permissions: [
+      'orders.view',
+      'orders.manage',
+      'orders.chat',
+      'repairs.execute',
+      'sales.manage',
+    ],
   },
   {
     title: 'Supplier Orders',

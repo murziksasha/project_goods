@@ -845,6 +845,24 @@ export const saleEditableStatuses = new Set<OrderStatus>([
   'paid',
 ]);
 
+export const repairEditableStatuses = new Set<RepairStatus>([
+  'new',
+  'paid',
+  'diagnostics',
+  'inRepair',
+  'waitingParts',
+  'clientApproved',
+  'ready',
+]);
+
+export const isOrderEditableStatus = (
+  sale: Sale,
+  status: OrderStatus,
+) =>
+  isRepairOrder(sale)
+    ? repairEditableStatuses.has(status as RepairStatus)
+    : saleEditableStatuses.has(status);
+
 export const escapeHtml = (value: string) =>
   value
     .replaceAll('&', '&amp;')

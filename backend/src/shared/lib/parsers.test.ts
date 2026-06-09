@@ -64,6 +64,7 @@ describe('normalizeEmployeePayload', () => {
       permissions: [
         'orders.view',
         'orders.manage',
+        'orders.chat',
         'supplierOrders.view',
         'supplierOrders.manage',
         'clients.manage',
@@ -131,9 +132,28 @@ describe('normalizeEmployeePayload', () => {
       expect.arrayContaining([
         'orders.view',
         'orders.manage',
+        'orders.chat',
         'supplierOrders.view',
         'supplierOrders.manage',
         'inventory.manage',
+      ]),
+    );
+  });
+
+  it('adds orders.chat to master defaults', () => {
+    const defaults = normalizeEmployeePayload({
+      name: 'Default Master',
+      username: 'default-master',
+      password: 'pass',
+      role: 'master',
+      permissions: [],
+    });
+
+    expect(defaults.permissions).toEqual(
+      expect.arrayContaining([
+        'orders.view',
+        'orders.chat',
+        'repairs.execute',
       ]),
     );
   });

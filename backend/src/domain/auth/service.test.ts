@@ -22,10 +22,11 @@ describe('auth permission helpers', () => {
   it('checks explicit permissions for non-owner employees', () => {
     const employee = {
       role: 'manager',
-      permissions: ['finance.transactions.deposit'],
+      permissions: ['finance.transactions.deposit', 'orders.chat'],
     };
 
     expect(employeeHasPermission(employee, 'finance.transactions.deposit')).toBe(true);
+    expect(employeeHasPermission(employee, 'orders.chat')).toBe(true);
     expect(employeeHasPermission(employee, 'finance.transactions.withdraw')).toBe(false);
     expect(
       employeeHasAnyPermission(employee, [

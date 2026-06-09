@@ -13,6 +13,7 @@ export type EmployeeRole = (typeof employeeRoles)[number];
 export const employeePermissions = [
   'orders.view',
   'orders.manage',
+  'orders.chat',
   'supplierOrders.view',
   'supplierOrders.manage',
   'repairs.execute',
@@ -41,6 +42,7 @@ export const defaultEmployeePermissionsByRole: Record<
   manager: [
     'orders.view',
     'orders.manage',
+    'orders.chat',
     'supplierOrders.view',
     'supplierOrders.manage',
     'clients.manage',
@@ -48,7 +50,7 @@ export const defaultEmployeePermissionsByRole: Record<
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],
-  master: ['orders.view', 'repairs.execute'],
+  master: ['orders.view', 'orders.chat', 'repairs.execute'],
   accountant: [
     'orders.view',
     'supplierOrders.view',
