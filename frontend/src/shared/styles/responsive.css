@@ -44,11 +44,6 @@
     padding: 0;
   }
 
-  .sidebar-profile-meta-hidden,
-  .sidebar-nav-item-label-hidden {
-    display: block;
-  }
-
   .app-sidebar-collapsed .sidebar-nav,
   .sidebar-nav {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -189,6 +184,10 @@
     overflow-x: auto;
     padding: 0;
     scrollbar-gutter: stable;
+  }
+
+  .app-sidebar-collapsed .sidebar-nav {
+    display: none;
   }
 
   .sidebar-nav-item,
@@ -490,6 +489,25 @@
     grid-template-columns: 1fr;
   }
 
+  .order-detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .order-detail-actions,
+  .order-detail-actions select {
+    width: 100%;
+  }
+
+  .order-detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .order-detail-list div,
+  .order-payment-list div {
+    grid-template-columns: minmax(86px, 0.34fr) minmax(0, 1fr);
+  }
+
   .payment-modal-form {
     grid-template-columns: 1fr;
   }
@@ -625,5 +643,11 @@
   .finance-orders-payment-actions .primary-button {
     width: 100%;
     min-width: 0;
+  }
+
+  .order-detail-list div,
+  .order-payment-list div {
+    grid-template-columns: minmax(74px, 0.32fr) minmax(0, 1fr);
+    gap: 8px;
   }
 }
