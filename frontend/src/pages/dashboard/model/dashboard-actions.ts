@@ -1279,7 +1279,7 @@ export const createDashboardActions = ({
               )
             : [];
 
-        await mutateCreateSale({
+        const createdSaleResult = await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
           clientId: client.id,
           productId: '',
@@ -1308,6 +1308,7 @@ export const createDashboardActions = ({
           paymentHistory: [],
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
+        setSales((current) => [createdSaleResult.sale, ...current]);
 
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
@@ -1330,10 +1331,10 @@ export const createDashboardActions = ({
         await safeRefresh(refreshSales, 'Failed to refresh sales.');
         await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
         setSuccessMessage('Order saved successfully.');
-        return true;
+        return createdSaleResult.sale;
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Failed to save order.'));
-        return false;
+        return null;
       } finally {
         setIsSaleSaving(false);
       }

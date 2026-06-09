@@ -140,6 +140,7 @@ export const OrdersWorkspace = ({
   onExternalSaleOpenHandled,
   onOpenClientCard,
   products,
+  catalogProducts,
   printForms,
   printCompanySettings,
   onUpdateProductModel,
@@ -2218,6 +2219,7 @@ export const OrdersWorkspace = ({
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
           products={products}
+          catalogProducts={catalogProducts}
           paidAmount={getPaidAmount(selectedSale)}
           isReadOnly={
             !isRepairOrder(selectedSale) &&

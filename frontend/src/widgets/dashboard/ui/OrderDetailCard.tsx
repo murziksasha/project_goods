@@ -27,6 +27,7 @@ import { createSupplier, getSuppliers } from '../../../entities/supplier/api/sup
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
@@ -90,6 +91,7 @@ type OrderDetailCardProps = {
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   products: Product[];
+  catalogProducts: CatalogProduct[];
   paidAmount: number;
   isReadOnly: boolean;
   canAcceptPayment: boolean;
@@ -153,6 +155,7 @@ export const OrderDetailCard = ({
   comments,
   lineItems,
   products,
+  catalogProducts,
   paidAmount,
   isReadOnly,
   canAcceptPayment,
@@ -795,6 +798,7 @@ export const OrderDetailCard = ({
               items={productItems}
               allItems={lineItems}
               products={products}
+              catalogProducts={catalogProducts}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
               onReplaceItem={onReplaceLineItem}
@@ -838,6 +842,7 @@ export const OrderDetailCard = ({
               items={serviceItems}
               allItems={lineItems}
               products={products}
+              catalogProducts={catalogProducts}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
               onReplaceItem={onReplaceLineItem}
@@ -1229,6 +1234,7 @@ type LineItemsPanelProps = {
   items: OrderLineItem[];
   allItems: OrderLineItem[];
   products: Product[];
+  catalogProducts: CatalogProduct[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
     itemId: string,
@@ -1262,6 +1268,10 @@ type LineItemsPanelProps = {
   onSuccess: (message: string) => void;
 };
 
+type ProductEntrySuggestion =
+  | { type: 'catalog'; catalogProduct: CatalogProduct; price: number; warrantyPeriod: number }
+  | { type: 'stock'; product: Product };
+
 const LineItemsPanel = ({
   title,
   kind,
@@ -1273,6 +1283,7 @@ const LineItemsPanel = ({
   items,
   allItems,
   products,
+  catalogProducts,
   onAddItem,
   onReplaceItem,
   onRemoveItem,
@@ -1296,12 +1307,15 @@ const LineItemsPanel = ({
     ServiceCatalogItem[]
   >([]);
   const [productSuggestions, setProductSuggestions] = useState<
-    Product[]
+    ProductEntrySuggestion[]
   >([]);
   const [selectedServiceId, setSelectedServiceId] = useState<
     string | undefined
   >();
   const [selectedProductId, setSelectedProductId] = useState<
+    string | undefined
+  >();
+  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<
     string | undefined
   >();
   const [isServiceLookupLoading, setIsServiceLookupLoading] =
@@ -1581,69 +1595,81 @@ const LineItemsPanel = ({
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
   }, [kind]);
 
+  const getCatalogDefaults = (catalogProduct: CatalogProduct) => {
+    const matchingStockProduct = products.find(
+      (product) =>
+        normalizeProductLookupValue(product.name) ===
+        normalizeProductLookupValue(catalogProduct.name),
+    );
+    return {
+      price:
+        matchingStockProduct?.salePriceOptions[0] ??
+        matchingStockProduct?.price ??
+        0,
+      warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
+    };
+  };
+
   useEffect(() => {
     if (
       kind !== 'product' ||
       name.trim().length < 2 ||
-      Boolean(selectedProductId)
+      Boolean(selectedProductId) ||
+      Boolean(selectedCatalogProductId)
     ) {
       setProductSuggestions([]);
+      setIsProductLookupLoading(false);
       return;
     }
 
-    let isActive = true;
-    const timeoutId = window.setTimeout(async () => {
+    const timeoutId = window.setTimeout(() => {
       setIsProductLookupLoading(true);
-      try {
-        const products = await getProducts(name.trim());
-        if (isActive) {
-          const normalizedQuery = normalizeProductLookupValue(name);
-          setProductSuggestions(
-            products
-              .filter((product) => {
-                if (!getProductSuggestionState(product).selectable) {
-                  return false;
-                }
-                const lookupFields = [
-                  product.name,
-                  product.article,
-                  product.serialNumber,
-                ];
-                return lookupFields.some((field) =>
-                  normalizeProductLookupValue(field).includes(
-                    normalizedQuery,
-                  ),
-                );
-              })
-              .sort((first, second) => {
-                const firstSerial =
-                  normalizeProductLookupValue(first.serialNumber);
-                const secondSerial =
-                  normalizeProductLookupValue(second.serialNumber);
-                const firstExactSerial =
-                  firstSerial === normalizedQuery ? 0 : 1;
-                const secondExactSerial =
-                  secondSerial === normalizedQuery ? 0 : 1;
-                if (firstExactSerial !== secondExactSerial) {
-                  return firstExactSerial - secondExactSerial;
-                }
-                return first.name.localeCompare(second.name);
-              })
-              .slice(0, 8),
+      const normalizedQuery = normalizeProductLookupValue(name);
+      const catalogMatches = catalogProducts
+        .filter((catalogProduct) => {
+          if (!catalogProduct.isActive) return false;
+          return [catalogProduct.name, catalogProduct.note].some((field) =>
+            normalizeProductLookupValue(field ?? '').includes(normalizedQuery),
           );
-        }
-      } catch {
-        if (isActive) setProductSuggestions([]);
-      } finally {
-        if (isActive) setIsProductLookupLoading(false);
-      }
-    }, 350);
+        })
+        .sort((first, second) => {
+          const firstName = normalizeProductLookupValue(first.name);
+          const secondName = normalizeProductLookupValue(second.name);
+          const firstExact = firstName === normalizedQuery ? 0 : 1;
+          const secondExact = secondName === normalizedQuery ? 0 : 1;
+          if (firstExact !== secondExact) return firstExact - secondExact;
+          return first.name.localeCompare(second.name);
+        })
+        .slice(0, 6)
+        .map((catalogProduct): ProductEntrySuggestion => ({
+          type: 'catalog',
+          catalogProduct,
+          ...getCatalogDefaults(catalogProduct),
+        }));
+      const stockSerialMatches = products
+        .filter((product) => {
+          if (!getProductSuggestionState(product).selectable) return false;
+          return (
+            normalizeProductLookupValue(product.serialNumber) ===
+            normalizedQuery
+          );
+        })
+        .slice(0, 2)
+        .map((product): ProductEntrySuggestion => ({ type: 'stock', product }));
+      setProductSuggestions([...catalogMatches, ...stockSerialMatches]);
+      setIsProductLookupLoading(false);
+    }, 250);
 
-    return () => {
-      isActive = false;
-      window.clearTimeout(timeoutId);
-    };
-  }, [kind, name, selectedProductId, serialUsage]);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    catalogProducts,
+    kind,
+    name,
+    products,
+    selectedCatalogProductId,
+    selectedProductId,
+    serialUsage,
+  ]);
 
   useEffect(() => {
     if (
@@ -1685,7 +1711,18 @@ const LineItemsPanel = ({
     setServiceSuggestions([]);
   };
 
-  const applyProductSuggestion = (product: Product) => {
+  const applyProductSuggestion = (suggestion: ProductEntrySuggestion) => {
+    if (suggestion.type === 'catalog') {
+      setName(suggestion.catalogProduct.name);
+      setPrice(String(suggestion.price));
+      setWarrantyPeriod(String(suggestion.warrantyPeriod));
+      setSelectedCatalogProductId(suggestion.catalogProduct.id);
+      setSelectedProductId(undefined);
+      setProductSuggestions([]);
+      return;
+    }
+
+    const { product } = suggestion;
     const state = getProductSuggestionState(product);
     if (!state.selectable) {
       onError(`Product cannot be selected: ${state.label}.`);
@@ -1712,6 +1749,7 @@ const LineItemsPanel = ({
       setQuantity('1');
       setWarrantyPeriod('0');
       setSelectedProductId(undefined);
+      setSelectedCatalogProductId(undefined);
       setProductSuggestions([]);
       onSuccess(`Product "${product.name}" with S/N ${serial} added.`);
       return;
@@ -1722,6 +1760,7 @@ const LineItemsPanel = ({
     setQuantity('1');
     setWarrantyPeriod('0');
     setSelectedProductId(product.id);
+    setSelectedCatalogProductId(undefined);
     setProductSuggestions([]);
   };
 
@@ -1869,15 +1908,30 @@ const LineItemsPanel = ({
         return;
       }
     }
+    const suggestedStockProduct = productSuggestions.find(
+      (candidate): candidate is Extract<ProductEntrySuggestion, { type: 'stock' }> =>
+        candidate.type === 'stock' && candidate.product.name === normalizedName,
+    );
     const selectedProduct =
       kind === 'product'
         ? products.find(
             (product) =>
               product.id ===
-              (selectedProductId ??
-                productSuggestions.find(
-                  (candidate) => candidate.name === normalizedName,
-                )?.id),
+              (selectedProductId ?? suggestedStockProduct?.product.id),
+          )
+        : null;
+    const suggestedCatalogProduct = productSuggestions.find(
+      (candidate): candidate is Extract<ProductEntrySuggestion, { type: 'catalog' }> =>
+        candidate.type === 'catalog' &&
+        candidate.catalogProduct.name === normalizedName,
+    );
+    const selectedCatalogProduct =
+      kind === 'product'
+        ? catalogProducts.find(
+            (catalogProduct) =>
+              catalogProduct.id ===
+              (selectedCatalogProductId ??
+                suggestedCatalogProduct?.catalogProduct.id),
           )
         : null;
     const selectedProductSerial = normalizeSerialNumber(
@@ -1900,6 +1954,10 @@ const LineItemsPanel = ({
         kind === 'product'
           ? selectedProduct?.id
           : undefined,
+      catalogProductId:
+        kind === 'product'
+          ? selectedCatalogProduct?.id
+          : undefined,
       serviceId:
         kind === 'service'
           ? nextServiceId
@@ -1919,6 +1977,7 @@ const LineItemsPanel = ({
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
     setSelectedProductId(undefined);
+    setSelectedCatalogProductId(undefined);
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
@@ -2099,6 +2158,7 @@ const LineItemsPanel = ({
               setName(event.target.value);
               setSelectedServiceId(undefined);
               setSelectedProductId(undefined);
+              setSelectedCatalogProductId(undefined);
             }}
             placeholder={`Add ${kind}`}
             disabled={isReadOnly}
@@ -2143,23 +2203,39 @@ const LineItemsPanel = ({
             {isProductLookupLoading ? (
               <p>Searching products...</p>
             ) : null}
-            {productSuggestions.map((product) => {
-              const state = getProductSuggestionState(product);
+            {productSuggestions.map((suggestion) => {
+              const isStockSuggestion = suggestion.type === 'stock';
+              const product = isStockSuggestion ? suggestion.product : null;
+              const state = product
+                ? getProductSuggestionState(product)
+                : { selectable: true, label: 'Product List' };
+              const suggestionKey =
+                suggestion.type === 'catalog'
+                  ? `catalog-${suggestion.catalogProduct.id}`
+                  : `stock-${suggestion.product.id}`;
+              const suggestionName =
+                suggestion.type === 'catalog'
+                  ? suggestion.catalogProduct.name
+                  : suggestion.product.name;
+              const suggestionDetails =
+                suggestion.type === 'catalog'
+                  ? `${formatCurrency(suggestion.price)} / Product List`
+                  : `${formatCurrency(suggestion.product.salePriceOptions[0] ?? suggestion.product.price ?? 0)} / ${suggestion.product.article} / ${suggestion.product.serialNumber} / ${state.label}`;
               return (
                 <button
-                  key={product.id}
+                  key={suggestionKey}
                   type='button'
                   className='create-suggestion-item'
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    applyProductSuggestion(product);
+                    applyProductSuggestion(suggestion);
                   }}
-                  onClick={() => applyProductSuggestion(product)}
+                  onClick={() => applyProductSuggestion(suggestion)}
                   disabled={isReadOnly || !state.selectable}
                   title={state.selectable ? undefined : state.label}
                 >
-                  <strong>{product.name}</strong>
-                  <span>{`${formatCurrency(product.salePriceOptions[0] ?? product.price ?? 0)} / ${product.article} / ${product.serialNumber} / ${state.label}`}</span>
+                  <strong>{suggestionName}</strong>
+                  <span>{suggestionDetails}</span>
                 </button>
               );
             })}

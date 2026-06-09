@@ -51,7 +51,8 @@ type CreateOrderCardProps = {
   products: Product[];
   sales: Sale[];
   onClose: () => void;
-  onSave: (payload: CreateOrderRequestPayload) => Promise<boolean>;
+  onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
+  onCreated?: (sale: Sale) => void;
   onError: (message: string) => void;
 };
 
@@ -65,6 +66,7 @@ export const CreateOrderCard = ({
   sales,
   onClose,
   onSave,
+  onCreated,
   onError,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
@@ -618,7 +620,7 @@ export const CreateOrderCard = ({
       };
     });
 
-    const success = await onSave({
+    const createdSale = await onSave({
       clientPhone,
       clientName,
       discountCode: '',
@@ -640,9 +642,10 @@ export const CreateOrderCard = ({
       saleItems: normalizedSaleItems,
     });
 
-      if (success) {
-        onClose();
-      }
+    if (createdSale) {
+      onClose();
+      onCreated?.(createdSale);
+    }
   };
 
   return (
