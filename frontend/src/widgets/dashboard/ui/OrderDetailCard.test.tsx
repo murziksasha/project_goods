@@ -4,7 +4,11 @@ import type { CatalogProduct } from '../../../entities/catalog-product/model/typ
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { OrderDetailCard } from './OrderDetailCard';
-import type { OrderLineItem, OrderStatus } from './orders-workspace-shared';
+import {
+  orderDetailSectionsStorageKey,
+  type OrderLineItem,
+  type OrderStatus,
+} from './orders-workspace-shared';
 
 vi.mock('../../../entities/product/api/productApi', () => ({
   getProducts: vi.fn(async () => []),
@@ -250,8 +254,62 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
     expect(screen.getByPlaceholderText('Add product')).not.toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add product' })).not.toBeDisabled();
+  });
+
+  it('keeps order card products collapsed by default even with existing product items', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByPlaceholderText('Add product')).not.toBeInTheDocument();
+  });
+
+  it('keeps sale card products open by default', () => {
+    renderCard();
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByPlaceholderText('Add product')).toBeInTheDocument();
+  });
+
+  it('restores saved section state from localStorage', () => {
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': {
+          productsOpen: true,
+          servicesOpen: false,
+        },
+      }),
+    );
+
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByPlaceholderText('Add product')).toBeInTheDocument();
   });
 
   it('disables live feed composer without orders.chat permission', () => {
