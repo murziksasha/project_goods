@@ -50,6 +50,7 @@ describe('OrdersWorkspace', () => {
         onSuccess={vi.fn()}
         onOpenClientCard={vi.fn()}
         products={[]}
+        catalogProducts={[]}
         printForms={[]}
         printCompanySettings={{
           serviceName: 'Service CRM',
