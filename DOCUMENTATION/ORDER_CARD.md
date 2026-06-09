@@ -31,9 +31,9 @@
 ## Live Feed
 
 - Status changes and system actions are logged to `Live feed`.
-- `Live feed` composer (`Comment` + `Add`) is fixed at the bottom of the panel.
+- `Live feed` composer (`Comment` + `Add`) is fixed at the bottom of the panel and requires `orders.chat`.
 - System-generated messages use gray text.
-- Manually entered comments use blue text.
+- Manually entered comments use blue text and are allowed only for employees with `orders.chat`.
 
 ## Products Section
 

@@ -61,9 +61,36 @@ describe('EmployeeManagementPanel', () => {
 
     expect(screen.getByLabelText('orders.view')).toBeChecked();
     expect(screen.getByLabelText('orders.manage')).toBeChecked();
+    expect(screen.getByLabelText('orders.chat')).toBeChecked();
     expect(screen.getByLabelText('inventory.manage')).toBeChecked();
     expect(screen.getByLabelText('supplierOrders.view')).toBeChecked();
     expect(screen.getByLabelText('supplierOrders.manage')).toBeChecked();
+  });
+
+  it('activates orders.chat for master defaults', () => {
+    render(<PanelHarness />);
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'master' },
+    });
+
+    expect(screen.getByLabelText('orders.view')).toBeChecked();
+    expect(screen.getByLabelText('orders.chat')).toBeChecked();
+    expect(screen.getByLabelText('repairs.execute')).toBeChecked();
+  });
+
+  it('does not activate orders.chat for sales and support defaults', () => {
+    render(<PanelHarness />);
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'sales' },
+    });
+    expect(screen.getByLabelText('orders.chat')).not.toBeChecked();
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'support' },
+    });
+    expect(screen.getByLabelText('orders.chat')).not.toBeChecked();
   });
 
   it('renders supplier-order permission checkboxes', () => {
@@ -72,6 +99,7 @@ describe('EmployeeManagementPanel', () => {
     expect(screen.getByText('Supplier Orders')).toBeInTheDocument();
     expect(screen.getByLabelText('supplierOrders.view')).toBeInTheDocument();
     expect(screen.getByLabelText('supplierOrders.manage')).toBeInTheDocument();
+    expect(screen.getByLabelText('orders.chat')).toBeInTheDocument();
   });
 
   it('keeps employees.manage checked and locked for owner role', () => {
