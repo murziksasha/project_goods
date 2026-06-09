@@ -691,6 +691,7 @@ export const updateSaleWorkspace = async (
       : payload.paidAmount;
   const issuedBy = await resolveActiveEmployee(payload.issuedById, 'issuedById');
   const hasIssuedByUpdate = payloadInput.issuedById !== undefined;
+  const hasMasterUpdate = payloadInput.masterId !== undefined;
   const nextTimeline =
     Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
       ? payload.timeline
@@ -795,7 +796,9 @@ export const updateSaleWorkspace = async (
         kind: nextKind,
         status: nextStatus,
         paidAmount: nextPaidAmount,
-        master: master?._id ?? existingSale.master ?? null,
+        master: hasMasterUpdate
+          ? master?._id ?? null
+          : existingSale.master ?? null,
         issuedBy: hasIssuedByUpdate
           ? issuedBy?._id ?? null
           : existingSale.issuedBy ?? null,
@@ -808,8 +811,8 @@ export const updateSaleWorkspace = async (
           name: nextDeviceName || existingSale.productSnapshot?.name || '',
           serialNumber: nextSerialNumber ?? '',
         },
-        masterSnapshot: master
-          ? { name: master.name, role: master.role }
+        masterSnapshot: hasMasterUpdate
+          ? (master ? { name: master.name, role: master.role } : undefined)
           : existingSale.masterSnapshot,
         issuedBySnapshot: hasIssuedByUpdate
           ? (issuedBy

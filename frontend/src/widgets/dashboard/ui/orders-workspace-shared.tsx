@@ -43,6 +43,7 @@ export type OrdersWorkspaceProps = {
   onSuccess: (message: string) => void;
   externalSelectedSaleId?: string | null;
   onExternalSaleOpenHandled?: () => void;
+  onSelectedSaleIdChange?: (saleId: string | null) => void;
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
   catalogProducts: CatalogProduct[];

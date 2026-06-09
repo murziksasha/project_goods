@@ -138,6 +138,7 @@ export const OrdersWorkspace = ({
   onSuccess,
   externalSelectedSaleId = null,
   onExternalSaleOpenHandled,
+  onSelectedSaleIdChange,
   onOpenClientCard,
   products,
   catalogProducts,
@@ -1037,6 +1038,7 @@ export const OrdersWorkspace = ({
 
   const openSaleCard = (sale: Sale) => {
     setSelectedSaleId(sale.id);
+    onSelectedSaleIdChange?.(sale.id);
     setOpenStatusSaleId(null);
   };
 
@@ -1044,9 +1046,10 @@ export const OrdersWorkspace = ({
     if (!externalSelectedSaleId) return;
 
     setSelectedSaleId(externalSelectedSaleId);
+    onSelectedSaleIdChange?.(externalSelectedSaleId);
     setOpenStatusSaleId(null);
     onExternalSaleOpenHandled?.();
-  }, [externalSelectedSaleId, onExternalSaleOpenHandled]);
+  }, [externalSelectedSaleId, onExternalSaleOpenHandled, onSelectedSaleIdChange]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (
@@ -2231,7 +2234,10 @@ export const OrdersWorkspace = ({
           canAddComment={canChatInOrders}
           canAcceptPayment={canAcceptFinanceDeposit}
           canRefundPayment={canCreateFinanceWithdraw}
-          onClose={() => setSelectedSaleId(null)}
+          onClose={() => {
+            setSelectedSaleId(null);
+            onSelectedSaleIdChange?.(null);
+          }}
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
           }

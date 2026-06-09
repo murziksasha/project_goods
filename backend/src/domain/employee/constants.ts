@@ -88,10 +88,7 @@ export const getEffectiveEmployeePermissions = (employee: {
   const role = employeeRoles.includes(employee.role as EmployeeRole)
     ? (employee.role as EmployeeRole)
     : null;
-  const defaults =
-    role === 'owner' || role === 'manager'
-      ? defaultEmployeePermissionsByRole[role]
-      : [];
+  const defaults = role ? defaultEmployeePermissionsByRole[role] : [];
 
   return Array.from(new Set([...(employee.permissions ?? []), ...defaults]));
 };

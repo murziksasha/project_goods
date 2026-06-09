@@ -35,4 +35,11 @@ describe('auth permission helpers', () => {
       ]),
     ).toBe(true);
   });
+
+  it('merges master default permissions at runtime', () => {
+    const master = { role: 'master', permissions: [] };
+
+    expect(employeeHasPermission(master, 'orders.chat')).toBe(true);
+    expect(employeeHasPermission(master, 'repairs.execute')).toBe(true);
+  });
 });
