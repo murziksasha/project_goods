@@ -76,7 +76,7 @@ Object.defineProperty(window, 'localStorage', {
   configurable: true,
 });
 
-const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(async () => true)) =>
+const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(async () => null)) =>
   render(
     <CreateOrderCard
       isSaving={false}
@@ -100,7 +100,7 @@ afterEach(() => {
 describe('CreateOrderCard', () => {
   it('binds a warehouse serial product into the sales order payload', async () => {
     vi.useFakeTimers();
-    const onSave = vi.fn(async () => true);
+    const onSave = vi.fn(async () => null);
 
     renderCreateOrderCard('sale', onSave);
 

@@ -272,6 +272,9 @@ export const DashboardPage = () => {
   const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(
     () => getSaleIdFromUrl() || null,
   );
+  const [urlSelectedSaleId, setUrlSelectedSaleId] = useState<string | null>(
+    () => getSaleIdFromUrl() || null,
+  );
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
@@ -405,8 +408,9 @@ export const DashboardPage = () => {
       activePage === 'orders' && isCreateOrderOpen
         ? getCreateOrderForOrdersTab(activeOrdersTab)
         : null,
+      activePage === 'orders' && !isCreateOrderOpen ? urlSelectedSaleId : null,
     );
-  }, [activeOrdersTab, activePage, isCreateOrderOpen]);
+  }, [activeOrdersTab, activePage, isCreateOrderOpen, urlSelectedSaleId]);
 
   useEffect(() => {
     window.localStorage.setItem(activePageStorageKey, activePage);
@@ -500,6 +504,7 @@ export const DashboardPage = () => {
       );
       setIsCreateOrderOpen(Boolean(createOrderTab));
       setExternalSelectedSaleId(getSaleIdFromUrl() || null);
+      setUrlSelectedSaleId(getSaleIdFromUrl() || null);
     };
 
     window.addEventListener('popstate', syncPageFromHistory);
@@ -517,6 +522,7 @@ export const DashboardPage = () => {
       changeOrdersTab(fallbackOrdersTab);
     }
     setIsCreateOrderOpen(false);
+    setUrlSelectedSaleId(null);
   };
 
   const changeOrdersTab = (tab: OrdersTab) => {
@@ -537,6 +543,7 @@ export const DashboardPage = () => {
     setActivePage('orders');
     changeOrdersTab(tab);
     setIsCreateOrderOpen(true);
+    setUrlSelectedSaleId(null);
   };
 
   const openPage = (page: PageKey) => {
@@ -553,6 +560,15 @@ export const DashboardPage = () => {
     setIsCreateOrderOpen(false);
     changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
     setExternalSelectedSaleId(sale.id);
+    setUrlSelectedSaleId(sale.id);
+  };
+
+  const openCreatedOrder = (sale: { id: string; kind: 'repair' | 'sale' }) => {
+    setActivePage('orders');
+    setIsCreateOrderOpen(false);
+    changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
+    setExternalSelectedSaleId(sale.id);
+    setUrlSelectedSaleId(sale.id);
   };
 
   const openClientCardFromOrders = (clientId: string) => {
@@ -867,6 +883,7 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   sales={state.sales}
                   onSave={actions.saveOrderRequest}
+                  onCreated={openCreatedOrder}
                   onError={actions.showError}
               />
             ) : (
@@ -910,6 +927,7 @@ export const DashboardPage = () => {
                   externalSelectedSaleId={externalSelectedSaleId}
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onOpenClientCard={openClientCardFromOrders}
+                  catalogProducts={state.catalogProducts}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
                   printCompanySettings={{
                     serviceName:

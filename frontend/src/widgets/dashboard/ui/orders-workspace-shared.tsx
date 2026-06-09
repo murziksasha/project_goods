@@ -12,6 +12,7 @@ import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
+import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   customLabelSizePresetId,
@@ -44,6 +45,7 @@ export type OrdersWorkspaceProps = {
   onExternalSaleOpenHandled?: () => void;
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
+  catalogProducts: CatalogProduct[];
   printForms: PrintForm[];
   printCompanySettings: PrintCompanySettings;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
@@ -144,6 +146,7 @@ export type OrderLineItem = {
   id: string;
   kind: OrderLineItemKind;
   productId?: string;
+  catalogProductId?: string;
   serviceId?: string;
   name: string;
   price: number;
