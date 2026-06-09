@@ -31,7 +31,6 @@ import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/Clients
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
-import { usePwaInstallPrompt } from '../../../shared/pwa/usePwaInstallPrompt';
 
 type PageKey =
   | 'home'
@@ -267,7 +266,6 @@ export const DashboardPage = () => {
     () => getSaleIdFromUrl() || null,
   );
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
-  const { canInstall, installApp } = usePwaInstallPrompt();
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
@@ -835,15 +833,6 @@ export const DashboardPage = () => {
               <span className="topbar-current-user-name">{currentEmployee.name}</span>
               <span className="topbar-current-user-role">{currentEmployee.role}</span>
             </div>
-            {canInstall ? (
-              <button
-                type="button"
-                className="topbar-install-button"
-                onClick={() => void installApp()}
-              >
-                Install app
-              </button>
-            ) : null}
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
               Logout
             </button>

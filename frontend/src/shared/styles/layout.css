@@ -1481,24 +1481,6 @@
   font-weight: 700;
 }
 
-.topbar-install-button {
-  min-height: 40px;
-  border: 1px solid #b9cce2;
-  border-radius: 6px;
-  background: #e9f3ff;
-  color: #24415f;
-  padding: 8px 12px;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.topbar-install-button:hover {
-  border-color: #8fb6dd;
-  background: #dceeff;
-}
-
 .topbar-icon-button {
   border: 0;
   border-radius: 8px;
