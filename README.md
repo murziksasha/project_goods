@@ -87,6 +87,13 @@ npm run dev
 - Backend API: `http://localhost:5000/api`
 - Health check: `http://localhost:5000/api/health`
 
+## PWA на Android
+
+- Проверяйте установку PWA на production build/preview, а не через `npm run dev`.
+- Chrome на Android показывает установку только для безопасного origin: обычно нужен `https`.
+- LAN-адреса вида `http://192.168.x.x:5173` ненадежны для install prompt, даже если manifest и service worker корректные.
+- Для диагностики проверьте `/manifest.webmanifest`, регистрацию service worker и PWA-иконки в Chrome DevTools/Application.
+
 ## Корневые команды
 
 ```bash

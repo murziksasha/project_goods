@@ -168,14 +168,6 @@
     flex: 1 1 92px;
   }
 
-  .topbar-install-button {
-    flex: 1 1 112px;
-    max-width: 112px;
-    padding-inline: 10px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .page-shell {
     width: min(100% - 16px, 1540px);
     padding: 12px 0 72px;
