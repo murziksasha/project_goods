@@ -39,31 +39,45 @@ const toComparableWorkspaceState = (
   payloadInput: SalePayload,
 ) => {
   const payload = normalizeSalePayload(payloadInput);
+  const current = {
+    kind: sale.kind === 'sale' ? 'sale' : 'repair',
+    status: String(sale.status ?? ''),
+    paidAmount: sale.paidAmount ?? 0,
+    masterId: sale.master ? String(sale.master) : '',
+    issuedById: sale.issuedBy ? String(sale.issuedBy) : '',
+    deviceName: sale.productSnapshot?.name ?? '',
+    serialNumber: sale.productSnapshot?.serialNumber ?? '',
+    discount: sale.discount ?? { mode: 'amount', value: 0 },
+    paymentHistory: sale.paymentHistory ?? [],
+    lineItems: sale.lineItems ?? [],
+    timeline: sale.timeline ?? [],
+  };
+
   return {
-    current: {
-      kind: sale.kind === 'sale' ? 'sale' : 'repair',
-      status: String(sale.status ?? ''),
-      paidAmount: sale.paidAmount ?? 0,
-      masterId: sale.master ? String(sale.master) : '',
-      issuedById: sale.issuedBy ? String(sale.issuedBy) : '',
-      deviceName: sale.productSnapshot?.name ?? '',
-      serialNumber: sale.productSnapshot?.serialNumber ?? '',
-      discount: sale.discount ?? { mode: 'amount', value: 0 },
-      paymentHistory: sale.paymentHistory ?? [],
-      lineItems: sale.lineItems ?? [],
-      timeline: sale.timeline ?? [],
-    },
+    current,
     next: {
-      kind: payload.kind,
-      status: payload.status,
-      paidAmount: payload.paidAmount,
-      masterId: payload.masterId,
-      issuedById: payload.issuedById,
-      deviceName: payload.deviceName,
-      serialNumber: payload.serialNumber,
-      discount: payload.discount,
-      paymentHistory: payload.paymentHistory,
-      lineItems: payload.lineItems,
+      kind: payloadInput.kind === undefined ? current.kind : payload.kind,
+      status: payloadInput.status === undefined ? current.status : payload.status,
+      paidAmount:
+        payloadInput.paidAmount === undefined ? current.paidAmount : payload.paidAmount,
+      masterId:
+        payloadInput.masterId === undefined ? current.masterId : payload.masterId,
+      issuedById:
+        payloadInput.issuedById === undefined ? current.issuedById : payload.issuedById,
+      deviceName:
+        payloadInput.deviceName === undefined ? current.deviceName : payload.deviceName,
+      serialNumber:
+        payloadInput.serialNumber === undefined
+          ? current.serialNumber
+          : payload.serialNumber,
+      discount:
+        payloadInput.discount === undefined ? current.discount : payload.discount,
+      paymentHistory:
+        payloadInput.paymentHistory === undefined
+          ? current.paymentHistory
+          : payload.paymentHistory,
+      lineItems:
+        payloadInput.lineItems === undefined ? current.lineItems : payload.lineItems,
       timeline: payload.timeline,
     },
   };

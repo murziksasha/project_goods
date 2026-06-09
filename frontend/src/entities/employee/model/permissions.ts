@@ -11,9 +11,6 @@ export const getEffectiveEmployeePermissions = (
   if (employee.role === 'owner') {
     return defaultEmployeePermissionsByRole.owner;
   }
-  if (employee.role !== 'manager') {
-    return employee.permissions;
-  }
 
   return Array.from(
     new Set([
