@@ -4,9 +4,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './app/App.tsx'
 import { queryClient } from './shared/api/queryClient.ts'
-import { cleanupDevServiceWorkers } from './shared/pwa/cleanupDevServiceWorkers.ts'
+import { cleanupLegacyPwaStorageOnce } from './shared/browser/cleanupLegacyPwaStorage.ts'
 
-cleanupDevServiceWorkers();
+cleanupLegacyPwaStorageOnce();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
