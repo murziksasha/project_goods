@@ -6,12 +6,12 @@ const repairPlaceholderSerials = new Set(['REPAIR-PLACEHOLDER']);
 export const getSaleProductSnapshot = (sale: Sale): SaleProductSnapshot => ({
   id:
     sale.product?.id ??
-    sale.lineItems.find((item) => item.kind === 'product')?.productId ??
+    (sale.lineItems ?? []).find((item) => item.kind === 'product')?.productId ??
     '',
   article: sale.product?.article ?? '',
   name:
     sale.product?.name ??
-    sale.lineItems.find((item) => item.kind === 'product')?.name ??
+    (sale.lineItems ?? []).find((item) => item.kind === 'product')?.name ??
     '',
   serialNumber: sale.product?.serialNumber ?? '',
 });
@@ -23,7 +23,8 @@ export const getSaleProductName = (sale: Sale, fallback = '') => {
   }
 
   const lineItemName =
-    sale.lineItems.find((item) => item.kind === 'product')?.name?.trim() ?? '';
+    (sale.lineItems ?? []).find((item) => item.kind === 'product')?.name?.trim() ??
+    '';
   return lineItemName || productName || fallback;
 };
 
@@ -38,5 +39,5 @@ export const getSaleProductArticle = (sale: Sale) =>
 
 export const getSaleProductId = (sale: Sale) =>
   sale.product?.id ??
-  sale.lineItems.find((item) => item.kind === 'product')?.productId ??
+  (sale.lineItems ?? []).find((item) => item.kind === 'product')?.productId ??
   '';

@@ -9,9 +9,6 @@ export default defineConfig([
   globalIgnores([
     'dist',
     'coverage',
-    'public/pwa-*.png',
-    'public/workbox-*.js',
-    'public/sw.js',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
