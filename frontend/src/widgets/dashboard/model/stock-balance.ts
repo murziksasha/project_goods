@@ -1,5 +1,9 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import {
+  getSaleProductId,
+  getSaleProductSerialNumber,
+} from '../../../entities/sale/lib/sale-product';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { buildSupplierOrderItemNumber } from './supplier-order-utils';
 
@@ -81,11 +85,12 @@ export const getIssuedSaleProductIds = (
   sales.forEach((sale) => {
     if (!isIssuedSaleStatus(sale.status)) return;
 
-    if (sale.product?.id) {
-      issuedProductIds.add(sale.product.id);
+    const saleProductId = getSaleProductId(sale);
+    if (saleProductId) {
+      issuedProductIds.add(saleProductId);
     }
 
-    const saleSerial = normalizeText(sale.product?.serialNumber);
+    const saleSerial = normalizeText(getSaleProductSerialNumber(sale));
     (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
       (productId) => issuedProductIds.add(productId),
     );

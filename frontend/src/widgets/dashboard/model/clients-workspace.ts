@@ -4,6 +4,7 @@ import type {
   ClientStatus,
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
 
@@ -186,7 +187,7 @@ export const formatItemList = (sale: Sale, tab: ClientCardTab) => {
       .join(', ');
   }
 
-  return sale.product.name;
+  return getSaleProductName(sale, 'Product');
 };
 
 export const getClientStatsMap = (sales: Sale[]) => {

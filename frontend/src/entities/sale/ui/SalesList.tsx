@@ -1,4 +1,8 @@
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
+import {
+  getSaleProductArticle,
+  getSaleProductName,
+} from '../lib/sale-product';
 import type { Sale } from '../model/types';
 
 type SalesListProps = {
@@ -30,8 +34,10 @@ export const SalesList = ({
         <article key={sale.id} className="list-card">
           <div className="list-card-row">
             <div>
-              <h3>{sale.product.name}</h3>
-              <p>{sale.recordNumber ?? 'r------'} · {sale.product.article}</p>
+              <h3>{getSaleProductName(sale, 'Product')}</h3>
+              <p>
+                {sale.recordNumber ?? 'r------'} - {getSaleProductArticle(sale) || '-'}
+              </p>
             </div>
             <strong>{formatCurrency(sale.salePrice)}</strong>
           </div>

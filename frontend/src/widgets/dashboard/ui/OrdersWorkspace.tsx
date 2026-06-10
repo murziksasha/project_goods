@@ -349,7 +349,7 @@ export const OrdersWorkspace = ({
       );
       const searchValues =
         activeTab === 'orders'
-          ? [sale.product.name, sale.client.name, sale.client.phone]
+          ? [getPrimaryDeviceName(sale), sale.client.name, sale.client.phone]
           : [
               sale.client.name,
               sale.client.phone,
@@ -428,7 +428,7 @@ export const OrdersWorkspace = ({
       if (
         productValue &&
         ![
-          sale.product.name,
+          getPrimaryDeviceName(sale),
           ...lineItems
             .filter((item) => item.kind === 'product')
             .map((item) => item.name),
@@ -933,55 +933,50 @@ export const OrdersWorkspace = ({
     return updatedSale;
   };
 
+  const handleWorkspaceUpdateError = (
+    error: unknown,
+    fallback = 'Failed to update order status.',
+  ) => {
+    onError(error instanceof Error && error.message ? error.message : fallback);
+  };
+
+  const queueSaleWorkspaceUpdate = (
+    sale: Sale,
+    payload: Parameters<typeof persistSaleWorkspace>[1],
+    fallback?: string,
+  ) => {
+    void persistSaleWorkspace(sale, payload).catch((error) =>
+      handleWorkspaceUpdateError(error, fallback),
+    );
+  };
+
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
-    if (isRepairStatusChangeLockedByStock(sale, status)) {
-      setWarningMessage(stockLockedRepairStatusMessage);
-      setOpenStatusSaleId(null);
-      return;
-    }
-
-    const remainingPayment = getOrderRemainingPayment(sale);
-    const isZeroTotalSale =
-      !isRepairOrder(sale) &&
-      getOrderTotal(sale, getLineItems(sale)) <= 0;
-
-    if (!isRepairOrder(sale) && status === 'returned') {
-      setOpenStatusSaleId(null);
-      if (
-        getLineItems(sale).some((item) => item.kind === 'product')
-      ) {
-        await openReturnSaleModal(sale);
+    try {
+      if (isRepairStatusChangeLockedByStock(sale, status)) {
+        setWarningMessage(stockLockedRepairStatusMessage);
+        setOpenStatusSaleId(null);
         return;
       }
-      if (getPaidAmount(sale) > 0) {
-        setWarningMessage(
-          'Refund client payment before marking sale as returned.',
-        );
-        return;
-      }
-      await persistSaleWorkspace(sale, {
-        status,
-        issuedById: shouldCaptureReceivedBy(sale, status)
-          ? currentEmployee?.id
-          : '',
-        timeline: [
-          appendTimelineEntry(
-            `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
-          ),
-          ...sale.timeline,
-        ],
-      });
-      return;
-    }
 
-    if (
-      (isRepairOrder(sale) && status === 'issued') ||
-      (isRepairOrder(sale) && isSalePaymentStatus(status)) ||
-      (!isRepairOrder(sale) &&
-        (isSalePaymentStatus(status) || status === 'issued'))
-    ) {
-      setOpenStatusSaleId(null);
-      if (remainingPayment <= 0) {
+      const remainingPayment = getOrderRemainingPayment(sale);
+      const isZeroTotalSale =
+        !isRepairOrder(sale) &&
+        getOrderTotal(sale, getLineItems(sale)) <= 0;
+
+      if (!isRepairOrder(sale) && status === 'returned') {
+        setOpenStatusSaleId(null);
+        if (
+          getLineItems(sale).some((item) => item.kind === 'product')
+        ) {
+          await openReturnSaleModal(sale);
+          return;
+        }
+        if (getPaidAmount(sale) > 0) {
+          setWarningMessage(
+            'Refund client payment before marking sale as returned.',
+          );
+          return;
+        }
         await persistSaleWorkspace(sale, {
           status,
           issuedById: shouldCaptureReceivedBy(sale, status)
@@ -998,46 +993,73 @@ export const OrdersWorkspace = ({
       }
 
       if (
-        !isRepairOrder(sale) &&
-        status === 'issued' &&
-        !isZeroTotalSale
+        (isRepairOrder(sale) && status === 'issued') ||
+        (isRepairOrder(sale) && isSalePaymentStatus(status)) ||
+        (!isRepairOrder(sale) &&
+          (isSalePaymentStatus(status) || status === 'issued'))
       ) {
-        await openPaymentModal(sale, 'issued');
+        setOpenStatusSaleId(null);
+        if (remainingPayment <= 0) {
+          await persistSaleWorkspace(sale, {
+            status,
+            issuedById: shouldCaptureReceivedBy(sale, status)
+              ? currentEmployee?.id
+              : '',
+            timeline: [
+              appendTimelineEntry(
+                `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
+              ),
+              ...sale.timeline,
+            ],
+          });
+          return;
+        }
+
+        if (
+          !isRepairOrder(sale) &&
+          status === 'issued' &&
+          !isZeroTotalSale
+        ) {
+          await openPaymentModal(sale, 'issued');
+          return;
+        }
+
+        await openPaymentModal(
+          sale,
+          status as Extract<OrderStatus, PaymentTargetStatus>,
+        );
         return;
       }
 
-      await openPaymentModal(
-        sale,
-        status as Extract<OrderStatus, PaymentTargetStatus>,
-      );
-      return;
-    }
+      if (
+        isClosingStatus(sale, status) &&
+        hasAttachedProducts(sale) &&
+        remainingPayment > 0
+      ) {
+        setWarningMessage(
+          'Product shipped but payment has not been received.',
+        );
+        setOpenStatusSaleId(null);
+        return;
+      }
 
-    if (
-      isClosingStatus(sale, status) &&
-      hasAttachedProducts(sale) &&
-      remainingPayment > 0
-    ) {
-      setWarningMessage(
-        'Product shipped but payment has not been received.',
-      );
+      await persistSaleWorkspace(sale, {
+        status,
+        issuedById: shouldCaptureReceivedBy(sale, status)
+          ? currentEmployee?.id
+          : '',
+        timeline: [
+          appendTimelineEntry(
+            `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
+          ),
+          ...sale.timeline,
+        ],
+      });
       setOpenStatusSaleId(null);
-      return;
+    } catch (error) {
+      setOpenStatusSaleId(null);
+      handleWorkspaceUpdateError(error);
     }
-
-    await persistSaleWorkspace(sale, {
-      status,
-      issuedById: shouldCaptureReceivedBy(sale, status)
-        ? currentEmployee?.id
-        : '',
-      timeline: [
-        appendTimelineEntry(
-          `${currentEmployeeName} changed status to "${getStatusLabel(sale, status)}".`,
-        ),
-        ...sale.timeline,
-      ],
-    });
-    setOpenStatusSaleId(null);
   };
 
   const openSaleCard = (sale: Sale) => {
@@ -1267,7 +1289,7 @@ export const OrdersWorkspace = ({
   const addComment = (sale: Sale, comment: string) => {
     const normalizedComment = comment.trim();
     if (!normalizedComment) return;
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       timeline: [
         appendTimelineEntry(normalizedComment),
         ...sale.timeline,
@@ -1322,7 +1344,7 @@ export const OrdersWorkspace = ({
       getPaidAmount(sale),
       discountedTotal,
     );
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       paidAmount: nextPaidAmount,
       discount: {
         mode: discount.mode,
@@ -1559,7 +1581,7 @@ export const OrdersWorkspace = ({
           : item.quantity,
       id: crypto.randomUUID(),
     };
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       lineItems: [...getLineItems(sale), nextItem],
       timeline: [
         appendTimelineEntry(
@@ -1607,13 +1629,13 @@ export const OrdersWorkspace = ({
       itemIndex,
     );
     if (nextItems.length === 0) {
-      void persistSaleWorkspace(sale, {
+      queueSaleWorkspaceUpdate(sale, {
         lineItems: [],
         paidAmount,
       });
       return;
     }
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       lineItems: nextItems,
       paidAmount,
       timeline: [
@@ -1655,7 +1677,7 @@ export const OrdersWorkspace = ({
       }));
     });
 
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       lineItems: nextItems,
       timeline: [
         appendTimelineEntry(
@@ -1706,7 +1728,7 @@ export const OrdersWorkspace = ({
       patch,
     );
 
-    void persistSaleWorkspace(sale, {
+    queueSaleWorkspaceUpdate(sale, {
       lineItems: nextItems,
     });
   };

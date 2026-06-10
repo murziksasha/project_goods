@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { Sale } from '../model/types';
 import { createWarehouseShipment } from '../api/shipmentApi';
+import {
+  getSaleProductArticle,
+  getSaleProductName,
+  getSaleProductSerialNumber,
+} from '../lib/sale-product';
 
 interface SerialNumber {
   id: string;
@@ -31,6 +36,9 @@ export const SerialNumberModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const productName = getSaleProductName(sale, 'Product');
+  const productArticle = getSaleProductArticle(sale);
+  const productSerialNumber = getSaleProductSerialNumber(sale) || sale.id;
 
   // Mock data - in real app, this would come from API
   useEffect(() => {
@@ -40,7 +48,7 @@ export const SerialNumberModal = ({
       for (let i = 0; i < sale.quantity; i++) {
         mockSerials.push({
           id: `serial-${sale.id}-${i}`,
-          serialNumber: `${sale.product.serialNumber}-${String(i + 1).padStart(3, '0')}`,
+          serialNumber: `${productSerialNumber}-${String(i + 1).padStart(3, '0')}`,
           warehouse: 'Main Warehouse',
           isAvailable: true,
         });
@@ -51,7 +59,7 @@ export const SerialNumberModal = ({
         setSelectedSerials([]);
       }, 0);
     }
-  }, [isOpen, sale]);
+  }, [isOpen, productSerialNumber, sale]);
 
   const handleSerialToggle = (serialNumber: string) => {
     setSelectedSerials((prev) => {
@@ -148,9 +156,9 @@ export const SerialNumberModal = ({
           ) : (
             <>
               <div className='sale-info'>
-                <h3>{sale.product.name}</h3>
+                <h3>{productName}</h3>
                 <p>Quantity: {sale.quantity}</p>
-                <p>Article: {sale.product.article}</p>
+                <p>Article: {productArticle || '-'}</p>
               </div>
 
               {error && (

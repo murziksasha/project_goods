@@ -2,7 +2,9 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
 import { CreateOrderCard } from './CreateOrderCard';
+import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
 vi.mock('../../../entities/client/api/clientApi', () => ({
   createClient: vi.fn(),
@@ -98,6 +100,59 @@ afterEach(() => {
 });
 
 describe('CreateOrderCard', () => {
+  it('renders client request history when an existing sale has no product snapshot', () => {
+    const legacySale: Sale = {
+      id: 'sale-without-product',
+      recordNumber: 'S000001',
+      saleDate: '2026-01-01T00:00:00.000Z',
+      quantity: 1,
+      salePrice: 1200,
+      kind: 'sale',
+      status: 'new',
+      paidAmount: 0,
+      note: '',
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'USB-C Charger',
+          price: 1200,
+          quantity: 1,
+          warrantyPeriod: 12,
+          serialNumbers: [],
+        },
+      ],
+      client: {
+        id: 'client-1',
+        name: 'Client',
+        phone: '+380000000000',
+        status: 'regular',
+      },
+      product: null,
+      manager: null,
+      master: null,
+      issuedBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    render(
+      <CreateOrderSidePanel
+        deviceHistory={[legacySale]}
+        activeClientRequests={[legacySale]}
+        activeClientRequestTab="sales"
+        selectedFlags={[]}
+        onApplyDevice={vi.fn()}
+        onClientRequestTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText('USB-C Charger')).toHaveLength(2);
+    expect(screen.getByText('S000001')).toBeInTheDocument();
+  });
+
   it('binds a warehouse serial product into the sales order payload', async () => {
     vi.useFakeTimers();
     const onSave = vi.fn(async () => null);

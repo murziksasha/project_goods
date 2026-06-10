@@ -33,6 +33,7 @@ import type {
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
+import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import {
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import {
@@ -989,7 +990,7 @@ export const createDashboardActions = ({
     },
     deleteSale: async (sale: Sale) => {
       clearNotifications();
-      if (!window.confirm(`Delete sale for "${sale.product.name}"?`)) return;
+      if (!window.confirm(`Delete sale for "${getSaleProductName(sale, 'Product')}"?`)) return;
 
       try {
         await mutateDeleteSale(sale.id);

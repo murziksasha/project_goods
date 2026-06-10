@@ -1,6 +1,11 @@
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
+  getSaleProductId,
+  getSaleProductName,
+  getSaleProductSerialNumber,
+} from '../../../entities/sale/lib/sale-product';
+import {
   getOrderLink,
   type ClientRequestTab,
 } from './create-order-card-shared';
@@ -32,8 +37,8 @@ export const CreateOrderSidePanel = ({
               (item) => item.kind === 'product',
             );
             const deviceNameValue =
-              deviceItem?.name?.trim() || sale.product.name;
-            const serialValue = sale.product.serialNumber?.trim();
+              deviceItem?.name?.trim() || getSaleProductName(sale, 'Device');
+            const serialValue = getSaleProductSerialNumber(sale);
             const displaySerial =
               serialValue && serialValue.toUpperCase() !== 'REPAIR-PLACEHOLDER'
                 ? serialValue
@@ -45,7 +50,7 @@ export const CreateOrderSidePanel = ({
                 className="create-side-list-button"
                 onClick={() =>
                   onApplyDevice({
-                    id: sale.product.id,
+                    id: getSaleProductId(sale) || sale.id,
                     clientId: sale.client.id,
                     clientName: sale.client.name,
                     clientPhone: sale.client.phone,
@@ -103,7 +108,7 @@ export const CreateOrderSidePanel = ({
               (item) => item.kind === 'product',
             );
             const deviceNameValue =
-              deviceItem?.name?.trim() || sale.product.name;
+              deviceItem?.name?.trim() || getSaleProductName(sale, 'Device');
             return (
               <div key={sale.id} className="create-side-list-item">
                 <a

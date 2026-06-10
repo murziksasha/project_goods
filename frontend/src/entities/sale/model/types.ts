@@ -1,6 +1,13 @@
 import type { Client } from '../../client/model/types';
 import type { Product } from '../../product/model/types';
 
+export type SaleProductSnapshot = {
+  id: string;
+  article: string;
+  name: string;
+  serialNumber: string;
+};
+
 export type Sale = {
   id: string;
   recordNumber: string | null;
@@ -53,12 +60,7 @@ export type Sale = {
     registrationId?: string;
     iban?: string;
   };
-  product: {
-    id: string;
-    article: string;
-    name: string;
-    serialNumber: string;
-  };
+  product: SaleProductSnapshot | null;
   manager: {
     id: string;
     name: string;
