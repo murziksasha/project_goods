@@ -189,6 +189,84 @@ describe('OrdersWorkspace', () => {
     });
   });
 
+  it('keeps rendering after a status update returns a sale without product snapshot', async () => {
+    const onSaleUpdate = vi.fn();
+    const updatedSale: Sale = {
+      ...sale,
+      status: 'diagnostics',
+      product: null,
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'Fallback device',
+          price: 0,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: [],
+        },
+      ],
+      timeline: [
+        {
+          id: 'timeline-1',
+          author: 'Manager',
+          message: 'Status changed.',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    vi.mocked(updateSaleWorkspace).mockResolvedValueOnce(updatedSale);
+
+    const { rerender } = renderWorkspace({
+      sales: [sale],
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+
+    await waitFor(() => {
+      expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
+    });
+
+    rerender(
+      <OrdersWorkspace
+        sales={[updatedSale]}
+        employees={[]}
+        isLoading={false}
+        activeTab="orders"
+        visibleTabs={['orders', 'sales']}
+        searchValue=""
+        currentEmployee={employee}
+        canCreateOrders={true}
+        onActiveTabChange={vi.fn()}
+        onSearchChange={vi.fn()}
+        onCreateOrder={vi.fn()}
+        createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+        onSaleUpdate={onSaleUpdate}
+        onError={vi.fn()}
+        onSuccess={vi.fn()}
+        onOpenClientCard={vi.fn()}
+        products={[]}
+        catalogProducts={[]}
+        printForms={[]}
+        printCompanySettings={{
+          serviceName: 'Service CRM',
+          company: 'Service CRM',
+          companyAddress: '',
+          companyId: '',
+          companyIban: '',
+          companyEmail: '',
+          companySite: '',
+        }}
+        onUpdateProductModel={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Diagnostics' })).toBeInTheDocument();
+    expect(screen.getByText('Fallback device')).toBeInTheDocument();
+  });
+
   it('accepts sale payment through sale API instead of raw finance transaction API', async () => {
     const onSaleUpdate = vi.fn();
     const paidSale: Sale = {

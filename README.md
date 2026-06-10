@@ -83,16 +83,17 @@ npm run dev
 ```
 
 ### 5. Открыть приложение
-- Frontend: `http://localhost:5173`
+- Frontend локально: `http://localhost:5173`
+- Frontend в локальной сети: `http://192.168.10.55:5173`
 - Backend API: `http://localhost:5000/api`
 - Health check: `http://localhost:5000/api/health`
 
-## PWA на Android
+## Браузерный режим
 
-- Проверяйте установку PWA на production build/preview, а не через `npm run dev`.
-- Chrome на Android показывает установку только для безопасного origin: обычно нужен `https`.
-- LAN-адреса вида `http://192.168.x.x:5173` ненадежны для install prompt, даже если manifest и service worker корректные.
-- Для диагностики проверьте `/manifest.webmanifest`, регистрацию service worker и PWA-иконки в Chrome DevTools/Application.
+- Приложение работает как обычный browser app без PWA, manifest и service worker.
+- Основной адрес для клиентов в локальной сети: `http://192.168.10.55:5173`.
+- После деплоя клиенты должны один раз открыть приложение в браузере: frontend автоматически unregister старые service workers и удалит старые PWA/workbox caches.
+- Если у клиента все еще открывается устаревшая версия, очистите site data вручную в Chrome DevTools/Application или настройках браузера.
 
 ## Корневые команды
 

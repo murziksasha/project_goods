@@ -22,6 +22,18 @@ const clearBrowserCaches = async () => {
   );
 };
 
+const unregisterServiceWorkers = async () => {
+  if (
+    typeof navigator === 'undefined' ||
+    !('serviceWorker' in navigator)
+  ) {
+    return;
+  }
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+};
+
 export class AppErrorBoundary extends Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
@@ -37,8 +49,11 @@ export class AppErrorBoundary extends Component<
   }
 
   private reloadApp = async () => {
+    await unregisterServiceWorkers();
     await clearBrowserCaches();
-    window.location.reload();
+    const url = new URL(window.location.href);
+    url.searchParams.set('refresh', String(Date.now()));
+    window.location.replace(url.toString());
   };
 
   render() {
