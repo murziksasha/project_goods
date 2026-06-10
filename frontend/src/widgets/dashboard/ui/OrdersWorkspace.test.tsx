@@ -172,6 +172,7 @@ describe('OrdersWorkspace', () => {
 
   it('shows an error when order status update fails', async () => {
     const onError = vi.fn();
+    const onSaleUpdate = vi.fn();
     vi.mocked(updateSaleWorkspace).mockRejectedValueOnce(
       new Error('Backend API is unavailable.'),
     );
@@ -179,6 +180,7 @@ describe('OrdersWorkspace', () => {
     renderWorkspace({
       sales: [sale],
       onError,
+      onSaleUpdate,
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
@@ -187,6 +189,31 @@ describe('OrdersWorkspace', () => {
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith('Backend API is unavailable.');
     });
+    expect(onSaleUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not replace an order when status update returns an invalid response', async () => {
+    const onError = vi.fn();
+    const onSaleUpdate = vi.fn();
+    vi.mocked(updateSaleWorkspace).mockResolvedValueOnce({
+      sale,
+    } as unknown as Sale);
+
+    renderWorkspace({
+      sales: [sale],
+      onError,
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(
+        'Unexpected sale workspace update response from API.',
+      );
+    });
+    expect(onSaleUpdate).not.toHaveBeenCalled();
   });
 
   it('keeps rendering after a status update returns a sale without product snapshot', async () => {

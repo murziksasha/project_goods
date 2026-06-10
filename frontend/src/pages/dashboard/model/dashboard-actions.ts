@@ -68,6 +68,22 @@ import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
+const isSaleResponse = (value: unknown): value is Sale => {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const sale = value as Partial<Sale>;
+  return (
+    typeof sale.id === 'string' &&
+    typeof sale.saleDate === 'string' &&
+    typeof sale.kind === 'string' &&
+    typeof sale.status === 'string' &&
+    typeof sale.client === 'object' &&
+    sale.client !== null &&
+    Array.isArray(sale.timeline) &&
+    Array.isArray(sale.paymentHistory)
+  );
+};
+
 type DashboardActionParams = {
   allServices: ServiceCatalogItem[];
   allClients: Client[];
@@ -1309,6 +1325,9 @@ export const createDashboardActions = ({
           paymentHistory: [],
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
+        if (!isSaleResponse(createdSaleResult.sale)) {
+          throw new Error('Unexpected create sale response from API.');
+        }
         setSales((current) => [createdSaleResult.sale, ...current]);
 
         const deviceAlreadyExists = clientDevices.some(

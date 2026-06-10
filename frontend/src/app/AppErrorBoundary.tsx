@@ -8,6 +8,9 @@ type AppErrorBoundaryState = {
   error: Error | null;
 };
 
+const isDevelopment = import.meta.env.DEV;
+const cacheFragments = ['dev-dist', 'dev-sw'];
+
 const clearBrowserCaches = async () => {
   if (typeof caches === 'undefined') return;
   const cacheNames = await caches.keys();
@@ -16,7 +19,8 @@ const clearBrowserCaches = async () => {
       .filter(
         (cacheName) =>
           cacheName.startsWith('workbox-') ||
-          cacheName.startsWith('goods-accounting-'),
+          cacheName.startsWith('goods-accounting-') ||
+          cacheFragments.some((fragment) => cacheName.includes(fragment)),
       )
       .map((cacheName) => caches.delete(cacheName)),
   );
@@ -76,6 +80,11 @@ export class AppErrorBoundary extends Component<
                 The app stayed on an outdated or broken screen. Refresh will
                 clear cached files and open the workspace again.
               </p>
+              {isDevelopment && this.state.error.message ? (
+                <p className="empty-state">
+                  Error: {this.state.error.message}
+                </p>
+              ) : null}
               <button
                 type="button"
                 className="primary-button"

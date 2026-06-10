@@ -1,4 +1,4 @@
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import { ApiRequestError, apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Product } from '../../product/model/types';
 import type {
   Sale,
@@ -12,6 +12,41 @@ import type {
   SaleWorkspacePayload,
 } from '../model/types';
 
+type CreateSaleResponse = {
+  sale: Sale;
+  product: Product | null;
+};
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isSaleResponse = (value: unknown): value is Sale =>
+  isObjectRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.saleDate === 'string' &&
+  typeof value.kind === 'string' &&
+  typeof value.status === 'string' &&
+  typeof value.client === 'object' &&
+  value.client !== null &&
+  Array.isArray(value.timeline) &&
+  Array.isArray(value.paymentHistory);
+
+const ensureSaleResponse = (value: unknown, context: string): Sale => {
+  if (isSaleResponse(value)) {
+    return value;
+  }
+
+  throw new ApiRequestError(`Unexpected ${context} response from API.`);
+};
+
+const ensureCreateSaleResponse = (value: unknown): CreateSaleResponse => {
+  if (isObjectRecord(value) && isSaleResponse(value.sale)) {
+    return value as CreateSaleResponse;
+  }
+
+  throw new ApiRequestError('Unexpected create sale response from API.');
+};
+
 export const getSales = async () => {
   try {
     const response = await apiClient.get<Sale[]>('/sales');
@@ -23,11 +58,11 @@ export const getSales = async () => {
 
 export const createSale = async (payload: SaleFormValues) => {
   try {
-    const response = await apiClient.post<{ sale: Sale; product: Product | null }>(
+    const response = await apiClient.post<CreateSaleResponse>(
       '/sales',
       payload,
     );
-    return response.data;
+    return ensureCreateSaleResponse(response.data);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
@@ -35,11 +70,11 @@ export const createSale = async (payload: SaleFormValues) => {
 
 export const updateSale = async (saleId: string, payload: SaleFormValues) => {
   try {
-    const response = await apiClient.put<{ sale: Sale; product: Product | null }>(
+    const response = await apiClient.put<CreateSaleResponse>(
       `/sales/${saleId}`,
       payload,
     );
-    return response.data;
+    return ensureCreateSaleResponse(response.data);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
@@ -54,7 +89,7 @@ export const updateSaleWorkspace = async (
       `/sales/${saleId}/workspace`,
       payload,
     );
-    return response.data;
+    return ensureSaleResponse(response.data, 'sale workspace update');
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
