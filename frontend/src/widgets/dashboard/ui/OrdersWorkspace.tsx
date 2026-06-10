@@ -116,6 +116,22 @@ import {
   type TimelineEntry,
 } from './orders-workspace-shared';
 
+const isSaleResponse = (value: unknown): value is Sale => {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const sale = value as Partial<Sale>;
+  return (
+    typeof sale.id === 'string' &&
+    typeof sale.saleDate === 'string' &&
+    typeof sale.kind === 'string' &&
+    typeof sale.status === 'string' &&
+    typeof sale.client === 'object' &&
+    sale.client !== null &&
+    Array.isArray(sale.timeline) &&
+    Array.isArray(sale.paymentHistory)
+  );
+};
+
 export const OrdersWorkspace = ({
   sales,
   employees,
@@ -929,6 +945,9 @@ export const OrdersWorkspace = ({
       lineItems: payload.lineItems ?? getLineItems(sale),
       expectedUpdatedAt: sale.updatedAt,
     });
+    if (!isSaleResponse(updatedSale)) {
+      throw new Error('Unexpected sale workspace update response from API.');
+    }
     onSaleUpdate(updatedSale);
     return updatedSale;
   };
