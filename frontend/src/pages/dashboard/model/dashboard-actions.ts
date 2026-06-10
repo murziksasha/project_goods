@@ -65,6 +65,7 @@ import {
 import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/create-order-products';
+import { createOrderRuntimeId } from '../../../widgets/dashboard/model/order-runtime-id';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -1281,7 +1282,7 @@ export const createDashboardActions = ({
           payload.sourceTab === 'sale' && saleItems.length > 0
             ? buildCreateOrderSaleLineItems(
                 saleItems.map((item) => ({
-                  id: item.id || crypto.randomUUID(),
+                  id: item.id || createOrderRuntimeId(),
                   productId: item.productId,
                   catalogProductId: item.catalogProductId,
                   name: item.name,
@@ -1314,7 +1315,7 @@ export const createDashboardActions = ({
             ...(payload.issueFromClient.trim()
               ? [
                   {
-                    id: crypto.randomUUID(),
+                    id: createOrderRuntimeId(),
                     author,
                     message: payload.issueFromClient.trim(),
                     createdAt,

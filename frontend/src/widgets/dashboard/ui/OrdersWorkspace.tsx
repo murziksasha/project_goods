@@ -41,6 +41,7 @@ import {
   patchLineItemsById,
   removeLineItemsById,
 } from '../model/line-item-ops';
+import { createOrderRuntimeId } from '../model/order-runtime-id';
 import {
   activeOrdersFiltersStorageKey,
   availableColumnsByTab,
@@ -610,7 +611,7 @@ export const OrdersWorkspace = ({
       return;
     }
     const nextFilter: SavedOrdersFilter = {
-      id: crypto.randomUUID(),
+      id: createOrderRuntimeId(),
       employeeId: currentEmployee.id,
       name,
       icon: newFilterIcon,
@@ -910,7 +911,7 @@ export const OrdersWorkspace = ({
     message: string,
     author: string = currentEmployeeName,
   ): TimelineEntry => ({
-    id: crypto.randomUUID(),
+    id: createOrderRuntimeId(),
     author,
     message,
     createdAt: new Date().toISOString(),
@@ -1598,7 +1599,7 @@ export const OrdersWorkspace = ({
         (item.serialNumbers ?? []).length > 0
           ? 1
           : item.quantity,
-      id: crypto.randomUUID(),
+      id: createOrderRuntimeId(),
     };
     queueSaleWorkspaceUpdate(sale, {
       lineItems: [...getLineItems(sale), nextItem],
@@ -1692,7 +1693,7 @@ export const OrdersWorkspace = ({
       if (!shouldReplace) return [item];
       return items.map((nextItem) => ({
         ...nextItem,
-        id: crypto.randomUUID(),
+        id: createOrderRuntimeId(),
       }));
     });
 
