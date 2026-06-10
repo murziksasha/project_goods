@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import {
+  acceptSalePayment,
   createSale,
   deleteSale,
   listSales,
+  refundSalePayment,
   returnSale,
   returnSaleLineItem,
   returnSaleLineItemBySerials,
@@ -133,6 +135,21 @@ saleRouter.patch('/sales/:saleId/workspace', asyncHandler(async (req, res) => {
     );
   }
   res.json(await updateSaleWorkspace(routeParam(req, 'saleId'), req.body as SalePayload));
+}));
+
+saleRouter.patch('/sales/:saleId/payment', asyncHandler(async (req, res) => {
+  if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
+    await requirePermissionByToken(
+      getBearerToken(req.headers.authorization),
+      'finance.transactions.deposit',
+    );
+  }
+  res.json(await acceptSalePayment(routeParam(req, 'saleId'), req.body));
+}));
+
+saleRouter.patch('/sales/:saleId/refund', asyncHandler(async (req, res) => {
+  await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
+  res.json(await refundSalePayment(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/return-line-item', asyncHandler(async (req, res) => {

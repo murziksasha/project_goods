@@ -38,6 +38,7 @@
 ## Products Section
 
 - `Products` section contains only attached products/parts/services used for the order work.
+- `Products` is collapsed by default in order card; saved expanded/collapsed state may override that default on later opens.
 - Accepted repair device is not a product line item.
 - Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.
 - If multiple serials are bound to a legacy multi-quantity product line, the card must split it into one product row per serial before saving.

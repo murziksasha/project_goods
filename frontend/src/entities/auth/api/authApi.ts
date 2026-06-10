@@ -1,4 +1,8 @@
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import {
+  apiClient,
+  createApiRequestError,
+  getApiErrorMessage,
+} from '../../../shared/api/http';
 import type { Employee } from '../../employee/model/types';
 import type { AuthSession, InvitationDetails, LoginPayload } from '../model/types';
 
@@ -9,7 +13,7 @@ export const login = async (payload: LoginPayload) => {
     const response = await apiClient.post<AuthSession>('/auth/login', payload);
     return response.data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error));
+    throw createApiRequestError(error);
   }
 };
 
@@ -18,7 +22,7 @@ export const getCurrentEmployee = async () => {
     const response = await apiClient.get<Employee>('/auth/me');
     return response.data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error));
+    throw createApiRequestError(error);
   }
 };
 
@@ -26,7 +30,7 @@ export const logout = async () => {
   try {
     await apiClient.post('/auth/logout');
   } catch (error) {
-    throw new Error(getApiErrorMessage(error));
+    throw createApiRequestError(error);
   }
 };
 
