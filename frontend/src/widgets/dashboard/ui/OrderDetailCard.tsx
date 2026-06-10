@@ -236,32 +236,22 @@ export const OrderDetailCard = ({
     const productsOpenByDefault = isSaleCard;
     const servicesOpenByDefault = !isSaleCard;
     setIsProductsOpen(
-      productItems.length > 0
-        ? true
-        : (storedState?.productsOpen ?? productsOpenByDefault),
+      storedState?.productsOpen ?? productsOpenByDefault,
     );
     setIsServicesOpen(
-      serviceItems.length > 0
-        ? true
-        : (storedState?.servicesOpen ?? servicesOpenByDefault),
+      storedState?.servicesOpen ?? servicesOpenByDefault,
     );
-  }, [sale.id, isSaleCard, productItems.length, serviceItems.length]);
+  }, [sale.id, isSaleCard]);
   useEffect(() => {
     const current = readOrderDetailSectionsState();
     writeOrderDetailSectionsState({
       ...current,
       [sale.id]: {
-        productsOpen: productItems.length > 0 ? true : isProductsOpen,
-        servicesOpen: serviceItems.length > 0 ? true : isServicesOpen,
+        productsOpen: isProductsOpen,
+        servicesOpen: isServicesOpen,
       },
     });
-  }, [
-    sale.id,
-    isProductsOpen,
-    isServicesOpen,
-    productItems.length,
-    serviceItems.length,
-  ]);
+  }, [sale.id, isProductsOpen, isServicesOpen]);
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
@@ -779,7 +769,6 @@ export const OrderDetailCard = ({
             type='button'
             className='order-detail-collapse-button'
             onClick={() => {
-              if (productItems.length > 0) return;
               setIsProductsOpen((current) => !current);
             }}
             aria-expanded={isProductsOpen}
@@ -823,7 +812,6 @@ export const OrderDetailCard = ({
             type='button'
             className='order-detail-collapse-button'
             onClick={() => {
-              if (serviceItems.length > 0) return;
               setIsServicesOpen((current) => !current);
             }}
             aria-expanded={isServicesOpen}

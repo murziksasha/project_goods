@@ -48,6 +48,12 @@ export const employeeSchema = new mongoose.Schema(
       select: false,
       index: true,
     },
+    authTokens: {
+      type: [String],
+      default: [],
+      select: false,
+      index: true,
+    },
     inviteToken: {
       type: String,
       default: '',

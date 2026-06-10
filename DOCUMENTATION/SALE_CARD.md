@@ -8,6 +8,7 @@
 - Default state for sale card:
   - `Products`: open
   - `Services`: hidden
+- Saved expanded/collapsed state may override those defaults on later opens.
 
 ## Collapse Headers
 
