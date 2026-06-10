@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createRuntimeId } from '../../../shared/lib/runtime-id';
 
 type NotificationsProps = {
   error: string;
@@ -60,7 +61,7 @@ export const Notifications = ({
       return;
     }
 
-    const toastId = crypto.randomUUID();
+    const toastId = createRuntimeId();
     const nextToast: ToastItem = {
       id: toastId,
       tone: 'error',
@@ -84,7 +85,7 @@ export const Notifications = ({
       return;
     }
 
-    const toastId = crypto.randomUUID();
+    const toastId = createRuntimeId();
     const nextToast: ToastItem = {
       id: toastId,
       tone: 'success',
