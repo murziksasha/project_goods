@@ -6,6 +6,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import {
   acceptSalePayment,
   refundSalePayment,
+  updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
   createFinanceTransaction,
@@ -167,6 +168,25 @@ describe('OrdersWorkspace', () => {
     expect(commentInput).not.toBeDisabled();
     fireEvent.change(commentInput, { target: { value: 'Ready for diagnostics' } });
     expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
+  });
+
+  it('shows an error when order status update fails', async () => {
+    const onError = vi.fn();
+    vi.mocked(updateSaleWorkspace).mockRejectedValueOnce(
+      new Error('Backend API is unavailable.'),
+    );
+
+    renderWorkspace({
+      sales: [sale],
+      onError,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith('Backend API is unavailable.');
+    });
   });
 
   it('accepts sale payment through sale API instead of raw finance transaction API', async () => {
