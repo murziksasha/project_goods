@@ -1,4 +1,4 @@
-export const createOrderRuntimeId = () => {
+export const createRuntimeId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
@@ -22,7 +22,7 @@ export const createOrderRuntimeId = () => {
     ].join('-');
   }
 
-  return `order-${Date.now().toString(36)}-${Math.random()
+  return `id-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 10)}`;
 };
