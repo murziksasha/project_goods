@@ -360,15 +360,24 @@ export const DashboardPage = () => {
         if (!isActive) return;
         setCurrentEmployee(employee);
         saveEmployeeSnapshot(employee);
+        setAuthError('');
       } catch (error) {
         if (!isActive) return;
 
         if (isUnauthorizedRequestError(error)) {
-          window.localStorage.removeItem(authTokenStorageKey);
-          window.localStorage.removeItem(employeeSnapshotStorageKey);
-          setApiAuthToken(null);
-          setCurrentEmployee(null);
-          setAuthError('Session expired. Please sign in again.');
+          const snapshot = readEmployeeSnapshot();
+          if (snapshot) {
+            setCurrentEmployee(snapshot);
+            setAuthError(
+              'Session check failed. Workspace stayed open; please retry the action.',
+            );
+          } else {
+            window.localStorage.removeItem(authTokenStorageKey);
+            window.localStorage.removeItem(employeeSnapshotStorageKey);
+            setApiAuthToken(null);
+            setCurrentEmployee(null);
+            setAuthError('Session expired. Please sign in again.');
+          }
           return;
         }
 
@@ -864,7 +873,7 @@ export const DashboardPage = () => {
 
         <div className="page-shell">
           <Notifications
-            error={state.error}
+            error={authError || state.error}
             successMessage={state.successMessage}
             isOffline={isOffline}
           />

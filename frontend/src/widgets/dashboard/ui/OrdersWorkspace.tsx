@@ -25,9 +25,7 @@ import {
   getClientDevices,
   updateClientDevice,
 } from '../../../entities/client-device/api/clientDeviceApi';
-import {
-  getSupplierOrders,
-} from '../../../entities/supplier-order/api/supplierOrderApi';
+import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -119,7 +117,6 @@ import {
   type TimelineEntry,
 } from './orders-workspace-shared';
 
-
 export const OrdersWorkspace = ({
   sales,
   employees,
@@ -169,9 +166,8 @@ export const OrdersWorkspace = ({
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
-  const [printRequest, setPrintRequest] = useState<OrderPrintRequest | null>(
-    null,
-  );
+  const [printRequest, setPrintRequest] =
+    useState<OrderPrintRequest | null>(null);
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
     string | null
   >(null);
@@ -234,7 +230,12 @@ export const OrdersWorkspace = ({
   );
   const [pageByTab, setPageByTab] = useState<
     Record<OrdersTab, number>
-  >({ orders: 1, sales: 1, supplierOrders: 1, supplierInformation: 1 });
+  >({
+    orders: 1,
+    sales: 1,
+    supplierOrders: 1,
+    supplierInformation: 1,
+  });
   const [pageSizeByTab, setPageSizeByTab] = useState<
     Record<OrdersTab, number>
   >({
@@ -246,9 +247,9 @@ export const OrdersWorkspace = ({
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(
-    [],
-  );
+  const [supplierOrders, setSupplierOrders] = useState<
+    SupplierOrder[]
+  >([]);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const canManageSavedFilters = Boolean(currentEmployee?.id);
@@ -489,8 +490,12 @@ export const OrdersWorkspace = ({
   }, [statusKeysForActiveTab]);
 
   useEffect(() => {
-    setDraftFilters(storedActiveFilters[activeTab] ?? emptyOrdersFilters);
-    setAppliedFilters(storedActiveFilters[activeTab] ?? emptyOrdersFilters);
+    setDraftFilters(
+      storedActiveFilters[activeTab] ?? emptyOrdersFilters,
+    );
+    setAppliedFilters(
+      storedActiveFilters[activeTab] ?? emptyOrdersFilters,
+    );
   }, [activeTab, storedActiveFilters]);
 
   useEffect(() => {
@@ -825,14 +830,16 @@ export const OrdersWorkspace = ({
   const openStatusSale = useMemo(
     () =>
       openStatusSaleId
-        ? sales.find((sale) => sale.id === openStatusSaleId) ?? null
+        ? (sales.find((sale) => sale.id === openStatusSaleId) ?? null)
         : null,
     [openStatusSaleId, sales],
   );
 
   useEffect(() => {
     if (!paymentSale) return;
-    const refreshedSale = sales.find((item) => item.id === paymentSale.id);
+    const refreshedSale = sales.find(
+      (item) => item.id === paymentSale.id,
+    );
     if (!refreshedSale) return;
     if (refreshedSale.updatedAt !== paymentSale.updatedAt) {
       setPaymentSale(refreshedSale);
@@ -846,7 +853,8 @@ export const OrdersWorkspace = ({
       getPaidAmount(paymentSale),
       getLineItems(paymentSale),
     );
-    const normalizedRemaining = Math.round(remainingPayment * 100) / 100;
+    const normalizedRemaining =
+      Math.round(remainingPayment * 100) / 100;
     setPaymentAmount((current) => {
       const numericCurrent = Math.round(Number(current) * 100) / 100;
       if (!Number.isFinite(numericCurrent) || numericCurrent < 0) {
@@ -949,7 +957,9 @@ export const OrdersWorkspace = ({
 
     if (!isRepairOrder(sale) && status === 'returned') {
       setOpenStatusSaleId(null);
-      if (getLineItems(sale).some((item) => item.kind === 'product')) {
+      if (
+        getLineItems(sale).some((item) => item.kind === 'product')
+      ) {
         await openReturnSaleModal(sale);
         return;
       }
@@ -997,7 +1007,11 @@ export const OrdersWorkspace = ({
         return;
       }
 
-      if (!isRepairOrder(sale) && status === 'issued' && !isZeroTotalSale) {
+      if (
+        !isRepairOrder(sale) &&
+        status === 'issued' &&
+        !isZeroTotalSale
+      ) {
         await openPaymentModal(sale, 'issued');
         return;
       }
@@ -1049,7 +1063,11 @@ export const OrdersWorkspace = ({
     onSelectedSaleIdChange?.(externalSelectedSaleId);
     setOpenStatusSaleId(null);
     onExternalSaleOpenHandled?.();
-  }, [externalSelectedSaleId, onExternalSaleOpenHandled, onSelectedSaleIdChange]);
+  }, [
+    externalSelectedSaleId,
+    onExternalSaleOpenHandled,
+    onSelectedSaleIdChange,
+  ]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (
@@ -1161,9 +1179,9 @@ export const OrdersWorkspace = ({
           <button
             type='button'
             className='order-device-button'
-          onClick={() => openSaleCard(sale)}
-          title={primaryItemText}
-        >
+            onClick={() => openSaleCard(sale)}
+            title={primaryItemText}
+          >
             <span>{primaryItemText}</span>
             {activeTab === 'orders' ? (
               primaryDeviceSerial ? (
@@ -1310,7 +1328,10 @@ export const OrdersWorkspace = ({
       ),
       0,
     );
-    const nextPaidAmount = Math.min(getPaidAmount(sale), discountedTotal);
+    const nextPaidAmount = Math.min(
+      getPaidAmount(sale),
+      discountedTotal,
+    );
     void persistSaleWorkspace(sale, {
       paidAmount: nextPaidAmount,
       discount: {
@@ -1325,7 +1346,9 @@ export const OrdersWorkspace = ({
     targetStatus: PaymentTargetStatus = 'issued',
   ) => {
     if (!canAcceptFinanceDeposit) {
-      onError('Current employee does not have permission to accept payments.');
+      onError(
+        'Current employee does not have permission to accept payments.',
+      );
       return;
     }
     const remainingPayment = getOrderRemainingPayment(sale);
@@ -1358,7 +1381,9 @@ export const OrdersWorkspace = ({
 
   const openRefundModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {
-      onError('Current employee does not have permission to refund payments.');
+      onError(
+        'Current employee does not have permission to refund payments.',
+      );
       return;
     }
     const currentStatus = normalizeOrderStatus(sale.status);
@@ -1409,12 +1434,15 @@ export const OrdersWorkspace = ({
     item: OrderLineItem,
   ) => {
     if (item.kind !== 'product') {
-      onError('Only product items can be received back to warehouse.');
+      onError(
+        'Only product items can be received back to warehouse.',
+      );
       return;
     }
     const saleStatus = normalizeOrderStatus(sale.status);
     const hasBoundSerials = (item.serialNumbers ?? []).length > 0;
-    const isIssuedSaleStatus = !isRepairOrder(sale) && saleStatus === 'issued';
+    const isIssuedSaleStatus =
+      !isRepairOrder(sale) && saleStatus === 'issued';
     const isRepairFinalStockStatus =
       isRepairOrder(sale) &&
       stockLockedRepairStatuses.has(saleStatus as RepairStatus);
@@ -1427,7 +1455,9 @@ export const OrdersWorkspace = ({
       !hasBoundSerials;
 
     if (!canReturnShippedProduct && !canEditAndRemove) {
-      onError('This product cannot be returned to stock from current status.');
+      onError(
+        'This product cannot be returned to stock from current status.',
+      );
       return;
     }
 
@@ -1435,9 +1465,7 @@ export const OrdersWorkspace = ({
       (isIssuedSaleStatus || isRepairFinalStockStatus) &&
       !hasBoundSerials
     ) {
-      onError(
-        'Bind shipped serial number before return to stock.',
-      );
+      onError('Bind shipped serial number before return to stock.');
       return;
     }
 
@@ -1466,7 +1494,9 @@ export const OrdersWorkspace = ({
 
   const openReturnSaleModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {
-      onError('Current employee does not have permission to refund payments.');
+      onError(
+        'Current employee does not have permission to refund payments.',
+      );
       return;
     }
     const lastDepositCashboxId =
@@ -1533,7 +1563,8 @@ export const OrdersWorkspace = ({
     const nextItem = {
       ...item,
       quantity:
-        item.kind === 'product' && (item.serialNumbers ?? []).length > 0
+        item.kind === 'product' &&
+        (item.serialNumbers ?? []).length > 0
           ? 1
           : item.quantity,
       id: crypto.randomUUID(),
@@ -1574,10 +1605,10 @@ export const OrdersWorkspace = ({
       );
       return;
     }
-    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
-      onError(
-        'This order status does not allow line item removal.',
-      );
+    if (
+      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
+    ) {
+      onError('This order status does not allow line item removal.');
       return;
     }
     const nextItems = removeLineItemsById(
@@ -1618,11 +1649,15 @@ export const OrdersWorkspace = ({
       (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
     if (!replacedItem || items.length === 0) return;
 
-    const hasMatchingId = currentItems.some((item) => item.id === itemId);
+    const hasMatchingId = currentItems.some(
+      (item) => item.id === itemId,
+    );
     const nextItems = currentItems.flatMap((item, index) => {
       const shouldReplace =
         item.id === itemId ||
-        (!hasMatchingId && itemIndex !== undefined && itemIndex === index);
+        (!hasMatchingId &&
+          itemIndex !== undefined &&
+          itemIndex === index);
       if (!shouldReplace) return [item];
       return items.map((nextItem) => ({
         ...nextItem,
@@ -1660,7 +1695,9 @@ export const OrdersWorkspace = ({
   ) => {
     const currentItem =
       getLineItems(sale).find((item) => item.id === itemId) ??
-      (itemIndex !== undefined ? getLineItems(sale)[itemIndex] : undefined);
+      (itemIndex !== undefined
+        ? getLineItems(sale)[itemIndex]
+        : undefined);
     if (
       currentItem?.kind === 'product' &&
       (currentItem.serialNumbers ?? []).length > 0 &&
@@ -1693,8 +1730,13 @@ export const OrdersWorkspace = ({
       (action !== 'issueWithoutPayment' && !selectedCashboxId)
     )
       return;
-    if (action !== 'issueWithoutPayment' && !canAcceptFinanceDeposit) {
-      onError('Current employee does not have permission to accept payments.');
+    if (
+      action !== 'issueWithoutPayment' &&
+      !canAcceptFinanceDeposit
+    ) {
+      onError(
+        'Current employee does not have permission to accept payments.',
+      );
       return;
     }
 
@@ -1855,7 +1897,7 @@ export const OrdersWorkspace = ({
       onSuccess(
         action === 'deposit'
           ? 'Payment accepted to cashbox.'
-        : paymentTargetStatus === 'paid'
+          : paymentTargetStatus === 'paid'
             ? 'Order marked as paid successfully.'
             : paymentTargetStatus === 'issuedWithoutRepair'
               ? 'Order issued without repair successfully.'
@@ -1876,7 +1918,9 @@ export const OrdersWorkspace = ({
   const refundPayment = async () => {
     if (!refundSale || !selectedRefundCashboxId) return;
     if (!canCreateFinanceWithdraw) {
-      onError('Current employee does not have permission to refund payments.');
+      onError(
+        'Current employee does not have permission to refund payments.',
+      );
       return;
     }
     const currentStatus = normalizeOrderStatus(refundSale.status);
@@ -1958,7 +2002,7 @@ export const OrdersWorkspace = ({
         status: nextStatus,
         paidAmount: nextPaidAmount,
         issuedById: shouldCaptureReceivedBy(refundSale, nextStatus)
-          ? currentEmployee?.id ?? ''
+          ? (currentEmployee?.id ?? '')
           : '',
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
@@ -1990,11 +2034,14 @@ export const OrdersWorkspace = ({
     setIsReturnSaving(true);
 
     try {
-      let updatedSale = await returnSaleLineItemToStock(returnSale.id, {
-        lineItemId: returnLineItem.id,
-        warehouse: returnWarehouse,
-        author: currentEmployeeName,
-      });
+      let updatedSale = await returnSaleLineItemToStock(
+        returnSale.id,
+        {
+          lineItemId: returnLineItem.id,
+          warehouse: returnWarehouse,
+          author: currentEmployeeName,
+        },
+      );
 
       const hasRemainingProductItems = getLineItems(updatedSale).some(
         (item) => item.kind === 'product' && item.quantity > 0,
@@ -2009,7 +2056,7 @@ export const OrdersWorkspace = ({
         updatedSale = await persistSaleWorkspace(updatedSale, {
           status: 'returned',
           issuedById: shouldCaptureReceivedBy(updatedSale, 'returned')
-            ? currentEmployee?.id ?? ''
+            ? (currentEmployee?.id ?? '')
             : '',
           timeline: [
             appendTimelineEntry(
@@ -2042,7 +2089,9 @@ export const OrdersWorkspace = ({
   const returnFullSaleToStock = async () => {
     if (!fullReturnSale || !selectedRefundCashboxId) return;
     if (!canCreateFinanceWithdraw) {
-      onError('Current employee does not have permission to refund payments.');
+      onError(
+        'Current employee does not have permission to refund payments.',
+      );
       return;
     }
 
@@ -2122,7 +2171,9 @@ export const OrdersWorkspace = ({
         lineItems.some((item) => item.kind === 'product') &&
         getRemainingPayment(sale, getPaidAmount(sale), lineItems) > 0
       ) {
-        onError('Accept full payment before issuing attached products.');
+        onError(
+          'Accept full payment before issuing attached products.',
+        );
         return;
       }
       if (
@@ -2166,11 +2217,15 @@ export const OrdersWorkspace = ({
         const normalizedOldDeviceName = getPrimaryDeviceName(sale)
           .trim()
           .toLowerCase();
-        const probeQuery = getPrimaryDeviceName(sale).trim() || sale.client.phone;
+        const probeQuery =
+          getPrimaryDeviceName(sale).trim() || sale.client.phone;
         const allDevices = await getClientDevices(probeQuery);
         const linkedDevice = allDevices.find((device) => {
           if (device.clientId !== sale.client.id) return false;
-          return device.name.trim().toLowerCase() === normalizedOldDeviceName;
+          return (
+            device.name.trim().toLowerCase() ===
+            normalizedOldDeviceName
+          );
         });
 
         if (linkedDevice) {
@@ -2243,7 +2298,12 @@ export const OrdersWorkspace = ({
           }
           onAddLineItem={(item) => addLineItem(selectedSale, item)}
           onReplaceLineItem={(itemId, itemIndex, nextItems) =>
-            replaceLineItem(selectedSale, itemId, itemIndex, nextItems)
+            replaceLineItem(
+              selectedSale,
+              itemId,
+              itemIndex,
+              nextItems,
+            )
           }
           onRemoveLineItem={(itemId, itemIndex) =>
             removeLineItem(selectedSale, itemId, itemIndex)
@@ -2290,20 +2350,22 @@ export const OrdersWorkspace = ({
         role='tablist'
         aria-label='Order categories'
       >
-        {orderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
-          <button
-            key={tab.key}
-            type='button'
-            className={
-              tab.key === activeTab
-                ? 'orders-tab orders-tab-active'
-                : 'orders-tab'
-            }
-            onClick={() => onActiveTabChange(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {orderTabs
+          .filter((tab) => visibleTabs.includes(tab.key))
+          .map((tab) => (
+            <button
+              key={tab.key}
+              type='button'
+              className={
+                tab.key === activeTab
+                  ? 'orders-tab orders-tab-active'
+                  : 'orders-tab'
+              }
+              onClick={() => onActiveTabChange(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
       </div>
 
       <div className='orders-toolbar'>
@@ -2648,7 +2710,9 @@ export const OrdersWorkspace = ({
               onChange={(event) =>
                 setDraftFilters((current) => ({
                   ...current,
-                  paymentMethod: event.target.value as '' | PaymentMethod,
+                  paymentMethod: event.target.value as
+                    | ''
+                    | PaymentMethod,
                 }))
               }
             >
@@ -2891,34 +2955,39 @@ export const OrdersWorkspace = ({
                 left: statusMenuPosition.left,
               }}
             >
-              {getStatusOptions(openStatusSale).map((statusOption) => (
-                <button
-                  key={statusOption.key}
-                  type='button'
-                  disabled={isRepairStatusChangeLockedByStock(
-                    openStatusSale,
-                    statusOption.key,
-                  )}
-                  className={
-                    statusOption.key === getStatus(openStatusSale)
-                      ? 'order-status-option order-status-option-active'
-                      : 'order-status-option'
-                  }
-                  title={
-                    isRepairStatusChangeLockedByStock(
+              {getStatusOptions(openStatusSale).map(
+                (statusOption) => (
+                  <button
+                    key={statusOption.key}
+                    type='button'
+                    disabled={isRepairStatusChangeLockedByStock(
                       openStatusSale,
                       statusOption.key,
-                    )
-                      ? 'Refund client payment for bound products and return them to stock first.'
-                      : undefined
-                  }
-                  onClick={() => {
-                    void updateStatus(openStatusSale, statusOption.key);
-                  }}
-                >
-                  {statusOption.label}
-                </button>
-              ))}
+                    )}
+                    className={
+                      statusOption.key === getStatus(openStatusSale)
+                        ? 'order-status-option order-status-option-active'
+                        : 'order-status-option'
+                    }
+                    title={
+                      isRepairStatusChangeLockedByStock(
+                        openStatusSale,
+                        statusOption.key,
+                      )
+                        ? 'Refund client payment for bound products and return them to stock first.'
+                        : undefined
+                    }
+                    onClick={() => {
+                      void updateStatus(
+                        openStatusSale,
+                        statusOption.key,
+                      );
+                    }}
+                  >
+                    {statusOption.label}
+                  </button>
+                ),
+              )}
             </div>,
             document.body,
           )
@@ -2964,11 +3033,7 @@ export const OrdersWorkspace = ({
                 onAmountChange={setPaymentAmount}
                 onClose={() => setPaymentSale(null)}
                 onOpenPrint={() =>
-                  openPrintDialog(
-                    paymentSale,
-                    lineItems,
-                    paidAmount,
-                  )
+                  openPrintDialog(paymentSale, lineItems, paidAmount)
                 }
                 onSubmit={acceptPayment}
               />
@@ -3046,5 +3111,3 @@ export const OrdersWorkspace = ({
     </section>
   );
 };
-
-

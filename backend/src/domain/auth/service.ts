@@ -8,7 +8,9 @@ import { createAuthToken, hashPassword, verifyPassword } from '../../shared/lib/
 import { toNonEmptyString } from '../../shared/lib/parsers';
 import { HttpError } from '../../shared/lib/errors';
 
-const authProjection = '+passwordHash +authToken +inviteToken +inviteExpiresAt';
+const authProjection =
+  '+passwordHash +authToken +authTokens +inviteToken +inviteExpiresAt';
+const maxActiveAuthTokens = 10;
 
 type EmployeeRecord = EmployeeDocument & {
   save: () => Promise<unknown>;
@@ -16,11 +18,20 @@ type EmployeeRecord = EmployeeDocument & {
 };
 
 const createSession = async (employee: EmployeeRecord) => {
-  employee.authToken = createAuthToken();
+  const token = createAuthToken();
+  const existingTokens = [
+    ...(Array.isArray(employee.authTokens) ? employee.authTokens : []),
+    employee.authToken,
+  ].filter(
+    (item, index, items): item is string =>
+      Boolean(item) && item !== token && items.indexOf(item) === index,
+  );
+  employee.authTokens = [...existingTokens, token].slice(-maxActiveAuthTokens);
+  employee.authToken = token;
   await employee.save();
 
   return {
-    token: employee.authToken,
+    token,
     employee: formatEmployee(employee.toObject()),
   };
 };
@@ -56,8 +67,8 @@ export const getEmployeeByToken = async (tokenValue: unknown) => {
   }
 
   const employee = await Employee.findOne({
-    authToken: token,
     isActive: true,
+    $or: [{ authTokens: token }, { authToken: token }],
   }).select(authProjection);
 
   if (!employee) {
@@ -151,8 +162,14 @@ export const getCurrentEmployee = async (tokenValue: unknown) => {
 };
 
 export const logoutEmployee = async (tokenValue: unknown) => {
+  const token = toNonEmptyString(tokenValue);
   const employee = await getEmployeeByToken(tokenValue);
-  employee.authToken = '';
+  employee.authTokens = (employee.authTokens ?? []).filter(
+    (storedToken) => storedToken !== token,
+  );
+  if (employee.authToken === token) {
+    employee.authToken = employee.authTokens.at(-1) ?? '';
+  }
   await employee.save();
 
   return { success: true };

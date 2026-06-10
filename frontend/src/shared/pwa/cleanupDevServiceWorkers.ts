@@ -1,5 +1,5 @@
 export const cleanupDevServiceWorkers = () => {
-  if (!import.meta.env.DEV || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
     return;
   }
 
@@ -11,8 +11,23 @@ export const cleanupDevServiceWorkers = () => {
         registration.waiting?.scriptURL ??
         '';
 
-      if (scriptUrl.includes('dev-sw.js') || scriptUrl.includes('/dev-dist/')) {
+      if (
+        scriptUrl.includes('dev-sw.js') ||
+        scriptUrl.includes('/dev-dist/')
+      ) {
         void registration.unregister();
+      }
+    });
+  });
+
+  if (typeof caches === 'undefined') {
+    return;
+  }
+
+  void caches.keys().then((cacheNames) => {
+    cacheNames.forEach((cacheName) => {
+      if (cacheName.includes('dev-dist') || cacheName.includes('dev-sw')) {
+        void caches.delete(cacheName);
       }
     });
   });
