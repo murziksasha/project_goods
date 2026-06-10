@@ -3,11 +3,30 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import {
+  acceptSalePayment,
+  refundSalePayment,
+} from '../../../entities/sale/api/saleApi';
+import {
+  createFinanceTransaction,
+  getCashboxes,
+} from '../../../entities/finance/api/financeApi';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import { OrdersWorkspace } from './OrdersWorkspace';
 
 vi.mock('../../../entities/supplier-order/api/supplierOrderApi', () => ({
   getSupplierOrders: vi.fn(async () => []),
+}));
+vi.mock('../../../entities/sale/api/saleApi', () => ({
+  acceptSalePayment: vi.fn(),
+  refundSalePayment: vi.fn(),
+  returnSale: vi.fn(),
+  returnSaleLineItemToStock: vi.fn(),
+  updateSaleWorkspace: vi.fn(),
+}));
+vi.mock('../../../entities/finance/api/financeApi', () => ({
+  createFinanceTransaction: vi.fn(),
+  getCashboxes: vi.fn(async () => []),
 }));
 
 const employee: Employee = {
@@ -148,5 +167,104 @@ describe('OrdersWorkspace', () => {
     expect(commentInput).not.toBeDisabled();
     fireEvent.change(commentInput, { target: { value: 'Ready for diagnostics' } });
     expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
+  });
+
+  it('accepts sale payment through sale API instead of raw finance transaction API', async () => {
+    const onSaleUpdate = vi.fn();
+    const paidSale: Sale = {
+      ...sale,
+      paidAmount: 290,
+      status: 'paid',
+      paymentHistory: [
+        {
+          id: 'payment-1',
+          type: 'deposit',
+          paymentMethod: 'cash',
+          amount: 290,
+          cashboxId: 'cashbox-1',
+          cashboxName: 'Основная',
+          author: 'Manager',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    vi.mocked(getCashboxes).mockResolvedValue([
+      {
+        id: 'cashbox-1',
+        name: 'Основная',
+        balances: { UAH: 500, USD: 0 },
+        isDefault: true,
+        isArchived: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(acceptSalePayment).mockResolvedValue(paidSale);
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          salePrice: 290,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Wireless Mouse',
+              price: 290,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+          'finance.transactions.withdraw',
+        ],
+      },
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /r000001/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    let cashboxSelect: HTMLElement | undefined;
+    await waitFor(() => {
+      cashboxSelect = screen
+        .getAllByRole('combobox')
+        .find((select) =>
+          Array.from(select.querySelectorAll('option')).some(
+            (option) => option.value === 'cashbox-1',
+          ),
+        );
+      expect(cashboxSelect).toBeTruthy();
+    });
+    fireEvent.change(cashboxSelect as HTMLSelectElement, {
+      target: { value: 'cashbox-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept to cashbox' }));
+
+    await waitFor(() => {
+      expect(acceptSalePayment).toHaveBeenCalledWith('sale-1', {
+        cashboxId: 'cashbox-1',
+        amount: '290',
+        paymentMethod: 'cash',
+        action: 'deposit',
+        targetStatus: 'issued',
+        author: 'Manager',
+        issuedById: '',
+      });
+    });
+    expect(createFinanceTransaction).not.toHaveBeenCalled();
+    expect(refundSalePayment).not.toHaveBeenCalled();
+    expect(onSaleUpdate).toHaveBeenCalledWith(paidSale);
   });
 });

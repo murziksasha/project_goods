@@ -144,6 +144,23 @@ export type SaleReturnPayload = {
   author: string;
 };
 
+export type SalePaymentPayload = {
+  cashboxId?: string;
+  amount: string;
+  paymentMethod: 'cash' | 'non-cash';
+  action: 'deposit' | 'depositAndIssue' | 'issueWithoutPayment';
+  targetStatus: 'issued' | 'issuedWithoutRepair' | 'paid';
+  author: string;
+  issuedById?: string;
+};
+
+export type SaleRefundPaymentPayload = {
+  cashboxId: string;
+  amount: string;
+  author: string;
+  issuedById?: string;
+};
+
 export type SeedResponse = {
   message: string;
   products: Product[];

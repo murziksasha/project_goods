@@ -11,11 +11,10 @@ import { hasEmployeePermission } from '../../../entities/employee/model/permissi
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../shared/lib/format';
+import { getCashboxes } from '../../../entities/finance/api/financeApi';
 import {
-  createFinanceTransaction,
-  getCashboxes,
-} from '../../../entities/finance/api/financeApi';
-import {
+  acceptSalePayment as acceptSalePaymentRequest,
+  refundSalePayment as refundSalePaymentRequest,
   returnSale as returnSaleRequest,
   returnSaleLineItemToStock,
   updateSaleWorkspace,
@@ -899,15 +898,6 @@ export const OrdersWorkspace = ({
     author,
     message,
     createdAt: new Date().toISOString(),
-  });
-
-  const addPaymentHistoryEntry = (
-    entry: Omit<PaymentEntry, 'id' | 'createdAt' | 'author'>,
-  ): PaymentEntry => ({
-    ...entry,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    author: currentEmployeeName,
   });
 
   const persistSaleWorkspace = async (
@@ -1807,92 +1797,26 @@ export const OrdersWorkspace = ({
     setIsPaymentSaving(true);
 
     try {
-      let nextPaidAmount = currentPaidAmount;
-      let nextPaymentHistory = [
-        ...(paymentSale.paymentHistory ?? []),
-      ];
-      let nextTimeline = [...(paymentSale.timeline ?? [])];
-      let nextStatus: OrderStatus | undefined;
-
+      const targetStatus = setIssuedStatus(paymentTargetStatus);
+      const updatedSale = await acceptSalePaymentRequest(paymentSale.id, {
+        cashboxId:
+          action === 'issueWithoutPayment' ? undefined : selectedCashboxId,
+        amount: String(normalizedAmount),
+        paymentMethod,
+        action,
+        targetStatus,
+        author: currentEmployeeName,
+        issuedById: shouldCaptureReceivedBy(paymentSale, targetStatus)
+          ? currentEmployee?.id
+          : '',
+      });
+      onSaleUpdate(updatedSale);
       if (action !== 'issueWithoutPayment') {
-        const cashboxName =
-          cashboxes.find(
-            (cashbox) => cashbox.id === selectedCashboxId,
-          )?.name ?? 'Cashbox';
-        const acceptedAmount = normalizedAmount;
-        nextPaidAmount = Math.min(
-          currentPaidAmount + acceptedAmount,
-          getOrderTotal(paymentSale, currentLineItems),
-        );
-        nextPaymentHistory = [
-          addPaymentHistoryEntry({
-            type: 'deposit',
-            paymentMethod,
-            amount: acceptedAmount,
-            cashboxId: selectedCashboxId,
-            cashboxName,
-          }),
-          ...(paymentSale.paymentHistory ?? []),
-        ];
-        nextTimeline = [
-          appendTimelineEntry(
-            `${currentEmployeeName} accepted ${formatCurrency(acceptedAmount)} to ${cashboxName} (${paymentMethod}).`,
-          ),
-          ...nextTimeline,
-        ];
-        await createFinanceTransaction({
-          type: 'deposit',
-          amount: String(normalizedAmount),
-          currency: 'UAH',
-          toCashboxId: selectedCashboxId,
-          note: `Payment for order ${paymentSale.recordNumber ?? paymentSale.id}`,
-        });
         setCashboxes(await getCashboxes());
         window.dispatchEvent(
           new CustomEvent('project-goods:finance-updated'),
         );
       }
-
-      const shouldAutoMarkPaidOnDeposit =
-        action === 'deposit' &&
-        (paymentTargetStatus === 'paid' ||
-          (!isRepairOrder(paymentSale) &&
-            paymentTargetStatus === 'issued'));
-
-      if (shouldAutoMarkPaidOnDeposit) {
-        nextStatus = 'paid';
-        nextTimeline = [
-          appendTimelineEntry(
-            `${currentEmployeeName} changed status to "${getStatusLabel(paymentSale, 'paid')}".`,
-          ),
-          ...nextTimeline,
-        ];
-      }
-
-      if (
-        action === 'depositAndIssue' ||
-        action === 'issueWithoutPayment'
-      ) {
-        nextStatus = setIssuedStatus(paymentTargetStatus);
-        nextTimeline = [
-          appendTimelineEntry(
-            `${currentEmployeeName} changed status to "${getStatusLabel(paymentSale, nextStatus)}".`,
-          ),
-          ...nextTimeline,
-        ];
-      }
-
-      await persistSaleWorkspace(paymentSale, {
-        status: nextStatus,
-        paidAmount: nextPaidAmount,
-        issuedById:
-          nextStatus &&
-          shouldCaptureReceivedBy(paymentSale, nextStatus)
-            ? currentEmployee?.id
-            : '',
-        paymentHistory: nextPaymentHistory,
-        timeline: nextTimeline,
-      });
 
       onSuccess(
         action === 'deposit'
@@ -1947,66 +1871,15 @@ export const OrdersWorkspace = ({
     setIsRefundSaving(true);
 
     try {
-      const lineItems = getLineItems(refundSale);
-      const orderTotal = getOrderTotal(refundSale, lineItems);
-      const hasProducts = lineItems.some(
-        (item) => item.kind === 'product' && item.quantity > 0,
-      );
-      const cashboxName =
-        cashboxes.find(
-          (cashbox) => cashbox.id === selectedRefundCashboxId,
-        )?.name ?? 'Cashbox';
-      const nextPaidAmount = Math.max(
-        currentPaidAmount - normalizedAmount,
-        0,
-      );
-      const shouldDowngradeIssuedStatus =
-        !isRepairOrder(refundSale) &&
-        currentStatus === 'issued' &&
-        hasProducts &&
-        nextPaidAmount < orderTotal;
-      const nextStatus: OrderStatus = shouldDowngradeIssuedStatus
-        ? 'reserved'
-        : currentStatus;
-      const nextPaymentHistory = [
-        addPaymentHistoryEntry({
-          type: 'refund',
-          paymentMethod: 'cash',
-          amount: normalizedAmount,
-          cashboxId: selectedRefundCashboxId,
-          cashboxName,
-        }),
-        ...(refundSale.paymentHistory ?? []),
-      ];
-      const nextTimeline = [
-        ...(shouldDowngradeIssuedStatus
-          ? [
-              appendTimelineEntry(
-                `${currentEmployeeName} changed status to "${getStatusLabel(refundSale, nextStatus)}".`,
-              ),
-            ]
-          : []),
-        appendTimelineEntry(
-          `${currentEmployeeName} refunded ${formatCurrency(normalizedAmount)} from ${cashboxName}.`,
-        ),
-        ...(refundSale.timeline ?? []),
-      ];
-      await createFinanceTransaction({
-        type: 'withdraw',
+      const updatedSale = await refundSalePaymentRequest(refundSale.id, {
+        cashboxId: selectedRefundCashboxId,
         amount: String(normalizedAmount),
-        currency: 'UAH',
-        fromCashboxId: selectedRefundCashboxId,
-        note: `Refund for order ${refundSale.recordNumber ?? refundSale.id}`,
-      });
-      await persistSaleWorkspace(refundSale, {
-        status: nextStatus,
-        paidAmount: nextPaidAmount,
-        issuedById: shouldCaptureReceivedBy(refundSale, nextStatus)
+        author: currentEmployeeName,
+        issuedById: shouldCaptureReceivedBy(refundSale, currentStatus)
           ? (currentEmployee?.id ?? '')
           : '',
-        paymentHistory: nextPaymentHistory,
-        timeline: nextTimeline,
       });
+      onSaleUpdate(updatedSale);
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
