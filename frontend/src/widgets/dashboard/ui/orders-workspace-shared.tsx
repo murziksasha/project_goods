@@ -9,6 +9,12 @@ import JsBarcode from 'jsbarcode';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import {
+  getSaleProductArticle,
+  getSaleProductId,
+  getSaleProductName,
+  getSaleProductSerialNumber,
+} from '../../../entities/sale/lib/sale-product';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
@@ -582,9 +588,9 @@ export const createOrderLineItem = (
 ): OrderLineItem => ({
   id: `${sale.id}-${kind}-default`,
   kind,
-  productId: kind === 'product' ? sale.product.id : undefined,
+  productId: kind === 'product' ? getSaleProductId(sale) : undefined,
   serviceId: undefined,
-  name: kind === 'product' ? sale.product.name : 'Repair',
+  name: kind === 'product' ? getSaleProductName(sale, 'Product') : 'Repair',
   price: sale.salePrice,
   quantity: sale.quantity,
   warrantyPeriod: kind === 'service' ? 1 : 0,
@@ -1123,9 +1129,9 @@ export const getPrintTemplateData = (
     status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
     clientName: sale.client.name,
     clientPhone: sale.client.phone,
-    deviceName: isRepair ? sale.product.name : '',
-    serialNumber: isRepair ? sale.product.serialNumber : '',
-    article: isRepair ? sale.product.article : '',
+    deviceName: isRepair ? getSaleProductName(sale) : '',
+    serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
+    article: isRepair ? getSaleProductArticle(sale) : '',
     defect: sale.note || '-',
     comment: sale.note || '-',
     total: formatCurrency(total),
@@ -1729,19 +1735,17 @@ export const getDeviceLineItem = (sale: Sale) =>
   (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
 
 export const getPrimaryDeviceName = (sale: Sale) => {
-  const snapshotName = sale.product.name?.trim();
+  const snapshotName = sale.product?.name?.trim();
   if (snapshotName && snapshotName.toUpperCase() !== 'REPAIR PLACEHOLDER') {
     return snapshotName;
   }
   const deviceItem = getDeviceLineItem(sale);
   if (deviceItem?.name?.trim()) return deviceItem.name.trim();
-  return sale.product.name;
+  return getSaleProductName(sale, 'Device');
 };
 
 export const getPrimaryDeviceSerial = (sale: Sale) => {
-  const serial = sale.product.serialNumber?.trim();
-  if (!serial || serial.toUpperCase() === 'REPAIR-PLACEHOLDER') return '';
-  return serial;
+  return getSaleProductSerialNumber(sale);
 };
 
 export const getPrimaryItemCellContent = (

@@ -1,4 +1,5 @@
 import type { Sale, SaleFormValues } from './types';
+import { getSaleProductId } from '../lib/sale-product';
 
 export const initialSaleForm: SaleFormValues = {
   saleDate: new Date().toISOString().slice(0, 10),
@@ -14,7 +15,7 @@ export const initialSaleForm: SaleFormValues = {
 export const toSaleForm = (sale: Sale): SaleFormValues => ({
   saleDate: sale.saleDate.slice(0, 10),
   clientId: sale.client.id,
-  productId: sale.product.id,
+  productId: getSaleProductId(sale),
   quantity: String(sale.quantity),
   salePrice: String(sale.salePrice),
   note: sale.note,

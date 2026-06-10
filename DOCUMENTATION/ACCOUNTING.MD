@@ -75,6 +75,12 @@ This document defines financial behavior for supplier-order related operations i
   - `Withdraw` and `Transfer`: balance of source cashbox (`From`) after transaction.
   - `Deposit`: balance of destination cashbox (`To`) after transaction.
 
+## Cashbox Card Action Prefill Rules
+- Clicking a cashbox card action opens the operation form with fields prefilled from that specific cashbox.
+- `Deposit`: `To cashbox` is preselected as the clicked cashbox.
+- `Withdraw`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` stays empty.
+- `Transfer`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` is preselected to another valid cashbox.
+
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
 - Clicking gear opens `Accounting settings` panel without leaving the page.

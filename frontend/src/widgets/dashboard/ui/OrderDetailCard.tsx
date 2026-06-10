@@ -3,6 +3,7 @@ import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import {
   createServiceCatalogItem,
@@ -1051,7 +1052,7 @@ export const OrderDetailCard = ({
                   onClick={() => onOpenRelatedSale(record)}
                 >
                   <span>{buildOrderNumber(record)}</span>
-                  <strong>{record.product.name}</strong>
+                  <strong>{getSaleProductName(record, 'Product')}</strong>
                   <span>{formatCurrency(getOrderTotal(record))}</span>
                   <span>{formatReadyDate(record.createdAt)}</span>
                 </button>

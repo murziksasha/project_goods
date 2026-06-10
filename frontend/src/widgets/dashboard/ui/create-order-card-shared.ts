@@ -1,6 +1,10 @@
 import type { ClientHistory } from '../../../entities/client/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import {
+  getSaleProductName,
+  getSaleProductSerialNumber,
+} from '../../../entities/sale/lib/sale-product';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 
 export type SaleOrderItem = {
@@ -154,10 +158,10 @@ export const getDeviceHistory = (history: ClientHistory | null) => {
     const deviceItem = sale.lineItems?.find((item) => item.kind === 'product');
     const deviceName = (
       deviceItem?.name?.trim() ||
-      sale.product.name ||
+      getSaleProductName(sale) ||
       ''
     ).toLowerCase();
-    const serial = (sale.product.serialNumber || '').trim().toLowerCase();
+    const serial = getSaleProductSerialNumber(sale).toLowerCase();
     const dedupeKey = `${deviceName}::${serial}`;
     if (seen.has(dedupeKey)) {
       return false;
