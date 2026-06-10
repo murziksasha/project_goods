@@ -6,6 +6,7 @@ import {
   getSaleProductSerialNumber,
 } from '../../../entities/sale/lib/sale-product';
 import type { CreateOrderRequestPayload } from '../model/order-request';
+import { createOrderRuntimeId } from '../model/order-runtime-id';
 
 export type SaleOrderItem = {
   id: string;
@@ -64,7 +65,7 @@ export const createOrderClientRequestsTabStorageKey =
   'project-goods.create-order-client-requests-tab';
 
 export const createSaleOrderItem = (): SaleOrderItem => ({
-  id: crypto.randomUUID(),
+  id: createOrderRuntimeId(),
   query: '',
   source: '',
   productId: '',

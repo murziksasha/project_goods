@@ -192,6 +192,49 @@ describe('OrdersWorkspace', () => {
     expect(onSaleUpdate).not.toHaveBeenCalled();
   });
 
+  it('updates order status when crypto.randomUUID is unavailable on LAN HTTP', async () => {
+    const randomUuidDescriptor = Object.getOwnPropertyDescriptor(
+      crypto,
+      'randomUUID',
+    );
+    Object.defineProperty(crypto, 'randomUUID', {
+      configurable: true,
+      value: undefined,
+    });
+    const onSaleUpdate = vi.fn();
+    const updatedSale: Sale = {
+      ...sale,
+      status: 'diagnostics',
+      timeline: [
+        {
+          id: 'fallback-id',
+          author: 'Manager',
+          message: 'Status changed.',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    vi.mocked(updateSaleWorkspace).mockResolvedValueOnce(updatedSale);
+
+    try {
+      renderWorkspace({
+        sales: [sale],
+        onSaleUpdate,
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+
+      await waitFor(() => {
+        expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
+      });
+    } finally {
+      if (randomUuidDescriptor) {
+        Object.defineProperty(crypto, 'randomUUID', randomUuidDescriptor);
+      }
+    }
+  });
+
   it('does not replace an order when status update returns an invalid response', async () => {
     const onError = vi.fn();
     const onSaleUpdate = vi.fn();
