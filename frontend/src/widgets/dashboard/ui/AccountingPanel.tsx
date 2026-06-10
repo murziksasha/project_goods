@@ -206,8 +206,19 @@ export const AccountingPanel = ({
       type: FinanceTransactionType,
       fromCashboxId: string,
       fallbackCashboxId: string,
+      options?: {
+        preferFallback?: boolean;
+      },
     ) => {
       if (type === 'withdraw') return '';
+      if (
+        type === 'deposit' &&
+        options?.preferFallback &&
+        fallbackCashboxId &&
+        cashboxes.some((cashbox) => cashbox.id === fallbackCashboxId)
+      ) {
+        return fallbackCashboxId;
+      }
       const remembered =
         type === 'deposit' || type === 'transfer'
           ? lastTargetCashboxByType[type]
@@ -355,6 +366,9 @@ export const AccountingPanel = ({
       type,
       nextFromCashboxId,
       fallbackToCashboxId,
+      {
+        preferFallback: type === 'deposit',
+      },
     );
     const availableCurrencies = getAllowedTransactionCurrencies(
       type,
