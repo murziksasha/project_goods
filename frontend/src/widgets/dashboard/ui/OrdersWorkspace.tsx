@@ -36,6 +36,7 @@ import {
   ReturnSaleModal,
 } from './OrderPaymentModals';
 import { OrderDetailCard } from './OrderDetailCard';
+import { getOrderLink } from './create-order-card-shared';
 import {
   canRemoveLineItemAfterPayment,
   patchLineItemsById,
@@ -255,8 +256,8 @@ export const OrdersWorkspace = ({
   const [pageSizeByTab, setPageSizeByTab] = useState<
     Record<OrdersTab, number>
   >({
-    orders: 10,
-    sales: 10,
+    orders: 30,
+    sales: 30,
     supplierOrders: 10,
     supplierInformation: 10,
   });
@@ -1158,13 +1159,17 @@ export const OrdersWorkspace = ({
     switch (columnKey) {
       case 'orderNumber':
         return (
-          <button
-            type='button'
+          <a
             className='order-number-button'
-            onClick={() => openSaleCard(sale)}
+            href={getOrderLink(sale.id, sale.kind)}
+            onClick={(event) => {
+              if (!isPlainLeftClick(event)) return;
+              event.preventDefault();
+              openSaleCard(sale);
+            }}
           >
             {buildOrderNumber(sale)}
-          </button>
+          </a>
         );
       case 'manager':
         return (
@@ -2233,7 +2238,7 @@ export const OrdersWorkspace = ({
           onAcceptPayment={() =>
             openPaymentModal(
               selectedSale,
-              isRepairOrder(selectedSale) ? 'paid' : 'issued',
+              'issued',
             )
           }
           onOpenPrint={() =>

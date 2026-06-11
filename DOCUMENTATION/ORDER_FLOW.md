@@ -5,7 +5,7 @@
 - Clicking `Create order` opens the modal.
 - `Client phone` + `Client name` perform lookup in clients.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
-- Client phone is unique. If uniqueness fails, order creation is rejected.
+- Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
 - Clicking request number opens a new browser tab/window (`target="_blank"`).
 - The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
@@ -79,6 +79,7 @@
 - For repair orders, status change to `client rejected` or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
 - To unlock `client rejected` / `issued without repair`, refund the client at least the refundable amount for the product serials that will be unbound, then return those serials back to stock through the line-item return flow.
 - Product line items without bound warehouse serial numbers do not trigger this refusal-status stock lock.
+- Orders list defaults to 30 rows per page.
 
 ## Payment Method In Accept Payment Modal
 
@@ -88,8 +89,12 @@
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
-- In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `paid`.
-- For repair order `paid` target, payment modal actions follow the same paid-status behavior as `SALE_FLOW.md`:
+- In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `issued`.
+- For repair order card issue target, payment modal actions follow the same issue behavior as sale card:
+  - `Accept to cashbox` adds a deposit without issuing.
+  - `Accept and issue` adds a deposit and changes the order status to `issued`.
+  - `Issue without payment` changes only the status to `issued` when allowed by product/payment guards.
+- Repair order `paid` behavior remains available only through explicit `paid` status selection from the Orders list/status dropdown:
   - `Accept to cashbox` adds a deposit and marks the order `paid`.
   - `Accept and mark paid` adds a deposit and marks the order `paid`.
   - `Mark paid without payment` changes only the status to `paid`.
