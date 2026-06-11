@@ -118,6 +118,8 @@ const renderCard = ({
   canAddComment = true,
   isReadOnly = false,
   saleOverride,
+  salesOverride,
+  onOpenRelatedSale = vi.fn(),
   status,
   lineItems = [],
 }: {
@@ -128,15 +130,17 @@ const renderCard = ({
   canAddComment?: boolean;
   isReadOnly?: boolean;
   saleOverride?: Partial<Sale>;
+  salesOverride?: Sale[];
+  onOpenRelatedSale?: (sale: Sale) => void;
   status?: OrderStatus;
   lineItems?: OrderLineItem[];
 } = {}) => {
   const cardSale = sale(saleOverride);
   const cardStatus = status ?? (cardSale.status as OrderStatus);
-  render(
+  const result = render(
     <OrderDetailCard
       sale={cardSale}
-      sales={[cardSale]}
+      sales={salesOverride ?? [cardSale]}
       supplierOrders={[]}
       employees={[]}
       status={cardStatus}
@@ -157,7 +161,7 @@ const renderCard = ({
       onRemoveLineItem={vi.fn()}
       onUpdateLineItem={vi.fn()}
       onReturnLineItem={vi.fn()}
-      onOpenRelatedSale={vi.fn()}
+      onOpenRelatedSale={onOpenRelatedSale}
       onAcceptPayment={vi.fn()}
       onOpenPrint={vi.fn()}
       onRefundPayment={vi.fn()}
@@ -170,6 +174,7 @@ const renderCard = ({
       onSaveMainInfo={vi.fn(async () => undefined)}
     />,
   );
+  return { ...result, onOpenRelatedSale };
 };
 
 afterEach(() => {
@@ -360,5 +365,59 @@ describe('OrderDetailCard product entry', () => {
 
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
     expect(screen.getByLabelText('Repair status')).not.toBeDisabled();
+  });
+
+  it('renders related orders and sales as browser links while preserving plain left click handling', () => {
+    const currentSale = sale({
+      id: 'repair-1',
+      recordNumber: 'R000001',
+      kind: 'repair',
+      status: 'new',
+      product: {
+        id: 'product-1',
+        article: '',
+        name: 'Main device',
+        serialNumber: '',
+      },
+    });
+    const relatedSale = sale({
+      id: 'sale-2',
+      recordNumber: 'S000002',
+      kind: 'sale',
+      product: null,
+      lineItems: [
+        {
+          id: 'line-sale',
+          kind: 'product',
+          name: 'Related sale item',
+          price: 120,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+    const onOpenRelatedSale = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      salesOverride: [currentSale, relatedSale],
+      onOpenRelatedSale,
+      status: 'new',
+    });
+
+    const orderLink = screen.getByRole('link', { name: /r000001/i });
+    expect(orderLink).toHaveAttribute(
+      'href',
+      '/?page=orders&ordersTab=orders&saleId=repair-1',
+    );
+    fireEvent.click(orderLink);
+    expect(onOpenRelatedSale).toHaveBeenCalledWith(currentSale);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+    const saleLink = screen.getByRole('link', { name: /s000002/i });
+    expect(saleLink).toHaveAttribute(
+      'href',
+      '/?page=orders&ordersTab=sales&saleId=sale-2',
+    );
   });
 });

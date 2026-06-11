@@ -141,7 +141,12 @@ describe('OrdersWorkspace', () => {
       onSelectedSaleIdChange,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /r000001/i }));
+    const orderLink = screen.getByRole('link', { name: /r000001/i });
+    expect(orderLink).toHaveAttribute(
+      'href',
+      '/?page=orders&ordersTab=orders&saleId=sale-1',
+    );
+    fireEvent.click(orderLink);
 
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith('sale-1');
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
@@ -162,7 +167,7 @@ describe('OrdersWorkspace', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /r000001/i }));
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
 
     const commentInput = await screen.findByPlaceholderText('Comment');
     expect(commentInput).not.toBeDisabled();
@@ -402,7 +407,7 @@ describe('OrdersWorkspace', () => {
       onSaleUpdate,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /r000001/i }));
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
     let cashboxSelect: HTMLElement | undefined;
     await waitFor(() => {
@@ -434,5 +439,95 @@ describe('OrdersWorkspace', () => {
     expect(createFinanceTransaction).not.toHaveBeenCalled();
     expect(refundSalePayment).not.toHaveBeenCalled();
     expect(onSaleUpdate).toHaveBeenCalledWith(paidSale);
+  });
+
+  it('opens repair card payment as issue flow from Accept payment', async () => {
+    const onSaleUpdate = vi.fn();
+    const issuedSale: Sale = {
+      ...sale,
+      status: 'issued',
+      paidAmount: 1250,
+    };
+    vi.mocked(getCashboxes).mockResolvedValue([
+      {
+        id: 'cashbox-1',
+        name: 'Основная',
+        balances: { UAH: 5000, USD: 0 },
+        isDefault: true,
+        isArchived: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(acceptSalePayment).mockResolvedValue(issuedSale);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 1250,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      onSaleUpdate,
+    });
+
+    const orderLink = screen.getByRole('link', { name: /r000001/i });
+    expect(orderLink).toHaveAttribute(
+      'href',
+      '/?page=orders&ordersTab=orders&saleId=sale-1',
+    );
+    fireEvent.click(orderLink);
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    expect(
+      await screen.findByRole('button', { name: 'Accept and issue' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept and issue' }));
+
+    await waitFor(() => {
+      expect(acceptSalePayment).toHaveBeenCalledWith('sale-1', {
+        cashboxId: 'cashbox-1',
+        amount: '1250',
+        paymentMethod: 'cash',
+        action: 'depositAndIssue',
+        targetStatus: 'issued',
+        author: 'Manager',
+        issuedById: 'manager-1',
+      });
+    });
+    expect(onSaleUpdate).toHaveBeenCalledWith(issuedSale);
+  });
+
+  it('defaults orders and sales page size to 30 rows', () => {
+    const { unmount } = renderWorkspace({
+      activeTab: 'orders',
+      sales: [sale],
+    });
+
+    expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
+    unmount();
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [{ ...sale, kind: 'sale' }],
+    });
+
+    expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
   });
 });

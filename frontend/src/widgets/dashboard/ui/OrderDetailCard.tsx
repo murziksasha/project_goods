@@ -32,6 +32,7 @@ import type { CatalogProduct } from '../../../entities/catalog-product/model/typ
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
+import { getOrderLink } from './create-order-card-shared';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../model/missingService';
 import { buildSupplierOrderItemNumber, mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
@@ -1045,17 +1046,29 @@ export const OrderDetailCard = ({
               </p>
             ) : (
               relatedVisibleRecords.map((record) => (
-                <button
+                <a
                   key={record.id}
                   className='order-related-item'
-                  type='button'
-                  onClick={() => onOpenRelatedSale(record)}
+                  href={getOrderLink(record.id, record.kind)}
+                  onClick={(event) => {
+                    if (
+                      event.button !== 0 ||
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey
+                    ) {
+                      return;
+                    }
+                    event.preventDefault();
+                    onOpenRelatedSale(record);
+                  }}
                 >
                   <span>{buildOrderNumber(record)}</span>
                   <strong>{getSaleProductName(record, 'Product')}</strong>
                   <span>{formatCurrency(getOrderTotal(record))}</span>
                   <span>{formatReadyDate(record.createdAt)}</span>
-                </button>
+                </a>
               ))
             )}
           </div>

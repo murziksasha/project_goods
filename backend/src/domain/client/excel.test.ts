@@ -27,7 +27,7 @@ describe('client Excel import row parsing', () => {
     if (parsed.status !== 'ready') return;
 
     expect(parsed.payload).toMatchObject({
-      phone: '380671112233',
+      phone: '+380671112233',
       name: 'Ivan Petrenko',
       email: 'IVAN@EXAMPLE.COM',
       address: 'Kyiv, Main street 1',
@@ -52,7 +52,7 @@ describe('client Excel import row parsing', () => {
     expect(parsed.status).toBe('ready');
     if (parsed.status !== 'ready') return;
 
-    expect(parsed.payload.phone).toBe('380671112233');
+    expect(parsed.payload.phone).toBe('+380671112233');
     expect(parsed.payload.note).toContain(
       'Additional phones: +380502223344, 0633334455',
     );
