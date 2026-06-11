@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import { createClient, getClients } from '../../../entities/client/api/clientApi';
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
@@ -95,7 +96,9 @@ const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(asy
 );
 
 afterEach(() => {
+  cleanup();
   window.localStorage.clear();
+  vi.clearAllMocks();
   vi.useRealTimers();
 });
 
@@ -249,7 +252,40 @@ describe('CreateOrderCard', () => {
         .getAllByRole('button', { name: 'Sales order' })
         .some((button) =>
           button.classList.contains('create-order-tab-active'),
-        ),
+      ),
     ).toBe(false);
+  });
+
+  it('uses an existing exact phone client instead of creating a duplicate for another name', async () => {
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380635567090',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    vi.mocked(getClients).mockResolvedValue([existingClient]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Another Name' },
+    });
+    fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
+
+    await waitFor(() => {
+      expect(getClients).toHaveBeenCalledWith('+380635567090');
+    });
+    expect(createClient).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
   });
 });

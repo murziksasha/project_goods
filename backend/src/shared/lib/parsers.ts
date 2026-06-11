@@ -44,6 +44,15 @@ export const normalizePhone = (value: unknown) =>
     .replace(/[^\d+]/g, '')
     .trim();
 
+export const normalizeClientPhone = (value: unknown) => {
+  const normalized = normalizePhone(value);
+  const digits = normalized.replace(/\D/g, '');
+  if (digits.startsWith('380') && digits.length === 12) return `+${digits}`;
+  if (digits.startsWith('0') && digits.length === 10) return `+380${digits.slice(1)}`;
+  if (digits.length === 9) return `+380${digits}`;
+  return normalized;
+};
+
 export const normalizeEmail = (value: unknown) => toNonEmptyString(value).toLowerCase();
 
 export const normalizeProductPayload = (payload: ProductPayload) => ({
@@ -76,7 +85,7 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
 });
 
 export const normalizeClientPayload = (payload: ClientPayload) => ({
-  phone: normalizePhone(payload.phone),
+  phone: normalizeClientPhone(payload.phone),
   name: toNonEmptyString(payload.name),
   email: toNonEmptyString(payload.email),
   address: toNonEmptyString(payload.address),

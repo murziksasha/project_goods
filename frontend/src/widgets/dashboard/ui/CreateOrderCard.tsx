@@ -42,6 +42,8 @@ import { CreateOrderRepairSection } from './CreateOrderRepairSection';
 import { CreateOrderSaleSection } from './CreateOrderSaleSection';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
+const getPhoneIdentity = (value: string) => phoneDigitsOnly(toApiPhone(value) || value);
+
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
@@ -129,8 +131,7 @@ export const CreateOrderCard = ({
       ? phoneDigits.slice(1)
       : phoneDigits;
   const clientLookupQuery = [
-    normalizedPhoneDigits.length >= 3 ? normalizedPhoneDigits : '',
-    clientName.trim(),
+    normalizedPhoneDigits.length >= 3 ? normalizedPhoneDigits : clientName.trim(),
   ]
     .filter(Boolean)
     .join(' ')
@@ -148,7 +149,7 @@ export const CreateOrderCard = ({
       return selectedClient;
     }
 
-    const normalizedInputPhone = phoneDigitsOnly(clientPhone);
+    const normalizedInputPhone = getPhoneIdentity(clientPhone);
     const normalizedInputName = clientName.trim().toLowerCase();
     if (normalizedInputPhone.length < 3 && normalizedInputName.length < 2) {
       return null;
@@ -157,7 +158,7 @@ export const CreateOrderCard = ({
     const exactMatches = clientSuggestions.filter((client) => {
       const samePhone =
         normalizedInputPhone.length > 0 &&
-        phoneDigitsOnly(client.phone) === normalizedInputPhone;
+        getPhoneIdentity(client.phone) === normalizedInputPhone;
       const sameName =
         normalizedInputName.length >= 2 && client.name.trim().toLowerCase() === normalizedInputName;
       return samePhone || sameName;
@@ -539,9 +540,9 @@ export const CreateOrderCard = ({
     const normalizedName = clientName.trim();
     if (!normalizedPhone || normalizedName.length < 2) return null;
 
-    const normalizedPhoneDigits = phoneDigitsOnly(normalizedPhone);
+    const normalizedPhoneDigits = getPhoneIdentity(normalizedPhone);
     const fromSuggestions = clientSuggestions.find(
-      (client) => phoneDigitsOnly(client.phone) === normalizedPhoneDigits,
+      (client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits,
     );
     if (fromSuggestions) {
       applyClient(fromSuggestions);
@@ -552,7 +553,7 @@ export const CreateOrderCard = ({
     try {
       const clients = await getClients(normalizedPhone);
       const existingClient =
-        clients.find((client) => phoneDigitsOnly(client.phone) === normalizedPhoneDigits) ?? null;
+        clients.find((client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits) ?? null;
 
       if (existingClient) {
         applyClient(existingClient);

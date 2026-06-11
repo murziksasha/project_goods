@@ -2496,6 +2496,7 @@
   color: #51677e;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -4300,6 +4301,7 @@
   font-weight: 800;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
 }
 
 .order-number-button:hover,

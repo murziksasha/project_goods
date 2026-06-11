@@ -16,6 +16,27 @@ const getClientSnapshot = (client: Pick<ClientDocument, 'name' | 'phone' | 'stat
   iban: client.iban ?? '',
 });
 
+const duplicatePhoneMessage = 'Client phone already exists.';
+
+const isDuplicateKeyError = (error: unknown) =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: unknown }).code === 11000;
+
+const assertUniqueClientPhone = async (phone: string, exceptClientId?: string) => {
+  if (!phone) return;
+
+  const existingClient = await Client.findOne({ phone }).lean<Pick<ClientDocument, '_id'> | null>();
+  if (!existingClient) return;
+
+  if (exceptClientId && existingClient._id.toString() === exceptClientId) {
+    return;
+  }
+
+  throw new Error(duplicatePhoneMessage);
+};
+
 export const listClients = async (queryValue: unknown, statusValue: unknown) => {
   const query = getSearchQuery(queryValue) as Record<string, unknown>;
   const status =
@@ -33,16 +54,28 @@ export const listClients = async (queryValue: unknown, statusValue: unknown) => 
 };
 
 export const createClient = async (payload: ClientPayload) => {
-  const client = new Client(normalizeClientPayload(payload));
+  const normalizedPayload = normalizeClientPayload(payload);
+  await assertUniqueClientPhone(normalizedPayload.phone);
+
+  const client = new Client(normalizedPayload);
   await client.validate();
-  await client.save();
+  try {
+    await client.save();
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new Error(duplicatePhoneMessage);
+    }
+    throw error;
+  }
   return formatClient(client.toObject<ClientDocument>());
 };
 
 export const updateClient = async (clientId: string, payload: ClientPayload) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
+  const normalizedPayload = normalizeClientPayload(payload);
+  await assertUniqueClientPhone(normalizedPayload.phone, clientId);
 
-  const client = await Client.findByIdAndUpdate(clientId, normalizeClientPayload(payload), {
+  const client = await Client.findByIdAndUpdate(clientId, normalizedPayload, {
     returnDocument: 'after',
     runValidators: true,
   }).lean<ClientDocument | null>();
