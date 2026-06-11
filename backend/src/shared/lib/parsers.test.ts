@@ -6,7 +6,22 @@ import {
   normalizeProductPayload,
   normalizeSalePayload,
   normalizeSettingsPayload,
+  toNumber,
 } from './parsers';
+
+describe('toNumber', () => {
+  it('accepts comma and dot decimals', () => {
+    expect(toNumber('834,48')).toBe(834.48);
+    expect(toNumber('834.48')).toBe(834.48);
+    expect(toNumber('0,01')).toBe(0.01);
+    expect(toNumber('834,')).toBe(834);
+  });
+
+  it('rejects malformed decimal strings', () => {
+    expect(toNumber('abc')).toBeNaN();
+    expect(toNumber('1,2,3')).toBeNaN();
+  });
+});
 
 describe('normalizeProductPayload', () => {
   it('normalizes scalar fields and filters invalid sale prices', () => {
@@ -14,8 +29,8 @@ describe('normalizeProductPayload', () => {
       name: '  Mouse  ',
       article: ' ab-1 ',
       serialNumber: ' sn-99 ',
-      price: '2500',
-      salePriceOptions: '1200, -1, foo, 1500',
+      price: '2500,50',
+      salePriceOptions: '1200,50, -1, foo, 1500.25',
       quantity: '3',
       note: '  note ',
       reservedQuantity: '',
@@ -28,8 +43,8 @@ describe('normalizeProductPayload', () => {
       name: 'Mouse',
       article: 'AB-1',
       serialNumber: 'SN-99',
-      price: 2500,
-      salePriceOptions: [1200, 1500],
+      price: 2500.5,
+      salePriceOptions: [1200.5, 1500.25],
       quantity: 3,
       note: 'note',
       reservedQuantity: 0,

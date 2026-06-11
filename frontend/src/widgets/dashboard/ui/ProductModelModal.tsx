@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
+import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,
@@ -234,7 +235,7 @@ export const ProductModelModal = ({
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        retailPrice: event.target.value,
+                        retailPrice: normalizeDecimalInput(event.target.value),
                       }))
                     }
                     disabled={!hasStockRows || isSaving}
@@ -247,7 +248,7 @@ export const ProductModelModal = ({
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        wholesalePrice: event.target.value,
+                        wholesalePrice: normalizeDecimalInput(event.target.value),
                       }))
                     }
                     disabled={!hasStockRows || isSaving}
@@ -260,7 +261,7 @@ export const ProductModelModal = ({
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        purchasePrice: event.target.value,
+                        purchasePrice: normalizeDecimalInput(event.target.value),
                       }))
                     }
                     disabled={!hasStockRows || isSaving}
@@ -270,7 +271,7 @@ export const ProductModelModal = ({
               {hasStockRows ? (
                 <p className='muted-copy'>
                   {`Last batch price: ${formatCurrency(
-                    Number(form.purchasePrice) || 0,
+                    parseDecimal(form.purchasePrice) || 0,
                   )}. Matching stock rows: ${matchingProducts.length}.`}
                 </p>
               ) : null}

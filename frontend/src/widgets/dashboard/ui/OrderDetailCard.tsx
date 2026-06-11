@@ -30,6 +30,7 @@ import type { SupplierOrderFormValues } from '../../../entities/supplier-order/m
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
 import { getOrderLink } from './create-order-card-shared';
@@ -871,12 +872,11 @@ export const OrderDetailCard = ({
               <dd>
                 <div className='order-payment-discount-control'>
                   <input
-                    type='number'
-                    min={0}
-                    step='0.01'
+                    type='text'
+                    inputMode='decimal'
                     value={String(discount.value)}
                     onChange={(event) => {
-                      const nextValue = Number(event.target.value);
+                      const nextValue = parseDecimal(event.target.value);
                       onDiscountChange({
                         mode: discount.mode,
                         value:
@@ -1866,7 +1866,7 @@ const LineItemsPanel = ({
 
   const submitItem = async () => {
     const normalizedName = name.trim();
-    const normalizedPrice = Number(price);
+    const normalizedPrice = parseDecimal(price);
     const normalizedQuantity = Number(quantity);
 
     if (
@@ -2023,10 +2023,12 @@ const LineItemsPanel = ({
                 <NumberStepper
                   className='line-item-inline-input'
                   min={0}
+                  step={0.01}
+                  precision={2}
                   value={String(item.price)}
                   onChange={(value) =>
                     onUpdateItem(item.id, undefined, {
-                      price: Number(value),
+                      price: parseDecimal(value),
                     })
                   }
                   disabled={isReadOnly}
@@ -2170,6 +2172,8 @@ const LineItemsPanel = ({
           />
           <NumberStepper
             min={0}
+            step={0.01}
+            precision={2}
             value={price}
             onChange={setPrice}
             placeholder='Price'
@@ -2679,6 +2683,8 @@ const CatalogServiceEditorModal = ({
             <span>Retail price</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={form.price}
               onChange={(value) => onChange('price', value)}
             />

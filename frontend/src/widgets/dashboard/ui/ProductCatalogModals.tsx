@@ -5,6 +5,7 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import type { Product, ProductFormValues } from '../../../entities/product/model/types';
 import type { ServiceCatalogFormValues, ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
+import { parseDecimal } from '../../../shared/lib/decimal';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import {
   getPriceOption,
@@ -184,6 +185,8 @@ export const CatalogProductModal = ({
             <span>Retail price</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={getPriceOption(form, 0) || form.price}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 0, value))
@@ -194,6 +197,8 @@ export const CatalogProductModal = ({
             <span>Wholesale price 1</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={getPriceOption(form, 1)}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 1, value))
@@ -204,6 +209,8 @@ export const CatalogProductModal = ({
             <span>Wholesale price 2</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={getPriceOption(form, 2)}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 2, value))
@@ -212,7 +219,7 @@ export const CatalogProductModal = ({
           </label>
           <label className="field">
             <span>Purchase price</span>
-            <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+            <NumberStepper min={0} step={0.01} precision={2} value={form.price} onChange={(value) => onChange('price', value)} />
           </label>
           <label className="field">
             <span>Warehouse</span>
@@ -221,9 +228,9 @@ export const CatalogProductModal = ({
         </div>
 
         <div className="catalog-edit-summary">
-          <p>{`Retail: ${formatCurrency(Number(getPriceOption(form, 0) || form.price || product.price))}`}</p>
-          <p>{`Wholesale 1: ${formatCurrency(Number(getPriceOption(form, 1) || 0))}`}</p>
-          <p>{`Wholesale 2: ${formatCurrency(Number(getPriceOption(form, 2) || 0))}`}</p>
+          <p>{`Retail: ${formatCurrency(parseDecimal(getPriceOption(form, 0) || form.price || product.price))}`}</p>
+          <p>{`Wholesale 1: ${formatCurrency(parseDecimal(getPriceOption(form, 1) || 0))}`}</p>
+          <p>{`Wholesale 2: ${formatCurrency(parseDecimal(getPriceOption(form, 2) || 0))}`}</p>
           <p>{`Free stock: ${product.freeQuantity} pcs`}</p>
           <p>{`Total stock: ${product.quantity} pcs`}</p>
         </div>
@@ -317,13 +324,15 @@ export const CatalogServiceModal = ({
         </fieldset>
         <label className="field">
           <span>Retail price</span>
-          <NumberStepper min={0} value={form.price} onChange={(value) => onChange('price', value)} />
+          <NumberStepper min={0} step={0.01} precision={2} value={form.price} onChange={(value) => onChange('price', value)} />
         </label>
         <div className="catalog-price-grid">
           <label className="field">
             <span>Wholesale price 1</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={getServicePriceOption(form, 0)}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 0, value))
@@ -334,6 +343,8 @@ export const CatalogServiceModal = ({
             <span>Wholesale price 2</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={getServicePriceOption(form, 1)}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 1, value))
@@ -346,9 +357,9 @@ export const CatalogServiceModal = ({
           <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
         </label>
         <div className="catalog-edit-summary">
-          <p>{`Retail: ${formatCurrency(Number(form.price || service.price))}`}</p>
-          <p>{`Wholesale 1: ${formatCurrency(Number(getServicePriceOption(form, 0) || 0))}`}</p>
-          <p>{`Wholesale 2: ${formatCurrency(Number(getServicePriceOption(form, 1) || 0))}`}</p>
+          <p>{`Retail: ${formatCurrency(parseDecimal(form.price || service.price))}`}</p>
+          <p>{`Wholesale 1: ${formatCurrency(parseDecimal(getServicePriceOption(form, 0) || 0))}`}</p>
+          <p>{`Wholesale 2: ${formatCurrency(parseDecimal(getServicePriceOption(form, 1) || 0))}`}</p>
           <p>{`Status: ${service.isActive ? 'Active' : 'Inactive'}`}</p>
         </div>
       </div>

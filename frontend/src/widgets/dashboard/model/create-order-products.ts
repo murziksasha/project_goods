@@ -6,6 +6,7 @@ import {
   getSaleSerialUsage,
   normalizeSerialNumber,
 } from './order-line-serials';
+import { parseDecimal } from '../../../shared/lib/decimal';
 
 export type CreateOrderProductSuggestion = {
   id: string;
@@ -164,7 +165,7 @@ export const buildCreateOrderSaleLineItems = (
     productId: item.productId || undefined,
     catalogProductId: item.catalogProductId || undefined,
     name: item.name,
-    price: Number(item.price),
+    price: parseDecimal(item.price),
     quantity: Number(item.quantity),
     warrantyPeriod: Number(item.warrantyPeriod),
     serialNumbers: item.serialNumbers ?? [],

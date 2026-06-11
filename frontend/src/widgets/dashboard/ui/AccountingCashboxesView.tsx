@@ -236,6 +236,8 @@ export const AccountingCashboxesView = ({
             <span>Amount</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={transactionForm.amount}
               onChange={(value) =>
                 onTransactionFormChange((current) => ({

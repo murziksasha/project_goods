@@ -7,6 +7,7 @@ import {
 } from '../../../entities/sale/lib/sale-product';
 import type { CreateOrderRequestPayload } from '../model/order-request';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
+import { parseDecimal } from '../../../shared/lib/decimal';
 
 export type SaleOrderItem = {
   id: string;
@@ -105,8 +106,7 @@ export const toDeviceLookupKey = (value: string) =>
   value.toLowerCase().replace(/\s+/g, ' ').trim();
 
 export const parseDecimalInput = (value: string) => {
-  const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
-  const numeric = Number.parseFloat(normalized || '0');
+  const numeric = parseDecimal(value || '0');
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
