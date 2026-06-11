@@ -78,6 +78,8 @@ export const CreateOrderSaleSection = ({
             <span>Price</span>
             <NumberStepper
               min={0}
+              step={0.01}
+              precision={2}
               value={item.price}
               onChange={(value) => {
                 onSaleItemPriceChange(item, value);

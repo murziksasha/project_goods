@@ -2,7 +2,7 @@ import XLSX from 'xlsx';
 import { Product, type ProductDocument } from './model';
 import { Sale } from '../sale/model';
 import { formatProduct } from '../../shared/lib/formatters';
-import { normalizeProductPayload } from '../../shared/lib/parsers';
+import { normalizeProductPayload, toNumber } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type {
   ProductModelUpdatePayload,
@@ -33,9 +33,8 @@ export const getExactProductModelNameQuery = (name: string) => ({
 
 const parseOptionalPrice = (value: unknown) => {
   if (value === undefined) return undefined;
-  const normalized = String(value).replace(/\s+/g, '').replace(',', '.').trim();
-  if (!normalized) return 0;
-  const numeric = Number.parseFloat(normalized);
+  if (String(value).trim() === '') return 0;
+  const numeric = toNumber(value);
   if (!Number.isFinite(numeric) || numeric < 0) {
     throw new Error('Product model prices must be valid non-negative numbers.');
   }

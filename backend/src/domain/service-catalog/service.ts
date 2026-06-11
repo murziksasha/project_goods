@@ -1,6 +1,7 @@
 import { ServiceCatalog, type ServiceCatalogDocument } from './model';
 import { Sale } from '../sale/model';
 import { getSearchQuery } from '../../shared/lib/query';
+import { toNumber } from '../../shared/lib/parsers';
 import type { ServiceCatalogPayload } from '../shared/types';
 
 const defaultServices: Array<{ name: string; price: number; note: string }> = [
@@ -14,14 +15,25 @@ const defaultServices: Array<{ name: string; price: number; note: string }> = [
 
 const normalizeName = (value: unknown) => String(value ?? '').trim();
 const normalizePrice = (value: unknown) => {
-  const price = Number(value);
+  const price = toNumber(value);
   if (!Number.isFinite(price) || price < 0) {
     throw new Error('Service price cannot be negative.');
   }
   return price;
 };
+
+const splitNumericList = (value: unknown) => {
+  if (Array.isArray(value)) return value;
+  const rawValue = String(value ?? '').trim();
+  if (!rawValue) return [];
+  if (rawValue.includes(';') || rawValue.includes('\n')) {
+    return rawValue.split(/[;\n]/);
+  }
+  return rawValue.split(/,\s+/);
+};
+
 const normalizeSalePriceOptions = (value: unknown) =>
-  (Array.isArray(value) ? value : String(value ?? '').split(','))
+  splitNumericList(value)
     .map((item) => normalizePrice(item))
     .filter((item) => Number.isFinite(item) && item >= 0)
     .slice(0, 2);

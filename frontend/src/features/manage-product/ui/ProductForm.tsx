@@ -73,6 +73,8 @@ export const ProductForm = ({
         <span>Price</span>
         <NumberStepper
           min={0}
+          step={0.01}
+          precision={2}
           value={form.price}
           placeholder="100"
           onChange={(value) => onChange('price', value)}

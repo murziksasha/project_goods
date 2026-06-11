@@ -3,6 +3,7 @@ import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
+import { parseDecimal } from '../../../shared/lib/decimal';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import {
   defaultPrintForms,
@@ -103,7 +104,7 @@ export const PaymentModal = ({
   onOpenPrint,
   onSubmit,
 }: PaymentModalProps) => {
-  const numericAmount = Number(amount);
+  const numericAmount = parseDecimal(amount);
   const nextPaymentRemaining = Math.max(
     currentPaymentRemaining -
       (Number.isFinite(numericAmount) ? numericAmount : 0),
@@ -217,6 +218,8 @@ export const PaymentModal = ({
             <NumberStepper
               min={0}
               max={currentPaymentRemaining}
+              step={0.01}
+              precision={2}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
@@ -337,7 +340,7 @@ export const RefundModal = ({
   onClose,
   onSubmit,
 }: RefundModalProps) => {
-  const numericAmount = Number(amount);
+  const numericAmount = parseDecimal(amount);
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -407,6 +410,8 @@ export const RefundModal = ({
             <NumberStepper
               min={0}
               max={paidAmount}
+              step={0.01}
+              precision={2}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
@@ -496,7 +501,7 @@ export const ReturnSaleModal = ({
   );
   const productTotal = getLineItemsTotal(productItems);
   const serviceTotal = getLineItemsTotal(serviceItems);
-  const numericAmount = Number(amount);
+  const numericAmount = parseDecimal(amount);
   const minRefund = Math.max(paidAmount - serviceTotal, 0);
   const maxRefund = Math.min(productTotal, paidAmount);
   const suggestedCashboxName =
@@ -587,6 +592,8 @@ export const ReturnSaleModal = ({
             <NumberStepper
               min={minRefund}
               max={maxRefund}
+              step={0.01}
+              precision={2}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
