@@ -197,6 +197,8 @@ export const SaleForm = ({
           <span>Sale price</span>
           <NumberStepper
             min={0}
+            step={0.01}
+            precision={2}
             value={form.salePrice}
             placeholder={
               selectedProduct ? formatCurrency(getDefaultSalePrice(selectedProduct)) : ''

@@ -6,7 +6,7 @@ import { CatalogProduct, type CatalogProductDocument } from '../catalog-product/
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from './model';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
-import { normalizeSalePayload } from '../../shared/lib/parsers';
+import { normalizeSalePayload, toNumber } from '../../shared/lib/parsers';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { getNextRecordNumber } from '../sequence/service';
 import { createFinanceTransaction } from '../finance/service';
@@ -924,7 +924,7 @@ const normalizePaymentMethod = (value: unknown): SalePaymentMethod =>
   value === 'non-cash' ? 'non-cash' : 'cash';
 
 const normalizeMoneyAmount = (value: unknown, field: string) => {
-  const amount = Math.round(Number(value) * 100) / 100;
+  const amount = Math.round(toNumber(value) * 100) / 100;
   if (!Number.isFinite(amount) || amount < 0) {
     throw new Error(`${field} is not valid.`);
   }
@@ -1261,7 +1261,7 @@ export const returnSaleLineItem = async (
   }
   isValidObjectIdOrThrow(productId, 'lineItems.productId');
 
-  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  const refundAmount = Math.round(toNumber(payload.refundAmount) * 100) / 100;
   const itemTotal = Math.round(lineItem.price * lineItem.quantity * 100) / 100;
   if (
     !Number.isFinite(refundAmount) ||
@@ -1424,7 +1424,7 @@ export const returnSaleLineItemBySerials = async (
   const unitPrice = lineItem.quantity > 0 ? lineItem.price : 0;
   const maxRefundForSelection =
     Math.round(unitPrice * returnQuantity * 100) / 100;
-  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  const refundAmount = Math.round(toNumber(payload.refundAmount) * 100) / 100;
   if (
     !Number.isFinite(refundAmount) ||
     refundAmount <= 0 ||
@@ -1662,7 +1662,7 @@ export const returnSale = async (
     return { productId, quantity: item.quantity };
   });
 
-  const refundAmount = Math.round(Number(payload.refundAmount) * 100) / 100;
+  const refundAmount = Math.round(toNumber(payload.refundAmount) * 100) / 100;
   const productTotal = calculateLineItemsTotal(productLineItems);
   const remainingLineItems = lineItems.filter((item) => item.kind !== 'product');
   const remainingTotal = calculateLineItemsTotal(remainingLineItems);

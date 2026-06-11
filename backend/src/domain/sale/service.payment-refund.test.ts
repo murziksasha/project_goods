@@ -40,6 +40,16 @@ vi.mock('../../shared/lib/formatters', () => ({
 
 vi.mock('../../shared/lib/parsers', () => ({
   normalizeSalePayload: vi.fn(),
+  toNumber: vi.fn((value: unknown) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string' && value.trim()) {
+      const normalizedValue = value.trim().replace(/\s+/g, '').replace(',', '.');
+      return /^-?\d+(?:\.\d*)?$/.test(normalizedValue)
+        ? Number(normalizedValue)
+        : NaN;
+    }
+    return NaN;
+  }),
 }));
 
 vi.mock('../../shared/lib/query', () => ({

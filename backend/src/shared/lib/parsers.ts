@@ -33,10 +33,25 @@ export const toNumber = (value: unknown) => {
   }
 
   if (typeof value === 'string' && value.trim() !== '') {
-    return Number(value);
+    const normalizedValue = value.trim().replace(/\s+/g, '').replace(',', '.');
+    if (!/^-?\d+(?:\.\d*)?$/.test(normalizedValue)) return NaN;
+
+    return Number(normalizedValue);
   }
 
   return NaN;
+};
+
+const splitNumericList = (value: unknown) => {
+  if (Array.isArray(value)) return value;
+
+  const rawValue = String(value ?? '').trim();
+  if (!rawValue) return [];
+  if (rawValue.includes(';') || rawValue.includes('\n')) {
+    return rawValue.split(/[;\n]/);
+  }
+
+  return rawValue.split(/,\s+/);
 };
 
 export const normalizePhone = (value: unknown) =>
@@ -64,9 +79,8 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
     ? payload.salePriceOptions
         .map((value) => toNumber(value))
         .filter((value) => Number.isFinite(value) && value >= 0)
-    : String(payload.salePriceOptions ?? '')
-        .split(',')
-        .map((value) => toNumber(value.trim()))
+    : splitNumericList(payload.salePriceOptions)
+        .map((value) => toNumber(String(value).trim()))
         .filter((value) => Number.isFinite(value) && value >= 0),
   quantity: toNumber(payload.quantity),
   note: toNonEmptyString(payload.note),

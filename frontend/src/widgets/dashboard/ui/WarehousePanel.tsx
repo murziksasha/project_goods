@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
+import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
   useCancelSupplierOrderMutation,
@@ -1027,7 +1028,7 @@ export const WarehousePanel = ({
       (item) => item.id === receiptForm.supplierId,
     );
     const quantity = Number(receiptForm.quantity) || 0;
-    const price = Number(receiptForm.price) || 0;
+    const price = parseDecimal(receiptForm.price) || 0;
     if (quantity <= 0 || price < 0) return;
 
     const amount = quantity * price;
@@ -1880,13 +1881,13 @@ export const WarehousePanel = ({
             <label className='field'>
               <span>Price (UAH)*</span>
               <input
-                type='number'
-                min='0'
+                type='text'
+                inputMode='decimal'
                 value={receiptForm.price}
                 onChange={(event) =>
                   setReceiptForm((current) => ({
                     ...current,
-                    price: event.target.value,
+                    price: normalizeDecimalInput(event.target.value),
                   }))
                 }
               />

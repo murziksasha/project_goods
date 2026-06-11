@@ -11,6 +11,7 @@ import { hasEmployeePermission } from '../../../entities/employee/model/permissi
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../shared/lib/format';
+import { parseMoney } from '../../../shared/lib/decimal';
 import { getCashboxes } from '../../../entities/finance/api/financeApi';
 import {
   acceptSalePayment as acceptSalePaymentRequest,
@@ -1784,8 +1785,7 @@ export const OrdersWorkspace = ({
       currentPaidAmount,
       currentLineItems,
     );
-    const normalizedAmount =
-      Math.round(Number(paymentAmount) * 100) / 100;
+    const normalizedAmount = parseMoney(paymentAmount);
     const nextPaymentRemaining = Math.max(
       currentPaymentRemaining -
         (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
@@ -1903,8 +1903,7 @@ export const OrdersWorkspace = ({
     }
 
     const currentPaidAmount = getPaidAmount(refundSale);
-    const normalizedAmount =
-      Math.round(Number(refundAmount) * 100) / 100;
+    const normalizedAmount = parseMoney(refundAmount);
 
     if (
       !Number.isFinite(normalizedAmount) ||
@@ -2015,8 +2014,7 @@ export const OrdersWorkspace = ({
       return;
     }
 
-    const refundAmountValue =
-      Math.round(Number(returnRefundAmount) * 100) / 100;
+    const refundAmountValue = parseMoney(returnRefundAmount);
     const lineItems = getLineItems(fullReturnSale);
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),

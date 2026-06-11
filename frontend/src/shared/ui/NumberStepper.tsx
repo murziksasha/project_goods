@@ -1,8 +1,15 @@
+import {
+  normalizeDecimalInput,
+  parseDecimal,
+} from '../lib/decimal';
+
 type NumberStepperProps = {
   value: string;
   onChange: (value: string) => void;
   min?: number;
   max?: number;
+  step?: number;
+  precision?: number;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -34,18 +41,24 @@ export const NumberStepper = ({
   onChange,
   min,
   max,
+  step,
+  precision,
   placeholder,
   disabled = false,
   ariaLabel,
   className,
 }: NumberStepperProps) => {
   const updateValue = (direction: 1 | -1) => {
-    const normalizedValue = value.replace(',', '.').trim();
-    const currentValue = Number(normalizedValue || '0');
-    const decimalLength = getDecimalLength(normalizedValue);
-    const step = decimalLength > 0 ? 1 / 10 ** decimalLength : 1;
+    const normalizedValue = normalizeDecimalInput(value);
+    const currentValue = parseDecimal(
+      normalizedValue.replace(/[,.]$/, '') || '0',
+    );
+    const decimalLength =
+      precision ?? (step !== undefined ? getDecimalLength(String(step)) : getDecimalLength(normalizedValue));
+    const stepValue =
+      step ?? (decimalLength > 0 ? 1 / 10 ** decimalLength : 1);
     const nextValue = clamp(
-      Math.round((currentValue + direction * step) * 10 ** decimalLength) /
+      Math.round((currentValue + direction * stepValue) * 10 ** decimalLength) /
         10 ** decimalLength,
       min,
       max,
@@ -53,6 +66,7 @@ export const NumberStepper = ({
 
     onChange(formatNumber(nextValue, decimalLength));
   };
+  const parsedValue = parseDecimal(value || '0');
 
   return (
     <div className={className ? `number-stepper ${className}` : 'number-stepper'}>
@@ -60,7 +74,7 @@ export const NumberStepper = ({
         type="text"
         inputMode="decimal"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(normalizeDecimalInput(event.target.value))}
         placeholder={placeholder}
         disabled={disabled}
         aria-label={ariaLabel}
@@ -69,7 +83,7 @@ export const NumberStepper = ({
         <button
           type="button"
           onClick={() => updateValue(1)}
-          disabled={disabled || (max !== undefined && Number(value || '0') >= max)}
+          disabled={disabled || (max !== undefined && Number.isFinite(parsedValue) && parsedValue >= max)}
           tabIndex={-1}
         >
           +
@@ -77,7 +91,7 @@ export const NumberStepper = ({
         <button
           type="button"
           onClick={() => updateValue(-1)}
-          disabled={disabled || (min !== undefined && Number(value || '0') <= min)}
+          disabled={disabled || (min !== undefined && Number.isFinite(parsedValue) && parsedValue <= min)}
           tabIndex={-1}
         >
           -

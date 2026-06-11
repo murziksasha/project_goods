@@ -11,7 +11,7 @@ describe('supplier-order normalizers', () => {
     expect(
       normalizeItems(
         [
-          { productName: ' Phone ', quantity: '2', price: '10', itemIndex: '3' },
+          { productName: ' Phone ', quantity: '2', price: '834,48', itemIndex: '3' },
           { productName: 'x', quantity: '1', price: '5' },
         ],
         [{ itemIndex: 3, receiptStatus: 'approved' }],
@@ -23,7 +23,7 @@ describe('supplier-order normalizers', () => {
         catalogProductId: undefined,
         productName: 'Phone',
         quantity: 2,
-        price: 10,
+        price: 834.48,
         receiptStatus: 'approved',
       },
     ]);

@@ -18,6 +18,7 @@ import { hasEmployeePermission } from '../../../entities/employee/model/permissi
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   canCancelAccountingTransferTransaction,
   currencyOptions,
@@ -582,14 +583,14 @@ export const AccountingPanel = ({
       );
       return;
     }
-    const normalizedAmount = transactionForm.amount.replace(',', '.').trim();
+    const normalizedAmount = parseDecimal(transactionForm.amount);
     if (!allowedTransactionCurrencies.includes(transactionForm.currency)) {
       onError('Selected currency is not available for this operation.');
       return;
     }
     if (
-      !Number.isFinite(Number(normalizedAmount)) ||
-      Number(normalizedAmount) <= 0
+      !Number.isFinite(normalizedAmount) ||
+      normalizedAmount <= 0
     ) {
       onError('Transaction amount must be greater than 0.');
       return;
@@ -598,7 +599,7 @@ export const AccountingPanel = ({
     try {
       await createFinanceTransaction({
         ...transactionForm,
-        amount: normalizedAmount,
+        amount: String(normalizedAmount),
       });
       if (
         (transactionForm.type === 'deposit' ||

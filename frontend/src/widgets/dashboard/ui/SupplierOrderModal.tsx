@@ -9,6 +9,7 @@ import type {
 } from '../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
+import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../shared/lib/decimal';
 import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
@@ -55,7 +56,7 @@ type DraftItem = {
   catalogProductId?: string;
   productName: string;
   quantity: number;
-  price: number;
+  price: string;
 };
 const EMPTY_WAREHOUSE_OPTIONS: Array<{
   id: string;
@@ -205,7 +206,7 @@ export const SupplierOrderModal = ({
         catalogProductId: item.catalogProductId,
         productName: item.productName,
         quantity: item.quantity,
-        price: item.price,
+        price: String(item.price),
       })),
     );
 
@@ -291,7 +292,7 @@ export const SupplierOrderModal = ({
   }, [supplierSearch, suppliers]);
 
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
-  const currentPrice = Math.max(0, Number(form.price) || 0);
+  const currentPrice = Math.max(0, parseDecimal(form.price) || 0);
   const currentProductMatched = Boolean(selectedCatalogProductId);
   const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
   const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
@@ -300,7 +301,7 @@ export const SupplierOrderModal = ({
         catalogProductId: selectedCatalogProductId || undefined,
         productName: productSearch.trim(),
         quantity: currentQuantity,
-        price: currentPrice,
+        price: form.price,
       }
     : null;
 
@@ -319,7 +320,10 @@ export const SupplierOrderModal = ({
     )
       .size !== submitItems.length;
 
-  const totalAmount = submitItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalAmount = submitItems.reduce(
+    (sum, item) => sum + (parseDecimal(item.price) || 0) * item.quantity,
+    0,
+  );
   const totalUnits = submitItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
@@ -359,7 +363,7 @@ export const SupplierOrderModal = ({
     itemIndex: number,
     priceValue: string,
   ) => {
-    const normalizedPrice = Math.max(0, Number(priceValue) || 0);
+    const normalizedPrice = normalizeDecimalInput(priceValue);
     setBasketItems((current) =>
       current.map((item, index) =>
         index === itemIndex ? { ...item, price: normalizedPrice } : item,
@@ -556,7 +560,7 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Ціна (UAH)</span>
-              <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} />
+              <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: normalizeDecimalInput(event.target.value) }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>К-сть</span>
@@ -564,7 +568,7 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>Сума</span>
-              <input value={String(currentQuantity * currentPrice)} readOnly />
+              <input value={String(roundMoney(currentQuantity * currentPrice))} readOnly />
             </label>
               <button
                 type='button'
@@ -594,7 +598,7 @@ export const SupplierOrderModal = ({
                         selectedCatalogProductId || undefined,
                       productName: productSearch.trim(),
                       quantity: currentQuantity,
-                      price: currentPrice,
+                      price: form.price,
                     },
                   ]);
                   setProductSearch('');
@@ -633,7 +637,7 @@ export const SupplierOrderModal = ({
                         }
                       />
                     </div>
-                    <div className='field supplier-order-product-compact'><input value={String(item.quantity * item.price)} readOnly /></div>
+                    <div className='field supplier-order-product-compact'><input value={String(roundMoney(item.quantity * (parseDecimal(item.price) || 0)))} readOnly /></div>
                     <button
                       type='button'
                       className='toolbar-square-button supplier-order-product-add'
@@ -705,7 +709,7 @@ export const SupplierOrderModal = ({
                       catalogProductId: item.catalogProductId,
                       productName: item.productName,
                       quantity: item.quantity,
-                      price: item.price,
+                      price: roundMoney(parseDecimal(item.price) || 0),
                     })),
                   });
                   onClose();

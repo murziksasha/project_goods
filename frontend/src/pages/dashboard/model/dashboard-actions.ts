@@ -4,6 +4,7 @@ import {
   importClients,
   mergeClients as mergeClientsApi,
 } from '../../../entities/client/api/clientApi';
+import { parseDecimal } from '../../../shared/lib/decimal';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
 import type {
   Client,
@@ -318,8 +319,7 @@ export const createDashboardActions = ({
   const normalizeServiceName = (value: string) =>
     value.trim().replace(/\s+/g, ' ').toLowerCase();
   const parseDecimalInput = (value: string) => {
-    const normalized = value.replace(/\s+/g, '').replace(',', '.').trim();
-    const numeric = Number.parseFloat(normalized || '0');
+    const numeric = parseDecimal(value || '0');
     return Number.isFinite(numeric) ? numeric : 0;
   };
   const safeRefresh = async (
@@ -1210,7 +1210,7 @@ export const createDashboardActions = ({
         const estimatedCost =
           payload.sourceTab === 'sale' && saleItems.length > 0
             ? saleItems.reduce((total, item) => total + item.price * item.quantity, 0)
-            : Number.parseFloat(payload.estimatedCost || '0');
+            : parseDecimal(payload.estimatedCost || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
           throw new Error('Client phone must include full +380 number.');

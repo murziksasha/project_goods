@@ -4,6 +4,7 @@ import {
   type FinanceCurrency,
   type TransactionType,
 } from './model';
+import { toNumber } from '../../shared/lib/parsers';
 
 export type CashboxPayload = {
   name?: unknown;
@@ -27,7 +28,7 @@ export type TransactionPayload = {
 export const normalizeName = (value: unknown) => String(value ?? '').trim();
 
 export const normalizeAmount = (value: unknown) => {
-  const amount = Number(value);
+  const amount = toNumber(value);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error('Transaction amount must be greater than 0.');
   }
