@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   acceptSalePayment,
   refundSalePayment,
@@ -79,6 +80,28 @@ const sale: Sale = {
   issuedBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const cashbox = {
+  id: 'cashbox-1',
+  name: 'Основная',
+  balances: { UAH: 5000, USD: 0 },
+  isDefault: true,
+  isArchived: false,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const printForm: PrintForm = {
+  id: 'receipt',
+  title: 'Receipt',
+  type: 'receipt',
+  content: '<p>{{orderNumber}}</p>',
+  contentFormat: 'html',
+  pageSize: 'A4',
+  orientation: 'portrait',
+  isActive: true,
+  sortOrder: 10,
 };
 
 const renderWorkspace = (
@@ -439,6 +462,11 @@ describe('OrdersWorkspace', () => {
     expect(createFinanceTransaction).not.toHaveBeenCalled();
     expect(refundSalePayment).not.toHaveBeenCalled();
     expect(onSaleUpdate).toHaveBeenCalledWith(paidSale);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Accept to cashbox' }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('opens repair card payment as issue flow from Accept payment', async () => {
@@ -512,6 +540,113 @@ describe('OrdersWorkspace', () => {
       });
     });
     expect(onSaleUpdate).toHaveBeenCalledWith(issuedSale);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Accept and issue' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes payment modal after successful issue without payment', async () => {
+    const onSaleUpdate = vi.fn();
+    const issuedSale: Sale = {
+      ...sale,
+      status: 'issued',
+      paidAmount: 0,
+    };
+    vi.mocked(getCashboxes).mockResolvedValue([cashbox]);
+    vi.mocked(acceptSalePayment).mockResolvedValue(issuedSale);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 1250,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Issue without payment' }),
+    );
+
+    await waitFor(() => {
+      expect(acceptSalePayment).toHaveBeenCalledWith('sale-1', {
+        cashboxId: undefined,
+        amount: '1250',
+        paymentMethod: 'cash',
+        action: 'issueWithoutPayment',
+        targetStatus: 'issued',
+        author: 'Manager',
+        issuedById: 'manager-1',
+      });
+    });
+    expect(onSaleUpdate).toHaveBeenCalledWith(issuedSale);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Issue without payment' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps payment modal open when opening print from payment modal', async () => {
+    vi.mocked(getCashboxes).mockResolvedValue([cashbox]);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 1250,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      printForms: [printForm],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Print' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Print order' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Accept to cashbox' }),
+    ).toBeInTheDocument();
   });
 
   it('defaults orders and sales page size to 30 rows', () => {

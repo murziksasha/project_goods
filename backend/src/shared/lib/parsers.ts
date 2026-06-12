@@ -129,6 +129,12 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
     ? payload.timeline
         .map((entry) => ({
           id: toNonEmptyString((entry as { id?: unknown })?.id),
+          kind:
+            toNonEmptyString((entry as { kind?: unknown })?.kind) === 'manual'
+              ? 'manual'
+              : toNonEmptyString((entry as { kind?: unknown })?.kind) === 'system'
+                ? 'system'
+                : undefined,
           author: toNonEmptyString((entry as { author?: unknown })?.author),
           message: toNonEmptyString((entry as { message?: unknown })?.message),
           createdAt:

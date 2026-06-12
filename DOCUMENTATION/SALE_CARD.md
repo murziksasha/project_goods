@@ -71,6 +71,7 @@
 ## Print Dialog
 
 - `Order card` and `Sale card` use the same print dialog behavior.
+- Opening print from the payment modal must not close the payment modal.
 - Opening the print dialog must not preselect any print form; all form checkboxes start unchecked.
 - Print form selection is single-choice even though the UI uses checkboxes:
   - selecting a form checks only that form
@@ -87,6 +88,13 @@
 - In `Accept payment` modal, `Discount` is read-only and shown for reference.
 - Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
 - Discount value is stored in workspace state and reused across card and payment modal.
+- After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
+
+## Live Feed
+
+- System-generated messages keep system styling.
+- Manually entered `Live feed` comments use green text.
+- New timeline entries store explicit source: `manual` for composer comments and `system` for generated actions. Legacy entries without source keep the existing message-text fallback.
 
 ## Sale Status Mapping
 

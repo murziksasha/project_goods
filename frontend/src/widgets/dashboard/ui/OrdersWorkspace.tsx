@@ -912,8 +912,10 @@ export const OrdersWorkspace = ({
   const appendTimelineEntry = (
     message: string,
     author: string = currentEmployeeName,
+    kind: TimelineEntry['kind'] = 'system',
   ): TimelineEntry => ({
     id: createRuntimeId(),
+    kind,
     author,
     message,
     createdAt: new Date().toISOString(),
@@ -1317,7 +1319,7 @@ export const OrdersWorkspace = ({
     if (!normalizedComment) return;
     queueSaleWorkspaceUpdate(sale, {
       timeline: [
-        appendTimelineEntry(normalizedComment),
+        appendTimelineEntry(normalizedComment, currentEmployeeName, 'manual'),
         ...sale.timeline,
       ],
     });

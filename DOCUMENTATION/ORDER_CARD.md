@@ -34,6 +34,7 @@
 - `Live feed` composer (`Comment` + `Add`) is fixed at the bottom of the panel and requires `orders.chat`.
 - System-generated messages use gray text.
 - Manually entered comments use green text and are allowed only for employees with `orders.chat`.
+- New timeline entries store explicit source: `manual` for composer comments and `system` for generated actions. Legacy entries without source keep the existing message-text fallback.
 
 ## Products Section
 
@@ -56,6 +57,8 @@
   - `To pay`
 - `Discount` is editable only in the right `Payment` panel of the card.
 - In `Accept payment` modal summary, `Discount` is read-only and informational.
+- After a successful modal action (`Accept to cashbox`, `Accept and issue`, or `Issue without payment` / paid equivalent), the payment modal closes automatically.
+- `Print` from the payment modal opens the print flow only and keeps the payment modal open.
 - `Discount` supports two modes switched in the card control:
   - `%` (percentage from total)
   - `₴` (fixed amount in currency)
