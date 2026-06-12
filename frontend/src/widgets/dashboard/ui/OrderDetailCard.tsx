@@ -30,7 +30,7 @@ import type { SupplierOrderFormValues } from '../../../entities/supplier-order/m
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
-import { parseDecimal } from '../../../shared/lib/decimal';
+import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
 import { getOrderLink } from './create-order-card-shared';
@@ -217,6 +217,7 @@ export const OrderDetailCard = ({
   >([]);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
+  const [discountInput, setDiscountInput] = useState(String(discount.value));
   const remainingPayment = getRemainingPayment(
     sale,
     paidAmount,
@@ -258,6 +259,19 @@ export const OrderDetailCard = ({
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
+  useEffect(() => {
+    setDiscountInput((current) => {
+      const currentValue = parseDecimal(current);
+      const roundedCurrentValue = Number.isFinite(currentValue)
+        ? Math.round(currentValue * 100) / 100
+        : NaN;
+
+      if (current.trim() === '' && discount.value === 0) return current;
+      if (roundedCurrentValue === discount.value) return current;
+
+      return String(discount.value);
+    });
+  }, [discount.mode, discount.value, sale.id]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -874,15 +888,26 @@ export const OrderDetailCard = ({
                   <input
                     type='text'
                     inputMode='decimal'
-                    value={String(discount.value)}
+                    value={discountInput}
                     onChange={(event) => {
-                      const nextValue = parseDecimal(event.target.value);
+                      const nextInput = normalizeDecimalInput(event.target.value);
+                      const nextValue = parseDecimal(nextInput);
+                      setDiscountInput(nextInput);
+
+                      if (nextInput === '') {
+                        onDiscountChange({
+                          mode: discount.mode,
+                          value: 0,
+                        });
+                        return;
+                      }
+                      if (!Number.isFinite(nextValue)) return;
+
                       onDiscountChange({
                         mode: discount.mode,
-                        value:
-                          Number.isFinite(nextValue) && nextValue > 0
-                            ? Math.round(nextValue * 100) / 100
-                            : 0,
+                        value: nextValue > 0
+                          ? Math.round(nextValue * 100) / 100
+                          : 0,
                       });
                     }}
                     disabled={isReadOnly}
@@ -890,15 +915,18 @@ export const OrderDetailCard = ({
                   <button
                     type='button'
                     className='order-payment-discount-mode'
-                    onClick={() =>
+                    onClick={() => {
+                      const nextValue = parseDecimal(discountInput);
                       onDiscountChange({
                         mode:
                           discount.mode === 'percent'
                             ? 'amount'
                             : 'percent',
-                        value: discount.value,
-                      })
-                    }
+                        value: Number.isFinite(nextValue) && nextValue > 0
+                          ? Math.round(nextValue * 100) / 100
+                          : discount.value,
+                      });
+                    }}
                     aria-label='Toggle discount mode'
                     disabled={isReadOnly}
                   >
@@ -1346,6 +1374,7 @@ const LineItemsPanel = ({
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialsInput, setSerialsInput] = useState('');
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
   const [supplierOrderProductName, setSupplierOrderProductName] =
@@ -1389,6 +1418,18 @@ const LineItemsPanel = ({
   const serialUsage = useMemo(() => {
     return getSaleSerialUsage(sales, currentSaleId);
   }, [currentSaleId, sales]);
+  useEffect(() => {
+    setPriceDrafts((current) => {
+      const itemIds = new Set(items.map((item) => item.id));
+      const nextEntries = Object.entries(current).filter(([itemId]) =>
+        itemIds.has(itemId),
+      );
+
+      if (nextEntries.length === Object.keys(current).length) return current;
+
+      return Object.fromEntries(nextEntries);
+    });
+  }, [items]);
   const occupiedSerials = useMemo(() => {
     const occupied = new Set<string>();
 
@@ -1986,6 +2027,21 @@ const LineItemsPanel = ({
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
+  const handleLineItemPriceChange = (item: OrderLineItem, value: string) => {
+    setPriceDrafts((current) => ({
+      ...current,
+      [item.id]: value,
+    }));
+
+    if (value === '') return;
+
+    const parsedPrice = parseDecimal(value);
+    if (!Number.isFinite(parsedPrice)) return;
+
+    onUpdateItem(item.id, undefined, {
+      price: Math.round(parsedPrice * 100) / 100,
+    });
+  };
 
   return (
     <div className='order-line-items'>
@@ -2012,25 +2068,24 @@ const LineItemsPanel = ({
                 >
                   {item.name}
                 </button>
+              </div>
+              <div
+                key={`${item.id}-price`}
+                className='order-line-item-price-cell'
+              >
                 {item.kind === 'product' &&
                 (item.serialNumbers ?? []).length > 0 ? (
                   <p className='muted-copy order-line-item-serials'>
-                    {`S/N: ${(item.serialNumbers ?? []).join(', ')}`}
+                    {(item.serialNumbers ?? []).join(', ')}
                   </p>
                 ) : null}
-              </div>
-              <div key={`${item.id}-price`}>
                 <NumberStepper
                   className='line-item-inline-input'
                   min={0}
                   step={0.01}
                   precision={2}
-                  value={String(item.price)}
-                  onChange={(value) =>
-                    onUpdateItem(item.id, undefined, {
-                      price: parseDecimal(value),
-                    })
-                  }
+                  value={priceDrafts[item.id] ?? String(item.price)}
+                  onChange={(value) => handleLineItemPriceChange(item, value)}
                   disabled={isReadOnly}
                 />
               </div>

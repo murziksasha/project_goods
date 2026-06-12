@@ -114,9 +114,13 @@ const renderCard = ({
   products = [product()],
   catalogProducts = [catalogProduct()],
   onAddLineItem = vi.fn(),
+  onUpdateLineItem = vi.fn(),
+  onRemoveLineItem = vi.fn(),
+  onDiscountChange = vi.fn(),
   onError = vi.fn(),
   canAddComment = true,
   isReadOnly = false,
+  comments = [],
   saleOverride,
   salesOverride,
   onOpenRelatedSale = vi.fn(),
@@ -126,9 +130,36 @@ const renderCard = ({
   products?: Product[];
   catalogProducts?: CatalogProduct[];
   onAddLineItem?: (item: Omit<OrderLineItem, 'id'>) => void;
+  onUpdateLineItem?: (
+    itemId: string,
+    itemIndex: number | undefined,
+    patch: Partial<
+      Pick<
+        OrderLineItem,
+        | 'name'
+        | 'productId'
+        | 'serviceId'
+        | 'price'
+        | 'quantity'
+        | 'warrantyPeriod'
+        | 'serialNumbers'
+      >
+    >,
+  ) => void;
+  onRemoveLineItem?: (itemId: string, itemIndex?: number) => void;
+  onDiscountChange?: (discount: {
+    mode: 'percent' | 'amount';
+    value: number;
+  }) => void;
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
+  comments?: Array<{
+    id: string;
+    author: string;
+    message: string;
+    createdAt: string;
+  }>;
   saleOverride?: Partial<Sale>;
   salesOverride?: Sale[];
   onOpenRelatedSale?: (sale: Sale) => void;
@@ -145,7 +176,7 @@ const renderCard = ({
       employees={[]}
       status={cardStatus}
       statusOptions={[{ key: cardStatus, label: 'Test status' }]}
-      comments={[]}
+      comments={comments}
       lineItems={lineItems}
       products={products}
       catalogProducts={catalogProducts}
@@ -158,14 +189,14 @@ const renderCard = ({
       onAddComment={vi.fn()}
       onAddLineItem={onAddLineItem}
       onReplaceLineItem={vi.fn()}
-      onRemoveLineItem={vi.fn()}
-      onUpdateLineItem={vi.fn()}
+      onRemoveLineItem={onRemoveLineItem}
+      onUpdateLineItem={onUpdateLineItem}
       onReturnLineItem={vi.fn()}
       onOpenRelatedSale={onOpenRelatedSale}
       onAcceptPayment={vi.fn()}
       onOpenPrint={vi.fn()}
       onRefundPayment={vi.fn()}
-      onDiscountChange={vi.fn()}
+      onDiscountChange={onDiscountChange}
       onOpenClientCard={vi.fn()}
       onSupplierOrderCreated={vi.fn(async () => undefined)}
       onUpdateProductModel={vi.fn(async () => true)}
@@ -241,6 +272,118 @@ describe('OrderDetailCard product entry', () => {
         serialNumbers: ['S000003'],
       }),
     );
+  });
+
+  it('keeps an existing product row when its price input is cleared', () => {
+    const onUpdateLineItem = vi.fn();
+    const onRemoveLineItem = vi.fn();
+    renderCard({
+      onUpdateLineItem,
+      onRemoveLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 650,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const priceInput = screen.getByDisplayValue('650');
+    fireEvent.change(priceInput, {
+      target: { value: '' },
+    });
+
+    expect(priceInput).toHaveValue('');
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    expect(onRemoveLineItem).not.toHaveBeenCalled();
+  });
+
+  it('updates existing product prices only from valid editable number states', () => {
+    const onUpdateLineItem = vi.fn();
+    renderCard({
+      onUpdateLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 650,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const priceInput = screen.getByDisplayValue('650');
+    fireEvent.change(priceInput, { target: { value: '0' } });
+    fireEvent.change(priceInput, { target: { value: '1.3' } });
+    fireEvent.change(priceInput, { target: { value: '1,3' } });
+
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(1, 'line-item-1', undefined, {
+      price: 0,
+    });
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(2, 'line-item-1', undefined, {
+      price: 1.3,
+    });
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(3, 'line-item-1', undefined, {
+      price: 1.3,
+    });
+  });
+
+  it('shows bound product serials next to price without the S/N label', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Serialized part',
+          price: 650,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R0035752'],
+        },
+      ],
+    });
+
+    const serial = screen.getByText('R0035752');
+    expect(serial.closest('.order-line-item-price-cell')).not.toBeNull();
+    expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
+  });
+
+  it('keeps discount percent input editable while accepting comma and dot decimals', () => {
+    const onDiscountChange = vi.fn();
+    const { container } = renderCard({
+      onDiscountChange,
+      saleOverride: {
+        discount: { mode: 'percent', value: 1 },
+      },
+    });
+    const discountInput = container.querySelector<HTMLInputElement>(
+      '.order-payment-discount-control input',
+    );
+
+    expect(discountInput).not.toBeNull();
+    fireEvent.change(discountInput!, { target: { value: '1,' } });
+    expect(discountInput).toHaveValue('1,');
+    fireEvent.change(discountInput!, { target: { value: '1.3' } });
+    fireEvent.change(discountInput!, { target: { value: '1,3' } });
+
+    expect(onDiscountChange).toHaveBeenNthCalledWith(1, {
+      mode: 'percent',
+      value: 1,
+    });
+    expect(onDiscountChange).toHaveBeenNthCalledWith(2, {
+      mode: 'percent',
+      value: 1.3,
+    });
+    expect(onDiscountChange).toHaveBeenNthCalledWith(3, {
+      mode: 'percent',
+      value: 1.3,
+    });
   });
 
   it('keeps repair products editable in client approved status', () => {
