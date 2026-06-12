@@ -33,13 +33,14 @@
 - Status changes and system actions are logged to `Live feed`.
 - `Live feed` composer (`Comment` + `Add`) is fixed at the bottom of the panel and requires `orders.chat`.
 - System-generated messages use gray text.
-- Manually entered comments use blue text and are allowed only for employees with `orders.chat`.
+- Manually entered comments use green text and are allowed only for employees with `orders.chat`.
 
 ## Products Section
 
 - `Products` section contains only attached products/parts/services used for the order work.
 - `Products` is collapsed by default in order card; saved expanded/collapsed state may override that default on later opens.
 - Accepted repair device is not a product line item.
+- Clearing a product row `Price` input while editing must not remove the product line item; explicit `Remove` remains the only row-removal action.
 - Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.
 - If multiple serials are bound to a legacy multi-quantity product line, the card must split it into one product row per serial before saving.
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.

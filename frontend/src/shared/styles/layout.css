@@ -2414,7 +2414,7 @@
 }
 
 .order-timeline-message-manual {
-  color: #2d8ae3;
+  color: #248f5a;
 }
 
 .order-timeline textarea {
@@ -2606,6 +2606,20 @@
 
 .order-line-item-name-button:hover {
   text-decoration: underline;
+}
+
+.order-line-item-price-cell {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.order-line-item-price-cell .order-line-item-serials {
+  justify-content: flex-start;
+  color: #4d637a;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .line-item-create-service-button {
