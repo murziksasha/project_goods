@@ -156,6 +156,7 @@ const renderCard = ({
   isReadOnly?: boolean;
   comments?: Array<{
     id: string;
+    kind?: 'manual' | 'system';
     author: string;
     message: string;
     createdAt: string;
@@ -465,6 +466,42 @@ describe('OrderDetailCard product entry', () => {
 
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
+  it('renders manual live feed comments with manual styling', () => {
+    renderCard({
+      comments: [
+        {
+          id: 'manual-comment',
+          kind: 'manual',
+          author: 'Manager',
+          message: 'Manual note for client',
+          createdAt: now,
+        },
+      ],
+    });
+
+    expect(screen.getByText('Manual note for client')).toHaveClass(
+      'order-timeline-message-manual',
+    );
+  });
+
+  it('keeps system live feed messages in system styling', () => {
+    renderCard({
+      comments: [
+        {
+          id: 'system-comment',
+          kind: 'system',
+          author: 'Manager',
+          message: 'Manager added service "Diagnostics".',
+          createdAt: now,
+        },
+      ],
+    });
+
+    expect(screen.getByText('Manager added service "Diagnostics".')).toHaveClass(
+      'order-timeline-message-system',
+    );
   });
 
   it('keeps repair card editable while still blocking comment add without orders.chat', () => {

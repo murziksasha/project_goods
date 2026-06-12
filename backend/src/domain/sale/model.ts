@@ -86,6 +86,7 @@ export const saleSchema = new mongoose.Schema(
       {
         _id: false,
         id: { type: String, required: true },
+        kind: { type: String, enum: ['manual', 'system'], required: false },
         author: { type: String, required: true },
         message: { type: String, required: true },
         createdAt: { type: Date, required: true },

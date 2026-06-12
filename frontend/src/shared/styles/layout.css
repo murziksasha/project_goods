@@ -2409,11 +2409,11 @@
   color: #2d8ae3;
 }
 
-.order-timeline-message-system {
-  color: #6f8197;
+.order-timeline-item small.order-timeline-message-system {
+  color: #2d8ae3;
 }
 
-.order-timeline-message-manual {
+.order-timeline-item small.order-timeline-message-manual {
   color: #248f5a;
 }
 

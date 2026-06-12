@@ -87,6 +87,7 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
 - In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `issued`.
@@ -138,6 +139,7 @@
 - In order card device modal, if no exact device-name match is found in `Clients goods`, the form must stay in `New device` mode.
 - The modal must not auto-select the first available client device as fallback.
 - `Live feed` composer (comment input + `Add` button) is fixed at the bottom of the live feed panel and must not shrink.
+- Manual `Live feed` composer comments are rendered green; generated timeline messages keep system styling.
 
 ## Clients Goods (`Products & Services` first tab)
 
