@@ -897,6 +897,7 @@ type SalePaymentHistoryEntryValue = {
 };
 type SaleTimelineEntryValue = {
   id: string;
+  kind?: 'manual' | 'system';
   author: string;
   message: string;
   createdAt: Date;
@@ -1064,6 +1065,7 @@ export const acceptSalePayment = async (
     nextTimeline = [
       {
         id: randomUUID(),
+        kind: 'system',
         author,
         message: `${author} accepted ${amount} UAH to ${cashboxName} (${paymentMethod}).`,
         createdAt,
@@ -1076,6 +1078,7 @@ export const acceptSalePayment = async (
     nextTimeline = [
       {
         id: randomUUID(),
+        kind: 'system',
         author,
         message: `${author} changed status to "${nextStatus}".`,
         createdAt,
@@ -1191,6 +1194,7 @@ export const refundSalePayment = async (
       ? [
           {
             id: randomUUID(),
+            kind: 'system',
             author,
             message: `${author} changed status to "${nextStatus}".`,
             createdAt,
@@ -1199,6 +1203,7 @@ export const refundSalePayment = async (
       : []),
     {
       id: randomUUID(),
+      kind: 'system',
       author,
       message: `${author} refunded ${amount} UAH from ${cashboxName}.`,
       createdAt,
@@ -1309,6 +1314,7 @@ export const returnSaleLineItem = async (
     const nextTimeline = [
       {
         id: randomUUID(),
+        kind: 'system',
         author,
         message: `Returned "${lineItem.name}" to ${warehouse}; refunded ${refundAmount} UAH from ${cashboxName}.`,
         createdAt,
@@ -1488,6 +1494,7 @@ export const returnSaleLineItemBySerials = async (
     const nextTimeline = [
       {
         id: randomUUID(),
+        kind: 'system',
         author,
         message: `Returned serials [${requestedSerialNumbers.join(', ')}] for "${lineItem.name}" to ${warehouse}; refunded ${refundAmount} UAH from ${cashboxName}.`,
         createdAt,
@@ -1605,6 +1612,7 @@ export const returnSaleLineItemToStock = async (
         timeline: [
           {
             id: randomUUID(),
+            kind: 'system',
             author,
             message: `Returned "${lineItem.name}" to ${warehouse} (stock only).`,
             createdAt,
@@ -1731,6 +1739,7 @@ export const returnSale = async (
     const nextTimeline = [
       {
         id: randomUUID(),
+        kind: 'system',
         author,
         message: `Returned sale to ${warehouse}; products: ${returnedNames}; refunded ${refundAmount} UAH from ${cashboxName}.`,
         createdAt,

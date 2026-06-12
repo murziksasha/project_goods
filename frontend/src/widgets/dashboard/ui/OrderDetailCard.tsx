@@ -495,6 +495,13 @@ export const OrderDetailCard = ({
     onAddComment(comment);
     setComment('');
   };
+  const getTimelineMessageClassName = (item: TimelineEntry) => {
+    if (item.kind === 'manual') return 'order-timeline-message-manual';
+    if (item.kind === 'system') return 'order-timeline-message-system';
+    return isSystemTimelineMessage(item.message)
+      ? 'order-timeline-message-system'
+      : 'order-timeline-message-manual';
+  };
   const selectedRelatedSupplierOrder =
     relatedSupplierOrderSource && relatedSupplierOrderItemIndex !== null
       ? {
@@ -748,13 +755,7 @@ export const OrderDetailCard = ({
                 </span>
                 <p>
                   <strong>{item.author}</strong>
-                  <small
-                    className={
-                      isSystemTimelineMessage(item.message)
-                        ? 'order-timeline-message-system'
-                        : 'order-timeline-message-manual'
-                    }
-                  >
+                  <small className={getTimelineMessageClassName(item)}>
                     {item.message}
                   </small>
                 </p>

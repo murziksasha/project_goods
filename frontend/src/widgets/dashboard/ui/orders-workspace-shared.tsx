@@ -133,6 +133,7 @@ export type PaymentTargetStatus =
   | 'paid';
 export type TimelineEntry = {
   id: string;
+  kind?: 'manual' | 'system';
   author: string;
   message: string;
   createdAt: string;

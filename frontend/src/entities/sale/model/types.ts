@@ -20,6 +20,7 @@ export type Sale = {
   note: string;
   timeline: Array<{
     id: string;
+    kind?: 'manual' | 'system';
     author: string;
     message: string;
     createdAt: string;

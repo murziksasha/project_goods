@@ -119,6 +119,7 @@ export const formatSale = (sale: SaleDocument) => ({
   note: sale.note,
   timeline: (sale.timeline ?? []).map((entry) => ({
     id: entry.id,
+    kind: entry.kind,
     author: entry.author,
     message: entry.message,
     createdAt: entry.createdAt.toISOString(),
