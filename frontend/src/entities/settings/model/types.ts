@@ -70,6 +70,9 @@ export type PrintLayoutBlock =
       id: string;
       type: 'barcode';
       label?: string;
+      value?: string;
+      showValue?: boolean;
+      size?: 'compact' | 'standard' | 'large';
     }
   | {
       id: string;

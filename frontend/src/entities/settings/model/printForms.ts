@@ -19,6 +19,12 @@ export const defaultLabelSize = {
   heightMm: 40,
 };
 
+export const defaultBarcodeLabelSize = {
+  presetId: '40x25',
+  widthMm: 40,
+  heightMm: 25,
+};
+
 export const labelSizePresets: LabelSizePreset[] = [
   { id: '25x40', label: '25 x 40 mm', widthMm: 25, heightMm: 40 },
   { id: '40x25', label: '40 x 25 mm', widthMm: 40, heightMm: 25 },
@@ -63,9 +69,24 @@ export const normalizeLabelSize = (
   return defaultLabelSize;
 };
 
+export const getOrientedLabelSize = (
+  labelSize: NonNullable<PrintForm['labelSize']>,
+  orientation: PrintForm['orientation'],
+) =>
+  orientation === 'landscape' && labelSize.heightMm > labelSize.widthMm
+    ? {
+        ...labelSize,
+        widthMm: labelSize.heightMm,
+        heightMm: labelSize.widthMm,
+      }
+    : labelSize;
+
 export type PrintFormVariable =
   | 'id'
   | 'orderNumber'
+  | 'labelCode'
+  | 'labelTitle'
+  | 'labelContact'
   | 'date'
   | 'createdAt'
   | 'status'
@@ -121,6 +142,9 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'id', label: 'Order ID' },
       { key: 'orderNumber', label: 'Order number' },
+      { key: 'labelCode', label: 'Label code' },
+      { key: 'labelTitle', label: 'Label title' },
+      { key: 'labelContact', label: 'Label contact' },
       { key: 'date', label: 'Created date' },
       { key: 'createdAt', label: 'Created date and time' },
       { key: 'due_date', label: 'Due date' },
@@ -207,10 +231,20 @@ const documentShell = (body: string) => `
   </div>
 `;
 
+const labelShell = (body: string) => `
+  <div class="print-label">
+    ${body}
+  </div>
+`;
+
 const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
 
 const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
   align && align !== 'left' ? ` print-align-${align}` : '';
+
+const codeSizeClass = (
+  size: 'compact' | 'standard' | 'large' | undefined,
+) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
 
 const renderInlineTemplate = (value: string) => escapeHtml(value).replace(
   /\{\{([a-zA-Z0-9_]+)\}\}/g,
@@ -265,6 +299,21 @@ const renderCustomTable = (
   return `<table class="print-line-table"><thead><tr>${header}</tr></thead><tbody>${bodyRows}</tbody></table>`;
 };
 
+const renderBarcodeBlock = (
+  block: Extract<PrintLayoutBlock, { type: 'barcode' }>,
+) => {
+  const value = block.value?.trim() || '{{barcode}}';
+  const barcode =
+    value === '{{barcode}}'
+      ? '{{barcode}}'
+      : `<svg class="print-barcode" data-barcode-value="${renderInlineTemplate(value)}"></svg>`;
+  const visibleValue = block.showValue
+    ? `<strong class="print-code-value">${renderInlineTemplate(value)}</strong>`
+    : '';
+
+  return `<div class="print-code-row${codeSizeClass(block.size)}">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}${barcode}${visibleValue}</div>`;
+};
+
 export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
   blocks
     .map((block) => {
@@ -288,7 +337,7 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
         case 'invoiceItemsTable':
           return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}`;
         case 'barcode':
-          return `<div class="print-code-row">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}{{barcode}}</div>`;
+          return renderBarcodeBlock(block);
         case 'signatures':
           return `<div class="print-signatures"><span>${renderInlineTemplate(block.left)}</span><span>${renderInlineTemplate(block.right)}</span></div>`;
         case 'divider':
@@ -305,8 +354,13 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
     })
     .join('');
 
-export const renderPrintLayout = (blocks: PrintLayoutBlock[]) =>
-  documentShell(renderPrintLayoutBlocks(blocks));
+export const renderPrintLayout = (
+  blocks: PrintLayoutBlock[],
+  shell: 'document' | 'label' = 'document',
+) => {
+  const body = renderPrintLayoutBlocks(blocks);
+  return shell === 'label' ? labelShell(body) : documentShell(body);
+};
 
 const detailsTable = `
   <table class="print-details-table">
@@ -493,15 +547,15 @@ export const defaultPrintForms: PrintForm[] = [
     content: `
       <div class="print-label">
         <div class="print-label-code">{{barcode}}</div>
-        <strong>{{orderNumber}}</strong>
-        <span>{{clientPhone}}</span>
-        <span>{{deviceName}}</span>
+        <strong>{{labelCode}}</strong>
+        <span>{{labelTitle}}</span>
+        <span>{{labelContact}}</span>
       </div>
     `,
     contentFormat: 'html',
     pageSize: 'label',
-    labelSize: defaultLabelSize,
-    orientation: 'portrait',
+    labelSize: defaultBarcodeLabelSize,
+    orientation: 'landscape',
     isActive: true,
     sortOrder: 60,
   },
@@ -583,7 +637,7 @@ export const createPrintLayoutBlock = (
     case 'invoiceItemsTable':
       return { id, type, title: '' };
     case 'barcode':
-      return { id, type, label: '' };
+      return { id, type, label: '', value: '{{barcode}}', showValue: false, size: 'standard' };
     case 'signatures':
       return {
         id,
@@ -731,10 +785,10 @@ const invoiceLayoutBlocks: PrintLayoutBlock[] = [
 ];
 
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
-  { id: 'barcode-code', type: 'barcode' },
-  { id: 'barcode-number', type: 'heading', level: 3, text: '{{orderNumber}}', align: 'center' },
-  { id: 'barcode-phone', type: 'paragraph', text: '{{clientPhone}}', align: 'center' },
-  { id: 'barcode-device', type: 'paragraph', text: '{{deviceName}}', align: 'center' },
+  { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
+  { id: 'barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
+  { id: 'barcode-title', type: 'paragraph', text: '{{labelTitle}}', align: 'center' },
+  { id: 'barcode-contact', type: 'paragraph', text: '{{labelContact}}', align: 'center' },
 ];
 
 export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
@@ -762,12 +816,18 @@ export const createLayoutPrintForm = (form: PrintForm): PrintForm =>
       : getDefaultPrintLayoutBlocks(form.type || form.id),
   });
 
+const isBarcodeForm = (form: PrintForm) =>
+  form.type === 'barcode' || form.id === 'barcode';
+
 const withGeneratedContent = (form: PrintForm): PrintForm =>
   form.layoutBlocks && form.layoutBlocks.length > 0
     ? {
         ...form,
         layoutVersion: 1,
-        content: renderPrintLayout(form.layoutBlocks),
+        content: renderPrintLayout(
+          form.layoutBlocks,
+          isBarcodeForm(form) ? 'label' : 'document',
+        ),
         contentFormat: 'html',
       }
     : form;
@@ -788,6 +848,14 @@ const isPreviousDefaultInvoice = (form: PrintForm) =>
     !form.content.includes('{{customer_address}}') ||
     !form.content.includes('{{customer_iban}}'));
 
+const isPreviousDefaultBarcode = (form: PrintForm) =>
+  form.id === 'barcode' &&
+  hasBuiltInDefaultTitle(form) &&
+  (!form.content.includes('{{labelCode}}') ||
+    form.content.includes('{{orderNumber}}') ||
+    form.content.includes('{{clientPhone}}') ||
+    form.content.includes('{{deviceName}}'));
+
 const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
@@ -799,6 +867,7 @@ const isLegacyStandardPrintForm = (form: PrintForm) => {
 };
 
 const isRecognizableDefaultPrintForm = (form: PrintForm) => {
+  if (form.id === 'barcode') return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
 };
@@ -844,10 +913,11 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
     (form, index) => {
       const shouldUseDefaultLayout =
-        !hasLayoutBlocks(form) &&
-        (isPreviousDefaultInvoice(form) ||
-          isLegacyStandardPrintForm(form) ||
-          isRecognizableDefaultPrintForm(form));
+        isPreviousDefaultBarcode(form) ||
+        (!hasLayoutBlocks(form) &&
+          (isPreviousDefaultInvoice(form) ||
+            isLegacyStandardPrintForm(form) ||
+            isRecognizableDefaultPrintForm(form)));
       const normalizedForm = shouldUseDefaultLayout
         ? createLayoutPrintForm(defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form)
         : hasLayoutBlocks(form)
@@ -921,7 +991,7 @@ export const renderPrintTemplate = (
     if (key === 'barcode') {
       return result.replaceAll(
         '{{barcode}}',
-        `<svg class="print-barcode" data-barcode-value="${escapeHtml(values.orderNumber || values.id || '')}"></svg>`,
+        `<svg class="print-barcode" data-barcode-value="${escapeHtml(values.barcode || values.orderNumber || values.id || '')}"></svg>`,
       );
     }
     if (key === 'products_table') {
@@ -953,9 +1023,13 @@ export const renderPrintTemplate = (
 
 export const printDocumentStyles = `
   body { font-family: Arial, sans-serif; color: #1f2937; background: #fff; }
+  html.print-html-label:not(.print-screen-preview), html.print-html-label:not(.print-screen-preview) body { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
   .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
+  body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
   .print-form { page-break-after: always; padding: 16mm; }
   .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; overflow: hidden; }
+  body.print-screen-preview .print-form-label { margin: 0 auto 18px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.32); page-break-after: auto; zoom: 3.6; }
   .print-document { font-size: 13px; line-height: 1.45; }
   .print-document h1 { font-size: 22px; margin: 0 0 16px; font-weight: 500; }
   .print-document h2 { font-size: 18px; margin: 0 0 6px; }
@@ -965,6 +1039,9 @@ export const printDocumentStyles = `
   .print-code-block { min-width: 180px; text-align: center; }
   .print-code-row { display: flex; gap: 20px; align-items: center; margin-top: 16px; }
   .print-barcode { max-width: 220px; height: 52px; }
+  .print-code-row-compact .print-barcode { height: 36px; max-width: 180px; }
+  .print-code-row-large .print-barcode { height: 68px; max-width: 320px; }
+  .print-code-value { font-family: Consolas, monospace; font-size: 13px; line-height: 1; }
   .print-details-table, .print-summary-table, .print-line-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
   .print-details-table td, .print-summary-table td, .print-line-table th, .print-line-table td { border: 1px solid #d1d5db; padding: 5px 7px; vertical-align: top; }
   .print-line-table th { background: #f3f4f6; text-align: left; }
@@ -982,12 +1059,20 @@ export const printDocumentStyles = `
   .print-spacer-small { height: 6px; }
   .print-spacer-medium { height: 14px; }
   .print-spacer-large { height: 26px; }
-  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.6mm; overflow: hidden; padding: 1.5mm; text-align: center; font-size: 8px; line-height: 1.1; }
+  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2mm; overflow: hidden; padding: 0.45mm 1.25mm 0.45mm; text-align: center; font-size: 8px; line-height: 1.1; }
   .print-label-code { width: 100%; display: flex; justify-content: center; }
-  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 3mm); max-width: 100%; height: 10mm; }
+  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 2.5mm); max-width: 100%; height: 11.6mm; }
+  .print-label .print-code-row { width: 100%; margin: 0; justify-content: center; }
+  .print-label .print-code-row-compact .print-barcode { height: 9mm; }
+  .print-label .print-code-row-standard .print-barcode { height: 10.4mm; }
+  .print-label .print-code-row-large .print-barcode { height: 11.6mm; }
+  .print-label .print-code-value { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
   .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
-  .print-label strong { font-size: 16px; line-height: 1; }
+  .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
+  .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
   .invoice-party { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; font-size: 12px; }
   .invoice-party > strong { text-decoration: underline; }
   .invoice-title { margin: 26px 0 14px; text-align: center; }
@@ -1009,7 +1094,9 @@ export const printDocumentStyles = `
   @page { size: A4 portrait; margin: 12mm; }
   @media print {
     body { margin: 0; }
+    body.print-screen-preview { padding: 0; background: #fff; }
     .print-form { border: 0 !important; margin: 0 !important; }
+    body.print-screen-preview .print-form-label { box-shadow: none; margin: 0; zoom: 1; }
     .print-form-label { page-break-after: always; }
   }
 `;

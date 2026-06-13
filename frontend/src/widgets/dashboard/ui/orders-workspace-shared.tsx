@@ -23,6 +23,7 @@ import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   customLabelSizePresetId,
   defaultPrintForms,
+  getOrientedLabelSize,
   labelSizePresets,
   normalizeLabelSize,
   normalizePrintFormsForView,
@@ -1106,6 +1107,26 @@ export const renderInvoiceItemsTable = (sale: Sale) => {
   `;
 };
 
+const getLabelProductData = (
+  lineItems: OrderLineItem[],
+  orderNumber: string,
+) => {
+  const productItem =
+    lineItems.find(
+      (item) =>
+        item.kind === 'product' &&
+        (item.serialNumbers ?? []).some((serial) => serial.trim()),
+    ) ?? lineItems.find((item) => item.kind === 'product');
+  const serialNumber =
+    productItem?.serialNumbers?.find((serial) => serial.trim())?.trim() ?? '';
+
+  return {
+    labelCode: serialNumber || orderNumber,
+    labelTitle: productItem?.name ?? '',
+    labelContact: '',
+  };
+};
+
 export const getPrintTemplateData = (
   sale: Sale,
   lineItems: OrderLineItem[],
@@ -1123,6 +1144,14 @@ export const getPrintTemplateData = (
   );
   const createdAt = formatDateTime(sale.createdAt);
   const isRepair = isRepairOrder(sale);
+  const isRepairLabel = isRepair || orderNumber.trim().toLowerCase().startsWith('r');
+  const repairLabelData = {
+    labelCode: orderNumber,
+    labelTitle: getSaleProductName(sale),
+    labelContact: sale.client.phone,
+  };
+  const saleLabelData = getLabelProductData(lineItems, orderNumber);
+  const labelData = isRepairLabel ? repairLabelData : saleLabelData;
   return {
     id: sale.id,
     orderNumber,
@@ -1169,7 +1198,10 @@ export const getPrintTemplateData = (
     products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
     services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
     invoice_items_table: renderInvoiceItemsTable({ ...sale, lineItems }),
-    barcode: orderNumber,
+    barcode: labelData.labelCode,
+    labelCode: labelData.labelCode,
+    labelTitle: labelData.labelTitle,
+    labelContact: labelData.labelContact,
     createdAt,
   };
 };
@@ -1222,7 +1254,7 @@ export const renderOrderPrintCodes = async (
         displayValue: !isLabelBarcode,
         fontSize: isLabelBarcode ? 18 : 12,
         textMargin: isLabelBarcode ? 1 : 2,
-        height: isLabelBarcode ? 38 : 44,
+        height: isLabelBarcode ? 52 : 44,
         margin: 0,
       });
     } catch {
@@ -1237,15 +1269,19 @@ export const buildOrderPrintBody = (
   copies: number,
   pageSize: PrintForm['pageSize'],
   activeLabelSize: NonNullable<PrintForm['labelSize']>,
+  orientation: PrintForm['orientation'],
 ) =>
   Array.from({ length: Math.max(1, copies) })
     .flatMap(() => forms)
     .map(
       (form) => {
         const isLabel = pageSize === 'label' || form.pageSize === 'label';
-        const labelSize = pageSize === 'label'
-          ? activeLabelSize
-          : normalizeLabelSize(form.labelSize);
+        const labelSize = getOrientedLabelSize(
+          pageSize === 'label'
+            ? activeLabelSize
+            : normalizeLabelSize(form.labelSize),
+          pageSize === 'label' ? orientation : form.orientation,
+        );
         const labelStyle =
           isLabel
             ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm;"`
@@ -1266,25 +1302,49 @@ export const buildOrderPrintHtml = ({
   pageSize,
   labelSize,
   orientation,
+  screenPreview = false,
 }: {
   title: string;
   body: string;
   pageSize: PrintForm['pageSize'];
   labelSize: NonNullable<PrintForm['labelSize']>;
   orientation: PrintForm['orientation'];
-}) => `
-  <!doctype html>
-  <html>
-    <head>
-      <title>${title}</title>
-      <style>
-        @page { size: ${pageSize === 'label' ? `${labelSize.widthMm}mm ${labelSize.heightMm}mm` : `A4 ${orientation}`}; margin: 0; }
-        ${printDocumentStyles}
-      </style>
-    </head>
-    <body class="${pageSize === 'label' ? 'print-body-label' : ''}">${body}</body>
-  </html>
-`;
+  screenPreview?: boolean;
+}) => {
+  const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
+  const pageRuleSize =
+    pageSize === 'label'
+      ? `${orientedLabelSize.widthMm}mm ${orientedLabelSize.heightMm}mm`
+      : `A4 ${orientation}`;
+  const labelStyle =
+    pageSize === 'label'
+      ? ` style="--label-width: ${orientedLabelSize.widthMm}mm; --label-height: ${orientedLabelSize.heightMm}mm;"`
+      : '';
+  const htmlClasses = [
+    pageSize === 'label' ? 'print-html-label' : '',
+    screenPreview ? 'print-screen-preview' : '',
+  ].filter(Boolean);
+  const bodyClasses = [
+    pageSize === 'label' ? 'print-body-label' : '',
+    screenPreview ? 'print-screen-preview' : '',
+  ].filter(Boolean);
+  const htmlClass = htmlClasses.length ? ` class="${htmlClasses.join(' ')}"` : '';
+  const bodyClass = bodyClasses.length ? ` class="${bodyClasses.join(' ')}"` : '';
+
+  return `
+    <!doctype html>
+    <html${htmlClass}${labelStyle}>
+      <head>
+        <title>${title}</title>
+        <style>
+          @page { size: ${pageRuleSize}; margin: 0; }
+          ${printDocumentStyles}
+        </style>
+      </head>
+      <body${bodyClass}${labelStyle}>${body}</body>
+    </html>
+  `;
+};
 
 export const openOrderPrintWindow = async ({
   title,
@@ -1309,7 +1369,14 @@ export const openOrderPrintWindow = async ({
   if (!printWindow) return;
 
   printWindow.document.write(
-    buildOrderPrintHtml({ title, body, pageSize, labelSize, orientation }),
+    buildOrderPrintHtml({
+      title,
+      body,
+      pageSize,
+      labelSize,
+      orientation,
+      screenPreview: !shouldPrint,
+    }),
   );
   printWindow.document.close();
   await renderOrderPrintCodes(printWindow.document, orderNumber);
@@ -1329,20 +1396,23 @@ export const OrderPrintPreview = ({
   orderNumber,
   pageSize,
   labelSize,
+  orientation,
 }: {
   html: string;
   orderNumber: string;
   pageSize: PrintForm['pageSize'];
   labelSize: NonNullable<PrintForm['labelSize']>;
+  orientation: PrintForm['orientation'];
 }) => {
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
   const previewStyle =
     pageSize === 'label'
       ? ({
-          '--label-width': `${labelSize.widthMm}mm`,
-          '--label-height': `${labelSize.heightMm}mm`,
-          width: `${labelSize.widthMm}mm`,
-          minHeight: `${labelSize.heightMm}mm`,
+          '--label-width': `${orientedLabelSize.widthMm}mm`,
+          '--label-height': `${orientedLabelSize.heightMm}mm`,
+          width: `${orientedLabelSize.widthMm}mm`,
+          minHeight: `${orientedLabelSize.heightMm}mm`,
         } as CSSProperties)
       : undefined;
 
@@ -1411,6 +1481,7 @@ export const OrderPrintDialog = ({
     copies,
     pageSize,
     labelSize,
+    orientation,
   );
   const canPrint = selectedForms.length > 0;
 
@@ -1616,6 +1687,7 @@ export const OrderPrintDialog = ({
                 orderNumber={request.orderNumber}
                 pageSize={pageSize}
                 labelSize={labelSize}
+                orientation={orientation}
               />
             ) : (
               <p className='empty-state'>Select at least one print form.</p>
