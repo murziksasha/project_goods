@@ -172,6 +172,35 @@ describe('SettingsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
     expect(screen.getByText('New template')).toBeInTheDocument();
   }, 10000);
+
+  it('switches between built-in print templates in the builder', async () => {
+    render(<SettingsPanelHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
+    const templateSelect = screen.getByLabelText('Document template');
+
+    expect(templateSelect).toHaveValue('receipt');
+    expect(screen.getByLabelText('Template name')).toHaveValue('Receipt');
+    expect(screen.getByRole('button', { name: /1\. Text/ })).toBeInTheDocument();
+
+    fireEvent.change(templateSelect, { target: { value: 'barcode' } });
+
+    expect(screen.getByLabelText('Document template')).toHaveValue('barcode');
+    expect(screen.getByLabelText('Template name')).toHaveValue('Barcode');
+    expect(screen.getByLabelText('Page size')).toHaveValue('label');
+    expect(screen.getByLabelText('Orientation')).toHaveValue('landscape');
+    expect(screen.getByRole('button', { name: /1\. Barcode/ })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Document template'), {
+      target: { value: 'check' },
+    });
+
+    expect(screen.getByLabelText('Document template')).toHaveValue('check');
+    expect(screen.getByLabelText('Template name')).toHaveValue('Check');
+    expect(screen.getByLabelText('Page size')).toHaveValue('A4');
+    expect(screen.getByRole('button', { name: /1\. Heading/ })).toBeInTheDocument();
+  });
+
   it('disables save while service name is invalid', async () => {
     render(<SettingsPanelHarness />);
 

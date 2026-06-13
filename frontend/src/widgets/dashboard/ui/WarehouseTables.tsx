@@ -160,6 +160,7 @@ export const StockTable = ({
   onTogglePageSelection,
   onEdit,
   onOpenModel,
+  onOpenSerial,
   onDelete,
   onOpenSupplierOrder,
 }: {
@@ -176,6 +177,7 @@ export const StockTable = ({
   onTogglePageSelection: () => void;
   onEdit: (product: Product) => void;
   onOpenModel: (product: Product) => void;
+  onOpenSerial: (product: Product) => void;
   onDelete: (product: Product) => void;
   onOpenSupplierOrder: (
     supplierOrderId: string,
@@ -338,7 +340,7 @@ export const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
+                            onClick={() => onOpenSerial(product)}
                           >
                             {product.serialNumber}
                           </button>
