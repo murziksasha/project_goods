@@ -67,6 +67,7 @@ export type WarehouseFilters = {
   supplier: string;
   buyer: string;
   location: string;
+  favoritesOnly: boolean;
 };
 export type SavedWarehouseFilter = {
   id: string;
@@ -109,6 +110,7 @@ export type ReceiptRow = {
   acceptedAt: string;
   status: ReceiptStatus;
   paymentStatus?: 'pending' | 'paid' | 'without_payment' | 'cancelled';
+  supplierOrderIsFavorite?: boolean;
   note: string;
 };
 
@@ -215,7 +217,7 @@ export const tabs: Array<{
   badge?: string;
 }> = [
   { key: 'stock', label: 'Stock balances' },
-  { key: 'receipts', label: 'Receipts', badge: '10' },
+  { key: 'receipts', label: 'Receipts' },
   { key: 'transfers', label: 'Transfers' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -254,6 +256,7 @@ export const initialWarehouseFilters: WarehouseFilters = {
   supplier: '',
   buyer: '',
   location: '',
+  favoritesOnly: false,
 };
 export const warehouseFilterIconOptions = [
   '*',
@@ -388,6 +391,60 @@ export const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
 
 export const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
+
+export const filterReceiptRows = ({
+  receipts,
+  query,
+  filters,
+}: {
+  receipts: ReceiptRow[];
+  query: string;
+  filters: WarehouseFilters;
+}) => {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return receipts.filter((receipt) => {
+    const matchesQuery =
+      !normalizedQuery ||
+      [
+        String(receipt.number),
+        receipt.productName,
+        receipt.supplierName,
+        receipt.status,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedQuery);
+    if (!matchesQuery) return false;
+
+    if (filters.favoritesOnly && !receipt.supplierOrderIsFavorite) {
+      return false;
+    }
+
+    if (
+      filters.name.trim() &&
+      !receipt.productName
+        .toLowerCase()
+        .includes(filters.name.trim().toLowerCase())
+    ) {
+      return false;
+    }
+
+    const supplier = filters.supplier.trim().toLowerCase();
+    if (supplier && !receipt.supplierName.toLowerCase().includes(supplier)) {
+      return false;
+    }
+
+    if (
+      filters.buyer.trim() &&
+      receipt.acceptedBy.toLowerCase() !== filters.buyer.trim().toLowerCase()
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+};
 
 const hexColorToRgb = (value: string) => {
   const normalized = value.trim().replace(/^#/, '');

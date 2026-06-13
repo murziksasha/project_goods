@@ -23,6 +23,7 @@ const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
   receiptStatus: 'new',
   total: 500,
   paid: 100,
+  isFavorite: false,
   items: [
     {
       lineId: 'line-1',
@@ -47,6 +48,7 @@ describe('supplier-orders-workspace', () => {
           selectedStatuses: ['approved'],
           paymentStatus: 'paid',
           deliveryDate: '2026-05-19',
+          favoritesOnly: true,
         }),
       ),
     ).toEqual({
@@ -55,6 +57,7 @@ describe('supplier-orders-workspace', () => {
       paymentStatus: 'paid',
       deliveryDateFrom: '2026-05-19',
       deliveryDateTo: '2026-05-19',
+      favoritesOnly: true,
     });
   });
 
@@ -65,6 +68,7 @@ describe('supplier-orders-workspace', () => {
       paymentStatus: 'all',
       deliveryDateFrom: '',
       deliveryDateTo: '',
+      favoritesOnly: false,
     });
   });
 
@@ -106,9 +110,33 @@ describe('supplier-orders-workspace', () => {
       filterSupplierOrders(orders, {
         query: 'adapter',
         selectedStatuses: ['ordered'],
-        paymentStatus: 'paid',
-        deliveryDateFrom: '2026-05-20',
-        deliveryDateTo: '2026-05-30',
+      paymentStatus: 'paid',
+      deliveryDateFrom: '2026-05-20',
+      deliveryDateTo: '2026-05-30',
+      favoritesOnly: false,
+    }).map((order) => order.id),
+  ).toEqual(['so-2']);
+  });
+
+  it('filters to starred supplier orders only', () => {
+    const orders = [
+      makeOrder(),
+      makeOrder({
+        id: 'so-2',
+        number: 'SO-2',
+        orderBaseId: 'SO-2',
+        isFavorite: true,
+      }),
+    ];
+
+    expect(
+      filterSupplierOrders(orders, {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: true,
       }).map((order) => order.id),
     ).toEqual(['so-2']);
   });

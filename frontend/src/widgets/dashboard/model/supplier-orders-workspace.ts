@@ -135,6 +135,7 @@ export type SupplierOrdersFilters = {
   paymentStatus: SupplierPaymentStatus | 'all';
   deliveryDateFrom: string;
   deliveryDateTo: string;
+  favoritesOnly: boolean;
 };
 
 const isPaymentStatusFilter = (
@@ -164,6 +165,7 @@ export const parseSupplierOrdersFilters = (
         : 'all',
       deliveryDateFrom: parsed.deliveryDateFrom ?? parsed.deliveryDate ?? '',
       deliveryDateTo: parsed.deliveryDateTo ?? parsed.deliveryDate ?? '',
+      favoritesOnly: parsed.favoritesOnly === true,
     };
   } catch {
     return {
@@ -172,6 +174,7 @@ export const parseSupplierOrdersFilters = (
       paymentStatus: 'all',
       deliveryDateFrom: '',
       deliveryDateTo: '',
+      favoritesOnly: false,
     };
   }
 };
@@ -201,6 +204,10 @@ export const filterSupplierOrders = (
   const normalized = filters.query.trim().toLowerCase();
 
   return orders.filter((order) => {
+    if (filters.favoritesOnly && !order.isFavorite) {
+      return false;
+    }
+
     if (normalized) {
       const matchesNumber =
         order.number.toLowerCase().includes(normalized) ||

@@ -50,6 +50,7 @@ import {
   availableWarehouseColumns,
   defaultWarehouseVisibleColumns,
   emptySupplierOrders,
+  filterReceiptRows,
   initialAdministrators,
   initialServiceCenters,
   initialWarehouseFilters,
@@ -119,6 +120,13 @@ export const WarehousePanel = ({
     supplierOrdersQuery.data ?? emptySupplierOrders;
   const isWarehouseSettingsSaving =
     updateWarehouseSettingsMutation.isPending;
+  const normalizeWarehouseFilters = (
+    filters?: Partial<WarehouseFilters>,
+  ): WarehouseFilters => ({
+    ...initialWarehouseFilters,
+    ...(filters ?? {}),
+    favoritesOnly: filters?.favoritesOnly === true,
+  });
   const [selectedProductModelName, setSelectedProductModelName] =
     useState<string | null>(null);
   const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
@@ -232,10 +240,10 @@ export const WarehousePanel = ({
       }
     });
   const [draftFilters, setDraftFilters] = useState<WarehouseFilters>(
-    initialWarehouseFilters,
+    normalizeWarehouseFilters(),
   );
   const [appliedFilters, setAppliedFilters] = useState<WarehouseFilters>(
-    initialWarehouseFilters,
+    normalizeWarehouseFilters(),
   );
   const [savedFilters, setSavedFilters] = useState<
     SavedWarehouseFilter[]
@@ -374,6 +382,7 @@ export const WarehousePanel = ({
         supplierOrderId: order.id,
         supplierOrderItemIndex: item.itemIndex,
         catalogProductId: item.catalogProductId,
+        supplierOrderIsFavorite: order.isFavorite,
         number: buildSupplierOrderItemNumber(order, item.itemIndex),
         productName: item.productName,
         quantity: item.quantity,
@@ -619,43 +628,10 @@ export const WarehousePanel = ({
     [products, warehouses],
   );
   const filteredReceipts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return receiptHistory.filter((receipt) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        [
-          String(receipt.number),
-          receipt.productName,
-          receipt.supplierName,
-          receipt.status,
-        ]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedQuery);
-      if (!matchesQuery) return false;
-      if (
-        appliedFilters.name.trim() &&
-        !receipt.productName
-          .toLowerCase()
-          .includes(appliedFilters.name.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      const supplier = appliedFilters.supplier.trim().toLowerCase();
-      if (
-        supplier &&
-        !receipt.supplierName.toLowerCase().includes(supplier)
-      ) {
-        return false;
-      }
-      if (
-        appliedFilters.buyer.trim() &&
-        receipt.acceptedBy.toLowerCase() !==
-          appliedFilters.buyer.trim().toLowerCase()
-      ) {
-        return false;
-      }
-      return true;
+    return filterReceiptRows({
+      receipts: receiptHistory,
+      query,
+      filters: appliedFilters,
     });
   }, [appliedFilters, query, receiptHistory]);
   const salesByProductId = useMemo(() => {
@@ -809,7 +785,7 @@ export const WarehousePanel = ({
               ? 'Search by warehouse'
               : 'Search by supplier';
   const activeFilterCount = Object.values(appliedFilters).filter((value) =>
-    value.trim(),
+    typeof value === 'boolean' ? value : value.trim(),
   ).length;
   const stockSummaryText =
     activeTab === 'stock'
@@ -1088,6 +1064,7 @@ export const WarehousePanel = ({
       warehouse: draftFilters.warehouse.trim(),
       supplier: draftFilters.supplier.trim(),
       buyer: draftFilters.buyer.trim(),
+      favoritesOnly: draftFilters.favoritesOnly,
     });
     setCurrentPage(1);
     setIsFilterPanelOpen(false);
@@ -1114,6 +1091,7 @@ export const WarehousePanel = ({
         warehouse: draftFilters.warehouse.trim(),
         supplier: draftFilters.supplier.trim(),
         buyer: draftFilters.buyer.trim(),
+        favoritesOnly: draftFilters.favoritesOnly,
       },
       createdAt: new Date().toISOString(),
     };
@@ -1123,8 +1101,9 @@ export const WarehousePanel = ({
     setNewFilterIcon(warehouseFilterIconOptions[0]);
   };
   const applySavedFilter = (savedFilter: SavedWarehouseFilter) => {
-    setDraftFilters(savedFilter.filters);
-    setAppliedFilters(savedFilter.filters);
+    const nextFilters = normalizeWarehouseFilters(savedFilter.filters);
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
     setCurrentPage(1);
     setIsSaveFilterDrawerOpen(false);
     setIsFilterPanelOpen(false);
@@ -1440,6 +1419,21 @@ export const WarehousePanel = ({
                     </option>
                   ))}
                 </select>
+              </label>
+            ) : null}
+            {activeTab === 'receipts' ? (
+              <label className='orders-filter-field warehouse-favorites-filter'>
+                <span>Starred supplier orders only</span>
+                <input
+                  type='checkbox'
+                  checked={draftFilters.favoritesOnly}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      favoritesOnly: event.target.checked,
+                    }))
+                  }
+                />
               </label>
             ) : null}
           </div>

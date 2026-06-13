@@ -225,6 +225,8 @@
   - only `Date to`: include records with `deliveryDate <= dateTo`,
   - both: include records with `dateFrom <= deliveryDate <= dateTo`.
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
+- Supplier orders can be starred from the row number cell. The star state is persisted on the supplier order and is shown as yellow when active.
+- The toolbar star button after the columns settings gear toggles `Starred only`; this filter is persisted with the supplier-order filters and also affects the `Information` tab working set.
 
 ## Supplier Order Row Status Window (2026-06-03)
 
