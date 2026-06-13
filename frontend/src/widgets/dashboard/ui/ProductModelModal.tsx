@@ -3,6 +3,8 @@ import type { Product, ProductModelUpdatePayload } from '../../../entities/produ
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
+import { printSerialNumbers } from '../../../shared/lib/serialPrint';
+import { PrinterIcon } from './orders-workspace-shared';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,
@@ -16,6 +18,7 @@ type ProductModelModalProps = {
   name: string;
   products: Product[];
   warehouses: WarehouseItem[];
+  printProduct?: Product | null;
   isSaving?: boolean;
   onClose: () => void;
   onSave: (payload: ProductModelUpdatePayload) => Promise<boolean>;
@@ -25,6 +28,7 @@ export const ProductModelModal = ({
   name,
   products,
   warehouses,
+  printProduct = null,
   isSaving = false,
   onClose,
   onSave,
@@ -100,6 +104,21 @@ export const ProductModelModal = ({
     }
   };
 
+  const printSelectedSerialNumber = () => {
+    if (!printProduct?.serialNumber.trim()) return;
+
+    printSerialNumbers(
+      [
+        {
+          name: printProduct.name,
+          article: printProduct.article,
+          serialNumber: printProduct.serialNumber,
+        },
+      ],
+      'Warehouse serial number',
+    );
+  };
+
   const renderSectionHeader = (
     section: ProductModelSection,
     label: string,
@@ -167,6 +186,18 @@ export const ProductModelModal = ({
                 <span className='product-model-copy-tooltip'>
                   {copyStatus}
                 </span>
+              ) : null}
+              {printProduct ? (
+                <button
+                  type='button'
+                  className='toolbar-square-button order-print-icon-button product-model-print-button'
+                  onClick={printSelectedSerialNumber}
+                  disabled={!printProduct.serialNumber.trim()}
+                  aria-label='Print serial number'
+                  title='Print serial number'
+                >
+                  <PrinterIcon />
+                </button>
               ) : null}
             </div>
           </div>

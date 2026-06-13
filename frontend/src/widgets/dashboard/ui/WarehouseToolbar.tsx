@@ -10,12 +10,15 @@ import {
   type WarehouseSearchMode,
   type WarehouseTab,
 } from '../model/warehouse-panel';
+import { PrinterIcon } from './orders-workspace-shared';
 
 type WarehouseToolbarProps = {
   activeTab: WarehouseTab;
   currentPage: number;
   pageCount: number;
   stockSummaryText: string;
+  selectedProductCount: number;
+  selectedSerialCount: number;
   activeColumnsTab: WarehouseColumnsTab | null;
   columnsMenuRef: RefObject<HTMLDivElement | null>;
   isColumnsMenuOpen: boolean;
@@ -26,6 +29,8 @@ type WarehouseToolbarProps = {
   searchPlaceholder: string;
   onPreviousPage: () => void;
   onNextPage: () => void;
+  onPrintSelectedSerials: () => void;
+  onClearSelection: () => void;
   onToggleColumnsMenu: () => void;
   onToggleColumnVisibility: (
     columnKey: StockColumnKey | ReceiptsColumnKey,
@@ -41,6 +46,8 @@ export const WarehouseToolbar = ({
   currentPage,
   pageCount,
   stockSummaryText,
+  selectedProductCount,
+  selectedSerialCount,
   activeColumnsTab,
   columnsMenuRef,
   isColumnsMenuOpen,
@@ -51,6 +58,8 @@ export const WarehouseToolbar = ({
   searchPlaceholder,
   onPreviousPage,
   onNextPage,
+  onPrintSelectedSerials,
+  onClearSelection,
   onToggleColumnsMenu,
   onToggleColumnVisibility,
   onToggleFilters,
@@ -79,6 +88,33 @@ export const WarehouseToolbar = ({
       &rsaquo;
     </button>
     <span className='warehouse-stock-count'>{stockSummaryText}</span>
+    {activeTab === 'stock' ? (
+      <>
+        <button
+          type='button'
+          className='toolbar-square-button order-print-icon-button warehouse-toolbar-print-button'
+          aria-label='Print selected serial numbers'
+          title={
+            selectedSerialCount > 0
+              ? `Print ${selectedSerialCount} selected serial numbers`
+              : 'Select stock rows with serial numbers to print'
+          }
+          onClick={onPrintSelectedSerials}
+          disabled={selectedSerialCount === 0}
+        >
+          <PrinterIcon />
+        </button>
+        {selectedProductCount > 0 ? (
+          <button
+            type='button'
+            className='toolbar-filter-button warehouse-selection-clear-button'
+            onClick={onClearSelection}
+          >
+            {`${selectedProductCount} selected`}
+          </button>
+        ) : null}
+      </>
+    ) : null}
     {activeColumnsTab ? (
       <div className='toolbar-settings' ref={columnsMenuRef}>
         <button

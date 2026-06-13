@@ -546,15 +546,6 @@
     flex: 1 0 auto;
   }
 
-  .warehouse-bulk-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .warehouse-bulk-actions strong {
-    margin-right: 0;
-  }
-
   .payment-print-options {
     width: min(100vw - 56px, 280px);
   }
