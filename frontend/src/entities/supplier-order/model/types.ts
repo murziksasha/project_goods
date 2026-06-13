@@ -35,6 +35,7 @@ export type SupplierOrder = {
   receiptStatus: SupplierReceiptStatus;
   total: number;
   paid: number;
+  isFavorite: boolean;
   items: SupplierOrderItem[];
   createdAt: string;
   updatedAt: string;

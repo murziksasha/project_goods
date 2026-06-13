@@ -13,6 +13,7 @@ import {
   getSupplierOrders,
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
+  updateSupplierOrderFavorite,
 } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   SupplierOrder,
@@ -105,6 +106,9 @@ export const SupplierOrdersWorkspace = ({
   );
   const [deliveryDateTo, setDeliveryDateTo] = useState(
     initialFilters.deliveryDateTo,
+  );
+  const [favoritesOnly, setFavoritesOnly] = useState(
+    initialFilters.favoritesOnly,
   );
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
@@ -276,8 +280,17 @@ export const SupplierOrdersWorkspace = ({
         paymentStatus,
         deliveryDateFrom,
         deliveryDateTo,
+        favoritesOnly,
       }),
-    [deliveryDateFrom, deliveryDateTo, orders, paymentStatus, query, selectedStatuses],
+    [
+      deliveryDateFrom,
+      deliveryDateTo,
+      favoritesOnly,
+      orders,
+      paymentStatus,
+      query,
+      selectedStatuses,
+    ],
   );
 
   const filteredOrderStatuses = useMemo(() => {
@@ -326,9 +339,17 @@ export const SupplierOrdersWorkspace = ({
         paymentStatus,
         deliveryDateFrom,
         deliveryDateTo,
+        favoritesOnly,
       }),
     );
-  }, [deliveryDateFrom, deliveryDateTo, paymentStatus, query, selectedStatuses]);
+  }, [
+    deliveryDateFrom,
+    deliveryDateTo,
+    favoritesOnly,
+    paymentStatus,
+    query,
+    selectedStatuses,
+  ]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -396,6 +417,40 @@ export const SupplierOrdersWorkspace = ({
         error instanceof Error
           ? error.message
           : 'Failed to update supplier order status.',
+      );
+    }
+  };
+
+  const toggleSupplierOrderFavorite = async (order: SupplierOrder) => {
+    if (!canManageSupplierOrders) {
+      onError('Current employee does not have permission to manage supplier orders.');
+      return;
+    }
+
+    const nextIsFavorite = !order.isFavorite;
+    setOrders((current) =>
+      current.map((item) =>
+        item.id === order.id ? { ...item, isFavorite: nextIsFavorite } : item,
+      ),
+    );
+
+    try {
+      const updated = await updateSupplierOrderFavorite(order.id, {
+        isFavorite: nextIsFavorite,
+      });
+      setOrders((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (error) {
+      setOrders((current) =>
+        current.map((item) =>
+          item.id === order.id ? { ...item, isFavorite: order.isFavorite } : item,
+        ),
+      );
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update supplier order star.',
       );
     }
   };
@@ -471,6 +526,7 @@ export const SupplierOrdersWorkspace = ({
         query={query}
         selectedStatuses={selectedStatuses}
         statusQuery={statusQuery}
+        favoritesOnly={favoritesOnly}
         visibleColumns={visibleColumns}
         visibleTabs={visibleTabs}
         canManageSupplierOrders={canManageSupplierOrders}
@@ -495,6 +551,10 @@ export const SupplierOrdersWorkspace = ({
         }}
         onSelectedStatusesChange={setSelectedStatuses}
         onStatusQueryChange={setStatusQuery}
+        onFavoritesOnlyChange={() => {
+          setFavoritesOnly((current) => !current);
+          setPage(1);
+        }}
         onToggleColumnVisibility={toggleColumnVisibility}
         onToggleStatus={toggleStatus}
       />
@@ -543,6 +603,7 @@ export const SupplierOrdersWorkspace = ({
           }}
           onOpenCatalogProduct={setSelectedCatalogProductForEdit}
           onOpenSupplier={setSelectedSupplierForEdit}
+          onToggleFavorite={(order) => void toggleSupplierOrderFavorite(order)}
           onOpenStatusOrder={(key, order, rect) => {
             if (!canManageSupplierOrders) {
               onError('Current employee does not have permission to manage supplier orders.');

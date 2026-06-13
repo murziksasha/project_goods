@@ -36,6 +36,21 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   }
 };
 
+export const updateSupplierOrderFavorite = async (
+  supplierOrderId: string,
+  payload: { isFavorite: boolean },
+) => {
+  try {
+    const response = await apiClient.patch<SupplierOrder>(
+      `/supplier-orders/${supplierOrderId}/favorite`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const cancelSupplierOrder = async (supplierOrderId: string) => {
   try {
     const response = await apiClient.post<SupplierOrder>(`/supplier-orders/${supplierOrderId}/cancel`);
@@ -94,6 +109,20 @@ export const useUpdateSupplierOrderMutation = () =>
       supplierOrderId: string;
       payload: SupplierOrderFormValues;
     }) => updateSupplierOrder(supplierOrderId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+    },
+  });
+
+export const useUpdateSupplierOrderFavoriteMutation = () =>
+  useMutation({
+    mutationFn: ({
+      supplierOrderId,
+      payload,
+    }: {
+      supplierOrderId: string;
+      payload: { isFavorite: boolean };
+    }) => updateSupplierOrderFavorite(supplierOrderId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
     },

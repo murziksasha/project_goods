@@ -23,6 +23,7 @@ const makeOrder = (): SupplierOrder => ({
   receiptStatus: 'new',
   total: 9500,
   paid: 9500,
+  isFavorite: false,
   items: [
     {
       lineId: 'line-1',

@@ -119,6 +119,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `GET /supplier-orders` | `supplierOrders.view` or `supplierOrders.manage`. |
 | `POST /supplier-orders` | `supplierOrders.manage`. |
 | `PUT /supplier-orders/:supplierOrderId` | `supplierOrders.manage`. |
+| `PATCH /supplier-orders/:supplierOrderId/favorite` | `supplierOrders.manage`. |
 | `POST /supplier-orders/:supplierOrderId/cancel` | `supplierOrders.manage`. |
 | `POST /supplier-orders/:supplierOrderId/take-on-charge` | `supplierOrders.manage`. |
 
@@ -144,6 +145,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 - Cashbox list loading in payment/refund forms requires `finance.cashboxes.view` or `finance.view`.
 - Orders `Supplier Order` and `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
 - Supplier-order create, edit, cancel, status change, and take-on-charge actions require `supplierOrders.manage`.
+- Starred supplier-order state is visible with supplier-order read access, but changing the star requires `supplierOrders.manage`.
 - Warehouse supplier-order-backed receipt rows require `supplierOrders.view` or `supplierOrders.manage` to load; receipt-order create/edit/cancel/take-on-charge actions require `supplierOrders.manage`.
 
 ## Maintenance Notes

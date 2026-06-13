@@ -81,6 +81,7 @@ const supplierOrder = (
   receiptStatus: 'received',
   total: 100,
   paid: 0,
+  isFavorite: false,
   items: [
     {
       lineId: 'line-1',
