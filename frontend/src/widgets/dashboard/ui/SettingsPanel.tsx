@@ -191,6 +191,7 @@ const PrintFormsSection = ({
     <div className="settings-print-grid">
       {selectedForm ? (
         <PrintFormBuilder
+          key={selectedForm.id}
           forms={printForms}
           selectedForm={selectedForm}
           previewValues={previewValues}
@@ -734,6 +735,12 @@ export const SettingsPanel = ({
     if (visibleSettingsTabs.some((tab) => tab.key === activeTab)) return;
     setActiveTab(visibleSettingsTabs[0]?.key ?? 'company');
   }, [activeTab, visibleSettingsTabs]);
+
+  useEffect(() => {
+    if (printForms.length === 0) return;
+    if (printForms.some((printForm) => printForm.id === selectedFormId)) return;
+    setSelectedFormId(printForms[0].id);
+  }, [printForms, selectedFormId]);
 
   return (
     <section className="panel settings-page">

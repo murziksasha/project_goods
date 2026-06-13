@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import type { Product } from '../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -127,8 +128,8 @@ export const WarehousePanel = ({
     ...(filters ?? {}),
     favoritesOnly: filters?.favoritesOnly === true,
   });
-  const [selectedProductModelName, setSelectedProductModelName] =
-    useState<string | null>(null);
+  const [selectedProductModelContext, setSelectedProductModelContext] =
+    useState<{ name: string; printProduct: Product | null } | null>(null);
   const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
@@ -716,9 +717,25 @@ export const WarehousePanel = ({
       ),
     [products, selectedStockProductIds],
   );
-  const selectedStockProductsWithSerials = selectedStockProducts.filter(
-    (product) => product.serialNumber.trim(),
+  const selectedStockProductsWithSerials = useMemo(
+    () =>
+      selectedStockProducts.filter((product) =>
+        product.serialNumber.trim(),
+      ),
+    [selectedStockProducts],
   );
+  const printSelectedStockSerials = useCallback(() => {
+    if (selectedStockProductsWithSerials.length === 0) return;
+
+    printSerialNumbers(
+      selectedStockProductsWithSerials.map((product) => ({
+        name: product.name,
+        article: product.article,
+        serialNumber: product.serialNumber,
+      })),
+      'Warehouse serial numbers',
+    );
+  }, [selectedStockProductsWithSerials]);
 
   useEffect(() => {
     setSelectedStockProductIds((current) => {
@@ -1233,6 +1250,8 @@ export const WarehousePanel = ({
           currentPage={currentPage}
           pageCount={pageCount}
           stockSummaryText={stockSummaryText}
+          selectedProductCount={selectedStockProductIds.length}
+          selectedSerialCount={selectedStockProductsWithSerials.length}
           activeColumnsTab={activeColumnsTab}
           columnsMenuRef={columnsMenuRef}
           isColumnsMenuOpen={isColumnsMenuOpen}
@@ -1243,6 +1262,8 @@ export const WarehousePanel = ({
           searchPlaceholder={searchPlaceholder}
           onPreviousPage={() => setCurrentPage((current) => current - 1)}
           onNextPage={() => setCurrentPage((current) => current + 1)}
+          onPrintSelectedSerials={printSelectedStockSerials}
+          onClearSelection={() => setSelectedStockProductIds([])}
           onToggleColumnsMenu={() =>
             setIsColumnsMenuOpen((current) => !current)
           }
@@ -1637,7 +1658,18 @@ export const WarehousePanel = ({
               );
             }}
             onEdit={onProductEdit}
-            onOpenModel={(product) => setSelectedProductModelName(product.name)}
+            onOpenModel={(product) =>
+              setSelectedProductModelContext({
+                name: product.name,
+                printProduct: null,
+              })
+            }
+            onOpenSerial={(product) =>
+              setSelectedProductModelContext({
+                name: product.name,
+                printProduct: product,
+              })
+            }
             onDelete={onProductDelete}
             onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
@@ -1662,35 +1694,6 @@ export const WarehousePanel = ({
               setIsSupplierOrderModalOpen(true);
             }}
           />
-          {selectedStockProductIds.length > 0 ? (
-            <div className='warehouse-bulk-actions'>
-              <strong>{selectedStockProductIds.length} selected</strong>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() =>
-                  printSerialNumbers(
-                    selectedStockProductsWithSerials.map((product) => ({
-                      name: product.name,
-                      article: product.article,
-                      serialNumber: product.serialNumber,
-                    })),
-                    'Warehouse serial numbers',
-                  )
-                }
-                disabled={selectedStockProductsWithSerials.length === 0}
-              >
-                Print serial numbers
-              </button>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() => setSelectedStockProductIds([])}
-              >
-                Clear selection
-              </button>
-            </div>
-          ) : null}
           <PaginationPanel
             totalItems={filteredProducts.length}
             page={currentPage}
@@ -1701,13 +1704,14 @@ export const WarehousePanel = ({
               setCurrentPage(1);
             }}
           />
-          {selectedProductModelName ? (
+          {selectedProductModelContext ? (
             <ProductModelModal
-              name={selectedProductModelName}
+              name={selectedProductModelContext.name}
               products={products}
               warehouses={warehouses}
+              printProduct={selectedProductModelContext.printProduct}
               isSaving={isProductSaving}
-              onClose={() => setSelectedProductModelName(null)}
+              onClose={() => setSelectedProductModelContext(null)}
               onSave={onUpdateProductModel}
             />
           ) : null}

@@ -11,6 +11,7 @@ import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
   customLabelSizePresetId,
+  getOrientedLabelSize,
   labelSizePresets,
   normalizeLabelSize,
   printFormVariableGroups,
@@ -68,6 +69,9 @@ const blockInsertOptions: PrintLayoutBlock['type'][] = [
   'columns',
 ];
 
+const alignOptions = ['left', 'center', 'right'] as const;
+const barcodeSizeOptions = ['compact', 'standard', 'large'] as const;
+
 const renderCodes = (root: HTMLElement | Document) => {
   root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
     if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) return;
@@ -79,7 +83,7 @@ const renderCodes = (root: HTMLElement | Document) => {
         displayValue: !isLabelBarcode,
         fontSize: isLabelBarcode ? 18 : 12,
         textMargin: isLabelBarcode ? 1 : 2,
-        height: isLabelBarcode ? 38 : 44,
+        height: isLabelBarcode ? 52 : 44,
         margin: 0,
       });
     } catch {
@@ -90,7 +94,10 @@ const renderCodes = (root: HTMLElement | Document) => {
 
 const getLabelPreviewStyle = (form: PrintForm): CSSProperties => {
   if (form.pageSize !== 'label') return {};
-  const labelSize = normalizeLabelSize(form.labelSize);
+  const labelSize = getOrientedLabelSize(
+    normalizeLabelSize(form.labelSize),
+    form.orientation,
+  );
   return {
     '--label-width': `${labelSize.widthMm}mm`,
     '--label-height': `${labelSize.heightMm}mm`,
@@ -185,6 +192,23 @@ const TextAreaInput = ({
   </label>
 );
 
+const AlignInput = ({
+  value,
+  onChange,
+}: {
+  value: 'left' | 'center' | 'right' | undefined;
+  onChange: (value: 'left' | 'center' | 'right') => void;
+}) => (
+  <label className="field">
+    <span>Align</span>
+    <select value={value ?? 'left'} onChange={(event) => onChange(event.target.value as 'left' | 'center' | 'right')}>
+      {alignOptions.map((align) => (
+        <option key={align} value={align}>{align}</option>
+      ))}
+    </select>
+  </label>
+);
+
 const updateField = (
   fields: PrintLayoutField[],
   index: number,
@@ -243,6 +267,7 @@ const BlockEditor = ({
               <option value={3}>H3</option>
             </select>
           </label>
+          <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
       );
@@ -250,6 +275,7 @@ const BlockEditor = ({
       return (
         <div className="print-block-editor-fields">
           <TextAreaInput label="Text" value={block.text} onChange={(text) => onChange({ ...block, text })} />
+          <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
       );
@@ -423,9 +449,47 @@ const BlockEditor = ({
         <TextInput label="Title" value={block.title ?? ''} onChange={(title) => onChange({ ...block, title })} />
       );
     case 'barcode':
-      return (
-        <TextInput label="Label" value={block.label ?? ''} onChange={(label) => onChange({ ...block, label })} />
-      );
+      {
+        const appendToBarcodeValue = (variable: string) => {
+          onChange({ ...block, value: `${block.value ?? '{{barcode}}'}${variable}` });
+        };
+
+        return (
+          <div className="print-block-editor-fields">
+            <TextInput label="Label" value={block.label ?? ''} onChange={(label) => onChange({ ...block, label })} />
+            <TextInput label="Value" value={block.value ?? '{{barcode}}'} onChange={(value) => onChange({ ...block, value })} />
+            <label className="field">
+              <span>Size</span>
+              <select
+                value={block.size ?? 'standard'}
+                onChange={(event) =>
+                  onChange({
+                    ...block,
+                    size: event.target.value === 'compact'
+                      ? 'compact'
+                      : event.target.value === 'large'
+                        ? 'large'
+                        : 'standard',
+                  })
+                }
+              >
+                {barcodeSizeOptions.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-check">
+              <input
+                type="checkbox"
+                checked={block.showValue === true}
+                onChange={(event) => onChange({ ...block, showValue: event.target.checked })}
+              />
+              <span>Show value under barcode</span>
+            </label>
+            <VariablePicker onInsert={appendToBarcodeValue} />
+          </div>
+        );
+      }
     case 'signatures':
       return (
         <div className="print-block-editor-fields">
