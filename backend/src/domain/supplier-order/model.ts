@@ -106,6 +106,11 @@ export const supplierOrderSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    isFavorite: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     searchText: {
       type: String,
       default: '',

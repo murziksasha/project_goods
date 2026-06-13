@@ -3107,6 +3107,10 @@
   display: inline-flex;
 }
 
+.supplier-orders-toolbar-left > .toolbar-star-button {
+  display: inline-flex;
+}
+
 .orders-toolbar-actions {
   display: flex;
   align-items: center;
@@ -3132,6 +3136,22 @@
 .toolbar-square-button:hover {
   border-color: #9eb6cf;
   color: #284f78;
+}
+
+.toolbar-star-button {
+  color: #94a3b8;
+}
+
+.toolbar-star-button-active,
+.toolbar-star-button-active:hover {
+  border-color: #facc15;
+  background: #fffbeb;
+  color: #f59e0b;
+}
+
+.supplier-order-star-icon {
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .toolbar-square-button-icon {
@@ -3860,6 +3880,39 @@
 
 .orders-table .supplier-orders-col-number {
   width: 122px;
+}
+
+.supplier-order-number-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.supplier-order-row-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.supplier-order-row-star:hover:not(:disabled),
+.supplier-order-row-star-active {
+  color: #f59e0b;
+}
+
+.supplier-order-row-star:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .orders-table .supplier-orders-col-product {

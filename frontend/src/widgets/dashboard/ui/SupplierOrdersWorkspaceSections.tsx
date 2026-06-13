@@ -50,6 +50,7 @@ type SupplierOrdersToolbarProps = {
   query: string;
   selectedStatuses: SupplierOrderStatus[];
   statusQuery: string;
+  favoritesOnly: boolean;
   visibleColumns: SupplierOrdersColumnKey[];
   visibleTabs: OrdersTab[];
   canManageSupplierOrders: boolean;
@@ -64,6 +65,7 @@ type SupplierOrdersToolbarProps = {
   onQueryChange: (value: string) => void;
   onSelectedStatusesChange: Dispatch<SetStateAction<SupplierOrderStatus[]>>;
   onStatusQueryChange: (value: string) => void;
+  onFavoritesOnlyChange: () => void;
   onToggleColumnVisibility: (columnKey: SupplierOrdersColumnKey) => void;
   onToggleStatus: (status: SupplierOrderStatus) => void;
 };
@@ -86,6 +88,7 @@ export const SupplierOrdersToolbar = ({
   query,
   selectedStatuses,
   statusQuery,
+  favoritesOnly,
   visibleColumns,
   visibleTabs,
   canManageSupplierOrders,
@@ -100,6 +103,7 @@ export const SupplierOrdersToolbar = ({
   onQueryChange,
   onSelectedStatusesChange,
   onStatusQueryChange,
+  onFavoritesOnlyChange,
   onToggleColumnVisibility,
   onToggleStatus,
 }: SupplierOrdersToolbarProps) => (
@@ -167,6 +171,28 @@ export const SupplierOrdersToolbar = ({
               </div>
             ) : null}
           </div>
+        ) : null}
+
+        {!isInformationTab ? (
+          <button
+            type='button'
+            className={
+              favoritesOnly
+                ? 'toolbar-square-button toolbar-star-button toolbar-star-button-active'
+                : 'toolbar-square-button toolbar-star-button'
+            }
+            aria-label={
+              favoritesOnly
+                ? 'Show all supplier orders'
+                : 'Show starred supplier orders'
+            }
+            aria-pressed={favoritesOnly}
+            onClick={onFavoritesOnlyChange}
+          >
+            <span className='supplier-order-star-icon' aria-hidden='true'>
+              {favoritesOnly ? '★' : '☆'}
+            </span>
+          </button>
         ) : null}
 
         <div className='supplier-orders-quick-filters'>
@@ -594,6 +620,7 @@ type SupplierOrdersTableProps = {
   onEditOrder: (order: SupplierOrder) => void;
   onOpenCatalogProduct: (product: CatalogProduct) => void;
   onOpenSupplier: (supplier: Supplier) => void;
+  onToggleFavorite: (order: SupplierOrder) => void;
   onOpenStatusOrder: (
     key: string,
     order: SupplierOrder,
@@ -618,6 +645,7 @@ export const SupplierOrdersTable = ({
   onEditOrder,
   onOpenCatalogProduct,
   onOpenSupplier,
+  onToggleFavorite,
   onOpenStatusOrder,
   onPageChange,
   onPageSizeChange,
@@ -665,22 +693,45 @@ export const SupplierOrdersTable = ({
               <tr key={id}>
                 {visibleColumns.includes('number') ? (
                   <td>
-                    <button
-                      type='button'
-                      className='catalog-name-button'
-                      onClick={() => {
-                        if (
-                          !canManageSupplierOrders ||
-                          order.paymentStatus === 'paid' ||
-                          order.paymentStatus === 'without_payment'
-                        ) {
-                          return;
+                    <div className='supplier-order-number-cell'>
+                      <button
+                        type='button'
+                        className={
+                          order.isFavorite
+                            ? 'supplier-order-row-star supplier-order-row-star-active'
+                            : 'supplier-order-row-star'
                         }
-                        onEditOrder(order);
-                      }}
-                    >
-                      {id}
-                    </button>
+                        aria-label={
+                          order.isFavorite
+                            ? `Remove star from ${id}`
+                            : `Star ${id}`
+                        }
+                        aria-pressed={order.isFavorite}
+                        disabled={!canManageSupplierOrders}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleFavorite(order);
+                        }}
+                      >
+                        {order.isFavorite ? '★' : '☆'}
+                      </button>
+                      <button
+                        type='button'
+                        className='catalog-name-button'
+                        onClick={() => {
+                          if (
+                            !canManageSupplierOrders ||
+                            order.paymentStatus === 'paid' ||
+                            order.paymentStatus === 'without_payment'
+                          ) {
+                            return;
+                          }
+                          onEditOrder(order);
+                        }}
+                      >
+                        {id}
+                      </button>
+                    </div>
                   </td>
                 ) : null}
                 {visibleColumns.includes('product') ? (

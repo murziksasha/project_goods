@@ -58,6 +58,12 @@ http://localhost:5000/api
 
 ## Supplier Orders
 
+- Supplier order responses include `isFavorite`, a boolean used by the Supplier Order quick star filter and Warehouse receipt filters.
+- `PATCH /api/supplier-orders/:supplierOrderId/favorite`
+  - Permission: `supplierOrders.manage`.
+  - Body: `{ "isFavorite": boolean }`.
+  - Updates only the persistent favorite/star state and returns the formatted supplier order.
+
 - `GET /supplier-orders` - list supplier orders; requires `supplierOrders.view` or `supplierOrders.manage`.
 - `POST /supplier-orders` - create supplier order; requires `supplierOrders.manage`.
 - `PUT /supplier-orders/:supplierOrderId` - update supplier order; requires `supplierOrders.manage`.

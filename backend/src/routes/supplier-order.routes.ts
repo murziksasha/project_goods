@@ -6,6 +6,7 @@ import {
   listSupplierOrders,
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
+  updateSupplierOrderFavorite,
   type SupplierOrderPayload,
 } from '../domain/supplier-order/service';
 import {
@@ -30,6 +31,11 @@ supplierOrderRouter.post('/supplier-orders', asyncHandler(async (req, res) => {
 supplierOrderRouter.put('/supplier-orders/:supplierOrderId', asyncHandler(async (req, res) => {
   await requirePermission(req, 'supplierOrders.manage');
   res.json(await updateSupplierOrder(routeParam(req, 'supplierOrderId'), req.body as SupplierOrderPayload));
+}));
+
+supplierOrderRouter.patch('/supplier-orders/:supplierOrderId/favorite', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
+  res.json(await updateSupplierOrderFavorite(routeParam(req, 'supplierOrderId'), req.body as { isFavorite?: unknown }));
 }));
 
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/cancel', asyncHandler(async (req, res) => {

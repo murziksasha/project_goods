@@ -122,6 +122,20 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };
 
+export const updateSupplierOrderFavorite = async (
+  supplierOrderId: string,
+  payload: { isFavorite?: unknown },
+) => {
+  isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
+
+  const existing = await SupplierOrder.findById(supplierOrderId);
+  if (!existing) throw new Error('Supplier order not found.');
+
+  existing.isFavorite = payload.isFavorite === true;
+  await existing.save();
+  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+};
+
 export const listSupplierOrdersForAccounting = async () => {
   await autoMarkZeroTotalOrdersWithoutPayment();
   const orders = await SupplierOrder.find({
