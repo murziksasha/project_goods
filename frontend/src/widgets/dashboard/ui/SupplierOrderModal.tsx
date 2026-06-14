@@ -149,14 +149,16 @@ export const SupplierOrderModal = ({
       .then((settings) => {
         if (isCancelled) return;
         setFallbackWarehouseOptions(
-          settings.warehouses.map((warehouse) => ({
-            id: warehouse.id,
-            name: warehouse.name,
-            locations: warehouse.locations.map((location) => ({
-              id: location.id,
-              name: location.name,
+          settings.warehouses
+            .filter((warehouse) => warehouse.isActive)
+            .map((warehouse) => ({
+              id: warehouse.id,
+              name: warehouse.name,
+              locations: warehouse.locations.map((location) => ({
+                id: location.id,
+                name: location.name,
+              })),
             })),
-          })),
         );
       })
       .catch(() => {

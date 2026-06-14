@@ -3,6 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
   createdProducts: [] as Record<string, unknown>[],
   supplierOrder: undefined as Record<string, unknown> | undefined,
+  warehouseSettings: {
+    warehouses: [
+      {
+        id: 'w-1',
+        name: 'Main',
+        isActive: true,
+        locations: [{ id: 'l-1', name: 'A' }],
+      },
+    ],
+  } as Record<string, unknown>,
   serialValue: 18,
   articleValue: 0,
 }));
@@ -58,15 +68,7 @@ vi.mock('../catalog-product/model', () => ({
 vi.mock('../warehouse-settings/model', () => ({
   WarehouseSettings: {
     findOne: vi.fn(() => ({
-      lean: async () => ({
-        warehouses: [
-          {
-            id: 'w-1',
-            name: 'Main',
-            locations: [{ id: 'l-1', name: 'A' }],
-          },
-        ],
-      }),
+      lean: async () => state.warehouseSettings,
     })),
   },
 }));
@@ -115,6 +117,16 @@ import { takeOnChargeSupplierOrder } from './service';
 describe('takeOnChargeSupplierOrder', () => {
   beforeEach(() => {
     state.createdProducts = [];
+    state.warehouseSettings = {
+      warehouses: [
+        {
+          id: 'w-1',
+          name: 'Main',
+          isActive: true,
+          locations: [{ id: 'l-1', name: 'A' }],
+        },
+      ],
+    };
     state.serialValue = 18;
     state.articleValue = 0;
     const items = [
@@ -168,6 +180,68 @@ describe('takeOnChargeSupplierOrder', () => {
         name: 'Patchcord 1m',
         supplierOrderId: '507f1f77bcf86cd799439011',
         supplierOrderItemIndex: 2,
+      }),
+    ]);
+  });
+
+  it('rejects inactive warehouses', async () => {
+    state.warehouseSettings = {
+      warehouses: [
+        {
+          id: 'w-1',
+          name: 'Main',
+          isActive: false,
+          locations: [{ id: 'l-1', name: 'A' }],
+        },
+        {
+          id: 'w-2',
+          name: 'Active',
+          isActive: true,
+          locations: [{ id: 'l-2', name: 'B' }],
+        },
+      ],
+    };
+
+    await expect(
+      takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+        itemIndex: 2,
+        warehouseId: 'w-1',
+        locationId: 'l-1',
+      }),
+    ).rejects.toThrow('Selected warehouse is inactive.');
+    expect(state.createdProducts).toHaveLength(0);
+  });
+
+  it('uses the first active warehouse as default', async () => {
+    state.warehouseSettings = {
+      warehouses: [
+        {
+          id: 'w-inactive',
+          name: 'Inactive',
+          isActive: false,
+          locations: [{ id: 'l-inactive', name: 'Old' }],
+        },
+        {
+          id: 'w-active',
+          name: 'Active',
+          isActive: true,
+          locations: [{ id: 'l-active', name: 'Main' }],
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      itemIndex: 2,
+    });
+
+    expect(state.createdProducts).toEqual([
+      expect.objectContaining({
+        warehouseId: 'w-active',
+        locationId: 'l-active',
+      }),
+      expect.objectContaining({
+        warehouseId: 'w-active',
+        locationId: 'l-active',
       }),
     ]);
   });

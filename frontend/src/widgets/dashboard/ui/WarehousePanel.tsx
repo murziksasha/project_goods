@@ -40,10 +40,12 @@ import {
   buildProductWarehouseMetaById,
   filterStockProducts,
 } from '../model/stock-balance';
+import { buildLocationUsageByWarehouse } from '../model/warehouse-information';
 import { ProductModelModal } from './ProductModelModal';
 import { ModalShell } from './WarehouseModalShell';
 import { WarehouseSettings } from './WarehouseSettingsSection';
 import { ServiceCenterModal, WarehouseEditModal } from './WarehouseSettingsModals';
+import { WarehouseInformationPanel } from './WarehouseInformationPanel';
 import { StockTable, ReceiptsTable } from './WarehouseTables';
 import { TransferWorkspace } from './WarehouseTransferWorkspace';
 import { WarehouseToolbar } from './WarehouseToolbar';
@@ -140,6 +142,7 @@ export const WarehousePanel = ({
       return parsed.activeTab === 'stock' ||
         parsed.activeTab === 'receipts' ||
         parsed.activeTab === 'transfers' ||
+        parsed.activeTab === 'information' ||
         parsed.activeTab === 'settings'
         ? parsed.activeTab
         : 'stock';
@@ -568,12 +571,10 @@ export const WarehousePanel = ({
   }, [receiptHistory]);
   const warehouseOptions = useMemo(
     () =>
-      warehouses
-        .filter((warehouse) => warehouse.isActive)
-        .map((warehouse) => ({
-          id: warehouse.id,
-          name: warehouse.name,
-        })),
+      warehouses.map((warehouse) => ({
+        id: warehouse.id,
+        name: warehouse.name,
+      })),
     [warehouses],
   );
   const locationOptionsByWarehouseId = useMemo(
@@ -593,6 +594,7 @@ export const WarehousePanel = ({
   const takeOnChargeWarehouseOptions = useMemo(
     () =>
       warehouses
+        .filter((warehouse) => warehouse.isActive)
         .map((warehouse) => ({
           id: warehouse.id,
           name: warehouse.name,
@@ -823,6 +825,30 @@ export const WarehousePanel = ({
       }, {}),
     [warehouses],
   );
+  const activeWarehousesByServiceCenter = useMemo(
+    () =>
+      warehouses.reduce<Record<string, number>>((acc, warehouse) => {
+        if (!warehouse.isActive) return acc;
+        acc[warehouse.serviceCenterId] =
+          (acc[warehouse.serviceCenterId] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [warehouses],
+  );
+  const warehouseProductCounts = useMemo(
+    () =>
+      products.reduce<Record<string, number>>((acc, product) => {
+        const warehouseId = product.warehouseId?.trim();
+        if (!warehouseId) return acc;
+        acc[warehouseId] = (acc[warehouseId] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [products],
+  );
+  const locationUsageByWarehouse = useMemo(
+    () => buildLocationUsageByWarehouse(products),
+    [products],
+  );
 
   useEffect(() => {
     if (isLoading) return;
@@ -918,13 +944,18 @@ export const WarehousePanel = ({
         acc[administrator.employeeId] = administrator;
         return acc;
       }, {});
+      const firstActiveWarehouse =
+        warehouses.find((warehouse) => warehouse.isActive) ?? null;
       return activeEmployees.map(
         (employee) =>
           currentByEmployee[employee.id] ?? {
             employeeId: employee.id,
-            warehouseIds: warehouses[0] ? [warehouses[0].id] : [],
-            defaultWarehouseId: warehouses[0]?.id ?? '',
-            defaultLocationId: warehouses[0]?.locations[0]?.id ?? '',
+            warehouseIds: firstActiveWarehouse
+              ? [firstActiveWarehouse.id]
+              : [],
+            defaultWarehouseId: firstActiveWarehouse?.id ?? '',
+            defaultLocationId:
+              firstActiveWarehouse?.locations[0]?.id ?? '',
           },
       );
     });
@@ -964,21 +995,66 @@ export const WarehousePanel = ({
     });
   };
 
+  const normalizeAdministratorsForWarehouses = (
+    currentAdministrators: Administrator[],
+    nextWarehouses: WarehouseItem[],
+  ) => {
+    const warehouseById = new Map(
+      nextWarehouses.map((warehouse) => [warehouse.id, warehouse]),
+    );
+    return currentAdministrators.map((administrator) => {
+      const warehouseIds = administrator.warehouseIds.filter((warehouseId) =>
+        warehouseById.has(warehouseId),
+      );
+      const activeWarehouseIds = warehouseIds.filter(
+        (warehouseId) => warehouseById.get(warehouseId)?.isActive,
+      );
+      const defaultWarehouse = warehouseById.get(
+        administrator.defaultWarehouseId,
+      );
+      const hasValidDefaultWarehouse =
+        defaultWarehouse?.isActive &&
+        warehouseIds.includes(administrator.defaultWarehouseId);
+      const hasValidDefaultLocation =
+        hasValidDefaultWarehouse &&
+        defaultWarehouse.locations.some(
+          (location) => location.id === administrator.defaultLocationId,
+        );
+
+      if (hasValidDefaultWarehouse && hasValidDefaultLocation) {
+        return { ...administrator, warehouseIds };
+      }
+
+      const fallbackWarehouseId = activeWarehouseIds[0] ?? '';
+      const fallbackWarehouse = warehouseById.get(fallbackWarehouseId);
+      return {
+        ...administrator,
+        warehouseIds,
+        defaultWarehouseId: fallbackWarehouseId,
+        defaultLocationId: fallbackWarehouse?.locations[0]?.id ?? '',
+      };
+    });
+  };
+
   const saveWarehouse = () => {
     const normalizedName = warehouseForm.name.trim();
     const normalizedLocations = warehouseForm.locations
-      .map((x) => x.trim())
-      .filter(Boolean);
+      .map((location, index) => ({
+        id: location.id || `l-${Date.now()}-${index}`,
+        name: location.name.trim(),
+      }))
+      .filter((location) => location.name);
+    const uniqueLocationNames = new Set(
+      normalizedLocations.map((location) => location.name.toLowerCase()),
+    );
     if (
       !normalizedName ||
       !warehouseForm.serviceCenterId ||
-      normalizedLocations.length === 0
+      normalizedLocations.length === 0 ||
+      uniqueLocationNames.size !== normalizedLocations.length
     )
       return;
-    const locations = normalizedLocations.map((name, index) => ({
-      id: `l-${Date.now()}-${index}`,
-      name,
-    }));
+    const locations = normalizedLocations;
     const nextWarehouses =
       warehouseModalId === 'new'
         ? [
@@ -1006,10 +1082,16 @@ export const WarehousePanel = ({
                 }
               : x,
           );
+    const nextAdministrators = normalizeAdministratorsForWarehouses(
+      administrators,
+      nextWarehouses,
+    );
     setWarehouses(nextWarehouses);
+    setAdministrators(nextAdministrators);
     setWarehouseModalId(null);
     void persistWarehouseSettings({
       warehouses: nextWarehouses,
+      administrators: nextAdministrators,
       successMessage: 'Warehouse settings saved.',
     });
   };
@@ -1179,6 +1261,10 @@ export const WarehousePanel = ({
       onError('Select target warehouse and location.');
       return;
     }
+    if (!targetWarehouse.isActive) {
+      onError('Selected warehouse is inactive.');
+      return;
+    }
 
     if (
       sourceMeta?.warehouseId === targetWarehouse.id &&
@@ -1243,7 +1329,7 @@ export const WarehousePanel = ({
         ))}
       </div>
 
-      {activeTab !== 'settings' ? (
+      {activeTab !== 'settings' && activeTab !== 'information' ? (
         <WarehouseToolbar
           activeTab={activeTab}
           currentPage={currentPage}
@@ -1271,7 +1357,8 @@ export const WarehousePanel = ({
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
         />
-      ) : null}      {activeTab !== 'settings' ? (
+      ) : null}
+      {activeTab !== 'settings' && activeTab !== 'information' ? (
         <section
           className={
             isFilterPanelOpen
@@ -1601,6 +1688,8 @@ export const WarehousePanel = ({
           warehouses={warehouses}
           administrators={administrators}
           warehousesByServiceCenter={warehousesByServiceCenter}
+          activeWarehousesByServiceCenter={activeWarehousesByServiceCenter}
+          warehouseProductCounts={warehouseProductCounts}
           onCreateServiceCenter={() => {
             setServiceCenterModalId('new');
             setServiceCenterForm(toServiceCenterForm());
@@ -1620,10 +1709,21 @@ export const WarehousePanel = ({
           onAdministratorChange={setAdministrators}
           onSaveAdministrators={() =>
             void persistWarehouseSettings({
+              administrators: normalizeAdministratorsForWarehouses(
+                administrators,
+                warehouses,
+              ),
               successMessage: 'Administrator access saved.',
             })
           }
           isSaving={isWarehouseSettingsSaving}
+        />
+      ) : activeTab === 'information' ? (
+        <WarehouseInformationPanel
+          products={products}
+          sales={sales}
+          warehouses={warehouses}
+          supplierOrders={supplierOrders}
         />
       ) : activeTab === 'stock' ? (
         <>
@@ -1825,6 +1925,11 @@ export const WarehousePanel = ({
         modalId={warehouseModalId}
         form={warehouseForm}
         serviceCenters={serviceCenters}
+        locationUsage={
+          warehouseModalId && warehouseModalId !== 'new'
+            ? locationUsageByWarehouse[warehouseModalId] ?? {}
+            : {}
+        }
         onFormChange={setWarehouseForm}
         onClose={() => setWarehouseModalId(null)}
         onSubmit={saveWarehouse}

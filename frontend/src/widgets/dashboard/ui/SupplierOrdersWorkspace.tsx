@@ -254,9 +254,7 @@ export const SupplierOrdersWorkspace = ({
         const activeWarehouses = settings.warehouses.filter(
           (warehouse) => warehouse.isActive,
         );
-        const sourceWarehouses =
-          activeWarehouses.length > 0 ? activeWarehouses : settings.warehouses;
-        const defaultWarehouse = sourceWarehouses[0];
+        const defaultWarehouse = activeWarehouses[0];
         const defaultLocation = defaultWarehouse?.locations[0];
         if (!defaultWarehouse?.id || !defaultLocation?.id) {
           setDefaultTakeOnChargeWarehouse(null);
