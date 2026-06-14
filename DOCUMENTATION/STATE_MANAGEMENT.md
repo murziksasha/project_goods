@@ -62,6 +62,12 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Dashboard main menu collapsed/expanded state must persist across browser reload (`F5`).
 - On page load, sidebar must restore to the last user-selected state without extra user action.
 
+## Auth Session Recovery Rule (2026-06-14)
+
+- If the session check fails because the current token is no longer valid, the app must clear stale auth state and take the user to the login screen so they can start a new session.
+- The workspace must not stay open on a failed session check when recovery requires a fresh sign-in.
+- The user-facing message should explain that the session ended or could not be verified and that a new login is required.
+
 ## Phase 2 Status (2026-05-06)
 
 - Implemented optimistic concurrency for update operations in products, sales, and client-devices using expectedUpdatedAt.
