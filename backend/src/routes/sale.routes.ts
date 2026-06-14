@@ -9,6 +9,7 @@ import {
   returnSaleLineItem,
   returnSaleLineItemBySerials,
   returnSaleLineItemToStock,
+  updateSaleFavorite,
   updateSaleWorkspace,
   updateSale,
 } from '../domain/sale/service';
@@ -19,6 +20,9 @@ import { normalizeSalePayload } from '../shared/lib/parsers';
 import { asyncHandler, routeParam } from '../shared/lib/http';
 
 export const saleRouter = Router();
+
+export const getSaleFavoritePermission = (kind: unknown) =>
+  kind === 'sale' ? 'sales.manage' : 'orders.manage';
 
 type WorkspaceComparableSale = {
   kind?: string;
@@ -119,6 +123,22 @@ saleRouter.post('/sales', asyncHandler(async (req, res) => {
 
 saleRouter.put('/sales/:saleId', asyncHandler(async (req, res) => {
   res.json(await updateSale(routeParam(req, 'saleId'), req.body as SalePayload));
+}));
+
+saleRouter.patch('/sales/:saleId/favorite', asyncHandler(async (req, res) => {
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new Error('Sale not found.');
+  }
+  await requirePermissionByToken(
+    getBearerToken(req.headers.authorization),
+    getSaleFavoritePermission(existingSale.kind),
+    existingSale.kind === 'sale'
+      ? 'Current employee does not have permission to manage sales.'
+      : 'Current employee does not have permission to manage orders.',
+  );
+  res.json(await updateSaleFavorite(saleId, req.body as { isFavorite?: unknown }));
 }));
 
 saleRouter.patch('/sales/:saleId/workspace', asyncHandler(async (req, res) => {

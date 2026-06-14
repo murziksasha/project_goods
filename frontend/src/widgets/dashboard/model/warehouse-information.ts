@@ -21,6 +21,9 @@ export type WarehouseInformationFilters = {
   supplier: string;
   status: WarehouseInformationStatusFilter;
   sort: WarehouseInformationSortKey;
+  sortDirection: 'asc' | 'desc';
+  dateFrom: string;
+  dateTo: string;
 };
 
 export type WarehouseInformationSummary = {
@@ -122,16 +125,19 @@ const sortByInformationKey = <
 >(
   rows: T[],
   sort: WarehouseInformationSortKey,
+  direction: WarehouseInformationFilters['sortDirection'],
 ) =>
   [...rows].sort((first, second) => {
-    if (sort === 'value') return second.value - first.value;
+    const multiplier = direction === 'asc' ? 1 : -1;
+    if (sort === 'value') return (first.value - second.value) * multiplier;
     if (sort === 'latest') {
       return (
-        new Date(second.latestPurchaseDate ?? 0).getTime() -
-        new Date(first.latestPurchaseDate ?? 0).getTime()
+        (new Date(first.latestPurchaseDate ?? 0).getTime() -
+          new Date(second.latestPurchaseDate ?? 0).getTime()) *
+        multiplier
       );
     }
-    return second.units - first.units;
+    return (first.units - second.units) * multiplier;
   });
 
 export const buildWarehouseInformationReport = ({
@@ -188,6 +194,16 @@ export const buildWarehouseInformationReport = ({
       return false;
     }
     if (filters.locationId && meta?.locationId !== filters.locationId) {
+      return false;
+    }
+    const purchaseDate = product.purchaseDate?.slice(0, 10) ?? '';
+    if ((filters.dateFrom || filters.dateTo) && !purchaseDate) {
+      return false;
+    }
+    if (filters.dateFrom && purchaseDate < filters.dateFrom) {
+      return false;
+    }
+    if (filters.dateTo && purchaseDate > filters.dateTo) {
       return false;
     }
     if (
@@ -333,14 +349,17 @@ export const buildWarehouseInformationReport = ({
     products: sortByInformationKey(
       Array.from(productRows.values()),
       filters.sort,
+      filters.sortDirection,
     ),
     locations: sortByInformationKey(
       Array.from(locationRows.values()),
       filters.sort,
+      filters.sortDirection,
     ),
     suppliers: sortByInformationKey(
       Array.from(supplierRows.values()),
       filters.sort,
+      filters.sortDirection,
     ),
     warehouseMetaByProductId,
   };

@@ -26,6 +26,7 @@ type WarehouseToolbarProps = {
   isColumnsMenuOpen: boolean;
   visibleColumnKeySet: Set<string>;
   activeFilterCount: number;
+  favoritesOnly: boolean;
   query: string;
   searchMode: WarehouseSearchMode;
   searchPlaceholder: string;
@@ -36,6 +37,7 @@ type WarehouseToolbarProps = {
     columnKey: StockColumnKey | ReceiptsColumnKey,
   ) => void;
   onToggleFilters: () => void;
+  onToggleFavoritesOnly: () => void;
   setQuery: Dispatch<SetStateAction<string>>;
   setSearchMode: Dispatch<SetStateAction<WarehouseSearchMode>>;
   setCurrentPage: Dispatch<SetStateAction<number>>;
@@ -54,6 +56,7 @@ export const WarehouseToolbar = ({
   isColumnsMenuOpen,
   visibleColumnKeySet,
   activeFilterCount,
+  favoritesOnly,
   query,
   searchMode,
   searchPlaceholder,
@@ -62,6 +65,7 @@ export const WarehouseToolbar = ({
   onToggleColumnsMenu,
   onToggleColumnVisibility,
   onToggleFilters,
+  onToggleFavoritesOnly,
   setQuery,
   setSearchMode,
   setCurrentPage,
@@ -143,6 +147,27 @@ export const WarehouseToolbar = ({
           </div>
         ) : null}
       </div>
+    ) : null}
+    {activeTab === 'receipts' ? (
+      <button
+        type='button'
+        className={
+          favoritesOnly
+            ? 'toolbar-square-button toolbar-star-button toolbar-star-button-active'
+            : 'toolbar-square-button toolbar-star-button'
+        }
+        aria-label={
+          favoritesOnly
+            ? 'Show all receipt orders'
+            : 'Show starred receipt orders'
+        }
+        aria-pressed={favoritesOnly}
+        onClick={onToggleFavoritesOnly}
+      >
+        <span className='supplier-order-star-icon' aria-hidden='true'>
+          {favoritesOnly ? '★' : '☆'}
+        </span>
+      </button>
     ) : null}
     <button
       type='button'

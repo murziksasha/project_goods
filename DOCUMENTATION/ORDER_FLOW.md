@@ -227,6 +227,8 @@
 - Supplier-order column visibility can be changed from the gear menu and is persisted in local storage.
 - Supplier orders can be starred from the row number cell. The star state is persisted on the supplier order and is shown as yellow when active.
 - The toolbar star button after the columns settings gear toggles `Starred only`; this filter is persisted with the supplier-order filters and also affects the `Information` tab working set.
+- `Orders` and `Sales` rows use the same star pattern in the row number cell. The star state is persisted on the sale/order record.
+- The `Orders` / `Sales` toolbar star button after the columns settings gear toggles `Starred only` for the active tab. Repair-order star changes require `orders.manage`; product-sale star changes require `sales.manage`.
 
 ## Supplier Order Row Status Window (2026-06-03)
 
