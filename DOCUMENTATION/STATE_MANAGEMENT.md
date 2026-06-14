@@ -47,6 +47,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date/starred working set as the supplier-order table.
+- `Orders` and `Sales` each persist their active `favoritesOnly` starred filter with the rest of the order filters.
 
 ## Tab Persistence Rule (2026-05-29)
 
@@ -98,4 +99,4 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - `WarehousePanel` now reads warehouse settings through `useWarehouseSettingsQuery`.
 - Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.
 - Receipt rows from supplier orders are derived from query data; manually created local receipt rows remain local UI/session state.
-- Warehouse receipt filters include a starred-supplier-orders-only option. It shows only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active.
+- Warehouse receipt filters include a starred-supplier-orders-only option and toolbar quick star toggle. They show only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active.

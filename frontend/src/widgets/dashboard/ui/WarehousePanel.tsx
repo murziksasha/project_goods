@@ -15,6 +15,7 @@ import {
   useCreateSupplierOrderMutation,
   useSupplierOrdersQuery,
   useTakeOnChargeSupplierOrderMutation,
+  useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
 } from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
@@ -114,6 +115,8 @@ export const WarehousePanel = ({
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
   const createSupplierOrderMutation = useCreateSupplierOrderMutation();
   const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const updateSupplierOrderFavoriteMutation =
+    useUpdateSupplierOrderFavoriteMutation();
   const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
   const takeOnChargeSupplierOrderMutation =
     useTakeOnChargeSupplierOrderMutation();
@@ -1172,6 +1175,38 @@ export const WarehousePanel = ({
     setAppliedFilters(initialWarehouseFilters);
     setCurrentPage(1);
   };
+  const toggleReceiptFavoritesOnly = () => {
+    const nextFilters = {
+      ...appliedFilters,
+      favoritesOnly: !appliedFilters.favoritesOnly,
+    };
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setCurrentPage(1);
+  };
+  const toggleReceiptFavorite = async (receipt: ReceiptRow) => {
+    if (!receipt.supplierOrderId) return;
+    if (!canManageSupplierOrders) {
+      onError('Current employee does not have permission to manage supplier orders.');
+      return;
+    }
+
+    try {
+      await updateSupplierOrderFavoriteMutation.mutateAsync({
+        supplierOrderId: receipt.supplierOrderId,
+        payload: {
+          isFavorite: receipt.supplierOrderIsFavorite !== true,
+        },
+      });
+      await refreshSupplierOrders();
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update receipt order star.',
+      );
+    }
+  };
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
     if (!filterName || !currentEmployeeName.trim()) return;
@@ -1343,6 +1378,7 @@ export const WarehousePanel = ({
           isColumnsMenuOpen={isColumnsMenuOpen}
           visibleColumnKeySet={visibleColumnKeySet}
           activeFilterCount={activeFilterCount}
+          favoritesOnly={appliedFilters.favoritesOnly}
           query={query}
           searchMode={searchMode}
           searchPlaceholder={searchPlaceholder}
@@ -1353,6 +1389,7 @@ export const WarehousePanel = ({
           }
           onToggleColumnVisibility={toggleColumnVisibility}
           onToggleFilters={() => setIsFilterPanelOpen((current) => !current)}
+          onToggleFavoritesOnly={toggleReceiptFavoritesOnly}
           setQuery={setQuery}
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
@@ -1819,6 +1856,8 @@ export const WarehousePanel = ({
           <ReceiptsTable
             receipts={paginatedReceipts}
             visibleColumns={visibleColumns.receipts}
+            canManageSupplierOrders={canManageSupplierOrders}
+            onToggleFavorite={(receipt) => void toggleReceiptFavorite(receipt)}
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
               const matchedOrder = supplierOrders.find(

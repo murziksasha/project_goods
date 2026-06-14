@@ -17,6 +17,7 @@ export type Sale = {
   kind: 'repair' | 'sale';
   status: string;
   paidAmount: number;
+  isFavorite?: boolean;
   note: string;
   timeline: Array<{
     id: string;

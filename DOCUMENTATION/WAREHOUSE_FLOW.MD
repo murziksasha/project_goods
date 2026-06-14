@@ -192,6 +192,9 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 9) New Receipt Order Initial State
 - New supplier order created from `Warehouse -> Receipts` starts as `approved` (not auto-`stocked`) to allow later receiving.
 - Creating this receipt order is a supplier-order mutation and requires `supplierOrders.manage`.
+- Receipt rows linked to supplier orders show the same row star as `Orders -> Supplier Order`.
+- The `Warehouse -> Receipts` toolbar star button toggles starred supplier-order receipts only; manual receipt rows are excluded while this filter is active.
+- Changing a receipt row star updates the linked supplier order favorite state and requires `supplierOrders.manage`.
 
 ### 10) Per-Unit Materialization
 - Take-on-charge creates one product row per unit (`quantity = 1` each), each with unique `serialNumber`.

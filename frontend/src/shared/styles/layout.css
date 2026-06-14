@@ -3185,6 +3185,10 @@
   display: inline-flex;
 }
 
+.orders-toolbar-left > .toolbar-star-button {
+  display: inline-flex;
+}
+
 .orders-toolbar-actions {
   display: flex;
   align-items: center;
@@ -3987,6 +3991,11 @@
 .supplier-order-row-star:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.supplier-order-row-star-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .orders-table .supplier-orders-col-product {
