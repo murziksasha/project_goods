@@ -8,7 +8,10 @@ import type {
   SupplierPaymentStatus,
 } from '../../../entities/supplier-order/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import type {
   SupplierOrderAnalytics,
   SupplierOrderProductStat,
@@ -35,6 +38,7 @@ import {
 type SupplierOrdersToolbarProps = {
   activeTab: OrdersTab;
   dateFiltersCount: number;
+  filteredOrdersCount: number;
   filteredOrderStatuses: typeof supplierOrderStatuses;
   filteredPaymentStatuses: typeof supplierPaymentStatuses;
   isColumnsMenuOpen: boolean;
@@ -47,6 +51,8 @@ type SupplierOrdersToolbarProps = {
   columnsMenuRef: RefObject<HTMLDivElement | null>;
   paymentQuery: string;
   paymentStatus: SupplierPaymentStatus | 'all';
+  page: number;
+  pageSize: number;
   query: string;
   selectedStatuses: SupplierOrderStatus[];
   statusQuery: string;
@@ -62,6 +68,7 @@ type SupplierOrdersToolbarProps = {
   onPaymentStatusOpenChange: Dispatch<SetStateAction<boolean>>;
   onPaymentQueryChange: (value: string) => void;
   onPaymentStatusChange: (status: SupplierPaymentStatus | 'all') => void;
+  onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onSelectedStatusesChange: Dispatch<SetStateAction<SupplierOrderStatus[]>>;
   onStatusQueryChange: (value: string) => void;
@@ -73,6 +80,7 @@ type SupplierOrdersToolbarProps = {
 export const SupplierOrdersToolbar = ({
   activeTab,
   dateFiltersCount,
+  filteredOrdersCount,
   filteredOrderStatuses,
   filteredPaymentStatuses,
   isColumnsMenuOpen,
@@ -85,6 +93,8 @@ export const SupplierOrdersToolbar = ({
   columnsMenuRef,
   paymentQuery,
   paymentStatus,
+  page,
+  pageSize,
   query,
   selectedStatuses,
   statusQuery,
@@ -100,6 +110,7 @@ export const SupplierOrdersToolbar = ({
   onPaymentStatusOpenChange,
   onPaymentQueryChange,
   onPaymentStatusChange,
+  onPageChange,
   onQueryChange,
   onSelectedStatusesChange,
   onStatusQueryChange,
@@ -125,6 +136,14 @@ export const SupplierOrdersToolbar = ({
 
     <div className='orders-toolbar'>
       <div className='orders-toolbar-left supplier-orders-toolbar-left'>
+        {!isInformationTab ? (
+          <CompactPaginationPanel
+            totalItems={filteredOrdersCount}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        ) : null}
         <button
           type='button'
           className='toolbar-filter-button toolbar-filter-toggle-button'

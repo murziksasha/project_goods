@@ -5,16 +5,13 @@ import type { ServiceCatalogItem } from '../../../entities/service-catalog/model
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 export const SuppliersTable = ({ suppliers, searchQuery, onSelectSupplier }: { suppliers: Supplier[]; searchQuery: string; onSelectSupplier: (supplier: Supplier) => void }) => {
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filteredSuppliers = normalizedQuery
-    ? suppliers.filter((supplier) => [supplier.name, supplier.phone, supplier.note].join(' ').toLowerCase().includes(normalizedQuery))
-    : suppliers;
-  if (filteredSuppliers.length === 0) return <p className="empty-state">{normalizedQuery ? 'No suppliers found.' : 'No suppliers yet.'}</p>;
+  if (suppliers.length === 0) return <p className="empty-state">{normalizedQuery ? 'No suppliers found.' : 'No suppliers yet.'}</p>;
   return (
     <div className="catalog-table-wrap">
       <table className="catalog-table">
         <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Status</th><th>Created</th></tr></thead>
         <tbody>
-          {filteredSuppliers.map((supplier) => (
+          {suppliers.map((supplier) => (
             <tr key={supplier.id}>
               <td>{supplier.id.slice(-6)}</td>
               <td>
@@ -92,23 +89,20 @@ export const CatalogProductsTable = ({
   products,
   isLoading,
   searchQuery,
+  rowStartIndex,
   onSelectProduct,
 }: {
   products: CatalogProduct[];
   isLoading: boolean;
   searchQuery: string;
+  rowStartIndex: number;
   onSelectProduct: (product: CatalogProduct) => void;
 }) => {
   if (isLoading) return <p className="empty-state">Loading products...</p>;
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filtered = normalizedQuery
-    ? products.filter((product) =>
-        [product.name, product.note].join(' ').toLowerCase().includes(normalizedQuery),
-      )
-    : products;
 
-  if (filtered.length === 0) {
+  if (products.length === 0) {
     return (
       <p className="empty-state">
         {normalizedQuery ? 'No products found.' : 'No products yet.'}
@@ -128,9 +122,9 @@ export const CatalogProductsTable = ({
           </tr>
         </thead>
         <tbody>
-          {filtered.map((product, index) => (
+          {products.map((product, index) => (
             <tr key={product.id}>
-              <td>{index + 1}</td>
+              <td>{rowStartIndex + index + 1}</td>
               <td>
                 <button
                   type="button"

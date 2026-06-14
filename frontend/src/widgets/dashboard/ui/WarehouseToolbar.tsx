@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { CompactPaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
   availableWarehouseColumns,
   getWarehouseColumnLabel,
@@ -15,8 +16,9 @@ import { PrinterIcon } from './orders-workspace-shared';
 type WarehouseToolbarProps = {
   activeTab: WarehouseTab;
   currentPage: number;
-  pageCount: number;
+  pageSize: number;
   stockSummaryText: string;
+  totalItems: number;
   selectedProductCount: number;
   selectedSerialCount: number;
   activeColumnsTab: WarehouseColumnsTab | null;
@@ -27,8 +29,6 @@ type WarehouseToolbarProps = {
   query: string;
   searchMode: WarehouseSearchMode;
   searchPlaceholder: string;
-  onPreviousPage: () => void;
-  onNextPage: () => void;
   onPrintSelectedSerials: () => void;
   onClearSelection: () => void;
   onToggleColumnsMenu: () => void;
@@ -44,8 +44,9 @@ type WarehouseToolbarProps = {
 export const WarehouseToolbar = ({
   activeTab,
   currentPage,
-  pageCount,
+  pageSize,
   stockSummaryText,
+  totalItems,
   selectedProductCount,
   selectedSerialCount,
   activeColumnsTab,
@@ -56,8 +57,6 @@ export const WarehouseToolbar = ({
   query,
   searchMode,
   searchPlaceholder,
-  onPreviousPage,
-  onNextPage,
   onPrintSelectedSerials,
   onClearSelection,
   onToggleColumnsMenu,
@@ -68,25 +67,12 @@ export const WarehouseToolbar = ({
   setCurrentPage,
 }: WarehouseToolbarProps) => (
   <div className='warehouse-toolbar'>
-    <button
-      type='button'
-      className='toolbar-square-button'
-      aria-label='Previous page'
-      onClick={onPreviousPage}
-      disabled={currentPage <= 1}
-    >
-      &lsaquo;
-    </button>
-    <span className='warehouse-page-number'>{currentPage}</span>
-    <button
-      type='button'
-      className='toolbar-square-button'
-      aria-label='Next page'
-      onClick={onNextPage}
-      disabled={currentPage >= pageCount}
-    >
-      &rsaquo;
-    </button>
+    <CompactPaginationPanel
+      totalItems={totalItems}
+      page={currentPage}
+      pageSize={pageSize}
+      onPageChange={setCurrentPage}
+    />
     <span className='warehouse-stock-count'>{stockSummaryText}</span>
     {activeTab === 'stock' ? (
       <>

@@ -15,7 +15,10 @@ import type {
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
 import { ServiceCatalogForm } from '../../../features/manage-service-catalog/ui/ServiceCatalogForm';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import {
   CatalogProductsTable,
   ProductsTable,
@@ -144,9 +147,13 @@ export const ProductCatalogPanel = ({
       : 'products';
   });
   const [productsPage, setProductsPage] = useState(1);
-  const [productsPageSize, setProductsPageSize] = useState(10);
+  const [productsPageSize, setProductsPageSize] = useState(30);
+  const [catalogProductsPage, setCatalogProductsPage] = useState(1);
+  const [catalogProductsPageSize, setCatalogProductsPageSize] = useState(30);
   const [servicesPage, setServicesPage] = useState(1);
-  const [servicesPageSize, setServicesPageSize] = useState(10);
+  const [servicesPageSize, setServicesPageSize] = useState(30);
+  const [suppliersPage, setSuppliersPage] = useState(1);
+  const [suppliersPageSize, setSuppliersPageSize] = useState(30);
   const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [selectedClientDevice, setSelectedClientDevice] = useState<ClientDevice | null>(null);
@@ -194,10 +201,47 @@ export const ProductCatalogPanel = ({
     const start = (productsPage - 1) * productsPageSize;
     return filteredClientDevices.slice(start, start + productsPageSize);
   }, [filteredClientDevices, productsPage, productsPageSize]);
+  const filteredCatalogProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    return normalizedQuery
+      ? catalogProducts.filter((product) =>
+          [product.name, product.note]
+            .join(' ')
+            .toLowerCase()
+            .includes(normalizedQuery),
+        )
+      : catalogProducts;
+  }, [catalogProducts, searchQuery]);
+  const paginatedCatalogProducts = useMemo(() => {
+    const start = (catalogProductsPage - 1) * catalogProductsPageSize;
+    return filteredCatalogProducts.slice(
+      start,
+      start + catalogProductsPageSize,
+    );
+  }, [
+    catalogProductsPage,
+    catalogProductsPageSize,
+    filteredCatalogProducts,
+  ]);
   const paginatedServices = useMemo(() => {
     const start = (servicesPage - 1) * servicesPageSize;
     return services.slice(start, start + servicesPageSize);
   }, [services, servicesPage, servicesPageSize]);
+  const filteredSuppliers = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    return normalizedQuery
+      ? suppliers.filter((supplier) =>
+          [supplier.name, supplier.phone, supplier.note]
+            .join(' ')
+            .toLowerCase()
+            .includes(normalizedQuery),
+        )
+      : suppliers;
+  }, [searchQuery, suppliers]);
+  const paginatedSuppliers = useMemo(() => {
+    const start = (suppliersPage - 1) * suppliersPageSize;
+    return filteredSuppliers.slice(start, start + suppliersPageSize);
+  }, [filteredSuppliers, suppliersPage, suppliersPageSize]);
   const catalogNumbers = new Map(
     [...products, ...services]
       .sort((firstItem, secondItem) =>
@@ -229,12 +273,36 @@ export const ProductCatalogPanel = ({
   useEffect(() => {
     const pageCount = Math.max(
       1,
+      Math.ceil(filteredCatalogProducts.length / catalogProductsPageSize),
+    );
+    if (catalogProductsPage > pageCount) {
+      setCatalogProductsPage(pageCount);
+    }
+  }, [
+    catalogProductsPage,
+    catalogProductsPageSize,
+    filteredCatalogProducts.length,
+  ]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
       Math.ceil(services.length / servicesPageSize),
     );
     if (servicesPage > pageCount) {
       setServicesPage(pageCount);
     }
   }, [services.length, servicesPage, servicesPageSize]);
+
+  useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredSuppliers.length / suppliersPageSize),
+    );
+    if (suppliersPage > pageCount) {
+      setSuppliersPage(pageCount);
+    }
+  }, [filteredSuppliers.length, suppliersPage, suppliersPageSize]);
 
   useEffect(() => {
     window.localStorage.setItem(catalogTabStorageKey, activeTab);
@@ -266,6 +334,35 @@ export const ProductCatalogPanel = ({
       </div>
 
       <div className="catalog-toolbar">
+        {isProductsTab ? (
+          <CompactPaginationPanel
+            totalItems={filteredClientDevices.length}
+            page={productsPage}
+            pageSize={productsPageSize}
+            onPageChange={setProductsPage}
+          />
+        ) : isSuppliersTab ? (
+          <CompactPaginationPanel
+            totalItems={filteredSuppliers.length}
+            page={suppliersPage}
+            pageSize={suppliersPageSize}
+            onPageChange={setSuppliersPage}
+          />
+        ) : isCatalogProductsTab ? (
+          <CompactPaginationPanel
+            totalItems={filteredCatalogProducts.length}
+            page={catalogProductsPage}
+            pageSize={catalogProductsPageSize}
+            onPageChange={setCatalogProductsPage}
+          />
+        ) : (
+          <CompactPaginationPanel
+            totalItems={services.length}
+            page={servicesPage}
+            pageSize={servicesPageSize}
+            onPageChange={setServicesPage}
+          />
+        )}
         <button type="button" className="toolbar-square-button" aria-label="Filters">
           ⚙
         </button>
@@ -274,7 +371,7 @@ export const ProductCatalogPanel = ({
         </button>
         <div className="orders-search-group orders-search-group-clearable catalog-search-group">
           <input
-            value={isProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
+            value={isProductsTab || isCatalogProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
             placeholder={
               isProductsTab
                 ? 'Device name'
@@ -286,7 +383,12 @@ export const ProductCatalogPanel = ({
             }
             onChange={(event) =>
               isProductsTab || isCatalogProductsTab || isSuppliersTab
-                ? (onSearchChange(event.target.value), setProductsPage(1))
+                ? (onSearchChange(event.target.value),
+                  isSuppliersTab
+                    ? setSuppliersPage(1)
+                    : isCatalogProductsTab
+                      ? setCatalogProductsPage(1)
+                      : setProductsPage(1))
                 : (onServiceSearchChange(event.target.value), setServicesPage(1))
             }
           />
@@ -298,7 +400,12 @@ export const ProductCatalogPanel = ({
               aria-label='Clear search text'
               onClick={() =>
                 isProductsTab || isCatalogProductsTab || isSuppliersTab
-                  ? (onSearchChange(''), setProductsPage(1))
+                  ? (onSearchChange(''),
+                    isSuppliersTab
+                      ? setSuppliersPage(1)
+                      : isCatalogProductsTab
+                        ? setCatalogProductsPage(1)
+                        : setProductsPage(1))
                   : (onServiceSearchChange(''), setServicesPage(1))
               }
               onKeyDown={(event) => {
@@ -306,7 +413,13 @@ export const ProductCatalogPanel = ({
                   event.preventDefault();
                   if (isProductsTab || isCatalogProductsTab || isSuppliersTab) {
                     onSearchChange('');
-                    setProductsPage(1);
+                    if (isSuppliersTab) {
+                      setSuppliersPage(1);
+                    } else if (isCatalogProductsTab) {
+                      setCatalogProductsPage(1);
+                    } else {
+                      setProductsPage(1);
+                    }
                   } else {
                     onServiceSearchChange('');
                     setServicesPage(1);
@@ -380,14 +493,41 @@ export const ProductCatalogPanel = ({
           />
         </>
       ) : isCatalogProductsTab ? (
-        <CatalogProductsTable
-          products={catalogProducts}
-          isLoading={isCatalogProductsLoading}
-          searchQuery={searchQuery}
-          onSelectProduct={setSelectedCatalogProduct}
-        />
+        <>
+          <CatalogProductsTable
+            products={paginatedCatalogProducts}
+            isLoading={isCatalogProductsLoading}
+            searchQuery={searchQuery}
+            rowStartIndex={
+              (catalogProductsPage - 1) * catalogProductsPageSize
+            }
+            onSelectProduct={setSelectedCatalogProduct}
+          />
+          <PaginationPanel
+            totalItems={filteredCatalogProducts.length}
+            page={catalogProductsPage}
+            pageSize={catalogProductsPageSize}
+            onPageChange={setCatalogProductsPage}
+            onPageSizeChange={(nextPageSize) => {
+              setCatalogProductsPageSize(nextPageSize);
+              setCatalogProductsPage(1);
+            }}
+          />
+        </>
       ) : isSuppliersTab ? (
-        <SuppliersTable suppliers={suppliers} searchQuery={searchQuery} onSelectSupplier={setSelectedSupplier} />
+        <>
+          <SuppliersTable suppliers={paginatedSuppliers} searchQuery={searchQuery} onSelectSupplier={setSelectedSupplier} />
+          <PaginationPanel
+            totalItems={filteredSuppliers.length}
+            page={suppliersPage}
+            pageSize={suppliersPageSize}
+            onPageChange={setSuppliersPage}
+            onPageSizeChange={(nextPageSize) => {
+              setSuppliersPageSize(nextPageSize);
+              setSuppliersPage(1);
+            }}
+          />
+        </>
       ) : (
         <>
           <ServicesTable

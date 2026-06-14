@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatDateTime } from '../../../shared/lib/format';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import type { Sale } from '../../../entities/sale/model/types';
 import type {
   Client,
@@ -178,6 +182,8 @@ export const ClientsSuppliersWorkspace = ({
     null,
   );
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [suppliersPage, setSuppliersPage] = useState(1);
+  const [suppliersPageSize, setSuppliersPageSize] = useState(30);
   const [mergeTargetQuery, setMergeTargetQuery] = useState('');
   const [mergeSourceQuery, setMergeSourceQuery] = useState('');
   const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
@@ -200,6 +206,10 @@ export const ClientsSuppliersWorkspace = ({
       getSearchText(supplier).includes(normalized),
     );
   }, [query, suppliers]);
+  const paginatedSuppliers = useMemo(() => {
+    const start = (suppliersPage - 1) * suppliersPageSize;
+    return filteredSuppliers.slice(start, start + suppliersPageSize);
+  }, [filteredSuppliers, suppliersPage, suppliersPageSize]);
 
   const duplicateSupplier = useMemo(
     () => findDuplicateSupplier(suppliers, form, editingSupplierId),
@@ -294,6 +304,16 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   useEffect(() => {
+    const pageCount = Math.max(
+      1,
+      Math.ceil(filteredSuppliers.length / suppliersPageSize),
+    );
+    if (suppliersPage > pageCount) {
+      setSuppliersPage(pageCount);
+    }
+  }, [filteredSuppliers.length, suppliersPage, suppliersPageSize]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(clientsSuppliersTabStorageKey, activeTab);
     } catch {
@@ -330,8 +350,19 @@ export const ClientsSuppliersWorkspace = ({
       ) : (
         <SuppliersWorkspace
           query={query}
-          suppliers={filteredSuppliers}
-          onQueryChange={setQuery}
+          suppliers={paginatedSuppliers}
+          totalSuppliersCount={filteredSuppliers.length}
+          page={suppliersPage}
+          pageSize={suppliersPageSize}
+          onPageChange={setSuppliersPage}
+          onPageSizeChange={(nextPageSize) => {
+            setSuppliersPageSize(nextPageSize);
+            setSuppliersPage(1);
+          }}
+          onQueryChange={(value) => {
+            setQuery(value);
+            setSuppliersPage(1);
+          }}
           onOpenCreateModal={openCreateModal}
           onOpenEditModal={openEditModal}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
@@ -399,6 +430,11 @@ const ClientsSuppliersTabs = ({
 const SuppliersWorkspace = ({
   query,
   suppliers,
+  totalSuppliersCount,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   onQueryChange,
   onOpenCreateModal,
   onOpenEditModal,
@@ -406,6 +442,11 @@ const SuppliersWorkspace = ({
 }: {
   query: string;
   suppliers: Supplier[];
+  totalSuppliersCount: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (supplier: Supplier) => void;
@@ -414,27 +455,52 @@ const SuppliersWorkspace = ({
   <>
     <SuppliersToolbar
       query={query}
+      totalSuppliersCount={totalSuppliersCount}
+      page={page}
+      pageSize={pageSize}
+      onPageChange={onPageChange}
       onQueryChange={onQueryChange}
       onOpenCreateModal={onOpenCreateModal}
       onOpenMergeModal={onOpenMergeModal}
     />
     <SuppliersTable suppliers={suppliers} onOpenEditModal={onOpenEditModal} />
+    <PaginationPanel
+      totalItems={totalSuppliersCount}
+      page={page}
+      pageSize={pageSize}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+    />
   </>
 );
 
 const SuppliersToolbar = ({
   query,
+  totalSuppliersCount,
+  page,
+  pageSize,
+  onPageChange,
   onQueryChange,
   onOpenCreateModal,
   onOpenMergeModal,
 }: {
   query: string;
+  totalSuppliersCount: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenMergeModal: () => void;
 }) => (
   <div className='orders-toolbar clients-toolbar'>
     <div className='orders-toolbar-left'>
+      <CompactPaginationPanel
+        totalItems={totalSuppliersCount}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+      />
       <div className='orders-search-group orders-search-group-clearable clients-search-group'>
         <input
           value={query}

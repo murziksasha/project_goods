@@ -650,19 +650,33 @@ describe('OrdersWorkspace', () => {
   });
 
   it('defaults orders and sales page size to 30 rows', () => {
+    const repairSales = Array.from({ length: 31 }, (_, index) => ({
+      ...sale,
+      id: `repair-${index + 1}`,
+      recordNumber: `R${String(index + 1).padStart(6, '0')}`,
+      saleDate: `2026-01-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`,
+    }));
     const { unmount } = renderWorkspace({
       activeTab: 'orders',
-      sales: [sale],
+      sales: repairSales,
     });
 
     expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
+    expect(screen.getAllByRole('link', { name: /^R\d{6}$/ })).toHaveLength(30);
     unmount();
 
+    const productSales = repairSales.map((item, index) => ({
+      ...item,
+      id: `sale-${index + 1}`,
+      kind: 'sale' as const,
+      recordNumber: `S${String(index + 1).padStart(6, '0')}`,
+    }));
     renderWorkspace({
       activeTab: 'sales',
-      sales: [{ ...sale, kind: 'sale' }],
+      sales: productSales,
     });
 
     expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
+    expect(screen.getAllByRole('link', { name: /^S\d{6}$/ })).toHaveLength(30);
   });
 });

@@ -103,6 +103,7 @@ export const WarehouseEditModal = ({
   modalId,
   form,
   serviceCenters,
+  locationUsage,
   onFormChange,
   onClose,
   onSubmit,
@@ -110,11 +111,17 @@ export const WarehouseEditModal = ({
   modalId: string | null;
   form: WarehouseFormState;
   serviceCenters: ServiceCenter[];
+  locationUsage: Record<string, number>;
   onFormChange: Dispatch<SetStateAction<WarehouseFormState>>;
   onClose: () => void;
   onSubmit: () => void;
 }) => {
   if (!modalId) return null;
+  const normalizedLocationNames = form.locations
+    .map((location) => location.name.trim().toLowerCase())
+    .filter(Boolean);
+  const hasDuplicateLocations =
+    new Set(normalizedLocationNames).size !== normalizedLocationNames.length;
 
   return (
     <ModalShell
@@ -125,7 +132,8 @@ export const WarehouseEditModal = ({
       canSubmit={
         form.name.trim().length > 1 &&
         Boolean(form.serviceCenterId) &&
-        form.locations.some((location) => location.trim().length > 0)
+        form.locations.some((location) => location.name.trim().length > 0) &&
+        !hasDuplicateLocations
       }
     >
       <label className='field'>
@@ -200,29 +208,72 @@ export const WarehouseEditModal = ({
       <div className='field'>
         <span>locations:</span>
         <div className='warehouse-settings-locations'>
-          {form.locations.map((location, index) => (
-            <input
-              key={`${modalId}-location-${index}`}
-              value={location}
-              onChange={(event) => {
-                const nextLocations = [...form.locations];
-                nextLocations[index] = event.target.value;
-                onFormChange((current) => ({
-                  ...current,
-                  locations: nextLocations,
-                }));
-              }}
-              placeholder='enter location name'
-            />
-          ))}
+          {form.locations.map((location, index) => {
+            const usageCount = locationUsage[location.id] ?? 0;
+            const canRemove =
+              form.locations.length > 1 && usageCount === 0;
+            return (
+              <div
+                key={location.id || `${modalId}-location-${index}`}
+                className='warehouse-settings-location-row'
+              >
+                <input
+                  value={location.name}
+                  onChange={(event) => {
+                    const nextLocations = form.locations.map(
+                      (currentLocation, locationIndex) =>
+                        locationIndex === index
+                          ? {
+                              ...currentLocation,
+                              name: event.target.value,
+                            }
+                          : currentLocation,
+                    );
+                    onFormChange((current) => ({
+                      ...current,
+                      locations: nextLocations,
+                    }));
+                  }}
+                  placeholder='enter location name'
+                />
+                <span
+                  className='warehouse-settings-location-usage'
+                  title='Products referencing this location'
+                >
+                  {usageCount}
+                </span>
+                <button
+                  type='button'
+                  className='danger-button warehouse-settings-location-delete'
+                  disabled={!canRemove}
+                  onClick={() =>
+                    onFormChange((current) => ({
+                      ...current,
+                      locations: current.locations.filter(
+                        (_, locationIndex) => locationIndex !== index,
+                      ),
+                    }))
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            );
+          })}
         </div>
+        {hasDuplicateLocations ? (
+          <small>Location names must be unique inside a warehouse.</small>
+        ) : null}
         <button
           type='button'
           className='warehouse-settings-add-location'
           onClick={() =>
             onFormChange((current) => ({
               ...current,
-              locations: [...current.locations, ''],
+              locations: [
+                ...current.locations,
+                { id: `l-${Date.now()}`, name: '' },
+              ],
             }))
           }
         >
