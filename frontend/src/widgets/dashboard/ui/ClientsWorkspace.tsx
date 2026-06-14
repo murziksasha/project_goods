@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useRef } from 'react';
+import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Client,
   ClientFormValues,
@@ -20,6 +21,7 @@ import { ClientsTable } from './ClientsTable';
 import { ClientsToolbar } from './ClientsToolbar';
 import {
   clientCardTabStorageKey,
+  clientsSuppliersSavedFiltersStorageKey,
   clientsFiltersStorageKey,
   defaultClientStats,
   emptyClientDraft,
@@ -39,8 +41,15 @@ import {
   type ClientMainForm,
   type ClientStats,
 } from '../model/clients-workspace';
+import { filterIconOptions } from './orders-workspace-shared';
+import {
+  createSavedFilterId,
+  readSavedFilters,
+  type SavedFilter,
+} from '../model/saved-filters';
 
 type ClientsWorkspaceProps = {
+  currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
   selectedClientId: string | null;
@@ -171,6 +180,7 @@ const mapClientDraftToPayload = (
 });
 
 export const ClientsWorkspace = ({
+  currentEmployee,
   clients,
   sales,
   selectedClientId,
@@ -239,6 +249,16 @@ export const ClientsWorkspace = ({
       return '';
     }
   });
+  const [savedFilters, setSavedFilters] = useState<
+    Array<SavedFilter<ClientFilters, 'clients' | 'suppliers'>>
+  >(() =>
+    readSavedFilters<ClientFilters, 'clients' | 'suppliers'>(
+      clientsSuppliersSavedFiltersStorageKey,
+      ['clients', 'suppliers'],
+    ),
+  );
+  const [newFilterName, setNewFilterName] = useState('');
+  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
@@ -280,6 +300,23 @@ export const ClientsWorkspace = ({
   const activeFiltersCount = useMemo(
     () => getActiveClientFiltersCount(appliedFilters),
     [appliedFilters],
+  );
+  const visibleSavedFilters = useMemo(
+    () =>
+      currentEmployee?.id
+        ? savedFilters
+            .filter(
+              (item) =>
+                item.employeeId === currentEmployee.id &&
+                item.tab === 'clients',
+            )
+            .sort(
+              (first, second) =>
+                new Date(second.createdAt).getTime() -
+                new Date(first.createdAt).getTime(),
+            )
+        : [],
+    [currentEmployee?.id, savedFilters],
   );
 
   const filteredClients = useMemo(
@@ -414,6 +451,36 @@ export const ClientsWorkspace = ({
     setAppliedFilters(emptyFilters);
     setClientsPage(1);
   };
+  const saveCurrentFilter = () => {
+    const filterName = newFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return;
+    const nextFilter: SavedFilter<ClientFilters, 'clients' | 'suppliers'> = {
+      id: createSavedFilterId('client-filter'),
+      employeeId: currentEmployee.id,
+      name: filterName,
+      icon: newFilterIcon,
+      tab: 'clients',
+      filters: normalizeClientFiltersForApply(appliedFilters),
+      createdAt: new Date().toISOString(),
+    };
+    setSavedFilters((current) => [nextFilter, ...current]);
+    setNewFilterName('');
+    setNewFilterIcon(filterIconOptions[0]);
+  };
+  const applySavedFilter = (filterId: string) => {
+    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    if (!savedFilter) return;
+    const nextFilters = normalizeClientFiltersForApply(savedFilter.filters);
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setSearchValue(nextFilters.query);
+    setClientsPage(1);
+  };
+  const removeSavedFilter = (filterId: string) => {
+    setSavedFilters((current) =>
+      current.filter((item) => item.id !== filterId),
+    );
+  };
 
   useEffect(() => {
     const pageCount = Math.max(
@@ -436,6 +503,13 @@ export const ClientsWorkspace = ({
       }),
     );
   }, [appliedFilters, draftFilters, isFilterOpen, searchValue]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      clientsSuppliersSavedFiltersStorageKey,
+      JSON.stringify(savedFilters),
+    );
+  }, [savedFilters]);
 
   useEffect(() => {
     try {
@@ -613,9 +687,22 @@ export const ClientsWorkspace = ({
         draftFilters={draftFilters}
         isOpen={isFilterOpen}
         statusOptions={filterStatusOptions}
+        savedFilters={visibleSavedFilters.map((item) => ({
+          id: item.id,
+          name: item.name,
+          icon: item.icon,
+        }))}
+        canSaveFilter={Boolean(currentEmployee?.id)}
+        newFilterIcon={newFilterIcon}
+        newFilterName={newFilterName}
         onApply={applyFilters}
+        onApplySavedFilter={applySavedFilter}
         onChange={setDraftFilters}
         onClear={clearFilters}
+        onDeleteSavedFilter={removeSavedFilter}
+        onFilterIconChange={setNewFilterIcon}
+        onFilterNameChange={setNewFilterName}
+        onSaveFilter={saveCurrentFilter}
       />
 
       <ClientsTable

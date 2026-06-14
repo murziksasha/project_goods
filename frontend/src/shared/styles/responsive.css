@@ -298,6 +298,10 @@
     align-items: stretch;
   }
 
+  .orders-filter-save-button {
+    justify-self: stretch;
+  }
+
   .orders-filter-actions {
     justify-content: stretch;
   }

@@ -1,6 +1,7 @@
 import type { ClientStatus } from '../../../entities/client/model/types';
 import { getClientStatusColor } from '../../../entities/client/model/constants';
 import type { ClientFilters } from '../model/clients-workspace';
+import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 type ClientStatusOption = {
   label: string;
@@ -11,18 +12,36 @@ type ClientsFilterPanelProps = {
   draftFilters: ClientFilters;
   isOpen: boolean;
   statusOptions: ClientStatusOption[];
+  savedFilters: Array<{ id: string; name: string; icon: string }>;
+  canSaveFilter: boolean;
+  newFilterIcon: string;
+  newFilterName: string;
   onApply: () => void;
+  onApplySavedFilter: (id: string) => void;
   onChange: (filters: ClientFilters) => void;
   onClear: () => void;
+  onDeleteSavedFilter: (id: string) => void;
+  onFilterIconChange: (icon: string) => void;
+  onFilterNameChange: (name: string) => void;
+  onSaveFilter: () => void;
 };
 
 export const ClientsFilterPanel = ({
   draftFilters,
   isOpen,
   statusOptions,
+  savedFilters,
+  canSaveFilter,
+  newFilterIcon,
+  newFilterName,
   onApply,
+  onApplySavedFilter,
   onChange,
   onClear,
+  onDeleteSavedFilter,
+  onFilterIconChange,
+  onFilterNameChange,
+  onSaveFilter,
 }: ClientsFilterPanelProps) => {
   const updateFilter = <K extends keyof ClientFilters>(
     field: K,
@@ -37,6 +56,23 @@ export const ClientsFilterPanel = ({
           : 'orders-filter-panel'
       }
     >
+      <SavedFiltersPanel
+        canSave={canSaveFilter}
+        items={savedFilters}
+        newFilterIcon={newFilterIcon}
+        newFilterName={newFilterName}
+        saveDisabled={!newFilterName.trim()}
+        saveTitle={
+          canSaveFilter
+            ? 'Save filter'
+            : 'Employee profile is required to save filters.'
+        }
+        onApply={onApplySavedFilter}
+        onDelete={onDeleteSavedFilter}
+        onIconChange={onFilterIconChange}
+        onNameChange={onFilterNameChange}
+        onSave={onSaveFilter}
+      />
       <div className='orders-filter-grid'>
         <label className='orders-filter-field'>
           <span>Phone / name</span>

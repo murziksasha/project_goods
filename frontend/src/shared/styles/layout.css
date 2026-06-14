@@ -3454,6 +3454,33 @@
   color: #7a8da4;
 }
 
+.orders-filter-save-button {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid #15a99e;
+  background: #18b8ad;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(24, 184, 173, 0.16);
+}
+
+.orders-filter-save-button:hover:not(:disabled) {
+  background: #13a69c;
+  border-color: #10978e;
+}
+
+.orders-filter-save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
 .orders-filter-saved-item {
   display: inline-flex;
   align-items: center;

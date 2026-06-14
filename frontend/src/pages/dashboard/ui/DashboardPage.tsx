@@ -974,6 +974,7 @@ export const DashboardPage = () => {
             />
           ) : activePage === 'clients' && canManageClients ? (
             <ClientsSuppliersWorkspace
+              currentEmployee={currentEmployee}
               clients={state.allClients}
               suppliers={state.suppliers}
               sales={state.sales}
@@ -1017,6 +1018,7 @@ export const DashboardPage = () => {
             />
           ) : activePage === 'catalog' && canManageInventory ? (
             <ProductCatalogPanel
+              currentEmployee={currentEmployee}
               products={state.products}
               clientDevices={state.clientDevices}
               catalogProducts={state.catalogProducts}
