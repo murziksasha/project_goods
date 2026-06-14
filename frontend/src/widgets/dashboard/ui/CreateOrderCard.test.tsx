@@ -4,6 +4,8 @@ import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { createClient, getClients } from '../../../entities/client/api/clientApi';
+import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
@@ -38,6 +40,23 @@ const product = (patch: Partial<Product>): Product => ({
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  ...patch,
+});
+
+const clientDevice = (
+  patch: Partial<ClientDevice> = {},
+): ClientDevice => ({
+  id: 'device-1',
+  clientId: 'client-1',
+  clientName: 'Client',
+  clientPhone: '+380000000000',
+  name: 'Кавомашина Delonghi',
+  serialNumber: '',
+  note: '',
+  source: 'repairOrder',
+  isActive: true,
+  createdAt: '2026-06-13T00:00:00.000Z',
+  updatedAt: '2026-06-13T00:00:00.000Z',
   ...patch,
 });
 
@@ -287,5 +306,37 @@ describe('CreateOrderCard', () => {
     });
     expect(createClient).not.toHaveBeenCalled();
     expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
+  });
+
+  it('renders repair device suggestions as a compact selectable list', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClientDevices).mockResolvedValue([
+      clientDevice({
+        id: 'coffee-1',
+        name: 'Кавомашина Delonghi',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('Enter device name'), {
+      target: { value: 'кавома' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    const suggestion = screen.getByRole('button', {
+      name: /Кавомашина Delonghi/i,
+    });
+    expect(suggestion).toHaveClass('create-suggestion-item-compact');
+    expect(suggestion.closest('.create-suggestions-compact')).not.toBeNull();
+
+    fireEvent.click(suggestion);
+
+    expect(screen.getByPlaceholderText('Enter device name')).toHaveValue(
+      'Кавомашина Delonghi',
+    );
   });
 });

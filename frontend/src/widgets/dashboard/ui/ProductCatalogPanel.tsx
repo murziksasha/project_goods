@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Employee } from '../../../entities/employee/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import type {
@@ -33,13 +34,30 @@ import {
 } from './ProductCatalogModals';
 import {
   catalogTabStorageKey,
+  catalogActiveFiltersStorageKey,
+  catalogSavedFiltersStorageKey,
+  emptyCatalogFilters,
+  getActiveCatalogFiltersCount,
+  isDateInCatalogRange,
+  normalizeCatalogFilters,
+  parseCatalogNumberFilter,
+  readCatalogActiveFilters,
   tabs,
   type CatalogTab,
+  type CatalogFilters,
 } from './product-catalog-shared';
+import { filterIconOptions } from './orders-workspace-shared';
+import {
+  createSavedFilterId,
+  readSavedFilters,
+  type SavedFilter,
+} from '../model/saved-filters';
+import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 export { CatalogProductModal } from './ProductCatalogModals';
 
 type ProductCatalogPanelProps = {
+  currentEmployee: Employee | null;
   products: Product[];
   clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
@@ -91,6 +109,7 @@ type ProductCatalogPanelProps = {
 };
 
 export const ProductCatalogPanel = ({
+  currentEmployee,
   products,
   clientDevices,
   catalogProducts,
@@ -160,6 +179,23 @@ export const ProductCatalogPanel = ({
   const [selectedCatalogProduct, setSelectedCatalogProduct] =
     useState<CatalogProduct | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [draftFiltersByTab, setDraftFiltersByTab] = useState<
+    Record<CatalogTab, CatalogFilters>
+  >(readCatalogActiveFilters);
+  const [appliedFiltersByTab, setAppliedFiltersByTab] = useState<
+    Record<CatalogTab, CatalogFilters>
+  >(readCatalogActiveFilters);
+  const [savedFilters, setSavedFilters] = useState<
+    Array<SavedFilter<CatalogFilters, CatalogTab>>
+  >(() =>
+    readSavedFilters<CatalogFilters, CatalogTab>(
+      catalogSavedFiltersStorageKey,
+      tabs.map((tab) => tab.key),
+    ),
+  );
+  const [newFilterName, setNewFilterName] = useState('');
+  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
   const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
@@ -180,6 +216,107 @@ export const ProductCatalogPanel = ({
   const isProductsTab = activeTab === 'products';
   const isCatalogProductsTab = activeTab === 'catalogProducts';
   const isSuppliersTab = activeTab === 'suppliers';
+  const draftFilters = draftFiltersByTab[activeTab] ?? emptyCatalogFilters;
+  const appliedFilters = appliedFiltersByTab[activeTab] ?? emptyCatalogFilters;
+  const activeFiltersCount = getActiveCatalogFiltersCount(appliedFilters);
+  const visibleSavedFilters = useMemo(
+    () =>
+      currentEmployee?.id
+        ? savedFilters
+            .filter(
+              (item) =>
+                item.employeeId === currentEmployee.id &&
+                item.tab === activeTab,
+            )
+            .sort(
+              (first, second) =>
+                new Date(second.createdAt).getTime() -
+                new Date(first.createdAt).getTime(),
+            )
+        : [],
+    [activeTab, currentEmployee?.id, savedFilters],
+  );
+  const resetActivePage = () => {
+    if (activeTab === 'products') {
+      setProductsPage(1);
+    } else if (activeTab === 'catalogProducts') {
+      setCatalogProductsPage(1);
+    } else if (activeTab === 'suppliers') {
+      setSuppliersPage(1);
+    } else {
+      setServicesPage(1);
+    }
+  };
+  const updateDraftFilter = <K extends keyof CatalogFilters>(
+    field: K,
+    value: CatalogFilters[K],
+  ) => {
+    setDraftFiltersByTab((current) => ({
+      ...current,
+      [activeTab]: {
+        ...(current[activeTab] ?? emptyCatalogFilters),
+        [field]: value,
+      },
+    }));
+  };
+  const applyFilters = () => {
+    const nextFilters = normalizeCatalogFilters(draftFilters);
+    setDraftFiltersByTab((current) => ({
+      ...current,
+      [activeTab]: nextFilters,
+    }));
+    setAppliedFiltersByTab((current) => ({
+      ...current,
+      [activeTab]: nextFilters,
+    }));
+    resetActivePage();
+  };
+  const clearFilters = () => {
+    setDraftFiltersByTab((current) => ({
+      ...current,
+      [activeTab]: emptyCatalogFilters,
+    }));
+    setAppliedFiltersByTab((current) => ({
+      ...current,
+      [activeTab]: emptyCatalogFilters,
+    }));
+    resetActivePage();
+  };
+  const saveCurrentFilter = () => {
+    const filterName = newFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return;
+    const nextFilter: SavedFilter<CatalogFilters, CatalogTab> = {
+      id: createSavedFilterId('catalog-filter'),
+      employeeId: currentEmployee.id,
+      name: filterName,
+      icon: newFilterIcon,
+      tab: activeTab,
+      filters: normalizeCatalogFilters(appliedFilters),
+      createdAt: new Date().toISOString(),
+    };
+    setSavedFilters((current) => [nextFilter, ...current]);
+    setNewFilterName('');
+    setNewFilterIcon(filterIconOptions[0]);
+  };
+  const applySavedFilter = (filterId: string) => {
+    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    if (!savedFilter) return;
+    const nextFilters = normalizeCatalogFilters(savedFilter.filters);
+    setDraftFiltersByTab((current) => ({
+      ...current,
+      [savedFilter.tab]: nextFilters,
+    }));
+    setAppliedFiltersByTab((current) => ({
+      ...current,
+      [savedFilter.tab]: nextFilters,
+    }));
+    resetActivePage();
+  };
+  const removeSavedFilter = (filterId: string) => {
+    setSavedFilters((current) =>
+      current.filter((item) => item.id !== filterId),
+    );
+  };
   const filteredClientDevices = useMemo(() => {
     const uniqueByName = new Map<string, ClientDevice>();
     clientDevices.forEach((device) => {
@@ -189,29 +326,56 @@ export const ProductCatalogPanel = ({
     });
     const uniqueDevices = Array.from(uniqueByName.values());
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return uniqueDevices;
-    return uniqueDevices.filter((device) =>
-      [device.name, device.clientName, device.clientPhone]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [clientDevices, searchQuery]);
+    const filters = appliedFiltersByTab.products;
+    const filterQuery = filters.query.trim().toLowerCase();
+    return uniqueDevices.filter((device) => {
+      const name = device.name.trim().toLowerCase();
+      if (query && !name.includes(query)) return false;
+      if (filterQuery && !name.includes(filterQuery)) return false;
+      if (filters.status === 'active' && !device.isActive) return false;
+      if (filters.status === 'inactive' && device.isActive) return false;
+      if (
+        !isDateInCatalogRange(
+          device.createdAt,
+          filters.dateFrom,
+          filters.dateTo,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedFiltersByTab.products, clientDevices, searchQuery]);
   const paginatedProducts = useMemo(() => {
     const start = (productsPage - 1) * productsPageSize;
     return filteredClientDevices.slice(start, start + productsPageSize);
   }, [filteredClientDevices, productsPage, productsPageSize]);
   const filteredCatalogProducts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    return normalizedQuery
-      ? catalogProducts.filter((product) =>
-          [product.name, product.note]
-            .join(' ')
-            .toLowerCase()
-            .includes(normalizedQuery),
+    const filters = appliedFiltersByTab.catalogProducts;
+    const filterQuery = filters.query.trim().toLowerCase();
+    const noteQuery = filters.note.trim().toLowerCase();
+    return catalogProducts.filter((product) => {
+      const searchable = [product.name, product.note].join(' ').toLowerCase();
+      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
+      if (filterQuery && !product.name.toLowerCase().includes(filterQuery)) {
+        return false;
+      }
+      if (noteQuery && !product.note.toLowerCase().includes(noteQuery)) return false;
+      if (filters.status === 'active' && !product.isActive) return false;
+      if (filters.status === 'inactive' && product.isActive) return false;
+      if (
+        !isDateInCatalogRange(
+          product.createdAt,
+          filters.dateFrom,
+          filters.dateTo,
         )
-      : catalogProducts;
-  }, [catalogProducts, searchQuery]);
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedFiltersByTab.catalogProducts, catalogProducts, searchQuery]);
   const paginatedCatalogProducts = useMemo(() => {
     const start = (catalogProductsPage - 1) * catalogProductsPageSize;
     return filteredCatalogProducts.slice(
@@ -223,21 +387,75 @@ export const ProductCatalogPanel = ({
     catalogProductsPageSize,
     filteredCatalogProducts,
   ]);
+  const filteredServices = useMemo(() => {
+    const filters = appliedFiltersByTab.services;
+    const normalizedQuery = serviceSearchQuery.trim().toLowerCase();
+    const filterQuery = filters.query.trim().toLowerCase();
+    const noteQuery = filters.note.trim().toLowerCase();
+    const priceFrom = parseCatalogNumberFilter(filters.priceFrom);
+    const priceTo = parseCatalogNumberFilter(filters.priceTo);
+
+    return services.filter((service) => {
+      const searchable = [service.name, service.note].join(' ').toLowerCase();
+      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
+      if (filterQuery && !service.name.toLowerCase().includes(filterQuery)) {
+        return false;
+      }
+      if (noteQuery && !service.note.toLowerCase().includes(noteQuery)) return false;
+      if (filters.status === 'active' && !service.isActive) return false;
+      if (filters.status === 'inactive' && service.isActive) return false;
+      if (priceFrom !== null && service.price < priceFrom) return false;
+      if (priceTo !== null && service.price > priceTo) return false;
+      if (
+        !isDateInCatalogRange(
+          service.createdAt,
+          filters.dateFrom,
+          filters.dateTo,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedFiltersByTab.services, serviceSearchQuery, services]);
   const paginatedServices = useMemo(() => {
     const start = (servicesPage - 1) * servicesPageSize;
-    return services.slice(start, start + servicesPageSize);
-  }, [services, servicesPage, servicesPageSize]);
+    return filteredServices.slice(start, start + servicesPageSize);
+  }, [filteredServices, servicesPage, servicesPageSize]);
   const filteredSuppliers = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    return normalizedQuery
-      ? suppliers.filter((supplier) =>
-          [supplier.name, supplier.phone, supplier.note]
-            .join(' ')
-            .toLowerCase()
-            .includes(normalizedQuery),
+    const filters = appliedFiltersByTab.suppliers;
+    const filterQuery = filters.query.trim().toLowerCase();
+    const noteQuery = filters.note.trim().toLowerCase();
+    return suppliers.filter((supplier) => {
+      const searchable = [supplier.name, supplier.phone, supplier.note]
+        .join(' ')
+        .toLowerCase();
+      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
+      if (
+        filterQuery &&
+        ![supplier.name, supplier.phone]
+          .join(' ')
+          .toLowerCase()
+          .includes(filterQuery)
+      ) {
+        return false;
+      }
+      if (noteQuery && !supplier.note.toLowerCase().includes(noteQuery)) return false;
+      if (filters.status === 'active' && !supplier.isActive) return false;
+      if (filters.status === 'inactive' && supplier.isActive) return false;
+      if (
+        !isDateInCatalogRange(
+          supplier.createdAt,
+          filters.dateFrom,
+          filters.dateTo,
         )
-      : suppliers;
-  }, [searchQuery, suppliers]);
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedFiltersByTab.suppliers, searchQuery, suppliers]);
   const paginatedSuppliers = useMemo(() => {
     const start = (suppliersPage - 1) * suppliersPageSize;
     return filteredSuppliers.slice(start, start + suppliersPageSize);
@@ -287,12 +505,12 @@ export const ProductCatalogPanel = ({
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(services.length / servicesPageSize),
+      Math.ceil(filteredServices.length / servicesPageSize),
     );
     if (servicesPage > pageCount) {
       setServicesPage(pageCount);
     }
-  }, [services.length, servicesPage, servicesPageSize]);
+  }, [filteredServices.length, servicesPage, servicesPageSize]);
 
   useEffect(() => {
     const pageCount = Math.max(
@@ -307,6 +525,20 @@ export const ProductCatalogPanel = ({
   useEffect(() => {
     window.localStorage.setItem(catalogTabStorageKey, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      catalogActiveFiltersStorageKey,
+      JSON.stringify(appliedFiltersByTab),
+    );
+  }, [appliedFiltersByTab]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      catalogSavedFiltersStorageKey,
+      JSON.stringify(savedFilters),
+    );
+  }, [savedFilters]);
 
   useEffect(() => {
     if (!selectedService) return;
@@ -357,17 +589,22 @@ export const ProductCatalogPanel = ({
           />
         ) : (
           <CompactPaginationPanel
-            totalItems={services.length}
+            totalItems={filteredServices.length}
             page={servicesPage}
             pageSize={servicesPageSize}
             onPageChange={setServicesPage}
           />
         )}
-        <button type="button" className="toolbar-square-button" aria-label="Filters">
-          ⚙
-        </button>
-        <button type="button" className="toolbar-filter-button">
+        <button
+          type="button"
+          className="toolbar-filter-button toolbar-filter-toggle-button"
+          aria-expanded={isFilterPanelOpen}
+          onClick={() => setIsFilterPanelOpen((current) => !current)}
+        >
           Filter
+          {activeFiltersCount > 0 ? (
+            <span className="toolbar-filter-count">{activeFiltersCount}</span>
+          ) : null}
         </button>
         <div className="orders-search-group orders-search-group-clearable catalog-search-group">
           <input
@@ -456,6 +693,28 @@ export const ProductCatalogPanel = ({
         </div>
       </div>
 
+      <CatalogFilterPanel
+        activeTab={activeTab}
+        canSave={Boolean(currentEmployee?.id)}
+        draftFilters={draftFilters}
+        isOpen={isFilterPanelOpen}
+        newFilterIcon={newFilterIcon}
+        newFilterName={newFilterName}
+        savedFilters={visibleSavedFilters.map((item) => ({
+          id: item.id,
+          name: item.name,
+          icon: item.icon,
+        }))}
+        onApply={applyFilters}
+        onApplySaved={applySavedFilter}
+        onClear={clearFilters}
+        onDeleteSaved={removeSavedFilter}
+        onIconChange={setNewFilterIcon}
+        onNameChange={setNewFilterName}
+        onSave={saveCurrentFilter}
+        onUpdate={updateDraftFilter}
+      />
+
       {!isProductsTab && !isSuppliersTab && !isCatalogProductsTab && isServiceFormOpen ? (
         <div className="catalog-inline-form">
           <ServiceCatalogForm
@@ -538,7 +797,7 @@ export const ProductCatalogPanel = ({
             rowStartIndex={(servicesPage - 1) * servicesPageSize}
           />
           <PaginationPanel
-            totalItems={services.length}
+            totalItems={filteredServices.length}
             page={servicesPage}
             pageSize={servicesPageSize}
             onPageChange={setServicesPage}
@@ -763,6 +1022,181 @@ export const ProductCatalogPanel = ({
           </section>
         </div>
       ) : null}
+    </section>
+  );
+};
+
+type CatalogFilterPanelProps = {
+  activeTab: CatalogTab;
+  canSave: boolean;
+  draftFilters: CatalogFilters;
+  isOpen: boolean;
+  newFilterIcon: string;
+  newFilterName: string;
+  savedFilters: Array<{ id: string; name: string; icon: string }>;
+  onApply: () => void;
+  onApplySaved: (id: string) => void;
+  onClear: () => void;
+  onDeleteSaved: (id: string) => void;
+  onIconChange: (icon: string) => void;
+  onNameChange: (name: string) => void;
+  onSave: () => void;
+  onUpdate: <K extends keyof CatalogFilters>(
+    field: K,
+    value: CatalogFilters[K],
+  ) => void;
+};
+
+const CatalogFilterPanel = ({
+  activeTab,
+  canSave,
+  draftFilters,
+  isOpen,
+  newFilterIcon,
+  newFilterName,
+  savedFilters,
+  onApply,
+  onApplySaved,
+  onClear,
+  onDeleteSaved,
+  onIconChange,
+  onNameChange,
+  onSave,
+  onUpdate,
+}: CatalogFilterPanelProps) => {
+  const isServicesTab = activeTab === 'services';
+  const queryLabel =
+    activeTab === 'products'
+      ? 'Device name'
+      : activeTab === 'catalogProducts'
+        ? 'Product name'
+        : activeTab === 'suppliers'
+          ? 'Supplier name or phone'
+          : 'Service name';
+
+  return (
+    <section
+      className={
+        isOpen
+          ? 'orders-filter-panel orders-filter-panel-open'
+          : 'orders-filter-panel'
+      }
+    >
+      <SavedFiltersPanel
+        canSave={canSave}
+        items={savedFilters}
+        newFilterIcon={newFilterIcon}
+        newFilterName={newFilterName}
+        saveDisabled={!newFilterName.trim()}
+        saveTitle={
+          canSave
+            ? 'Save filter'
+            : 'Employee profile is required to save filters.'
+        }
+        onApply={onApplySaved}
+        onDelete={onDeleteSaved}
+        onIconChange={onIconChange}
+        onNameChange={onNameChange}
+        onSave={onSave}
+      />
+      <div className='orders-filter-grid'>
+        <label className='orders-filter-field'>
+          <span>{queryLabel}</span>
+          <input
+            type='text'
+            value={draftFilters.query}
+            onChange={(event) => onUpdate('query', event.target.value)}
+            placeholder={queryLabel}
+          />
+        </label>
+        {activeTab === 'catalogProducts' ||
+        activeTab === 'services' ||
+        activeTab === 'suppliers' ? (
+          <label className='orders-filter-field'>
+            <span>Note</span>
+            <input
+              type='text'
+              value={draftFilters.note}
+              onChange={(event) => onUpdate('note', event.target.value)}
+              placeholder='Note'
+            />
+          </label>
+        ) : null}
+        <label className='orders-filter-field'>
+          <span>Status</span>
+          <select
+            value={draftFilters.status}
+            onChange={(event) =>
+              onUpdate(
+                'status',
+                event.target.value as CatalogFilters['status'],
+              )
+            }
+          >
+            <option value='all'>All</option>
+            <option value='active'>Active</option>
+            <option value='inactive'>Inactive</option>
+          </select>
+        </label>
+        {isServicesTab ? (
+          <>
+            <label className='orders-filter-field'>
+              <span>Price from</span>
+              <input
+                type='number'
+                min='0'
+                value={draftFilters.priceFrom}
+                onChange={(event) =>
+                  onUpdate('priceFrom', event.target.value)
+                }
+                placeholder='0'
+              />
+            </label>
+            <label className='orders-filter-field'>
+              <span>Price to</span>
+              <input
+                type='number'
+                min='0'
+                value={draftFilters.priceTo}
+                onChange={(event) => onUpdate('priceTo', event.target.value)}
+                placeholder='0'
+              />
+            </label>
+          </>
+        ) : null}
+        <label className='orders-filter-field'>
+          <span>Date from</span>
+          <input
+            type='date'
+            value={draftFilters.dateFrom}
+            onChange={(event) => onUpdate('dateFrom', event.target.value)}
+          />
+        </label>
+        <label className='orders-filter-field'>
+          <span>Date to</span>
+          <input
+            type='date'
+            value={draftFilters.dateTo}
+            onChange={(event) => onUpdate('dateTo', event.target.value)}
+          />
+        </label>
+      </div>
+      <div className='orders-filter-actions'>
+        <button
+          type='button'
+          className='toolbar-filter-button orders-filter-apply'
+          onClick={onApply}
+        >
+          Apply
+        </button>
+        <button
+          type='button'
+          className='toolbar-filter-button'
+          onClick={onClear}
+        >
+          Clear filter
+        </button>
+      </div>
     </section>
   );
 };

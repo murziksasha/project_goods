@@ -338,7 +338,7 @@ const ClientHistoryTable = ({
             className='clients-history-row'
             onClick={() => onOpenSaleCard(sale)}
           >
-            <td>
+            <td data-label='No.'>
               <button
                 type='button'
                 className='order-number-button'
@@ -350,10 +350,12 @@ const ClientHistoryTable = ({
                 {sale.recordNumber ?? sale.id.slice(-6)}
               </button>
             </td>
-            <td>{formatDateTime(sale.saleDate)}</td>
-            <td>{formatItemList(sale, tab)}</td>
-            <td>{sale.status}</td>
-            <td>{formatClientIncome(sale.salePrice * sale.quantity)}</td>
+            <td data-label='Date'>{formatDateTime(sale.saleDate)}</td>
+            <td data-label={tab === 'services' ? 'Service' : 'Sale'}>
+              {formatItemList(sale, tab)}
+            </td>
+            <td data-label='Status'>{sale.status}</td>
+            <td data-label='Amount'>{formatClientIncome(sale.salePrice * sale.quantity)}</td>
           </tr>
         ))}
       </tbody>

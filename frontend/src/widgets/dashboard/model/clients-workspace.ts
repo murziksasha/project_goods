@@ -47,6 +47,8 @@ export type ClientMainForm = ClientDraft & {
 
 export const clientsFiltersStorageKey =
   'project-goods.clients-active-filters';
+export const clientsSuppliersSavedFiltersStorageKey =
+  'project-goods.clients-suppliers-saved-filters';
 export const clientCardTabStorageKey = 'project-goods.client-card-tab';
 
 export const emptyFilters: ClientFilters = {

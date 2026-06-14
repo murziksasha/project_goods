@@ -14,13 +14,35 @@ import type {
   Supplier,
   SupplierFormValues,
 } from '../../../entities/supplier/model/types';
+import type { Employee } from '../../../entities/employee/model/types';
 import { ClientsWorkspace } from './ClientsWorkspace';
+import { filterIconOptions } from './orders-workspace-shared';
+import {
+  clientsSuppliersSavedFiltersStorageKey,
+  type ClientFilters,
+} from '../model/clients-workspace';
+import {
+  createSavedFilterId,
+  readSavedFilters,
+  type SavedFilter,
+} from '../model/saved-filters';
+import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
 type SupplierFormState = Required<SupplierFormValues>;
 type SupplierSuggestionField = 'target' | 'source';
+type SupplierStatusFilter = 'all' | 'active' | 'inactive';
+type SupplierFilters = {
+  query: string;
+  supplierId: string;
+  status: SupplierStatusFilter;
+  dateFrom: string;
+  dateTo: string;
+  note: string;
+};
 
 const clientsSuppliersTabStorageKey = 'project-goods.clients-suppliers-tab';
+const supplierFiltersStorageKey = 'project-goods.suppliers-active-filters';
 const defaultSupplierForm: SupplierFormState = {
   name: '',
   phone: '+380',
@@ -32,6 +54,14 @@ const clientsSuppliersTabs: Array<{ key: TabKey; label: string }> = [
   { key: 'clients', label: 'Clients' },
   { key: 'suppliers', label: 'Suppliers' },
 ];
+const emptySupplierFilters: SupplierFilters = {
+  query: '',
+  supplierId: '',
+  status: 'all',
+  dateFrom: '',
+  dateTo: '',
+  note: '',
+};
 
 const getStoredClientsSuppliersTab = (): TabKey => {
   try {
@@ -43,6 +73,53 @@ const getStoredClientsSuppliersTab = (): TabKey => {
     return 'clients';
   }
 };
+
+const normalizeSupplierFilters = (
+  filters?: Partial<SupplierFilters>,
+): SupplierFilters => ({
+  ...emptySupplierFilters,
+  ...filters,
+  query: filters?.query?.trim() ?? '',
+  supplierId: filters?.supplierId?.trim() ?? '',
+  status:
+    filters?.status === 'active' || filters?.status === 'inactive'
+      ? filters.status
+      : 'all',
+  dateFrom: filters?.dateFrom ?? '',
+  dateTo: filters?.dateTo ?? '',
+  note: filters?.note?.trim() ?? '',
+});
+
+const readSupplierFilters = () => {
+  try {
+    return normalizeSupplierFilters(
+      JSON.parse(
+        window.localStorage.getItem(supplierFiltersStorageKey) ?? '{}',
+      ) as Partial<SupplierFilters>,
+    );
+  } catch {
+    return emptySupplierFilters;
+  }
+};
+
+const isSupplierDateInRange = (
+  createdAt: string,
+  dateFrom: string,
+  dateTo: string,
+) => {
+  const isoDate = createdAt.slice(0, 10);
+  if (dateFrom && isoDate < dateFrom) return false;
+  if (dateTo && isoDate > dateTo) return false;
+  return true;
+};
+
+const getActiveSupplierFiltersCount = (filters: SupplierFilters) =>
+  (filters.query ? 1 : 0) +
+  (filters.supplierId ? 1 : 0) +
+  (filters.status !== 'all' ? 1 : 0) +
+  (filters.dateFrom ? 1 : 0) +
+  (filters.dateTo ? 1 : 0) +
+  (filters.note ? 1 : 0);
 
 const toSupplierForm = (supplier?: Supplier): SupplierFormState => ({
   name: supplier?.name ?? defaultSupplierForm.name,
@@ -111,6 +188,7 @@ const findDuplicateSupplier = (
 };
 
 type Props = {
+  currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
   suppliers: Supplier[];
@@ -149,6 +227,7 @@ type Props = {
 };
 
 export const ClientsSuppliersWorkspace = ({
+  currentEmployee,
   clients,
   sales,
   suppliers,
@@ -176,7 +255,23 @@ export const ClientsSuppliersWorkspace = ({
   const [activeTab, setActiveTab] = useState<TabKey>(
     getStoredClientsSuppliersTab,
   );
-  const [query, setQuery] = useState('');
+  const [isSupplierFilterOpen, setIsSupplierFilterOpen] = useState(false);
+  const [draftSupplierFilters, setDraftSupplierFilters] =
+    useState<SupplierFilters>(readSupplierFilters);
+  const [appliedSupplierFilters, setAppliedSupplierFilters] =
+    useState<SupplierFilters>(readSupplierFilters);
+  const [savedFilters, setSavedFilters] = useState<
+    Array<SavedFilter<ClientFilters | SupplierFilters, TabKey>>
+  >(() =>
+    readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
+      clientsSuppliersSavedFiltersStorageKey,
+      ['clients', 'suppliers'],
+    ),
+  );
+  const [newSupplierFilterName, setNewSupplierFilterName] = useState('');
+  const [newSupplierFilterIcon, setNewSupplierFilterIcon] = useState(
+    filterIconOptions[0],
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
     null,
@@ -195,17 +290,36 @@ export const ClientsSuppliersWorkspace = ({
   const [form, setForm] = useState<SupplierFormState>(defaultSupplierForm);
 
   const filteredSuppliers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const filters = appliedSupplierFilters;
+    const normalized = filters.query.trim().toLowerCase();
+    const supplierId = filters.supplierId.trim().toLowerCase();
+    const note = filters.note.trim().toLowerCase();
     const sortedSuppliers = [...suppliers].sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),
     );
 
-    if (!normalized) return sortedSuppliers;
-
-    return sortedSuppliers.filter((supplier) =>
-      getSearchText(supplier).includes(normalized),
-    );
-  }, [query, suppliers]);
+    return sortedSuppliers.filter((supplier) => {
+      if (normalized && !getSearchText(supplier).includes(normalized)) {
+        return false;
+      }
+      if (supplierId && !supplier.id.toLowerCase().includes(supplierId)) {
+        return false;
+      }
+      if (note && !supplier.note.toLowerCase().includes(note)) return false;
+      if (filters.status === 'active' && !supplier.isActive) return false;
+      if (filters.status === 'inactive' && supplier.isActive) return false;
+      if (
+        !isSupplierDateInRange(
+          supplier.createdAt,
+          filters.dateFrom,
+          filters.dateTo,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedSupplierFilters, suppliers]);
   const paginatedSuppliers = useMemo(() => {
     const start = (suppliersPage - 1) * suppliersPageSize;
     return filteredSuppliers.slice(start, start + suppliersPageSize);
@@ -223,6 +337,26 @@ export const ClientsSuppliersWorkspace = ({
   const mergeSourceOptions = useMemo(
     () => getSupplierMergeOptions(suppliers, mergeSourceQuery),
     [mergeSourceQuery, suppliers],
+  );
+  const visibleSupplierSavedFilters = useMemo(
+    () =>
+      currentEmployee?.id
+        ? savedFilters
+            .filter(
+              (item) =>
+                item.employeeId === currentEmployee.id &&
+                item.tab === 'suppliers',
+            )
+            .sort(
+              (first, second) =>
+                new Date(second.createdAt).getTime() -
+                new Date(first.createdAt).getTime(),
+            )
+        : [],
+    [currentEmployee?.id, savedFilters],
+  );
+  const activeSupplierFiltersCount = getActiveSupplierFiltersCount(
+    appliedSupplierFilters,
   );
 
   const openCreateModal = () => {
@@ -303,6 +437,76 @@ export const ClientsSuppliersWorkspace = ({
     setShowMergeSourceSuggestions(false);
   };
 
+  const applySupplierFilters = () => {
+    const nextFilters = normalizeSupplierFilters(draftSupplierFilters);
+    setDraftSupplierFilters(nextFilters);
+    setAppliedSupplierFilters(nextFilters);
+    setSuppliersPage(1);
+  };
+
+  const clearSupplierFilters = () => {
+    setDraftSupplierFilters(emptySupplierFilters);
+    setAppliedSupplierFilters(emptySupplierFilters);
+    setSuppliersPage(1);
+  };
+
+  const updateSupplierQuery = (value: string) => {
+    const nextQuery = value.trim();
+    setDraftSupplierFilters((current) => ({
+      ...current,
+      query: nextQuery,
+    }));
+    setAppliedSupplierFilters((current) => ({
+      ...current,
+      query: nextQuery,
+    }));
+    setSuppliersPage(1);
+  };
+
+  const saveSupplierFilter = () => {
+    const filterName = newSupplierFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return;
+    const latestSavedFilters =
+      readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
+        clientsSuppliersSavedFiltersStorageKey,
+        ['clients', 'suppliers'],
+      );
+    const nextFilter: SavedFilter<ClientFilters | SupplierFilters, TabKey> = {
+      id: createSavedFilterId('supplier-filter'),
+      employeeId: currentEmployee.id,
+      name: filterName,
+      icon: newSupplierFilterIcon,
+      tab: 'suppliers',
+      filters: normalizeSupplierFilters(appliedSupplierFilters),
+      createdAt: new Date().toISOString(),
+    };
+    setSavedFilters([nextFilter, ...latestSavedFilters]);
+    setNewSupplierFilterName('');
+    setNewSupplierFilterIcon(filterIconOptions[0]);
+  };
+
+  const applySupplierSavedFilter = (filterId: string) => {
+    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    if (!savedFilter || savedFilter.tab !== 'suppliers') return;
+    const nextFilters = normalizeSupplierFilters(
+      savedFilter.filters as SupplierFilters,
+    );
+    setDraftSupplierFilters(nextFilters);
+    setAppliedSupplierFilters(nextFilters);
+    setSuppliersPage(1);
+  };
+
+  const removeSupplierSavedFilter = (filterId: string) => {
+    const latestSavedFilters =
+      readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
+        clientsSuppliersSavedFiltersStorageKey,
+        ['clients', 'suppliers'],
+      );
+    setSavedFilters(
+      latestSavedFilters.filter((item) => item.id !== filterId),
+    );
+  };
+
   useEffect(() => {
     const pageCount = Math.max(
       1,
@@ -321,12 +525,27 @@ export const ClientsSuppliersWorkspace = ({
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      supplierFiltersStorageKey,
+      JSON.stringify(appliedSupplierFilters),
+    );
+  }, [appliedSupplierFilters]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      clientsSuppliersSavedFiltersStorageKey,
+      JSON.stringify(savedFilters),
+    );
+  }, [savedFilters]);
+
   return (
     <section className='panel clients-workspace'>
       <ClientsSuppliersTabs activeTab={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'clients' ? (
         <ClientsWorkspace
+          currentEmployee={currentEmployee}
           clients={clients}
           sales={sales}
           selectedClientId={selectedClientId}
@@ -349,7 +568,18 @@ export const ClientsSuppliersWorkspace = ({
         />
       ) : (
         <SuppliersWorkspace
-          query={query}
+          activeFiltersCount={activeSupplierFiltersCount}
+          canSaveFilter={Boolean(currentEmployee?.id)}
+          draftFilters={draftSupplierFilters}
+          isFilterOpen={isSupplierFilterOpen}
+          newFilterIcon={newSupplierFilterIcon}
+          newFilterName={newSupplierFilterName}
+          query={appliedSupplierFilters.query}
+          savedFilters={visibleSupplierSavedFilters.map((item) => ({
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+          }))}
           suppliers={paginatedSuppliers}
           totalSuppliersCount={filteredSuppliers.length}
           page={suppliersPage}
@@ -359,13 +589,21 @@ export const ClientsSuppliersWorkspace = ({
             setSuppliersPageSize(nextPageSize);
             setSuppliersPage(1);
           }}
-          onQueryChange={(value) => {
-            setQuery(value);
-            setSuppliersPage(1);
-          }}
+          onApplyFilters={applySupplierFilters}
+          onApplySavedFilter={applySupplierSavedFilter}
+          onClearFilters={clearSupplierFilters}
+          onDeleteSavedFilter={removeSupplierSavedFilter}
+          onFilterIconChange={setNewSupplierFilterIcon}
+          onFilterNameChange={setNewSupplierFilterName}
+          onQueryChange={updateSupplierQuery}
           onOpenCreateModal={openCreateModal}
           onOpenEditModal={openEditModal}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
+          onSaveFilter={saveSupplierFilter}
+          onToggleFilters={() =>
+            setIsSupplierFilterOpen((current) => !current)
+          }
+          onUpdateFilters={setDraftSupplierFilters}
         />
       )}
 
@@ -428,32 +666,66 @@ const ClientsSuppliersTabs = ({
 );
 
 const SuppliersWorkspace = ({
+  activeFiltersCount,
+  canSaveFilter,
+  draftFilters,
+  isFilterOpen,
+  newFilterIcon,
+  newFilterName,
   query,
+  savedFilters,
   suppliers,
   totalSuppliersCount,
   page,
   pageSize,
   onPageChange,
   onPageSizeChange,
+  onApplyFilters,
+  onApplySavedFilter,
+  onClearFilters,
+  onDeleteSavedFilter,
+  onFilterIconChange,
+  onFilterNameChange,
   onQueryChange,
   onOpenCreateModal,
   onOpenEditModal,
   onOpenMergeModal,
+  onSaveFilter,
+  onToggleFilters,
+  onUpdateFilters,
 }: {
+  activeFiltersCount: number;
+  canSaveFilter: boolean;
+  draftFilters: SupplierFilters;
+  isFilterOpen: boolean;
+  newFilterIcon: string;
+  newFilterName: string;
   query: string;
+  savedFilters: Array<{ id: string; name: string; icon: string }>;
   suppliers: Supplier[];
   totalSuppliersCount: number;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  onApplyFilters: () => void;
+  onApplySavedFilter: (id: string) => void;
+  onClearFilters: () => void;
+  onDeleteSavedFilter: (id: string) => void;
+  onFilterIconChange: (icon: string) => void;
+  onFilterNameChange: (name: string) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (supplier: Supplier) => void;
   onOpenMergeModal: () => void;
+  onSaveFilter: () => void;
+  onToggleFilters: () => void;
+  onUpdateFilters: (filters: SupplierFilters) => void;
 }) => (
   <>
     <SuppliersToolbar
+      activeFiltersCount={activeFiltersCount}
+      isFilterOpen={isFilterOpen}
       query={query}
       totalSuppliersCount={totalSuppliersCount}
       page={page}
@@ -462,6 +734,23 @@ const SuppliersWorkspace = ({
       onQueryChange={onQueryChange}
       onOpenCreateModal={onOpenCreateModal}
       onOpenMergeModal={onOpenMergeModal}
+      onToggleFilters={onToggleFilters}
+    />
+    <SuppliersFilterPanel
+      canSaveFilter={canSaveFilter}
+      draftFilters={draftFilters}
+      isOpen={isFilterOpen}
+      newFilterIcon={newFilterIcon}
+      newFilterName={newFilterName}
+      savedFilters={savedFilters}
+      onApply={onApplyFilters}
+      onApplySavedFilter={onApplySavedFilter}
+      onChange={onUpdateFilters}
+      onClear={onClearFilters}
+      onDeleteSavedFilter={onDeleteSavedFilter}
+      onFilterIconChange={onFilterIconChange}
+      onFilterNameChange={onFilterNameChange}
+      onSaveFilter={onSaveFilter}
     />
     <SuppliersTable suppliers={suppliers} onOpenEditModal={onOpenEditModal} />
     <PaginationPanel
@@ -475,6 +764,8 @@ const SuppliersWorkspace = ({
 );
 
 const SuppliersToolbar = ({
+  activeFiltersCount,
+  isFilterOpen,
   query,
   totalSuppliersCount,
   page,
@@ -483,7 +774,10 @@ const SuppliersToolbar = ({
   onQueryChange,
   onOpenCreateModal,
   onOpenMergeModal,
+  onToggleFilters,
 }: {
+  activeFiltersCount: number;
+  isFilterOpen: boolean;
   query: string;
   totalSuppliersCount: number;
   page: number;
@@ -492,6 +786,7 @@ const SuppliersToolbar = ({
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenMergeModal: () => void;
+  onToggleFilters: () => void;
 }) => (
   <div className='orders-toolbar clients-toolbar'>
     <div className='orders-toolbar-left'>
@@ -501,6 +796,19 @@ const SuppliersToolbar = ({
         pageSize={pageSize}
         onPageChange={onPageChange}
       />
+      <button
+        type='button'
+        className='toolbar-filter-button toolbar-filter-toggle-button'
+        aria-expanded={isFilterOpen}
+        onClick={onToggleFilters}
+      >
+        Filter
+        {activeFiltersCount > 0 ? (
+          <span className='toolbar-filter-count'>
+            {activeFiltersCount}
+          </span>
+        ) : null}
+      </button>
       <div className='orders-search-group orders-search-group-clearable clients-search-group'>
         <input
           value={query}
@@ -545,6 +853,150 @@ const SuppliersToolbar = ({
   </div>
 );
 
+const SuppliersFilterPanel = ({
+  canSaveFilter,
+  draftFilters,
+  isOpen,
+  newFilterIcon,
+  newFilterName,
+  savedFilters,
+  onApply,
+  onApplySavedFilter,
+  onChange,
+  onClear,
+  onDeleteSavedFilter,
+  onFilterIconChange,
+  onFilterNameChange,
+  onSaveFilter,
+}: {
+  canSaveFilter: boolean;
+  draftFilters: SupplierFilters;
+  isOpen: boolean;
+  newFilterIcon: string;
+  newFilterName: string;
+  savedFilters: Array<{ id: string; name: string; icon: string }>;
+  onApply: () => void;
+  onApplySavedFilter: (id: string) => void;
+  onChange: (filters: SupplierFilters) => void;
+  onClear: () => void;
+  onDeleteSavedFilter: (id: string) => void;
+  onFilterIconChange: (icon: string) => void;
+  onFilterNameChange: (name: string) => void;
+  onSaveFilter: () => void;
+}) => {
+  const updateFilter = <K extends keyof SupplierFilters>(
+    field: K,
+    value: SupplierFilters[K],
+  ) => onChange({ ...draftFilters, [field]: value });
+
+  return (
+    <section
+      className={
+        isOpen
+          ? 'orders-filter-panel orders-filter-panel-open'
+          : 'orders-filter-panel'
+      }
+    >
+      <SavedFiltersPanel
+        canSave={canSaveFilter}
+        items={savedFilters}
+        newFilterIcon={newFilterIcon}
+        newFilterName={newFilterName}
+        saveDisabled={!newFilterName.trim()}
+        saveTitle={
+          canSaveFilter
+            ? 'Save filter'
+            : 'Employee profile is required to save filters.'
+        }
+        onApply={onApplySavedFilter}
+        onDelete={onDeleteSavedFilter}
+        onIconChange={onFilterIconChange}
+        onNameChange={onFilterNameChange}
+        onSave={onSaveFilter}
+      />
+      <div className='orders-filter-grid'>
+        <label className='orders-filter-field'>
+          <span>Name / phone / order</span>
+          <input
+            type='text'
+            value={draftFilters.query}
+            onChange={(event) => updateFilter('query', event.target.value)}
+            placeholder='Supplier name or phone'
+          />
+        </label>
+        <label className='orders-filter-field'>
+          <span>Supplier ID</span>
+          <input
+            type='text'
+            value={draftFilters.supplierId}
+            onChange={(event) =>
+              updateFilter('supplierId', event.target.value)
+            }
+            placeholder='ID'
+          />
+        </label>
+        <label className='orders-filter-field'>
+          <span>Status</span>
+          <select
+            value={draftFilters.status}
+            onChange={(event) =>
+              updateFilter(
+                'status',
+                event.target.value as SupplierStatusFilter,
+              )
+            }
+          >
+            <option value='all'>All</option>
+            <option value='active'>Active</option>
+            <option value='inactive'>Inactive</option>
+          </select>
+        </label>
+        <label className='orders-filter-field'>
+          <span>Date from</span>
+          <input
+            type='date'
+            value={draftFilters.dateFrom}
+            onChange={(event) => updateFilter('dateFrom', event.target.value)}
+          />
+        </label>
+        <label className='orders-filter-field'>
+          <span>Date to</span>
+          <input
+            type='date'
+            value={draftFilters.dateTo}
+            onChange={(event) => updateFilter('dateTo', event.target.value)}
+          />
+        </label>
+        <label className='orders-filter-field'>
+          <span>Note</span>
+          <input
+            type='text'
+            value={draftFilters.note}
+            onChange={(event) => updateFilter('note', event.target.value)}
+            placeholder='Note'
+          />
+        </label>
+      </div>
+      <div className='orders-filter-actions'>
+        <button
+          type='button'
+          className='toolbar-filter-button orders-filter-apply'
+          onClick={onApply}
+        >
+          Apply
+        </button>
+        <button
+          type='button'
+          className='toolbar-filter-button'
+          onClick={onClear}
+        >
+          Clear filter
+        </button>
+      </div>
+    </section>
+  );
+};
+
 const SuppliersTable = ({
   suppliers,
   onOpenEditModal,
@@ -571,12 +1023,12 @@ const SuppliersTable = ({
             className='clients-table-row'
             onClick={() => onOpenEditModal(supplier)}
           >
-            <td>{supplier.id.slice(-6)}</td>
-            <td>{supplier.name}</td>
-            <td>{supplier.phone}</td>
-            <td>{supplier.supplierOrder || '-'}</td>
-            <td>{supplier.isActive ? 'active' : 'inactive'}</td>
-            <td>{formatDateTime(supplier.createdAt)}</td>
+            <td data-label='ID'>{supplier.id.slice(-6)}</td>
+            <td data-label='Name'>{supplier.name}</td>
+            <td data-label='Phone'>{supplier.phone}</td>
+            <td data-label='Supplier order'>{supplier.supplierOrder || '-'}</td>
+            <td data-label='Status'>{supplier.isActive ? 'active' : 'inactive'}</td>
+            <td data-label='Created'>{formatDateTime(supplier.createdAt)}</td>
           </tr>
         ))}
       </tbody>

@@ -4,8 +4,13 @@ import type {
   Client,
   ClientHistory,
 } from '../../../entities/client/model/types';
+import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { ClientsWorkspace } from './ClientsWorkspace';
+import {
+  clientsSuppliersSavedFiltersStorageKey,
+  emptyFilters,
+} from '../model/clients-workspace';
 
 afterEach(() => {
   cleanup();
@@ -26,6 +31,21 @@ const createClient = (overrides: Partial<Client>): Client => ({
   updatedAt: '2026-01-01T10:00:00.000Z',
   ...overrides,
 });
+
+const employee: Employee = {
+  id: 'employee-1',
+  name: 'Tester',
+  phone: '',
+  email: '',
+  role: 'owner',
+  username: 'tester',
+  permissions: [],
+  isActive: true,
+  isRegistered: true,
+  note: '',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
 
 const createSale = (
   client: Client,
@@ -89,6 +109,7 @@ const renderWorkspace = ({
 } = {}) =>
   render(
     <ClientsWorkspace
+      currentEmployee={employee}
       clients={clients}
       sales={sales}
       selectedClientId={selectedClientId}
@@ -178,6 +199,55 @@ describe('ClientsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
 
     expect(screen.getByText('Ivan Petrenko')).toBeInTheDocument();
+    expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
+  });
+
+  it('saves and reapplies client filters for the current employee only', () => {
+    window.localStorage.setItem(
+      clientsSuppliersSavedFiltersStorageKey,
+      JSON.stringify([
+        {
+          id: 'other-filter',
+          employeeId: 'other-employee',
+          name: 'Other employee',
+          icon: '?',
+          tab: 'clients',
+          filters: { ...emptyFilters, query: 'Hidden' },
+          createdAt: '2026-06-01T00:00:00.000Z',
+        },
+      ]),
+    );
+    const ivan = createClient({ id: 'client-ivan', name: 'Ivan Petrenko' });
+    const olena = createClient({ id: 'client-olena', name: 'Olena Kovalenko' });
+    renderWorkspace({ clients: [ivan, olena] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+
+    expect(
+      screen.queryByRole('button', { name: /Other employee/ }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('+380..., Ivan'), {
+      target: { value: 'Olena' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save filter' }));
+    fireEvent.change(screen.getByPlaceholderText('My filter'), {
+      target: { value: 'Olena filter' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+
+    expect(screen.getByText('Ivan Petrenko')).toBeInTheDocument();
+    expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen
+        .getAllByRole('button', { name: /Olena filter/ })
+        .find((button) => button.className === 'orders-filter-saved-button')!,
+    );
+
+    expect(screen.queryByText('Ivan Petrenko')).not.toBeInTheDocument();
     expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
   });
 

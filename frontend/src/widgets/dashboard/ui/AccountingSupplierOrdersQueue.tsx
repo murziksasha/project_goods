@@ -78,7 +78,7 @@ export const AccountingSupplierOrdersQueue = ({
       </article>
     </div>
 
-    <div className='orders-table-wrap finance-orders-table-wrap'>
+    <div className='orders-table-wrap finance-orders-table-wrap finance-card-table-wrap'>
       <table className='orders-table finance-orders-table'>
         <thead>
           <tr>
@@ -108,7 +108,7 @@ export const AccountingSupplierOrdersQueue = ({
               );
               return (
                 <tr key={order.id} className='finance-orders-row'>
-                  <td className='finance-orders-number-cell' title={orderNumber}>
+                  <td className='finance-orders-number-cell' title={orderNumber} data-label='Order'>
                     <button
                       type='button'
                       className='finance-orders-number-button'
@@ -124,22 +124,22 @@ export const AccountingSupplierOrdersQueue = ({
                     </button>
                     <span className='finance-orders-cell-note'>Supplier order</span>
                   </td>
-                  <td className='finance-orders-date-cell'>
+                  <td className='finance-orders-date-cell' data-label='Date'>
                     <span>
                       {formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}
                     </span>
                     <small>{order.deliveryDate ? 'Delivery' : 'Created'}</small>
                   </td>
-                  <td className='finance-orders-supplier-cell'>
+                  <td className='finance-orders-supplier-cell' data-label='Supplier'>
                     <span className='orders-table-cell-truncate'>
                       {order.supplierName}
                     </span>
                     <small>Payment required</small>
                   </td>
-                  <td className='finance-orders-amount-cell'>
+                  <td className='finance-orders-amount-cell' data-label='Amount'>
                     <strong>{formatMoney(order.total, 'UAH')}</strong>
                   </td>
-                  <td className='finance-orders-payment-cell'>
+                  <td className='finance-orders-payment-cell' data-label='Payment'>
                     <div className='finance-orders-payment-actions'>
                       {canPaySupplierOrders ? (
                         <>

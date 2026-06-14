@@ -7,21 +7,21 @@ export const SuppliersTable = ({ suppliers, searchQuery, onSelectSupplier }: { s
   const normalizedQuery = searchQuery.trim().toLowerCase();
   if (suppliers.length === 0) return <p className="empty-state">{normalizedQuery ? 'No suppliers found.' : 'No suppliers yet.'}</p>;
   return (
-    <div className="catalog-table-wrap">
-      <table className="catalog-table">
+    <div className="catalog-table-wrap catalog-card-table-wrap">
+      <table className="catalog-table catalog-table-compact catalog-card-table">
         <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Status</th><th>Created</th></tr></thead>
         <tbody>
           {suppliers.map((supplier) => (
             <tr key={supplier.id}>
-              <td>{supplier.id.slice(-6)}</td>
-              <td>
+              <td data-label="ID">{supplier.id.slice(-6)}</td>
+              <td data-label="Name">
                 <button type="button" className="catalog-name-button" onClick={() => onSelectSupplier(supplier)}>
                   {supplier.name}
                 </button>
               </td>
-              <td>{supplier.phone}</td>
-              <td>{supplier.isActive ? 'active' : 'inactive'}</td>
-              <td>{formatDate(supplier.createdAt)}</td>
+              <td data-label="Phone">{supplier.phone}</td>
+              <td data-label="Status">{supplier.isActive ? 'active' : 'inactive'}</td>
+              <td data-label="Created">{formatDate(supplier.createdAt)}</td>
             </tr>
           ))}
         </tbody>
@@ -56,8 +56,8 @@ export const ProductsTable = ({
   }
 
   return (
-    <div className="catalog-table-wrap">
-      <table className="catalog-table">
+    <div className="catalog-table-wrap catalog-card-table-wrap">
+      <table className="catalog-table catalog-table-compact catalog-card-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -69,14 +69,14 @@ export const ProductsTable = ({
         <tbody>
           {products.map((product, index) => (
             <tr key={product.id}>
-              <td>{rowStartIndex + index + 1}</td>
-              <td>
+              <td data-label="ID">{rowStartIndex + index + 1}</td>
+              <td data-label="Name">
                 <button type="button" className="catalog-name-button" onClick={() => onSelectDevice(product)}>
                   {product.name}
                 </button>
               </td>
-              <td>{product.isActive ? 'active' : 'inactive'}</td>
-              <td>{formatDate(product.createdAt)}</td>
+              <td data-label="Activity">{product.isActive ? 'active' : 'inactive'}</td>
+              <td data-label="Date">{formatDate(product.createdAt)}</td>
             </tr>
           ))}
         </tbody>
@@ -111,8 +111,8 @@ export const CatalogProductsTable = ({
   }
 
   return (
-    <div className="catalog-table-wrap">
-      <table className="catalog-table">
+    <div className="catalog-table-wrap catalog-card-table-wrap">
+      <table className="catalog-table catalog-table-compact catalog-card-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -124,8 +124,8 @@ export const CatalogProductsTable = ({
         <tbody>
           {products.map((product, index) => (
             <tr key={product.id}>
-              <td>{rowStartIndex + index + 1}</td>
-              <td>
+              <td data-label="ID">{rowStartIndex + index + 1}</td>
+              <td data-label="Name">
                 <button
                   type="button"
                   className="catalog-name-button"
@@ -134,8 +134,8 @@ export const CatalogProductsTable = ({
                   {product.name}
                 </button>
               </td>
-              <td>{product.isActive ? 'active' : 'inactive'}</td>
-              <td>{formatDate(product.createdAt)}</td>
+              <td data-label="Activity">{product.isActive ? 'active' : 'inactive'}</td>
+              <td data-label="Date">{formatDate(product.createdAt)}</td>
             </tr>
           ))}
         </tbody>
@@ -170,8 +170,8 @@ export const ServicesTable = ({
   }
 
   return (
-    <div className="catalog-table-wrap">
-      <table className="catalog-table">
+    <div className="catalog-table-wrap catalog-card-table-wrap">
+      <table className="catalog-table catalog-table-services catalog-card-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -186,9 +186,9 @@ export const ServicesTable = ({
         <tbody>
           {services.map((service, index) => (
             <tr key={service.id}>
-              <td>{rowStartIndex + index + 1}</td>
-              <td><input type="checkbox" aria-label={`Select ${service.name}`} /></td>
-              <td>
+              <td data-label="ID">{rowStartIndex + index + 1}</td>
+              <td data-label="Select"><input type="checkbox" aria-label={`Select ${service.name}`} /></td>
+              <td data-label="Name">
                 <button
                   type="button"
                   className="catalog-name-button"
@@ -198,10 +198,10 @@ export const ServicesTable = ({
                 </button>
                 {!service.isActive ? <span className="catalog-inactive-badge">Inactive</span> : null}
               </td>
-              <td>{formatCurrency(service.price)}</td>
-              <td>{service.note || '-'}</td>
-              <td>{formatDate(service.updatedAt)}</td>
-              <td>
+              <td data-label="Price">{formatCurrency(service.price)}</td>
+              <td data-label="Note">{service.note || '-'}</td>
+              <td data-label="Updated">{formatDate(service.updatedAt)}</td>
+              <td data-label="Action">
                 <div className="catalog-row-actions">
                   <button type="button" className="danger-button" onClick={() => onEdit(service)}>
                     x
