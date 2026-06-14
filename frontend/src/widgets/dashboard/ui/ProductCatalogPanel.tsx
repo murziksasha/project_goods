@@ -191,10 +191,7 @@ export const ProductCatalogPanel = ({
     const query = searchQuery.trim().toLowerCase();
     if (!query) return uniqueDevices;
     return uniqueDevices.filter((device) =>
-      [device.name, device.clientName, device.clientPhone]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
+      device.name.trim().toLowerCase().includes(query),
     );
   }, [clientDevices, searchQuery]);
   const paginatedProducts = useMemo(() => {

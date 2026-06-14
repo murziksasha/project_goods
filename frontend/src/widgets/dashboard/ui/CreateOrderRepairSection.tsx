@@ -88,13 +88,13 @@ export const CreateOrderRepairSection = ({
     </div>
     {hasExactDeviceMatch ? <p>Found existing device with this name.</p> : null}
     {visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading ? (
-      <div className="create-suggestions">
+      <div className="create-suggestions create-suggestions-compact create-device-suggestions">
         {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
         {visibleDeviceSuggestions.map((device) => (
           <button
             key={device.id}
             type="button"
-            className="create-suggestion-item"
+            className="create-suggestion-item create-suggestion-item-compact"
             onClick={() => onApplyDevice(device)}
           >
             <strong>{device.name}</strong>

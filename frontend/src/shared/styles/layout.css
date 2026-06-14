@@ -2662,7 +2662,7 @@
   font-weight: 800;
 }
 
-.order-detail-table-wide div:nth-child(-n + 5) {
+.order-detail-table-wide div:nth-child(-n + 6) {
   background: #f7f9fb;
   color: #6b7785;
   font-weight: 800;
@@ -2672,12 +2672,12 @@
   border-bottom: 0;
 }
 
-.order-detail-table-wide div:nth-last-child(-n + 5) {
+.order-detail-table-wide div:nth-last-child(-n + 6) {
   border-bottom: 0;
 }
 
 .order-detail-table-wide {
-  grid-template-columns: minmax(0, 1fr) 140px 104px 120px 110px;
+  grid-template-columns: minmax(0, 1fr) 150px 140px 104px 120px 110px;
 }
 
 .order-detail-table-row {
@@ -2738,12 +2738,30 @@
   align-content: start;
 }
 
-.order-line-item-price-cell .order-line-item-serials {
+.order-line-item-serial-cell {
+  min-width: 0;
+}
+
+.order-line-item-serial-cell .order-line-item-serials {
   justify-content: flex-start;
   color: #4d637a;
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.order-line-item-serial-button {
+  border: 0;
+  background: transparent;
+  color: #2d8ae3;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+.order-line-item-serial-button:hover {
+  text-decoration: underline;
 }
 
 .line-item-create-service-button {
@@ -5356,6 +5374,11 @@
   background: #f8fbff;
 }
 
+.create-suggestions-compact {
+  gap: 0;
+  padding: 6px 10px;
+}
+
 .create-suggestions p,
 .create-side-list-item span {
   margin: 0;
@@ -6502,6 +6525,17 @@
   font-weight: 900;
   line-height: 1;
   cursor: pointer;
+}
+
+.create-suggestion-item-compact {
+  border: 0;
+  border-bottom: 1px solid #dde5ef;
+  border-radius: 0;
+  padding: 8px 2px;
+}
+
+.create-suggestion-item-compact:last-child {
+  border-bottom: 0;
 }
 
 .pagination-compact-page {
