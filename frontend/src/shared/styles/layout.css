@@ -6347,6 +6347,40 @@
   gap: 12px;
 }
 
+.pagination-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pagination-compact-button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 36px;
+  border: 1px solid #cbd7e5;
+  border-radius: 7px;
+  background: #fff;
+  color: #244160;
+  font: inherit;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pagination-compact-page {
+  min-width: 20px;
+  color: #244160;
+  text-align: center;
+  font-weight: 900;
+}
+
+.pagination-compact-button:disabled {
+  color: #a0afbf;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
 .pagination-panel {
   display: flex;
   align-items: center;
@@ -6375,6 +6409,7 @@
   background: #f6f8fb;
   color: #4d6279;
   padding: 0 12px;
+  font-weight: 800;
 }
 
 .pagination-nav {
@@ -6428,8 +6463,7 @@
   font-weight: 700;
 }
 
-.pagination-nav-button:disabled,
-.pagination-page-button:disabled {
+.pagination-nav-button:disabled {
   color: #a0afbf;
   cursor: not-allowed;
   background: #f8fafc;

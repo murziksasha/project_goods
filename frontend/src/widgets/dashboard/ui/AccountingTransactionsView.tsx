@@ -6,7 +6,10 @@ import type {
 } from '../../../entities/finance/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import {
   formatDateDdMmYyyy,
   formatMoney,
@@ -76,33 +79,12 @@ export const AccountingTransactionsView = ({
   <>
     <div className='orders-toolbar'>
       <div className='orders-toolbar-left finance-transactions-toolbar-left'>
-        <button
-          type='button'
-          className='toolbar-square-button'
-          aria-label='Previous page'
-          onClick={() => onPageChange((current) => Math.max(1, current - 1))}
-          disabled={page <= 1}
-        >
-          &lsaquo;
-        </button>
-        <div className='finance-transactions-page-chip'>{page}</div>
-        <button
-          type='button'
-          className='toolbar-square-button'
-          aria-label='Next page'
-          onClick={() => {
-            const pageCount = Math.max(
-              1,
-              Math.ceil(filteredTransactions.length / pageSize),
-            );
-            onPageChange((current) => Math.min(pageCount, current + 1));
-          }}
-          disabled={
-            page >= Math.max(1, Math.ceil(filteredTransactions.length / pageSize))
-          }
-        >
-          &rsaquo;
-        </button>
+        <CompactPaginationPanel
+          totalItems={filteredTransactions.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+        />
         <button
           type='button'
           className='toolbar-filter-button toolbar-filter-toggle-button'

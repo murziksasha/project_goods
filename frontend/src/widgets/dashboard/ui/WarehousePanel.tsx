@@ -788,7 +788,6 @@ export const WarehousePanel = ({
   const visibleColumnKeySet = new Set<string>(
     visibleColumnKeys as string[],
   );
-  const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
   const searchPlaceholder =
     activeTab === 'receipts'
       ? 'Search receipts'
@@ -1248,8 +1247,9 @@ export const WarehousePanel = ({
         <WarehouseToolbar
           activeTab={activeTab}
           currentPage={currentPage}
-          pageCount={pageCount}
+          pageSize={activePageSize}
           stockSummaryText={stockSummaryText}
+          totalItems={totalItems}
           selectedProductCount={selectedStockProductIds.length}
           selectedSerialCount={selectedStockProductsWithSerials.length}
           activeColumnsTab={activeColumnsTab}
@@ -1260,8 +1260,6 @@ export const WarehousePanel = ({
           query={query}
           searchMode={searchMode}
           searchPlaceholder={searchPlaceholder}
-          onPreviousPage={() => setCurrentPage((current) => current - 1)}
-          onNextPage={() => setCurrentPage((current) => current + 1)}
           onPrintSelectedSerials={printSelectedStockSerials}
           onClearSelection={() => setSelectedStockProductIds([])}
           onToggleColumnsMenu={() =>

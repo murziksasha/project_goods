@@ -269,7 +269,7 @@ export const ClientsWorkspace = ({
     string | null
   >(null);
   const [clientsPage, setClientsPage] = useState(1);
-  const [clientsPageSize, setClientsPageSize] = useState(10);
+  const [clientsPageSize, setClientsPageSize] = useState(30);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const statsByClient = useMemo(
@@ -556,8 +556,12 @@ export const ClientsWorkspace = ({
     <section className='panel clients-workspace'>
       <ClientsToolbar
         activeFiltersCount={activeFiltersCount}
+        filteredClientsCount={filteredClients.length}
         isFilterOpen={isFilterOpen}
+        page={clientsPage}
+        pageSize={clientsPageSize}
         searchValue={searchValue}
+        onPageChange={setClientsPage}
         onToggleFilters={() => setIsFilterOpen((current) => !current)}
         onSearchChange={(nextQuery) => {
           setSearchValue(nextQuery);

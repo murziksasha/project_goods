@@ -28,7 +28,10 @@ import {
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Cashbox } from '../../../entities/finance/model/types';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import {
   MessageModal,
   PaymentModal,
@@ -259,8 +262,8 @@ export const OrdersWorkspace = ({
   >({
     orders: 30,
     sales: 30,
-    supplierOrders: 10,
-    supplierInformation: 10,
+    supplierOrders: 30,
+    supplierInformation: 30,
   });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
@@ -2290,6 +2293,17 @@ export const OrdersWorkspace = ({
 
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left'>
+          <CompactPaginationPanel
+            totalItems={filteredOrders.length}
+            page={currentPage}
+            pageSize={currentPageSize}
+            onPageChange={(page) =>
+              setPageByTab((current) => ({
+                ...current,
+                [activeTab]: page,
+              }))
+            }
+          />
           <button
             type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'

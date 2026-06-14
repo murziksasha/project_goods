@@ -528,22 +528,7 @@
   }
 
   .pagination-panel {
-    align-items: stretch;
     gap: 8px;
-  }
-
-  .pagination-total,
-  .pagination-nav,
-  .pagination-size-select {
-    width: 100%;
-  }
-
-  .pagination-nav {
-    overflow-x: auto;
-  }
-
-  .pagination-pages-group {
-    flex: 1 0 auto;
   }
 
   .payment-print-options {
