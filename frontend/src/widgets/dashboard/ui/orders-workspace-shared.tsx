@@ -176,6 +176,7 @@ export type OrdersFilters = {
   dateTo: string;
   product: string;
   service: string;
+  favoritesOnly: boolean;
 };
 export type SavedOrdersFilter = {
   id: string;
@@ -458,6 +459,7 @@ export const emptyOrdersFilters: OrdersFilters = {
   dateTo: '',
   product: '',
   service: '',
+  favoritesOnly: false,
 };
 
 export const readActiveOrderFilters = () => {
@@ -480,6 +482,7 @@ export const readActiveOrderFilters = () => {
         ...value,
         dateFrom: value.dateFrom ?? normalizedLegacyDate,
         dateTo: value.dateTo ?? normalizedLegacyDate,
+        favoritesOnly: value.favoritesOnly === true,
         statuses: Array.isArray(value.statuses) ? value.statuses : [],
       };
     };

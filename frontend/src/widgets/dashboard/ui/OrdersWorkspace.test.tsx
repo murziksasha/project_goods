@@ -7,6 +7,7 @@ import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   acceptSalePayment,
   refundSalePayment,
+  updateSaleFavorite,
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
@@ -24,6 +25,7 @@ vi.mock('../../../entities/sale/api/saleApi', () => ({
   refundSalePayment: vi.fn(),
   returnSale: vi.fn(),
   returnSaleLineItemToStock: vi.fn(),
+  updateSaleFavorite: vi.fn(),
   updateSaleWorkspace: vi.fn(),
 }));
 vi.mock('../../../entities/finance/api/financeApi', () => ({
@@ -55,6 +57,7 @@ const sale: Sale = {
   kind: 'repair',
   status: 'new',
   paidAmount: 0,
+  isFavorite: false,
   note: '',
   timeline: [],
   paymentHistory: [],
@@ -678,5 +681,50 @@ describe('OrdersWorkspace', () => {
 
     expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
     expect(screen.getAllByRole('link', { name: /^S\d{6}$/ })).toHaveLength(30);
+  });
+
+  it('filters and updates starred repair orders', async () => {
+    const onSaleUpdate = vi.fn();
+    vi.mocked(updateSaleFavorite).mockResolvedValue({
+      ...sale,
+      isFavorite: true,
+    });
+    renderWorkspace({
+      sales: [
+        sale,
+        {
+          ...sale,
+          id: 'sale-2',
+          recordNumber: 'R000002',
+          isFavorite: true,
+        },
+      ],
+      onSaleUpdate,
+    });
+
+    expect(screen.getByRole('link', { name: 'R000001' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'R000002' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show starred orders' }));
+
+    expect(screen.queryByRole('link', { name: 'R000001' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'R000002' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show all orders' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Star R000001' }));
+
+    expect(updateSaleFavorite).toHaveBeenCalledWith('sale-1', {
+      isFavorite: true,
+    });
+    expect(onSaleUpdate).toHaveBeenCalledWith({
+      ...sale,
+      isFavorite: true,
+    });
+    await waitFor(() => {
+      expect(onSaleUpdate).toHaveBeenCalledWith({
+        ...sale,
+        isFavorite: true,
+      });
+    });
   });
 });

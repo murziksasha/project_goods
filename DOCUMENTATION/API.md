@@ -31,6 +31,12 @@ http://localhost:5000/api
 
 ## Sales
 
+- Sale/order responses include `isFavorite`, a boolean used by the Orders and Sales quick star filters.
+- `PATCH /api/sales/:saleId/favorite`
+  - Permission: `orders.manage` for repair orders, `sales.manage` for product sales.
+  - Body: `{ "isFavorite": boolean }`.
+  - Updates only the persistent favorite/star state and returns the formatted sale/order.
+
 - `GET /sales` - список продаж и заказов
 - `POST /sales` - создать продажу или заказ
 - `PUT /sales/:saleId` - обновить продажу или заказ

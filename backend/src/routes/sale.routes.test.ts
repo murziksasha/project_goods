@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isManualCommentWorkspacePatch } from './sale.routes';
+import {
+  getSaleFavoritePermission,
+  isManualCommentWorkspacePatch,
+} from './sale.routes';
 
 const existingSale = {
   kind: 'repair',
@@ -89,5 +92,15 @@ describe('isManualCommentWorkspacePatch', () => {
         lineItems: [],
       }),
     ).toBe(false);
+  });
+});
+
+describe('getSaleFavoritePermission', () => {
+  it('requires orders.manage for repair orders', () => {
+    expect(getSaleFavoritePermission('repair')).toBe('orders.manage');
+  });
+
+  it('requires sales.manage for product sales', () => {
+    expect(getSaleFavoritePermission('sale')).toBe('sales.manage');
   });
 });

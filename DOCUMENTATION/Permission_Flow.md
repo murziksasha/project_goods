@@ -123,6 +123,12 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `POST /supplier-orders/:supplierOrderId/cancel` | `supplierOrders.manage`. |
 | `POST /supplier-orders/:supplierOrderId/take-on-charge` | `supplierOrders.manage`. |
 
+### Sales / Orders
+| Endpoint | Required access |
+| --- | --- |
+| `PATCH /sales/:saleId/favorite` for repair orders | `orders.manage`. |
+| `PATCH /sales/:saleId/favorite` for product sales | `sales.manage`. |
+
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
@@ -146,6 +152,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 - Orders `Supplier Order` and `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
 - Supplier-order create, edit, cancel, status change, and take-on-charge actions require `supplierOrders.manage`.
 - Starred supplier-order state is visible with supplier-order read access, but changing the star requires `supplierOrders.manage`.
+- Starred Orders/Sales state is visible with order read access; changing repair-order stars requires `orders.manage`, and changing product-sale stars requires `sales.manage`.
 - Warehouse supplier-order-backed receipt rows require `supplierOrders.view` or `supplierOrders.manage` to load; receipt-order create/edit/cancel/take-on-charge actions require `supplierOrders.manage`.
 
 ## Maintenance Notes

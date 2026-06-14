@@ -1467,14 +1467,64 @@
   flex-wrap: wrap;
 }
 
+.warehouse-information-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .warehouse-information-filters {
   display: grid;
-  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
 .warehouse-information-table {
   min-width: 1180px;
+}
+
+.warehouse-supplier-combobox {
+  position: relative;
+}
+
+.warehouse-supplier-combobox-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+}
+
+.warehouse-supplier-combobox-menu button,
+.warehouse-supplier-combobox-menu span {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #2f4966;
+  font: inherit;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.warehouse-supplier-combobox-menu button {
+  cursor: pointer;
+}
+
+.warehouse-supplier-combobox-menu button:hover {
+  background: #edf5ff;
+  color: #226db5;
 }
 
 .topbar {
@@ -3185,6 +3235,10 @@
   display: inline-flex;
 }
 
+.orders-toolbar-left > .toolbar-star-button {
+  display: inline-flex;
+}
+
 .orders-toolbar-actions {
   display: flex;
   align-items: center;
@@ -3987,6 +4041,11 @@
 .supplier-order-row-star:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.supplier-order-row-star-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .orders-table .supplier-orders-col-product {
