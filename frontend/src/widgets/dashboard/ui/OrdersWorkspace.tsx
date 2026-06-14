@@ -2908,7 +2908,7 @@ export const OrdersWorkspace = ({
 
       <div className='orders-table-wrap'>
         <table
-          className='orders-table'
+          className='orders-table orders-workspace-table'
           style={{ minWidth: tableMinWidth }}
         >
           <thead>
@@ -2951,6 +2951,7 @@ export const OrdersWorkspace = ({
                     <td
                       key={`${sale.id}-${columnKey}`}
                       className={getOrdersColumnClassName(columnKey)}
+                      data-label={getColumnLabel(columnKey, activeTab)}
                     >
                       {renderOrdersCell(sale, columnKey)}
                     </td>
