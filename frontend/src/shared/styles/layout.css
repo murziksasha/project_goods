@@ -407,6 +407,14 @@
   background: #fff;
 }
 
+.catalog-table-compact {
+  min-width: 720px;
+}
+
+.catalog-table-services {
+  min-width: 860px;
+}
+
 .catalog-table th,
 .catalog-table td {
   border-bottom: 1px solid #dbe3ee;

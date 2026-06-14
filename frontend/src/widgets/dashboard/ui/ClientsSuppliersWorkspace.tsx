@@ -1023,12 +1023,12 @@ const SuppliersTable = ({
             className='clients-table-row'
             onClick={() => onOpenEditModal(supplier)}
           >
-            <td>{supplier.id.slice(-6)}</td>
-            <td>{supplier.name}</td>
-            <td>{supplier.phone}</td>
-            <td>{supplier.supplierOrder || '-'}</td>
-            <td>{supplier.isActive ? 'active' : 'inactive'}</td>
-            <td>{formatDateTime(supplier.createdAt)}</td>
+            <td data-label='ID'>{supplier.id.slice(-6)}</td>
+            <td data-label='Name'>{supplier.name}</td>
+            <td data-label='Phone'>{supplier.phone}</td>
+            <td data-label='Supplier order'>{supplier.supplierOrder || '-'}</td>
+            <td data-label='Status'>{supplier.isActive ? 'active' : 'inactive'}</td>
+            <td data-label='Created'>{formatDateTime(supplier.createdAt)}</td>
           </tr>
         ))}
       </tbody>

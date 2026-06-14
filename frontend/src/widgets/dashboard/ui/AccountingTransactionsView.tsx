@@ -376,8 +376,8 @@ export const AccountingTransactionsView = ({
       </div>
     </section>
 
-    <div className='finance-table-wrap'>
-      <table className='orders-table'>
+    <div className='finance-table-wrap finance-card-table-wrap'>
+      <table className='orders-table finance-transactions-table'>
         <thead>
           <tr>
             <th>Date</th>
@@ -425,9 +425,10 @@ export const AccountingTransactionsView = ({
                       isCancelled ? 'finance-transaction-row-cancelled' : undefined
                     }
                   >
-                    <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
+                    <td data-label='Date'>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
                     <td
                       className={`finance-transaction-type finance-transaction-type-${transaction.type}`}
+                      data-label='Type'
                     >
                       {transactionLabels[transaction.type]}
                       {isCancelled ? (
@@ -441,8 +442,8 @@ export const AccountingTransactionsView = ({
                         </span>
                       ) : null}
                     </td>
-                    <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                    <td>
+                    <td data-label='Amount'>{formatMoney(transaction.amount, transaction.currency)}</td>
+                    <td data-label='Total'>
                       {balanceAfterByTransactionId[transaction.id] === null ||
                       balanceAfterByTransactionId[transaction.id] === undefined
                         ? '-'
@@ -453,9 +454,9 @@ export const AccountingTransactionsView = ({
                             transaction.currency,
                           )}
                     </td>
-                    <td>{transaction.fromCashbox?.name ?? '-'}</td>
-                    <td>{transaction.toCashbox?.name ?? '-'}</td>
-                    <td>
+                    <td data-label='From'>{transaction.fromCashbox?.name ?? '-'}</td>
+                    <td data-label='To'>{transaction.toCashbox?.name ?? '-'}</td>
+                    <td data-label='Note'>
                       {(() => {
                         const normalizedNote = transaction.note.trim();
                         const parsedOrderNumber =
@@ -505,7 +506,7 @@ export const AccountingTransactionsView = ({
                         );
                       })()}
                     </td>
-                    <td className='finance-transaction-action-cell'>
+                    <td className='finance-transaction-action-cell' data-label='Action'>
                       {canCancelTransfer ? (
                         <button
                           type='button'

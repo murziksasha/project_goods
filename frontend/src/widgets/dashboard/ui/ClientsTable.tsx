@@ -76,8 +76,8 @@ export const ClientsTable = ({
                 }
                 onClick={() => onOpenClientCard(client.id)}
               >
-                <td>{client.id.slice(-6)}</td>
-                <td>
+                <td data-label='ID'>{client.id.slice(-6)}</td>
+                <td data-label='Tag'>
                   <span
                     className={`client-status-badge ${getClientStatusClass(
                       effectiveStatus || '',
@@ -92,8 +92,8 @@ export const ClientsTable = ({
                     {effectiveStatus || '-'}
                   </span>
                 </td>
-                <td>{client.name}</td>
-                <td>
+                <td data-label='Name'>{client.name}</td>
+                <td data-label='Phone'>
                   <a
                     href={`tel:${client.phone}`}
                     onClick={(event) => event.stopPropagation()}
@@ -101,10 +101,10 @@ export const ClientsTable = ({
                     {client.phone}
                   </a>
                 </td>
-                <td>{formatDateTime(client.createdAt)}</td>
-                <td>{stats.visits}</td>
-                <td>{formatClientIncome(stats.income)}</td>
-                <td>
+                <td data-label='Registration date'>{formatDateTime(client.createdAt)}</td>
+                <td data-label='Visits'>{stats.visits}</td>
+                <td data-label='Client income'>{formatClientIncome(stats.income)}</td>
+                <td data-label='Actions'>
                   <button
                     type='button'
                     className='clients-delete-button'

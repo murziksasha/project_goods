@@ -711,7 +711,7 @@ export const SupplierOrdersTable = ({
             buildGroupedSupplierOrderView(order).map(({ id, item }) => (
               <tr key={id}>
                 {visibleColumns.includes('number') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('number')}>
                     <div className='supplier-order-number-cell'>
                       <button
                         type='button'
@@ -754,7 +754,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('product') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('product')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -785,19 +785,19 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('quantity') ? (
-                  <td>{item.quantity} pcs</td>
+                  <td data-label={getSupplierOrdersColumnLabel('quantity')}>{item.quantity} pcs</td>
                 ) : null}
                 {visibleColumns.includes('price') ? (
-                  <td>{formatCurrency(item.price)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('price')}>{formatCurrency(item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('total') ? (
-                  <td>{formatCurrency(item.quantity * item.price)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('total')}>{formatCurrency(item.quantity * item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('paid') ? (
-                  <td>{formatCurrency(order.paid)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('paid')}>{formatCurrency(order.paid)}</td>
                 ) : null}
                 {visibleColumns.includes('supplier') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('supplier')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -821,10 +821,10 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('deliveryDate') ? (
-                  <td>{formatSupplierOrderDate(order.deliveryDate)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('deliveryDate')}>{formatSupplierOrderDate(order.deliveryDate)}</td>
                 ) : null}
                 {visibleColumns.includes('status') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('status')}>
                     <div className='supplier-order-status-picker'>
                       <button
                         type='button'
@@ -848,7 +848,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('paymentStatus') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('paymentStatus')}>
                     <span
                       className={getSupplierPaymentStatusClass(
                         order.paymentStatus,
