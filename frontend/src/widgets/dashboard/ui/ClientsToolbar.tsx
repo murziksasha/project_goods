@@ -1,7 +1,13 @@
+import { CompactPaginationPanel } from '../../../shared/ui/PaginationPanel';
+
 type ClientsToolbarProps = {
   activeFiltersCount: number;
+  filteredClientsCount: number;
   isFilterOpen: boolean;
+  page: number;
+  pageSize: number;
   searchValue: string;
+  onPageChange: (page: number) => void;
   onToggleFilters: () => void;
   onSearchChange: (value: string) => void;
   onClearSearch: () => void;
@@ -16,8 +22,12 @@ type ClientsToolbarProps = {
 
 export const ClientsToolbar = ({
   activeFiltersCount,
+  filteredClientsCount,
   isFilterOpen,
+  page,
+  pageSize,
   searchValue,
+  onPageChange,
   onToggleFilters,
   onSearchChange,
   onClearSearch,
@@ -31,6 +41,12 @@ export const ClientsToolbar = ({
 }: ClientsToolbarProps) => (
   <div className='orders-toolbar clients-toolbar'>
     <div className='orders-toolbar-left'>
+      <CompactPaginationPanel
+        totalItems={filteredClientsCount}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+      />
       <button
         type='button'
         className='toolbar-filter-button toolbar-filter-toggle-button'

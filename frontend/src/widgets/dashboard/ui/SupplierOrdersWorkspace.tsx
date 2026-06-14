@@ -86,7 +86,7 @@ export const SupplierOrdersWorkspace = ({
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(30);
   const initialFilters = useMemo(
     () =>
       parseSupplierOrdersFilters(
@@ -254,9 +254,7 @@ export const SupplierOrdersWorkspace = ({
         const activeWarehouses = settings.warehouses.filter(
           (warehouse) => warehouse.isActive,
         );
-        const sourceWarehouses =
-          activeWarehouses.length > 0 ? activeWarehouses : settings.warehouses;
-        const defaultWarehouse = sourceWarehouses[0];
+        const defaultWarehouse = activeWarehouses[0];
         const defaultLocation = defaultWarehouse?.locations[0];
         if (!defaultWarehouse?.id || !defaultLocation?.id) {
           setDefaultTakeOnChargeWarehouse(null);
@@ -511,6 +509,7 @@ export const SupplierOrdersWorkspace = ({
       <SupplierOrdersToolbar
         activeTab={activeTab}
         dateFiltersCount={dateFiltersCount}
+        filteredOrdersCount={filteredOrders.length}
         filteredOrderStatuses={filteredOrderStatuses}
         filteredPaymentStatuses={filteredPaymentStatuses}
         isColumnsMenuOpen={isColumnsMenuOpen}
@@ -523,6 +522,8 @@ export const SupplierOrdersWorkspace = ({
         columnsMenuRef={columnsMenuRef}
         paymentQuery={paymentQuery}
         paymentStatus={paymentStatus}
+        page={page}
+        pageSize={pageSize}
         query={query}
         selectedStatuses={selectedStatuses}
         statusQuery={statusQuery}
@@ -545,6 +546,7 @@ export const SupplierOrdersWorkspace = ({
         onPaymentStatusOpenChange={setIsPaymentStatusOpen}
         onPaymentQueryChange={setPaymentQuery}
         onPaymentStatusChange={setPaymentStatus}
+        onPageChange={setPage}
         onQueryChange={(nextQuery) => {
           setQuery(nextQuery);
           setPage(1);

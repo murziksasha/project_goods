@@ -526,6 +526,7 @@ export const OrderDetailCard = ({
       setRelatedSuppliers(suppliersData);
       setRelatedWarehouseOptions(
         warehouseSettings.warehouses
+          .filter((warehouse) => warehouse.isActive)
           .map((warehouse) => ({
             id: warehouse.id,
             name: warehouse.name,

@@ -7,10 +7,10 @@ type PaginationPanelProps = {
   pageSizeOptions?: number[];
 };
 
-const defaultPageSizeOptions = [30, 50, 100, 200];
-
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
+
+const defaultPageSizeOptions = [10, 30, 50, 100, 200];
 
 const getVisiblePages = (currentPage: number, pageCount: number) => {
   if (pageCount <= 7) {
@@ -38,6 +38,47 @@ const getVisiblePages = (currentPage: number, pageCount: number) => {
   return Array.from(pages).sort((a, b) => a - b);
 };
 
+type CompactPaginationPanelProps = Omit<
+  PaginationPanelProps,
+  'onPageSizeChange' | 'pageSizeOptions'
+>;
+
+export const CompactPaginationPanel = ({
+  totalItems,
+  page,
+  pageSize,
+  onPageChange,
+}: CompactPaginationPanelProps) => {
+  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = clamp(page, 1, pageCount);
+  const canGoPrev = currentPage > 1;
+  const canGoNext = currentPage < pageCount;
+
+  return (
+    <div className='pagination-compact'>
+      <button
+        type='button'
+        className='pagination-compact-button'
+        aria-label='Previous page'
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={!canGoPrev}
+      >
+        &lsaquo;
+      </button>
+      <span className='pagination-compact-page'>{currentPage}</span>
+      <button
+        type='button'
+        className='pagination-compact-button'
+        aria-label='Next page'
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={!canGoNext}
+      >
+        &rsaquo;
+      </button>
+    </div>
+  );
+};
+
 export const PaginationPanel = ({
   totalItems,
   page,
@@ -57,9 +98,7 @@ export const PaginationPanel = ({
       <select
         className='pagination-size-select'
         value={pageSize}
-        onChange={(event) =>
-          onPageSizeChange(Number(event.target.value))
-        }
+        onChange={(event) => onPageSizeChange(Number(event.target.value))}
         aria-label='Rows per page'
       >
         {pageSizeOptions.map((option) => (
