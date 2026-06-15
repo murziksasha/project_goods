@@ -6,6 +6,7 @@ export type Cashbox = {
   id: string;
   name: string;
   balances: Record<FinanceCurrency, number>;
+  enabledCurrencies: Record<FinanceCurrency, boolean>;
   isDefault: boolean;
   isArchived: boolean;
   createdAt: string;
@@ -55,6 +56,7 @@ export type CreateCashboxPayload = {
 export type UpdateCashboxPayload = {
   name?: string;
   isArchived?: boolean;
+  enabledCurrencies?: Record<FinanceCurrency, boolean>;
 };
 
 export type CreateFinanceTransactionPayload = {

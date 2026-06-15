@@ -16,6 +16,14 @@ const balancesSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const enabledCurrenciesSchema = new mongoose.Schema(
+  {
+    UAH: { type: Boolean, required: true, default: true },
+    USD: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
 export const cashboxSchema = new mongoose.Schema(
   {
     name: {
@@ -29,6 +37,11 @@ export const cashboxSchema = new mongoose.Schema(
       type: balancesSchema,
       required: true,
       default: () => ({ UAH: 0, USD: 0 }),
+    },
+    enabledCurrencies: {
+      type: enabledCurrenciesSchema,
+      required: true,
+      default: () => ({ UAH: true, USD: false }),
     },
     isDefault: {
       type: Boolean,

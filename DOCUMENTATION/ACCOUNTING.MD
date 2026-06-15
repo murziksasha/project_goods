@@ -99,3 +99,11 @@ This document defines financial behavior for supplier-order related operations i
 ## Currency Settings Rules
 - `Currencies` settings section supports adding/removing custom currency codes for planning/configuration storage.
 - System transaction currencies remain fixed to backend-supported currencies.
+
+## Cashbox Currency Visibility Rules
+- System currency visibility for cashboxes is stored in MongoDB per cashbox, not in browser-local user preferences.
+- `UAH` is always enabled for every cashbox and cannot be disabled.
+- `USD` exists for every current and future cashbox, but is disabled by default.
+- Enabling `USD` in one cashbox setting is global for all users because it updates that cashbox document in the database.
+- If `USD` is disabled for a cashbox but its `USD` balance is greater than zero, the balance remains visible as `Withdraw only`.
+- Disabled `USD` cashboxes cannot receive `USD` deposits or incoming `USD` transfers; withdrawing existing `USD` balance is allowed.

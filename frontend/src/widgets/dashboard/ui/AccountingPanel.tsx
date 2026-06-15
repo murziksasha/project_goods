@@ -79,7 +79,6 @@ export const AccountingPanel = ({
   const {
     activeTab,
     allCurrencyCodes,
-    cashboxCurrencyActivity,
     currencyActivity,
     customCurrencies,
     expandedFinanceSettingsCard,
@@ -87,7 +86,6 @@ export const AccountingPanel = ({
     isFinanceSettingsOpen,
     lastTargetCashboxByType,
     setActiveTab,
-    setCashboxCurrencyActivity,
     setCurrencyActivity,
     setCustomCurrencies,
     setExpandedFinanceSettingsCard,
@@ -95,7 +93,6 @@ export const AccountingPanel = ({
     setIsFinanceSettingsOpen,
     setLastTargetCashboxByType,
   } = useAccountingPreferences({
-    allCashboxes,
     cashboxes,
     isCashboxesOrderHydrated,
   });
@@ -162,15 +159,17 @@ export const AccountingPanel = ({
 
   const isGlobalCurrencyActive = useCallback(
     (currencyCode: string) =>
-      currencyCode === 'UAH' || currencyActivity[currencyCode] !== false,
+      currencyOptions.includes(currencyCode as FinanceCurrency) ||
+      currencyActivity[currencyCode] !== false,
     [currencyActivity],
   );
   const isCashboxCurrencyActive = useCallback(
     (cashboxId: string, currencyCode: string) => {
       if (currencyCode === 'UAH') return true;
-      return cashboxCurrencyActivity[cashboxId]?.[currencyCode] ?? true;
+      const cashbox = allCashboxes.find((item) => item.id === cashboxId);
+      return cashbox?.enabledCurrencies?.[currencyCode] === true;
     },
-    [cashboxCurrencyActivity],
+    [allCashboxes],
   );
   const getCurrencyBalance = useCallback(
     (cashbox: Cashbox, currencyCode: string) => {
@@ -501,20 +500,11 @@ export const AccountingPanel = ({
       delete next[code];
       return next;
     });
-    setCashboxCurrencyActivity((current) => {
-      const next: Record<string, Record<string, boolean>> = {};
-      Object.entries(current).forEach(([cashboxId, value]) => {
-        const nextValue = { ...value };
-        delete nextValue[code];
-        next[cashboxId] = nextValue;
-      });
-      return next;
-    });
   };
 
   const handleRemoveCurrency = (code: string) => {
     if (currencyOptions.includes(code as FinanceCurrency)) {
-      setCurrencyActivity((current) => ({ ...current, [code]: false }));
+      onError('System currencies are configured per cashbox.');
       return;
     }
     removeCurrencyCode(code);
@@ -527,8 +517,8 @@ export const AccountingPanel = ({
   };
 
   const toggleCurrencyActivity = (currencyCode: string) => {
-    if (currencyCode === 'UAH') {
-      onError('UAH is always active.');
+    if (currencyOptions.includes(currencyCode as FinanceCurrency)) {
+      onError('System currencies are configured per cashbox.');
       return;
     }
     setCurrencyActivity((current) => ({
@@ -537,7 +527,7 @@ export const AccountingPanel = ({
     }));
   };
 
-  const toggleCashboxCurrencyActivity = (
+  const toggleCashboxCurrencyActivity = async (
     cashboxId: string,
     currencyCode: string,
   ) => {
@@ -545,16 +535,32 @@ export const AccountingPanel = ({
       onError('UAH is always active.');
       return;
     }
-    setCashboxCurrencyActivity((current) => {
-      const cashboxMap = current[cashboxId] ?? {};
-      return {
-        ...current,
-        [cashboxId]: {
-          ...cashboxMap,
-          [currencyCode]: cashboxMap[currencyCode] === false,
+    if (currencyCode !== 'USD') {
+      onError('Only system currencies can be configured per cashbox.');
+      return;
+    }
+    const cashbox = allCashboxes.find((item) => item.id === cashboxId);
+    if (!cashbox) return;
+    setIsSaving(true);
+    try {
+      await updateCashbox(cashboxId, {
+        enabledCurrencies: {
+          ...cashbox.enabledCurrencies,
+          UAH: true,
+          USD: cashbox.enabledCurrencies?.USD !== true,
         },
-      };
-    });
+      });
+      onSuccess('Cashbox currency settings updated.');
+      await refreshFinance();
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update cashbox currency settings.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCreateCashbox = async () => {

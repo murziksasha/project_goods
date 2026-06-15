@@ -13,6 +13,7 @@ export type CashboxPayload = {
 export type UpdateCashboxPayload = {
   name?: unknown;
   isArchived?: unknown;
+  enabledCurrencies?: unknown;
 };
 
 export type TransactionPayload = {
@@ -62,4 +63,19 @@ export const normalizeDate = (value: unknown) => {
   }
 
   return date;
+};
+
+export const normalizeEnabledCurrencies = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Enabled currencies must be an object.');
+  }
+  const payload = value as Record<string, unknown>;
+  if (payload.UAH === false) {
+    throw new Error('UAH currency cannot be disabled.');
+  }
+
+  return {
+    UAH: true,
+    USD: payload.USD === true,
+  };
 };

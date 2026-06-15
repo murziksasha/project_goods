@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import {
-  accountingCashboxCurrencyActivityStorageKey,
   accountingCashboxOrderStorageKey,
   accountingCurrenciesStorageKey,
   accountingCurrencyActivityStorageKey,
@@ -15,7 +14,6 @@ import {
   getStoredAccountingSettingsOpen,
   getStoredAccountingTab,
   getStoredExpandedFinanceSettingsCard,
-  normalizeCashboxCurrencyActivity,
   normalizeCurrencyActivity,
   type AccountingTab,
   type TransactionTargetMemory,
@@ -24,13 +22,11 @@ import {
 export type FinanceSettingsTab = 'cashboxes' | 'currencies';
 
 type UseAccountingPreferencesOptions = {
-  allCashboxes: Cashbox[];
   cashboxes: Cashbox[];
   isCashboxesOrderHydrated: boolean;
 };
 
 export const useAccountingPreferences = ({
-  allCashboxes,
   cashboxes,
   isCashboxesOrderHydrated,
 }: UseAccountingPreferencesOptions) => {
@@ -83,32 +79,6 @@ export const useAccountingPreferences = ({
         },
         {},
       );
-    } catch {
-      return {};
-    }
-  });
-  const [cashboxCurrencyActivity, setCashboxCurrencyActivity] = useState<
-    Record<string, Record<string, boolean>>
-  >(() => {
-    try {
-      const raw = window.localStorage.getItem(
-        accountingCashboxCurrencyActivityStorageKey,
-      );
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      return Object.entries(parsed).reduce<
-        Record<string, Record<string, boolean>>
-      >((acc, [cashboxId, value]) => {
-        if (!value || typeof value !== 'object') return acc;
-        const currencyMap = value as Record<string, unknown>;
-        acc[cashboxId] = Object.entries(currencyMap).reduce<
-          Record<string, boolean>
-        >((currencyAcc, [code, flag]) => {
-          currencyAcc[code] = Boolean(flag);
-          return currencyAcc;
-        }, {});
-        return acc;
-      }, {});
     } catch {
       return {};
     }
@@ -205,17 +175,6 @@ export const useAccountingPreferences = ({
   }, [allCurrencyCodes]);
 
   useEffect(() => {
-    if (!isCashboxesOrderHydrated) return;
-    setCashboxCurrencyActivity((current) =>
-      normalizeCashboxCurrencyActivity({
-        allCashboxes,
-        allCurrencyCodes,
-        current,
-      }),
-    );
-  }, [allCashboxes, allCurrencyCodes, isCashboxesOrderHydrated]);
-
-  useEffect(() => {
     try {
       window.localStorage.setItem(
         accountingCurrencyActivityStorageKey,
@@ -225,18 +184,6 @@ export const useAccountingPreferences = ({
       // Ignore localStorage write errors.
     }
   }, [currencyActivity]);
-
-  useEffect(() => {
-    if (!isCashboxesOrderHydrated) return;
-    try {
-      window.localStorage.setItem(
-        accountingCashboxCurrencyActivityStorageKey,
-        JSON.stringify(cashboxCurrencyActivity),
-      );
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [cashboxCurrencyActivity, isCashboxesOrderHydrated]);
 
   useEffect(() => {
     try {
@@ -291,7 +238,6 @@ export const useAccountingPreferences = ({
   return {
     activeTab,
     allCurrencyCodes,
-    cashboxCurrencyActivity,
     currencyActivity,
     customCurrencies,
     expandedFinanceSettingsCard,
@@ -299,7 +245,6 @@ export const useAccountingPreferences = ({
     isFinanceSettingsOpen,
     lastTargetCashboxByType,
     setActiveTab,
-    setCashboxCurrencyActivity,
     setCurrencyActivity,
     setCustomCurrencies,
     setExpandedFinanceSettingsCard,

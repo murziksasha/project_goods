@@ -43,7 +43,7 @@ financeRouter.post('/finance/cashboxes', asyncHandler(async (req, res) => {
 
 financeRouter.patch('/finance/cashboxes/:cashboxId', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.cashboxes.manage');
-  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown }));
+  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown; enabledCurrencies?: unknown }));
 }));
 
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {

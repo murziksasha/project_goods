@@ -12,6 +12,7 @@ import {
   normalizeAmount,
   normalizeCurrency,
   normalizeDate,
+  normalizeEnabledCurrencies,
   normalizeName,
   normalizeType,
   type CashboxPayload,
@@ -20,6 +21,8 @@ import {
 } from './normalizers';
 
 const defaultCashboxName = 'Основная';
+
+const defaultEnabledCurrencies = { UAH: true, USD: false };
 
 const accountingBusinessTimeZone = 'Europe/Kiev';
 const transferCancellationDayError =
@@ -43,7 +46,15 @@ const getAccountingBusinessDateKey = (
 
 export const ensureDefaultCashbox = async () => {
   const cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
-  if (cashbox) return cashbox;
+  if (cashbox) {
+    if (!cashbox.enabledCurrencies) {
+      await Cashbox.findByIdAndUpdate(cashbox._id, {
+        $set: { enabledCurrencies: defaultEnabledCurrencies },
+      });
+      return { ...cashbox, enabledCurrencies: defaultEnabledCurrencies };
+    }
+    return cashbox;
+  }
 
   const created = await Cashbox.findOneAndUpdate(
     { name: defaultCashboxName },
@@ -51,8 +62,13 @@ export const ensureDefaultCashbox = async () => {
       $setOnInsert: {
         name: defaultCashboxName,
         balances: { UAH: 0, USD: 0 },
+        enabledCurrencies: defaultEnabledCurrencies,
       },
-      $set: { isDefault: true, isArchived: false },
+      $set: {
+        isDefault: true,
+        isArchived: false,
+        'enabledCurrencies.UAH': true,
+      },
     },
     { upsert: true, returnDocument: 'after', runValidators: true },
   ).lean<CashboxDocument | null>();
@@ -64,8 +80,24 @@ export const ensureDefaultCashbox = async () => {
   return created;
 };
 
+const backfillCashboxEnabledCurrencies = async () => {
+  await Cashbox.updateMany(
+    { enabledCurrencies: { $exists: false } },
+    { $set: { enabledCurrencies: defaultEnabledCurrencies } },
+  );
+  await Cashbox.updateMany(
+    { 'enabledCurrencies.UAH': { $ne: true } },
+    { $set: { 'enabledCurrencies.UAH': true } },
+  );
+  await Cashbox.updateMany(
+    { 'enabledCurrencies.USD': { $exists: false } },
+    { $set: { 'enabledCurrencies.USD': false } },
+  );
+};
+
 export const listCashboxes = async (options: { includeArchived?: boolean } = {}) => {
   await ensureDefaultCashbox();
+  await backfillCashboxEnabledCurrencies();
   const query = options.includeArchived ? {} : { isArchived: false };
   const cashboxes = await Cashbox.find(query)
     .sort({ isDefault: -1, createdAt: 1 })
@@ -83,6 +115,7 @@ export const createCashbox = async (payload: CashboxPayload) => {
   const cashbox = new Cashbox({
     name,
     balances: { UAH: 0, USD: 0 },
+    enabledCurrencies: defaultEnabledCurrencies,
   });
   await cashbox.validate();
   await cashbox.save();
@@ -114,6 +147,9 @@ export const updateCashbox = async (
       throw new Error('Default cashbox cannot be deactivated.');
     }
     patch.isArchived = nextArchived;
+  }
+  if (payload.enabledCurrencies !== undefined) {
+    patch.enabledCurrencies = normalizeEnabledCurrencies(payload.enabledCurrencies);
   }
   if (Object.keys(patch).length === 0) {
     return formatCashbox(existing);
@@ -162,6 +198,32 @@ const applyCashboxDelta = async (
   });
 };
 
+const isCurrencyEnabledForCashbox = (
+  cashbox: CashboxDocument,
+  currency: FinanceCurrency,
+) => currency === 'UAH' || cashbox.enabledCurrencies?.[currency] === true;
+
+const assertCashboxCanAcceptCurrency = (
+  cashbox: CashboxDocument,
+  currency: FinanceCurrency,
+) => {
+  if (!isCurrencyEnabledForCashbox(cashbox, currency)) {
+    throw new Error('Cashbox currency is not enabled for receiving.');
+  }
+};
+
+const assertCashboxCanWithdrawCurrency = (
+  cashbox: CashboxDocument,
+  currency: FinanceCurrency,
+) => {
+  if (
+    !isCurrencyEnabledForCashbox(cashbox, currency) &&
+    (cashbox.balances?.[currency] ?? 0) <= 0
+  ) {
+    throw new Error('Cashbox currency is not available for withdrawal.');
+  }
+};
+
 export const createFinanceTransaction = async (payload: TransactionPayload) => {
   await ensureDefaultCashbox();
 
@@ -182,6 +244,12 @@ export const createFinanceTransaction = async (payload: TransactionPayload) => {
 
   if (type === 'transfer' && fromCashbox?._id.toString() === toCashbox?._id.toString()) {
     throw new Error('Transfer cashboxes must be different.');
+  }
+  if (fromCashbox) {
+    assertCashboxCanWithdrawCurrency(fromCashbox, currency);
+  }
+  if (toCashbox) {
+    assertCashboxCanAcceptCurrency(toCashbox, currency);
   }
 
   if (fromCashbox) {

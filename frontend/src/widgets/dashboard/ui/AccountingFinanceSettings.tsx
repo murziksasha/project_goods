@@ -281,7 +281,9 @@ const CashboxSettingsCard = ({
           <span>{cashbox.isDefault ? 'Active (default)' : 'Active'}</span>
         </label>
         <div className='finance-currency-activity-list'>
-          {allCurrencyCodes.map((currencyCode) => (
+          {allCurrencyCodes
+            .filter((currencyCode) => currencyCode === 'UAH' || currencyCode === 'USD')
+            .map((currencyCode) => (
             <CashboxCurrencyToggle
               key={`cashbox-currency-${cashbox.id}-${currencyCode}`}
               cashbox={cashbox}
@@ -461,7 +463,8 @@ const CurrencySettings = ({
             const hasFundsInActiveCashboxes = allCashboxes.some(
               (cashbox) => !cashbox.isArchived && getCurrencyBalance(cashbox, currency) > 0,
             );
-            const isRemovableCurrency = currency !== 'UAH';
+            const isSystemCurrency = currency === 'UAH' || currency === 'USD';
+            const isRemovableCurrency = !isSystemCurrency;
             const canRemove = isRemovableCurrency && !hasFundsInActiveCashboxes;
 
             return (
@@ -469,19 +472,19 @@ const CurrencySettings = ({
                 <label className='field-inline finance-currency-activity-toggle'>
                   <input
                     type='checkbox'
-                    checked={isActive}
-                    disabled={currency === 'UAH'}
+                    checked={isSystemCurrency || isActive}
+                    disabled={isSystemCurrency}
                     onChange={() => onToggleCurrencyActivity(currency)}
                   />
                   <span>{currency}</span>
                   <span
                     className={
-                      isActive
+                      isSystemCurrency || isActive
                         ? 'finance-currency-activity-badge'
                         : 'finance-currency-activity-badge finance-currency-activity-badge-off'
                     }
                   >
-                    {isActive ? 'Active' : 'Inactive'}
+                    {isSystemCurrency ? 'Per cashbox' : (isActive ? 'Active' : 'Inactive')}
                   </span>
                 </label>
                 {isRemovableCurrency ? (

@@ -7,6 +7,10 @@ export const formatCashbox = (cashbox: CashboxDocument) => ({
     UAH: cashbox.balances?.UAH ?? 0,
     USD: cashbox.balances?.USD ?? 0,
   },
+  enabledCurrencies: {
+    UAH: true,
+    USD: cashbox.enabledCurrencies?.USD === true,
+  },
   isDefault: cashbox.isDefault,
   isArchived: cashbox.isArchived,
   createdAt: cashbox.createdAt.toISOString(),

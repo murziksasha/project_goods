@@ -56,8 +56,9 @@ http://localhost:5000/api
 
 ## Finance
 
-- `GET /finance/cashboxes` - список касс
+- `GET /finance/cashboxes` - список касс. Cashbox responses include `enabledCurrencies`, for example `{ "UAH": true, "USD": false }`.
 - `POST /finance/cashboxes` - создать кассу
+- `PATCH /finance/cashboxes/:cashboxId` - update cashbox metadata and global per-cashbox currency settings. `UAH` is always enabled; `USD` is disabled by default and can be toggled with `enabledCurrencies.USD`.
 - `GET /finance/transactions` - список финансовых операций
 - `POST /finance/transactions` - создать финансовую операцию
 - `GET /finance/report` - получить финансовый отчет
