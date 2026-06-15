@@ -3702,9 +3702,10 @@
   background: #fff;
   border-left: 1px solid #d4ddea;
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-  gap: 14px;
+  grid-template-rows: auto auto auto auto minmax(72px, 1fr) auto;
+  gap: 12px;
   padding: 16px;
+  overflow: hidden;
 }
 
 .orders-filter-drawer header,
@@ -3739,21 +3740,42 @@
 
 .orders-filter-icons-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .orders-filter-icon-button {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #fff;
-  min-height: 34px;
+  min-height: 32px;
   cursor: pointer;
 }
 
 .orders-filter-icon-button-active {
   border-color: #2d8ae3;
   background: #ecf5ff;
+}
+
+.orders-filter-drawer-preview {
+  display: grid;
+  gap: 7px;
+  color: #546a82;
+  font-size: 0.88rem;
+}
+
+.orders-filter-drawer-preview button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #304f71;
+  padding: 8px 10px;
+  font-weight: 700;
+  text-align: left;
 }
 
 .orders-filter-drawer-list {
