@@ -61,6 +61,7 @@ type CreateOrderCardProps = {
   onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
   onCreated?: (sale: Sale) => void;
   onError: (message: string) => void;
+  onOpenClientCard?: (clientId: string) => void;
 };
 
 export const CreateOrderCard = ({
@@ -75,6 +76,7 @@ export const CreateOrderCard = ({
   onSave,
   onCreated,
   onError,
+  onOpenClientCard,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
     () => initialTab,
@@ -747,23 +749,27 @@ export const CreateOrderCard = ({
               </div>
             ) : null}
             {blacklistClientMatch ? (
-              <section
+              <button
+                type="button"
                 className="create-client-blacklist-warning"
-                role="alert"
-                aria-label="Client is in blacklist"
+                disabled={!onOpenClientCard}
+                aria-label={`Open blacklist client card: ${blacklistClientMatch.name}`}
+                onClick={() => onOpenClientCard?.(blacklistClientMatch.id)}
               >
-                <div>
+                <span className="create-client-blacklist-warning-copy">
                   <strong>Client is in blacklist</strong>
                   <span>
                     {blacklistClientMatch.name} / {blacklistClientMatch.phone}
                   </span>
-                </div>
-                <p>Check client card before creating a repair or sale order.</p>
+                </span>
+                <span className="create-client-blacklist-warning-message">
+                  Check client card before creating a repair or sale order.
+                </span>
                 <span className="client-status-badge status-blacklist">
                   blacklist
                 </span>
                 <span className="visually-hidden">{blacklistClientWarning}</span>
-              </section>
+              </button>
             ) : null}
 
             {activeTab === 'sale' ? (

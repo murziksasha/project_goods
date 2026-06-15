@@ -5634,6 +5634,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px 12px;
   align-items: center;
+  width: 100%;
   margin-top: 10px;
   margin-bottom: 4px;
   padding: 10px 12px;
@@ -5642,9 +5643,25 @@
   border-radius: 8px;
   background: #fff5f5;
   color: #8f1d1d;
+  text-align: left;
+  cursor: pointer;
 }
 
-.create-client-blacklist-warning div {
+.create-client-blacklist-warning:hover:not(:disabled) {
+  background: #ffecec;
+  border-color: #ef7c7c;
+}
+
+.create-client-blacklist-warning:focus-visible {
+  outline: 3px solid rgba(239, 68, 68, 0.24);
+  outline-offset: 2px;
+}
+
+.create-client-blacklist-warning:disabled {
+  cursor: default;
+}
+
+.create-client-blacklist-warning-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -5654,13 +5671,13 @@
   font-size: 0.96rem;
 }
 
-.create-client-blacklist-warning div span,
-.create-client-blacklist-warning p {
+.create-client-blacklist-warning-copy span,
+.create-client-blacklist-warning-message {
   color: #a13b3b;
   font-size: 0.9rem;
 }
 
-.create-client-blacklist-warning p {
+.create-client-blacklist-warning-message {
   grid-column: 1 / -1;
 }
 

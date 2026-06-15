@@ -894,6 +894,7 @@ export const DashboardPage = () => {
                   onSave={actions.saveOrderRequest}
                   onCreated={openCreatedOrder}
                   onError={actions.showError}
+                  onOpenClientCard={openClientCardFromOrders}
               />
             ) : (
               effectiveOrdersTab === 'supplierOrders' ||

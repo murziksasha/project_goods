@@ -8,5 +8,6 @@
 - `blacklist` is a manual priority client status and must not be replaced by automatic visit-based status logic.
 - Clients list rows with `blacklist` status must be visually marked with a red warning treatment and the `blacklist` badge.
 - Client lookup suggestions in order creation must visually mark `blacklist` clients before the operator selects them.
+- The blacklist warning in order creation must open the matched client card when clicked, so the operator can inspect the note/reason.
 - `blacklist` is a warning state, not a hard validation block: creating repair and sale orders remains allowed.
 

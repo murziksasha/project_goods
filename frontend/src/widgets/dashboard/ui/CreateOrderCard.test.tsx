@@ -115,7 +115,11 @@ Object.defineProperty(window, 'localStorage', {
   configurable: true,
 });
 
-const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(async () => null)) =>
+const renderCreateOrderCard = (
+  initialTab: 'repair' | 'sale',
+  onSave = vi.fn(async () => null),
+  onOpenClientCard = vi.fn(),
+) =>
   render(
     <CreateOrderCard
       isSaving={false}
@@ -128,6 +132,7 @@ const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(asy
       onClose={vi.fn()}
       onSave={onSave}
       onError={vi.fn()}
+      onOpenClientCard={onOpenClientCard}
     />,
 );
 
@@ -346,10 +351,13 @@ describe('CreateOrderCard', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    const warning = screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    });
+    expect(warning).toHaveTextContent(
       'Client is in blacklist',
     );
-    expect(screen.getByRole('alert')).toHaveTextContent('Risk Client');
+    expect(warning).toHaveTextContent('Risk Client');
     expect(screen.getAllByText('blacklist').length).toBeGreaterThanOrEqual(2);
   });
 
@@ -374,12 +382,51 @@ describe('CreateOrderCard', () => {
       vi.advanceTimersByTime(350);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Risk Client/ }));
+    fireEvent.click(
+      screen
+        .getAllByRole('button', { name: /Risk Client/ })
+        .find((button) =>
+          button.classList.contains('create-suggestion-item'),
+        )!,
+    );
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    })).toHaveTextContent(
       'Client is in blacklist',
     );
     expect(screen.getByPlaceholderText('Full name')).toHaveValue('Risk Client');
+  });
+
+  it('opens the selected blacklist client card from the warning notice', async () => {
+    vi.useFakeTimers();
+    const onOpenClientCard = vi.fn();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair', vi.fn(async () => null), onOpenClientCard);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Open blacklist client card: Risk Client/,
+      }),
+    );
+
+    expect(onOpenClientCard).toHaveBeenCalledWith('client-blacklist');
   });
 
   it('shows a blacklist warning on the sales order tab', async () => {
@@ -403,7 +450,9 @@ describe('CreateOrderCard', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    })).toHaveTextContent(
       'Client is in blacklist',
     );
   });
@@ -429,7 +478,11 @@ describe('CreateOrderCard', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: /Open blacklist client card/,
+      }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('blacklist')).not.toBeInTheDocument();
   });
 
