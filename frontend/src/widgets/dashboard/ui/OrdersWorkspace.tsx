@@ -1162,6 +1162,13 @@ export const OrdersWorkspace = ({
     setOpenStatusSaleId(null);
   };
 
+  const closeSelectedSaleCard = useCallback(() => {
+    setSelectedSaleId(null);
+    onSelectedSaleIdChange?.(null);
+    onExternalSaleOpenHandled?.();
+    setOpenStatusSaleId(null);
+  }, [onExternalSaleOpenHandled, onSelectedSaleIdChange]);
+
   useEffect(() => {
     if (!externalSelectedSaleId) return;
 
@@ -1952,6 +1959,7 @@ export const OrdersWorkspace = ({
           ? currentEmployee?.id
           : '',
       });
+      setPaymentSale(null);
       onSaleUpdate(updatedSale);
       if (action !== 'issueWithoutPayment') {
         setCashboxes(await getCashboxes());
@@ -1969,10 +1977,8 @@ export const OrdersWorkspace = ({
               ? 'Order issued without repair successfully.'
               : 'Order issued successfully.',
       );
-      setPaymentSale(null);
       if (action === 'depositAndIssue' || action === 'issueWithoutPayment') {
-        setSelectedSaleId(null);
-        onSelectedSaleIdChange?.(null);
+        closeSelectedSaleCard();
       }
     } catch (error) {
       onError(
@@ -2306,10 +2312,7 @@ export const OrdersWorkspace = ({
           canAddComment={canChatInOrders}
           canAcceptPayment={canAcceptFinanceDeposit}
           canRefundPayment={canCreateFinanceWithdraw}
-          onClose={() => {
-            setSelectedSaleId(null);
-            onSelectedSaleIdChange?.(null);
-          }}
+          onClose={closeSelectedSaleCard}
           onAddComment={(comment) =>
             addComment(selectedSale, comment)
           }
