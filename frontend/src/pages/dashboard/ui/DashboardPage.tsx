@@ -937,6 +937,7 @@ export const DashboardPage = () => {
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
                   onSelectedSaleIdChange={setUrlSelectedSaleId}
                   onOpenClientCard={openClientCardFromOrders}
+                  clientDevices={state.clientDevices}
                   catalogProducts={state.catalogProducts}
                   printForms={state.settings?.printForms ?? state.settingsForm.printForms}
                   printCompanySettings={{
@@ -952,6 +953,7 @@ export const DashboardPage = () => {
                     companySite:
                       state.settings?.companySite ?? state.settingsForm.companySite,
                   }}
+                  onCreateClientDevice={actions.createClientDeviceCard}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />
               )

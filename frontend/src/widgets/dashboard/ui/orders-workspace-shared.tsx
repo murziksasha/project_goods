@@ -19,6 +19,7 @@ import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import type { ClientDevice, ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   customLabelSizePresetId,
@@ -53,9 +54,11 @@ export type OrdersWorkspaceProps = {
   onSelectedSaleIdChange?: (saleId: string | null) => void;
   onOpenClientCard: (clientId: string) => void;
   products: Product[];
+  clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
   printForms: PrintForm[];
   printCompanySettings: PrintCompanySettings;
+  onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
 };
 

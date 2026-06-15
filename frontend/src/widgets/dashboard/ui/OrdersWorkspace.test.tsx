@@ -129,6 +129,7 @@ const renderWorkspace = (
       onSuccess={vi.fn()}
       onOpenClientCard={vi.fn()}
       products={[]}
+      clientDevices={[]}
       catalogProducts={[]}
       printForms={[]}
       printCompanySettings={{
@@ -140,6 +141,7 @@ const renderWorkspace = (
         companyEmail: '',
         companySite: '',
       }}
+      onCreateClientDevice={vi.fn(async () => true)}
       onUpdateProductModel={vi.fn(async () => true)}
       {...props}
     />,
@@ -349,6 +351,7 @@ describe('OrdersWorkspace', () => {
         onSuccess={vi.fn()}
         onOpenClientCard={vi.fn()}
         products={[]}
+        clientDevices={[]}
         catalogProducts={[]}
         printForms={[]}
         printCompanySettings={{
@@ -360,12 +363,71 @@ describe('OrdersWorkspace', () => {
           companyEmail: '',
           companySite: '',
         }}
+        onCreateClientDevice={vi.fn(async () => true)}
         onUpdateProductModel={vi.fn(async () => true)}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Diagnostics' })).toBeInTheDocument();
     expect(screen.getByText('Fallback device')).toBeInTheDocument();
+  });
+
+  it('saves a replacement repair device through the workspace API', async () => {
+    const onSaleUpdate = vi.fn();
+    const updatedSale: Sale = {
+      ...sale,
+      product: {
+        ...sale.product!,
+        name: 'Replacement device',
+      },
+      timeline: [
+        {
+          id: 'timeline-1',
+          author: 'Manager',
+          message: 'Manager updated order main information.',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    vi.mocked(updateSaleWorkspace).mockResolvedValueOnce(updatedSale);
+
+    renderWorkspace({
+      sales: [sale],
+      onSaleUpdate,
+      clientDevices: [
+        {
+          id: 'device-2',
+          clientId: 'client-1',
+          clientName: 'Client',
+          clientPhone: '+380000000000',
+          name: 'Replacement device',
+          serialNumber: '',
+          note: '',
+          source: 'repairOrder',
+          isActive: true,
+          canRemove: true,
+          usageCount: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    fireEvent.click(await screen.findByLabelText('Change device'));
+    fireEvent.click(screen.getByRole('button', { name: /Replacement device/ }));
+    fireEvent.click(screen.getByText('Save changes'));
+
+    await waitFor(() => {
+      expect(updateSaleWorkspace).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          deviceName: 'Replacement device',
+          serialNumber: '',
+        }),
+      );
+      expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
+    });
   });
 
   it('accepts sale payment through sale API instead of raw finance transaction API', async () => {

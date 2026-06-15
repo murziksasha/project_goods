@@ -2452,8 +2452,110 @@
   overflow-wrap: anywhere;
 }
 
+.order-detail-device-button {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #4d637a;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-detail-device-button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-device-button small {
+  color: #2d7dca;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.order-detail-device-button:hover small {
+  text-decoration: underline;
+}
+
+.order-detail-device-button:disabled {
+  cursor: default;
+}
+
+.order-detail-device-button:disabled small {
+  color: #9aa8b7;
+  text-decoration: none;
+}
+
 .order-detail-master-select {
   width: 100%;
+}
+
+.order-device-change-modal {
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.order-device-change-body {
+  display: grid;
+  gap: 14px;
+}
+
+.order-device-options {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  min-width: 0;
+}
+
+.order-device-options p {
+  margin: 0;
+  color: #7b8da3;
+}
+
+.order-device-option {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d4dce6;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #4d637a;
+  padding: 10px 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-device-option:hover {
+  border-color: #91bdea;
+  background: #eef6ff;
+}
+
+.order-device-option strong,
+.order-device-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-device-option strong {
+  color: #123d68;
+}
+
+.order-device-option span {
+  color: #7b8da3;
+  font-size: 0.9rem;
+}
+
+.order-device-clear-serial {
+  margin: 0;
 }
 
 .order-line-item-serials {

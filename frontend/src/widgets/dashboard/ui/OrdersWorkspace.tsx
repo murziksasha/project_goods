@@ -22,11 +22,6 @@ import {
   updateSaleFavorite,
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
-import {
-  createClientDevice,
-  getClientDevices,
-  updateClientDevice,
-} from '../../../entities/client-device/api/clientDeviceApi';
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Cashbox } from '../../../entities/finance/model/types';
@@ -161,9 +156,11 @@ export const OrdersWorkspace = ({
   onSelectedSaleIdChange,
   onOpenClientCard,
   products,
+  clientDevices,
   catalogProducts,
   printForms,
   printCompanySettings,
+  onCreateClientDevice,
   onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const currentEmployeeName =
@@ -2177,6 +2174,7 @@ export const OrdersWorkspace = ({
   const saveOrderMainInfo = async (
     sale: Sale,
     payload: {
+      deviceName: string;
       serialNumber: string;
       masterId: string;
       status: OrderStatus;
@@ -2227,7 +2225,7 @@ export const OrdersWorkspace = ({
       await persistSaleWorkspace(sale, {
         status: payload.status,
         masterId: payload.masterId,
-        deviceName: getPrimaryDeviceName(sale),
+        deviceName: payload.deviceName,
         serialNumber: payload.serialNumber,
         issuedById:
           shouldAssignIssuedBy && currentEmployee?.id
@@ -2235,47 +2233,6 @@ export const OrdersWorkspace = ({
             : '',
         timeline,
       });
-
-      if (isRepairOrder(sale)) {
-        const normalizedOldDeviceName = getPrimaryDeviceName(sale)
-          .trim()
-          .toLowerCase();
-        const probeQuery =
-          getPrimaryDeviceName(sale).trim() || sale.client.phone;
-        const allDevices = await getClientDevices(probeQuery);
-        const linkedDevice = allDevices.find((device) => {
-          if (device.clientId !== sale.client.id) return false;
-          return (
-            device.name.trim().toLowerCase() ===
-            normalizedOldDeviceName
-          );
-        });
-
-        if (linkedDevice) {
-          await updateClientDevice(linkedDevice.id, {
-            clientId: sale.client.id,
-            clientName: sale.client.name,
-            clientPhone: sale.client.phone,
-            name: getPrimaryDeviceName(sale),
-            serialNumber: '',
-            note: linkedDevice.note ?? '',
-            source: linkedDevice.source,
-            isActive: linkedDevice.isActive,
-            expectedUpdatedAt: linkedDevice.updatedAt,
-          });
-        } else if (getPrimaryDeviceName(sale).trim().length >= 2) {
-          await createClientDevice({
-            clientId: sale.client.id,
-            clientName: sale.client.name,
-            clientPhone: sale.client.phone,
-            name: getPrimaryDeviceName(sale),
-            serialNumber: '',
-            note: '',
-            source: 'repairOrder',
-            isActive: true,
-          });
-        }
-      }
 
       onSuccess('Order main information updated.');
     } catch (error) {
@@ -2300,6 +2257,7 @@ export const OrdersWorkspace = ({
           comments={selectedSale.timeline ?? []}
           lineItems={getLineItems(selectedSale)}
           products={products}
+          clientDevices={clientDevices}
           catalogProducts={catalogProducts}
           paidAmount={getPaidAmount(selectedSale)}
           isReadOnly={
@@ -2356,6 +2314,7 @@ export const OrdersWorkspace = ({
             onOpenClientCard(selectedSale.client.id)
           }
           onSupplierOrderCreated={loadSupplierOrders}
+          onCreateClientDevice={onCreateClientDevice}
           onUpdateProductModel={onUpdateProductModel}
           onError={onError}
           onSuccess={onSuccess}
