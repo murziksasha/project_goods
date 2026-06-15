@@ -12,6 +12,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../shared/lib/format';
 import { parseMoney } from '../../../shared/lib/decimal';
+import { normalizePhone } from '../../../shared/lib/phoneFormatter';
 import { getCashboxes } from '../../../entities/finance/api/financeApi';
 import {
   acceptSalePayment as acceptSalePaymentRequest,
@@ -346,6 +347,7 @@ export const OrdersWorkspace = ({
 
   const filteredOrders = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
+    const queryPhone = normalizePhone(searchValue);
     const sortedTabSales = [...tabSales].sort(
       (firstSale, secondSale) =>
         getCreatedTime(secondSale) - getCreatedTime(firstSale),
@@ -354,6 +356,7 @@ export const OrdersWorkspace = ({
       .trim()
       .toLowerCase();
     const clientValue = appliedFilters.client.trim().toLowerCase();
+    const clientPhoneValue = normalizePhone(appliedFilters.client);
     const productValue = appliedFilters.product.trim().toLowerCase();
     const serviceValue = appliedFilters.service.trim().toLowerCase();
 
@@ -375,11 +378,17 @@ export const OrdersWorkspace = ({
               sale.manager?.name ?? '',
               sale.issuedBy?.name ?? '',
             ];
+      const salePhone = normalizePhone(sale.client.phone);
+      const matchesPhoneQuery =
+        Boolean(queryPhone) && salePhone.includes(queryPhone);
+      const matchesClientPhoneFilter =
+        Boolean(clientPhoneValue) && salePhone.includes(clientPhoneValue);
 
       if (
         query &&
         !(
           String(orderNumber).includes(query) ||
+          matchesPhoneQuery ||
           searchValues.some((value) =>
             value.toLowerCase().includes(query),
           )
@@ -395,11 +404,14 @@ export const OrdersWorkspace = ({
       }
       if (
         clientValue &&
-        ![
-          sale.client.name,
-          sale.client.phone,
-          String(orderNumber),
-        ].some((value) => value.toLowerCase().includes(clientValue))
+        !(
+          [
+            sale.client.name,
+            sale.client.phone,
+            String(orderNumber),
+          ].some((value) => value.toLowerCase().includes(clientValue)) ||
+          matchesClientPhoneFilter
+        )
       ) {
         return false;
       }
@@ -1877,6 +1889,10 @@ export const OrdersWorkspace = ({
               : 'Order issued successfully.',
       );
       setPaymentSale(null);
+      if (action === 'depositAndIssue' || action === 'issueWithoutPayment') {
+        setSelectedSaleId(null);
+        onSelectedSaleIdChange?.(null);
+      }
     } catch (error) {
       onError(
         error instanceof Error
