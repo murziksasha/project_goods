@@ -123,6 +123,12 @@ export const SavedFiltersPanel = ({
                 ))}
               </div>
             </div>
+            <div className='orders-filter-drawer-preview'>
+              <span>Preview</span>
+              <button type='button' disabled>
+                {`${newFilterIcon} ${newFilterName.trim() || 'My filter'}`}
+              </button>
+            </div>
             <div className='orders-filter-drawer-list'>
               <span>Your saved filters</span>
               {items.length > 0 ? (

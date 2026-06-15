@@ -338,6 +338,25 @@
     width: 100%;
   }
 
+  .warehouse-search-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
+    min-height: 44px;
+    overflow: visible;
+  }
+
+  .warehouse-search-group input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    padding: 9px 34px 9px 12px;
+  }
+
   .orders-filter-grid {
     grid-template-columns: 1fr;
   }
@@ -349,6 +368,10 @@
 
   .orders-filter-save-button {
     justify-self: stretch;
+  }
+
+  .orders-filter-icons-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .orders-filter-actions {
@@ -530,6 +553,16 @@
     justify-content: flex-start;
   }
 
+  .catalog-table-services td[data-label='Select'] {
+    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .catalog-table-services td[data-label='Select'] input {
+    justify-self: start;
+    margin: 0;
+  }
+
   .finance-transactions-table .finance-day-separator-row {
     border: 0;
     border-radius: 0;
@@ -676,6 +709,74 @@
   .finance-add-cashbox input,
   .finance-add-cashbox button {
     width: 100%;
+  }
+
+  .finance-cashbox-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-cashbox-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .finance-cashbox-heading {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .finance-cashbox-heading h3 {
+    min-width: 0;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .finance-cashbox-balances {
+    justify-items: stretch;
+  }
+
+  .finance-cashbox-balance-row {
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .finance-cashbox-card strong,
+  .finance-cashbox-card p,
+  .finance-cashbox-balance-row strong {
+    text-align: left;
+  }
+
+  .finance-cashbox-actions,
+  .finance-cashbox-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-operation-panel,
+  .finance-operation-grid,
+  .finance-operation-grid .field,
+  .finance-operation-grid .number-stepper,
+  .finance-operation-grid input,
+  .finance-operation-grid select,
+  .finance-operation-grid button {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .finance-operation-panel {
+    overflow: hidden;
+  }
+
+  .finance-operation-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .finance-wide-report {
