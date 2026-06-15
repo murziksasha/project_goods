@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getProducts } from '../../../entities/product/api/productApi';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { OrderDetailCard } from './OrderDetailCard';
 import {
@@ -115,6 +116,7 @@ const renderCard = ({
   products = [product()],
   catalogProducts = [catalogProduct()],
   onAddLineItem = vi.fn(),
+  onReplaceLineItem = vi.fn(),
   onUpdateLineItem = vi.fn(),
   onRemoveLineItem = vi.fn(),
   onDiscountChange = vi.fn(),
@@ -131,6 +133,11 @@ const renderCard = ({
   products?: Product[];
   catalogProducts?: CatalogProduct[];
   onAddLineItem?: (item: Omit<OrderLineItem, 'id'>) => void;
+  onReplaceLineItem?: (
+    itemId: string,
+    itemIndex: number | undefined,
+    nextItems: Omit<OrderLineItem, 'id'>[],
+  ) => void;
   onUpdateLineItem?: (
     itemId: string,
     itemIndex: number | undefined,
@@ -190,7 +197,7 @@ const renderCard = ({
       onClose={vi.fn()}
       onAddComment={vi.fn()}
       onAddLineItem={onAddLineItem}
-      onReplaceLineItem={vi.fn()}
+      onReplaceLineItem={onReplaceLineItem}
       onRemoveLineItem={onRemoveLineItem}
       onUpdateLineItem={onUpdateLineItem}
       onReturnLineItem={vi.fn()}
@@ -273,6 +280,70 @@ describe('OrderDetailCard product entry', () => {
         warrantyPeriod: 0,
         serialNumbers: ['S000003'],
       }),
+    );
+  });
+
+  it('binds selected serials without showing the manual serial textarea', async () => {
+    const onReplaceLineItem = vi.fn();
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000003' }),
+      product({ id: 'product-2', serialNumber: 'S000004' }),
+    ];
+    vi.mocked(getProducts).mockResolvedValue(stockProducts);
+
+    const { container } = renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      onReplaceLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
+
+    expect(await screen.findByText('[ ] S000003')).toBeInTheDocument();
+    expect(screen.getByText('[ ] S000004')).toBeInTheDocument();
+    expect(container.querySelector('.serial-bind-modal textarea')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000003/i }));
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
+    expect(screen.getByText('Selected: 2')).toBeInTheDocument();
+
+    const selectedRemoveButton = container.querySelector<HTMLButtonElement>(
+      '.serial-bind-selected-item .line-item-remove-button',
+    );
+    expect(selectedRemoveButton).not.toBeNull();
+    fireEvent.click(selectedRemoveButton!);
+    expect(screen.getByText('Selected: 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selected' }));
+    expect(screen.queryByText('Selected: 1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onReplaceLineItem).toHaveBeenCalledWith(
+      'line-item-1',
+      undefined,
+      [
+        expect.objectContaining({
+          kind: 'product',
+          productId: 'product-2',
+          name: 'TerraE 30E INR18650 2900mAh',
+          quantity: 1,
+          serialNumbers: ['S000004'],
+        }),
+      ],
     );
   });
 

@@ -470,10 +470,12 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Accept to cashbox' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.getByLabelText('Sale card')).toBeInTheDocument();
   });
 
   it('opens repair card payment as issue flow from Accept payment', async () => {
     const onSaleUpdate = vi.fn();
+    const onSelectedSaleIdChange = vi.fn();
     const issuedSale: Sale = {
       ...sale,
       status: 'issued',
@@ -517,6 +519,7 @@ describe('OrdersWorkspace', () => {
         ],
       },
       onSaleUpdate,
+      onSelectedSaleIdChange,
     });
 
     const orderLink = screen.getByRole('link', { name: /r000001/i });
@@ -548,10 +551,13 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Accept and issue' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
   });
 
   it('closes payment modal after successful issue without payment', async () => {
     const onSaleUpdate = vi.fn();
+    const onSelectedSaleIdChange = vi.fn();
     const issuedSale: Sale = {
       ...sale,
       status: 'issued',
@@ -585,6 +591,7 @@ describe('OrdersWorkspace', () => {
         ],
       },
       onSaleUpdate,
+      onSelectedSaleIdChange,
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
@@ -610,6 +617,49 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Issue without payment' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('matches top search by normalized client phone digits', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '095 289 82 07',
+          },
+        },
+      ],
+      searchValue: '0952898207',
+    });
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+  });
+
+  it('matches client filter by normalized client phone digits', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '+380952898207',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    fireEvent.change(screen.getByPlaceholderText('Client name or phone'), {
+      target: { value: '095 289 82 07' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
   });
 
   it('keeps payment modal open when opening print from payment modal', async () => {

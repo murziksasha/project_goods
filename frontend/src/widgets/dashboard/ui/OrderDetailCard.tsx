@@ -2456,75 +2456,73 @@ const LineItemsPanel = ({
           <section className='payment-modal payment-modal-message serial-bind-modal'>
             <div className='serial-bind-modal-scroll'>
               <h3>Bind serial numbers</h3>
-              <p>{`One serial per line, max ${serialsEditingItem.quantity}.`}</p>
+              <p>{`Select up to ${serialsEditingItem.quantity} serials.`}</p>
               <div className='modal-actions'>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() => {
-                  const oldestSerials = availableSerialProducts
-                    .map((product) =>
-                      normalizeSerialNumber(product.serialNumber),
-                    )
-                    .filter(Boolean)
-                    .slice(0, serialsEditingItem.quantity);
-                  setSerialsInput(oldestSerials.join('\n'));
-                }}
-                disabled={
-                  isSerialLookupLoading ||
-                  availableSerialProducts.length === 0
-                }
-              >
-                Auto-select oldest
-              </button>
+                <button
+                  type='button'
+                  className='secondary-button'
+                  onClick={() => {
+                    const oldestSerials = availableSerialProducts
+                      .map((product) =>
+                        normalizeSerialNumber(product.serialNumber),
+                      )
+                      .filter(Boolean)
+                      .slice(0, serialsEditingItem.quantity);
+                    setSerialsInput(oldestSerials.join('\n'));
+                  }}
+                  disabled={
+                    isSerialLookupLoading ||
+                    availableSerialProducts.length === 0
+                  }
+                >
+                  Auto-select oldest
+                </button>
               </div>
               <div className='create-suggestions line-item-suggestions'>
-              {isSerialLookupLoading ? (
-                <p>Loading available serials...</p>
-              ) : null}
-              {!isSerialLookupLoading &&
-              availableSerialProducts.length === 0 ? (
-                <p>No available serials found in stock.</p>
-              ) : null}
-              {availableSerialProducts.map((product) => {
-                const serial = product.serialNumber
-                  .trim()
-                  .toUpperCase();
-                const isSelected = selectedSerials.includes(serial);
-                return (
-                  <button
-                    key={product.id}
-                    type='button'
-                    className='create-suggestion-item'
-                    onClick={() => {
-                      const nextSet = new Set(selectedSerials);
-                      if (nextSet.has(serial)) {
-                        nextSet.delete(serial);
-                      } else if (
-                        nextSet.size < serialsEditingItem.quantity
-                      ) {
-                        nextSet.add(serial);
-                      } else {
-                        onError(
-                          'Serial count cannot exceed line quantity.',
-                        );
-                        return;
-                      }
-                      setSerialsInput(Array.from(nextSet).join('\n'));
-                    }}
-                  >
-                    <strong>
-                      {isSelected ? '[x] ' : '[ ] '}
-                      {serial}
-                    </strong>
-                    <span>
-                      {`Date: ${formatDateTime(
-                        product.purchaseDate ?? product.createdAt,
-                      )}`}
-                    </span>
-                  </button>
-                );
-              })}
+                {isSerialLookupLoading ? (
+                  <p>Loading available serials...</p>
+                ) : null}
+                {!isSerialLookupLoading &&
+                availableSerialProducts.length === 0 ? (
+                  <p>No available serials found in stock.</p>
+                ) : null}
+                {availableSerialProducts.map((product) => {
+                  const serial = normalizeSerialNumber(product.serialNumber);
+                  const isSelected = selectedSerials.includes(serial);
+                  return (
+                    <button
+                      key={product.id}
+                      type='button'
+                      className='create-suggestion-item'
+                      onClick={() => {
+                        const nextSet = new Set(selectedSerials);
+                        if (nextSet.has(serial)) {
+                          nextSet.delete(serial);
+                        } else if (
+                          nextSet.size < serialsEditingItem.quantity
+                        ) {
+                          nextSet.add(serial);
+                        } else {
+                          onError(
+                            'Serial count cannot exceed line quantity.',
+                          );
+                          return;
+                        }
+                        setSerialsInput(Array.from(nextSet).join('\n'));
+                      }}
+                    >
+                      <strong>
+                        {isSelected ? '[x] ' : '[ ] '}
+                        {serial}
+                      </strong>
+                      <span>
+                        {`Date: ${formatDateTime(
+                          product.purchaseDate ?? product.createdAt,
+                        )}`}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               {selectedSerials.length > 0 ? (
                 <div className='modal-actions'>
@@ -2539,11 +2537,11 @@ const LineItemsPanel = ({
                 </div>
               ) : null}
               {selectedSerials.length > 0 ? (
-                <div className='create-suggestions line-item-suggestions'>
+                <div className='serial-bind-selected-list'>
                   {selectedSerials.map((serial) => (
                     <div
                       key={`selected-${serial}`}
-                      className='create-suggestion-item'
+                      className='serial-bind-selected-item'
                     >
                       <strong>{serial}</strong>
                       <button
@@ -2563,12 +2561,6 @@ const LineItemsPanel = ({
                   ))}
                 </div>
               ) : null}
-              <textarea
-                rows={8}
-                value={serialsInput}
-                onChange={(event) => setSerialsInput(event.target.value)}
-                placeholder={'SN-001\nSN-002'}
-              />
             </div>
             <div className='modal-actions serial-bind-modal-footer'>
               <button
@@ -2590,11 +2582,7 @@ const LineItemsPanel = ({
                 type='button'
                 className='primary-button'
                 onClick={() => {
-                  const serials = serialsInput
-                    .split('\n')
-                    .map(normalizeSerialNumber)
-                    .filter(Boolean);
-                  const uniqueSerials = Array.from(new Set(serials));
+                  const uniqueSerials = selectedSerials;
                   if (
                     uniqueSerials.length >
                     serialsEditingItem.quantity
