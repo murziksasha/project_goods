@@ -4959,6 +4959,20 @@
   background: #eef6ff;
 }
 
+.clients-table-row-blacklist {
+  background: #fff3f3;
+  box-shadow: inset 4px 0 0 #ef4444;
+}
+
+.clients-table-row-blacklist.clients-table-row-active {
+  background: #ffe8e8;
+}
+
+.clients-table-row-blacklist .status-blacklist {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+  font-weight: 800;
+}
+
 .clients-delete-button {
   border: 0;
   background: transparent;
@@ -5591,6 +5605,63 @@
 .create-side-list-button span {
   color: #6f8399;
   font-size: 0.9rem;
+}
+
+.create-client-suggestion-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.create-client-suggestion-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-client-suggestion-blacklist {
+  border-color: #f3a4a4;
+  background: #fff7f7;
+}
+
+.create-client-suggestion-blacklist:hover {
+  background: #ffeded;
+}
+
+.create-client-blacklist-warning {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border: 1px solid #f0a3a3;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #8f1d1d;
+}
+
+.create-client-blacklist-warning div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.create-client-blacklist-warning strong {
+  font-size: 0.96rem;
+}
+
+.create-client-blacklist-warning div span,
+.create-client-blacklist-warning p {
+  color: #a13b3b;
+  font-size: 0.9rem;
+}
+
+.create-client-blacklist-warning p {
+  grid-column: 1 / -1;
 }
 
 .supplier-order-modal {

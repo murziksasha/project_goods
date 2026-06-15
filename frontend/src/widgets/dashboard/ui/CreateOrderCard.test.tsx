@@ -60,6 +60,23 @@ const clientDevice = (
   ...patch,
 });
 
+const lookupClient = (patch: {
+  id: string;
+  name: string;
+  phone: string;
+  status?: 'new' | 'vip' | 'opt' | 'blacklist' | 'ok' | '';
+}) => ({
+  email: '',
+  address: '',
+  registrationId: '',
+  iban: '',
+  note: '',
+  status: 'new' as const,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...patch,
+});
+
 const ownerEmployee: Employee = {
   id: 'employee-1',
   name: 'Owner',
@@ -306,6 +323,114 @@ describe('CreateOrderCard', () => {
     });
     expect(createClient).not.toHaveBeenCalled();
     expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
+  });
+
+  it('shows a blacklist warning while typing a matching repair client phone', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Client is in blacklist',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Risk Client');
+    expect(screen.getAllByText('blacklist').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the blacklist warning after selecting a client suggestion', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Risk Client/ }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Client is in blacklist',
+    );
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Risk Client');
+  });
+
+  it('shows a blacklist warning on the sales order tab', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('sale');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Client is in blacklist',
+    );
+  });
+
+  it('does not show a blacklist warning for a regular client suggestion', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-regular',
+        name: 'Regular Client',
+        phone: '+380635567090',
+        status: 'new',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('blacklist')).not.toBeInTheDocument();
   });
 
   it('renders repair device suggestions as a compact selectable list', async () => {

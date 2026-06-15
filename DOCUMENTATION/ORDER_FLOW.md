@@ -4,6 +4,8 @@
 
 - Clicking `Create order` opens the modal.
 - `Client phone` + `Client name` perform lookup in clients.
+- If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
+- The blacklist warning must include the client name/phone and must not prevent saving the repair order.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.

@@ -16,6 +16,11 @@ import {
   buildCreateOrderProductSuggestions,
   type CreateOrderProductSuggestion,
 } from '../model/create-order-products';
+import {
+  findBlacklistClientMatch,
+  getBlacklistClientWarning,
+  isBlacklistClient,
+} from '../model/clients-workspace';
 import { normalizeSerialNumber } from '../model/order-line-serials';
 import {
   createOrderClientRequestsTabStorageKey,
@@ -144,6 +149,20 @@ export const CreateOrderCard = ({
   const shouldShowClientSuggestions =
     !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const blacklistClientMatch = useMemo(() => {
+    if (selectedClient && isBlacklistClient(selectedClient)) {
+      return selectedClient;
+    }
+
+    return findBlacklistClientMatch(
+      clientSuggestions,
+      clientPhone,
+      clientName,
+    );
+  }, [clientName, clientPhone, clientSuggestions, selectedClient]);
+  const blacklistClientWarning = blacklistClientMatch
+    ? getBlacklistClientWarning(blacklistClientMatch)
+    : null;
   const resolvedClientForDeviceCreate = useMemo(() => {
     if (selectedClientId && selectedClient) {
       return selectedClient;
@@ -697,18 +716,54 @@ export const CreateOrderCard = ({
             {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
                 {isClientLookupLoading ? <p>Searching clients...</p> : null}
-                {visibleClientSuggestions.map((client) => (
-                  <button
-                    key={client.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    onClick={() => applyClient(client)}
-                  >
-                    <strong>{client.name}</strong>
-                    <span>{client.phone}</span>
-                  </button>
-                ))}
+                {visibleClientSuggestions.map((client) => {
+                  const isBlacklisted = isBlacklistClient(client);
+                  return (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className={
+                        isBlacklisted
+                          ? 'create-suggestion-item create-client-suggestion-blacklist'
+                          : 'create-suggestion-item'
+                      }
+                      title={
+                        isBlacklisted ? 'Client is in blacklist' : undefined
+                      }
+                      onClick={() => applyClient(client)}
+                    >
+                      <span className="create-client-suggestion-heading">
+                        <strong>{client.name}</strong>
+                        {isBlacklisted ? (
+                          <span className="client-status-badge status-blacklist">
+                            blacklist
+                          </span>
+                        ) : null}
+                      </span>
+                      <span>{client.phone}</span>
+                    </button>
+                  );
+                })}
               </div>
+            ) : null}
+            {blacklistClientMatch ? (
+              <section
+                className="create-client-blacklist-warning"
+                role="alert"
+                aria-label="Client is in blacklist"
+              >
+                <div>
+                  <strong>Client is in blacklist</strong>
+                  <span>
+                    {blacklistClientMatch.name} / {blacklistClientMatch.phone}
+                  </span>
+                </div>
+                <p>Check client card before creating a repair or sale order.</p>
+                <span className="client-status-badge status-blacklist">
+                  blacklist
+                </span>
+                <span className="visually-hidden">{blacklistClientWarning}</span>
+              </section>
             ) : null}
 
             {activeTab === 'sale' ? (

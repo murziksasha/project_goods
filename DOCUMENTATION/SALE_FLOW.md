@@ -4,6 +4,8 @@
 
 - Tab `Sales order` is used to create sale requests.
 - Client lookup is performed by `Client phone` + `Client name`.
+- If the entered phone or exact client name matches a client with status `blacklist`, the sales order form shows a non-blocking warning directly below the client fields.
+- The blacklist warning must include the client name/phone and must not prevent saving the sales order.
 - If client does not exist and valid phone+name are provided, client can be created automatically in the same flow.
 
 ## Sale Items Input Behavior
