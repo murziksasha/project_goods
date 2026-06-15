@@ -157,6 +157,7 @@ export const useDashboardEffects = ({
     setIsServicesLoading,
     setIsProductsLoading,
     setIsSuppliersLoading,
+    setLastSyncAt,
     setServices,
   ]);
 

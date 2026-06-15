@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -82,7 +82,6 @@ import {
   warrantyOptions,
   withSupplierOrderLinkNote,
   writeOrderDetailSectionsState,
-  PrinterIcon,
   type OrderLineItem,
   type OrderLineItemKind,
   type OrderStatus,
@@ -90,6 +89,7 @@ import {
   type RepairStatus,
   type TimelineEntry,
 } from './orders-workspace-shared';
+import { PrinterIcon } from './PrinterIcon';
 type OrderDetailCardProps = {
   sale: Sale;
   sales: Sale[];
@@ -582,9 +582,7 @@ export const OrderDetailCard = ({
           new Date(firstItem.createdAt).getTime(),
       );
   }, [
-    sale.id,
-    sale.recordNumber,
-    sale.client.id,
+    sale,
     saleProductNames,
     supplierOrders,
   ]);
@@ -593,7 +591,7 @@ export const OrderDetailCard = ({
       relatedSupplierOrders.some(
         (order) => isSupplierOrderLinkedToSale(order, sale),
       ),
-    [relatedSupplierOrders, sale.id, sale.recordNumber],
+    [relatedSupplierOrders, sale],
   );
   const relatedSupplierOrderItems = useMemo(
     () =>
@@ -1719,8 +1717,10 @@ const LineItemsPanel = ({
 
     return occupied;
   }, [currentSaleId, sales, serialsEditingItem]);
-  const getProductSuggestionState = (product: Product) =>
-    getProductSerialAvailability(product, serialUsage);
+  const getProductSuggestionState = useCallback(
+    (product: Product) => getProductSerialAvailability(product, serialUsage),
+    [serialUsage],
+  );
   const canRemoveItemAfterPayment = (item: OrderLineItem) =>
     canRemoveLineItemAfterPayment(
       allItems,
@@ -1901,7 +1901,7 @@ const LineItemsPanel = ({
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
   }, [kind]);
 
-  const getCatalogDefaults = (catalogProduct: CatalogProduct) => {
+  const getCatalogDefaults = useCallback((catalogProduct: CatalogProduct) => {
     const matchingStockProduct = products.find(
       (product) =>
         normalizeProductLookupValue(product.name) ===
@@ -1914,7 +1914,7 @@ const LineItemsPanel = ({
         0,
       warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
     };
-  };
+  }, [products]);
 
   useEffect(() => {
     if (
@@ -1969,6 +1969,8 @@ const LineItemsPanel = ({
     return () => window.clearTimeout(timeoutId);
   }, [
     catalogProducts,
+    getCatalogDefaults,
+    getProductSuggestionState,
     kind,
     name,
     products,

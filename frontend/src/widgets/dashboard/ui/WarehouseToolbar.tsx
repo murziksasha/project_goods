@@ -11,7 +11,7 @@ import {
   type WarehouseSearchMode,
   type WarehouseTab,
 } from '../model/warehouse-panel';
-import { PrinterIcon } from './orders-workspace-shared';
+import { PrinterIcon } from './PrinterIcon';
 
 type WarehouseToolbarProps = {
   activeTab: WarehouseTab;

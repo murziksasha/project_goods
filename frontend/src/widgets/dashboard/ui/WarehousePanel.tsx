@@ -505,7 +505,7 @@ export const WarehousePanel = ({
     setServiceCenters(warehouseSettingsQuery.data.serviceCenters);
     setWarehouses(warehouseSettingsQuery.data.warehouses);
     setAdministrators(warehouseSettingsQuery.data.administrators);
-  }, [warehouseSettingsQuery.data]);
+  }, [setServiceCenters, warehouseSettingsQuery.data]);
   useEffect(() => {
     if (!warehouseSettingsQuery.error) return;
     onError(

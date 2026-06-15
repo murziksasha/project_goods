@@ -42,7 +42,7 @@ const getAccountingBusinessDateKey = (
 };
 
 export const ensureDefaultCashbox = async () => {
-  let cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
+  const cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
   if (cashbox) return cashbox;
 
   const created = await Cashbox.findOneAndUpdate(

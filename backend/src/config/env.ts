@@ -12,6 +12,7 @@ export type BackendEnv = {
   backupDir: string;
   backupCreateCommand?: string;
   backupRestoreCommand?: string;
+  backupRestoreUploadLimit: string;
 };
 
 export const parseEnv = (
@@ -24,6 +25,7 @@ export const parseEnv = (
       | 'BACKUP_DIR'
       | 'BACKUP_CREATE_COMMAND'
       | 'BACKUP_RESTORE_COMMAND'
+      | 'BACKUP_RESTORE_UPLOAD_LIMIT'
     >
   >,
 ): BackendEnv => {
@@ -36,6 +38,7 @@ export const parseEnv = (
     backupDir: rawEnv.BACKUP_DIR ?? './backups',
     backupCreateCommand: rawEnv.BACKUP_CREATE_COMMAND,
     backupRestoreCommand: rawEnv.BACKUP_RESTORE_COMMAND,
+    backupRestoreUploadLimit: rawEnv.BACKUP_RESTORE_UPLOAD_LIMIT ?? '10gb',
   };
 };
 

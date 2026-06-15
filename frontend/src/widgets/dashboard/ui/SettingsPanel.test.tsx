@@ -223,6 +223,11 @@ describe('SettingsPanel', () => {
   it('shows backup restore, restore from file, and delete actions', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
+    expect(
+      screen.getByText(
+        'Automatic backup: daily at 15:00 UTC / 18:00 Kyiv time, scheduled copies kept for 14 days.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Restore from file' })).toHaveClass(
       'success-button',
     );

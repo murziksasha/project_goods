@@ -89,7 +89,6 @@ import {
   normalizeOrderStatus,
   orderTabs,
   ordersColumnsStorageKey,
-  PhoneNumber,
   readActiveOrderFilters,
   readSavedOrderFilters,
   readVisibleColumns,
@@ -100,7 +99,6 @@ import {
   stockLockedRepairStatuses,
   stockLockedRepairStatusMessage,
   truncateOrdersCellText,
-  OrderPrintDialog,
   type OrderLineItem,
   type OrderPrintRequest,
   type OrderStatus,
@@ -118,6 +116,8 @@ import {
   type SavedOrdersFilter,
   type TimelineEntry,
 } from './orders-workspace-shared';
+import { OrderPrintDialog } from './OrderPrintDialog';
+import { PhoneNumber } from './PhoneNumber';
 
 const isSaleResponse = (value: unknown): value is Sale => {
   if (typeof value !== 'object' || value === null) return false;
@@ -950,7 +950,7 @@ export const OrdersWorkspace = ({
       }
       return current;
     });
-  }, [paymentSale]);
+  }, [getPaidAmount, paymentSale]);
 
   const selectedSaleStatusOptions = selectedSale
     ? isRepairOrder(selectedSale)

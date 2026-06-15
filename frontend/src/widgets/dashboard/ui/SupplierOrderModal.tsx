@@ -343,8 +343,10 @@ export const SupplierOrderModal = ({
   const selectedTakeOnChargeWarehouse = resolvedWarehouseOptions.find(
     (warehouse) => warehouse.id === takeOnChargeWarehouseId,
   );
-  const selectedTakeOnChargeLocations =
-    selectedTakeOnChargeWarehouse?.locations ?? [];
+  const selectedTakeOnChargeLocations = useMemo(
+    () => selectedTakeOnChargeWarehouse?.locations ?? [],
+    [selectedTakeOnChargeWarehouse],
+  );
   const updateBasketItemQuantity = (
     itemIndex: number,
     quantityValue: string,

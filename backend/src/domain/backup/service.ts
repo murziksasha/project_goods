@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
+import mongoose from 'mongoose';
 import path from 'path';
 import { env } from '../../config/env';
 import { HttpError } from '../../shared/lib/errors';
@@ -31,6 +32,7 @@ type CommandContext = {
 };
 
 type CommandRunner = (command: string, args: string[]) => Promise<void>;
+type DatabaseClearer = (mongoUri: string) => Promise<void>;
 
 type BackupServiceOptions = {
   backupDir?: string;
@@ -38,6 +40,7 @@ type BackupServiceOptions = {
   createCommand?: string;
   restoreCommand?: string;
   runCommand?: CommandRunner;
+  clearDatabase?: DatabaseClearer;
   now?: () => Date;
 };
 
@@ -99,6 +102,28 @@ const runShellCommand = (template: string, context: CommandContext) =>
     });
   });
 
+const clearMongoDatabase: DatabaseClearer = async (mongoUri) => {
+  const connection = mongoose.createConnection(mongoUri, {
+    serverSelectionTimeoutMS: 5000,
+  });
+
+  try {
+    await connection.asPromise();
+    const db = connection.db;
+    if (!db) {
+      throw new Error('MongoDB database connection was not initialized.');
+    }
+    const collections = await db.listCollections().toArray();
+    await Promise.all(
+      collections.map((collection) =>
+        db.dropCollection(collection.name),
+      ),
+    );
+  } finally {
+    await connection.close().catch(() => undefined);
+  }
+};
+
 export const isSafeBackupId = (backupId: string) => backupIdPattern.test(backupId);
 
 const formatTimestamp = (date: Date) => {
@@ -125,6 +150,7 @@ const getOptions = (options: BackupServiceOptions = {}) => ({
   createCommand: options.createCommand ?? env.backupCreateCommand,
   restoreCommand: options.restoreCommand ?? env.backupRestoreCommand,
   runCommand: options.runCommand ?? defaultRunCommand,
+  clearDatabase: options.clearDatabase ?? clearMongoDatabase,
   now: options.now ?? (() => new Date()),
 });
 
@@ -463,6 +489,7 @@ export const restoreBackup = async (
       throw new HttpError(500, 'Safety backup failed. Restore was not started.');
     }
 
+    await resolvedOptions.clearDatabase(resolvedOptions.mongoUri);
     await runRestoreCommand(archivePath, resolvedOptions);
 
     return {
@@ -511,6 +538,7 @@ export const restoreBackupFromUploadedArchive = async (
       throw new HttpError(500, 'Safety backup failed. Restore was not started.');
     }
 
+    await resolvedOptions.clearDatabase(resolvedOptions.mongoUri);
     await runRestoreCommand(archivePath, resolvedOptions);
 
     return {

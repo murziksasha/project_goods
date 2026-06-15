@@ -10,6 +10,7 @@ describe('parseEnv', () => {
       backupDir: './backups',
       backupCreateCommand: undefined,
       backupRestoreCommand: undefined,
+      backupRestoreUploadLimit: '10gb',
     });
   });
 
@@ -22,6 +23,7 @@ describe('parseEnv', () => {
         BACKUP_DIR: '/app/backups',
         BACKUP_CREATE_COMMAND: 'custom-create',
         BACKUP_RESTORE_COMMAND: 'custom-restore',
+        BACKUP_RESTORE_UPLOAD_LIMIT: '5gb',
       }),
     ).toEqual({
       port: 7000,
@@ -30,6 +32,7 @@ describe('parseEnv', () => {
       backupDir: '/app/backups',
       backupCreateCommand: 'custom-create',
       backupRestoreCommand: 'custom-restore',
+      backupRestoreUploadLimit: '5gb',
     });
   });
 

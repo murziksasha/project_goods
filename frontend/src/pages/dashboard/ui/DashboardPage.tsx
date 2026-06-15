@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   acceptInvitation,
   getCurrentEmployee,
@@ -313,7 +313,7 @@ export const DashboardPage = () => {
   const canManageBackups = hasEmployeePermission(currentEmployee, 'system.backups.manage');
   const canManageSettings = canEditSettings || canManageBackups;
   const canEraseAllData = isTemporaryAdmin(currentEmployee);
-  const canAccessPage = (page: PageKey | 'other') => {
+  const canAccessPage = useCallback((page: PageKey | 'other') => {
     if (page === 'other') return false;
     if (page === 'home') return true;
     if (page === 'orders') return canViewOrders;
@@ -324,7 +324,22 @@ export const DashboardPage = () => {
     if (page === 'accounting') return canViewAccounting;
 
     return false;
-  };
+  }, [
+    canManageClients,
+    canManageEmployees,
+    canManageInventory,
+    canManageSettings,
+    canViewAccounting,
+    canViewOrders,
+  ]);
+  const changeOrdersTab = useCallback((tab: OrdersTab) => {
+    if (!availableOrdersTabs.includes(tab)) {
+      actions.showError('Current employee does not have permission to open this tab.');
+      return;
+    }
+    setOrdersTabPreference(tab);
+    setActiveOrdersTab(tab);
+  }, [actions, availableOrdersTabs]);
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -475,7 +490,7 @@ export const DashboardPage = () => {
     }
 
     setDashboardUrl('home', activeOrdersTab, null);
-  }, [currentEmployee, isAuthLoading]);
+  }, [activeOrdersTab, currentEmployee, isAuthLoading]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -487,12 +502,7 @@ export const DashboardPage = () => {
     }
   }, [
     activePage,
-    canManageClients,
-    canManageEmployees,
-    canManageInventory,
-    canManageSettings,
-    canViewAccounting,
-    canViewOrders,
+    canAccessPage,
     isAuthLoading,
   ]);
 
@@ -502,7 +512,13 @@ export const DashboardPage = () => {
     }
 
     changeOrdersTab(fallbackOrdersTab);
-  }, [activeOrdersTab, canViewOrders, fallbackOrdersTab]);
+  }, [
+    activeOrdersTab,
+    availableOrdersTabs,
+    canViewOrders,
+    changeOrdersTab,
+    fallbackOrdersTab,
+  ]);
 
   useEffect(() => {
     const syncPageFromHistory = () => {
@@ -532,15 +548,6 @@ export const DashboardPage = () => {
     }
     setIsCreateOrderOpen(false);
     setUrlSelectedSaleId(null);
-  };
-
-  const changeOrdersTab = (tab: OrdersTab) => {
-    if (!availableOrdersTabs.includes(tab)) {
-      actions.showError('Current employee does not have permission to open this tab.');
-      return;
-    }
-    setOrdersTabPreference(tab);
-    setActiveOrdersTab(tab);
   };
 
   const openCreateOrder = (tab: OrdersTab) => {
