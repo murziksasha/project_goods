@@ -76,6 +76,11 @@ export const saleSchema = new mongoose.Schema(
       default: 0,
       required: true,
     },
+    isFavorite: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
     note: {
       type: String,
       trim: true,

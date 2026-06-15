@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { CompactPaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
   availableWarehouseColumns,
   getWarehouseColumnLabel,
@@ -10,27 +11,33 @@ import {
   type WarehouseSearchMode,
   type WarehouseTab,
 } from '../model/warehouse-panel';
+import { PrinterIcon } from './orders-workspace-shared';
 
 type WarehouseToolbarProps = {
   activeTab: WarehouseTab;
   currentPage: number;
-  pageCount: number;
+  pageSize: number;
   stockSummaryText: string;
+  totalItems: number;
+  selectedProductCount: number;
+  selectedSerialCount: number;
   activeColumnsTab: WarehouseColumnsTab | null;
   columnsMenuRef: RefObject<HTMLDivElement | null>;
   isColumnsMenuOpen: boolean;
   visibleColumnKeySet: Set<string>;
   activeFilterCount: number;
+  favoritesOnly: boolean;
   query: string;
   searchMode: WarehouseSearchMode;
   searchPlaceholder: string;
-  onPreviousPage: () => void;
-  onNextPage: () => void;
+  onPrintSelectedSerials: () => void;
+  onClearSelection: () => void;
   onToggleColumnsMenu: () => void;
   onToggleColumnVisibility: (
     columnKey: StockColumnKey | ReceiptsColumnKey,
   ) => void;
   onToggleFilters: () => void;
+  onToggleFavoritesOnly: () => void;
   setQuery: Dispatch<SetStateAction<string>>;
   setSearchMode: Dispatch<SetStateAction<WarehouseSearchMode>>;
   setCurrentPage: Dispatch<SetStateAction<number>>;
@@ -39,46 +46,65 @@ type WarehouseToolbarProps = {
 export const WarehouseToolbar = ({
   activeTab,
   currentPage,
-  pageCount,
+  pageSize,
   stockSummaryText,
+  totalItems,
+  selectedProductCount,
+  selectedSerialCount,
   activeColumnsTab,
   columnsMenuRef,
   isColumnsMenuOpen,
   visibleColumnKeySet,
   activeFilterCount,
+  favoritesOnly,
   query,
   searchMode,
   searchPlaceholder,
-  onPreviousPage,
-  onNextPage,
+  onPrintSelectedSerials,
+  onClearSelection,
   onToggleColumnsMenu,
   onToggleColumnVisibility,
   onToggleFilters,
+  onToggleFavoritesOnly,
   setQuery,
   setSearchMode,
   setCurrentPage,
 }: WarehouseToolbarProps) => (
   <div className='warehouse-toolbar'>
-    <button
-      type='button'
-      className='toolbar-square-button'
-      aria-label='Previous page'
-      onClick={onPreviousPage}
-      disabled={currentPage <= 1}
-    >
-      &lsaquo;
-    </button>
-    <span className='warehouse-page-number'>{currentPage}</span>
-    <button
-      type='button'
-      className='toolbar-square-button'
-      aria-label='Next page'
-      onClick={onNextPage}
-      disabled={currentPage >= pageCount}
-    >
-      &rsaquo;
-    </button>
+    <CompactPaginationPanel
+      totalItems={totalItems}
+      page={currentPage}
+      pageSize={pageSize}
+      onPageChange={setCurrentPage}
+    />
     <span className='warehouse-stock-count'>{stockSummaryText}</span>
+    {activeTab === 'stock' ? (
+      <>
+        <button
+          type='button'
+          className='toolbar-square-button order-print-icon-button warehouse-toolbar-print-button'
+          aria-label='Print selected serial numbers'
+          title={
+            selectedSerialCount > 0
+              ? `Print ${selectedSerialCount} selected serial numbers`
+              : 'Select stock rows with serial numbers to print'
+          }
+          onClick={onPrintSelectedSerials}
+          disabled={selectedSerialCount === 0}
+        >
+          <PrinterIcon />
+        </button>
+        {selectedProductCount > 0 ? (
+          <button
+            type='button'
+            className='toolbar-filter-button warehouse-selection-clear-button'
+            onClick={onClearSelection}
+          >
+            {`${selectedProductCount} selected`}
+          </button>
+        ) : null}
+      </>
+    ) : null}
     {activeColumnsTab ? (
       <div className='toolbar-settings' ref={columnsMenuRef}>
         <button
@@ -121,6 +147,27 @@ export const WarehouseToolbar = ({
           </div>
         ) : null}
       </div>
+    ) : null}
+    {activeTab === 'receipts' ? (
+      <button
+        type='button'
+        className={
+          favoritesOnly
+            ? 'toolbar-square-button toolbar-star-button toolbar-star-button-active'
+            : 'toolbar-square-button toolbar-star-button'
+        }
+        aria-label={
+          favoritesOnly
+            ? 'Show all receipt orders'
+            : 'Show starred receipt orders'
+        }
+        aria-pressed={favoritesOnly}
+        onClick={onToggleFavoritesOnly}
+      >
+        <span className='supplier-order-star-icon' aria-hidden='true'>
+          {favoritesOnly ? '★' : '☆'}
+        </span>
+      </button>
     ) : null}
     <button
       type='button'

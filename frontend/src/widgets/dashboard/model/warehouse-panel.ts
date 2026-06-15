@@ -20,7 +20,12 @@ import type {
   StockWarehouseMeta,
 } from './stock-balance';
 
-export type WarehouseTab = 'stock' | 'receipts' | 'transfers' | 'settings';
+export type WarehouseTab =
+  | 'stock'
+  | 'receipts'
+  | 'transfers'
+  | 'information'
+  | 'settings';
 export type WarehouseColumnsTab = 'stock' | 'receipts';
 export type StockColumnKey =
   | 'select'
@@ -146,7 +151,7 @@ export type WarehouseFormState = {
   serviceCenterId: string;
   receiptAddress: string;
   receiptPhone: string;
-  locations: string[];
+  locations: WarehouseLocation[];
 };
 export type ProductWarehouseMeta = StockWarehouseMeta;
 export type TransferFormState = {
@@ -219,6 +224,7 @@ export const tabs: Array<{
   { key: 'stock', label: 'Stock balances' },
   { key: 'receipts', label: 'Receipts' },
   { key: 'transfers', label: 'Transfers' },
+  { key: 'information', label: 'Information' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -386,7 +392,9 @@ export const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
   serviceCenterId: w?.serviceCenterId ?? '',
   receiptAddress: w?.receiptAddress ?? '',
   receiptPhone: w?.receiptPhone ?? '',
-  locations: w?.locations.map((x) => x.name) ?? [''],
+  locations: w?.locations.map((x) => ({ ...x })) ?? [
+    { id: `l-draft-${Date.now()}`, name: '' },
+  ],
 });
 
 export const normalizeProductName = (value: string) =>

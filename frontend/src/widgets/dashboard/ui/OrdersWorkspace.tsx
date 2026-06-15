@@ -19,6 +19,7 @@ import {
   refundSalePayment as refundSalePaymentRequest,
   returnSale as returnSaleRequest,
   returnSaleLineItemToStock,
+  updateSaleFavorite,
   updateSaleWorkspace,
 } from '../../../entities/sale/api/saleApi';
 import {
@@ -29,7 +30,10 @@ import {
 import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Cashbox } from '../../../entities/finance/model/types';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import {
   MessageModal,
   PaymentModal,
@@ -260,8 +264,8 @@ export const OrdersWorkspace = ({
   >({
     orders: 30,
     sales: 30,
-    supplierOrders: 10,
-    supplierInformation: 10,
+    supplierOrders: 30,
+    supplierInformation: 30,
   });
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
@@ -341,7 +345,8 @@ export const OrdersWorkspace = ({
       (appliedFilters.dateFrom ? 1 : 0) +
       (appliedFilters.dateTo ? 1 : 0) +
       (appliedFilters.product.trim() ? 1 : 0) +
-      (appliedFilters.service.trim() ? 1 : 0),
+      (appliedFilters.service.trim() ? 1 : 0) +
+      (appliedFilters.favoritesOnly ? 1 : 0),
     [appliedFilters],
   );
 
@@ -384,6 +389,12 @@ export const OrdersWorkspace = ({
       const matchesClientPhoneFilter =
         Boolean(clientPhoneValue) && salePhone.includes(clientPhoneValue);
 
+      if (
+        appliedFilters.favoritesOnly &&
+        sale.isFavorite !== true
+      ) {
+        return false;
+      }
       if (
         query &&
         !(
@@ -480,6 +491,53 @@ export const OrdersWorkspace = ({
       return true;
     });
   }, [activeTab, appliedFilters, searchValue, tabSales]);
+
+  const canManageOrderFavorite = (sale: Sale) =>
+    sale.kind === 'sale'
+      ? hasEmployeePermission(currentEmployee, 'sales.manage')
+      : hasEmployeePermission(currentEmployee, 'orders.manage');
+
+  const toggleFavoritesOnly = () => {
+    const nextFilters = {
+      ...appliedFilters,
+      favoritesOnly: !appliedFilters.favoritesOnly,
+    };
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setStoredActiveFilters((current) => ({
+      ...current,
+      [activeTab]: nextFilters,
+    }));
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+  };
+
+  const toggleOrderFavorite = async (sale: Sale) => {
+    if (!canManageOrderFavorite(sale)) {
+      onError(
+        sale.kind === 'sale'
+          ? 'Current employee does not have permission to manage sales.'
+          : 'Current employee does not have permission to manage orders.',
+      );
+      return;
+    }
+
+    const nextIsFavorite = !sale.isFavorite;
+    onSaleUpdate({ ...sale, isFavorite: nextIsFavorite });
+    try {
+      onSaleUpdate(
+        await updateSaleFavorite(sale.id, {
+          isFavorite: nextIsFavorite,
+        }),
+      );
+    } catch (error) {
+      onSaleUpdate(sale);
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update order star.',
+      );
+    }
+  };
 
   const currentPage = pageByTab[activeTab];
   const currentPageSize = pageSizeByTab[activeTab];
@@ -1174,17 +1232,40 @@ export const OrdersWorkspace = ({
     switch (columnKey) {
       case 'orderNumber':
         return (
-          <a
-            className='order-number-button'
-            href={getOrderLink(sale.id, sale.kind)}
-            onClick={(event) => {
-              if (!isPlainLeftClick(event)) return;
-              event.preventDefault();
-              openSaleCard(sale);
-            }}
-          >
-            {buildOrderNumber(sale)}
-          </a>
+          <div className='supplier-order-number-cell'>
+            <button
+              type='button'
+              className={
+                sale.isFavorite
+                  ? 'supplier-order-row-star supplier-order-row-star-active'
+                  : 'supplier-order-row-star'
+              }
+              aria-label={
+                sale.isFavorite
+                  ? `Remove star from ${buildOrderNumber(sale)}`
+                  : `Star ${buildOrderNumber(sale)}`
+              }
+              aria-pressed={sale.isFavorite}
+              disabled={!canManageOrderFavorite(sale)}
+              onClick={(event) => {
+                event.stopPropagation();
+                void toggleOrderFavorite(sale);
+              }}
+            >
+              {sale.isFavorite ? '★' : '☆'}
+            </button>
+            <a
+              className='order-number-button'
+              href={getOrderLink(sale.id, sale.kind)}
+              onClick={(event) => {
+                if (!isPlainLeftClick(event)) return;
+                event.preventDefault();
+                openSaleCard(sale);
+              }}
+            >
+              {buildOrderNumber(sale)}
+            </a>
+          </div>
         );
       case 'manager':
         return (
@@ -2306,6 +2387,17 @@ export const OrdersWorkspace = ({
 
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left'>
+          <CompactPaginationPanel
+            totalItems={filteredOrders.length}
+            page={currentPage}
+            pageSize={currentPageSize}
+            onPageChange={(page) =>
+              setPageByTab((current) => ({
+                ...current,
+                [activeTab]: page,
+              }))
+            }
+          />
           <button
             type='button'
             className='toolbar-filter-button toolbar-filter-toggle-button'
@@ -2363,6 +2455,29 @@ export const OrdersWorkspace = ({
               </div>
             ) : null}
           </div>
+          <button
+            type='button'
+            className={
+              appliedFilters.favoritesOnly
+                ? 'toolbar-square-button toolbar-star-button toolbar-star-button-active'
+                : 'toolbar-square-button toolbar-star-button'
+            }
+            aria-label={
+              appliedFilters.favoritesOnly
+                ? activeTab === 'orders'
+                  ? 'Show all orders'
+                  : 'Show all sales'
+                : activeTab === 'orders'
+                  ? 'Show starred orders'
+                  : 'Show starred sales'
+            }
+            aria-pressed={appliedFilters.favoritesOnly}
+            onClick={toggleFavoritesOnly}
+          >
+            <span className='supplier-order-star-icon' aria-hidden='true'>
+              {appliedFilters.favoritesOnly ? '★' : '☆'}
+            </span>
+          </button>
           <div className='orders-search-group orders-search-group-clearable'>
             <input
               value={searchValue}
@@ -2809,7 +2924,7 @@ export const OrdersWorkspace = ({
 
       <div className='orders-table-wrap'>
         <table
-          className='orders-table'
+          className='orders-table orders-workspace-table'
           style={{ minWidth: tableMinWidth }}
         >
           <thead>
@@ -2852,6 +2967,7 @@ export const OrdersWorkspace = ({
                     <td
                       key={`${sale.id}-${columnKey}`}
                       className={getOrdersColumnClassName(columnKey)}
+                      data-label={getColumnLabel(columnKey, activeTab)}
                     >
                       {renderOrdersCell(sale, columnKey)}
                     </td>

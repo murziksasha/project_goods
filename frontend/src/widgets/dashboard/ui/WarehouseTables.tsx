@@ -22,12 +22,16 @@ export const ReceiptsTable = ({
   onOpenOrder,
   onOpenProduct,
   onOpenSupplier,
+  onToggleFavorite,
+  canManageSupplierOrders,
 }: {
   receipts: ReceiptRow[];
   visibleColumns: ReceiptsColumnKey[];
   onOpenOrder: (receipt: ReceiptRow) => void;
   onOpenProduct: (receipt: ReceiptRow) => void;
   onOpenSupplier: (receipt: ReceiptRow) => void;
+  onToggleFavorite: (receipt: ReceiptRow) => void;
+  canManageSupplierOrders: boolean;
 }) => {
   if (receipts.length === 0)
     return <p className='empty-state'>No receipt orders created.</p>;
@@ -71,9 +75,36 @@ export const ReceiptsTable = ({
               {visibleColumns.map((columnKey) => (
                 <td key={`${receipt.id}-${columnKey}`}>
                   {columnKey === 'number' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
-                      {receipt.number}
-                    </button>
+                    <div className='supplier-order-number-cell'>
+                      {receipt.supplierOrderId ? (
+                        <button
+                          type='button'
+                          className={
+                            receipt.supplierOrderIsFavorite
+                              ? 'supplier-order-row-star supplier-order-row-star-active'
+                              : 'supplier-order-row-star'
+                          }
+                          aria-label={
+                            receipt.supplierOrderIsFavorite
+                              ? `Remove star from ${receipt.number}`
+                              : `Star ${receipt.number}`
+                          }
+                          aria-pressed={receipt.supplierOrderIsFavorite === true}
+                          disabled={!canManageSupplierOrders}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onToggleFavorite(receipt);
+                          }}
+                        >
+                          {receipt.supplierOrderIsFavorite ? '★' : '☆'}
+                        </button>
+                      ) : (
+                        <span className='supplier-order-row-star supplier-order-row-star-placeholder' />
+                      )}
+                      <button type='button' className='catalog-name-button' onClick={() => onOpenOrder(receipt)}>
+                        {receipt.number}
+                      </button>
+                    </div>
                   ) : columnKey === 'product' ? (
                     <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
                       {receipt.productName}
@@ -160,6 +191,7 @@ export const StockTable = ({
   onTogglePageSelection,
   onEdit,
   onOpenModel,
+  onOpenSerial,
   onDelete,
   onOpenSupplierOrder,
 }: {
@@ -176,6 +208,7 @@ export const StockTable = ({
   onTogglePageSelection: () => void;
   onEdit: (product: Product) => void;
   onOpenModel: (product: Product) => void;
+  onOpenSerial: (product: Product) => void;
   onDelete: (product: Product) => void;
   onOpenSupplierOrder: (
     supplierOrderId: string,
@@ -338,7 +371,7 @@ export const StockTable = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
+                            onClick={() => onOpenSerial(product)}
                           >
                             {product.serialNumber}
                           </button>

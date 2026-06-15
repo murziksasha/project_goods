@@ -33,6 +33,9 @@ export const getStoredSettingsTab = (): SettingsTab => {
 export const demoPrintValues: Record<string, string> = {
   id: 'demo-sale-id',
   orderNumber: 'r000124',
+  labelCode: 'r000124',
+  labelTitle: 'iPhone 13 Pro',
+  labelContact: '+38 067 111 22 33',
   date: '29.05.2026',
   status: 'New repair',
   clientName: 'Ivan Petrenko',

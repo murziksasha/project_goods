@@ -114,6 +114,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .warehouse-information-summary,
+  .warehouse-information-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .finance-operation-grid,
   .sale-item-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -129,6 +134,26 @@
   .finance-toolbar,
   .clients-toolbar {
     align-items: stretch;
+  }
+
+  .orders-toolbar-left,
+  .orders-toolbar-actions,
+  .catalog-toolbar-actions,
+  .clients-toolbar-actions,
+  .warehouse-settings-actions,
+  .settings-actions {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .orders-search-group,
+  .catalog-search-group,
+  .warehouse-search-group,
+  .clients-search-group,
+  .finance-transactions-search {
+    max-width: none;
+    min-width: min(100%, 260px);
+    flex: 1 1 320px;
   }
 
   .catalog-toolbar-actions {
@@ -166,6 +191,17 @@
   .page-shell {
     width: min(100% - 16px, 1540px);
     padding: 12px 0 72px;
+  }
+
+  .dashboard-main,
+  .page-shell,
+  .panel,
+  .orders-page,
+  .create-order-page,
+  .catalog-table-panel,
+  .warehouse-panel {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .app-sidebar,
@@ -259,6 +295,24 @@
     align-items: stretch;
   }
 
+  .orders-toolbar-left,
+  .catalog-toolbar,
+  .warehouse-toolbar,
+  .finance-toolbar,
+  .clients-toolbar {
+    gap: 8px;
+  }
+
+  .orders-toolbar-left > *,
+  .orders-toolbar-actions > *,
+  .catalog-toolbar > *,
+  .catalog-toolbar-actions > *,
+  .warehouse-toolbar > *,
+  .finance-toolbar > *,
+  .clients-toolbar > * {
+    min-width: 0;
+  }
+
   .supplier-orders-toolbar-left {
     flex-wrap: wrap;
   }
@@ -284,6 +338,25 @@
     width: 100%;
   }
 
+  .warehouse-search-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
+    min-height: 44px;
+    overflow: visible;
+  }
+
+  .warehouse-search-group input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    padding: 9px 34px 9px 12px;
+  }
+
   .orders-filter-grid {
     grid-template-columns: 1fr;
   }
@@ -291,6 +364,14 @@
   .orders-filter-saved-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .orders-filter-save-button {
+    justify-self: stretch;
+  }
+
+  .orders-filter-icons-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .orders-filter-actions {
@@ -318,6 +399,186 @@
   .orders-table td {
     padding: 9px 8px;
     font-size: 0.88rem;
+  }
+
+  .orders-table-wrap:has(.orders-workspace-table),
+  .orders-table-wrap:has(.clients-table),
+  .orders-table-wrap:has(.clients-card-table),
+  .orders-table-wrap:has(.supplier-orders-table),
+  .finance-card-table-wrap,
+  .catalog-card-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .orders-workspace-table,
+  .clients-table,
+  .clients-card-table,
+  .supplier-orders-table,
+  .finance-transactions-table,
+  .finance-orders-table,
+  .catalog-card-table {
+    min-width: 0 !important;
+    width: 100%;
+    display: block;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+  }
+
+  .orders-workspace-table thead,
+  .clients-table thead,
+  .clients-card-table thead,
+  .supplier-orders-table thead,
+  .finance-transactions-table thead,
+  .finance-orders-table thead,
+  .catalog-card-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .orders-workspace-table tbody,
+  .clients-table tbody,
+  .clients-card-table tbody,
+  .supplier-orders-table tbody,
+  .finance-transactions-table tbody,
+  .finance-orders-table tbody,
+  .catalog-card-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .orders-workspace-table tr,
+  .clients-table tr,
+  .clients-card-table tr,
+  .supplier-orders-table tr,
+  .finance-transactions-table tr,
+  .finance-orders-table tr,
+  .catalog-card-table tr {
+    display: grid;
+    gap: 0;
+    border: 1px solid #d7e0eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
+    overflow: hidden;
+  }
+
+  .orders-workspace-table td,
+  .clients-table td,
+  .clients-card-table td,
+  .supplier-orders-table td,
+  .finance-transactions-table td,
+  .finance-orders-table td,
+  .catalog-card-table td {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    border-bottom: 1px solid #e6edf5;
+    padding: 10px 12px;
+    overflow: visible;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .orders-workspace-table td:last-child,
+  .clients-table td:last-child,
+  .clients-card-table td:last-child,
+  .supplier-orders-table td:last-child,
+  .finance-transactions-table td:last-child,
+  .finance-orders-table td:last-child,
+  .catalog-card-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .orders-workspace-table td::before,
+  .clients-table td::before,
+  .clients-card-table td::before,
+  .supplier-orders-table td::before,
+  .finance-transactions-table td::before,
+  .finance-orders-table td::before,
+  .catalog-card-table td::before {
+    content: attr(data-label);
+    color: #6c7f94;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .orders-workspace-table td.orders-empty,
+  .clients-table td.orders-empty,
+  .clients-card-table td.orders-empty,
+  .supplier-orders-table td.orders-empty,
+  .finance-transactions-table td.orders-empty,
+  .finance-orders-table td.orders-empty,
+  .catalog-card-table td.orders-empty {
+    display: block;
+    text-align: center;
+  }
+
+  .orders-workspace-table td.orders-empty::before,
+  .clients-table td.orders-empty::before,
+  .clients-card-table td.orders-empty::before,
+  .supplier-orders-table td.orders-empty::before,
+  .finance-transactions-table td.orders-empty::before,
+  .finance-orders-table td.orders-empty::before,
+  .catalog-card-table td.orders-empty::before {
+    content: none;
+  }
+
+  .orders-table-cell-truncate,
+  .catalog-name-button,
+  .orders-client-cell,
+  .order-number-button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .catalog-row-actions,
+  .orders-workspace-table .catalog-row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .catalog-table-services td[data-label='Select'] {
+    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .catalog-table-services td[data-label='Select'] input {
+    justify-self: start;
+    margin: 0;
+  }
+
+  .finance-transactions-table .finance-day-separator-row {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .finance-transactions-table .finance-day-separator-cell {
+    display: block;
+    border: 1px solid #d9e8fa;
+    border-radius: 7px;
+    text-align: center;
+  }
+
+  .finance-transactions-table .finance-day-separator-cell::before {
+    content: none;
   }
 
   .orders-table .finance-orders-col-number {
@@ -383,6 +644,59 @@
     max-height: calc(100vh - 16px);
   }
 
+  .catalog-edit-modal,
+  .warehouse-settings-modal,
+  .product-model-modal,
+  .payment-modal,
+  .clients-modal,
+  .clients-card-modal,
+  .supplier-order-modal,
+  .order-print-dialog {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .catalog-edit-body,
+  .warehouse-settings-modal-body,
+  .product-model-modal-body,
+  .payment-modal-summary,
+  .payment-modal-form,
+  .clients-modal-body,
+  .clients-card-body,
+  .supplier-order-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .catalog-edit-header,
+  .payment-modal-header,
+  .clients-card-header,
+  .supplier-order-modal-header,
+  .warehouse-settings-modal-header,
+  .product-model-modal-header {
+    min-width: 0;
+  }
+
+  .catalog-edit-header h2,
+  .clients-card-header h2,
+  .supplier-order-modal-header h2,
+  .product-model-modal-header h2 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .danger-button,
+  .warning-button,
+  .orders-create-button,
+  .toolbar-filter-button {
+    min-width: 0;
+    white-space: normal;
+  }
+
   .modal-backdrop {
     padding: 8px;
   }
@@ -397,12 +711,86 @@
     width: 100%;
   }
 
+  .finance-cashbox-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-cashbox-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .finance-cashbox-heading {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .finance-cashbox-heading h3 {
+    min-width: 0;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .finance-cashbox-balances {
+    justify-items: stretch;
+  }
+
+  .finance-cashbox-balance-row {
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .finance-cashbox-card strong,
+  .finance-cashbox-card p,
+  .finance-cashbox-balance-row strong {
+    text-align: left;
+  }
+
+  .finance-cashbox-actions,
+  .finance-cashbox-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-operation-panel,
+  .finance-operation-grid,
+  .finance-operation-grid .field,
+  .finance-operation-grid .number-stepper,
+  .finance-operation-grid input,
+  .finance-operation-grid select,
+  .finance-operation-grid button {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .finance-operation-panel {
+    overflow: hidden;
+  }
+
+  .finance-operation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .finance-wide-report {
     grid-column: auto;
   }
 
   .finance-info-panel-wide {
     grid-column: auto;
+  }
+
+  .warehouse-information-summary,
+  .warehouse-information-filters,
+  .warehouse-settings-location-row {
+    grid-template-columns: 1fr;
   }
 
   .finance-distribution-row,
@@ -528,31 +916,7 @@
   }
 
   .pagination-panel {
-    align-items: stretch;
     gap: 8px;
-  }
-
-  .pagination-total,
-  .pagination-nav,
-  .pagination-size-select {
-    width: 100%;
-  }
-
-  .pagination-nav {
-    overflow-x: auto;
-  }
-
-  .pagination-pages-group {
-    flex: 1 0 auto;
-  }
-
-  .warehouse-bulk-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .warehouse-bulk-actions strong {
-    margin-right: 0;
   }
 
   .payment-print-options {
@@ -649,5 +1013,52 @@
   .order-payment-list div {
     grid-template-columns: minmax(74px, 0.32fr) minmax(0, 1fr);
     gap: 8px;
+  }
+
+  .orders-page,
+  .create-order-body,
+  .warehouse-transfer-panel,
+  .warehouse-settings-panel {
+    padding: 10px;
+  }
+
+  .orders-workspace-table td,
+  .clients-table td,
+  .clients-card-table td,
+  .supplier-orders-table td,
+  .finance-transactions-table td,
+  .finance-orders-table td,
+  .catalog-card-table td {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    align-items: start;
+  }
+
+  .orders-workspace-table td::before,
+  .clients-table td::before,
+  .clients-card-table td::before,
+  .supplier-orders-table td::before,
+  .finance-transactions-table td::before,
+  .finance-orders-table td::before,
+  .catalog-card-table td::before {
+    font-size: 0.72rem;
+  }
+
+  .pagination-nav {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .pagination-panel,
+  .pagination-nav,
+  .pagination-pages-group {
+    justify-content: stretch;
+  }
+
+  .pagination-page-button,
+  .pagination-nav-button {
+    flex: 1 0 auto;
+    min-width: 38px;
+    padding-inline: 8px;
   }
 }

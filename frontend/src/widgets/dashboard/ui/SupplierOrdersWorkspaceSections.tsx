@@ -8,7 +8,10 @@ import type {
   SupplierPaymentStatus,
 } from '../../../entities/supplier-order/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import type {
   SupplierOrderAnalytics,
   SupplierOrderProductStat,
@@ -35,6 +38,7 @@ import {
 type SupplierOrdersToolbarProps = {
   activeTab: OrdersTab;
   dateFiltersCount: number;
+  filteredOrdersCount: number;
   filteredOrderStatuses: typeof supplierOrderStatuses;
   filteredPaymentStatuses: typeof supplierPaymentStatuses;
   isColumnsMenuOpen: boolean;
@@ -47,6 +51,8 @@ type SupplierOrdersToolbarProps = {
   columnsMenuRef: RefObject<HTMLDivElement | null>;
   paymentQuery: string;
   paymentStatus: SupplierPaymentStatus | 'all';
+  page: number;
+  pageSize: number;
   query: string;
   selectedStatuses: SupplierOrderStatus[];
   statusQuery: string;
@@ -62,6 +68,7 @@ type SupplierOrdersToolbarProps = {
   onPaymentStatusOpenChange: Dispatch<SetStateAction<boolean>>;
   onPaymentQueryChange: (value: string) => void;
   onPaymentStatusChange: (status: SupplierPaymentStatus | 'all') => void;
+  onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onSelectedStatusesChange: Dispatch<SetStateAction<SupplierOrderStatus[]>>;
   onStatusQueryChange: (value: string) => void;
@@ -73,6 +80,7 @@ type SupplierOrdersToolbarProps = {
 export const SupplierOrdersToolbar = ({
   activeTab,
   dateFiltersCount,
+  filteredOrdersCount,
   filteredOrderStatuses,
   filteredPaymentStatuses,
   isColumnsMenuOpen,
@@ -85,6 +93,8 @@ export const SupplierOrdersToolbar = ({
   columnsMenuRef,
   paymentQuery,
   paymentStatus,
+  page,
+  pageSize,
   query,
   selectedStatuses,
   statusQuery,
@@ -100,6 +110,7 @@ export const SupplierOrdersToolbar = ({
   onPaymentStatusOpenChange,
   onPaymentQueryChange,
   onPaymentStatusChange,
+  onPageChange,
   onQueryChange,
   onSelectedStatusesChange,
   onStatusQueryChange,
@@ -125,6 +136,14 @@ export const SupplierOrdersToolbar = ({
 
     <div className='orders-toolbar'>
       <div className='orders-toolbar-left supplier-orders-toolbar-left'>
+        {!isInformationTab ? (
+          <CompactPaginationPanel
+            totalItems={filteredOrdersCount}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        ) : null}
         <button
           type='button'
           className='toolbar-filter-button toolbar-filter-toggle-button'
@@ -692,7 +711,7 @@ export const SupplierOrdersTable = ({
             buildGroupedSupplierOrderView(order).map(({ id, item }) => (
               <tr key={id}>
                 {visibleColumns.includes('number') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('number')}>
                     <div className='supplier-order-number-cell'>
                       <button
                         type='button'
@@ -735,7 +754,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('product') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('product')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -766,19 +785,19 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('quantity') ? (
-                  <td>{item.quantity} pcs</td>
+                  <td data-label={getSupplierOrdersColumnLabel('quantity')}>{item.quantity} pcs</td>
                 ) : null}
                 {visibleColumns.includes('price') ? (
-                  <td>{formatCurrency(item.price)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('price')}>{formatCurrency(item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('total') ? (
-                  <td>{formatCurrency(item.quantity * item.price)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('total')}>{formatCurrency(item.quantity * item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('paid') ? (
-                  <td>{formatCurrency(order.paid)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('paid')}>{formatCurrency(order.paid)}</td>
                 ) : null}
                 {visibleColumns.includes('supplier') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('supplier')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -802,10 +821,10 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('deliveryDate') ? (
-                  <td>{formatSupplierOrderDate(order.deliveryDate)}</td>
+                  <td data-label={getSupplierOrdersColumnLabel('deliveryDate')}>{formatSupplierOrderDate(order.deliveryDate)}</td>
                 ) : null}
                 {visibleColumns.includes('status') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('status')}>
                     <div className='supplier-order-status-picker'>
                       <button
                         type='button'
@@ -829,7 +848,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('paymentStatus') ? (
-                  <td>
+                  <td data-label={getSupplierOrdersColumnLabel('paymentStatus')}>
                     <span
                       className={getSupplierPaymentStatusClass(
                         order.paymentStatus,

@@ -16,6 +16,8 @@ export const WarehouseSettings = ({
   warehouses,
   administrators,
   warehousesByServiceCenter,
+  activeWarehousesByServiceCenter,
+  warehouseProductCounts,
   onCreateServiceCenter,
   onEditServiceCenter,
   onCreateWarehouse,
@@ -31,6 +33,8 @@ export const WarehouseSettings = ({
   warehouses: WarehouseItem[];
   administrators: Administrator[];
   warehousesByServiceCenter: Record<string, number>;
+  activeWarehousesByServiceCenter: Record<string, number>;
+  warehouseProductCounts: Record<string, number>;
   onCreateServiceCenter: () => void;
   onEditServiceCenter: (serviceCenter: ServiceCenter) => void;
   onCreateWarehouse: () => void;
@@ -65,9 +69,30 @@ export const WarehouseSettings = ({
   const [adminWarehouseSearch, setAdminWarehouseSearch] = useState<
     Record<string, string>
   >({});
+  const [warehouseStatusFilter, setWarehouseStatusFilter] = useState<
+    'all' | 'active' | 'inactive'
+  >('all');
+  const activeWarehouses = useMemo(
+    () => warehouses.filter((warehouse) => warehouse.isActive),
+    [warehouses],
+  );
+  const visibleWarehouses = useMemo(
+    () =>
+      warehouses.filter((warehouse) =>
+        warehouseStatusFilter === 'all'
+          ? true
+          : warehouseStatusFilter === 'active'
+            ? warehouse.isActive
+            : !warehouse.isActive,
+      ),
+    [warehouseStatusFilter, warehouses],
+  );
 
   const buildDefaultForWarehouses = (warehouseIds: string[]) => {
-    const firstWarehouseId = warehouseIds[0];
+    const activeWarehouseIds = warehouseIds.filter(
+      (warehouseId) => warehouseMap[warehouseId]?.isActive,
+    );
+    const firstWarehouseId = activeWarehouseIds[0];
     if (!firstWarehouseId)
       return { defaultWarehouseId: '', defaultLocationId: '' };
     const firstLocationId =
@@ -82,9 +107,12 @@ export const WarehouseSettings = ({
     administrator: Administrator,
     warehouseIds: string[],
   ) => {
+    const activeWarehouseIds = warehouseIds.filter(
+      (warehouseId) => warehouseMap[warehouseId]?.isActive,
+    );
     const hasDefaultWarehouse = warehouseIds.includes(
       administrator.defaultWarehouseId,
-    );
+    ) && warehouseMap[administrator.defaultWarehouseId]?.isActive;
     const hasDefaultLocation =
       warehouseMap[administrator.defaultWarehouseId]?.locations.some(
         (location) => location.id === administrator.defaultLocationId,
@@ -93,7 +121,7 @@ export const WarehouseSettings = ({
       return administrator;
     return {
       ...administrator,
-      ...buildDefaultForWarehouses(warehouseIds),
+      ...buildDefaultForWarehouses(activeWarehouseIds),
     };
   };
 
@@ -139,7 +167,7 @@ export const WarehouseSettings = ({
                   <th>color</th>
                   <th>Address</th>
                   <th>Phone</th>
-                  <th>Number of Warehouses</th>
+                  <th>Warehouses</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,8 +220,10 @@ export const WarehouseSettings = ({
                       </button>
                     </td>
                     <td>
-                      {warehousesByServiceCenter[serviceCenter.id] ??
+                      {activeWarehousesByServiceCenter[serviceCenter.id] ??
                         0}
+                      {' / '}
+                      {warehousesByServiceCenter[serviceCenter.id] ?? 0}
                     </td>
                   </tr>
                 ))}
@@ -206,6 +236,21 @@ export const WarehouseSettings = ({
       {tab === 'warehouses' ? (
         <>
           <div className='warehouse-settings-actions'>
+            <label className='warehouse-settings-filter'>
+              <span>Status</span>
+              <select
+                value={warehouseStatusFilter}
+                onChange={(event) =>
+                  setWarehouseStatusFilter(
+                    event.target.value as typeof warehouseStatusFilter,
+                  )
+                }
+              >
+                <option value='all'>All</option>
+                <option value='active'>Active</option>
+                <option value='inactive'>Inactive</option>
+              </select>
+            </label>
             <button
               type='button'
               className='orders-create-button'
@@ -220,14 +265,17 @@ export const WarehouseSettings = ({
                 <tr>
                   <th>Id</th>
                   <th>Name</th>
+                  <th>Status</th>
                   <th>Location</th>
                   <th>Address</th>
                   <th>Phone</th>
                   <th>Locations</th>
+                  <th>Products</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {warehouses.map((warehouse) => {
+                {visibleWarehouses.map((warehouse) => {
                   const center =
                     serviceCenterMap[warehouse.serviceCenterId];
                   return (
@@ -241,6 +289,17 @@ export const WarehouseSettings = ({
                         >
                           {warehouse.name}
                         </button>
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            warehouse.isActive
+                              ? 'receipt-status receipt-status-received'
+                              : 'receipt-status receipt-status-cancelled'
+                          }
+                        >
+                          {warehouse.isActive ? 'Active' : 'Inactive'}
+                        </span>
                       </td>
                       <td>
                         <span className='warehouse-settings-center-chip'>
@@ -257,6 +316,16 @@ export const WarehouseSettings = ({
                       <td>{warehouse.receiptAddress || '-'}</td>
                       <td>{warehouse.receiptPhone || '-'}</td>
                       <td>{warehouse.locations.length} pcs</td>
+                      <td>{warehouseProductCounts[warehouse.id] ?? 0}</td>
+                      <td>
+                        <button
+                          type='button'
+                          className='secondary-button'
+                          onClick={() => onEditWarehouse(warehouse)}
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -297,12 +366,13 @@ export const WarehouseSettings = ({
                         return warehouse.locations.map(
                           (location) => ({
                             warehouseId: warehouse.id,
+                            warehouseIsActive: warehouse.isActive,
                             locationId: location.id,
                             label: `${warehouse.name} ${location.name}`,
                           }),
                         );
                       },
-                    );
+                    ).filter((location) => location.warehouseIsActive);
                   const selectedWarehouseNames =
                     administrator.warehouseIds
                       .map(
@@ -311,9 +381,10 @@ export const WarehouseSettings = ({
                       )
                       .filter(Boolean);
                   const isAllSelected =
-                    administrator.warehouseIds.length > 0 &&
-                    administrator.warehouseIds.length ===
-                      warehouses.length;
+                    activeWarehouses.length > 0 &&
+                    activeWarehouses.every((warehouse) =>
+                      administrator.warehouseIds.includes(warehouse.id),
+                    );
                   const warehouseSearch =
                     adminWarehouseSearch[administrator.employeeId] ??
                     '';
@@ -358,7 +429,7 @@ export const WarehouseSettings = ({
                                 onChange={(event) => {
                                   const nextWarehouseIds = event
                                     .target.checked
-                                    ? warehouses.map(
+                                    ? activeWarehouses.map(
                                         (warehouse) => warehouse.id,
                                       )
                                     : [];
@@ -423,6 +494,11 @@ export const WarehouseSettings = ({
                                     }}
                                   />
                                   <span>{warehouse.name}</span>
+                                  {!warehouse.isActive ? (
+                                    <span className='catalog-inactive-badge'>
+                                      Inactive
+                                    </span>
+                                  ) : null}
                                 </label>
                               ))}
                             </div>

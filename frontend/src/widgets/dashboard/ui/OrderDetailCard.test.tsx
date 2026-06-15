@@ -4,6 +4,7 @@ import type { CatalogProduct } from '../../../entities/catalog-product/model/typ
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { getProducts } from '../../../entities/product/api/productApi';
+import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { OrderDetailCard } from './OrderDetailCard';
 import {
   orderDetailSectionsStorageKey,
@@ -406,7 +407,7 @@ describe('OrderDetailCard product entry', () => {
     });
   });
 
-  it('shows bound product serials next to price without the S/N label', () => {
+  it('shows bound product serials in a column before price without the S/N label', () => {
     renderCard({
       lineItems: [
         {
@@ -421,9 +422,85 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
+    const serialHeader = screen.getByText('Serial number');
+    const priceHeader = screen.getAllByText('Price')[0];
+    expect(
+      serialHeader.compareDocumentPosition(priceHeader) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
     const serial = screen.getByText('R0035752');
-    expect(serial.closest('.order-line-item-price-cell')).not.toBeNull();
+    expect(serial.closest('.order-line-item-serial-cell')).not.toBeNull();
+    expect(serial.closest('.order-line-item-price-cell')).toBeNull();
+    expect(screen.getByDisplayValue('650').closest('.order-line-item-price-cell')).not.toBeNull();
     expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
+  });
+
+  it('opens the product model modal in serial mode when clicking a matching bound serial', async () => {
+    renderCard({
+      products: [
+        product({
+          id: 'serialized-product',
+          name: 'Serialized part',
+          serialNumber: 'R0035752',
+        }),
+      ],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: 'serialized-product',
+          name: 'Serialized part',
+          price: 650,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R0035752'],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'R0035752' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Product model' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Print serial number' }),
+    ).toBeInTheDocument();
+    expect(getWarehouseSettings).toHaveBeenCalled();
+  });
+
+  it('opens the product model modal without serial print mode from a product name click', async () => {
+    renderCard({
+      products: [
+        product({
+          id: 'product-model',
+          name: 'Existing part',
+          serialNumber: 'R0035752',
+        }),
+      ],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: 'product-model',
+          name: 'Existing part',
+          price: 650,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R0035752'],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Existing part' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Product model' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Print serial number' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps discount percent input editable while accepting comma and dot decimals', () => {

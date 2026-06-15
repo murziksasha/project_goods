@@ -47,6 +47,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date/starred working set as the supplier-order table.
+- `Orders` and `Sales` each persist their active `favoritesOnly` starred filter with the rest of the order filters.
 
 ## Tab Persistence Rule (2026-05-29)
 
@@ -60,6 +61,12 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 
 - Dashboard main menu collapsed/expanded state must persist across browser reload (`F5`).
 - On page load, sidebar must restore to the last user-selected state without extra user action.
+
+## Auth Session Recovery Rule (2026-06-14)
+
+- If the session check fails because the current token is no longer valid, the app must clear stale auth state and take the user to the login screen so they can start a new session.
+- The workspace must not stay open on a failed session check when recovery requires a fresh sign-in.
+- The user-facing message should explain that the session ended or could not be verified and that a new login is required.
 
 ## Phase 2 Status (2026-05-06)
 
@@ -98,4 +105,4 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - `WarehousePanel` now reads warehouse settings through `useWarehouseSettingsQuery`.
 - Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.
 - Receipt rows from supplier orders are derived from query data; manually created local receipt rows remain local UI/session state.
-- Warehouse receipt filters include a starred-supplier-orders-only option. It shows only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active.
+- Warehouse receipt filters include a starred-supplier-orders-only option and toolbar quick star toggle. They show only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active.

@@ -313,15 +313,40 @@ export const takeOnChargeSupplierOrder = async (
   const supplier = await Supplier.findById(existing.supplier).lean();
   const warehouseSettings = await WarehouseSettings.findOne().lean();
   const configuredWarehouses = warehouseSettings?.warehouses ?? [];
-  const defaultWarehouse = configuredWarehouses[0];
+  const activeWarehouses = configuredWarehouses.filter(
+    (warehouse) => warehouse.isActive !== false,
+  );
+  const defaultWarehouse = activeWarehouses[0];
   const requestedWarehouseId = toNonEmptyString(payload?.warehouseId);
-  const matchedWarehouse =
-    configuredWarehouses.find((warehouse) => warehouse.id === requestedWarehouseId) ??
-    defaultWarehouse;
+  const requestedWarehouse = requestedWarehouseId
+    ? configuredWarehouses.find(
+        (warehouse) => warehouse.id === requestedWarehouseId,
+      )
+    : undefined;
+  if (requestedWarehouseId && !requestedWarehouse) {
+    throw new Error('Selected warehouse was not found.');
+  }
+  if (requestedWarehouse && requestedWarehouse.isActive === false) {
+    throw new Error('Selected warehouse is inactive.');
+  }
+  const matchedWarehouse = requestedWarehouse ?? defaultWarehouse;
+  if (!matchedWarehouse) {
+    throw new Error('No active warehouse is available for take on charge.');
+  }
   const requestedLocationId = toNonEmptyString(payload?.locationId);
+  const requestedLocation = requestedLocationId
+    ? (matchedWarehouse.locations ?? []).find(
+        (location) => location.id === requestedLocationId,
+      )
+    : undefined;
+  if (requestedLocationId && !requestedLocation) {
+    throw new Error('Selected warehouse location was not found.');
+  }
   const matchedLocation =
-    (matchedWarehouse?.locations ?? []).find((location) => location.id === requestedLocationId) ??
-    matchedWarehouse?.locations?.[0];
+    requestedLocation ?? matchedWarehouse.locations?.[0];
+  if (!matchedLocation) {
+    throw new Error('Selected warehouse has no locations.');
+  }
   let serialCursor = 0;
   const stockedProducts: StockedProductSummary[] = [];
 

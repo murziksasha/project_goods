@@ -95,6 +95,21 @@ export const updateSaleWorkspace = async (
   }
 };
 
+export const updateSaleFavorite = async (
+  saleId: string,
+  payload: { isFavorite: boolean },
+) => {
+  try {
+    const response = await apiClient.patch<Sale>(
+      `/sales/${saleId}/favorite`,
+      payload,
+    );
+    return ensureSaleResponse(response.data, 'sale favorite update');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const deleteSale = async (saleId: string) => {
   try {
     const response = await apiClient.delete<{ id: string; restoredProductId: string }>(

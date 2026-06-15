@@ -332,6 +332,21 @@ export const listSales = async () => {
   return sales.map(formatSale);
 };
 
+export const updateSaleFavorite = async (
+  saleId: string,
+  payload: { isFavorite?: unknown },
+) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+  const existingSale = await Sale.findById(saleId);
+  if (!existingSale) {
+    throw new Error('Sale not found.');
+  }
+
+  existingSale.isFavorite = payload.isFavorite === true;
+  const updatedSale = await existingSale.save();
+  return formatSale(updatedSale.toObject<SaleDocument>());
+};
+
 export const createSale = async (payloadInput: SalePayload) => {
   const payload = normalizeSalePayload(payloadInput);
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';

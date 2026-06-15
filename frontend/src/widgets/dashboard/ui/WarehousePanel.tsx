@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import type { Product } from '../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
@@ -14,6 +15,7 @@ import {
   useCreateSupplierOrderMutation,
   useSupplierOrdersQuery,
   useTakeOnChargeSupplierOrderMutation,
+  useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
 } from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
@@ -39,10 +41,12 @@ import {
   buildProductWarehouseMetaById,
   filterStockProducts,
 } from '../model/stock-balance';
+import { buildLocationUsageByWarehouse } from '../model/warehouse-information';
 import { ProductModelModal } from './ProductModelModal';
 import { ModalShell } from './WarehouseModalShell';
 import { WarehouseSettings } from './WarehouseSettingsSection';
 import { ServiceCenterModal, WarehouseEditModal } from './WarehouseSettingsModals';
+import { WarehouseInformationPanel } from './WarehouseInformationPanel';
 import { StockTable, ReceiptsTable } from './WarehouseTables';
 import { TransferWorkspace } from './WarehouseTransferWorkspace';
 import { WarehouseToolbar } from './WarehouseToolbar';
@@ -111,6 +115,8 @@ export const WarehousePanel = ({
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
   const createSupplierOrderMutation = useCreateSupplierOrderMutation();
   const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const updateSupplierOrderFavoriteMutation =
+    useUpdateSupplierOrderFavoriteMutation();
   const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
   const takeOnChargeSupplierOrderMutation =
     useTakeOnChargeSupplierOrderMutation();
@@ -127,8 +133,8 @@ export const WarehousePanel = ({
     ...(filters ?? {}),
     favoritesOnly: filters?.favoritesOnly === true,
   });
-  const [selectedProductModelName, setSelectedProductModelName] =
-    useState<string | null>(null);
+  const [selectedProductModelContext, setSelectedProductModelContext] =
+    useState<{ name: string; printProduct: Product | null } | null>(null);
   const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
@@ -139,6 +145,7 @@ export const WarehousePanel = ({
       return parsed.activeTab === 'stock' ||
         parsed.activeTab === 'receipts' ||
         parsed.activeTab === 'transfers' ||
+        parsed.activeTab === 'information' ||
         parsed.activeTab === 'settings'
         ? parsed.activeTab
         : 'stock';
@@ -567,12 +574,10 @@ export const WarehousePanel = ({
   }, [receiptHistory]);
   const warehouseOptions = useMemo(
     () =>
-      warehouses
-        .filter((warehouse) => warehouse.isActive)
-        .map((warehouse) => ({
-          id: warehouse.id,
-          name: warehouse.name,
-        })),
+      warehouses.map((warehouse) => ({
+        id: warehouse.id,
+        name: warehouse.name,
+      })),
     [warehouses],
   );
   const locationOptionsByWarehouseId = useMemo(
@@ -592,6 +597,7 @@ export const WarehousePanel = ({
   const takeOnChargeWarehouseOptions = useMemo(
     () =>
       warehouses
+        .filter((warehouse) => warehouse.isActive)
         .map((warehouse) => ({
           id: warehouse.id,
           name: warehouse.name,
@@ -716,9 +722,25 @@ export const WarehousePanel = ({
       ),
     [products, selectedStockProductIds],
   );
-  const selectedStockProductsWithSerials = selectedStockProducts.filter(
-    (product) => product.serialNumber.trim(),
+  const selectedStockProductsWithSerials = useMemo(
+    () =>
+      selectedStockProducts.filter((product) =>
+        product.serialNumber.trim(),
+      ),
+    [selectedStockProducts],
   );
+  const printSelectedStockSerials = useCallback(() => {
+    if (selectedStockProductsWithSerials.length === 0) return;
+
+    printSerialNumbers(
+      selectedStockProductsWithSerials.map((product) => ({
+        name: product.name,
+        article: product.article,
+        serialNumber: product.serialNumber,
+      })),
+      'Warehouse serial numbers',
+    );
+  }, [selectedStockProductsWithSerials]);
 
   useEffect(() => {
     setSelectedStockProductIds((current) => {
@@ -771,7 +793,6 @@ export const WarehousePanel = ({
   const visibleColumnKeySet = new Set<string>(
     visibleColumnKeys as string[],
   );
-  const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
   const searchPlaceholder =
     activeTab === 'receipts'
       ? 'Search receipts'
@@ -806,6 +827,30 @@ export const WarehousePanel = ({
         return acc;
       }, {}),
     [warehouses],
+  );
+  const activeWarehousesByServiceCenter = useMemo(
+    () =>
+      warehouses.reduce<Record<string, number>>((acc, warehouse) => {
+        if (!warehouse.isActive) return acc;
+        acc[warehouse.serviceCenterId] =
+          (acc[warehouse.serviceCenterId] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [warehouses],
+  );
+  const warehouseProductCounts = useMemo(
+    () =>
+      products.reduce<Record<string, number>>((acc, product) => {
+        const warehouseId = product.warehouseId?.trim();
+        if (!warehouseId) return acc;
+        acc[warehouseId] = (acc[warehouseId] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [products],
+  );
+  const locationUsageByWarehouse = useMemo(
+    () => buildLocationUsageByWarehouse(products),
+    [products],
   );
 
   useEffect(() => {
@@ -902,13 +947,18 @@ export const WarehousePanel = ({
         acc[administrator.employeeId] = administrator;
         return acc;
       }, {});
+      const firstActiveWarehouse =
+        warehouses.find((warehouse) => warehouse.isActive) ?? null;
       return activeEmployees.map(
         (employee) =>
           currentByEmployee[employee.id] ?? {
             employeeId: employee.id,
-            warehouseIds: warehouses[0] ? [warehouses[0].id] : [],
-            defaultWarehouseId: warehouses[0]?.id ?? '',
-            defaultLocationId: warehouses[0]?.locations[0]?.id ?? '',
+            warehouseIds: firstActiveWarehouse
+              ? [firstActiveWarehouse.id]
+              : [],
+            defaultWarehouseId: firstActiveWarehouse?.id ?? '',
+            defaultLocationId:
+              firstActiveWarehouse?.locations[0]?.id ?? '',
           },
       );
     });
@@ -948,21 +998,66 @@ export const WarehousePanel = ({
     });
   };
 
+  const normalizeAdministratorsForWarehouses = (
+    currentAdministrators: Administrator[],
+    nextWarehouses: WarehouseItem[],
+  ) => {
+    const warehouseById = new Map(
+      nextWarehouses.map((warehouse) => [warehouse.id, warehouse]),
+    );
+    return currentAdministrators.map((administrator) => {
+      const warehouseIds = administrator.warehouseIds.filter((warehouseId) =>
+        warehouseById.has(warehouseId),
+      );
+      const activeWarehouseIds = warehouseIds.filter(
+        (warehouseId) => warehouseById.get(warehouseId)?.isActive,
+      );
+      const defaultWarehouse = warehouseById.get(
+        administrator.defaultWarehouseId,
+      );
+      const hasValidDefaultWarehouse =
+        defaultWarehouse?.isActive &&
+        warehouseIds.includes(administrator.defaultWarehouseId);
+      const hasValidDefaultLocation =
+        hasValidDefaultWarehouse &&
+        defaultWarehouse.locations.some(
+          (location) => location.id === administrator.defaultLocationId,
+        );
+
+      if (hasValidDefaultWarehouse && hasValidDefaultLocation) {
+        return { ...administrator, warehouseIds };
+      }
+
+      const fallbackWarehouseId = activeWarehouseIds[0] ?? '';
+      const fallbackWarehouse = warehouseById.get(fallbackWarehouseId);
+      return {
+        ...administrator,
+        warehouseIds,
+        defaultWarehouseId: fallbackWarehouseId,
+        defaultLocationId: fallbackWarehouse?.locations[0]?.id ?? '',
+      };
+    });
+  };
+
   const saveWarehouse = () => {
     const normalizedName = warehouseForm.name.trim();
     const normalizedLocations = warehouseForm.locations
-      .map((x) => x.trim())
-      .filter(Boolean);
+      .map((location, index) => ({
+        id: location.id || `l-${Date.now()}-${index}`,
+        name: location.name.trim(),
+      }))
+      .filter((location) => location.name);
+    const uniqueLocationNames = new Set(
+      normalizedLocations.map((location) => location.name.toLowerCase()),
+    );
     if (
       !normalizedName ||
       !warehouseForm.serviceCenterId ||
-      normalizedLocations.length === 0
+      normalizedLocations.length === 0 ||
+      uniqueLocationNames.size !== normalizedLocations.length
     )
       return;
-    const locations = normalizedLocations.map((name, index) => ({
-      id: `l-${Date.now()}-${index}`,
-      name,
-    }));
+    const locations = normalizedLocations;
     const nextWarehouses =
       warehouseModalId === 'new'
         ? [
@@ -990,10 +1085,16 @@ export const WarehousePanel = ({
                 }
               : x,
           );
+    const nextAdministrators = normalizeAdministratorsForWarehouses(
+      administrators,
+      nextWarehouses,
+    );
     setWarehouses(nextWarehouses);
+    setAdministrators(nextAdministrators);
     setWarehouseModalId(null);
     void persistWarehouseSettings({
       warehouses: nextWarehouses,
+      administrators: nextAdministrators,
       successMessage: 'Warehouse settings saved.',
     });
   };
@@ -1073,6 +1174,38 @@ export const WarehousePanel = ({
     setDraftFilters(initialWarehouseFilters);
     setAppliedFilters(initialWarehouseFilters);
     setCurrentPage(1);
+  };
+  const toggleReceiptFavoritesOnly = () => {
+    const nextFilters = {
+      ...appliedFilters,
+      favoritesOnly: !appliedFilters.favoritesOnly,
+    };
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setCurrentPage(1);
+  };
+  const toggleReceiptFavorite = async (receipt: ReceiptRow) => {
+    if (!receipt.supplierOrderId) return;
+    if (!canManageSupplierOrders) {
+      onError('Current employee does not have permission to manage supplier orders.');
+      return;
+    }
+
+    try {
+      await updateSupplierOrderFavoriteMutation.mutateAsync({
+        supplierOrderId: receipt.supplierOrderId,
+        payload: {
+          isFavorite: receipt.supplierOrderIsFavorite !== true,
+        },
+      });
+      await refreshSupplierOrders();
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update receipt order star.',
+      );
+    }
   };
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
@@ -1163,6 +1296,10 @@ export const WarehousePanel = ({
       onError('Select target warehouse and location.');
       return;
     }
+    if (!targetWarehouse.isActive) {
+      onError('Selected warehouse is inactive.');
+      return;
+    }
 
     if (
       sourceMeta?.warehouseId === targetWarehouse.id &&
@@ -1227,32 +1364,38 @@ export const WarehousePanel = ({
         ))}
       </div>
 
-      {activeTab !== 'settings' ? (
+      {activeTab !== 'settings' && activeTab !== 'information' ? (
         <WarehouseToolbar
           activeTab={activeTab}
           currentPage={currentPage}
-          pageCount={pageCount}
+          pageSize={activePageSize}
           stockSummaryText={stockSummaryText}
+          totalItems={totalItems}
+          selectedProductCount={selectedStockProductIds.length}
+          selectedSerialCount={selectedStockProductsWithSerials.length}
           activeColumnsTab={activeColumnsTab}
           columnsMenuRef={columnsMenuRef}
           isColumnsMenuOpen={isColumnsMenuOpen}
           visibleColumnKeySet={visibleColumnKeySet}
           activeFilterCount={activeFilterCount}
+          favoritesOnly={appliedFilters.favoritesOnly}
           query={query}
           searchMode={searchMode}
           searchPlaceholder={searchPlaceholder}
-          onPreviousPage={() => setCurrentPage((current) => current - 1)}
-          onNextPage={() => setCurrentPage((current) => current + 1)}
+          onPrintSelectedSerials={printSelectedStockSerials}
+          onClearSelection={() => setSelectedStockProductIds([])}
           onToggleColumnsMenu={() =>
             setIsColumnsMenuOpen((current) => !current)
           }
           onToggleColumnVisibility={toggleColumnVisibility}
           onToggleFilters={() => setIsFilterPanelOpen((current) => !current)}
+          onToggleFavoritesOnly={toggleReceiptFavoritesOnly}
           setQuery={setQuery}
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
         />
-      ) : null}      {activeTab !== 'settings' ? (
+      ) : null}
+      {activeTab !== 'settings' && activeTab !== 'information' ? (
         <section
           className={
             isFilterPanelOpen
@@ -1582,6 +1725,8 @@ export const WarehousePanel = ({
           warehouses={warehouses}
           administrators={administrators}
           warehousesByServiceCenter={warehousesByServiceCenter}
+          activeWarehousesByServiceCenter={activeWarehousesByServiceCenter}
+          warehouseProductCounts={warehouseProductCounts}
           onCreateServiceCenter={() => {
             setServiceCenterModalId('new');
             setServiceCenterForm(toServiceCenterForm());
@@ -1601,10 +1746,21 @@ export const WarehousePanel = ({
           onAdministratorChange={setAdministrators}
           onSaveAdministrators={() =>
             void persistWarehouseSettings({
+              administrators: normalizeAdministratorsForWarehouses(
+                administrators,
+                warehouses,
+              ),
               successMessage: 'Administrator access saved.',
             })
           }
           isSaving={isWarehouseSettingsSaving}
+        />
+      ) : activeTab === 'information' ? (
+        <WarehouseInformationPanel
+          products={products}
+          sales={sales}
+          warehouses={warehouses}
+          supplierOrders={supplierOrders}
         />
       ) : activeTab === 'stock' ? (
         <>
@@ -1637,7 +1793,18 @@ export const WarehousePanel = ({
               );
             }}
             onEdit={onProductEdit}
-            onOpenModel={(product) => setSelectedProductModelName(product.name)}
+            onOpenModel={(product) =>
+              setSelectedProductModelContext({
+                name: product.name,
+                printProduct: null,
+              })
+            }
+            onOpenSerial={(product) =>
+              setSelectedProductModelContext({
+                name: product.name,
+                printProduct: product,
+              })
+            }
             onDelete={onProductDelete}
             onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
@@ -1662,35 +1829,6 @@ export const WarehousePanel = ({
               setIsSupplierOrderModalOpen(true);
             }}
           />
-          {selectedStockProductIds.length > 0 ? (
-            <div className='warehouse-bulk-actions'>
-              <strong>{selectedStockProductIds.length} selected</strong>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() =>
-                  printSerialNumbers(
-                    selectedStockProductsWithSerials.map((product) => ({
-                      name: product.name,
-                      article: product.article,
-                      serialNumber: product.serialNumber,
-                    })),
-                    'Warehouse serial numbers',
-                  )
-                }
-                disabled={selectedStockProductsWithSerials.length === 0}
-              >
-                Print serial numbers
-              </button>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() => setSelectedStockProductIds([])}
-              >
-                Clear selection
-              </button>
-            </div>
-          ) : null}
           <PaginationPanel
             totalItems={filteredProducts.length}
             page={currentPage}
@@ -1701,13 +1839,14 @@ export const WarehousePanel = ({
               setCurrentPage(1);
             }}
           />
-          {selectedProductModelName ? (
+          {selectedProductModelContext ? (
             <ProductModelModal
-              name={selectedProductModelName}
+              name={selectedProductModelContext.name}
               products={products}
               warehouses={warehouses}
+              printProduct={selectedProductModelContext.printProduct}
               isSaving={isProductSaving}
-              onClose={() => setSelectedProductModelName(null)}
+              onClose={() => setSelectedProductModelContext(null)}
               onSave={onUpdateProductModel}
             />
           ) : null}
@@ -1717,6 +1856,8 @@ export const WarehousePanel = ({
           <ReceiptsTable
             receipts={paginatedReceipts}
             visibleColumns={visibleColumns.receipts}
+            canManageSupplierOrders={canManageSupplierOrders}
+            onToggleFavorite={(receipt) => void toggleReceiptFavorite(receipt)}
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
               const matchedOrder = supplierOrders.find(
@@ -1823,6 +1964,11 @@ export const WarehousePanel = ({
         modalId={warehouseModalId}
         form={warehouseForm}
         serviceCenters={serviceCenters}
+        locationUsage={
+          warehouseModalId && warehouseModalId !== 'new'
+            ? locationUsageByWarehouse[warehouseModalId] ?? {}
+            : {}
+        }
         onFormChange={setWarehouseForm}
         onClose={() => setWarehouseModalId(null)}
         onSubmit={saveWarehouse}

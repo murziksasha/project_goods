@@ -526,6 +526,7 @@ export const OrderDetailCard = ({
       setRelatedSuppliers(suppliersData);
       setRelatedWarehouseOptions(
         warehouseSettings.warehouses
+          .filter((warehouse) => warehouse.isActive)
           .map((warehouse) => ({
             id: warehouse.id,
             name: warehouse.name,
@@ -1388,7 +1389,10 @@ const LineItemsPanel = ({
     useState<Product[]>([]);
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
     useState(false);
-  const [productModelName, setProductModelName] = useState<string | null>(null);
+  const [productModelContext, setProductModelContext] = useState<{
+    name: string;
+    printProduct: Product | null;
+  } | null>(null);
   const [productModelWarehouses, setProductModelWarehouses] = useState<
     WarehouseItem[]
   >([]);
@@ -1419,6 +1423,16 @@ const LineItemsPanel = ({
   const serialUsage = useMemo(() => {
     return getSaleSerialUsage(sales, currentSaleId);
   }, [currentSaleId, sales]);
+  const productsBySerial = useMemo(() => {
+    const map = new Map<string, Product>();
+    products.forEach((product) => {
+      const serial = normalizeSerialNumber(product.serialNumber);
+      if (serial && !map.has(serial)) {
+        map.set(serial, product);
+      }
+    });
+    return map;
+  }, [products]);
   useEffect(() => {
     setPriceDrafts((current) => {
       const itemIds = new Set(items.map((item) => item.id));
@@ -1844,13 +1858,20 @@ const LineItemsPanel = ({
     }
   };
 
+  const openProductModelModal = async (
+    name: string,
+    printProduct: Product | null,
+  ) => {
+    const settings = await getWarehouseSettings();
+    setProductModelWarehouses(settings.warehouses);
+    setProductModelContext({ name, printProduct });
+  };
+
   const openLineItemModal = async (item: OrderLineItem) => {
     setEditingItemId(item.id);
     try {
       if (item.kind === 'product') {
-        const settings = await getWarehouseSettings();
-        setProductModelWarehouses(settings.warehouses);
-        setProductModelName(item.name);
+        await openProductModelModal(item.name, null);
         return;
       }
 
@@ -2048,6 +2069,7 @@ const LineItemsPanel = ({
     <div className='order-line-items'>
       <div className='order-detail-table order-detail-table-wide'>
         <div>Name</div>
+        <div>Serial number</div>
         <div>Price</div>
         <div>Qty</div>
         <div>Warranty</div>
@@ -2071,15 +2093,48 @@ const LineItemsPanel = ({
                 </button>
               </div>
               <div
-                key={`${item.id}-price`}
-                className='order-line-item-price-cell'
+                key={`${item.id}-serial`}
+                className='order-line-item-serial-cell'
               >
                 {item.kind === 'product' &&
                 (item.serialNumbers ?? []).length > 0 ? (
                   <p className='muted-copy order-line-item-serials'>
-                    {(item.serialNumbers ?? []).join(', ')}
+                    {(item.serialNumbers ?? []).map((serial) => {
+                      const normalizedSerial = normalizeSerialNumber(serial);
+                      const serialProduct = productsBySerial.get(normalizedSerial);
+                      if (!serialProduct) {
+                        return (
+                          <span key={serial}>
+                            {serial}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={serial}
+                          type='button'
+                          className='order-line-item-serial-button'
+                          onClick={() =>
+                            void openProductModelModal(
+                              serialProduct.name,
+                              serialProduct,
+                            )
+                          }
+                        >
+                          {serial}
+                        </button>
+                      );
+                    })}
                   </p>
-                ) : null}
+                ) : (
+                  <span className='muted-copy'>-</span>
+                )}
+              </div>
+              <div
+                key={`${item.id}-price`}
+                className='order-line-item-price-cell'
+              >
                 <NumberStepper
                   className='line-item-inline-input'
                   min={0}
@@ -2353,13 +2408,14 @@ const LineItemsPanel = ({
           onClose={() => setIsCreateServiceOpen(false)}
         />
       ) : null}
-      {productModelName ? (
+      {productModelContext ? (
         <ProductModelModal
-          name={productModelName}
+          name={productModelContext.name}
           products={products}
           warehouses={productModelWarehouses}
+          printProduct={productModelContext.printProduct}
           isSaving={isCatalogSaving}
-          onClose={() => setProductModelName(null)}
+          onClose={() => setProductModelContext(null)}
           onSave={async (payload) => {
             setIsCatalogSaving(true);
             try {

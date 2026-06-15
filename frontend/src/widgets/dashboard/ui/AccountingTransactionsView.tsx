@@ -6,7 +6,10 @@ import type {
 } from '../../../entities/finance/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
+import {
+  CompactPaginationPanel,
+  PaginationPanel,
+} from '../../../shared/ui/PaginationPanel';
 import {
   formatDateDdMmYyyy,
   formatMoney,
@@ -76,33 +79,12 @@ export const AccountingTransactionsView = ({
   <>
     <div className='orders-toolbar'>
       <div className='orders-toolbar-left finance-transactions-toolbar-left'>
-        <button
-          type='button'
-          className='toolbar-square-button'
-          aria-label='Previous page'
-          onClick={() => onPageChange((current) => Math.max(1, current - 1))}
-          disabled={page <= 1}
-        >
-          &lsaquo;
-        </button>
-        <div className='finance-transactions-page-chip'>{page}</div>
-        <button
-          type='button'
-          className='toolbar-square-button'
-          aria-label='Next page'
-          onClick={() => {
-            const pageCount = Math.max(
-              1,
-              Math.ceil(filteredTransactions.length / pageSize),
-            );
-            onPageChange((current) => Math.min(pageCount, current + 1));
-          }}
-          disabled={
-            page >= Math.max(1, Math.ceil(filteredTransactions.length / pageSize))
-          }
-        >
-          &rsaquo;
-        </button>
+        <CompactPaginationPanel
+          totalItems={filteredTransactions.length}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+        />
         <button
           type='button'
           className='toolbar-filter-button toolbar-filter-toggle-button'
@@ -394,8 +376,8 @@ export const AccountingTransactionsView = ({
       </div>
     </section>
 
-    <div className='finance-table-wrap'>
-      <table className='orders-table'>
+    <div className='finance-table-wrap finance-card-table-wrap'>
+      <table className='orders-table finance-transactions-table'>
         <thead>
           <tr>
             <th>Date</th>
@@ -443,9 +425,10 @@ export const AccountingTransactionsView = ({
                       isCancelled ? 'finance-transaction-row-cancelled' : undefined
                     }
                   >
-                    <td>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
+                    <td data-label='Date'>{formatDateDdMmYyyy(transaction.transactionDate)}</td>
                     <td
                       className={`finance-transaction-type finance-transaction-type-${transaction.type}`}
+                      data-label='Type'
                     >
                       {transactionLabels[transaction.type]}
                       {isCancelled ? (
@@ -459,8 +442,8 @@ export const AccountingTransactionsView = ({
                         </span>
                       ) : null}
                     </td>
-                    <td>{formatMoney(transaction.amount, transaction.currency)}</td>
-                    <td>
+                    <td data-label='Amount'>{formatMoney(transaction.amount, transaction.currency)}</td>
+                    <td data-label='Total'>
                       {balanceAfterByTransactionId[transaction.id] === null ||
                       balanceAfterByTransactionId[transaction.id] === undefined
                         ? '-'
@@ -471,9 +454,9 @@ export const AccountingTransactionsView = ({
                             transaction.currency,
                           )}
                     </td>
-                    <td>{transaction.fromCashbox?.name ?? '-'}</td>
-                    <td>{transaction.toCashbox?.name ?? '-'}</td>
-                    <td>
+                    <td data-label='From'>{transaction.fromCashbox?.name ?? '-'}</td>
+                    <td data-label='To'>{transaction.toCashbox?.name ?? '-'}</td>
+                    <td data-label='Note'>
                       {(() => {
                         const normalizedNote = transaction.note.trim();
                         const parsedOrderNumber =
@@ -523,7 +506,7 @@ export const AccountingTransactionsView = ({
                         );
                       })()}
                     </td>
-                    <td className='finance-transaction-action-cell'>
+                    <td className='finance-transaction-action-cell' data-label='Action'>
                       {canCancelTransfer ? (
                         <button
                           type='button'

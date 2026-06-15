@@ -75,6 +75,25 @@ describe('renderPrintTemplate', () => {
     expect(rendered).not.toContain('data-qrcode-value');
   });
 
+  it('uses the explicit barcode value and renders label variables', () => {
+    const rendered = renderPrintTemplate(
+      '<div class="print-label">{{barcode}}<strong>{{labelCode}}</strong><span>{{labelTitle}}</span><span>{{labelContact}}</span></div>',
+      {
+        ...templateData,
+        barcode: 'SN-ABC-1',
+        labelCode: 'SN-ABC-1',
+        labelTitle: 'Adapter <Fujitsu>',
+        labelContact: '+380671112233',
+      },
+      'html',
+    );
+
+    expect(rendered).toContain('data-barcode-value="SN-ABC-1"');
+    expect(rendered).toContain('<strong>SN-ABC-1</strong>');
+    expect(rendered).toContain('Adapter &lt;Fujitsu&gt;');
+    expect(rendered).toContain('+380671112233');
+  });
+
   it('removes editor token wrappers from rendered output', () => {
     const rendered = renderPrintTemplate(
       '<div class="print-label"><span class="settings-print-variable-token" contenteditable="false">{{orderNumber}}</span>&nbsp;</div>',
@@ -106,6 +125,13 @@ describe('renderPrintLayout', () => {
       { id: 'services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
       { id: 'invoice', type: 'invoiceItemsTable' },
       { id: 'code', type: 'barcode' },
+      {
+        id: 'custom-code',
+        type: 'barcode',
+        value: '{{labelCode}}',
+        showValue: true,
+        size: 'large',
+      },
       { id: 'sign', type: 'signatures', left: 'Manager', right: 'Client' },
       { id: 'divider', type: 'divider' },
       { id: 'spacer', type: 'spacer', size: 'medium' },
@@ -125,6 +151,9 @@ describe('renderPrintLayout', () => {
     expect(rendered).toContain('{{services_table}}');
     expect(rendered).toContain('{{invoice_items_table}}');
     expect(rendered).toContain('{{barcode}}');
+    expect(rendered).toContain('print-code-row-large');
+    expect(rendered).toContain('data-barcode-value="{{labelCode}}"');
+    expect(rendered).toContain('<strong class="print-code-value">{{labelCode}}</strong>');
     expect(rendered).toContain('print-signatures');
     expect(rendered).toContain('print-columns');
   });
@@ -199,6 +228,63 @@ describe('normalizePrintFormsForView', () => {
       widthMm: 25,
       heightMm: 40,
     });
+  });
+
+  it('keeps the built-in barcode default horizontal and label-focused', () => {
+    const barcode = normalizePrintFormsForView(defaultPrintForms).find(
+      (form) => form.id === 'barcode',
+    );
+
+    expect(barcode?.pageSize).toBe('label');
+    expect(barcode?.orientation).toBe('landscape');
+    expect(barcode?.labelSize).toEqual({
+      presetId: '40x25',
+      widthMm: 40,
+      heightMm: 25,
+    });
+    expect(barcode?.content).toContain('class="print-label"');
+    expect(barcode?.content).not.toContain('class="print-document"');
+    expect(barcode?.content).toContain('{{labelCode}}');
+    expect(barcode?.content).toContain('{{labelTitle}}');
+    expect(barcode?.content).toContain('{{labelContact}}');
+  });
+
+  it('updates the old built-in barcode form without replacing custom barcode forms', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'barcode',
+        title: 'Barcode',
+        type: 'barcode',
+        content: '<div class="print-label">{{barcode}}{{orderNumber}}{{clientPhone}}{{deviceName}}</div>',
+        contentFormat: 'html',
+        layoutVersion: 1,
+        layoutBlocks: [
+          { id: 'barcode-code', type: 'barcode' },
+          { id: 'barcode-number', type: 'heading', level: 3, text: '{{orderNumber}}', align: 'center' },
+        ],
+        pageSize: 'label',
+        labelSize: { presetId: '25x40', widthMm: 25, heightMm: 40 },
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 10,
+      },
+      {
+        id: 'barcode-custom',
+        title: 'Barcode custom',
+        type: 'barcode',
+        content: '<div>{{barcode}} custom</div>',
+        contentFormat: 'html',
+        pageSize: 'label',
+        labelSize: { presetId: '25x40', widthMm: 25, heightMm: 40 },
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 15,
+      },
+    ]);
+
+    expect(normalized.find((form) => form.id === 'barcode')?.content).toContain('{{labelCode}}');
+    expect(normalized.find((form) => form.id === 'barcode')?.orientation).toBe('landscape');
+    expect(normalized.find((form) => form.id === 'barcode-custom')?.content).toBe('<div>{{barcode}} custom</div>');
   });
 
   it('updates recognizable legacy standard forms only', () => {
