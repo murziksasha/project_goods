@@ -3,11 +3,14 @@ import axios from 'axios';
 import type {
   Cashbox,
   CreateCashboxPayload,
+  CreateFinanceCurrencyPayload,
   CreateFinanceTransactionPayload,
+  FinanceCurrencyConfig,
   FinanceReport,
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
   UpdateCashboxPayload,
+  UpdateFinanceCurrencyPayload,
 } from '../model/types';
 
 export const getCashboxes = async (options: { includeArchived?: boolean } = {}) => {
@@ -36,6 +39,46 @@ export const updateCashbox = async (
 ) => {
   try {
     const response = await apiClient.patch<Cashbox>(`/finance/cashboxes/${cashboxId}`, payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getFinanceCurrencies = async (options: { includeArchived?: boolean } = {}) => {
+  try {
+    const response = await apiClient.get<FinanceCurrencyConfig[]>('/finance/currencies', {
+      params: options.includeArchived ? { includeArchived: '1' } : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const createFinanceCurrency = async (
+  payload: CreateFinanceCurrencyPayload,
+) => {
+  try {
+    const response = await apiClient.post<FinanceCurrencyConfig>(
+      '/finance/currencies',
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateFinanceCurrency = async (
+  currencyCode: string,
+  payload: UpdateFinanceCurrencyPayload,
+) => {
+  try {
+    const response = await apiClient.patch<FinanceCurrencyConfig>(
+      `/finance/currencies/${currencyCode}`,
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

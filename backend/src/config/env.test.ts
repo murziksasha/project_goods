@@ -5,7 +5,7 @@ describe('parseEnv', () => {
   it('preserves default backend env values', () => {
     expect(parseEnv({})).toEqual({
       port: 5000,
-      mongoUri: 'mongodb://127.0.0.1:27017/inventory',
+      mongoUri: 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0',
       clientOrigin: undefined,
       backupDir: './backups',
       backupCreateCommand: undefined,

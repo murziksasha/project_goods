@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 
 const defaultPort = 5000;
-const defaultMongoUri = 'mongodb://127.0.0.1:27017/inventory';
+const defaultMongoUri = 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0';
 
 export type BackendEnv = {
   port: number;

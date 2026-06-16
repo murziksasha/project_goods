@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelFinanceTransaction,
   createCashbox,
+  createFinanceCurrency,
   createFinanceTransaction,
   issueSupplierOrderWithoutPayment,
   paySupplierOrder,
   updateCashbox,
+  updateFinanceCurrency,
 } from '../../../entities/finance/api/financeApi';
 import type {
   Cashbox,
@@ -21,7 +23,6 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   canCancelAccountingTransferTransaction,
-  currencyOptions,
   filterFinanceTransactions,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
@@ -67,6 +68,7 @@ export const AccountingPanel = ({
   const {
     allCashboxes,
     cashboxes,
+    currencies,
     isCashboxesOrderHydrated,
     isLoading,
     refreshFinance,
@@ -78,16 +80,11 @@ export const AccountingPanel = ({
   } = useAccountingFinanceData({ onError });
   const {
     activeTab,
-    allCurrencyCodes,
-    currencyActivity,
-    customCurrencies,
     expandedFinanceSettingsCard,
     financeSettingsTab,
     isFinanceSettingsOpen,
     lastTargetCashboxByType,
     setActiveTab,
-    setCurrencyActivity,
-    setCustomCurrencies,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
     setIsFinanceSettingsOpen,
@@ -157,11 +154,15 @@ export const AccountingPanel = ({
     [canCreateDeposit, canCreateTransfer, canCreateWithdraw],
   );
 
+  const allCurrencyCodes = useMemo(
+    () => currencies.map((currency) => currency.code),
+    [currencies],
+  );
   const isGlobalCurrencyActive = useCallback(
     (currencyCode: string) =>
-      currencyOptions.includes(currencyCode as FinanceCurrency) ||
-      currencyActivity[currencyCode] !== false,
-    [currencyActivity],
+      currencyCode === 'UAH' ||
+      currencies.find((currency) => currency.code === currencyCode)?.isArchived !== true,
+    [currencies],
   );
   const isCashboxCurrencyActive = useCallback(
     (cashboxId: string, currencyCode: string) => {
@@ -172,12 +173,8 @@ export const AccountingPanel = ({
     [allCashboxes],
   );
   const getCurrencyBalance = useCallback(
-    (cashbox: Cashbox, currencyCode: string) => {
-      if (currencyOptions.includes(currencyCode as FinanceCurrency)) {
-        return cashbox.balances[currencyCode as FinanceCurrency];
-      }
-      return 0;
-    },
+    (cashbox: Cashbox, currencyCode: string) =>
+      cashbox.balances[currencyCode as FinanceCurrency] ?? 0,
     [],
   );
   const cashboxCurrencyRows = useCallback(
@@ -462,52 +459,52 @@ export const AccountingPanel = ({
     }
   };
 
-  const addCurrencyCode = () => {
+  const addCurrencyCode = async () => {
     const normalized = newCurrencyCode.trim().toUpperCase();
     if (!/^[A-Z]{3,6}$/.test(normalized)) {
       onError('Currency code must be 3-6 latin letters.');
       return;
     }
-    if (
-      currencyOptions.includes(normalized as FinanceCurrency) ||
-      customCurrencies.includes(normalized)
-    ) {
+    if (currencies.some((currency) => currency.code === normalized && !currency.isArchived)) {
       onError('Currency already exists.');
       return;
     }
-    setCustomCurrencies((current) => [...current, normalized]);
-    setNewCurrencyCode('');
+    setIsSaving(true);
+    try {
+      await createFinanceCurrency({ code: normalized });
+      setNewCurrencyCode('');
+      onSuccess('Currency created.');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to create currency.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const removeCurrencyCode = (code: string) => {
+  const archiveCurrencyCode = async (code: string) => {
     if (code === 'UAH') {
-      onError('UAH is the main currency and cannot be removed.');
+      onError('UAH is the main currency and cannot be archived.');
       return;
     }
-    const hasFundsInActiveCashboxes = allCashboxes.some(
-      (cashbox) => !cashbox.isArchived && getCurrencyBalance(cashbox, code) > 0,
-    );
-    if (hasFundsInActiveCashboxes) {
-      onError(
-        'Cannot remove currency while active cashboxes have non-zero balance in it.',
-      );
-      return;
+    setIsSaving(true);
+    try {
+      await updateFinanceCurrency(code, { isArchived: true });
+      onSuccess('Currency archived.');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to archive currency.');
+    } finally {
+      setIsSaving(false);
     }
-    setCustomCurrencies((current) => current.filter((item) => item !== code));
-    setCurrencyActivity((current) => {
-      if (!(code in current)) return current;
-      const next = { ...current };
-      delete next[code];
-      return next;
-    });
   };
 
   const handleRemoveCurrency = (code: string) => {
-    if (currencyOptions.includes(code as FinanceCurrency)) {
-      onError('System currencies are configured per cashbox.');
+    if (code === 'UAH') {
+      onError('UAH is the main currency and cannot be archived.');
       return;
     }
-    removeCurrencyCode(code);
+    void archiveCurrencyCode(code);
   };
 
   const toggleFinanceSettingsCard = (cardId: string) => {
@@ -516,15 +513,25 @@ export const AccountingPanel = ({
     );
   };
 
-  const toggleCurrencyActivity = (currencyCode: string) => {
-    if (currencyOptions.includes(currencyCode as FinanceCurrency)) {
-      onError('System currencies are configured per cashbox.');
+  const toggleCurrencyActivity = async (currencyCode: string) => {
+    if (currencyCode === 'UAH') {
+      onError('UAH is always active.');
       return;
     }
-    setCurrencyActivity((current) => ({
-      ...current,
-      [currencyCode]: current[currencyCode] === false,
-    }));
+    const currency = currencies.find((item) => item.code === currencyCode);
+    if (!currency) return;
+    setIsSaving(true);
+    try {
+      await updateFinanceCurrency(currencyCode, {
+        isArchived: !currency.isArchived,
+      });
+      onSuccess(currency.isArchived ? 'Currency restored.' : 'Currency archived.');
+      await refreshFinance();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Failed to update currency.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleCashboxCurrencyActivity = async (
@@ -535,10 +542,6 @@ export const AccountingPanel = ({
       onError('UAH is always active.');
       return;
     }
-    if (currencyCode !== 'USD') {
-      onError('Only system currencies can be configured per cashbox.');
-      return;
-    }
     const cashbox = allCashboxes.find((item) => item.id === cashboxId);
     if (!cashbox) return;
     setIsSaving(true);
@@ -547,7 +550,7 @@ export const AccountingPanel = ({
         enabledCurrencies: {
           ...cashbox.enabledCurrencies,
           UAH: true,
-          USD: cashbox.enabledCurrencies?.USD !== true,
+          [currencyCode]: cashbox.enabledCurrencies?.[currencyCode] !== true,
         },
       });
       onSuccess('Cashbox currency settings updated.');
@@ -606,6 +609,7 @@ export const AccountingPanel = ({
       await createFinanceTransaction({
         ...transactionForm,
         amount: String(normalizedAmount),
+        idempotencyKey: crypto.randomUUID(),
       });
       if (
         (transactionForm.type === 'deposit' ||

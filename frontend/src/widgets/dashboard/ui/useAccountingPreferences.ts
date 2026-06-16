@@ -1,20 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Cashbox } from '../../../entities/finance/model/types';
 import {
   accountingCashboxOrderStorageKey,
-  accountingCurrenciesStorageKey,
-  accountingCurrencyActivityStorageKey,
   accountingExpandedFinanceSettingsCardStorageKey,
   accountingFinanceSettingsTabStorageKey,
   accountingLastTargetCashboxByTypeStorageKey,
   accountingSettingsOpenStorageKey,
   accountingTabStorageKey,
-  currencyOptions,
   getAccountingTabFromUrl,
   getStoredAccountingSettingsOpen,
   getStoredAccountingTab,
   getStoredExpandedFinanceSettingsCard,
-  normalizeCurrencyActivity,
   type AccountingTab,
   type TransactionTargetMemory,
 } from '../model/accounting';
@@ -51,38 +47,6 @@ export const useAccountingPreferences = ({
     });
   const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] =
     useState<string | null>(getStoredExpandedFinanceSettingsCard);
-  const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(accountingCurrenciesStorageKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as string[];
-      return Array.isArray(parsed)
-        ? parsed.filter((item) => typeof item === 'string')
-        : [];
-    } catch {
-      return [];
-    }
-  });
-  const [currencyActivity, setCurrencyActivity] = useState<
-    Record<string, boolean>
-  >(() => {
-    try {
-      const raw = window.localStorage.getItem(
-        accountingCurrencyActivityStorageKey,
-      );
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      return Object.entries(parsed).reduce<Record<string, boolean>>(
-        (acc, [currency, value]) => {
-          acc[currency] = Boolean(value);
-          return acc;
-        },
-        {},
-      );
-    } catch {
-      return {};
-    }
-  });
   const [lastTargetCashboxByType, setLastTargetCashboxByType] =
     useState<TransactionTargetMemory>(() => {
       try {
@@ -103,11 +67,6 @@ export const useAccountingPreferences = ({
         return {};
       }
     });
-
-  const allCurrencyCodes = useMemo(
-    () => Array.from(new Set<string>([...currencyOptions, ...customCurrencies])),
-    [customCurrencies],
-  );
 
   useEffect(() => {
     try {
@@ -156,34 +115,6 @@ export const useAccountingPreferences = ({
       // Ignore localStorage write errors.
     }
   }, [cashboxes, isCashboxesOrderHydrated]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        accountingCurrenciesStorageKey,
-        JSON.stringify(customCurrencies),
-      );
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [customCurrencies]);
-
-  useEffect(() => {
-    setCurrencyActivity((current) =>
-      normalizeCurrencyActivity(current, allCurrencyCodes),
-    );
-  }, [allCurrencyCodes]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        accountingCurrencyActivityStorageKey,
-        JSON.stringify(currencyActivity),
-      );
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [currencyActivity]);
 
   useEffect(() => {
     try {
@@ -237,16 +168,11 @@ export const useAccountingPreferences = ({
 
   return {
     activeTab,
-    allCurrencyCodes,
-    currencyActivity,
-    customCurrencies,
     expandedFinanceSettingsCard,
     financeSettingsTab,
     isFinanceSettingsOpen,
     lastTargetCashboxByType,
     setActiveTab,
-    setCurrencyActivity,
-    setCustomCurrencies,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
     setIsFinanceSettingsOpen,

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getCashboxes,
+  getFinanceCurrencies,
   getFinanceReport,
   getFinanceTransactions,
   getSupplierOrdersForPayment,
 } from '../../../entities/finance/api/financeApi';
 import type {
   Cashbox,
+  FinanceCurrencyConfig,
   FinanceReport,
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
@@ -28,6 +30,7 @@ export const useAccountingFinanceData = ({
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
   const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
+  const [currencies, setCurrencies] = useState<FinanceCurrencyConfig[]>([]);
   const [report, setReport] = useState<FinanceReport | null>(null);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
   const [supplierOrdersQueue, setSupplierOrdersQueue] = useState<
@@ -44,12 +47,14 @@ export const useAccountingFinanceData = ({
         activeCashboxesData,
         allCashboxesData,
         transactionsData,
+        currenciesData,
         reportData,
         supplierOrdersData,
       ] = await Promise.all([
         getCashboxes(),
         getCashboxes({ includeArchived: true }),
         getFinanceTransactions(),
+        getFinanceCurrencies({ includeArchived: true }),
         getFinanceReport(),
         getSupplierOrdersForPayment(),
       ]);
@@ -69,6 +74,7 @@ export const useAccountingFinanceData = ({
       setAllCashboxes(allCashboxesData);
       setIsCashboxesOrderHydrated(true);
       setTransactions(transactionsData);
+      setCurrencies(currenciesData);
       setReport(reportData);
       setSupplierOrdersQueue(supplierOrdersData);
       setSupplierOrders(allSupplierOrders);
@@ -106,6 +112,7 @@ export const useAccountingFinanceData = ({
   return {
     allCashboxes,
     cashboxes,
+    currencies,
     isCashboxesOrderHydrated,
     isLoading,
     refreshFinance,

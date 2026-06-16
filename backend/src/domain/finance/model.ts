@@ -1,27 +1,45 @@
 import mongoose from 'mongoose';
 
-export const financeCurrencies = ['UAH', 'USD'] as const;
-export type FinanceCurrency = (typeof financeCurrencies)[number];
+export const baseFinanceCurrency = 'UAH';
+export const seededFinanceCurrencies = ['UAH', 'USD'] as const;
+export type FinanceCurrency = string;
 
 export const transactionTypes = ['deposit', 'withdraw', 'transfer'] as const;
 export type TransactionType = (typeof transactionTypes)[number];
 export const transactionStatuses = ['active', 'cancelled'] as const;
 export type TransactionStatus = (typeof transactionStatuses)[number];
 
-const balancesSchema = new mongoose.Schema(
-  {
-    UAH: { type: Number, required: true, default: 0, min: 0 },
-    USD: { type: Number, required: true, default: 0, min: 0 },
-  },
-  { _id: false },
-);
+const defaultBalances = () => ({ UAH: 0, USD: 0 });
+const defaultEnabledCurrencies = () => ({ UAH: true, USD: false });
 
-const enabledCurrenciesSchema = new mongoose.Schema(
+export const financeCurrencyConfigSchema = new mongoose.Schema(
   {
-    UAH: { type: Boolean, required: true, default: true },
-    USD: { type: Boolean, required: true, default: false },
+    code: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      minlength: 3,
+      maxlength: 6,
+      unique: true,
+      index: true,
+    },
+    isSystem: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    isArchived: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
   },
-  { _id: false },
+  {
+    timestamps: true,
+    versionKey: false,
+  },
 );
 
 export const cashboxSchema = new mongoose.Schema(
@@ -34,14 +52,16 @@ export const cashboxSchema = new mongoose.Schema(
       unique: true,
     },
     balances: {
-      type: balancesSchema,
+      type: Map,
+      of: { type: Number, min: 0 },
       required: true,
-      default: () => ({ UAH: 0, USD: 0 }),
+      default: defaultBalances,
     },
     enabledCurrencies: {
-      type: enabledCurrenciesSchema,
+      type: Map,
+      of: Boolean,
       required: true,
-      default: () => ({ UAH: true, USD: false }),
+      default: defaultEnabledCurrencies,
     },
     isDefault: {
       type: Boolean,
@@ -76,7 +96,8 @@ export const financeTransactionSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      enum: financeCurrencies,
+      trim: true,
+      uppercase: true,
       required: true,
     },
     fromCashbox: {
@@ -137,6 +158,12 @@ export const financeTransactionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -145,6 +172,14 @@ export const financeTransactionSchema = new mongoose.Schema(
 );
 
 export type CashboxDocument = mongoose.InferSchemaType<typeof cashboxSchema> & {
+  _id: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type FinanceCurrencyConfigDocument = mongoose.InferSchemaType<
+  typeof financeCurrencyConfigSchema
+> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -159,6 +194,10 @@ export type FinanceTransactionDocument = mongoose.InferSchemaType<
 };
 
 export const Cashbox = mongoose.model('Cashbox', cashboxSchema);
+export const FinanceCurrencyConfig = mongoose.model(
+  'FinanceCurrencyConfig',
+  financeCurrencyConfigSchema,
+);
 export const FinanceTransaction = mongoose.model(
   'FinanceTransaction',
   financeTransactionSchema,

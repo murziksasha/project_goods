@@ -97,13 +97,21 @@ This document defines financial behavior for supplier-order related operations i
 - Transactions/cashbox runtime lists continue to use active cashboxes only.
 
 ## Currency Settings Rules
-- `Currencies` settings section supports adding/removing custom currency codes for planning/configuration storage.
-- System transaction currencies remain fixed to backend-supported currencies.
+- `Currencies` settings section supports creating and archiving finance currency codes.
+- New currencies are stored in MongoDB and become full transaction currencies for `deposit`, `withdraw`, and `transfer`.
+- New currencies are added to every cashbox with zero balance and disabled receiving by default.
+- Archived currencies cannot receive deposits or incoming transfers, but existing positive balances remain visible and can be withdrawn.
 
 ## Cashbox Currency Visibility Rules
 - System currency visibility for cashboxes is stored in MongoDB per cashbox, not in browser-local user preferences.
 - `UAH` is always enabled for every cashbox and cannot be disabled.
-- `USD` exists for every current and future cashbox, but is disabled by default.
-- Enabling `USD` in one cashbox setting is global for all users because it updates that cashbox document in the database.
-- If `USD` is disabled for a cashbox but its `USD` balance is greater than zero, the balance remains visible as `Withdraw only`.
-- Disabled `USD` cashboxes cannot receive `USD` deposits or incoming `USD` transfers; withdrawing existing `USD` balance is allowed.
+- `USD` and all custom currencies exist for every current and future cashbox, but are disabled by default.
+- Enabling a non-UAH currency in one cashbox setting is global for all users because it updates that cashbox document in the database.
+- If a currency is disabled for a cashbox but its balance is greater than zero, the balance remains visible as `Withdraw only`.
+- Disabled currency cashboxes cannot receive deposits or incoming transfers in that currency; withdrawing existing balance is allowed.
+
+## Concurrency Safety Rules
+- Finance mutations must use MongoDB transactions when the database is connected as a replica set.
+- Cashbox debits must use conditional atomic updates so the balance can never become negative under concurrent requests.
+- Transfer and cancellation flows must update balances and transaction records in one transaction.
+- Manual transaction requests may include an optional idempotency key; repeated requests with the same key return the existing transaction.

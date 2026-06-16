@@ -1,28 +1,33 @@
 import mongoose from 'mongoose';
 import {
+  baseFinanceCurrency,
   Cashbox,
+  FinanceCurrencyConfig,
   FinanceTransaction,
+  seededFinanceCurrencies,
   type CashboxDocument,
   type FinanceCurrency,
+  type FinanceCurrencyConfigDocument,
   type FinanceTransactionDocument,
 } from './model';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
-import { formatCashbox, formatTransaction } from './formatters';
+import { formatCashbox, formatCurrencyConfig, formatTransaction } from './formatters';
 import {
   normalizeAmount,
   normalizeCurrency,
+  normalizeCurrencyCode,
   normalizeDate,
   normalizeEnabledCurrencies,
   normalizeName,
   normalizeType,
   type CashboxPayload,
+  type CurrencyPayload,
   type TransactionPayload,
+  type UpdateCurrencyPayload,
   type UpdateCashboxPayload,
 } from './normalizers';
 
 const defaultCashboxName = 'Основная';
-
-const defaultEnabledCurrencies = { UAH: true, USD: false };
 
 const accountingBusinessTimeZone = 'Europe/Kiev';
 const transferCancellationDayError =
@@ -44,14 +49,135 @@ const getAccountingBusinessDateKey = (
   return `${byType.year}-${byType.month}-${byType.day}`;
 };
 
+const mapLikeToRecord = <T>(
+  value: Map<string, T> | Record<string, T> | undefined,
+) => {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value.entries());
+  return { ...value };
+};
+
+const getMapValue = <T>(
+  value: Map<string, T> | Record<string, T> | undefined,
+  key: string,
+) => {
+  if (!value) return undefined;
+  if (value instanceof Map) return value.get(key);
+  return value[key];
+};
+
+const withOptionalFinanceSession = async <T>(
+  operation: (session?: mongoose.ClientSession) => Promise<T>,
+) => {
+  if (mongoose.connection.readyState !== 1) {
+    return operation();
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let result: T | undefined;
+    await session.withTransaction(async () => {
+      result = await operation(session);
+    });
+    return result as T;
+  } finally {
+    await session.endSession();
+  }
+};
+
+const leanWithOptionalSession = async <T>(
+  query: unknown,
+  session?: mongoose.ClientSession,
+) => {
+  const chain = query as {
+    session?: (session: mongoose.ClientSession) => unknown;
+    lean: () => Promise<T>;
+  };
+  const withSession = session && chain.session ? chain.session(session) : chain;
+  return (withSession as { lean: () => Promise<T> }).lean();
+};
+
+const updateWithOptionalSession = async (
+  query: unknown,
+  session?: mongoose.ClientSession,
+) => {
+  const chain = query as {
+    session?: (session: mongoose.ClientSession) => Promise<unknown>;
+    then?: unknown;
+  };
+  if (session && chain.session) {
+    return chain.session(session);
+  }
+  return query as Promise<unknown>;
+};
+
+const buildCurrencyDefaults = (currencyCodes: string[]) =>
+  currencyCodes.reduce<{
+    balances: Record<string, number>;
+    enabledCurrencies: Record<string, boolean>;
+  }>(
+    (acc, currency) => {
+      acc.balances[currency] = 0;
+      acc.enabledCurrencies[currency] = currency === baseFinanceCurrency;
+      return acc;
+    },
+    { balances: {}, enabledCurrencies: {} },
+  );
+
+const ensureFinanceCurrencies = async () => {
+  await Promise.all(
+    seededFinanceCurrencies.map((code) =>
+      FinanceCurrencyConfig.findOneAndUpdate(
+        { code },
+        {
+          $setOnInsert: {
+            code,
+            isSystem: true,
+            isArchived: false,
+          },
+        },
+        { upsert: true, returnDocument: 'after', runValidators: true },
+      ),
+    ),
+  );
+};
+
+const listCurrencyDocuments = async (options: { includeArchived?: boolean } = {}) => {
+  await ensureFinanceCurrencies();
+  const query = options.includeArchived ? {} : { isArchived: false };
+  return FinanceCurrencyConfig.find(query)
+    .sort({ isSystem: -1, code: 1 })
+    .lean<FinanceCurrencyConfigDocument[]>();
+};
+
+const getCurrencyCodes = async (options: { includeArchived?: boolean } = {}) =>
+  (await listCurrencyDocuments(options)).map((currency) => currency.code);
+
+const getCurrencyConfigOrThrow = async (
+  code: string,
+  session?: mongoose.ClientSession,
+) => {
+  await ensureFinanceCurrencies();
+  const currency = await leanWithOptionalSession<FinanceCurrencyConfigDocument | null>(
+    FinanceCurrencyConfig.findOne({ code }),
+    session,
+  );
+  if (!currency) {
+    throw new Error('Unsupported transaction currency.');
+  }
+  return currency;
+};
+
 export const ensureDefaultCashbox = async () => {
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
+  const currencyDefaults = buildCurrencyDefaults(currencyCodes);
   const cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
   if (cashbox) {
     if (!cashbox.enabledCurrencies) {
       await Cashbox.findByIdAndUpdate(cashbox._id, {
-        $set: { enabledCurrencies: defaultEnabledCurrencies },
+        $set: { enabledCurrencies: currencyDefaults.enabledCurrencies },
       });
-      return { ...cashbox, enabledCurrencies: defaultEnabledCurrencies };
+      return { ...cashbox, enabledCurrencies: currencyDefaults.enabledCurrencies };
     }
     return cashbox;
   }
@@ -61,8 +187,8 @@ export const ensureDefaultCashbox = async () => {
     {
       $setOnInsert: {
         name: defaultCashboxName,
-        balances: { UAH: 0, USD: 0 },
-        enabledCurrencies: defaultEnabledCurrencies,
+        balances: currencyDefaults.balances,
+        enabledCurrencies: currencyDefaults.enabledCurrencies,
       },
       $set: {
         isDefault: true,
@@ -81,32 +207,50 @@ export const ensureDefaultCashbox = async () => {
 };
 
 const backfillCashboxEnabledCurrencies = async () => {
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
   await Cashbox.updateMany(
     { enabledCurrencies: { $exists: false } },
-    { $set: { enabledCurrencies: defaultEnabledCurrencies } },
+    { $set: { enabledCurrencies: buildCurrencyDefaults(currencyCodes).enabledCurrencies } },
   );
   await Cashbox.updateMany(
     { 'enabledCurrencies.UAH': { $ne: true } },
     { $set: { 'enabledCurrencies.UAH': true } },
   );
-  await Cashbox.updateMany(
-    { 'enabledCurrencies.USD': { $exists: false } },
-    { $set: { 'enabledCurrencies.USD': false } },
+  await Promise.all(
+    currencyCodes.map((currency) =>
+      Promise.all([
+        Cashbox.updateMany(
+          { [`balances.${currency}`]: { $exists: false } },
+          { $set: { [`balances.${currency}`]: 0 } },
+        ),
+        Cashbox.updateMany(
+          { [`enabledCurrencies.${currency}`]: { $exists: false } },
+          {
+            $set: {
+              [`enabledCurrencies.${currency}`]: currency === baseFinanceCurrency,
+            },
+          },
+        ),
+      ]),
+    ),
   );
 };
 
 export const listCashboxes = async (options: { includeArchived?: boolean } = {}) => {
   await ensureDefaultCashbox();
   await backfillCashboxEnabledCurrencies();
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
   const query = options.includeArchived ? {} : { isArchived: false };
   const cashboxes = await Cashbox.find(query)
     .sort({ isDefault: -1, createdAt: 1 })
     .lean<CashboxDocument[]>();
 
-  return cashboxes.map(formatCashbox);
+  return cashboxes.map((cashbox) => formatCashbox(cashbox, currencyCodes));
 };
 
 export const createCashbox = async (payload: CashboxPayload) => {
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
+  const currencyDefaults = buildCurrencyDefaults(currencyCodes);
   const name = normalizeName(payload.name);
   if (name.length < 2) {
     throw new Error('Cashbox name must contain at least 2 characters.');
@@ -114,13 +258,13 @@ export const createCashbox = async (payload: CashboxPayload) => {
 
   const cashbox = new Cashbox({
     name,
-    balances: { UAH: 0, USD: 0 },
-    enabledCurrencies: defaultEnabledCurrencies,
+    balances: currencyDefaults.balances,
+    enabledCurrencies: currencyDefaults.enabledCurrencies,
   });
   await cashbox.validate();
   await cashbox.save();
 
-  return formatCashbox(cashbox.toObject<CashboxDocument>());
+  return formatCashbox(cashbox.toObject<CashboxDocument>(), currencyCodes);
 };
 
 export const updateCashbox = async (
@@ -128,6 +272,7 @@ export const updateCashbox = async (
   payload: UpdateCashboxPayload,
 ) => {
   isValidObjectIdOrThrow(cashboxId, 'cashboxId');
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
   const existing = await Cashbox.findById(cashboxId).lean<CashboxDocument | null>();
   if (!existing) {
     throw new Error('Cashbox not found.');
@@ -149,10 +294,22 @@ export const updateCashbox = async (
     patch.isArchived = nextArchived;
   }
   if (payload.enabledCurrencies !== undefined) {
-    patch.enabledCurrencies = normalizeEnabledCurrencies(payload.enabledCurrencies);
+    const normalized = normalizeEnabledCurrencies(payload.enabledCurrencies);
+    const existingEnabled = mapLikeToRecord<boolean>(existing.enabledCurrencies);
+    Object.keys(normalized).forEach((currency) => {
+      if (!currencyCodes.includes(currency)) {
+        throw new Error('Unsupported cashbox currency setting.');
+      }
+    });
+    patch.enabledCurrencies = {
+      ...buildCurrencyDefaults(currencyCodes).enabledCurrencies,
+      ...existingEnabled,
+      ...normalized,
+      [baseFinanceCurrency]: true,
+    };
   }
   if (Object.keys(patch).length === 0) {
-    return formatCashbox(existing);
+    return formatCashbox(existing, currencyCodes);
   }
 
   const updated = await Cashbox.findByIdAndUpdate(
@@ -164,13 +321,116 @@ export const updateCashbox = async (
     throw new Error('Cashbox not found.');
   }
 
-  return formatCashbox(updated);
+  return formatCashbox(updated, currencyCodes);
 };
 
-const getCashboxOrThrow = async (cashboxId: unknown, field: string) => {
+export const listFinanceCurrencies = async (options: { includeArchived?: boolean } = {}) => {
+  const currencies = await listCurrencyDocuments(options);
+  return currencies.map(formatCurrencyConfig);
+};
+
+export const createFinanceCurrency = async (payload: CurrencyPayload) => {
+  const code = normalizeCurrencyCode(payload.code);
+  if (code === baseFinanceCurrency) {
+    throw new Error('Currency already exists.');
+  }
+
+  return withOptionalFinanceSession(async (session) => {
+    await ensureFinanceCurrencies();
+    const existing = await leanWithOptionalSession<FinanceCurrencyConfigDocument | null>(
+      FinanceCurrencyConfig.findOne({ code }),
+      session,
+    );
+    if (existing && !existing.isArchived) {
+      throw new Error('Currency already exists.');
+    }
+
+    const currency = existing
+      ? await leanWithOptionalSession<FinanceCurrencyConfigDocument | null>(
+          FinanceCurrencyConfig.findOneAndUpdate(
+            { code },
+            { $set: { isArchived: false } },
+            { returnDocument: 'after', runValidators: true },
+          ),
+          session,
+        )
+      : await leanWithOptionalSession<FinanceCurrencyConfigDocument | null>(
+          FinanceCurrencyConfig.findOneAndUpdate(
+            { code },
+            {
+              $setOnInsert: {
+                code,
+                isSystem: false,
+                isArchived: false,
+              },
+            },
+            { upsert: true, returnDocument: 'after', runValidators: true },
+          ),
+          session,
+        );
+
+    await updateWithOptionalSession(
+      Cashbox.updateMany(
+        { [`balances.${code}`]: { $exists: false } },
+        {
+          $set: {
+            [`balances.${code}`]: 0,
+            [`enabledCurrencies.${code}`]: false,
+          },
+        },
+      ),
+      session,
+    );
+
+    if (!currency) {
+      throw new Error('Failed to create currency.');
+    }
+    return formatCurrencyConfig(currency);
+  });
+};
+
+export const updateFinanceCurrency = async (
+  codePayload: unknown,
+  payload: UpdateCurrencyPayload,
+) => {
+  const code = normalizeCurrencyCode(codePayload);
+  if (code === baseFinanceCurrency) {
+    throw new Error('UAH currency cannot be archived.');
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (payload.isArchived !== undefined) {
+    patch.isArchived = Boolean(payload.isArchived);
+  }
+  if (Object.keys(patch).length === 0) {
+    const existing = await FinanceCurrencyConfig.findOne({ code })
+      .lean<FinanceCurrencyConfigDocument | null>();
+    if (!existing) throw new Error('Currency not found.');
+    return formatCurrencyConfig(existing);
+  }
+
+  const updated = await FinanceCurrencyConfig.findOneAndUpdate(
+    { code },
+    { $set: patch },
+    { returnDocument: 'after', runValidators: true },
+  ).lean<FinanceCurrencyConfigDocument | null>();
+  if (!updated) {
+    throw new Error('Currency not found.');
+  }
+  return formatCurrencyConfig(updated);
+};
+
+const getCashboxOrThrow = async (
+  cashboxId: unknown,
+  field: string,
+  session?: mongoose.ClientSession,
+) => {
   const id = String(cashboxId ?? '');
   isValidObjectIdOrThrow(id, field);
-  const cashbox = await Cashbox.findById(id).lean<CashboxDocument | null>();
+  const cashbox = await leanWithOptionalSession<CashboxDocument | null>(
+    Cashbox.findById(id),
+    session,
+  );
   if (!cashbox || cashbox.isArchived) {
     throw new Error(`${field} cashbox not found.`);
   }
@@ -182,26 +442,52 @@ const applyCashboxDelta = async (
   cashboxId: mongoose.Types.ObjectId | string,
   currency: FinanceCurrency,
   delta: number,
+  session?: mongoose.ClientSession,
 ) => {
-  const cashbox = await Cashbox.findById(cashboxId).lean<CashboxDocument | null>();
+  const cashbox = await leanWithOptionalSession<CashboxDocument | null>(
+    Cashbox.findById(cashboxId),
+    session,
+  );
   if (!cashbox) {
     throw new Error('Cashbox not found.');
   }
 
-  const currentBalance = cashbox.balances?.[currency] ?? 0;
+  const currentBalance = getMapValue(cashbox.balances, currency) ?? 0;
   if (currentBalance + delta < 0) {
     throw new Error('Cashbox balance cannot become negative.');
   }
 
-  await Cashbox.findByIdAndUpdate(cashboxId, {
-    $inc: { [`balances.${currency}`]: delta },
-  });
+  if (delta < 0 && typeof Cashbox.updateOne === 'function') {
+    const result = (await updateWithOptionalSession(
+      Cashbox.updateOne(
+        {
+          _id: cashboxId,
+          [`balances.${currency}`]: { $gte: Math.abs(delta) },
+        },
+        { $inc: { [`balances.${currency}`]: delta } },
+      ),
+      session,
+    )) as { modifiedCount?: number; matchedCount?: number };
+    if ((result.modifiedCount ?? result.matchedCount ?? 0) < 1) {
+      throw new Error('Cashbox balance is not enough for this operation.');
+    }
+    return;
+  }
+
+  await updateWithOptionalSession(
+    Cashbox.findByIdAndUpdate(cashboxId, {
+      $inc: { [`balances.${currency}`]: delta },
+    }),
+    session,
+  );
 };
 
 const isCurrencyEnabledForCashbox = (
   cashbox: CashboxDocument,
   currency: FinanceCurrency,
-) => currency === 'UAH' || cashbox.enabledCurrencies?.[currency] === true;
+) =>
+  currency === baseFinanceCurrency ||
+  getMapValue(cashbox.enabledCurrencies, currency) === true;
 
 const assertCashboxCanAcceptCurrency = (
   cashbox: CashboxDocument,
@@ -218,162 +504,201 @@ const assertCashboxCanWithdrawCurrency = (
 ) => {
   if (
     !isCurrencyEnabledForCashbox(cashbox, currency) &&
-    (cashbox.balances?.[currency] ?? 0) <= 0
+    (getMapValue(cashbox.balances, currency) ?? 0) <= 0
   ) {
     throw new Error('Cashbox currency is not available for withdrawal.');
   }
 };
 
 export const createFinanceTransaction = async (payload: TransactionPayload) => {
-  await ensureDefaultCashbox();
+  return withOptionalFinanceSession(async (session) => {
+    await ensureDefaultCashbox();
 
-  const type = normalizeType(payload.type);
-  const amount = normalizeAmount(payload.amount);
-  const currency = normalizeCurrency(payload.currency);
-  const note = String(payload.note ?? '').trim();
-  const transactionDate = normalizeDate(payload.transactionDate);
+    const type = normalizeType(payload.type);
+    const amount = normalizeAmount(payload.amount);
+    const currency = normalizeCurrency(payload.currency);
+    const note = String(payload.note ?? '').trim();
+    const transactionDate = normalizeDate(payload.transactionDate);
+    const idempotencyKey = String(payload.idempotencyKey ?? '').trim();
 
-  const fromCashbox =
-    type === 'withdraw' || type === 'transfer'
-      ? await getCashboxOrThrow(payload.fromCashboxId, 'fromCashboxId')
-      : null;
-  const toCashbox =
-    type === 'deposit' || type === 'transfer'
-      ? await getCashboxOrThrow(payload.toCashboxId, 'toCashboxId')
-      : null;
-
-  if (type === 'transfer' && fromCashbox?._id.toString() === toCashbox?._id.toString()) {
-    throw new Error('Transfer cashboxes must be different.');
-  }
-  if (fromCashbox) {
-    assertCashboxCanWithdrawCurrency(fromCashbox, currency);
-  }
-  if (toCashbox) {
-    assertCashboxCanAcceptCurrency(toCashbox, currency);
-  }
-
-  if (fromCashbox) {
-    await applyCashboxDelta(fromCashbox._id, currency, -amount);
-  }
-  try {
-    if (toCashbox) {
-      await applyCashboxDelta(toCashbox._id, currency, amount);
+    if (idempotencyKey) {
+      const existing = await leanWithOptionalSession<FinanceTransactionDocument | null>(
+        FinanceTransaction.findOne({ idempotencyKey }),
+        session,
+      );
+      if (existing) return formatTransaction(existing);
     }
 
-    const transaction = new FinanceTransaction({
-      type,
-      amount,
-      currency,
-      fromCashbox: fromCashbox?._id ?? null,
-      toCashbox: toCashbox?._id ?? null,
-      fromSnapshot: fromCashbox ? { name: fromCashbox.name } : undefined,
-      toSnapshot: toCashbox ? { name: toCashbox.name } : undefined,
-      note,
-      transactionDate,
-    });
+    const currencyConfig = await getCurrencyConfigOrThrow(currency, session);
+    if (currencyConfig.isArchived && type !== 'withdraw') {
+      throw new Error('Archived currency cannot be used for this operation.');
+    }
 
-    await transaction.validate();
-    await transaction.save();
+    const fromCashbox =
+      type === 'withdraw' || type === 'transfer'
+        ? await getCashboxOrThrow(payload.fromCashboxId, 'fromCashboxId', session)
+        : null;
+    const toCashbox =
+      type === 'deposit' || type === 'transfer'
+        ? await getCashboxOrThrow(payload.toCashboxId, 'toCashboxId', session)
+        : null;
 
-    return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
-  } catch (error) {
+    if (type === 'transfer' && fromCashbox?._id.toString() === toCashbox?._id.toString()) {
+      throw new Error('Transfer cashboxes must be different.');
+    }
     if (fromCashbox) {
-      await applyCashboxDelta(fromCashbox._id, currency, amount);
+      assertCashboxCanWithdrawCurrency(fromCashbox, currency);
     }
     if (toCashbox) {
-      await applyCashboxDelta(toCashbox._id, currency, -amount);
+      assertCashboxCanAcceptCurrency(toCashbox, currency);
     }
-    throw error;
-  }
+
+    if (fromCashbox) {
+      await applyCashboxDelta(fromCashbox._id, currency, -amount, session);
+    }
+    try {
+      if (toCashbox) {
+        await applyCashboxDelta(toCashbox._id, currency, amount, session);
+      }
+
+      const transaction = new FinanceTransaction({
+        type,
+        amount,
+        currency,
+        fromCashbox: fromCashbox?._id ?? null,
+        toCashbox: toCashbox?._id ?? null,
+        fromSnapshot: fromCashbox ? { name: fromCashbox.name } : undefined,
+        toSnapshot: toCashbox ? { name: toCashbox.name } : undefined,
+        note,
+        transactionDate,
+        idempotencyKey,
+      });
+
+      await transaction.validate();
+      await transaction.save({ session });
+
+      return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
+    } catch (error) {
+      if (!session) {
+        if (fromCashbox) {
+          await applyCashboxDelta(fromCashbox._id, currency, amount);
+        }
+        if (toCashbox) {
+          await applyCashboxDelta(toCashbox._id, currency, -amount);
+        }
+      }
+      throw error;
+    }
+  });
 };
 
 export const cancelFinanceTransaction = async (transactionId: string) => {
-  isValidObjectIdOrThrow(transactionId, 'transactionId');
+  return withOptionalFinanceSession(async (session) => {
+    isValidObjectIdOrThrow(transactionId, 'transactionId');
 
-  const transaction = await FinanceTransaction.findById(transactionId)
-    .lean<FinanceTransactionDocument | null>();
-  if (!transaction) {
-    throw new Error('Transaction not found.');
-  }
+    const transaction = await leanWithOptionalSession<FinanceTransactionDocument | null>(
+      FinanceTransaction.findById(transactionId),
+      session,
+    );
+    if (!transaction) {
+      throw new Error('Transaction not found.');
+    }
 
-  if (transaction.type !== 'transfer' || !transaction.fromCashbox || !transaction.toCashbox) {
-    throw new Error('Only transfers between cashboxes can be cancelled.');
-  }
-  if ((transaction.status ?? 'active') === 'cancelled') {
-    throw new Error('Transaction is already cancelled.');
-  }
-  if (transaction.isCancellation || transaction.cancelsTransaction) {
-    throw new Error('Cancellation transactions cannot be cancelled.');
-  }
-  if (
-    getAccountingBusinessDateKey(transaction.transactionDate) !==
-    getAccountingBusinessDateKey(new Date())
-  ) {
-    throw new Error(transferCancellationDayError);
-  }
-
-  const fromCashbox = await Cashbox.findById(transaction.fromCashbox)
-    .lean<CashboxDocument | null>();
-  const toCashbox = await Cashbox.findById(transaction.toCashbox)
-    .lean<CashboxDocument | null>();
-  if (!fromCashbox || !toCashbox) {
-    throw new Error('Transaction cashbox not found.');
-  }
-
-  let fromDeltaApplied = false;
-  await applyCashboxDelta(toCashbox._id, transaction.currency, -transaction.amount);
-  try {
-    await applyCashboxDelta(fromCashbox._id, transaction.currency, transaction.amount);
-    fromDeltaApplied = true;
-
-    const cancellation = new FinanceTransaction({
-      type: 'transfer',
-      amount: transaction.amount,
-      currency: transaction.currency,
-      fromCashbox: toCashbox._id,
-      toCashbox: fromCashbox._id,
-      fromSnapshot: { name: toCashbox.name },
-      toSnapshot: { name: fromCashbox.name },
-      note: `Cancellation of transfer ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`,
-      transactionDate: new Date(),
-      isCancellation: true,
-      cancelsTransaction: transaction._id,
-    });
-
-    await cancellation.validate();
-    await cancellation.save();
-
-    const cancelled = await FinanceTransaction.findOneAndUpdate(
-      {
-        _id: transaction._id,
-        status: { $ne: 'cancelled' },
-        isCancellation: { $ne: true },
-      },
-      {
-        $set: {
-          status: 'cancelled',
-          cancelledAt: new Date(),
-          cancellationTransaction: cancellation._id,
-        },
-      },
-      { returnDocument: 'after', runValidators: true },
-    ).lean<FinanceTransactionDocument | null>();
-
-    if (!cancelled) {
-      await FinanceTransaction.findByIdAndDelete(cancellation._id);
-      await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
-      fromDeltaApplied = false;
+    if (transaction.type !== 'transfer' || !transaction.fromCashbox || !transaction.toCashbox) {
+      throw new Error('Only transfers between cashboxes can be cancelled.');
+    }
+    if ((transaction.status ?? 'active') === 'cancelled') {
       throw new Error('Transaction is already cancelled.');
     }
-
-    return formatTransaction(cancelled);
-  } catch (error) {
-    if (fromDeltaApplied) {
-      await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
+    if (transaction.isCancellation || transaction.cancelsTransaction) {
+      throw new Error('Cancellation transactions cannot be cancelled.');
     }
-    await applyCashboxDelta(toCashbox._id, transaction.currency, transaction.amount);
-    throw error;
-  }
+    if (
+      getAccountingBusinessDateKey(transaction.transactionDate) !==
+      getAccountingBusinessDateKey(new Date())
+    ) {
+      throw new Error(transferCancellationDayError);
+    }
+
+    const fromCashbox = await leanWithOptionalSession<CashboxDocument | null>(
+      Cashbox.findById(transaction.fromCashbox),
+      session,
+    );
+    const toCashbox = await leanWithOptionalSession<CashboxDocument | null>(
+      Cashbox.findById(transaction.toCashbox),
+      session,
+    );
+    if (!fromCashbox || !toCashbox) {
+      throw new Error('Transaction cashbox not found.');
+    }
+
+    let fromDeltaApplied = false;
+    await applyCashboxDelta(toCashbox._id, transaction.currency, -transaction.amount, session);
+    try {
+      await applyCashboxDelta(
+        fromCashbox._id,
+        transaction.currency,
+        transaction.amount,
+        session,
+      );
+      fromDeltaApplied = true;
+
+      const cancellation = new FinanceTransaction({
+        type: 'transfer',
+        amount: transaction.amount,
+        currency: transaction.currency,
+        fromCashbox: toCashbox._id,
+        toCashbox: fromCashbox._id,
+        fromSnapshot: { name: toCashbox.name },
+        toSnapshot: { name: fromCashbox.name },
+        note: `Cancellation of transfer ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`,
+        transactionDate: new Date(),
+        isCancellation: true,
+        cancelsTransaction: transaction._id,
+      });
+
+      await cancellation.validate();
+      await cancellation.save({ session });
+
+      const cancelled = await leanWithOptionalSession<FinanceTransactionDocument | null>(
+        FinanceTransaction.findOneAndUpdate(
+          {
+            _id: transaction._id,
+            status: { $ne: 'cancelled' },
+            isCancellation: { $ne: true },
+          },
+          {
+            $set: {
+              status: 'cancelled',
+              cancelledAt: new Date(),
+              cancellationTransaction: cancellation._id,
+            },
+          },
+          { returnDocument: 'after', runValidators: true },
+        ),
+        session,
+      );
+
+      if (!cancelled) {
+        if (!session) {
+          await FinanceTransaction.findByIdAndDelete(cancellation._id);
+          await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
+          fromDeltaApplied = false;
+        }
+        throw new Error('Transaction is already cancelled.');
+      }
+
+      return formatTransaction(cancelled);
+    } catch (error) {
+      if (!session) {
+        if (fromDeltaApplied) {
+          await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
+        }
+        await applyCashboxDelta(toCashbox._id, transaction.currency, transaction.amount);
+      }
+      throw error;
+    }
+  });
 };
 
 export const listFinanceTransactions = async () => {
@@ -391,13 +716,19 @@ export const getFinanceReport = async () => {
     listCashboxes(),
     listFinanceTransactions(),
   ]);
+  const currencyCodes = await getCurrencyCodes({ includeArchived: true });
 
   const totals = cashboxes.reduce(
-    (summary, cashbox) => ({
-      UAH: summary.UAH + cashbox.balances.UAH,
-      USD: summary.USD + cashbox.balances.USD,
-    }),
-    { UAH: 0, USD: 0 },
+    (summary, cashbox) => {
+      currencyCodes.forEach((currency) => {
+        summary[currency] = (summary[currency] ?? 0) + (cashbox.balances[currency] ?? 0);
+      });
+      return summary;
+    },
+    currencyCodes.reduce<Record<string, number>>((acc, currency) => {
+      acc[currency] = 0;
+      return acc;
+    }, {}),
   );
   const today = new Date().toISOString().slice(0, 10);
   const todayTransactions = transactions.filter((transaction) =>
@@ -412,9 +743,12 @@ export const getFinanceReport = async () => {
     todayTurnover: todayTransactions.reduce(
       (summary, transaction) => ({
         ...summary,
-        [transaction.currency]: summary[transaction.currency] + transaction.amount,
+        [transaction.currency]: (summary[transaction.currency] ?? 0) + transaction.amount,
       }),
-      { UAH: 0, USD: 0 },
+      currencyCodes.reduce<Record<string, number>>((acc, currency) => {
+        acc[currency] = 0;
+        return acc;
+      }, {}),
     ),
   };
 };

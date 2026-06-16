@@ -24,7 +24,7 @@ type AccountingCashboxesViewProps = {
   isSaving: boolean;
   newCashboxName: string;
   permittedTransactionTypes: FinanceTransactionType[];
-  totals: { UAH: number; USD: number };
+  totals: Record<string, number>;
   transactionForm: CreateFinanceTransactionPayload;
   onCreateCashbox: () => void;
   onCreateTransaction: () => void;
@@ -66,8 +66,15 @@ export const AccountingCashboxesView = ({
   <>
     <div className='finance-toolbar'>
       <div className='finance-total-strip'>
-        <strong>{formatMoney(totals.UAH, 'UAH')}</strong>
-        <span>{formatMoney(totals.USD, 'USD')}</span>
+        {Object.entries(totals)
+          .filter(([currency, amount]) => currency === 'UAH' || amount !== 0)
+          .map(([currency, amount], index) =>
+            index === 0 ? (
+              <strong key={currency}>{formatMoney(amount, currency)}</strong>
+            ) : (
+              <span key={currency}>{formatMoney(amount, currency)}</span>
+            ),
+          )}
       </div>
       {canManageCashboxes ? (
         <div className='finance-add-cashbox'>

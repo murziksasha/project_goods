@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
   cashboxes: new Map<string, any>(),
+  currencies: new Map<string, any>(),
   transactions: new Map<string, any>(),
   nextCashboxId: 10,
+  nextCurrencyId: 50,
   nextTransactionId: 100,
 }));
 
@@ -26,6 +28,42 @@ const matchesQuery = (cashbox: any, query: any) => {
 };
 
 vi.mock('./model', () => {
+  class FinanceCurrencyConfigMock {
+    static findOne(query: any) {
+      return leanResult(store.currencies.get(String(query.code)) ?? null);
+    }
+
+    static findOneAndUpdate(query: any, update: any) {
+      const code = String(query.code);
+      let currency = store.currencies.get(code);
+      if (!currency) {
+        currency = {
+          _id: String(store.nextCurrencyId++).padStart(24, '0'),
+          code,
+          isSystem: false,
+          isArchived: false,
+          createdAt: new Date('2026-06-01T10:00:00.000Z'),
+          updatedAt: new Date('2026-06-01T10:00:00.000Z'),
+          ...(update.$setOnInsert ?? {}),
+        };
+        store.currencies.set(code, currency);
+      }
+      Object.assign(currency, update.$set ?? {});
+      return leanResult(currency);
+    }
+
+    static find(query: any) {
+      const results = [...store.currencies.values()].filter(
+        (currency) => query.isArchived === undefined || currency.isArchived === query.isArchived,
+      );
+      return {
+        sort: () => ({
+          lean: async () => results,
+        }),
+      };
+    }
+  }
+
   class CashboxMock {
     _id: string;
     name: string;
@@ -139,6 +177,27 @@ vi.mock('./model', () => {
       return leanResult(cashbox);
     }
 
+    static updateOne(query: any, update: any) {
+      const cashbox = store.cashboxes.get(String(query._id));
+      if (!cashbox) return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+      const balanceCondition = Object.entries(query).find(([key]) =>
+        key.startsWith('balances.'),
+      );
+      if (balanceCondition) {
+        const [path, condition] = balanceCondition;
+        const currency = path.replace('balances.', '');
+        const minimum = (condition as { $gte?: number }).$gte ?? 0;
+        if ((cashbox.balances[currency] ?? 0) < minimum) {
+          return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+        }
+      }
+      Object.entries(update.$inc ?? {}).forEach(([path, delta]) => {
+        const currency = path.replace('balances.', '');
+        cashbox.balances[currency] = (cashbox.balances[currency] ?? 0) + Number(delta);
+      });
+      return Promise.resolve({ matchedCount: 1, modifiedCount: 1 });
+    }
+
     async validate() {
       return undefined;
     }
@@ -165,6 +224,13 @@ vi.mock('./model', () => {
       this.updatedAt = new Date('2026-06-01T10:00:00.000Z');
     }
 
+    static findOne(query: any) {
+      const transaction = [...store.transactions.values()].find(
+        (item) => item.idempotencyKey && item.idempotencyKey === query.idempotencyKey,
+      );
+      return leanResult(transaction ?? null);
+    }
+
     async validate() {
       return undefined;
     }
@@ -180,16 +246,20 @@ vi.mock('./model', () => {
 
   return {
     Cashbox: CashboxMock,
+    FinanceCurrencyConfig: FinanceCurrencyConfigMock,
     FinanceTransaction: FinanceTransactionMock,
-    financeCurrencies: ['UAH', 'USD'],
+    baseFinanceCurrency: 'UAH',
+    seededFinanceCurrencies: ['UAH', 'USD'],
     transactionTypes: ['deposit', 'withdraw', 'transfer'],
   };
 });
 
 const {
+  createFinanceCurrency,
   createCashbox,
   createFinanceTransaction,
   listCashboxes,
+  listFinanceCurrencies,
   updateCashbox,
 } = await import('./service');
 
@@ -213,8 +283,10 @@ const seedCashbox = (id: string, patch: Record<string, unknown> = {}) => {
 describe('cashbox currency settings', () => {
   beforeEach(() => {
     store.cashboxes.clear();
+    store.currencies.clear();
     store.transactions.clear();
     store.nextCashboxId = 10;
+    store.nextCurrencyId = 50;
     store.nextTransactionId = 100;
     seedCashbox(defaultCashboxId);
     seedCashbox(reserveCashboxId);
@@ -294,5 +366,73 @@ describe('cashbox currency settings', () => {
 
     expect(store.cashboxes.get(defaultCashboxId).balances.USD).toBe(25);
     expect(store.cashboxes.get(reserveCashboxId).balances.USD).toBe(0);
+  });
+
+  it('creates custom currencies as transaction currencies disabled in cashboxes by default', async () => {
+    const currency = await createFinanceCurrency({ code: ' eur ' });
+    const currencies = await listFinanceCurrencies({ includeArchived: true });
+
+    expect(currency).toMatchObject({ code: 'EUR', isArchived: false });
+    expect(currencies.map((item) => item.code)).toContain('EUR');
+    expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(0);
+    expect(store.cashboxes.get(defaultCashboxId).enabledCurrencies.EUR).toBe(false);
+  });
+
+  it('uses custom currencies with the same receive and withdraw-only rules', async () => {
+    await createFinanceCurrency({ code: 'EUR' });
+
+    await expect(
+      createFinanceTransaction({
+        type: 'deposit',
+        amount: '10',
+        currency: 'EUR',
+        toCashboxId: defaultCashboxId,
+      }),
+    ).rejects.toThrow('Cashbox currency is not enabled for receiving.');
+
+    await updateCashbox(defaultCashboxId, {
+      enabledCurrencies: { UAH: true, EUR: true },
+    });
+    await createFinanceTransaction({
+      type: 'deposit',
+      amount: '10',
+      currency: 'EUR',
+      toCashboxId: defaultCashboxId,
+    });
+    expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(10);
+
+    await updateCashbox(defaultCashboxId, {
+      enabledCurrencies: { UAH: true, EUR: false },
+    });
+    await createFinanceTransaction({
+      type: 'withdraw',
+      amount: '5',
+      currency: 'EUR',
+      fromCashboxId: defaultCashboxId,
+    });
+    expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(5);
+  });
+
+  it('prevents concurrent withdrawals from overdrawing the same cashbox', async () => {
+    store.cashboxes.get(defaultCashboxId).balances.UAH = 10;
+
+    const results = await Promise.allSettled([
+      createFinanceTransaction({
+        type: 'withdraw',
+        amount: '10',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+      }),
+      createFinanceTransaction({
+        type: 'withdraw',
+        amount: '10',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+      }),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(0);
   });
 });
