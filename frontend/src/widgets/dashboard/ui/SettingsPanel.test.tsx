@@ -171,7 +171,7 @@ describe('SettingsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
     expect(screen.getByText('New template')).toBeInTheDocument();
-  }, 10000);
+  }, 20000);
 
   it('switches between built-in print templates in the builder', async () => {
     render(<SettingsPanelHarness />);

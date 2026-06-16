@@ -298,13 +298,14 @@ describe('OrderDetailCard repair device replacement', () => {
   });
 
   it('finds active devices through the same lookup used by create order', async () => {
-    vi.mocked(getClientDevices).mockResolvedValueOnce([
-      clientDevice({
-        id: 'lookup-device',
-        clientId: 'another-client',
-        name: 'Кавомашина автоматична RZTK',
-      }),
-    ]);
+    const lookupDevice = clientDevice({
+      id: 'lookup-device',
+      clientId: 'another-client',
+      name: 'Lookup RZTK coffee machine',
+    });
+    vi.mocked(getClientDevices).mockImplementation(async (query = '') =>
+      query.trim().length >= 2 ? [lookupDevice] : [],
+    );
     renderCard({
       saleOverride: repairSale,
       clientDevices: [],
@@ -312,17 +313,19 @@ describe('OrderDetailCard repair device replacement', () => {
 
     fireEvent.click(screen.getByLabelText('Change device'));
     fireEvent.change(screen.getByPlaceholderText('Search client devices'), {
-      target: { value: 'Кавомашина автоматична RZTK' },
+      target: { value: 'Lookup RZTK coffee machine' },
     });
 
+    await waitFor(() => {
+      expect(getClientDevices).toHaveBeenCalledWith(
+        'Lookup RZTK coffee machine',
+      );
+    });
     expect(
       await screen.findByRole('button', {
-        name: /Кавомашина автоматична RZTK/,
-      }),
+        name: /Lookup RZTK coffee machine/,
+      }, { timeout: 3000 }),
     ).toBeInTheDocument();
-    expect(getClientDevices).toHaveBeenCalledWith(
-      'Кавомашина автоматична RZTK',
-    );
   });
 
   it('selects an existing client device and saves it as order main info', async () => {

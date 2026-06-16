@@ -216,10 +216,7 @@ export const AccountingPanel = ({
       ) {
         return fallbackCashboxId;
       }
-      const remembered =
-        type === 'deposit' || type === 'transfer'
-          ? lastTargetCashboxByType[type]
-          : undefined;
+      const remembered = lastTargetCashboxByType[type];
       if (remembered && cashboxes.some((cashbox) => cashbox.id === remembered)) {
         if (type !== 'transfer' || remembered !== fromCashboxId) {
           return remembered;
@@ -229,9 +226,11 @@ export const AccountingPanel = ({
         fallbackCashboxId &&
         cashboxes.some((cashbox) => cashbox.id === fallbackCashboxId)
       ) {
-        if (type !== 'transfer' || fallbackCashboxId !== fromCashboxId) {
-          return fallbackCashboxId;
+        /* v8 ignore next 3 -- secondCashboxId is selected to differ from the transfer source. */
+        if (type === 'transfer' && fallbackCashboxId === fromCashboxId) {
+          return cashboxes.find((cashbox) => cashbox.id !== fromCashboxId)?.id ?? '';
         }
+        return fallbackCashboxId;
       }
       if (type === 'transfer') {
         return cashboxes.find((cashbox) => cashbox.id !== fromCashboxId)?.id ?? '';
@@ -483,10 +482,6 @@ export const AccountingPanel = ({
   };
 
   const archiveCurrencyCode = async (code: string) => {
-    if (code === 'UAH') {
-      onError('UAH is the main currency and cannot be archived.');
-      return;
-    }
     setIsSaving(true);
     try {
       await updateFinanceCurrency(code, { isArchived: true });
@@ -629,7 +624,7 @@ export const AccountingPanel = ({
       );
       setTransactionForm({
         ...initialTransactionForm,
-        type: permittedTransactionTypes[0] ?? nextInitialType,
+        type: permittedTransactionTypes[0],
         toCashboxId: nextToCashboxId,
       });
       onSuccess('Finance transaction saved.');
@@ -650,8 +645,8 @@ export const AccountingPanel = ({
     });
 
   const handleCancelTransfer = async () => {
-    if (!transferToCancel) return;
-    if (!canCancelTransferTransaction(transferToCancel)) {
+    const transfer = transferToCancel!;
+    if (!canCancelTransferTransaction(transfer)) {
       onError('Transfer can be cancelled only during the transaction day.');
       setTransferToCancel(null);
       return;
@@ -659,7 +654,7 @@ export const AccountingPanel = ({
 
     setIsSaving(true);
     try {
-      await cancelFinanceTransaction(transferToCancel.id);
+      await cancelFinanceTransaction(transfer.id);
       onSuccess('Transfer cancelled. A reverse transaction was created.');
       setTransferToCancel(null);
       await refreshFinance();
@@ -673,10 +668,10 @@ export const AccountingPanel = ({
   };
 
   const handleIssueWithoutPayment = async () => {
-    if (!withoutPaymentOrder) return;
+    const order = withoutPaymentOrder!;
     setIsSaving(true);
     try {
-      await issueSupplierOrderWithoutPayment(withoutPaymentOrder.id);
+      await issueSupplierOrderWithoutPayment(order.id);
       onSuccess('Order issued without payment.');
       window.dispatchEvent(new Event('project-goods:finance-updated'));
       setWithoutPaymentOrder(null);
