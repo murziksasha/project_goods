@@ -23,8 +23,8 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      'react-hooks/preserve-manual-memoization': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])

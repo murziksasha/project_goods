@@ -2,11 +2,14 @@ import { Router } from 'express';
 import {
   cancelFinanceTransaction,
   createCashbox,
+  createFinanceCurrency,
   createFinanceTransaction,
   getFinanceReport,
   listCashboxes,
+  listFinanceCurrencies,
   listFinanceTransactions,
   updateCashbox,
+  updateFinanceCurrency,
 } from '../domain/finance/service';
 import {
   issueSupplierOrderWithoutPayment,
@@ -43,7 +46,23 @@ financeRouter.post('/finance/cashboxes', asyncHandler(async (req, res) => {
 
 financeRouter.patch('/finance/cashboxes/:cashboxId', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.cashboxes.manage');
-  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown }));
+  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown; enabledCurrencies?: unknown }));
+}));
+
+financeRouter.get('/finance/currencies', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
+  res.json(await listFinanceCurrencies({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
+}));
+
+financeRouter.post('/finance/currencies', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.status(201).json(await createFinanceCurrency(req.body));
+}));
+
+financeRouter.patch('/finance/currencies/:currencyCode', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.json(await updateFinanceCurrency(routeParam(req, 'currencyCode'), req.body as { isArchived?: unknown }));
 }));
 
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {

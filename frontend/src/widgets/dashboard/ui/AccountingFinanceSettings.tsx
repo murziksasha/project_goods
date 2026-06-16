@@ -110,11 +110,9 @@ export const AccountingFinanceSettings = ({
       />
     ) : (
       <CurrencySettings
-        allCashboxes={allCashboxes}
         allCurrencyCodes={allCurrencyCodes}
         expandedCard={expandedCard}
         newCurrencyCode={newCurrencyCode}
-        getCurrencyBalance={getCurrencyBalance}
         isGlobalCurrencyActive={isGlobalCurrencyActive}
         onAddCurrency={onAddCurrency}
         onNewCurrencyCodeChange={onNewCurrencyCodeChange}
@@ -386,11 +384,9 @@ const CashboxCurrencyToggle = ({
 
 type CurrencySettingsProps = Pick<
   AccountingFinanceSettingsProps,
-  | 'allCashboxes'
   | 'allCurrencyCodes'
   | 'expandedCard'
   | 'newCurrencyCode'
-  | 'getCurrencyBalance'
   | 'isGlobalCurrencyActive'
   | 'onAddCurrency'
   | 'onNewCurrencyCodeChange'
@@ -400,11 +396,9 @@ type CurrencySettingsProps = Pick<
 >;
 
 const CurrencySettings = ({
-  allCashboxes,
   allCurrencyCodes,
   expandedCard,
   newCurrencyCode,
-  getCurrencyBalance,
   isGlobalCurrencyActive,
   onAddCurrency,
   onNewCurrencyCodeChange,
@@ -421,7 +415,7 @@ const CurrencySettings = ({
     >
       <div className='catalog-edit-body'>
         <p className='section-label'>
-          System currencies are fixed in transaction engine. Added currencies are stored for planning.
+          Added currencies become full transaction currencies and are disabled in cashboxes by default.
         </p>
         <label className='field'>
           <span>Currency code</span>
@@ -458,30 +452,28 @@ const CurrencySettings = ({
         <div className='finance-currency-activity-list'>
           {allCurrencyCodes.map((currency) => {
             const isActive = isGlobalCurrencyActive(currency);
-            const hasFundsInActiveCashboxes = allCashboxes.some(
-              (cashbox) => !cashbox.isArchived && getCurrencyBalance(cashbox, currency) > 0,
-            );
-            const isRemovableCurrency = currency !== 'UAH';
-            const canRemove = isRemovableCurrency && !hasFundsInActiveCashboxes;
+            const isMainCurrency = currency === 'UAH';
+            const isRemovableCurrency = !isMainCurrency;
+            const canRemove = isRemovableCurrency;
 
             return (
               <div key={`activity-${currency}`} className='finance-currency-activity-item'>
                 <label className='field-inline finance-currency-activity-toggle'>
                   <input
                     type='checkbox'
-                    checked={isActive}
-                    disabled={currency === 'UAH'}
+                    checked={isMainCurrency || isActive}
+                    disabled={isMainCurrency}
                     onChange={() => onToggleCurrencyActivity(currency)}
                   />
                   <span>{currency}</span>
                   <span
                     className={
-                      isActive
+                      isMainCurrency || isActive
                         ? 'finance-currency-activity-badge'
                         : 'finance-currency-activity-badge finance-currency-activity-badge-off'
                     }
                   >
-                    {isActive ? 'Active' : 'Inactive'}
+                    {isMainCurrency ? 'Always active' : (isActive ? 'Active' : 'Archived')}
                   </span>
                 </label>
                 {isRemovableCurrency ? (
@@ -491,12 +483,12 @@ const CurrencySettings = ({
                     disabled={!canRemove}
                     title={
                       canRemove
-                        ? 'Remove currency'
-                        : 'Cannot remove currency while any active cashbox has balance in it.'
+                        ? 'Archive currency'
+                        : 'Cannot archive this currency.'
                     }
                     onClick={() => onRemoveCurrency(currency)}
                   >
-                    Remove
+                    Archive
                   </button>
                 ) : null}
               </div>

@@ -4,7 +4,7 @@ import type { WarehouseItem } from '../../../entities/warehouse-settings/model/t
 import { formatCurrency } from '../../../shared/lib/format';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
-import { PrinterIcon } from './orders-workspace-shared';
+import { PrinterIcon } from './PrinterIcon';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,

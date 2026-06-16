@@ -834,6 +834,20 @@
     white-space: nowrap;
   }
 
+  .create-client-suggestion-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .create-client-blacklist-warning {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .create-client-blacklist-warning .client-status-badge {
+    justify-self: start;
+  }
+
   .create-row-2,
   .create-row-3,
   .create-device-search,

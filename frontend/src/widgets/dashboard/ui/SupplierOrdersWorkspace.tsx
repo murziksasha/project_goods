@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
@@ -227,7 +227,7 @@ export const SupplierOrdersWorkspace = ({
     };
   }, [openStatusOrder]);
 
-  const refreshOrders = async () => {
+  const refreshOrders = useCallback(async () => {
     setIsLoading(true);
     try {
       const loaded = await getSupplierOrders();
@@ -241,11 +241,11 @@ export const SupplierOrdersWorkspace = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onError]);
 
   useEffect(() => {
     void refreshOrders();
-  }, []);
+  }, [refreshOrders]);
 
   useEffect(() => {
     void (async () => {

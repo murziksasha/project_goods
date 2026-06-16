@@ -8,6 +8,7 @@ import { formatDateTime } from '../../../shared/lib/format';
 import {
   defaultClientStats,
   formatClientIncome,
+  isBlacklistClient,
   type ClientStats,
 } from '../model/clients-workspace';
 
@@ -65,14 +66,24 @@ export const ClientsTable = ({
               client.status || '',
               stats.visits,
             );
+            const isBlacklisted = isBlacklistClient(client);
+            const rowClassName = [
+              'clients-table-row',
+              isActive ? 'clients-table-row-active' : '',
+              isBlacklisted ? 'clients-table-row-blacklist' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
               <tr
                 key={client.id}
-                className={
-                  isActive
-                    ? 'clients-table-row clients-table-row-active'
-                    : 'clients-table-row'
+                className={rowClassName}
+                title={isBlacklisted ? 'Client is in blacklist' : undefined}
+                aria-label={
+                  isBlacklisted
+                    ? `${client.name}. Client is in blacklist`
+                    : undefined
                 }
                 onClick={() => onOpenClientCard(client.id)}
               >
@@ -88,6 +99,9 @@ export const ClientsTable = ({
                       ),
                       color: 'white',
                     }}
+                    title={
+                      isBlacklisted ? 'Client is in blacklist' : undefined
+                    }
                   >
                     {effectiveStatus || '-'}
                   </span>

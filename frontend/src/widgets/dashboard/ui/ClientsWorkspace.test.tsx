@@ -1,4 +1,5 @@
 ﻿import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Client,
@@ -172,6 +173,33 @@ describe('ClientsWorkspace', () => {
 
     expect(screen.getByText('Ivan Petrenko')).toBeInTheDocument();
     expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
+  });
+
+  it('marks blacklist clients in the clients table', () => {
+    const riskClient = createClient({
+      id: 'client-risk',
+      name: 'Risk Client',
+      status: 'blacklist',
+    });
+    const regularClient = createClient({
+      id: 'client-regular',
+      name: 'Regular Client',
+      status: 'new',
+      createdAt: '2026-01-02T10:00:00.000Z',
+    });
+
+    renderWorkspace({ clients: [riskClient, regularClient] });
+
+    const blacklistRow = screen.getByLabelText(
+      'Risk Client. Client is in blacklist',
+    );
+    expect(blacklistRow).toHaveClass('clients-table-row-blacklist');
+    expect(
+      within(blacklistRow).getByText('blacklist'),
+    ).toHaveClass('status-blacklist');
+    expect(screen.getByText('Regular Client').closest('tr')).not.toHaveClass(
+      'clients-table-row-blacklist',
+    );
   });
 
   it('applies and clears advanced filters', () => {

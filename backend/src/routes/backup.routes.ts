@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import { env } from '../config/env';
 import {
   createManualBackup,
   deleteBackup,
@@ -54,7 +55,7 @@ backupRouter.post('/backups/:backupId/restore', asyncHandler(async (req, res) =>
 backupRouter.post(
   '/backups/restore-file',
   express.raw({
-    limit: '200mb',
+    limit: env.backupRestoreUploadLimit,
     type: ['application/gzip', 'application/octet-stream'],
   }),
   asyncHandler(async (req, res) => {

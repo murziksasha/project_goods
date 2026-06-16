@@ -4,6 +4,9 @@
 
 - Clicking `Create order` opens the modal.
 - `Client phone` + `Client name` perform lookup in clients.
+- If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
+- The blacklist warning must include the client name/phone and must not prevent saving the repair order.
+- Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
@@ -115,11 +118,12 @@
 
 ## Order Card Editing Rules
 
-- In order card `Main information`, `Device` is read-only (no `Edit` button and no device-edit modal in order card).
+- In order card `Main information`, `Device` opens a change modal for repair orders.
+- The device change modal shows active `Clients goods` records for the current client and can create a new client device.
 - In order card `Main information`, `S/N` is editable.
 - `S/N` must remain editable at any time, including empty value.
 - Empty `S/N` must be accepted by backend validation and must not prevent saving order-card changes.
-- `Save changes` from order card does not modify device name.
+- `Save changes` from order card persists the selected device name to the order snapshot.
 - `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
 - `Manager` remains informational.
 - `Article` is removed from order card main information.
@@ -134,9 +138,9 @@
   - `client rejected`
   - `issued without repair`
   then `Issued` worker is cleared in both orders list and order card.
-- Saving order card main information does not provide device editing via order-card modal; device management is performed via `Clients goods`.
+- Existing device editing remains in `Clients goods`; the order-card modal only selects or creates a client device.
 - `S/N` in order card remains order-specific and must not be written to `Clients goods`.
-- In order card device modal, if no exact device-name match is found in `Clients goods`, the form must stay in `New device` mode.
+- In order card device modal, if no exact device-name match is found in `Clients goods`, the create-new flow remains available.
 - The modal must not auto-select the first available client device as fallback.
 - `Live feed` composer (comment input + `Add` button) is fixed at the bottom of the live feed panel and must not shrink.
 - Manual `Live feed` composer comments are rendered green; generated timeline messages keep system styling.

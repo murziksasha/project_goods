@@ -1,5 +1,5 @@
 import {
-  financeCurrencies,
+  baseFinanceCurrency,
   transactionTypes,
   type FinanceCurrency,
   type TransactionType,
@@ -13,6 +13,15 @@ export type CashboxPayload = {
 export type UpdateCashboxPayload = {
   name?: unknown;
   isArchived?: unknown;
+  enabledCurrencies?: unknown;
+};
+
+export type CurrencyPayload = {
+  code?: unknown;
+};
+
+export type UpdateCurrencyPayload = {
+  isArchived?: unknown;
 };
 
 export type TransactionPayload = {
@@ -23,9 +32,19 @@ export type TransactionPayload = {
   toCashboxId?: unknown;
   note?: unknown;
   transactionDate?: unknown;
+  idempotencyKey?: unknown;
 };
 
 export const normalizeName = (value: unknown) => String(value ?? '').trim();
+
+export const normalizeCurrencyCode = (value: unknown): FinanceCurrency => {
+  const currency = String(value ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{3,6}$/.test(currency)) {
+    throw new Error('Currency code must be 3-6 latin letters.');
+  }
+
+  return currency;
+};
 
 export const normalizeAmount = (value: unknown) => {
   const amount = toNumber(value);
@@ -37,12 +56,7 @@ export const normalizeAmount = (value: unknown) => {
 };
 
 export const normalizeCurrency = (value: unknown): FinanceCurrency => {
-  const currency = String(value ?? 'UAH').toUpperCase();
-  if (!financeCurrencies.includes(currency as FinanceCurrency)) {
-    throw new Error('Unsupported transaction currency.');
-  }
-
-  return currency as FinanceCurrency;
+  return normalizeCurrencyCode(value ?? baseFinanceCurrency);
 };
 
 export const normalizeType = (value: unknown): TransactionType => {
@@ -62,4 +76,23 @@ export const normalizeDate = (value: unknown) => {
   }
 
   return date;
+};
+
+export const normalizeEnabledCurrencies = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Enabled currencies must be an object.');
+  }
+  const payload = value as Record<string, unknown>;
+  if (payload[baseFinanceCurrency] === false) {
+    throw new Error('UAH currency cannot be disabled.');
+  }
+
+  return Object.entries(payload).reduce<Record<string, boolean>>(
+    (acc, [currencyCode, enabled]) => {
+      const normalizedCode = normalizeCurrencyCode(currencyCode);
+      acc[normalizedCode] = normalizedCode === baseFinanceCurrency || enabled === true;
+      return acc;
+    },
+    { [baseFinanceCurrency]: true },
+  );
 };

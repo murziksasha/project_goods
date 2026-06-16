@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -10,6 +10,7 @@ import {
   getServiceCatalogItems,
   updateServiceCatalogItem,
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
+import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
 import {
   initialServiceCatalogForm,
@@ -29,11 +30,16 @@ import type { Supplier, SupplierFormValues } from '../../../entities/supplier/mo
 import type { SupplierOrderFormValues } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import type { ClientDevice, ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
-import { getOrderLink } from './create-order-card-shared';
+import {
+  filterActiveDevicesByQuery,
+  getOrderLink,
+  toNameKey,
+} from './create-order-card-shared';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../model/missingService';
 import { buildSupplierOrderItemNumber, mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
@@ -76,7 +82,6 @@ import {
   warrantyOptions,
   withSupplierOrderLinkNote,
   writeOrderDetailSectionsState,
-  PrinterIcon,
   type OrderLineItem,
   type OrderLineItemKind,
   type OrderStatus,
@@ -84,6 +89,7 @@ import {
   type RepairStatus,
   type TimelineEntry,
 } from './orders-workspace-shared';
+import { PrinterIcon } from './PrinterIcon';
 type OrderDetailCardProps = {
   sale: Sale;
   sales: Sale[];
@@ -94,6 +100,7 @@ type OrderDetailCardProps = {
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   products: Product[];
+  clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
   paidAmount: number;
   isReadOnly: boolean;
@@ -139,10 +146,12 @@ type OrderDetailCardProps = {
   }) => void;
   onOpenClientCard: () => void;
   onSupplierOrderCreated: () => Promise<void>;
+  onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   onSaveMainInfo: (payload: {
+    deviceName: string;
     serialNumber: string;
     masterId: string;
     status: OrderStatus;
@@ -159,6 +168,7 @@ export const OrderDetailCard = ({
   comments,
   lineItems,
   products,
+  clientDevices,
   catalogProducts,
   paidAmount,
   isReadOnly,
@@ -179,6 +189,7 @@ export const OrderDetailCard = ({
   onDiscountChange,
   onOpenClientCard,
   onSupplierOrderCreated,
+  onCreateClientDevice,
   onUpdateProductModel,
   onError,
   onSuccess,
@@ -194,9 +205,21 @@ export const OrderDetailCard = ({
   const [relatedTab, setRelatedTab] = useState<OrdersTab>(
     getStoredOrderDetailRelatedTab,
   );
+  const [deviceNameInput, setDeviceNameInput] = useState('');
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [newDeviceName, setNewDeviceName] = useState('');
+  const [clearSerialOnDeviceApply, setClearSerialOnDeviceApply] =
+    useState(false);
+  const [isCreatingDevice, setIsCreatingDevice] = useState(false);
+  const [deviceLookupSuggestions, setDeviceLookupSuggestions] = useState<
+    ClientDevice[]
+  >([]);
+  const [isDeviceLookupLoading, setIsDeviceLookupLoading] =
+    useState(false);
   const [relatedSupplierOrderSource, setRelatedSupplierOrderSource] =
     useState<SupplierOrder | null>(null);
   const [relatedSupplierOrderItemIndex, setRelatedSupplierOrderItemIndex] =
@@ -283,9 +306,124 @@ export const OrderDetailCard = ({
     }
   }, [relatedTab]);
   useEffect(() => {
+    setDeviceNameInput(getPrimaryDeviceName(sale));
     setSerialNumberInput(getPrimaryDeviceSerial(sale));
     setMasterIdInput(sale.master?.id ?? '');
   }, [sale]);
+  useEffect(() => {
+    if (!isDeviceModalOpen) {
+      setDeviceSearch('');
+      setNewDeviceName('');
+      setClearSerialOnDeviceApply(false);
+      setDeviceLookupSuggestions([]);
+      setIsDeviceLookupLoading(false);
+    }
+  }, [isDeviceModalOpen]);
+  useEffect(() => {
+    const deviceLookupQuery = deviceSearch.trim();
+    if (!isDeviceModalOpen || deviceLookupQuery.length < 2) {
+      setDeviceLookupSuggestions([]);
+      setIsDeviceLookupLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsDeviceLookupLoading(true);
+      try {
+        const devices = await getClientDevices(deviceLookupQuery);
+        if (!isActive) return;
+        let suggestions = filterActiveDevicesByQuery(
+          devices,
+          deviceLookupQuery,
+        );
+
+        if (suggestions.length === 0) {
+          const allDevices = await getClientDevices('');
+          if (!isActive) return;
+          suggestions = filterActiveDevicesByQuery(
+            allDevices,
+            deviceLookupQuery,
+          );
+        }
+
+        setDeviceLookupSuggestions(suggestions.slice(0, 8));
+      } catch {
+        if (isActive) setDeviceLookupSuggestions([]);
+      } finally {
+        if (isActive) setIsDeviceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [deviceSearch, isDeviceModalOpen]);
+  const clientDeviceOptions = useMemo(() => {
+    const uniqueByName = new Map<string, ClientDevice>();
+    const sourceDevices =
+      deviceSearch.trim().length >= 2
+        ? deviceLookupSuggestions
+        : clientDevices.filter((device) => device.clientId === sale.client.id);
+
+    sourceDevices.forEach((device) => {
+      if (!device.isActive) return;
+      const key = toNameKey(device.name);
+      if (!key || uniqueByName.has(key)) return;
+      uniqueByName.set(key, device);
+    });
+    const query = toNameKey(deviceSearch);
+    return Array.from(uniqueByName.values()).filter((device) =>
+      query ? filterActiveDevicesByQuery([device], query).length > 0 : true,
+    );
+  }, [
+    clientDevices,
+    deviceLookupSuggestions,
+    deviceSearch,
+    sale.client.id,
+  ]);
+  const existingDeviceNameKeys = useMemo(
+    () =>
+      new Set(
+        [...clientDevices, ...deviceLookupSuggestions]
+          .map((device) => toNameKey(device.name))
+          .filter(Boolean),
+      ),
+    [clientDevices, deviceLookupSuggestions],
+  );
+  const trimmedNewDeviceName = newDeviceName.trim();
+  const canCreateDevice =
+    trimmedNewDeviceName.length >= 2 &&
+    !existingDeviceNameKeys.has(toNameKey(trimmedNewDeviceName));
+  const applyDeviceName = (name: string) => {
+    setDeviceNameInput(name.trim());
+    if (clearSerialOnDeviceApply) {
+      setSerialNumberInput('');
+    }
+    setIsDeviceModalOpen(false);
+  };
+  const createAndApplyDevice = async () => {
+    if (!canCreateDevice) return;
+    setIsCreatingDevice(true);
+    try {
+      const ok = await onCreateClientDevice({
+        clientId: sale.client.id,
+        clientName: sale.client.name,
+        clientPhone: sale.client.phone,
+        name: trimmedNewDeviceName,
+        serialNumber: '',
+        note: '',
+        source: 'repairOrder',
+        isActive: true,
+      });
+      if (ok) {
+        applyDeviceName(trimmedNewDeviceName);
+      }
+    } finally {
+      setIsCreatingDevice(false);
+    }
+  };
   const masterOptions = useMemo(
     () =>
       employees.filter(
@@ -297,6 +435,7 @@ export const OrderDetailCard = ({
     [employees],
   );
   const isMainInfoDirty =
+    deviceNameInput.trim() !== getPrimaryDeviceName(sale).trim() ||
     serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
     masterIdInput !== (sale.master?.id ?? '') ||
     statusDraft !== status;
@@ -443,9 +582,7 @@ export const OrderDetailCard = ({
           new Date(firstItem.createdAt).getTime(),
       );
   }, [
-    sale.id,
-    sale.recordNumber,
-    sale.client.id,
+    sale,
     saleProductNames,
     supplierOrders,
   ]);
@@ -454,7 +591,7 @@ export const OrderDetailCard = ({
       relatedSupplierOrders.some(
         (order) => isSupplierOrderLinkedToSale(order, sale),
       ),
-    [relatedSupplierOrders, sale.id, sale.recordNumber],
+    [relatedSupplierOrders, sale],
   );
   const relatedSupplierOrderItems = useMemo(
     () =>
@@ -642,7 +779,16 @@ export const OrderDetailCard = ({
                 <div>
                   <dt>Device</dt>
                   <dd>
-                    <span className='order-device-name'>{getPrimaryDeviceName(sale) || '-'}</span>
+                    <button
+                      type='button'
+                      className='order-detail-device-button'
+                      onClick={() => setIsDeviceModalOpen(true)}
+                      disabled={isReadOnly}
+                      aria-label='Change device'
+                    >
+                      <span>{deviceNameInput || '-'}</span>
+                      <small>Change</small>
+                    </button>
                   </dd>
                 </div>
                 <div>
@@ -722,6 +868,7 @@ export const OrderDetailCard = ({
                       setIsSavingMainInfo(true);
                       try {
                         await onSaveMainInfo({
+                          deviceName: deviceNameInput.trim(),
                           serialNumber: serialNumberInput.trim().toUpperCase(),
                           masterId: masterIdInput,
                           status: statusDraft,
@@ -1104,6 +1251,102 @@ export const OrderDetailCard = ({
           </div>
         </section>
       </div>
+      {isDeviceModalOpen ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsDeviceModalOpen(false);
+            }
+          }}
+        >
+          <section
+            className='catalog-edit-modal order-device-change-modal'
+            role='dialog'
+            aria-modal='true'
+            aria-label='Change device'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>Change device</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsDeviceModalOpen(false)}
+                aria-label='Close'
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body order-device-change-body'>
+              <label className='field field-wide'>
+                <span>Find device</span>
+                <input
+                  value={deviceSearch}
+                  onChange={(event) => setDeviceSearch(event.target.value)}
+                  placeholder='Search client devices'
+                />
+              </label>
+              <div className='order-device-options' role='list'>
+                {isDeviceLookupLoading ? (
+                  <p>Searching devices...</p>
+                ) : clientDeviceOptions.length === 0 ? (
+                  <p>No active client devices found.</p>
+                ) : (
+                  clientDeviceOptions.map((device) => (
+                    <button
+                      key={device.id}
+                      type='button'
+                      className='order-device-option'
+                      onClick={() => applyDeviceName(device.name)}
+                    >
+                      <strong>{device.name}</strong>
+                      {device.note ? <span>{device.note}</span> : null}
+                    </button>
+                  ))
+                )}
+              </div>
+              <label className='field field-wide'>
+                <span>New device</span>
+                <input
+                  value={newDeviceName}
+                  onChange={(event) => setNewDeviceName(event.target.value)}
+                  placeholder='Device name'
+                />
+              </label>
+              <label className='create-inline-checkbox order-device-clear-serial'>
+                <input
+                  type='checkbox'
+                  checked={clearSerialOnDeviceApply}
+                  onChange={(event) =>
+                    setClearSerialOnDeviceApply(event.target.checked)
+                  }
+                />
+                <span>Clear S/N for this order</span>
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() => setIsDeviceModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isCreatingDevice || !canCreateDevice}
+                onClick={() => void createAndApplyDevice()}
+              >
+                {isCreatingDevice ? 'Creating...' : 'Create and apply'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
       <SupplierOrderModal
         isOpen={isRelatedSupplierOrderModalOpen}
         suppliers={relatedSuppliers}
@@ -1474,8 +1717,10 @@ const LineItemsPanel = ({
 
     return occupied;
   }, [currentSaleId, sales, serialsEditingItem]);
-  const getProductSuggestionState = (product: Product) =>
-    getProductSerialAvailability(product, serialUsage);
+  const getProductSuggestionState = useCallback(
+    (product: Product) => getProductSerialAvailability(product, serialUsage),
+    [serialUsage],
+  );
   const canRemoveItemAfterPayment = (item: OrderLineItem) =>
     canRemoveLineItemAfterPayment(
       allItems,
@@ -1656,7 +1901,7 @@ const LineItemsPanel = ({
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
   }, [kind]);
 
-  const getCatalogDefaults = (catalogProduct: CatalogProduct) => {
+  const getCatalogDefaults = useCallback((catalogProduct: CatalogProduct) => {
     const matchingStockProduct = products.find(
       (product) =>
         normalizeProductLookupValue(product.name) ===
@@ -1669,7 +1914,7 @@ const LineItemsPanel = ({
         0,
       warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
     };
-  };
+  }, [products]);
 
   useEffect(() => {
     if (
@@ -1724,6 +1969,8 @@ const LineItemsPanel = ({
     return () => window.clearTimeout(timeoutId);
   }, [
     catalogProducts,
+    getCatalogDefaults,
+    getProductSuggestionState,
     kind,
     name,
     products,

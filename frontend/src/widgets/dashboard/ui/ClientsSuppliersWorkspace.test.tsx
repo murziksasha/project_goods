@@ -65,6 +65,15 @@ afterEach(() => {
 });
 
 describe('ClientsSuppliersWorkspace suppliers filters', () => {
+  it('does not show supplier order in the suppliers table', () => {
+    renderWorkspace([supplier()]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+
+    expect(screen.queryByRole('columnheader', { name: 'Supplier order' })).not.toBeInTheDocument();
+    expect(screen.queryByText('SO-1')).not.toBeInTheDocument();
+  });
+
   it('filters suppliers by status and date', () => {
     renderWorkspace([
       supplier({

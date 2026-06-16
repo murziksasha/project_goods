@@ -4,14 +4,17 @@
 
 - Accepted device is stored and displayed only in `Main information` (`Device` + `S/N`).
 - Accepted device must not be auto-added to `Products`.
-- `Device` is shown as plain text in card.
-- `Edit` button near `Device` opens a modal based on `Clients goods` (`client-devices`) for current client.
-- Modal allows selecting existing client device or creating/updating one, then applying it to order card.
+- `Device` is shown as a compact change control in repair order cards.
+- `Change` near `Device` opens a modal based on active `Clients goods` (`client-devices`) for current client.
+- Device search in the modal uses the same global active `Clients goods` lookup as `Create order -> Device #1`; empty search may show current-client devices.
+- Modal allows selecting an existing client device or creating a new one, then applying it to the order-card draft.
+- Existing client-device editing remains in `Clients goods`; the order-card modal does not update existing device records.
+- Applying a device can optionally clear the order-specific `S/N`; preserving `S/N` is the default.
 - `Clients goods` stores unique device names per client (case-insensitive).
 - Uniqueness is enforced by canonical `nameKey` (trim + collapsed spaces + lowercase).
 - Different clients may have the same device name.
 - `Clients goods` does not store or bind `S/N`.
-- On `Save changes`, edited `Device` is synced to `Clients goods` for the same client.
+- On `Save changes`, selected `Device` is persisted to the order snapshot/history.
 - If a device with the same canonical name already exists for this client, system reuses that record (no duplicates).
 - `S/N` may be empty and can be added later.
 - `S/N` is stored in order card snapshot/history and used as suggestion for repeat requests of the same client/device.
