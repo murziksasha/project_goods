@@ -2790,6 +2790,16 @@
   grid-template-columns: minmax(0, 1fr) 150px 140px 104px 120px 110px;
 }
 
+.order-detail-table-header {
+  background: #f7f9fb;
+  color: #6b7785;
+  font-weight: 800;
+}
+
+.order-detail-table-last-row {
+  border-bottom: 0;
+}
+
 .order-detail-table-row {
   display: contents;
 }
