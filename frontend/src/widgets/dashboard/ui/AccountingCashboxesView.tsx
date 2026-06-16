@@ -7,6 +7,7 @@ import type {
 } from '../../../entities/finance/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import {
+  canPerformTransferBetweenCashboxes,
   formatMoney,
   transactionLabels,
   type CashboxCurrencyRow,
@@ -287,10 +288,17 @@ export const AccountingCashboxesView = ({
               value={transactionForm.fromCashboxId}
               disabled={transactionForm.type === 'deposit'}
               onChange={(event) =>
-                onTransactionFormChange((current) => ({
-                  ...current,
-                  fromCashboxId: event.target.value,
-                }))
+                onTransactionFormChange((current) => {
+                  const newFrom = event.target.value;
+                  if (current.type !== 'transfer') {
+                    return { ...current, fromCashboxId: newFrom };
+                  }
+                  let nextTo = current.toCashboxId;
+                  if (newFrom && newFrom === nextTo) {
+                    nextTo = cashboxes.find((c) => c.id !== newFrom)?.id ?? '';
+                  }
+                  return { ...current, fromCashboxId: newFrom, toCashboxId: nextTo };
+                })
               }
             >
               <option value=''>-</option>
@@ -307,18 +315,33 @@ export const AccountingCashboxesView = ({
               value={transactionForm.toCashboxId}
               disabled={transactionForm.type === 'withdraw'}
               onChange={(event) =>
-                onTransactionFormChange((current) => ({
-                  ...current,
-                  toCashboxId: event.target.value,
-                }))
+                onTransactionFormChange((current) => {
+                  const newTo = event.target.value;
+                  if (current.type !== 'transfer') {
+                    return { ...current, toCashboxId: newTo };
+                  }
+                  let nextFrom = current.fromCashboxId;
+                  if (newTo && newTo === nextFrom) {
+                    nextFrom = cashboxes.find((c) => c.id !== newTo)?.id ?? '';
+                  }
+                  return { ...current, toCashboxId: newTo, fromCashboxId: nextFrom };
+                })
               }
             >
               <option value=''>-</option>
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
+              {cashboxes
+                .filter(
+                  (cashbox) =>
+                    !(
+                      transactionForm.type === 'transfer' &&
+                      cashbox.id === transactionForm.fromCashboxId
+                    ),
+                )
+                .map((cashbox) => (
+                  <option key={cashbox.id} value={cashbox.id}>
+                    {cashbox.name}
+                  </option>
+                ))}
             </select>
           </label>
           <label className='field'>
@@ -341,7 +364,12 @@ export const AccountingCashboxesView = ({
           disabled={
             isSaving ||
             !transactionForm.amount ||
-            allowedTransactionCurrencies.length === 0
+            allowedTransactionCurrencies.length === 0 ||
+            (transactionForm.type === 'transfer' &&
+              !canPerformTransferBetweenCashboxes(
+                transactionForm.fromCashboxId,
+                transactionForm.toCashboxId,
+              ))
           }
         >
           {isSaving ? 'Saving...' : 'Save operation'}

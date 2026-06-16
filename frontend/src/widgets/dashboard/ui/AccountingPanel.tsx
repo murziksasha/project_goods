@@ -23,6 +23,7 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   canCancelAccountingTransferTransaction,
+  canPerformTransferBetweenCashboxes,
   filterFinanceTransactions,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
@@ -611,6 +612,16 @@ export const AccountingPanel = ({
       onError(
         'Current employee does not have permission for this finance operation.',
       );
+      return;
+    }
+    if (
+      transactionForm.type === 'transfer' &&
+      !canPerformTransferBetweenCashboxes(
+        transactionForm.fromCashboxId,
+        transactionForm.toCashboxId,
+      )
+    ) {
+      onError('Transfer cashboxes must be different.');
       return;
     }
     const normalizedAmount = parseDecimal(transactionForm.amount);

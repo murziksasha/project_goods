@@ -635,3 +635,6 @@ export const normalizeCashboxCurrencyActivity = ({
 
   return changed ? nextByCashbox : current;
 };
+
+export const canPerformTransferBetweenCashboxes = (fromCashboxId?: string, toCashboxId?: string) =>
+  Boolean(fromCashboxId) && Boolean(toCashboxId) && fromCashboxId !== toCashboxId;
