@@ -1011,7 +1011,6 @@ const SuppliersTable = ({
           <th>ID</th>
           <th>Name</th>
           <th>Phone</th>
-          <th>Supplier order</th>
           <th>Status</th>
           <th>Created</th>
         </tr>
@@ -1026,7 +1025,6 @@ const SuppliersTable = ({
             <td data-label='ID'>{supplier.id.slice(-6)}</td>
             <td data-label='Name'>{supplier.name}</td>
             <td data-label='Phone'>{supplier.phone}</td>
-            <td data-label='Supplier order'>{supplier.supplierOrder || '-'}</td>
             <td data-label='Status'>{supplier.isActive ? 'active' : 'inactive'}</td>
             <td data-label='Created'>{formatDateTime(supplier.createdAt)}</td>
           </tr>

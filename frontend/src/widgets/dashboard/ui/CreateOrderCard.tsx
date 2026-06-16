@@ -16,6 +16,11 @@ import {
   buildCreateOrderProductSuggestions,
   type CreateOrderProductSuggestion,
 } from '../model/create-order-products';
+import {
+  findBlacklistClientMatch,
+  getBlacklistClientWarning,
+  isBlacklistClient,
+} from '../model/clients-workspace';
 import { normalizeSerialNumber } from '../model/order-line-serials';
 import {
   createOrderClientRequestsTabStorageKey,
@@ -56,6 +61,7 @@ type CreateOrderCardProps = {
   onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
   onCreated?: (sale: Sale) => void;
   onError: (message: string) => void;
+  onOpenClientCard?: (clientId: string) => void;
 };
 
 export const CreateOrderCard = ({
@@ -70,6 +76,7 @@ export const CreateOrderCard = ({
   onSave,
   onCreated,
   onError,
+  onOpenClientCard,
 }: CreateOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
     () => initialTab,
@@ -144,6 +151,20 @@ export const CreateOrderCard = ({
   const shouldShowClientSuggestions =
     !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const blacklistClientMatch = useMemo(() => {
+    if (selectedClient && isBlacklistClient(selectedClient)) {
+      return selectedClient;
+    }
+
+    return findBlacklistClientMatch(
+      clientSuggestions,
+      clientPhone,
+      clientName,
+    );
+  }, [clientName, clientPhone, clientSuggestions, selectedClient]);
+  const blacklistClientWarning = blacklistClientMatch
+    ? getBlacklistClientWarning(blacklistClientMatch)
+    : null;
   const resolvedClientForDeviceCreate = useMemo(() => {
     if (selectedClientId && selectedClient) {
       return selectedClient;
@@ -697,18 +718,58 @@ export const CreateOrderCard = ({
             {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
                 {isClientLookupLoading ? <p>Searching clients...</p> : null}
-                {visibleClientSuggestions.map((client) => (
-                  <button
-                    key={client.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    onClick={() => applyClient(client)}
-                  >
-                    <strong>{client.name}</strong>
-                    <span>{client.phone}</span>
-                  </button>
-                ))}
+                {visibleClientSuggestions.map((client) => {
+                  const isBlacklisted = isBlacklistClient(client);
+                  return (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className={
+                        isBlacklisted
+                          ? 'create-suggestion-item create-client-suggestion-blacklist'
+                          : 'create-suggestion-item'
+                      }
+                      title={
+                        isBlacklisted ? 'Client is in blacklist' : undefined
+                      }
+                      onClick={() => applyClient(client)}
+                    >
+                      <span className="create-client-suggestion-heading">
+                        <strong>{client.name}</strong>
+                        {isBlacklisted ? (
+                          <span className="client-status-badge status-blacklist">
+                            blacklist
+                          </span>
+                        ) : null}
+                      </span>
+                      <span>{client.phone}</span>
+                    </button>
+                  );
+                })}
               </div>
+            ) : null}
+            {blacklistClientMatch ? (
+              <button
+                type="button"
+                className="create-client-blacklist-warning"
+                disabled={!onOpenClientCard}
+                aria-label={`Open blacklist client card: ${blacklistClientMatch.name}`}
+                onClick={() => onOpenClientCard?.(blacklistClientMatch.id)}
+              >
+                <span className="create-client-blacklist-warning-copy">
+                  <strong>Client is in blacklist</strong>
+                  <span>
+                    {blacklistClientMatch.name} / {blacklistClientMatch.phone}
+                  </span>
+                </span>
+                <span className="create-client-blacklist-warning-message">
+                  Check client card before creating a repair or sale order.
+                </span>
+                <span className="client-status-badge status-blacklist">
+                  blacklist
+                </span>
+                <span className="visually-hidden">{blacklistClientWarning}</span>
+              </button>
             ) : null}
 
             {activeTab === 'sale' ? (

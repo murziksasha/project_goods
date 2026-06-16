@@ -2452,8 +2452,110 @@
   overflow-wrap: anywhere;
 }
 
+.order-detail-device-button {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #4d637a;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-detail-device-button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-device-button small {
+  color: #2d7dca;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.order-detail-device-button:hover small {
+  text-decoration: underline;
+}
+
+.order-detail-device-button:disabled {
+  cursor: default;
+}
+
+.order-detail-device-button:disabled small {
+  color: #9aa8b7;
+  text-decoration: none;
+}
+
 .order-detail-master-select {
   width: 100%;
+}
+
+.order-device-change-modal {
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.order-device-change-body {
+  display: grid;
+  gap: 14px;
+}
+
+.order-device-options {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  min-width: 0;
+}
+
+.order-device-options p {
+  margin: 0;
+  color: #7b8da3;
+}
+
+.order-device-option {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d4dce6;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #4d637a;
+  padding: 10px 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-device-option:hover {
+  border-color: #91bdea;
+  background: #eef6ff;
+}
+
+.order-device-option strong,
+.order-device-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-device-option strong {
+  color: #123d68;
+}
+
+.order-device-option span {
+  color: #7b8da3;
+  font-size: 0.9rem;
+}
+
+.order-device-clear-serial {
+  margin: 0;
 }
 
 .order-line-item-serials {
@@ -4857,6 +4959,20 @@
   background: #eef6ff;
 }
 
+.clients-table-row-blacklist {
+  background: #fff3f3;
+  box-shadow: inset 4px 0 0 #ef4444;
+}
+
+.clients-table-row-blacklist.clients-table-row-active {
+  background: #ffe8e8;
+}
+
+.clients-table-row-blacklist .status-blacklist {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+  font-weight: 800;
+}
+
 .clients-delete-button {
   border: 0;
   background: transparent;
@@ -5489,6 +5605,80 @@
 .create-side-list-button span {
   color: #6f8399;
   font-size: 0.9rem;
+}
+
+.create-client-suggestion-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.create-client-suggestion-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-client-suggestion-blacklist {
+  border-color: #f3a4a4;
+  background: #fff7f7;
+}
+
+.create-client-suggestion-blacklist:hover {
+  background: #ffeded;
+}
+
+.create-client-blacklist-warning {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border: 1px solid #f0a3a3;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #8f1d1d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.create-client-blacklist-warning:hover:not(:disabled) {
+  background: #ffecec;
+  border-color: #ef7c7c;
+}
+
+.create-client-blacklist-warning:focus-visible {
+  outline: 3px solid rgba(239, 68, 68, 0.24);
+  outline-offset: 2px;
+}
+
+.create-client-blacklist-warning:disabled {
+  cursor: default;
+}
+
+.create-client-blacklist-warning-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.create-client-blacklist-warning strong {
+  font-size: 0.96rem;
+}
+
+.create-client-blacklist-warning-copy span,
+.create-client-blacklist-warning-message {
+  color: #a13b3b;
+  font-size: 0.9rem;
+}
+
+.create-client-blacklist-warning-message {
+  grid-column: 1 / -1;
 }
 
 .supplier-order-modal {

@@ -565,6 +565,7 @@ export const PrintFormBuilder = ({
   const labelSize = normalizeLabelSize(selectedForm.labelSize);
   const isLegacy = !selectedForm.layoutBlocks?.length;
   const blocks = selectedForm.layoutBlocks ?? [];
+  const firstBlockId = selectedForm.layoutBlocks?.[0]?.id ?? '';
   const selectedBlock = blocks.find((block) => block.id === activeBlockId) ?? blocks[0];
   const previewHtml = useMemo(
     () => renderPrintTemplate(selectedForm.content, previewValues, selectedForm.contentFormat),
@@ -572,8 +573,8 @@ export const PrintFormBuilder = ({
   );
 
   useEffect(() => {
-    setActiveBlockId(selectedForm.layoutBlocks?.[0]?.id ?? '');
-  }, [selectedForm.id]);
+    setActiveBlockId(firstBlockId);
+  }, [firstBlockId, selectedForm.id]);
 
   const updateBlocks = (nextBlocks: PrintLayoutBlock[]) => {
     onUpdateForm(selectedForm.id, regenerateLayoutContent(selectedForm, nextBlocks));

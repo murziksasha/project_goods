@@ -231,13 +231,13 @@ export type FinanceOverview = {
 type CurrencyBalanceGetter = (cashbox: Cashbox, currencyCode: string) => number;
 
 export const getAccountingTotals = (cashboxes: Cashbox[]) =>
-  cashboxes.reduce(
-    (summary, cashbox) => ({
-      UAH: summary.UAH + (cashbox.balances.UAH ?? 0),
-      USD: summary.USD + (cashbox.balances.USD ?? 0),
-    }),
-    { UAH: 0, USD: 0 },
-  );
+  cashboxes.reduce<Record<string, number>>((summary, cashbox) => {
+    Object.entries(cashbox.balances).forEach(([currency, balance]) => {
+      summary[currency] = (summary[currency] ?? 0) + balance;
+    });
+    if (summary.UAH === undefined) summary.UAH = 0;
+    return summary;
+  }, {});
 
 export const getAccountingCashboxCurrencyRows = ({
   allCurrencyCodes,
@@ -366,11 +366,18 @@ export const getBalanceAfterByTransactionId = ({
   transactions: FinanceTransaction[];
 }) => {
   const balancesByCashboxCurrency = new Map<string, number>();
+  const allCurrencyCodes = Array.from(
+    new Set([
+      ...currencyOptions,
+      ...cashboxes.flatMap((cashbox) => Object.keys(cashbox.balances)),
+      ...transactions.map((transaction) => transaction.currency),
+    ]),
+  );
   cashboxes.forEach((cashbox) => {
-    currencyOptions.forEach((currency) => {
+    allCurrencyCodes.forEach((currency) => {
       balancesByCashboxCurrency.set(
         `${cashbox.id}:${currency}`,
-        cashbox.balances[currency],
+        cashbox.balances[currency] ?? 0,
       );
     });
   });

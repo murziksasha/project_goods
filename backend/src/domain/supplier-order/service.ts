@@ -1,6 +1,5 @@
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { toNonEmptyString, toNumber, toOptionalDate } from '../../shared/lib/parsers';
-import mongoose from 'mongoose';
 import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
 import { Product } from '../product/model';

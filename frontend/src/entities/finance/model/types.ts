@@ -2,10 +2,20 @@ export type FinanceCurrency = string;
 export type FinanceTransactionType = 'deposit' | 'withdraw' | 'transfer';
 export type FinanceTransactionStatus = 'active' | 'cancelled';
 
+export type FinanceCurrencyConfig = {
+  id: string;
+  code: FinanceCurrency;
+  isSystem: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Cashbox = {
   id: string;
   name: string;
   balances: Record<FinanceCurrency, number>;
+  enabledCurrencies: Record<FinanceCurrency, boolean>;
   isDefault: boolean;
   isArchived: boolean;
   createdAt: string;
@@ -52,9 +62,18 @@ export type CreateCashboxPayload = {
   name: string;
 };
 
+export type CreateFinanceCurrencyPayload = {
+  code: string;
+};
+
+export type UpdateFinanceCurrencyPayload = {
+  isArchived?: boolean;
+};
+
 export type UpdateCashboxPayload = {
   name?: string;
   isArchived?: boolean;
+  enabledCurrencies?: Record<FinanceCurrency, boolean>;
 };
 
 export type CreateFinanceTransactionPayload = {
@@ -64,4 +83,5 @@ export type CreateFinanceTransactionPayload = {
   fromCashboxId?: string;
   toCashboxId?: string;
   note: string;
+  idempotencyKey?: string;
 };

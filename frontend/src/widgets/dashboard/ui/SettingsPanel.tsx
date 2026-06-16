@@ -383,8 +383,8 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
             Create MongoDB archives, download them, or restore a completed backup.
           </p>
           <p className="panel-subtitle">
-            Automatic backup: daily at 15:00 server time, scheduled copies kept for
-            14 days.
+            Automatic backup: daily at 15:00 UTC / 18:00 Kyiv time, scheduled
+            copies kept for 14 days.
           </p>
         </div>
         <div className="settings-actions">
@@ -660,19 +660,11 @@ export const SettingsPanel = ({
     printForms[0];
   const previewValues = useMemo(
     () => getSettingsPreviewValues(form),
-    [
-      form.company,
-      form.companyAddress,
-      form.companyEmail,
-      form.companyIban,
-      form.companyId,
-      form.companySite,
-      form.serviceName,
-    ],
+    [form],
   );
   const companyValidation = useMemo(
     () => getCompanyValidation(form),
-    [form.company, form.companyAddress, form.companyIban, form.companyId],
+    [form],
   );
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),

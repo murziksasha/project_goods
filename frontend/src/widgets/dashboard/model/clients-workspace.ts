@@ -7,6 +7,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
+import { normalizePhone } from '../../../shared/lib/phoneFormatter';
 
 export type ClientFilters = {
   query: string;
@@ -83,6 +84,48 @@ export const defaultClientStats: ClientStats = {
 };
 
 export const normalizeText = (value: string) => value.trim().toLowerCase();
+
+const normalizeClientPhoneIdentity = (value: string) => {
+  const digits = normalizePhone(value);
+  if (digits.startsWith('380')) return digits.slice(3);
+  if (digits.startsWith('0')) return digits.slice(1);
+  return digits;
+};
+
+export const isBlacklistClient = (client: Client) =>
+  client.status === 'blacklist';
+
+export const findBlacklistClientMatch = (
+  clients: Client[],
+  phoneInput: string,
+  nameInput: string,
+) => {
+  const phoneIdentity = normalizeClientPhoneIdentity(phoneInput);
+  const exactPhoneMatch =
+    phoneIdentity.length >= 7
+      ? clients.find(
+          (client) =>
+            isBlacklistClient(client) &&
+            normalizeClientPhoneIdentity(client.phone) === phoneIdentity,
+        )
+      : null;
+
+  if (exactPhoneMatch) return exactPhoneMatch;
+
+  const normalizedName = normalizeText(nameInput);
+  if (normalizedName.length < 4) return null;
+
+  const nameMatches = clients.filter(
+    (client) =>
+      isBlacklistClient(client) &&
+      normalizeText(client.name) === normalizedName,
+  );
+
+  return nameMatches.length === 1 ? nameMatches[0] : null;
+};
+
+export const getBlacklistClientWarning = (client: Client) =>
+  `${client.name} (${client.phone}) is in blacklist. Check client card before creating a repair or sale order.`;
 
 export const parseNumber = (value: string) => {
   const normalized = value.trim().replace(',', '.');

@@ -63,7 +63,7 @@ export const createClient = async (payload: ClientPayload) => {
     await client.save();
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new Error(duplicatePhoneMessage);
+      throw new Error(duplicatePhoneMessage, { cause: error });
     }
     throw error;
   }

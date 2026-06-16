@@ -1,17 +1,58 @@
-import type { CashboxDocument, FinanceTransactionDocument } from './model';
+import {
+  baseFinanceCurrency,
+  type CashboxDocument,
+  type FinanceCurrencyConfigDocument,
+  type FinanceTransactionDocument,
+} from './model';
 
-export const formatCashbox = (cashbox: CashboxDocument) => ({
+const mapLikeToRecord = <T>(
+  value: Map<string, T> | Record<string, T> | undefined,
+) => {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value.entries());
+  return { ...value };
+};
+
+export const formatCurrencyConfig = (currency: FinanceCurrencyConfigDocument) => ({
+  id: currency._id.toString(),
+  code: currency.code,
+  isSystem: currency.isSystem,
+  isArchived: currency.isArchived,
+  createdAt: currency.createdAt.toISOString(),
+  updatedAt: currency.updatedAt.toISOString(),
+});
+
+export const formatCashbox = (
+  cashbox: CashboxDocument,
+  currencyCodes: string[] = [],
+) => {
+  const balances = mapLikeToRecord<number>(cashbox.balances);
+  const enabledCurrencies = mapLikeToRecord<boolean>(cashbox.enabledCurrencies);
+  const allCurrencyCodes = Array.from(
+    new Set([baseFinanceCurrency, 'USD', ...currencyCodes, ...Object.keys(balances)]),
+  );
+
+  return {
   id: cashbox._id.toString(),
   name: cashbox.name,
-  balances: {
-    UAH: cashbox.balances?.UAH ?? 0,
-    USD: cashbox.balances?.USD ?? 0,
-  },
+  balances: allCurrencyCodes.reduce<Record<string, number>>((acc, currency) => {
+    acc[currency] = balances[currency] ?? 0;
+    return acc;
+  }, {}),
+  enabledCurrencies: allCurrencyCodes.reduce<Record<string, boolean>>(
+    (acc, currency) => {
+      acc[currency] =
+        currency === baseFinanceCurrency || enabledCurrencies[currency] === true;
+      return acc;
+    },
+    {},
+  ),
   isDefault: cashbox.isDefault,
   isArchived: cashbox.isArchived,
   createdAt: cashbox.createdAt.toISOString(),
   updatedAt: cashbox.updatedAt.toISOString(),
-});
+  };
+};
 
 export const formatTransaction = (transaction: FinanceTransactionDocument) => ({
   id: transaction._id.toString(),
