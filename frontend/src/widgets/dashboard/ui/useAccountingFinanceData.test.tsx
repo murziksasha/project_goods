@@ -1,4 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getCashboxes,
@@ -19,17 +21,72 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import { accountingCashboxOrderStorageKey } from '../model/accounting';
 import { useAccountingFinanceData } from './useAccountingFinanceData';
 
-vi.mock('../../../entities/finance/api/financeApi', () => ({
-  getCashboxes: vi.fn(),
-  getFinanceCurrencies: vi.fn(),
-  getFinanceReport: vi.fn(),
-  getFinanceTransactions: vi.fn(),
-  getSupplierOrdersForPayment: vi.fn(),
-}));
+vi.mock('../../../entities/finance/api/financeApi', () => {
+  const getCashboxes = vi.fn();
+  const getFinanceCurrencies = vi.fn();
+  const getFinanceReport = vi.fn();
+  const getFinanceTransactions = vi.fn();
+  const getSupplierOrdersForPayment = vi.fn();
 
-vi.mock('../../../entities/supplier-order/api/supplierOrderApi', () => ({
-  getSupplierOrders: vi.fn(),
-}));
+  return {
+    getCashboxes,
+    getFinanceCurrencies,
+    getFinanceReport,
+    getFinanceTransactions,
+    getSupplierOrdersForPayment,
+    useCashboxesQuery: (options: { includeArchived?: boolean } = {}) =>
+      useQuery({
+        queryFn: () => getCashboxes({ includeArchived: options.includeArchived }),
+        queryKey: options.includeArchived
+          ? ['financeCashboxes', 'all']
+          : ['financeCashboxes'],
+        retry: false,
+      }),
+    useFinanceCurrenciesQuery: (
+      options: { includeArchived?: boolean } = {},
+    ) =>
+      useQuery({
+        queryFn: () =>
+          getFinanceCurrencies({ includeArchived: options.includeArchived }),
+        queryKey: options.includeArchived
+          ? ['financeCurrencies', 'all']
+          : ['financeCurrencies'],
+        retry: false,
+      }),
+    useFinanceReportQuery: () =>
+      useQuery({
+        queryFn: getFinanceReport,
+        queryKey: ['financeReport'],
+        retry: false,
+      }),
+    useFinanceTransactionsQuery: () =>
+      useQuery({
+        queryFn: getFinanceTransactions,
+        queryKey: ['financeTransactions'],
+        retry: false,
+      }),
+    useSupplierOrdersForPaymentQuery: () =>
+      useQuery({
+        queryFn: getSupplierOrdersForPayment,
+        queryKey: ['financeSupplierOrdersQueue'],
+        retry: false,
+      }),
+  };
+});
+
+vi.mock('../../../entities/supplier-order/api/supplierOrderApi', () => {
+  const getSupplierOrders = vi.fn();
+
+  return {
+    getSupplierOrders,
+    useSupplierOrdersQuery: () =>
+      useQuery({
+        queryFn: getSupplierOrders,
+        queryKey: ['supplierOrders'],
+        retry: false,
+      }),
+  };
+});
 
 const cashbox = (patch: Partial<Cashbox> = {}): Cashbox => ({
   id: 'cashbox-1',
@@ -134,6 +191,16 @@ const mockSuccessfulApi = () => {
 
 const noop = () => undefined;
 
+const renderWithQueryClient = (ui: ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+};
+
 const Harness = ({ onError = noop }: { onError?: (message: string) => void }) => {
   const state = useAccountingFinanceData({ onError });
   return (
@@ -170,7 +237,7 @@ describe('useAccountingFinanceData', () => {
       JSON.stringify(['cashbox-2', 'missing', 'cashbox-1']),
     );
 
-    render(<Harness />);
+    renderWithQueryClient(<Harness />);
 
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     expect(screen.getByTestId('cashboxes')).toHaveTextContent('cashbox-2,cashbox-1');
@@ -188,7 +255,7 @@ describe('useAccountingFinanceData', () => {
     mockSuccessfulApi();
     window.localStorage.setItem(accountingCashboxOrderStorageKey, '{bad json');
 
-    render(<Harness />);
+    renderWithQueryClient(<Harness />);
 
     await waitFor(() => expect(screen.getByTestId('cashboxes')).toHaveTextContent('cashbox-1,cashbox-2'));
     window.dispatchEvent(new Event('project-goods:finance-updated'));
@@ -202,7 +269,7 @@ describe('useAccountingFinanceData', () => {
       JSON.stringify({ first: 'cashbox-2' }),
     );
 
-    render(<Harness />);
+    renderWithQueryClient(<Harness />);
 
     await waitFor(() =>
       expect(screen.getByTestId('cashboxes')).toHaveTextContent(
@@ -214,7 +281,7 @@ describe('useAccountingFinanceData', () => {
   it('uses the default cashbox order when nothing is stored', async () => {
     mockSuccessfulApi();
 
-    render(<Harness />);
+    renderWithQueryClient(<Harness />);
 
     await waitFor(() =>
       expect(screen.getByTestId('cashboxes')).toHaveTextContent(
@@ -227,7 +294,7 @@ describe('useAccountingFinanceData', () => {
     const onError = vi.fn();
     vi.mocked(getCashboxes).mockRejectedValue(new Error('network down'));
 
-    render(<Harness onError={onError} />);
+    renderWithQueryClient(<Harness onError={onError} />);
 
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     expect(onError).toHaveBeenCalledWith('network down');
@@ -237,7 +304,7 @@ describe('useAccountingFinanceData', () => {
     const onError = vi.fn();
     vi.mocked(getCashboxes).mockRejectedValue('boom');
 
-    render(<Harness onError={onError} />);
+    renderWithQueryClient(<Harness onError={onError} />);
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith('Failed to load finance data.'));
   });

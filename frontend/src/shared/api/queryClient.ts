@@ -9,6 +9,13 @@ export const queryKeys = {
   catalogProducts: ['catalogProducts'] as const,
   supplierOrders: ['supplierOrders'] as const,
   warehouseSettings: ['warehouseSettings'] as const,
+  financeCashboxes: ['financeCashboxes'] as const,
+  financeAllCashboxes: ['financeCashboxes', 'all'] as const,
+  financeCurrencies: ['financeCurrencies'] as const,
+  financeTransactions: ['financeTransactions'] as const,
+  financeReport: ['financeReport'] as const,
+  financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
+  financeSettings: ['financeSettings'] as const,
 };
 
 export const queryClient = new QueryClient({

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  cancelFinanceTransaction,
-  createCashbox,
-  createFinanceCurrency,
-  createFinanceTransaction,
-  issueSupplierOrderWithoutPayment,
-  paySupplierOrder,
-  updateCashbox,
-  updateFinanceCurrency,
+  useCancelFinanceTransactionMutation,
+  useCreateCashboxMutation,
+  useCreateFinanceCurrencyMutation,
+  useCreateFinanceTransactionMutation,
+  useIssueSupplierOrderWithoutPaymentMutation,
+  usePaySupplierOrderMutation,
+  useUpdateCashboxMutation,
+  useUpdateFinanceCurrencyMutation,
 } from '../../../entities/finance/api/financeApi';
 import type {
   Cashbox,
@@ -119,6 +119,17 @@ export const AccountingPanel = ({
   const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
   const [editingCashboxName, setEditingCashboxName] = useState('');
   const [newCurrencyCode, setNewCurrencyCode] = useState('');
+  const createCashboxMutation = useCreateCashboxMutation();
+  const updateCashboxMutation = useUpdateCashboxMutation();
+  const createFinanceCurrencyMutation = useCreateFinanceCurrencyMutation();
+  const updateFinanceCurrencyMutation = useUpdateFinanceCurrencyMutation();
+  const createFinanceTransactionMutation =
+    useCreateFinanceTransactionMutation();
+  const cancelFinanceTransactionMutation =
+    useCancelFinanceTransactionMutation();
+  const paySupplierOrderMutation = usePaySupplierOrderMutation();
+  const issueSupplierOrderWithoutPaymentMutation =
+    useIssueSupplierOrderWithoutPaymentMutation();
 
   const canManageCashboxes = hasEmployeePermission(
     currentEmployee,
@@ -423,7 +434,10 @@ export const AccountingPanel = ({
     }
     setIsSaving(true);
     try {
-      await updateCashbox(editingCashboxId, { name: editingCashboxName.trim() });
+      await updateCashboxMutation.mutateAsync({
+        cashboxId: editingCashboxId,
+        payload: { name: editingCashboxName.trim() },
+      });
       onSuccess('Cashbox updated.');
       setEditingCashboxId(null);
       setEditingCashboxName('');
@@ -442,7 +456,10 @@ export const AccountingPanel = ({
     }
     setIsSaving(true);
     try {
-      await updateCashbox(cashbox.id, { isArchived: !cashbox.isArchived });
+      await updateCashboxMutation.mutateAsync({
+        cashboxId: cashbox.id,
+        payload: { isArchived: !cashbox.isArchived },
+      });
       onSuccess(
         cashbox.isArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.',
       );
@@ -470,7 +487,7 @@ export const AccountingPanel = ({
     }
     setIsSaving(true);
     try {
-      await createFinanceCurrency({ code: normalized });
+      await createFinanceCurrencyMutation.mutateAsync({ code: normalized });
       setNewCurrencyCode('');
       onSuccess('Currency created.');
       await refreshFinance();
@@ -484,7 +501,10 @@ export const AccountingPanel = ({
   const archiveCurrencyCode = async (code: string) => {
     setIsSaving(true);
     try {
-      await updateFinanceCurrency(code, { isArchived: true });
+      await updateFinanceCurrencyMutation.mutateAsync({
+        currencyCode: code,
+        payload: { isArchived: true },
+      });
       onSuccess('Currency archived.');
       await refreshFinance();
     } catch (error) {
@@ -517,8 +537,11 @@ export const AccountingPanel = ({
     if (!currency) return;
     setIsSaving(true);
     try {
-      await updateFinanceCurrency(currencyCode, {
-        isArchived: !currency.isArchived,
+      await updateFinanceCurrencyMutation.mutateAsync({
+        currencyCode,
+        payload: {
+          isArchived: !currency.isArchived,
+        },
       });
       onSuccess(currency.isArchived ? 'Currency restored.' : 'Currency archived.');
       await refreshFinance();
@@ -541,11 +564,14 @@ export const AccountingPanel = ({
     if (!cashbox) return;
     setIsSaving(true);
     try {
-      await updateCashbox(cashboxId, {
-        enabledCurrencies: {
-          ...cashbox.enabledCurrencies,
-          UAH: true,
-          [currencyCode]: cashbox.enabledCurrencies?.[currencyCode] !== true,
+      await updateCashboxMutation.mutateAsync({
+        cashboxId,
+        payload: {
+          enabledCurrencies: {
+            ...cashbox.enabledCurrencies,
+            UAH: true,
+            [currencyCode]: cashbox.enabledCurrencies?.[currencyCode] !== true,
+          },
         },
       });
       onSuccess('Cashbox currency settings updated.');
@@ -569,7 +595,7 @@ export const AccountingPanel = ({
     }
     setIsSaving(true);
     try {
-      await createCashbox({ name: newCashboxName });
+      await createCashboxMutation.mutateAsync({ name: newCashboxName });
       setNewCashboxName('');
       onSuccess('Cashbox created.');
       await refreshFinance();
@@ -601,7 +627,7 @@ export const AccountingPanel = ({
     }
     setIsSaving(true);
     try {
-      await createFinanceTransaction({
+      await createFinanceTransactionMutation.mutateAsync({
         ...transactionForm,
         amount: String(normalizedAmount),
         idempotencyKey: crypto.randomUUID(),
@@ -654,7 +680,7 @@ export const AccountingPanel = ({
 
     setIsSaving(true);
     try {
-      await cancelFinanceTransaction(transfer.id);
+      await cancelFinanceTransactionMutation.mutateAsync(transfer.id);
       onSuccess('Transfer cancelled. A reverse transaction was created.');
       setTransferToCancel(null);
       await refreshFinance();
@@ -671,7 +697,7 @@ export const AccountingPanel = ({
     const order = withoutPaymentOrder!;
     setIsSaving(true);
     try {
-      await issueSupplierOrderWithoutPayment(order.id);
+      await issueSupplierOrderWithoutPaymentMutation.mutateAsync(order.id);
       onSuccess('Order issued without payment.');
       window.dispatchEvent(new Event('project-goods:finance-updated'));
       setWithoutPaymentOrder(null);
@@ -693,9 +719,12 @@ export const AccountingPanel = ({
     if (!cashboxId) return;
     setIsSaving(true);
     try {
-      await paySupplierOrder(order.id, {
-        cashboxId,
-        note: `Payment for order ${orderNumber}`,
+      await paySupplierOrderMutation.mutateAsync({
+        supplierOrderId: order.id,
+        payload: {
+          cashboxId,
+          note: `Payment for order ${orderNumber}`,
+        },
       });
       onSuccess('Order has been paid.');
       window.dispatchEvent(new Event('project-goods:finance-updated'));
