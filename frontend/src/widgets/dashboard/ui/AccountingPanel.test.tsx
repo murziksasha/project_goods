@@ -52,16 +52,67 @@ type IssueWithoutPaymentModalProps = ComponentProps<
   typeof import('./AccountingConfirmModals').IssueWithoutPaymentModal
 >;
 
-vi.mock('../../../entities/finance/api/financeApi', () => ({
-  cancelFinanceTransaction: vi.fn(),
-  createCashbox: vi.fn(),
-  createFinanceCurrency: vi.fn(),
-  createFinanceTransaction: vi.fn(),
-  issueSupplierOrderWithoutPayment: vi.fn(),
-  paySupplierOrder: vi.fn(),
-  updateCashbox: vi.fn(),
-  updateFinanceCurrency: vi.fn(),
-}));
+vi.mock('../../../entities/finance/api/financeApi', () => {
+  const cancelFinanceTransaction = vi.fn();
+  const createCashbox = vi.fn();
+  const createFinanceCurrency = vi.fn();
+  const createFinanceTransaction = vi.fn();
+  const issueSupplierOrderWithoutPayment = vi.fn();
+  const paySupplierOrder = vi.fn();
+  const updateCashbox = vi.fn();
+  const updateFinanceCurrency = vi.fn();
+
+  return {
+    cancelFinanceTransaction,
+    createCashbox,
+    createFinanceCurrency,
+    createFinanceTransaction,
+    issueSupplierOrderWithoutPayment,
+    paySupplierOrder,
+    updateCashbox,
+    updateFinanceCurrency,
+    useCancelFinanceTransactionMutation: () => ({
+      mutateAsync: cancelFinanceTransaction,
+    }),
+    useCreateCashboxMutation: () => ({ mutateAsync: createCashbox }),
+    useCreateFinanceCurrencyMutation: () => ({
+      mutateAsync: createFinanceCurrency,
+    }),
+    useCreateFinanceTransactionMutation: () => ({
+      mutateAsync: createFinanceTransaction,
+    }),
+    useIssueSupplierOrderWithoutPaymentMutation: () => ({
+      mutateAsync: issueSupplierOrderWithoutPayment,
+    }),
+    usePaySupplierOrderMutation: () => ({
+      mutateAsync: ({
+        payload,
+        supplierOrderId,
+      }: {
+        payload: { cashboxId: string; note?: string };
+        supplierOrderId: string;
+      }) => paySupplierOrder(supplierOrderId, payload),
+    }),
+    useUpdateCashboxMutation: () => ({
+      mutateAsync: ({
+        cashboxId,
+        payload,
+      }: {
+        cashboxId: string;
+        payload: Partial<Cashbox>;
+      }) => updateCashbox(cashboxId, payload),
+    }),
+    useUpdateFinanceCurrencyMutation: () => ({
+      mutateAsync: ({
+        currencyCode,
+        payload,
+      }: {
+        currencyCode: string;
+        payload: { isArchived?: boolean };
+      }) => updateFinanceCurrency(currencyCode, payload),
+    }),
+  };
+});
 
 vi.mock('./useAccountingFinanceData', () => ({
   useAccountingFinanceData: vi.fn(),

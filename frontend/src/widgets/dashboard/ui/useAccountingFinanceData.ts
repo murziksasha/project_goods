@@ -1,20 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  getCashboxes,
-  getFinanceCurrencies,
-  getFinanceReport,
-  getFinanceTransactions,
-  getSupplierOrdersForPayment,
+  useCashboxesQuery,
+  useFinanceCurrenciesQuery,
+  useFinanceReportQuery,
+  useFinanceTransactionsQuery,
+  useSupplierOrdersForPaymentQuery,
 } from '../../../entities/finance/api/financeApi';
-import type {
-  Cashbox,
-  FinanceCurrencyConfig,
-  FinanceReport,
-  FinanceTransaction,
-  SupplierOrderPaymentQueueItem,
-} from '../../../entities/finance/model/types';
-import { getSupplierOrders } from '../../../entities/supplier-order/api/supplierOrderApi';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import type { Cashbox } from '../../../entities/finance/model/types';
+import { useSupplierOrdersQuery } from '../../../entities/supplier-order/api/supplierOrderApi';
 import {
   accountingCashboxOrderStorageKey,
   applyCashboxOrder,
@@ -24,72 +17,118 @@ type UseAccountingFinanceDataOptions = {
   onError: (message: string) => void;
 };
 
+const getLoadErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'Failed to load finance data.';
+
 export const useAccountingFinanceData = ({
   onError,
 }: UseAccountingFinanceDataOptions) => {
   const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
-  const [allCashboxes, setAllCashboxes] = useState<Cashbox[]>([]);
-  const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
-  const [currencies, setCurrencies] = useState<FinanceCurrencyConfig[]>([]);
-  const [report, setReport] = useState<FinanceReport | null>(null);
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
-  const [supplierOrdersQueue, setSupplierOrdersQueue] = useState<
-    SupplierOrderPaymentQueueItem[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] =
     useState(false);
 
+  const activeCashboxesQuery = useCashboxesQuery();
+  const allCashboxesQuery = useCashboxesQuery({ includeArchived: true });
+  const transactionsQuery = useFinanceTransactionsQuery();
+  const currenciesQuery = useFinanceCurrenciesQuery({ includeArchived: true });
+  const reportQuery = useFinanceReportQuery();
+  const supplierOrdersQueueQuery = useSupplierOrdersForPaymentQuery();
+  const supplierOrdersQuery = useSupplierOrdersQuery();
+
+  const activeCashboxes = useMemo(
+    () => activeCashboxesQuery.data ?? [],
+    [activeCashboxesQuery.data],
+  );
+  const allCashboxes = useMemo(
+    () => allCashboxesQuery.data ?? [],
+    [allCashboxesQuery.data],
+  );
+  const transactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  );
+  const currencies = useMemo(
+    () => currenciesQuery.data ?? [],
+    [currenciesQuery.data],
+  );
+  const supplierOrders = useMemo(
+    () => supplierOrdersQuery.data ?? [],
+    [supplierOrdersQuery.data],
+  );
+  const supplierOrdersQueue = useMemo(
+    () => supplierOrdersQueueQuery.data ?? [],
+    [supplierOrdersQueueQuery.data],
+  );
+
   const refreshFinance = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [
-        activeCashboxesData,
-        allCashboxesData,
-        transactionsData,
-        currenciesData,
-        reportData,
-        supplierOrdersData,
-      ] = await Promise.all([
-        getCashboxes(),
-        getCashboxes({ includeArchived: true }),
-        getFinanceTransactions(),
-        getFinanceCurrencies({ includeArchived: true }),
-        getFinanceReport(),
-        getSupplierOrdersForPayment(),
-      ]);
-      const allSupplierOrders = await getSupplierOrders();
-      let orderedCashboxes = activeCashboxesData;
-      try {
-        const storedOrder = JSON.parse(
-          window.localStorage.getItem(accountingCashboxOrderStorageKey) ?? '[]',
-        ) as string[];
-        if (Array.isArray(storedOrder)) {
-          orderedCashboxes = applyCashboxOrder(activeCashboxesData, storedOrder);
-        }
-      } catch {
-        orderedCashboxes = activeCashboxesData;
-      }
-      setCashboxes(orderedCashboxes);
-      setAllCashboxes(allCashboxesData);
-      setIsCashboxesOrderHydrated(true);
-      setTransactions(transactionsData);
-      setCurrencies(currenciesData);
-      setReport(reportData);
-      setSupplierOrdersQueue(supplierOrdersData);
-      setSupplierOrders(allSupplierOrders);
-    } catch (error) {
-      onError(
-        error instanceof Error ? error.message : 'Failed to load finance data.',
-      );
-    } finally {
-      setIsLoading(false);
+    const results = await Promise.allSettled([
+      activeCashboxesQuery.refetch(),
+      allCashboxesQuery.refetch(),
+      transactionsQuery.refetch(),
+      currenciesQuery.refetch(),
+      reportQuery.refetch(),
+      supplierOrdersQueueQuery.refetch(),
+      supplierOrdersQuery.refetch(),
+    ]);
+    const rejected = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    if (rejected) {
+      onError(getLoadErrorMessage(rejected.reason));
     }
-  }, [onError]);
+  }, [
+    activeCashboxesQuery,
+    allCashboxesQuery,
+    currenciesQuery,
+    onError,
+    reportQuery,
+    supplierOrdersQuery,
+    supplierOrdersQueueQuery,
+    transactionsQuery,
+  ]);
 
   useEffect(() => {
-    void refreshFinance();
-  }, [refreshFinance]);
+    let orderedCashboxes = activeCashboxes;
+    try {
+      const storedOrder = JSON.parse(
+        window.localStorage.getItem(accountingCashboxOrderStorageKey) ?? '[]',
+      ) as string[];
+      if (Array.isArray(storedOrder)) {
+        orderedCashboxes = applyCashboxOrder(activeCashboxes, storedOrder);
+      }
+    } catch {
+      orderedCashboxes = activeCashboxes;
+    }
+
+    setCashboxes(orderedCashboxes);
+    setIsCashboxesOrderHydrated(true);
+  }, [activeCashboxes]);
+
+  useEffect(() => {
+    const firstError = [
+      activeCashboxesQuery.error,
+      allCashboxesQuery.error,
+      transactionsQuery.error,
+      currenciesQuery.error,
+      reportQuery.error,
+      supplierOrdersQueueQuery.error,
+      supplierOrdersQuery.error,
+    ].find(Boolean);
+
+    if (firstError) {
+      onError(getLoadErrorMessage(firstError));
+    }
+  }, [
+    activeCashboxesQuery.error,
+    allCashboxesQuery.error,
+    currenciesQuery.error,
+    onError,
+    reportQuery.error,
+    supplierOrdersQuery.error,
+    supplierOrdersQueueQuery.error,
+    transactionsQuery.error,
+  ]);
 
   useEffect(() => {
     const refreshOnOrderPayment = () => {
@@ -109,6 +148,15 @@ export const useAccountingFinanceData = ({
     };
   }, [refreshFinance]);
 
+  const isLoading =
+    activeCashboxesQuery.isLoading ||
+    allCashboxesQuery.isLoading ||
+    transactionsQuery.isLoading ||
+    currenciesQuery.isLoading ||
+    reportQuery.isLoading ||
+    supplierOrdersQueueQuery.isLoading ||
+    supplierOrdersQuery.isLoading;
+
   return {
     allCashboxes,
     cashboxes,
@@ -116,7 +164,7 @@ export const useAccountingFinanceData = ({
     isCashboxesOrderHydrated,
     isLoading,
     refreshFinance,
-    report,
+    report: reportQuery.data ?? null,
     setCashboxes,
     supplierOrders,
     supplierOrdersQueue,
