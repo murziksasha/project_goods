@@ -24,6 +24,7 @@ import {
 } from '../shared/lib/http';
 import type { EmployeePermission } from '../domain/employee/constants';
 import type { TransactionType } from '../domain/finance/model';
+import { validateFinanceTransactionPayload } from '../domain/finance/validators';
 
 export const financeRouter = Router();
 
@@ -71,10 +72,11 @@ financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
 }));
 
 financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {
-  const type = String((req.body as { type?: unknown })?.type ?? '') as TransactionType;
+  const payload = validateFinanceTransactionPayload(req.body);
+  const type = String(payload.type ?? '') as TransactionType;
   const permission = transactionPermissionByType[type];
   await requirePermission(req, permission ?? 'finance.transactions.deposit');
-  res.status(201).json(await createFinanceTransaction(req.body));
+  res.status(201).json(await createFinanceTransaction(payload));
 }));
 
 financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(async (req, res) => {

@@ -1,5 +1,7 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import axios from 'axios';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import type {
   Cashbox,
   CreateCashboxPayload,
@@ -12,6 +14,20 @@ import type {
   UpdateCashboxPayload,
   UpdateFinanceCurrencyPayload,
 } from '../model/types';
+
+const invalidateFinanceQueries = async () => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeCashboxes }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeCurrencies }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeReport }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.financeSupplierOrdersQueue,
+    }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeSettings }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders }),
+  ]);
+};
 
 export const getCashboxes = async (options: { includeArchived?: boolean } = {}) => {
   try {
@@ -162,3 +178,119 @@ export const issueSupplierOrderWithoutPayment = async (supplierOrderId: string) 
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const useCashboxesQuery = (
+  options: { includeArchived?: boolean; enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getCashboxes({ includeArchived: options.includeArchived }),
+    queryKey: options.includeArchived
+      ? queryKeys.financeAllCashboxes
+      : queryKeys.financeCashboxes,
+  });
+
+export const useFinanceCurrenciesQuery = (
+  options: { includeArchived?: boolean; enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () =>
+      getFinanceCurrencies({ includeArchived: options.includeArchived }),
+    queryKey: options.includeArchived
+      ? [...queryKeys.financeCurrencies, 'all']
+      : queryKeys.financeCurrencies,
+  });
+
+export const useFinanceTransactionsQuery = (
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: getFinanceTransactions,
+    queryKey: queryKeys.financeTransactions,
+  });
+
+export const useFinanceReportQuery = (
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: getFinanceReport,
+    queryKey: queryKeys.financeReport,
+  });
+
+export const useSupplierOrdersForPaymentQuery = (
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: getSupplierOrdersForPayment,
+    queryKey: queryKeys.financeSupplierOrdersQueue,
+  });
+
+export const useCreateCashboxMutation = () =>
+  useMutation({
+    mutationFn: createCashbox,
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useUpdateCashboxMutation = () =>
+  useMutation({
+    mutationFn: ({
+      cashboxId,
+      payload,
+    }: {
+      cashboxId: string;
+      payload: UpdateCashboxPayload;
+    }) => updateCashbox(cashboxId, payload),
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useCreateFinanceTransactionMutation = () =>
+  useMutation({
+    mutationFn: createFinanceTransaction,
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useCancelFinanceTransactionMutation = () =>
+  useMutation({
+    mutationFn: cancelFinanceTransaction,
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useCreateFinanceCurrencyMutation = () =>
+  useMutation({
+    mutationFn: createFinanceCurrency,
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useUpdateFinanceCurrencyMutation = () =>
+  useMutation({
+    mutationFn: ({
+      currencyCode,
+      payload,
+    }: {
+      currencyCode: string;
+      payload: UpdateFinanceCurrencyPayload;
+    }) => updateFinanceCurrency(currencyCode, payload),
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const usePaySupplierOrderMutation = () =>
+  useMutation({
+    mutationFn: ({
+      supplierOrderId,
+      payload,
+    }: {
+      supplierOrderId: string;
+      payload: { cashboxId: string; note?: string };
+    }) => paySupplierOrder(supplierOrderId, payload),
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useIssueSupplierOrderWithoutPaymentMutation = () =>
+  useMutation({
+    mutationFn: issueSupplierOrderWithoutPayment,
+    onSuccess: invalidateFinanceQueries,
+  });
