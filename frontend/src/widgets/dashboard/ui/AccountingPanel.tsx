@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   useCancelFinanceTransactionMutation,
   useCreateCashboxMutation,
@@ -20,22 +20,13 @@ import { hasEmployeePermission } from '../../../entities/employee/model/permissi
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   canCancelAccountingTransferTransaction,
-  canPerformTransferBetweenCashboxes,
-  filterFinanceTransactions,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
-  getActiveTransactionFiltersCount,
-  getAllowedAccountingTransactionCurrencies,
   getBalanceAfterByTransactionId,
   getFinanceOverview,
-  initialTransactionFilters,
-  initialTransactionForm,
-  paginateAccountingItems,
   type AccountingTab,
-  type TransactionFilters,
 } from '../model/accounting';
 import { AccountingCashboxesView } from './AccountingCashboxesView';
 import {
@@ -50,6 +41,9 @@ import { AccountingTransactionsView } from './AccountingTransactionsView';
 import { SupplierOrderModal } from './SupplierOrderModal';
 import { useAccountingFinanceData } from './useAccountingFinanceData';
 import { useAccountingPreferences } from './useAccountingPreferences';
+import { useFinanceAction } from './useFinanceAction';
+import { useTransactionFilters } from './useTransactionFilters';
+import { useTransactionForm } from './useTransactionForm';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -101,25 +95,16 @@ export const AccountingPanel = ({
     useState<FinanceTransaction | null>(null);
   const [withoutPaymentOrder, setWithoutPaymentOrder] =
     useState<SupplierOrderPaymentQueueItem | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [newCashboxName, setNewCashboxName] = useState('');
-  const [transactionForm, setTransactionForm] = useState(initialTransactionForm);
   const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] =
     useState(false);
   const [isTransactionsDateFilterOpen, setIsTransactionsDateFilterOpen] =
     useState(false);
-  const [selectedTransactionCashboxId, setSelectedTransactionCashboxId] =
-    useState('');
-  const [draftTransactionFilters, setDraftTransactionFilters] =
-    useState<TransactionFilters>(initialTransactionFilters);
-  const [appliedTransactionFilters, setAppliedTransactionFilters] =
-    useState<TransactionFilters>(initialTransactionFilters);
-  const [transactionsPage, setTransactionsPage] = useState(1);
-  const [transactionsPageSize, setTransactionsPageSize] = useState(30);
   const [draggedCashboxId, setDraggedCashboxId] = useState<string | null>(null);
   const [editingCashboxId, setEditingCashboxId] = useState<string | null>(null);
   const [editingCashboxName, setEditingCashboxName] = useState('');
   const [newCurrencyCode, setNewCurrencyCode] = useState('');
+
   const createCashboxMutation = useCreateCashboxMutation();
   const updateCashboxMutation = useUpdateCashboxMutation();
   const createFinanceCurrencyMutation = useCreateFinanceCurrencyMutation();
@@ -206,98 +191,52 @@ export const AccountingPanel = ({
     ],
   );
 
-  const firstCashboxId = cashboxes[0]?.id ?? '';
-  const secondCashboxId =
-    cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
+  const { isSaving, run: runFinanceAction } = useFinanceAction({
+    onError,
+    onSuccess,
+    refresh: refreshFinance,
+  });
 
-  const resolvePreferredTargetCashboxId = useCallback(
-    (
-      type: FinanceTransactionType,
-      fromCashboxId: string,
-      fallbackCashboxId: string,
-      options?: {
-        preferFallback?: boolean;
-      },
-    ) => {
-      if (type === 'withdraw') return '';
-      if (
-        type === 'deposit' &&
-        options?.preferFallback &&
-        fallbackCashboxId &&
-        cashboxes.some((cashbox) => cashbox.id === fallbackCashboxId)
-      ) {
-        return fallbackCashboxId;
-      }
-      const remembered = lastTargetCashboxByType[type];
-      if (remembered && cashboxes.some((cashbox) => cashbox.id === remembered)) {
-        if (type !== 'transfer' || remembered !== fromCashboxId) {
-          return remembered;
-        }
-      }
-      if (
-        fallbackCashboxId &&
-        cashboxes.some((cashbox) => cashbox.id === fallbackCashboxId)
-      ) {
-        /* v8 ignore next 3 -- secondCashboxId is selected to differ from the transfer source. */
-        if (type === 'transfer' && fallbackCashboxId === fromCashboxId) {
-          return cashboxes.find((cashbox) => cashbox.id !== fromCashboxId)?.id ?? '';
-        }
-        return fallbackCashboxId;
-      }
-      if (type === 'transfer') {
-        return cashboxes.find((cashbox) => cashbox.id !== fromCashboxId)?.id ?? '';
-      }
-      return firstCashboxId;
-    },
-    [cashboxes, firstCashboxId, lastTargetCashboxByType],
-  );
+  const {
+    draftTransactionFilters,
+    setDraftTransactionFilters,
+    appliedTransactionFilters,
+    setAppliedTransactionFilters,
+    transactionsPage,
+    setTransactionsPage,
+    transactionsPageSize,
+    setTransactionsPageSize,
+    selectedTransactionCashboxId,
+    setSelectedTransactionCashboxId,
+    filteredTransactions,
+    paginatedTransactions,
+    activeTransactionFiltersCount,
+  } = useTransactionFilters({ transactions });
 
-  const getAllowedTransactionCurrencies = useCallback(
-    (
-      type: FinanceTransactionType,
-      fromCashboxId: string | undefined,
-      toCashboxId: string | undefined,
-    ) =>
-      getAllowedAccountingTransactionCurrencies({
-        allCurrencyCodes,
-        cashboxes,
-        fromCashboxId,
-        getCurrencyBalance,
-        isCashboxCurrencyActive,
-        isGlobalCurrencyActive,
-        toCashboxId,
-        type,
-      }),
-    [
-      allCurrencyCodes,
-      cashboxes,
-      getCurrencyBalance,
-      isCashboxCurrencyActive,
-      isGlobalCurrencyActive,
-    ],
-  );
+  const {
+    transactionForm,
+    setTransactionForm,
+    allowedTransactionCurrencies,
+    handleTransactionTypeChange,
+    startForCashbox,
+    handleCreateTransaction: handleCreateTransactionFromHook,
+    firstCashboxId: hookFirstCashboxId,
+    // secondCashboxId is computed and used internally by the hook; not needed here
+  } = useTransactionForm({
+    cashboxes,
+    allCurrencyCodes,
+    getCurrencyBalance,
+    isCashboxCurrencyActive,
+    isGlobalCurrencyActive,
+    lastTargetCashboxByType,
+    setLastTargetCashboxByType,
+    permittedTransactionTypes,
+    runFinanceAction,
+    createFinanceTransaction: createFinanceTransactionMutation.mutateAsync,
+    onError,
+  });
 
-  const allowedTransactionCurrencies = useMemo(
-    () =>
-      getAllowedTransactionCurrencies(
-        transactionForm.type,
-        transactionForm.fromCashboxId,
-        transactionForm.toCashboxId,
-      ),
-    [
-      getAllowedTransactionCurrencies,
-      transactionForm.fromCashboxId,
-      transactionForm.toCashboxId,
-      transactionForm.type,
-    ],
-  );
-
-  useEffect(() => {
-    if (allowedTransactionCurrencies.includes(transactionForm.currency)) return;
-    const nextCurrency = allowedTransactionCurrencies[0];
-    if (!nextCurrency) return;
-    setTransactionForm((current) => ({ ...current, currency: nextCurrency }));
-  }, [allowedTransactionCurrencies, transactionForm.currency]);
+  const firstCashboxId = hookFirstCashboxId || cashboxes[0]?.id || '';
 
   const totals = useMemo(() => getAccountingTotals(cashboxes), [cashboxes]);
   const financeOverview = useMemo(
@@ -327,105 +266,33 @@ export const AccountingPanel = ({
     () => getBalanceAfterByTransactionId({ cashboxes, transactions }),
     [cashboxes, transactions],
   );
-  const filteredTransactions = useMemo(
-    () =>
-      filterFinanceTransactions({
-        filters: appliedTransactionFilters,
-        selectedCashboxId: selectedTransactionCashboxId,
-        transactions,
-      }),
-    [appliedTransactionFilters, selectedTransactionCashboxId, transactions],
-  );
-  const paginatedTransactions = useMemo(
-    () =>
-      paginateAccountingItems(
-        filteredTransactions,
-        transactionsPage,
-        transactionsPageSize,
-      ),
-    [filteredTransactions, transactionsPage, transactionsPageSize],
-  );
-  const activeTransactionFiltersCount = useMemo(
-    () => getActiveTransactionFiltersCount(appliedTransactionFilters),
-    [appliedTransactionFilters],
+  // Transaction form + filters (incl. filteredTransactions, paginated, active count) now provided by useTransactionFilters hook
+  // Transaction form + filters now provided by hooks (useTransactionForm / useTransactionFilters)
+  // startTransaction wraps hook's start + ensures cashboxes tab (form is shown there)
+  const startTransaction = useCallback(
+    (type: FinanceTransactionType, cashbox: Cashbox) => {
+      startForCashbox(type, cashbox);
+      setActiveTab('cashboxes');
+    },
+    [startForCashbox, setActiveTab],
   );
 
-  useEffect(() => {
-    const pageCount = Math.max(
-      1,
-      Math.ceil(filteredTransactions.length / transactionsPageSize),
-    );
-    if (transactionsPage > pageCount) {
-      setTransactionsPage(pageCount);
-    }
-  }, [filteredTransactions.length, transactionsPage, transactionsPageSize]);
+  const openCashboxTransactions = useCallback(
+    (cashbox: Cashbox) => {
+      setActiveTab('transactions');
+      setSelectedTransactionCashboxId(cashbox.id);
+      setTransactionsPage(1);
+    },
+    [setActiveTab, setSelectedTransactionCashboxId, setTransactionsPage],
+  );
 
-  const startTransaction = (type: FinanceTransactionType, cashbox: Cashbox) => {
-    if (!permittedTransactionTypes.includes(type)) {
-      onError(
-        'Current employee does not have permission for this finance operation.',
-      );
-      return;
-    }
-    const nextFromCashboxId =
-      type === 'withdraw' || type === 'transfer' ? cashbox.id : '';
-    const fallbackToCashboxId = type === 'deposit' ? cashbox.id : secondCashboxId;
-    const nextToCashboxId = resolvePreferredTargetCashboxId(
-      type,
-      nextFromCashboxId,
-      fallbackToCashboxId,
-      {
-        preferFallback: type === 'deposit',
-      },
-    );
-    const availableCurrencies = getAllowedTransactionCurrencies(
-      type,
-      nextFromCashboxId,
-      nextToCashboxId,
-    );
-    setActiveTab('cashboxes');
-    setTransactionForm({
-      ...initialTransactionForm,
-      type,
-      fromCashboxId: nextFromCashboxId,
-      toCashboxId: nextToCashboxId,
-      currency: availableCurrencies[0] ?? initialTransactionForm.currency,
-    });
-  };
-
-  const handleTransactionTypeChange = (nextType: FinanceTransactionType) => {
-    if (!permittedTransactionTypes.includes(nextType)) return;
-    setTransactionForm((current) => {
-      const nextFromCashboxId =
-        nextType === 'deposit' ? '' : current.fromCashboxId || firstCashboxId;
-      const fallbackToCashboxId =
-        nextType === 'deposit'
-          ? current.toCashboxId || firstCashboxId
-          : secondCashboxId;
-      const nextToCashboxId = resolvePreferredTargetCashboxId(
-        nextType,
-        nextFromCashboxId,
-        fallbackToCashboxId,
-      );
-      return {
-        ...current,
-        type: nextType,
-        fromCashboxId: nextFromCashboxId,
-        toCashboxId: nextToCashboxId,
-      };
-    });
-  };
-
-  const openCashboxTransactions = (cashbox: Cashbox) => {
-    setActiveTab('transactions');
-    setSelectedTransactionCashboxId(cashbox.id);
-    setTransactionsPage(1);
-  };
-
-  const startEditCashbox = (cashbox: Cashbox) => {
-    setEditingCashboxId(cashbox.id);
-    setEditingCashboxName(cashbox.name);
-  };
+  const startEditCashbox = useCallback(
+    (cashbox: Cashbox) => {
+      setEditingCashboxId(cashbox.id);
+      setEditingCashboxName(cashbox.name);
+    },
+    [setEditingCashboxId, setEditingCashboxName],
+  );
 
   const saveCashbox = async () => {
     if (!editingCashboxId) return;
@@ -433,21 +300,22 @@ export const AccountingPanel = ({
       onError('Current employee does not have permission to manage cashboxes.');
       return;
     }
-    setIsSaving(true);
-    try {
-      await updateCashboxMutation.mutateAsync({
-        cashboxId: editingCashboxId,
-        payload: { name: editingCashboxName.trim() },
-      });
-      onSuccess('Cashbox updated.');
-      setEditingCashboxId(null);
-      setEditingCashboxName('');
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to update cashbox.');
-    } finally {
-      setIsSaving(false);
-    }
+    await runFinanceAction(
+      () =>
+        updateCashboxMutation.mutateAsync({
+          cashboxId: editingCashboxId,
+          payload: { name: editingCashboxName.trim() },
+        }),
+      'Cashbox updated.',
+      {
+        afterSuccess: () => {
+          setEditingCashboxId(null);
+          setEditingCashboxName('');
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to update cashbox.',
+      },
+    );
   };
 
   const toggleCashboxArchived = async (cashbox: Cashbox) => {
@@ -455,25 +323,19 @@ export const AccountingPanel = ({
       onError('Current employee does not have permission to manage cashboxes.');
       return;
     }
-    setIsSaving(true);
-    try {
-      await updateCashboxMutation.mutateAsync({
-        cashboxId: cashbox.id,
-        payload: { isArchived: !cashbox.isArchived },
-      });
-      onSuccess(
-        cashbox.isArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.',
-      );
-      await refreshFinance();
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to update cashbox status.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    const nextArchived = !cashbox.isArchived;
+    await runFinanceAction(
+      () =>
+        updateCashboxMutation.mutateAsync({
+          cashboxId: cashbox.id,
+          payload: { isArchived: nextArchived },
+        }),
+      nextArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.',
+      {
+        skipRefresh: true,
+        errorFallback: 'Failed to update cashbox status.',
+      },
+    );
   };
 
   const addCurrencyCode = async () => {
@@ -486,48 +348,49 @@ export const AccountingPanel = ({
       onError('Currency already exists.');
       return;
     }
-    setIsSaving(true);
-    try {
-      await createFinanceCurrencyMutation.mutateAsync({ code: normalized });
-      setNewCurrencyCode('');
-      onSuccess('Currency created.');
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to create currency.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const archiveCurrencyCode = async (code: string) => {
-    setIsSaving(true);
-    try {
-      await updateFinanceCurrencyMutation.mutateAsync({
-        currencyCode: code,
-        payload: { isArchived: true },
-      });
-      onSuccess('Currency archived.');
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to archive currency.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRemoveCurrency = (code: string) => {
-    if (code === 'UAH') {
-      onError('UAH is the main currency and cannot be archived.');
-      return;
-    }
-    void archiveCurrencyCode(code);
-  };
-
-  const toggleFinanceSettingsCard = (cardId: string) => {
-    setExpandedFinanceSettingsCard((current) =>
-      current === cardId ? null : cardId,
+    await runFinanceAction(
+      () => createFinanceCurrencyMutation.mutateAsync({ code: normalized }),
+      'Currency created.',
+      {
+        afterSuccess: () => {
+          setNewCurrencyCode('');
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to create currency.',
+      },
     );
   };
+
+  const handleRemoveCurrency = useCallback(
+    (code: string) => {
+      if (code === 'UAH') {
+        onError('UAH is the main currency and cannot be archived.');
+        return;
+      }
+      void runFinanceAction(
+        () =>
+          updateFinanceCurrencyMutation.mutateAsync({
+            currencyCode: code,
+            payload: { isArchived: true },
+          }),
+        'Currency archived.',
+        {
+          skipRefresh: true,
+          errorFallback: 'Failed to archive currency.',
+        },
+      );
+    },
+    [onError, runFinanceAction, updateFinanceCurrencyMutation],
+  );
+
+  const toggleFinanceSettingsCard = useCallback(
+    (cardId: string) => {
+      setExpandedFinanceSettingsCard((current) =>
+        current === cardId ? null : cardId,
+      );
+    },
+    [setExpandedFinanceSettingsCard],
+  );
 
   const toggleCurrencyActivity = async (currencyCode: string) => {
     if (currencyCode === 'UAH') {
@@ -536,21 +399,19 @@ export const AccountingPanel = ({
     }
     const currency = currencies.find((item) => item.code === currencyCode);
     if (!currency) return;
-    setIsSaving(true);
-    try {
-      await updateFinanceCurrencyMutation.mutateAsync({
-        currencyCode,
-        payload: {
-          isArchived: !currency.isArchived,
-        },
-      });
-      onSuccess(currency.isArchived ? 'Currency restored.' : 'Currency archived.');
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to update currency.');
-    } finally {
-      setIsSaving(false);
-    }
+    const nextArchived = !currency.isArchived;
+    await runFinanceAction(
+      () =>
+        updateFinanceCurrencyMutation.mutateAsync({
+          currencyCode,
+          payload: { isArchived: nextArchived },
+        }),
+      nextArchived ? 'Currency archived.' : 'Currency restored.',
+      {
+        skipRefresh: true,
+        errorFallback: 'Failed to update currency.',
+      },
+    );
   };
 
   const toggleCashboxCurrencyActivity = async (
@@ -563,29 +424,25 @@ export const AccountingPanel = ({
     }
     const cashbox = allCashboxes.find((item) => item.id === cashboxId);
     if (!cashbox) return;
-    setIsSaving(true);
-    try {
-      await updateCashboxMutation.mutateAsync({
-        cashboxId,
-        payload: {
-          enabledCurrencies: {
-            ...cashbox.enabledCurrencies,
-            UAH: true,
-            [currencyCode]: cashbox.enabledCurrencies?.[currencyCode] !== true,
+    const nextEnabled = cashbox.enabledCurrencies?.[currencyCode] !== true;
+    await runFinanceAction(
+      () =>
+        updateCashboxMutation.mutateAsync({
+          cashboxId,
+          payload: {
+            enabledCurrencies: {
+              ...cashbox.enabledCurrencies,
+              UAH: true,
+              [currencyCode]: nextEnabled,
+            },
           },
-        },
-      });
-      onSuccess('Cashbox currency settings updated.');
-      await refreshFinance();
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to update cashbox currency settings.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
+        }),
+      'Cashbox currency settings updated.',
+      {
+        skipRefresh: true,
+        errorFallback: 'Failed to update cashbox currency settings.',
+      },
+    );
   };
 
   const handleCreateCashbox = async () => {
@@ -594,85 +451,21 @@ export const AccountingPanel = ({
       onError('Current employee does not have permission to manage cashboxes.');
       return;
     }
-    setIsSaving(true);
-    try {
-      await createCashboxMutation.mutateAsync({ name: newCashboxName });
-      setNewCashboxName('');
-      onSuccess('Cashbox created.');
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to create cashbox.');
-    } finally {
-      setIsSaving(false);
-    }
+    await runFinanceAction(
+      () => createCashboxMutation.mutateAsync({ name: newCashboxName }),
+      'Cashbox created.',
+      {
+        afterSuccess: () => {
+          setNewCashboxName('');
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to create cashbox.',
+      },
+    );
   };
 
   const handleCreateTransaction = async () => {
-    if (!permittedTransactionTypes.includes(transactionForm.type)) {
-      onError(
-        'Current employee does not have permission for this finance operation.',
-      );
-      return;
-    }
-    if (
-      transactionForm.type === 'transfer' &&
-      !canPerformTransferBetweenCashboxes(
-        transactionForm.fromCashboxId,
-        transactionForm.toCashboxId,
-      )
-    ) {
-      onError('Transfer cashboxes must be different.');
-      return;
-    }
-    const normalizedAmount = parseDecimal(transactionForm.amount);
-    if (!allowedTransactionCurrencies.includes(transactionForm.currency)) {
-      onError('Selected currency is not available for this operation.');
-      return;
-    }
-    if (
-      !Number.isFinite(normalizedAmount) ||
-      normalizedAmount <= 0
-    ) {
-      onError('Transaction amount must be greater than 0.');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await createFinanceTransactionMutation.mutateAsync({
-        ...transactionForm,
-        amount: String(normalizedAmount),
-        idempotencyKey: crypto.randomUUID(),
-      });
-      if (
-        (transactionForm.type === 'deposit' ||
-          transactionForm.type === 'transfer') &&
-        transactionForm.toCashboxId
-      ) {
-        setLastTargetCashboxByType((current) => ({
-          ...current,
-          [transactionForm.type]: transactionForm.toCashboxId,
-        }));
-      }
-      const nextInitialType: FinanceTransactionType = 'deposit';
-      const nextToCashboxId = resolvePreferredTargetCashboxId(
-        nextInitialType,
-        '',
-        firstCashboxId,
-      );
-      setTransactionForm({
-        ...initialTransactionForm,
-        type: permittedTransactionTypes[0],
-        toCashboxId: nextToCashboxId,
-      });
-      onSuccess('Finance transaction saved.');
-      await refreshFinance();
-    } catch (error) {
-      onError(
-        error instanceof Error ? error.message : 'Failed to save transaction.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    await handleCreateTransactionFromHook();
   };
 
   const canCancelTransferTransaction = (transaction: FinanceTransaction) =>
@@ -689,37 +482,33 @@ export const AccountingPanel = ({
       return;
     }
 
-    setIsSaving(true);
-    try {
-      await cancelFinanceTransactionMutation.mutateAsync(transfer.id);
-      onSuccess('Transfer cancelled. A reverse transaction was created.');
-      setTransferToCancel(null);
-      await refreshFinance();
-    } catch (error) {
-      onError(
-        error instanceof Error ? error.message : 'Failed to cancel transfer.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    await runFinanceAction(
+      () => cancelFinanceTransactionMutation.mutateAsync(transfer.id),
+      'Transfer cancelled. A reverse transaction was created.',
+      {
+        afterSuccess: () => {
+          setTransferToCancel(null);
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to cancel transfer.',
+      },
+    );
   };
 
   const handleIssueWithoutPayment = async () => {
     const order = withoutPaymentOrder!;
-    setIsSaving(true);
-    try {
-      await issueSupplierOrderWithoutPaymentMutation.mutateAsync(order.id);
-      onSuccess('Order issued without payment.');
-      window.dispatchEvent(new Event('project-goods:finance-updated'));
-      setWithoutPaymentOrder(null);
-      await refreshFinance();
-    } catch (error) {
-      onError(
-        error instanceof Error ? error.message : 'Failed to issue order without payment.',
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    await runFinanceAction(
+      () => issueSupplierOrderWithoutPaymentMutation.mutateAsync(order.id),
+      'Order issued without payment.',
+      {
+        afterSuccess: () => {
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          setWithoutPaymentOrder(null);
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to issue order without payment.',
+      },
+    );
   };
 
   const handlePaySupplierOrder = async (
@@ -728,38 +517,42 @@ export const AccountingPanel = ({
     orderNumber: string,
   ) => {
     if (!cashboxId) return;
-    setIsSaving(true);
-    try {
-      await paySupplierOrderMutation.mutateAsync({
-        supplierOrderId: order.id,
-        payload: {
-          cashboxId,
-          note: `Payment for order ${orderNumber}`,
+    await runFinanceAction(
+      () =>
+        paySupplierOrderMutation.mutateAsync({
+          supplierOrderId: order.id,
+          payload: {
+            cashboxId,
+            note: `Payment for order ${orderNumber}`,
+          },
+        }),
+      'Order has been paid.',
+      {
+        afterSuccess: () => {
+          window.dispatchEvent(new Event('project-goods:finance-updated'));
         },
-      });
-      onSuccess('Order has been paid.');
-      window.dispatchEvent(new Event('project-goods:finance-updated'));
-      await refreshFinance();
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to pay order.');
-    } finally {
-      setIsSaving(false);
-    }
+        skipRefresh: true,
+        errorFallback: 'Failed to pay order.',
+      },
+    );
   };
 
-  const closeFinanceSettingsEditing = () => {
+  const closeFinanceSettingsEditing = useCallback(() => {
     setExpandedFinanceSettingsCard(null);
     setEditingCashboxId(null);
     setEditingCashboxName('');
-  };
+  }, [setExpandedFinanceSettingsCard, setEditingCashboxId, setEditingCashboxName]);
 
-  const handleAccountingTabChange = (tab: AccountingTab) => {
-    setIsFinanceSettingsOpen(false);
-    setExpandedFinanceSettingsCard(null);
-    setActiveTab(tab);
-  };
+  const handleAccountingTabChange = useCallback(
+    (tab: AccountingTab) => {
+      setIsFinanceSettingsOpen(false);
+      setExpandedFinanceSettingsCard(null);
+      setActiveTab(tab);
+    },
+    [setIsFinanceSettingsOpen, setExpandedFinanceSettingsCard, setActiveTab],
+  );
 
-  const handleSettingsToggle = () => {
+  const handleSettingsToggle = useCallback(() => {
     setIsFinanceSettingsOpen((current) => {
       const next = !current;
       if (next) {
@@ -767,7 +560,7 @@ export const AccountingPanel = ({
       }
       return next;
     });
-  };
+  }, [closeFinanceSettingsEditing, setIsFinanceSettingsOpen]);
 
   return (
     <section className='orders-page finance-page'>

@@ -9,6 +9,7 @@ import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import {
   canPerformTransferBetweenCashboxes,
   formatMoney,
+  reorderCashboxes,
   transactionLabels,
   type CashboxCurrencyRow,
 } from '../model/accounting';
@@ -109,19 +110,9 @@ export const AccountingCashboxesView = ({
               onSetDraggedCashboxId(null);
               return;
             }
-            onSetCashboxes((current) => {
-              const fromIndex = current.findIndex(
-                (item) => item.id === draggedCashboxId,
-              );
-              const toIndex = current.findIndex((item) => item.id === cashbox.id);
-              if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
-                return current;
-              }
-              const next = [...current];
-              const [moved] = next.splice(fromIndex, 1);
-              next.splice(toIndex, 0, moved);
-              return next;
-            });
+            onSetCashboxes((current) =>
+              reorderCashboxes(current, draggedCashboxId, cashbox.id),
+            );
             onSetDraggedCashboxId(null);
           }}
           onDragEnd={() => onSetDraggedCashboxId(null)}
