@@ -657,6 +657,26 @@ describe('AccountingPanel', () => {
     await waitFor(() => expect(createFinanceTransaction).toHaveBeenCalled());
   });
 
+  it('creates transfer without crashing even if crypto.randomUUID is unavailable', async () => {
+    vi.unstubAllGlobals();
+    // Simulate environment without randomUUID (e.g. some browsers or test contexts)
+    vi.stubGlobal('crypto', {});
+
+    const onSuccess = vi.fn();
+    renderPanel({ onSuccess });
+
+    fireEvent.click(screen.getByRole('button', { name: 'start transfer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
+    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+
+    await waitFor(() => expect(createFinanceTransaction).toHaveBeenCalled());
+    const lastCall = vi.mocked(createFinanceTransaction).mock.calls.at(-1)?.[0] as
+      | CreateFinanceTransactionPayload
+      | undefined;
+    expect(lastCall?.idempotencyKey).toBeTruthy();
+    expect(onSuccess).not.toHaveBeenCalled(); // mock does not auto succeed in this flow without further setup
+  });
+
   it('handles settings actions and validation failures', async () => {
     mutableState.isFinanceSettingsOpen = true;
     const onError = vi.fn();

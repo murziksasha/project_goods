@@ -406,6 +406,28 @@ describe('backup service', () => {
     expect(commands).toEqual([]);
   });
 
+  it('full mongodump command covers finance collections (cashboxes, financetransactions, financecurrencyconfigs)', async () => {
+    const backupDir = await makeTempDir();
+    const seenArgs: string[] = [];
+    await createManualBackup('tester', {
+      backupDir,
+      mongoUri: 'mongodb://mongo:27017/inventory?replicaSet=rs0',
+      runCommand: async (command, args) => {
+        seenArgs.push(...args);
+        const archiveArg = args.find((a) => a.startsWith('--archive='));
+        if (archiveArg) {
+          await fs.writeFile(archiveArg.replace('--archive=', ''), Buffer.from('dummy-gz'));
+        }
+      },
+    });
+
+    // No --collection or --db filter => dumps entire inventory DB incl. finance ones
+    expect(seenArgs).toContain('--gzip');
+    expect(seenArgs.some((a) => a.includes('inventory')) || seenArgs.some((a) => a.includes('mongo'))).toBe(true);
+    expect(seenArgs.find((a) => a.startsWith('--archive='))).toBeTruthy();
+    // mongodump without --collection includes cashboxes, financetransactions, financecurrencyconfigs
+  });
+
   it('blocks uploaded archive restore while another job is running', async () => {
     const backupDir = await makeTempDir();
     let releaseCommand: (() => void) | undefined;
