@@ -5,6 +5,7 @@ import type {
   FinanceTransactionType,
 } from '../../../entities/finance/model/types';
 import { parseDecimal } from '../../../shared/lib/decimal';
+import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import {
   canPerformTransferBetweenCashboxes,
   getAllowedAccountingTransactionCurrencies,
@@ -33,6 +34,7 @@ type UseTransactionFormOptions = {
   ) => Promise<unknown>;
   createFinanceTransaction: (payload: CreateFinanceTransactionPayload & { idempotencyKey?: string }) => Promise<unknown>;
   onError: (message: string) => void;
+  isSaving?: boolean;
 };
 
 export const useTransactionForm = ({
@@ -47,6 +49,7 @@ export const useTransactionForm = ({
   runFinanceAction,
   createFinanceTransaction,
   onError,
+  isSaving = false,
 }: UseTransactionFormOptions) => {
   const [transactionForm, setTransactionForm] =
     useState<CreateFinanceTransactionPayload>(initialTransactionForm);
@@ -156,6 +159,7 @@ export const useTransactionForm = ({
   };
 
   const handleCreateTransaction = async () => {
+    if (isSaving) return;
     const { type, amount, currency, fromCashboxId, toCashboxId } = transactionForm;
     if (!permittedTransactionTypes.includes(type)) {
       onError(
@@ -183,7 +187,7 @@ export const useTransactionForm = ({
     const payload = {
       ...transactionForm,
       amount: String(normalizedAmount),
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: createRuntimeId(),
     };
 
     await runFinanceAction(

@@ -171,6 +171,26 @@ export const financeTransactionSchema = new mongoose.Schema(
   },
 );
 
+// Unique partial index: prevents duplicate submissions for the same non-empty idempotencyKey
+// while allowing many docs with empty/default key.
+financeTransactionSchema.index(
+  { idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $gt: '' } },
+    name: 'idempotencyKey_unique_partial',
+  },
+);
+
+financeTransactionSchema.index(
+  { cancelsTransaction: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { cancelsTransaction: { $ne: null } },
+    name: 'cancelsTransaction_unique_partial',
+  },
+);
+
 export type CashboxDocument = mongoose.InferSchemaType<typeof cashboxSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
