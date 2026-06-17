@@ -225,10 +225,18 @@ vi.mock('./model', () => {
     }
 
     static findOne(query: any) {
-      const transaction = [...store.transactions.values()].find(
-        (item) => item.idempotencyKey && item.idempotencyKey === query.idempotencyKey,
-      );
-      return leanResult(transaction ?? null);
+      if (query && typeof query.idempotencyKey !== 'undefined') {
+        const key = String(query.idempotencyKey ?? '').trim();
+        if (!key) {
+          return leanResult(null);
+        }
+        const transaction = [...store.transactions.values()].find(
+          (item) => item.idempotencyKey && String(item.idempotencyKey).trim() === key,
+        );
+        return leanResult(transaction ?? null);
+      }
+      // unsupported query shape for this mock; return null to avoid false matches
+      return leanResult(null);
     }
 
     async validate() {
@@ -236,6 +244,20 @@ vi.mock('./model', () => {
     }
 
     async save() {
+      const key = this.idempotencyKey ? String(this.idempotencyKey).trim() : '';
+      if (key) {
+        const existing = [...store.transactions.values()].find(
+          (item) =>
+            item.idempotencyKey &&
+            String(item.idempotencyKey).trim() === key &&
+            item._id !== this._id,
+        );
+        if (existing) {
+          const err: any = new Error('E11000 duplicate key error collection');
+          err.code = 11000;
+          throw err;
+        }
+      }
       store.transactions.set(this._id, this);
     }
 
@@ -458,14 +480,11 @@ describe('cashbox currency settings', () => {
     ]);
 
     const fulfilled = results.filter((r) => r.status === 'fulfilled');
-    expect(fulfilled.length).toBeGreaterThanOrEqual(1);
-    // At least one should have succeeded; if both, they must refer to same tx id
+    expect(fulfilled).toHaveLength(2);
     const txIds = fulfilled.map((r: any) => r.value?.id ?? r.value?._id).filter(Boolean);
-    if (txIds.length > 1) {
-      expect(new Set(txIds).size).toBe(1);
-    }
-    // Balance changed only by 30, not 60
+    expect(new Set(txIds).size).toBe(1);
     expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(70);
+    expect(store.transactions.size).toBe(1);
   });
 
   it('concurrent transfers from same cashbox do not overdraw (only one succeeds)', async () => {
