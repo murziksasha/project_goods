@@ -6,6 +6,7 @@ import type {
 } from '../../../entities/finance/model/types';
 import {
   canCancelAccountingTransferTransaction,
+  canPerformTransferBetweenCashboxes,
   filterFinanceTransactions,
   getAccountingTotals,
   getAccountingCashboxCurrencyRows,
@@ -319,5 +320,14 @@ describe('accounting model helpers', () => {
         transaction: { ...transfer, type: 'deposit' },
       }),
     ).toBe(false);
+  });
+
+  it('validates whether a transfer can be performed between two different cashboxes', () => {
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', 'cashbox-2')).toBe(true);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', 'cashbox-1')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', '')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('', 'cashbox-2')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes(undefined, 'cashbox-2')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', undefined)).toBe(false);
   });
 });

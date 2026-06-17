@@ -49,6 +49,8 @@ import {
   getProductSerialAvailability,
   getSaleSerialUsage,
   normalizeSerialNumber,
+  type ProductSerialAvailability,
+  type SerialUsage,
 } from '../model/order-line-serials';
 import {
   buildOrderNumber,
@@ -1575,6 +1577,8 @@ const LineItemsPanel = ({
   onError,
   onSuccess,
 }: LineItemsPanelProps) => {
+  const isProductKind = kind === 'product';
+
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -1651,22 +1655,23 @@ const LineItemsPanel = ({
     !isServiceLookupLoading &&
     serviceSuggestions.length === 0 &&
     !hasExactServiceSuggestion;
-  const selectedSerials = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          serialsInput
-            .split('\n')
-            .map(normalizeSerialNumber)
-            .filter(Boolean),
-        ),
+  const selectedSerials = useMemo(() => {
+    if (!isProductKind) return [];
+    return Array.from(
+      new Set(
+        serialsInput
+          .split('\n')
+          .map(normalizeSerialNumber)
+          .filter(Boolean),
       ),
-    [serialsInput],
-  );
-  const serialUsage = useMemo(() => {
+    );
+  }, [isProductKind, serialsInput]);
+  const serialUsage = useMemo((): SerialUsage => {
+    if (!isProductKind) return { current: new Set(), other: new Set() };
     return getSaleSerialUsage(sales, currentSaleId);
-  }, [currentSaleId, sales]);
+  }, [isProductKind, currentSaleId, sales]);
   const productsBySerial = useMemo(() => {
+    if (!isProductKind) return new Map<string, Product>();
     const map = new Map<string, Product>();
     products.forEach((product) => {
       const serial = normalizeSerialNumber(product.serialNumber);
@@ -1675,7 +1680,7 @@ const LineItemsPanel = ({
       }
     });
     return map;
-  }, [products]);
+  }, [isProductKind, products]);
   useEffect(() => {
     setPriceDrafts((current) => {
       const itemIds = new Set(items.map((item) => item.id));
@@ -1689,6 +1694,8 @@ const LineItemsPanel = ({
     });
   }, [items]);
   const occupiedSerials = useMemo(() => {
+    if (!isProductKind) return new Set<string>();
+
     const occupied = new Set<string>();
 
     sales.forEach((candidateSale) => {
@@ -1716,10 +1723,13 @@ const LineItemsPanel = ({
     });
 
     return occupied;
-  }, [currentSaleId, sales, serialsEditingItem]);
+  }, [isProductKind, currentSaleId, sales, serialsEditingItem]);
   const getProductSuggestionState = useCallback(
-    (product: Product) => getProductSerialAvailability(product, serialUsage),
-    [serialUsage],
+    (product: Product): ProductSerialAvailability => {
+      if (!isProductKind) return { label: '', selectable: true };
+      return getProductSerialAvailability(product, serialUsage);
+    },
+    [isProductKind, serialUsage],
   );
   const canRemoveItemAfterPayment = (item: OrderLineItem) =>
     canRemoveLineItemAfterPayment(
@@ -1830,7 +1840,11 @@ const LineItemsPanel = ({
   };
 
   useEffect(() => {
-    if (!serialsEditingItem) return;
+    if (!isProductKind || !serialsEditingItem) {
+      setAvailableSerialProducts([]);
+      setIsSerialLookupLoading(false);
+      return;
+    }
 
     let isActive = true;
     const normalizeNameForMatch = (value: string) =>
@@ -1895,7 +1909,7 @@ const LineItemsPanel = ({
     return () => {
       isActive = false;
     };
-  }, [occupiedSerials, serialsEditingItem]);
+  }, [isProductKind, occupiedSerials, serialsEditingItem]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
@@ -2312,24 +2326,40 @@ const LineItemsPanel = ({
     });
   };
 
+  const showSerialColumn = isProductKind;
+  const gridTemplateColumns = showSerialColumn
+    ? 'minmax(0, 1fr) 150px 140px 104px 120px 110px'
+    : 'minmax(0, 1fr) 140px 104px 120px 110px';
+
   return (
     <div className='order-line-items'>
-      <div className='order-detail-table order-detail-table-wide'>
-        <div>Name</div>
-        <div>Serial number</div>
-        <div>Price</div>
-        <div>Qty</div>
-        <div>Warranty</div>
-        <div>Action</div>
+      <div
+        className='order-detail-table order-detail-table-wide'
+        style={{ gridTemplateColumns }}
+      >
+        <div className="order-detail-table-header">Name</div>
+        {showSerialColumn ? (
+          <div className="order-detail-table-header">Serial number</div>
+        ) : null}
+        <div className="order-detail-table-header">Price</div>
+        <div className="order-detail-table-header">Qty</div>
+        <div className="order-detail-table-header">Warranty</div>
+        <div className="order-detail-table-header">Action</div>
         {items.length === 0 ? (
           <div className='order-line-items-empty'>{`No ${title.toLowerCase()} added.`}</div>
         ) : (
-          items.map((item, itemIndex) => (
+          items.map((item, itemIndex) => {
+            const isLastRow = itemIndex === items.length - 1;
+            const lastRowClass = isLastRow ? 'order-detail-table-last-row' : '';
+            return (
             <div
               key={`${item.id || 'line-item'}-${itemIndex}`}
               className='order-detail-table-row'
             >
-              <div key={`${item.id}-name`}>
+              <div
+                key={`${item.id}-name`}
+                className={lastRowClass || undefined}
+              >
                 <button
                   type='button'
                   className='order-line-item-name-button'
@@ -2339,48 +2369,50 @@ const LineItemsPanel = ({
                   {item.name}
                 </button>
               </div>
-              <div
-                key={`${item.id}-serial`}
-                className='order-line-item-serial-cell'
-              >
-                {item.kind === 'product' &&
-                (item.serialNumbers ?? []).length > 0 ? (
-                  <p className='muted-copy order-line-item-serials'>
-                    {(item.serialNumbers ?? []).map((serial) => {
-                      const normalizedSerial = normalizeSerialNumber(serial);
-                      const serialProduct = productsBySerial.get(normalizedSerial);
-                      if (!serialProduct) {
-                        return (
-                          <span key={serial}>
-                            {serial}
-                          </span>
-                        );
-                      }
+              {showSerialColumn ? (
+                <div
+                  key={`${item.id}-serial`}
+                  className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                >
+                  {item.kind === 'product' &&
+                  (item.serialNumbers ?? []).length > 0 ? (
+                    <p className='muted-copy order-line-item-serials'>
+                      {(item.serialNumbers ?? []).map((serial) => {
+                        const normalizedSerial = normalizeSerialNumber(serial);
+                        const serialProduct = productsBySerial.get(normalizedSerial);
+                        if (!serialProduct) {
+                          return (
+                            <span key={serial}>
+                              {serial}
+                            </span>
+                          );
+                        }
 
-                      return (
-                        <button
-                          key={serial}
-                          type='button'
-                          className='order-line-item-serial-button'
-                          onClick={() =>
-                            void openProductModelModal(
-                              serialProduct.name,
-                              serialProduct,
-                            )
-                          }
-                        >
-                          {serial}
-                        </button>
-                      );
-                    })}
-                  </p>
-                ) : (
-                  <span className='muted-copy'>-</span>
-                )}
-              </div>
+                        return (
+                          <button
+                            key={serial}
+                            type='button'
+                            className='order-line-item-serial-button'
+                            onClick={() =>
+                              void openProductModelModal(
+                                serialProduct.name,
+                                serialProduct,
+                              )
+                            }
+                          >
+                            {serial}
+                          </button>
+                        );
+                      })}
+                    </p>
+                  ) : (
+                    <span className='muted-copy'>-</span>
+                  )}
+                </div>
+              ) : null}
               <div
                 key={`${item.id}-price`}
-                className='order-line-item-price-cell'
+                className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
               >
                 <NumberStepper
                   className='line-item-inline-input'
@@ -2392,7 +2424,10 @@ const LineItemsPanel = ({
                   disabled={isReadOnly}
                 />
               </div>
-              <div key={`${item.id}-qty`}>
+              <div
+                key={`${item.id}-qty`}
+                className={lastRowClass || undefined}
+              >
                 <NumberStepper
                   className='line-item-inline-input'
                   min={1}
@@ -2418,7 +2453,10 @@ const LineItemsPanel = ({
                   }
                 />
               </div>
-              <div key={`${item.id}-warranty`}>
+              <div
+                key={`${item.id}-warranty`}
+                className={lastRowClass || undefined}
+              >
                 <select
                   className='line-item-inline-input'
                   value={item.warrantyPeriod}
@@ -2436,7 +2474,10 @@ const LineItemsPanel = ({
                   ))}
                 </select>
               </div>
-              <div key={`${item.id}-action`}>
+              <div
+                key={`${item.id}-action`}
+                className={lastRowClass || undefined}
+              >
                 {(() => {
                   const isProduct = item.kind === 'product';
                   const hasBoundSerials =
@@ -2506,7 +2547,8 @@ const LineItemsPanel = ({
                 })()}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
       <div className='order-line-items-form'>
@@ -2690,7 +2732,7 @@ const LineItemsPanel = ({
           onClose={() => setSelectedService(null)}
         />
       ) : null}
-      {serialsEditingItem ? (
+      {isProductKind && serialsEditingItem ? (
         <div
           className='modal-backdrop'
           role='presentation'
@@ -2938,17 +2980,19 @@ const LineItemsPanel = ({
           </section>
         </div>
       ) : null}
-      <SupplierOrderModal
-        isOpen={isSupplierOrderModalOpen}
-        suppliers={suppliers}
-        initialProductName={supplierOrderProductName}
-        initialQuantity={supplierOrderInitialQuantity}
-        onClose={() => setIsSupplierOrderModalOpen(false)}
-        onCreateSupplier={handleCreateSupplier}
-        onSubmit={handleSubmitSupplierOrder}
-        onSuccess={onSuccess}
-        onError={onError}
-      />
+      {isProductKind ? (
+        <SupplierOrderModal
+          isOpen={isSupplierOrderModalOpen}
+          suppliers={suppliers}
+          initialProductName={supplierOrderProductName}
+          initialQuantity={supplierOrderInitialQuantity}
+          onClose={() => setIsSupplierOrderModalOpen(false)}
+          onCreateSupplier={handleCreateSupplier}
+          onSubmit={handleSubmitSupplierOrder}
+          onSuccess={onSuccess}
+          onError={onError}
+        />
+      ) : null}
     </div>
   );
 };

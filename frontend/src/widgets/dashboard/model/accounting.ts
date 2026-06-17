@@ -635,3 +635,64 @@ export const normalizeCashboxCurrencyActivity = ({
 
   return changed ? nextByCashbox : current;
 };
+
+export const canPerformTransferBetweenCashboxes = (fromCashboxId?: string, toCashboxId?: string) =>
+  Boolean(fromCashboxId) && Boolean(toCashboxId) && fromCashboxId !== toCashboxId;
+
+export const resolvePreferredTargetCashboxId = ({
+  type,
+  fromCashboxId = '',
+  fallbackCashboxId = '',
+  cashboxes,
+  lastTargetCashboxByType = {},
+  preferFallback = false,
+}: {
+  type: FinanceTransactionType;
+  fromCashboxId?: string;
+  fallbackCashboxId?: string;
+  cashboxes: Cashbox[];
+  lastTargetCashboxByType?: TransactionTargetMemory;
+  preferFallback?: boolean;
+}): string => {
+  if (type === 'withdraw') return '';
+  const has = (id: string) => cashboxes.some((c) => c.id === id);
+  if (
+    type === 'deposit' &&
+    preferFallback &&
+    fallbackCashboxId &&
+    has(fallbackCashboxId)
+  ) {
+    return fallbackCashboxId;
+  }
+  const remembered = lastTargetCashboxByType[type as keyof TransactionTargetMemory];
+  if (remembered && has(remembered)) {
+    if (type !== 'transfer' || remembered !== fromCashboxId) {
+      return remembered;
+    }
+  }
+  if (fallbackCashboxId && has(fallbackCashboxId)) {
+    /* v8 ignore next 3 -- secondCashboxId is selected to differ from the transfer source. */
+    if (type === 'transfer' && fallbackCashboxId === fromCashboxId) {
+      return cashboxes.find((c) => c.id !== fromCashboxId)?.id ?? '';
+    }
+    return fallbackCashboxId;
+  }
+  if (type === 'transfer') {
+    return cashboxes.find((c) => c.id !== fromCashboxId)?.id ?? '';
+  }
+  return cashboxes[0]?.id ?? '';
+};
+
+export const reorderCashboxes = (
+  items: Cashbox[],
+  fromId: string,
+  toId: string,
+): Cashbox[] => {
+  const fromIndex = items.findIndex((item) => item.id === fromId);
+  const toIndex = items.findIndex((item) => item.id === toId);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return items;
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+};
