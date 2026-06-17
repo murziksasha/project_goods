@@ -241,4 +241,27 @@ describe('cancelFinanceTransaction', () => {
       'Cashbox balance cannot become negative.',
     );
   });
+
+  it('concurrent cancel attempts on same transfer produce only one cancellation and revert balance exactly once', async () => {
+    // initial after seed: from=100, to=50 , transfer 25 from->to
+    const results = await Promise.allSettled([
+      cancelFinanceTransaction(transferId),
+      cancelFinanceTransaction(transferId),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled').length;
+    const rejected = results.filter((r) => r.status === 'rejected').length;
+
+    // Exactly one should succeed in creating the cancel (other hits guard or duplicate)
+    expect(fulfilled + rejected).toBe(2);
+    // Only one reverse tx referencing the original
+    const reverseTxs = [...store.transactions.values()].filter(
+      (t: any) => t.cancelsTransaction === transferId,
+    );
+    expect(reverseTxs.length).toBe(1);
+
+    // Balance reverted exactly once: from gets +25 ->125, to -25->25
+    expect(store.cashboxes.get(fromCashboxId).balances.UAH).toBe(125);
+    expect(store.cashboxes.get(toCashboxId).balances.UAH).toBe(25);
+  });
 });

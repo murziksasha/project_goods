@@ -234,6 +234,7 @@ export const AccountingPanel = ({
     runFinanceAction,
     createFinanceTransaction: createFinanceTransactionMutation.mutateAsync,
     onError,
+    isSaving,
   });
 
   const firstCashboxId = hookFirstCashboxId || cashboxes[0]?.id || '';

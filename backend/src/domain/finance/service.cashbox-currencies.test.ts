@@ -435,4 +435,64 @@ describe('cashbox currency settings', () => {
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(0);
   });
+
+  it('double submit with identical idempotencyKey returns the same transaction and deducts only once', async () => {
+    store.cashboxes.get(defaultCashboxId).balances.UAH = 100;
+
+    const key = 'idem-key-concurrent-xyz';
+    const results = await Promise.allSettled([
+      createFinanceTransaction({
+        type: 'withdraw',
+        amount: '30',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+        idempotencyKey: key,
+      }),
+      createFinanceTransaction({
+        type: 'withdraw',
+        amount: '30',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+        idempotencyKey: key,
+      }),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    expect(fulfilled.length).toBeGreaterThanOrEqual(1);
+    // At least one should have succeeded; if both, they must refer to same tx id
+    const txIds = fulfilled.map((r: any) => r.value?.id ?? r.value?._id).filter(Boolean);
+    if (txIds.length > 1) {
+      expect(new Set(txIds).size).toBe(1);
+    }
+    // Balance changed only by 30, not 60
+    expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(70);
+  });
+
+  it('concurrent transfers from same cashbox do not overdraw (only one succeeds)', async () => {
+    store.cashboxes.get(defaultCashboxId).balances.UAH = 50;
+    seedCashbox(reserveCashboxId); // ensure target exists
+
+    const results = await Promise.allSettled([
+      createFinanceTransaction({
+        type: 'transfer',
+        amount: '40',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+        toCashboxId: reserveCashboxId,
+      }),
+      createFinanceTransaction({
+        type: 'transfer',
+        amount: '40',
+        currency: 'UAH',
+        fromCashboxId: defaultCashboxId,
+        toCashboxId: reserveCashboxId,
+      }),
+    ]);
+
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const fail = results.filter((r) => r.status === 'rejected').length;
+    expect(ok).toBe(1);
+    expect(fail).toBe(1);
+    expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(10);
+  });
 });

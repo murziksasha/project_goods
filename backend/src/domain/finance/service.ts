@@ -124,10 +124,10 @@ const buildCurrencyDefaults = (currencyCodes: string[]) =>
     { balances: {}, enabledCurrencies: {} },
   );
 
-const ensureFinanceCurrencies = async () => {
+const ensureFinanceCurrencies = async (session?: mongoose.ClientSession) => {
   await Promise.all(
-    seededFinanceCurrencies.map((code) =>
-      FinanceCurrencyConfig.findOneAndUpdate(
+    seededFinanceCurrencies.map((code) => {
+      const op = FinanceCurrencyConfig.findOneAndUpdate(
         { code },
         {
           $setOnInsert: {
@@ -137,8 +137,9 @@ const ensureFinanceCurrencies = async () => {
           },
         },
         { upsert: true, returnDocument: 'after', runValidators: true },
-      ),
-    ),
+      );
+      return session && (op as any).session ? (op as any).session(session) : op;
+    }),
   );
 };
 
@@ -157,7 +158,7 @@ const getCurrencyConfigOrThrow = async (
   code: string,
   session?: mongoose.ClientSession,
 ) => {
-  await ensureFinanceCurrencies();
+  await ensureFinanceCurrencies(session);
   const currency = await leanWithOptionalSession<FinanceCurrencyConfigDocument | null>(
     FinanceCurrencyConfig.findOne({ code }),
     session,
@@ -168,21 +169,27 @@ const getCurrencyConfigOrThrow = async (
   return currency;
 };
 
-export const ensureDefaultCashbox = async () => {
+export const ensureDefaultCashbox = async (session?: mongoose.ClientSession) => {
   const currencyCodes = await getCurrencyCodes({ includeArchived: true });
   const currencyDefaults = buildCurrencyDefaults(currencyCodes);
-  const cashbox = await Cashbox.findOne({ isDefault: true }).lean<CashboxDocument | null>();
+  const cashbox = await leanWithOptionalSession<CashboxDocument | null>(
+    Cashbox.findOne({ isDefault: true }),
+    session,
+  );
   if (cashbox) {
     if (!cashbox.enabledCurrencies) {
-      await Cashbox.findByIdAndUpdate(cashbox._id, {
-        $set: { enabledCurrencies: currencyDefaults.enabledCurrencies },
-      });
+      await updateWithOptionalSession(
+        Cashbox.findByIdAndUpdate(cashbox._id, {
+          $set: { enabledCurrencies: currencyDefaults.enabledCurrencies },
+        }),
+        session,
+      );
       return { ...cashbox, enabledCurrencies: currencyDefaults.enabledCurrencies };
     }
     return cashbox;
   }
 
-  const created = await Cashbox.findOneAndUpdate(
+  const createdOp = Cashbox.findOneAndUpdate(
     { name: defaultCashboxName },
     {
       $setOnInsert: {
@@ -197,7 +204,9 @@ export const ensureDefaultCashbox = async () => {
       },
     },
     { upsert: true, returnDocument: 'after', runValidators: true },
-  ).lean<CashboxDocument | null>();
+  );
+  if (session) (createdOp as any).session?.(session);
+  const created = await createdOp.lean<CashboxDocument | null>();
 
   if (!created) {
     throw new Error('Failed to create default cashbox.');
@@ -512,7 +521,7 @@ const assertCashboxCanWithdrawCurrency = (
 
 export const createFinanceTransaction = async (payload: TransactionPayload) => {
   return withOptionalFinanceSession(async (session) => {
-    await ensureDefaultCashbox();
+    await ensureDefaultCashbox(session);
 
     const type = normalizeType(payload.type);
     const amount = normalizeAmount(payload.amount);
@@ -578,7 +587,17 @@ export const createFinanceTransaction = async (payload: TransactionPayload) => {
       await transaction.save({ session });
 
       return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
-    } catch (error) {
+    } catch (error: any) {
+      if (idempotencyKey && error?.code === 11000) {
+        // Unique partial index conflict: another concurrent request created it first.
+        const existing = await leanWithOptionalSession<FinanceTransactionDocument | null>(
+          FinanceTransaction.findOne({ idempotencyKey }),
+          session,
+        );
+        if (existing) {
+          return formatTransaction(existing);
+        }
+      }
       if (!session) {
         if (fromCashbox) {
           await applyCashboxDelta(fromCashbox._id, currency, amount);
@@ -658,7 +677,22 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       });
 
       await cancellation.validate();
-      await cancellation.save({ session });
+      try {
+        await cancellation.save({ session });
+      } catch (err: any) {
+        if (err?.code === 11000 && transaction._id) {
+          // duplicate cancel tx due to race; lookup existing reverse and proceed to mark
+          const existingReverse = await leanWithOptionalSession<FinanceTransactionDocument | null>(
+            FinanceTransaction.findOne({ cancelsTransaction: transaction._id }),
+            session,
+          );
+          if (existingReverse) {
+            // fallthrough to attempt the mark update which will no-op if already
+          }
+        } else {
+          throw err;
+        }
+      }
 
       const cancelled = await leanWithOptionalSession<FinanceTransactionDocument | null>(
         FinanceTransaction.findOneAndUpdate(
