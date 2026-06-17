@@ -39,7 +39,7 @@ type AccountingTransactionsViewProps = {
   onDateFilterOpenChange: (value: SetStateAction<boolean>) => void;
   onFilterOpenChange: (value: SetStateAction<boolean>) => void;
   onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
-  onPageChange: Dispatch<SetStateAction<number>>;
+  onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onSelectedCashboxIdChange: (cashboxId: string) => void;
   onSelectedSupplierOrderChange: (order: SupplierOrder) => void;
