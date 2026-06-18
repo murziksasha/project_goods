@@ -29,6 +29,7 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../shared/ui/PaginationPanel';
+import { TruncatedTextTooltip } from '../../../shared/ui/TruncatedTextTooltip';
 import {
   MessageModal,
   PaymentModal,
@@ -98,7 +99,6 @@ import {
   shouldCaptureReceivedBy,
   stockLockedRepairStatuses,
   stockLockedRepairStatusMessage,
-  truncateOrdersCellText,
   type OrderLineItem,
   type OrderPrintRequest,
   type OrderStatus,
@@ -1273,21 +1273,17 @@ export const OrdersWorkspace = ({
         );
       case 'manager':
         return (
-          <span
-            className='orders-table-cell-truncate'
-            title={sale.manager?.name || '-'}
-          >
-            {truncateOrdersCellText(sale.manager?.name || '-')}
-          </span>
+          <TruncatedTextTooltip
+            text={sale.manager?.name || '-'}
+            className="orders-table-cell-truncate"
+          />
         );
       case 'received':
         return (
-          <span
-            className='orders-table-cell-truncate'
-            title={sale.issuedBy?.name || '-'}
-          >
-            {truncateOrdersCellText(sale.issuedBy?.name || '-')}
-          </span>
+          <TruncatedTextTooltip
+            text={sale.issuedBy?.name || '-'}
+            className="orders-table-cell-truncate"
+          />
         );
       case 'status':
         return (
@@ -1359,9 +1355,8 @@ export const OrdersWorkspace = ({
               type='button'
               className='orders-client-link'
               onClick={() => onOpenClientCard(sale.client.id)}
-              title={sale.client.name}
             >
-              {sale.client.name}
+              <TruncatedTextTooltip text={sale.client.name} />
             </button>
             <small>
               <span title={sale.client.phone}>
@@ -1386,21 +1381,17 @@ export const OrdersWorkspace = ({
         );
       case 'warehouse':
         return (
-          <span
-            className='orders-table-cell-truncate'
-            title={getWarehouseLabel(sale)}
-          >
-            {truncateOrdersCellText(getWarehouseLabel(sale))}
-          </span>
+          <TruncatedTextTooltip
+            text={getWarehouseLabel(sale)}
+            className="orders-table-cell-truncate"
+          />
         );
       case 'master':
         return (
-          <span
-            className='orders-table-cell-truncate'
-            title={sale.master?.name || '-'}
-          >
-            {truncateOrdersCellText(sale.master?.name || '-')}
-          </span>
+          <TruncatedTextTooltip
+            text={sale.master?.name || '-'}
+            className="orders-table-cell-truncate"
+          />
         );
       case 'createdAt':
         return formatReadyDate(sale.createdAt);

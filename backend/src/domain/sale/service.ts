@@ -1021,14 +1021,10 @@ export const acceptSalePayment = async (
     throw new Error('Product shipped but payment has not been received.');
   }
 
-  const shouldAutoMarkPaidOnDeposit =
-    action === 'deposit' &&
-    (targetStatus === 'paid' ||
-      (sale.kind !== 'repair' && targetStatus === 'issued'));
   const nextStatus =
     action === 'depositAndIssue' || action === 'issueWithoutPayment'
       ? targetStatus
-      : shouldAutoMarkPaidOnDeposit
+      : action === 'deposit' && nextPaymentRemaining === 0
         ? 'paid'
         : sale.status;
   const issuedById = String(payload.issuedById ?? '').trim();

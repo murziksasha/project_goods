@@ -94,6 +94,10 @@
 - Payment modal supports method toggle: `Cash` <-> `Non-cash` (clickable badge near `To pay`).
 - `Non-cash` state is highlighted with light-red badge background in modal.
 - Deposit entries persist `paymentMethod` (`cash` or `non-cash`) in `paymentHistory`.
+- Partial deposits are allowed while the sale/order remains in its current non-final status.
+- A user may accept several partial deposits at different times and into different cashboxes until `To pay = 0`.
+- `Accept to cashbox` must never require the entered amount to cover the full remaining balance.
+- `Accept to cashbox` records only the deposit and must not implicitly issue shipped products when `To pay > 0`.
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
@@ -114,7 +118,8 @@
 - In `Orders -> Sales` list, when user selects status `issued`, `Accept payment` modal is opened if `To pay > 0`.
 - If in this modal user clicks `Accept to cashbox` and enters full or partial payment:
   - payment is added to cashbox
-  - sale status is auto-changed to `paid`
+  - if `To pay` becomes `0`, sale status may be auto-changed to `paid`
+  - if `To pay` remains greater than `0`, sale status must stay unchanged and the modal closes successfully
 - If user selected status `paid` and accepts payment, resulting status is `paid`.
 - Strict rule for sales:
   - `issued` is not allowed when `To pay > 0`

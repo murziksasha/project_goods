@@ -55,6 +55,7 @@ type Props = {
   suppliers: Supplier[];
   catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
+  canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (
@@ -76,6 +77,7 @@ export const SupplierOrdersWorkspace = ({
   suppliers,
   catalogProducts,
   currentEmployeeName,
+  canViewSupplierOrders,
   canManageSupplierOrders,
   onCreateSupplier,
   onUpdateSupplier,
@@ -597,6 +599,7 @@ export const SupplierOrdersWorkspace = ({
           paginatedOrders={paginatedOrders}
           suppliers={suppliers}
           visibleColumns={visibleColumns}
+          canViewSupplierOrders={canViewSupplierOrders}
           canManageSupplierOrders={canManageSupplierOrders}
           onError={onError}
           onEditOrder={(order) => {
@@ -645,7 +648,9 @@ export const SupplierOrdersWorkspace = ({
             (editingOrder.status === 'stocked' ||
               editingOrder.receiptStatus === 'received' ||
               editingOrder.status === 'cancelled' ||
-              editingOrder.paymentStatus === 'cancelled')),
+              editingOrder.paymentStatus === 'cancelled' ||
+              editingOrder.paymentStatus === 'paid' ||
+              editingOrder.paymentStatus === 'without_payment')),
         )}
         onClose={() => {
           setIsModalOpen(false);
