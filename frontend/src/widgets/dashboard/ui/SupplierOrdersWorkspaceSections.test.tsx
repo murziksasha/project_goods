@@ -52,6 +52,7 @@ const renderTable = ({
       paginatedOrders={[order]}
       suppliers={[]}
       visibleColumns={['number', 'product']}
+      canViewSupplierOrders
       canManageSupplierOrders
       onError={vi.fn()}
       onEditOrder={vi.fn()}
@@ -86,5 +87,104 @@ describe('SupplierOrdersTable', () => {
     fireEvent.click(screen.getByLabelText('Star SO-1'));
 
     expect(onToggleFavorite).toHaveBeenCalledWith(order);
+  });
+
+  it('opens (calls onEditOrder) for paid supplier order when read access present (read-only view)', () => {
+    const onEdit = vi.fn();
+    const onErr = vi.fn();
+    const paidOrder = makeOrder({ id: 'so-paid', paymentStatus: 'paid', number: 'SO-PAID' });
+    render(
+      <SupplierOrdersTable
+        catalogProducts={[]}
+        filteredOrdersCount={1}
+        isLoading={false}
+        openStatusOrder={null}
+        page={1}
+        pageSize={30}
+        paginatedOrders={[paidOrder]}
+        suppliers={[]}
+        visibleColumns={['number']}
+        canViewSupplierOrders
+        canManageSupplierOrders={false}
+        onError={onErr}
+        onEditOrder={onEdit}
+        onOpenCatalogProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        onOpenStatusOrder={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    );
+
+    // find the number button by text content
+    const numBtn = screen.getByText('SO-PAID');
+    fireEvent.click(numBtn);
+
+    expect(onEdit).toHaveBeenCalledWith(paidOrder);
+    expect(onErr).not.toHaveBeenCalled();
+  });
+
+  it('opens (calls onEditOrder) for stocked supplier order (read-only after receipt)', () => {
+    const onEdit = vi.fn();
+    const stockedOrder = makeOrder({ id: 'so-stocked', status: 'stocked', number: 'SO-STK' });
+    render(
+      <SupplierOrdersTable
+        catalogProducts={[]}
+        filteredOrdersCount={1}
+        isLoading={false}
+        openStatusOrder={null}
+        page={1}
+        pageSize={30}
+        paginatedOrders={[stockedOrder]}
+        suppliers={[]}
+        visibleColumns={['number']}
+        canViewSupplierOrders
+        canManageSupplierOrders
+        onError={vi.fn()}
+        onEditOrder={onEdit}
+        onOpenCatalogProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        onOpenStatusOrder={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('SO-STK'));
+    expect(onEdit).toHaveBeenCalledWith(stockedOrder);
+  });
+
+  it('does not call onEditOrder and calls onError when no view permission', () => {
+    const onEdit = vi.fn();
+    const onErr = vi.fn();
+    render(
+      <SupplierOrdersTable
+        catalogProducts={[]}
+        filteredOrdersCount={1}
+        isLoading={false}
+        openStatusOrder={null}
+        page={1}
+        pageSize={30}
+        paginatedOrders={[makeOrder()]}
+        suppliers={[]}
+        visibleColumns={['number']}
+        canViewSupplierOrders={false}
+        canManageSupplierOrders={false}
+        onError={onErr}
+        onEditOrder={onEdit}
+        onOpenCatalogProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        onOpenStatusOrder={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('SO-1'));
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onErr).toHaveBeenCalled();
   });
 });

@@ -913,6 +913,7 @@ export const DashboardPage = () => {
                   suppliers={state.suppliers}
                   catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
+                  canViewSupplierOrders={canViewSupplierOrders}
                   canManageSupplierOrders={canManageSupplierOrders}
                   onCreateSupplier={actions.createSupplierCard}
                   onUpdateSupplier={actions.updateSupplierCard}

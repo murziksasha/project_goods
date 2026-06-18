@@ -1358,7 +1358,9 @@ export const OrderDetailCard = ({
             (selectedRelatedSupplierOrder.status === 'stocked' ||
               selectedRelatedSupplierOrder.receiptStatus === 'received' ||
               selectedRelatedSupplierOrder.status === 'cancelled' ||
-              selectedRelatedSupplierOrder.paymentStatus === 'cancelled'),
+              selectedRelatedSupplierOrder.paymentStatus === 'cancelled' ||
+              selectedRelatedSupplierOrder.paymentStatus === 'paid' ||
+              selectedRelatedSupplierOrder.paymentStatus === 'without_payment'),
         )}
         warehouseOptions={relatedWarehouseOptions}
         onClose={() => {

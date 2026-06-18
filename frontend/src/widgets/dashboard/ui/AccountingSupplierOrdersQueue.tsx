@@ -11,6 +11,7 @@ import {
   truncateLabel,
   type FinanceOverview,
 } from '../model/accounting';
+import { TruncatedTextTooltip } from '../../../shared/ui/TruncatedTextTooltip';
 import { formatMetric } from '../model/sales-analytics';
 import { getSupplierOrderDisplayNumber } from '../model/supplier-order-utils';
 
@@ -131,9 +132,10 @@ export const AccountingSupplierOrdersQueue = ({
                     <small>{order.deliveryDate ? 'Delivery' : 'Created'}</small>
                   </td>
                   <td className='finance-orders-supplier-cell' data-label='Supplier'>
-                    <span className='orders-table-cell-truncate'>
-                      {order.supplierName}
-                    </span>
+                    <TruncatedTextTooltip
+                      text={order.supplierName}
+                      className="orders-table-cell-truncate"
+                    />
                     <small>Payment required</small>
                   </td>
                   <td className='finance-orders-amount-cell' data-label='Amount'>

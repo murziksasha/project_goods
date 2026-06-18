@@ -90,6 +90,10 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- Partial deposits are allowed for repair orders while the order remains in its current non-final status.
+- A repair order may receive several payments at different times and into different cashboxes.
+- `Accept to cashbox` records only the deposit and must not require full remaining payment.
+- `Accept to cashbox` must not issue the repair order while `To pay > 0`; it only closes the payment modal and refreshes the payment state.
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
@@ -264,6 +268,17 @@
   - shows success or error feedback.
 - If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
 - If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
+- Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
+- If the order is locked by receipt/payment/final status, the opened modal is read-only instead of blocked.
+- Editable controls remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order lock rules.
+
+## Truncated Text Hover Tooltip
+
+- Any visible value that is truncated with ellipsis because of limited column/card width must expose the full text on hover/focus.
+- The tooltip must be a custom interactive tooltip, not only the native browser `title`, when the text is expected to be copied.
+- The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
+- Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
+- The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
 
 ## Supplier Order Information Tab (2026-05-29)
 
