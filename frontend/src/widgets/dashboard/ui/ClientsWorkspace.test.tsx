@@ -11,27 +11,35 @@ import { ClientsWorkspace } from './ClientsWorkspace';
 import {
   clientsSuppliersSavedFiltersStorageKey,
   emptyFilters,
+  mapClientDraftToPayload,
+  type ClientDraft,
 } from '../model/clients-workspace';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
 
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
 });
 
-const createClient = (overrides: Partial<Client>): Client => ({
-  id: 'client-1',
-  phone: '+380501111111',
-  name: 'Ivan Petrenko',
-  email: '',
-  address: '',
-  registrationId: '',
-  iban: '',
-  note: '',
-  status: '',
-  createdAt: '2026-01-01T10:00:00.000Z',
-  updatedAt: '2026-01-01T10:00:00.000Z',
-  ...overrides,
-});
+const createClient = (overrides: Partial<Client>): Client => {
+  const basePhone = overrides.phone ?? '+380501111111';
+  const basePhones = overrides.phones ?? [basePhone];
+  return {
+    id: 'client-1',
+    phone: basePhone,
+    phones: basePhones,
+    name: 'Ivan Petrenko',
+    email: '',
+    address: '',
+    registrationId: '',
+    iban: '',
+    note: '',
+    status: '',
+    createdAt: '2026-01-01T10:00:00.000Z',
+    updatedAt: '2026-01-01T10:00:00.000Z',
+    ...overrides,
+  };
+};
 
 const employee: Employee = {
   id: 'employee-1',
@@ -207,11 +215,13 @@ describe('ClientsWorkspace', () => {
       id: 'client-ivan',
       name: 'Ivan Petrenko',
       phone: '+380501111111',
+  phones: ['+380501111111'],
     });
     const olena = createClient({
       id: 'client-olena',
       name: 'Olena Kovalenko',
       phone: '+380502222222',
+      phones: ['+380502222222'],
     });
     renderWorkspace({ clients: [ivan, olena] });
 
@@ -342,5 +352,80 @@ describe('ClientsWorkspace', () => {
 
     expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
     expect(onSelectClient).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe('client phones model helpers', () => {
+  it('mapClientDraftToPayload always returns phones array and primary phone', () => {
+    const draft: ClientDraft = {
+      phone: '+380501234567',
+      phones: ['+380501234567', '+380501234568'],
+      name: 'Test',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const payload = mapClientDraftToPayload(draft);
+    expect(payload.phone).toBe('+380501234567');
+    expect(payload.phones).toEqual(['+380501234567', '+380501234568']);
+    expect(payload.name).toBe('Test');
+  });
+
+  it('mapClientDraftToPayload falls back to phone when phones empty, keeps primary first, removes empties and dups', () => {
+    const draft: ClientDraft = {
+      phone: '  +380991112233  ',
+      phones: ['', ' +380991112233 ', ' +380991112244 ', ''],
+      name: 'Dup',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const payload = mapClientDraftToPayload(draft);
+    expect(payload.phone).toBe('+380991112233');
+    expect(payload.phones).toEqual(['+380991112233', '+380991112244']);
+  });
+
+  it('getClientPhones and getPrimaryClientPhone fallback for clients without phones array', () => {
+    const oldClient = {
+      id: 'c1',
+      phone: '+380123456789',
+      phones: [] as string[],
+      name: 'Old',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    expect(getClientPhones(oldClient)).toEqual(['+380123456789']);
+    expect(getPrimaryClientPhone(oldClient)).toBe('+380123456789');
+
+    const noPhone = { ...oldClient, phone: '', phones: [] as string[] };
+    expect(getClientPhones(noPhone)).toEqual([]);
+    expect(getPrimaryClientPhone(noPhone)).toBe('');
+  });
+
+  it('duplicate phones are rejected in form save logic (hasDuplicatePhones behavior)', () => {
+    // The duplicate check is used in disabled state in ClientCardModal
+    // Here we just verify the normalization prevents dups in map
+    const draftWithDups: ClientDraft = {
+      phone: '+380111',
+      phones: ['+380111', '+380111', '+380222'],
+      name: 'D',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const p = mapClientDraftToPayload(draftWithDups);
+    expect(p.phones).toEqual(['+380111', '+380222']);
   });
 });

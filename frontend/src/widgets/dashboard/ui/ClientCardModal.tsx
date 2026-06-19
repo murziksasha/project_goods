@@ -14,6 +14,7 @@ import {
   type ClientCardTab,
   type ClientMainForm,
 } from '../model/clients-workspace';
+import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 
 type ClientStatusOption = {
   label: string;
@@ -218,20 +219,67 @@ const ClientMainFormFields = ({
         <small>Address must contain at least 5 characters.</small>
       ) : null}
     </label>
-    <label className='field field-wide'>
-      <span>Phone</span>
-      <input
-        value={form.phone}
-        onChange={(event) => {
-          onChange('phone', event.target.value);
-          onClearPhoneError();
-        }}
-        onBlur={() => onValidatePhone(form.phone)}
-      />
+    <div className='field field-wide phones-field'>
+      <span>Phones</span>
+      {(form.phones && form.phones.length > 0 ? form.phones : [form.phone || '']).map((ph, idx) => {
+        const isPrimary = idx === 0;
+        const label = isPrimary ? 'Primary phone' : 'Additional phone';
+        const rowPhone = ph ?? '';
+        return (
+          <div key={idx} className='phone-row' style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
+            <input
+              value={rowPhone}
+              placeholder={isPrimary ? '+380' : ''}
+              style={{ flex: 1 }}
+              onChange={(event) => {
+                const val = event.target.value;
+                const next = [...(form.phones && form.phones.length ? form.phones : [form.phone || ''])];
+                next[idx] = val;
+                const cleaned = next.filter((v, i) => v || i === 0);
+                onChange('phones', cleaned.length ? cleaned : ['']);
+                if (idx === 0) {
+                  onChange('phone', val);
+                  onClearPhoneError();
+                }
+              }}
+              onBlur={() => {
+                if (idx === 0) onValidatePhone(rowPhone);
+              }}
+            />
+            <small style={{ width: '92px', color: '#64748b' }}>{label}</small>
+            {!isPrimary ? (
+              <button
+                type='button'
+                className='ghost-button'
+                aria-label='Remove phone'
+                onClick={() => {
+                  const next = (form.phones || []).filter((_, i) => i !== idx);
+                  onChange('phones', next.length ? next : [form.phone || '']);
+                }}
+              >
+                −
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
+      <div>
+        <button
+          type='button'
+          className='ghost-button'
+          onClick={() => {
+            const current = form.phones && form.phones.length ? form.phones : [form.phone || '+380'];
+            onChange('phones', [...current, '+380']);
+          }}
+          style={{ padding: '2px 8px', fontSize: '12px' }}
+        >
+          + Add phone
+        </button>
+      </div>
       {phoneError ? (
         <span className='error-message'>{phoneError}</span>
       ) : null}
-    </label>
+    </div>
     <label className='field field-wide'>
       <span>Status</span>
       <select
@@ -298,7 +346,10 @@ const ClientMainFormFields = ({
         disabled={
           isSaving ||
           !form.name.trim() ||
-          !form.phone.trim() ||
+          !(form.phone || '').trim() ||
+          !(form.phones || []).some((p) => (p || '').trim()) ||
+          (form.phones || [form.phone]).some((p) => (p || '').trim() && !isValidUkrainianPhone(p || '')) ||
+          hasDuplicatePhones(form.phones || (form.phone ? [form.phone] : [])) ||
           !isOptionalAddressValid(form.address) ||
           !isOptionalRegistrationIdValid(form.registrationId) ||
           !isOptionalIbanValid(form.iban)
@@ -310,6 +361,17 @@ const ClientMainFormFields = ({
     </div>
   </div>
 );
+
+const hasDuplicatePhones = (phones: string[]) => {
+  const seen = new Set<string>();
+  for (const p of phones || []) {
+    const t = (p || '').trim();
+    if (!t) continue;
+    if (seen.has(t)) return true;
+    seen.add(t);
+  }
+  return false;
+};
 
 const ClientHistoryTable = ({
   rows,

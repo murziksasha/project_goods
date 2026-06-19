@@ -97,6 +97,13 @@ export const OrderPrintDialog = ({
   const [orientation, setOrientation] = useState<PrintForm['orientation']>(
     firstSelectedFormOrientation ?? 'portrait',
   );
+
+  // Resolve from selected form (esp. auto for Barcode label forms) to prevent A4+label mismatch
+  const resolvedPageSize = firstSelectedForm?.pageSize ?? pageSize;
+  const resolvedLabelSize = firstSelectedForm
+    ? normalizeLabelSize(firstSelectedForm.labelSize)
+    : labelSize;
+  const resolvedOrientation = firstSelectedForm?.orientation ?? orientation;
   const [copies, setCopies] = useState(1);
   const [autoClose, setAutoClose] = useState(true);
   const templateData = getPrintTemplateData(
@@ -110,9 +117,9 @@ export const OrderPrintDialog = ({
     selectedForms,
     templateData,
     copies,
-    pageSize,
-    labelSize,
-    orientation,
+    resolvedPageSize,
+    resolvedLabelSize,
+    resolvedOrientation,
   );
   const canPrint = selectedForms.length > 0;
 
@@ -162,9 +169,9 @@ export const OrderPrintDialog = ({
     openOrderPrintWindow({
       title: `Preview ${request.orderNumber}`,
       body: previewBody,
-      pageSize,
-      labelSize,
-      orientation,
+      pageSize: resolvedPageSize,
+      labelSize: resolvedLabelSize,
+      orientation: resolvedOrientation,
       orderNumber: request.orderNumber,
       shouldPrint: false,
       autoClose: false,
@@ -174,9 +181,9 @@ export const OrderPrintDialog = ({
     openOrderPrintWindow({
       title: `Print forms ${request.orderNumber}`,
       body: previewBody,
-      pageSize,
-      labelSize,
-      orientation,
+      pageSize: resolvedPageSize,
+      labelSize: resolvedLabelSize,
+      orientation: resolvedOrientation,
       orderNumber: request.orderNumber,
       shouldPrint: true,
       autoClose,
@@ -321,9 +328,9 @@ export const OrderPrintDialog = ({
               <OrderPrintPreview
                 html={previewBody}
                 orderNumber={request.orderNumber}
-                pageSize={pageSize}
-                labelSize={labelSize}
-                orientation={orientation}
+                pageSize={resolvedPageSize}
+                labelSize={resolvedLabelSize}
+                orientation={resolvedOrientation}
               />
             ) : (
               <p className='empty-state'>Select at least one print form.</p>

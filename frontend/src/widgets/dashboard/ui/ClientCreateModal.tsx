@@ -46,7 +46,13 @@ export const ClientCreateModal = ({
               <span>Phone</span>
               <input
                 value={form.phone}
-                onChange={(event) => updateForm('phone', event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  const nextPhones = Array.isArray(form.phones) && form.phones.length > 0
+                    ? [val, ...form.phones.slice(1)]
+                    : [val];
+                  onChange({ ...form, phone: val, phones: nextPhones });
+                }}
               />
             </label>
             <label className='field field-wide'>

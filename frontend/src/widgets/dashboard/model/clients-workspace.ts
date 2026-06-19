@@ -3,6 +3,7 @@ import type {
   ClientFormValues,
   ClientStatus,
 } from '../../../entities/client/model/types';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
 import type { Sale } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
@@ -34,6 +35,7 @@ export type ClientStats = {
 
 export type ClientDraft = {
   phone: string;
+  phones: string[];
   name: string;
   address: string;
   email: string;
@@ -67,6 +69,7 @@ export const emptyFilters: ClientFilters = {
 
 export const emptyClientDraft: ClientDraft = {
   phone: '+380',
+  phones: ['+380'],
   name: '',
   address: '',
   email: '',
@@ -103,11 +106,11 @@ export const findBlacklistClientMatch = (
   const phoneIdentity = normalizeClientPhoneIdentity(phoneInput);
   const exactPhoneMatch =
     phoneIdentity.length >= 7
-      ? clients.find(
-          (client) =>
-            isBlacklistClient(client) &&
-            normalizeClientPhoneIdentity(client.phone) === phoneIdentity,
-        )
+      ? clients.find((client) => {
+          if (!isBlacklistClient(client)) return false;
+          const clientPhones = getClientPhones(client);
+          return clientPhones.some((ph) => normalizeClientPhoneIdentity(ph) === phoneIdentity);
+        })
       : null;
 
   if (exactPhoneMatch) return exactPhoneMatch;
@@ -125,7 +128,7 @@ export const findBlacklistClientMatch = (
 };
 
 export const getBlacklistClientWarning = (client: Client) =>
-  `${client.name} (${client.phone}) is in blacklist. Check client card before creating a repair or sale order.`;
+  `${client.name} (${getPrimaryClientPhone(client)}) is in blacklist. Check client card before creating a repair or sale order.`;
 
 export const parseNumber = (value: string) => {
   const normalized = value.trim().replace(',', '.');
@@ -162,7 +165,7 @@ export const getDateEnd = (value: string) => {
 };
 
 export const getClientSubtitle = (client: Client) =>
-  `${client.name} (${client.phone})`;
+  `${client.name} (${getPrimaryClientPhone(client)})`;
 
 export const formatClientIncome = (value: number) =>
   `${formatCurrency(value)
@@ -261,16 +264,50 @@ export const getClientStatsMap = (sales: Sale[]) => {
 export const mapClientDraftToPayload = (
   draft: ClientDraft,
   status: ClientStatus | '' = 'new',
-): ClientFormValues => ({
-  phone: draft.phone.trim(),
-  name: draft.name.trim(),
-  email: draft.email.trim(),
-  address: draft.address.trim(),
-  registrationId: draft.registrationId.trim(),
-  iban: normalizeIban(draft.iban),
-  note: draft.note.trim(),
-  status,
-});
+): ClientFormValues => {
+  const primary = (draft.phone || '').trim();
+  let phoneList = Array.isArray(draft.phones)
+    ? draft.phones.map((p) => (p || '').trim()).filter((p) => p.length > 0)
+    : [];
+
+  if (phoneList.length === 0 && primary) {
+    phoneList = [primary];
+  }
+
+  // Ensure primary phone is first
+  if (primary) {
+    phoneList = [
+      primary,
+      ...phoneList.filter((p) => p !== primary),
+    ];
+  }
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  phoneList = phoneList.filter((p) => {
+    if (seen.has(p)) return false;
+    seen.add(p);
+    return true;
+  });
+
+  if (phoneList.length === 0 && primary) {
+    phoneList = [primary];
+  }
+
+  const finalPrimary = phoneList[0] || primary || '';
+
+  return {
+    phone: finalPrimary,
+    phones: phoneList.length > 0 ? phoneList : (finalPrimary ? [finalPrimary] : []),
+    name: draft.name.trim(),
+    email: draft.email.trim(),
+    address: draft.address.trim(),
+    registrationId: draft.registrationId.trim(),
+    iban: normalizeIban(draft.iban),
+    note: draft.note.trim(),
+    status,
+  };
+};
 
 export const getActiveClientFiltersCount = (filters: ClientFilters) =>
   (filters.query ? 1 : 0) +
@@ -314,8 +351,9 @@ export const getFilteredClients = (
   return [...clients]
     .filter((client) => {
       const stats = statsByClient.get(client.id) ?? defaultClientStats;
+      const phonesText = getClientPhones(client).join(' ') || getPrimaryClientPhone(client) || '';
       const searchable =
-        `${client.id} ${client.name} ${client.phone} ${client.note}`.toLowerCase();
+        `${client.id} ${client.name} ${phonesText} ${client.note}`.toLowerCase();
       const createdAt = new Date(client.createdAt).getTime();
       const effectiveStatus = getEffectiveClientStatusLogic(
         client.status || '',

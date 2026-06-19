@@ -7,7 +7,15 @@ export const clientSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Client phone is required'],
       trim: true,
-      unique: true,
+    },
+    phones: {
+      type: [String],
+      default: [],
+    },
+    phoneIdentities: {
+      type: [String],
+      default: [],
+      index: true,
     },
     name: {
       type: String,
@@ -71,8 +79,43 @@ export const clientSchema = new mongoose.Schema(
   },
 );
 
+clientSchema.index({ phoneIdentities: 1 }, { unique: true });
+
+const normalizePhoneIdentity = (value: string) =>
+  String(value || '')
+    .replace(/[^\d+]/g, '')
+    .trim();
+
+clientSchema.pre('validate', function ensurePhonesConsistency() {
+  const currentPhones: string[] = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];
+  if (this.phone) {
+    if (currentPhones.length === 0 || currentPhones[0] !== this.phone) {
+      this.phones = [this.phone, ...currentPhones.filter((p) => p !== this.phone)];
+    }
+  } else if (currentPhones.length > 0) {
+    this.phone = currentPhones[0]!;
+  }
+  const base = Array.isArray(this.phones) ? this.phones : [];
+  const identities = base
+    .map(normalizePhoneIdentity)
+    .filter((p: string) => p.length > 0);
+  const deduped = Array.from(new Set(identities));
+  this.phoneIdentities = deduped.length > 0 ? deduped : (this.phone ? [normalizePhoneIdentity(this.phone)] : []);
+});
+
+clientSchema.pre('validate', function validateAtLeastOnePhone() {
+  const list = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];
+  if (list.length === 0 && !this.phone) {
+    this.invalidate('phone', 'Client must have at least one valid phone');
+  }
+});
+
 clientSchema.pre('validate', function updateSearchText() {
+  const phonesForSearch = Array.isArray(this.phones) && this.phones.length > 0
+    ? this.phones
+    : this.phone ? [this.phone] : [];
   this.searchText = [
+    ...phonesForSearch,
     this.phone,
     this.name,
     this.email,

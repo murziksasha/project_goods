@@ -26,6 +26,7 @@ export type ProductModelUpdatePayload = {
 
 export type ClientPayload = {
   phone?: unknown;
+  phones?: unknown;
   name?: unknown;
   email?: unknown;
   address?: unknown;

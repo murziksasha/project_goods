@@ -249,6 +249,16 @@ describe('normalizePrintFormsForView', () => {
     expect(barcode?.content).toContain('{{labelContact}}');
   });
 
+  it('default Barcode form: page size label, 40x25mm, landscape, renders inside .print-label', () => {
+    const forms = normalizePrintFormsForView(defaultPrintForms);
+    const barcode = forms.find((f) => f.id === 'barcode');
+    expect(barcode?.pageSize).toBe('label');
+    expect(barcode?.labelSize?.widthMm).toBe(40);
+    expect(barcode?.labelSize?.heightMm).toBe(25);
+    expect(barcode?.orientation).toBe('landscape');
+    expect(barcode?.content).toContain('class="print-label"');
+  });
+
   it('updates the old built-in barcode form without replacing custom barcode forms', () => {
     const normalized = normalizePrintFormsForView([
       {

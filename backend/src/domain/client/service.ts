@@ -24,13 +24,24 @@ const isDuplicateKeyError = (error: unknown) =>
   'code' in error &&
   (error as { code?: unknown }).code === 11000;
 
-const assertUniqueClientPhone = async (phone: string, exceptClientId?: string) => {
-  if (!phone) return;
+const assertUniqueClientPhones = async (phones: string[], exceptClientId?: string) => {
+  const list = (phones || []).filter(Boolean);
+  if (list.length === 0) return;
 
-  const existingClient = await Client.findOne({ phone }).lean<Pick<ClientDocument, '_id'> | null>();
-  if (!existingClient) return;
+  // Check via identities for multikey support; also legacy phone field
+  const orConditions = [
+    { phoneIdentities: { $in: list } },
+    { phone: { $in: list } },
+  ];
+  const query: any = { $or: orConditions };
+  if (exceptClientId) {
+    query._id = { $ne: exceptClientId };
+  }
+  const existing = await Client.findOne(query).lean<Pick<ClientDocument, '_id' | 'phone' | 'phones'> | null>();
+  if (!existing) return;
 
-  if (exceptClientId && existingClient._id.toString() === exceptClientId) {
+  // allow if the only match is the same client (but query excluded)
+  if (exceptClientId && existing._id.toString() === exceptClientId) {
     return;
   }
 
@@ -55,7 +66,7 @@ export const listClients = async (queryValue: unknown, statusValue: unknown) => 
 
 export const createClient = async (payload: ClientPayload) => {
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhone(normalizedPayload.phone);
+  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone]);
 
   const client = new Client(normalizedPayload);
   await client.validate();
@@ -73,7 +84,7 @@ export const createClient = async (payload: ClientPayload) => {
 export const updateClient = async (clientId: string, payload: ClientPayload) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhone(normalizedPayload.phone, clientId);
+  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone], clientId);
 
   const client = await Client.findByIdAndUpdate(clientId, normalizedPayload, {
     returnDocument: 'after',
@@ -165,8 +176,14 @@ export const mergeClients = async (
     targetClient.status === 'new' && sourceClient.status !== 'new'
       ? sourceClient.status
       : targetClient.status;
+  const mergedPhonesRaw = [
+    ...(Array.isArray(targetClient.phones) ? targetClient.phones : []),
+    ...(Array.isArray(sourceClient.phones) ? sourceClient.phones : []),
+  ];
+  const mergedPhone = targetClient.phone?.trim() || sourceClient.phone;
   const payload = normalizeClientPayload({
-    phone: targetClient.phone?.trim() || sourceClient.phone,
+    phone: mergedPhone,
+    phones: mergedPhonesRaw.length ? mergedPhonesRaw : [mergedPhone],
     name: targetClient.name?.trim() || sourceClient.name,
     email: targetClient.email?.trim() || sourceClient.email,
     address: targetClient.address?.trim() || sourceClient.address,
