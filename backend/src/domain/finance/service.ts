@@ -744,6 +744,33 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
   });
 };
 
+export const updateFinanceTransactionNote = async (
+  transactionId: string,
+  payload: { note?: unknown },
+) => {
+  isValidObjectIdOrThrow(transactionId, 'transactionId');
+
+  const note = String(payload.note ?? '').trim();
+
+  if (note.length > 300) {
+    throw new Error('Transaction note must contain no more than 300 characters');
+  }
+
+  const transaction = await FinanceTransaction.findById(transactionId);
+  if (!transaction) {
+    throw new Error('Transaction not found.');
+  }
+
+  if ((transaction.status ?? 'active') === 'cancelled' || transaction.isCancellation) {
+    throw new Error('Cannot edit note for a cancelled transaction.');
+  }
+
+  transaction.note = note;
+  await transaction.save();
+
+  return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
+};
+
 export const listFinanceTransactions = async () => {
   await ensureDefaultCashbox();
   const transactions = await FinanceTransaction.find()

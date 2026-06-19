@@ -10,6 +10,7 @@ import {
   paySupplierOrder,
   updateCashbox,
   updateFinanceCurrency,
+  updateFinanceTransaction,
 } from '../../../entities/finance/api/financeApi';
 import type {
   Cashbox,
@@ -22,6 +23,7 @@ import type {
 } from '../../../entities/finance/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
 import { AccountingPanel } from './AccountingPanel';
 import { useAccountingFinanceData } from './useAccountingFinanceData';
 import { useAccountingPreferences } from './useAccountingPreferences';
@@ -61,6 +63,7 @@ vi.mock('../../../entities/finance/api/financeApi', () => {
   const paySupplierOrder = vi.fn();
   const updateCashbox = vi.fn();
   const updateFinanceCurrency = vi.fn();
+  const updateFinanceTransaction = vi.fn();
 
   return {
     cancelFinanceTransaction,
@@ -71,6 +74,7 @@ vi.mock('../../../entities/finance/api/financeApi', () => {
     paySupplierOrder,
     updateCashbox,
     updateFinanceCurrency,
+    updateFinanceTransaction,
     useCancelFinanceTransactionMutation: () => ({
       mutateAsync: cancelFinanceTransaction,
     }),
@@ -110,6 +114,9 @@ vi.mock('../../../entities/finance/api/financeApi', () => {
         currencyCode: string;
         payload: { isArchived?: boolean };
       }) => updateFinanceCurrency(currencyCode, payload),
+    }),
+    useUpdateFinanceTransactionMutation: () => ({
+      mutateAsync: updateFinanceTransaction,
     }),
   };
 });
@@ -253,6 +260,8 @@ vi.mock('./AccountingTransactionsView', () => ({
       <button type='button' onClick={() => props.canCancelTransferTransaction(props.filteredTransactions[0])}>can cancel</button>
       <button type='button' onClick={() => props.onSelectedSupplierOrderChange(props.supplierOrders[0])}>supplier modal</button>
       <button type='button' onClick={() => props.onOpenSaleCard({ id: 'sale-1', kind: 'sale' })}>sale card</button>
+      <button type='button' onClick={() => props.onEditTransactionNote?.(props.filteredTransactions[0])}>edit note</button>
+      <button type='button' onClick={() => props.onEditTransactionNote?.({ ...props.filteredTransactions[0], id: 'tx-manual', note: 'Manual deposit note text' })}>edit manual note</button>
     </section>
   ),
 }));
@@ -959,5 +968,269 @@ describe('AccountingPanel', () => {
     renderPanel();
 
     expect(screen.getByTestId('reports-view')).toHaveTextContent('1');
+  });
+});
+
+describe('AccountingTransactionsView note navigation (real component)', () => {
+  const baseCashbox = { id: 'cb1', name: 'Main' } as any;
+  const baseTx = (note: string) => ({
+    id: 'tx-note',
+    type: 'deposit' as const,
+    amount: 10,
+    currency: 'UAH',
+    fromCashbox: null,
+    toCashbox: baseCashbox,
+    note,
+    transactionDate: '2026-06-18T10:00:00.000Z',
+    status: 'active' as const,
+    isCancellation: false,
+    createdAt: '2026-06-18',
+    updatedAt: '2026-06-18',
+  });
+
+  const sampleSale: Sale = {
+    id: 'sale-xyz',
+    kind: 'repair',
+    recordNumber: 'r000066',
+    status: 'inRepair',
+    deviceName: '',
+    deviceBrand: '',
+    deviceModel: '',
+    serialNumber: '',
+    note: '',
+    client: { id: 'c1', name: 'Client', phone: '', status: 'active' },
+    discount: { mode: 'amount', value: 0 },
+    paidAmount: 0,
+    lineItems: [],
+    createdAt: '2026',
+    updatedAt: '2026',
+  } as any as Sale;
+  const sampleSaleSaleKind: Sale = { ...sampleSale, id: 'sale-sale', kind: 'sale', recordNumber: 's999' };
+
+  const sampleSupplier = {
+    id: 'sup-1',
+    number: 'SUP-77',
+    orderBaseId: 'base-77',
+    supplierId: 's1',
+    supplierName: 'Supp',
+    deliveryDate: '2026-07-01',
+    items: [],
+    total: 0,
+    paymentStatus: 'pending',
+    status: 'approved',
+    receiptStatus: 'pending',
+    createdAt: '2026',
+    updatedAt: '2026',
+  } as any as import('../../../entities/supplier-order/model/types').SupplierOrder;
+
+  const minimalProps = (txNote: string, salesList: Sale[] = [], suppliersList: any[] = []) => ({
+    activeFiltersCount: 0,
+    allCurrencyCodes: ['UAH'],
+    appliedFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
+    balanceAfterByTransactionId: {},
+    cashboxes: [],
+    draftFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
+    filteredTransactions: [baseTx(txNote) as any],
+    isDateFilterOpen: false,
+    isFilterOpen: false,
+    page: 1,
+    pageSize: 10,
+    paginatedTransactions: [baseTx(txNote) as any],
+    sales: salesList,
+    selectedCashboxId: 'cb1',
+    supplierOrders: suppliersList,
+    canCancelTransferTransaction: () => false,
+    onDateFilterOpenChange: vi.fn(),
+    onFilterOpenChange: vi.fn(),
+    onOpenSaleCard: vi.fn(),
+    onPageChange: vi.fn(),
+    onPageSizeChange: vi.fn(),
+    onSelectedCashboxIdChange: vi.fn(),
+    onSelectedSupplierOrderChange: vi.fn(),
+    onSetAppliedFilters: vi.fn(),
+    onSetDraftFilters: vi.fn(),
+    onSetTransferToCancel: vi.fn(),
+    onEditTransactionNote: vi.fn(),
+  });
+
+  it('Payment for order r000066 opens a new browser tab for sale/repair order', async () => {
+    const openSpy = vi.fn();
+    const origOpen = window.open;
+    window.open = openSpy;
+
+    const { AccountingTransactionsView: RealView } = await vi.importActual<
+      typeof import('./AccountingTransactionsView')
+    >('./AccountingTransactionsView');
+
+    const props = minimalProps('Payment for order r000066', [sampleSale], []);
+    render(<RealView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: 'Payment for order r000066' });
+    fireEvent.click(noteBtn);
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const urlArg = openSpy.mock.calls[0][0] as string;
+    expect(urlArg).toContain('page=orders');
+    expect(urlArg).toContain('saleId=sale-xyz');
+    expect(urlArg).toContain('ordersTab=orders'); // repair kind
+
+    window.open = origOpen;
+  });
+
+  it('Refund for order follows same resolution rules and opens tab', async () => {
+    const openSpy = vi.fn();
+    const origOpen = window.open;
+    window.open = openSpy;
+
+    const { AccountingTransactionsView: RealView } = await vi.importActual<
+      typeof import('./AccountingTransactionsView')
+    >('./AccountingTransactionsView');
+
+    const saleForRefund = { ...sampleSaleSaleKind, recordNumber: 's999' };
+    const props = minimalProps('Refund for order s999', [saleForRefund], []);
+    render(<RealView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: 'Refund for order s999' });
+    fireEvent.click(noteBtn);
+
+    expect(openSpy).toHaveBeenCalled();
+    expect(openSpy.mock.calls[0][0]).toContain('ordersTab=sales');
+    expect(openSpy.mock.calls[0][0]).toContain('saleId=sale-sale');
+
+    window.open = origOpen;
+  });
+
+  it('Supplier-order note still opens read-only supplier modal via onSelectedSupplierOrderChange', async () => {
+    const onSelect = vi.fn();
+    const { AccountingTransactionsView: RealView } = await vi.importActual<
+      typeof import('./AccountingTransactionsView')
+    >('./AccountingTransactionsView');
+
+    const props = {
+      ...minimalProps('Payment for order SUP-77', [], [sampleSupplier]),
+      onSelectedSupplierOrderChange: onSelect,
+    };
+    render(<RealView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: /Payment for order SUP-77/i });
+    fireEvent.click(noteBtn);
+
+    expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('Plain manual deposit/withdraw note does not open an order (renders as editable note button)', async () => {
+    const onSelect = vi.fn();
+    const onEdit = vi.fn();
+    const { AccountingTransactionsView: RealView } = await vi.importActual<
+      typeof import('./AccountingTransactionsView')
+    >('./AccountingTransactionsView');
+
+    const props = {
+      ...minimalProps('Manual cash deposit from client', [], []),
+      onSelectedSupplierOrderChange: onSelect,
+      onOpenSaleCard: vi.fn(),
+      onEditTransactionNote: onEdit,
+    };
+    const { container } = render(<RealView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: 'Manual cash deposit from client' });
+    expect(noteBtn).toBeInTheDocument();
+    // note cell contains text
+    expect(container.textContent).toContain('Manual cash deposit from client');
+    expect(onSelect).not.toHaveBeenCalled();
+
+    fireEvent.click(noteBtn);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Cancel transfer only when canCancelTransferTransaction returns true', async () => {
+    const { AccountingTransactionsView: RealView } = await vi.importActual<
+      typeof import('./AccountingTransactionsView')
+    >('./AccountingTransactionsView');
+
+    const txToday = baseTx('') as any;
+    txToday.id = 'tx-today';
+    txToday.type = 'transfer';
+    txToday.fromCashbox = { id: 'c1', name: 'A' };
+    txToday.toCashbox = { id: 'c2', name: 'B' };
+    txToday.transactionDate = '2026-06-18T10:00:00.000Z';
+
+    const txOld = { ...txToday, id: 'tx-old', transactionDate: '2026-06-01T10:00:00.000Z' };
+
+    const propsToday = {
+      ...minimalProps('', [], []),
+      paginatedTransactions: [txToday],
+      filteredTransactions: [txToday],
+      canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
+      onSetTransferToCancel: vi.fn(),
+    };
+    const { container: c1, unmount } = render(<RealView {...propsToday} />);
+    expect(c1.textContent).toContain('Cancel transfer');
+    unmount();
+
+    const propsOld = {
+      ...propsToday,
+      paginatedTransactions: [txOld],
+      filteredTransactions: [txOld],
+      canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
+    };
+    const { container: c2 } = render(<RealView {...propsOld} />);
+    expect(c2.textContent).not.toContain('Cancel transfer');
+  });
+});
+
+describe('AccountingPanel transaction note editing', () => {
+  beforeEach(() => {
+    vi.mocked(updateFinanceTransaction).mockReset();
+    vi.mocked(updateFinanceTransaction).mockResolvedValue({} as any);
+    setupPreferences();
+  });
+
+  it('clicking manual withdraw/deposit note (via mock trigger) opens note modal', () => {
+    mutableState.activeTab = 'transactions';
+    setupHooks({
+      transactions: [{ id: 'tx1', note: 'Manual deposit 500', type: 'deposit' } as any],
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'edit manual note' }));
+    expect(screen.getByText('Transaction note')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toHaveValue('Manual deposit note text');
+  });
+
+  it('editing and saving calls PATCH API via updateFinanceTransaction and closes modal', async () => {
+    mutableState.activeTab = 'transactions';
+    setupHooks({
+      transactions: [{ id: 'tx2', note: 'Old note', type: 'withdraw' } as any],
+    });
+    const onSuccess = vi.fn();
+    renderPanel({ onSuccess });
+
+    fireEvent.click(screen.getByRole('button', { name: 'edit note' }));
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(updateFinanceTransaction).toHaveBeenCalledWith('tx-manual', { note: 'Updated manual note' });
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
+    });
+    expect(onSuccess).toHaveBeenCalledWith('Note updated.');
+  });
+
+  it('cancelling note edit does not call API', () => {
+    mutableState.activeTab = 'transactions';
+    setupHooks({
+      transactions: [{ id: 'tx3', note: 'Something', type: 'deposit' } as any],
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'edit manual note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(updateFinanceTransaction).not.toHaveBeenCalled();
+    expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
   });
 });

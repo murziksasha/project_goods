@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '../../../shared/api/http';
 import type { Employee } from '../../../entities/employee/model/types';
@@ -18,9 +18,10 @@ vi.mock('../../../entities/auth/api/authApi', async () => {
   };
 });
 
-vi.mock('../model/useDashboardPage', () => ({
-  useDashboardPage: () => ({
-    state: {
+vi.mock('../model/useDashboardPage', () => {
+  return {
+    useDashboardPage: vi.fn(() => ({
+      state: {
       allProducts: [],
       clientDevices: [],
       catalogProducts: [],
@@ -83,7 +84,7 @@ vi.mock('../model/useDashboardPage', () => ({
       isSeeding: false,
       error: '',
       successMessage: '',
-      lastSyncAt: null,
+      lastSyncAt: '2026-06-18T10:30:45.000Z',
     },
     actions: {
       showError: vi.fn(),
@@ -132,8 +133,9 @@ vi.mock('../model/useDashboardPage', () => ({
       exportProducts: vi.fn(),
       setStatsPeriod: vi.fn(),
     },
-  }),
-}));
+  })),
+  };
+});
 
 vi.mock('../../../widgets/dashboard/ui/Notifications', () => ({
   Notifications: ({ error }: { error: string }) => (
@@ -220,5 +222,33 @@ describe('DashboardPage auth recovery', () => {
     expect(screen.getByTestId('notifications')).toHaveTextContent(
       'Session check failed.',
     );
+  });
+});
+
+describe('DashboardPage last sync reload', () => {
+  it('clicking Last sync hard reloads the page and preserves login state', () => {
+    const reloadSpy = vi.fn();
+    const originalLocation = window.location;
+    window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
+    delete (window as any).location;
+    (window as any).location = { reload: reloadSpy };
+
+    render(<DashboardPage />);
+
+    const syncButton = screen.getByRole('button', { name: /Last sync/i });
+    expect(syncButton).toHaveClass('topbar-sync-button');
+    expect(syncButton).toHaveAttribute('title', 'Reload data');
+
+    // click
+    fireEvent.click(syncButton);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+    // login state preserved (no localStorage clear triggered by handler)
+    expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
+
+    // restore
+    // @ts-expect-error
+    window.location = originalLocation;
   });
 });

@@ -1542,9 +1542,15 @@
   border-bottom: 1px solid #d5dde7;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 0 24px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .topbar-menu-button {
@@ -1563,19 +1569,38 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: auto;
   color: #4b5d73;
   font-size: 1.45rem;
 }
 
 .topbar-sync-label {
+  flex: 0 1 auto;
+  margin-left: auto;
+  margin-right: auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #6f839a;
   font-size: 0.85rem;
-  margin-right: auto;
+}
+
+.topbar-sync-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.topbar-sync-button:hover,
+.topbar-sync-button:focus {
+  color: #4b5d73;
+  text-decoration: underline;
 }
 
 .topbar-actions {

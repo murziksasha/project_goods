@@ -403,13 +403,46 @@ describe('sale payment/refund finance coupling', () => {
 
     const updatedSvc = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
-      amount: '190',
+      amount: '90',
       paymentMethod: 'non-cash',
       action: 'deposit',
       targetStatus: 'paid',
       author: 'Tech',
     });
-    expect(updatedSvc.paidAmount).toBe(290);
+    expect(updatedSvc.paidAmount).toBe(190);
     expect(updatedSvc.status).toBe('paid');
+  });
+
+  it('rejects payment greater than remaining balance', async () => {
+    const repair = {
+      ...buildSale(),
+      kind: 'repair',
+      status: 'inRepair',
+      paidAmount: 100,
+      lineItems: [
+        {
+          id: 'li-svc',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 190,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    };
+    saleModel.findById.mockReturnValue({
+      lean: vi.fn().mockResolvedValue(repair),
+    });
+
+    await expect(
+      acceptSalePayment('sale-1', {
+        cashboxId: 'cashbox-1',
+        amount: '100',
+        paymentMethod: 'cash',
+        action: 'deposit',
+        targetStatus: 'paid',
+        author: 'Tech',
+      }),
+    ).rejects.toThrow('Payment amount cannot exceed the remaining balance.');
   });
 });

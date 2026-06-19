@@ -64,6 +64,7 @@ http://localhost:5000/api
 - `PATCH /finance/currencies/:currencyCode` - archive or restore a currency with `{ "isArchived": boolean }`; `UAH` cannot be archived.
 - `GET /finance/transactions` - список финансовых операций
 - `POST /finance/transactions` - создать финансовую операцию; optional `idempotencyKey` deduplicates repeated manual submissions.
+- `PATCH /finance/transactions/:transactionId` - update a finance transaction. Currently supports updating the `note` field (`{ "note": "..." }`). Trims the value; max 300 characters. Not allowed on cancelled transactions.
 - `GET /finance/report` - получить финансовый отчет
 
 ## Supplier Orders

@@ -13,6 +13,7 @@ import type {
   SupplierOrderPaymentQueueItem,
   UpdateCashboxPayload,
   UpdateFinanceCurrencyPayload,
+  UpdateFinanceTransactionPayload,
 } from '../model/types';
 
 const invalidateFinanceQueries = async () => {
@@ -128,6 +129,21 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
   try {
     const response = await apiClient.post<FinanceTransaction>(
       `/finance/transactions/${transactionId}/cancel`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateFinanceTransaction = async (
+  transactionId: string,
+  payload: UpdateFinanceTransactionPayload,
+) => {
+  try {
+    const response = await apiClient.patch<FinanceTransaction>(
+      `/finance/transactions/${transactionId}`,
+      payload,
     );
     return response.data;
   } catch (error) {
@@ -292,5 +308,17 @@ export const usePaySupplierOrderMutation = () =>
 export const useIssueSupplierOrderWithoutPaymentMutation = () =>
   useMutation({
     mutationFn: issueSupplierOrderWithoutPayment,
+    onSuccess: invalidateFinanceQueries,
+  });
+
+export const useUpdateFinanceTransactionMutation = () =>
+  useMutation({
+    mutationFn: ({
+      transactionId,
+      payload,
+    }: {
+      transactionId: string;
+      payload: UpdateFinanceTransactionPayload;
+    }) => updateFinanceTransaction(transactionId, payload),
     onSuccess: invalidateFinanceQueries,
   });

@@ -76,6 +76,10 @@ export type UpdateCashboxPayload = {
   enabledCurrencies?: Record<FinanceCurrency, boolean>;
 };
 
+export type UpdateFinanceTransactionPayload = {
+  note: string;
+};
+
 export type CreateFinanceTransactionPayload = {
   type: FinanceTransactionType;
   amount: string;
