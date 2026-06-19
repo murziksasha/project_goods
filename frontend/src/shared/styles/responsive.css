@@ -63,13 +63,15 @@
     padding-block: 10px;
   }
 
-  .topbar-title {
+  .topbar-title,
+  .topbar-left {
     flex: 1 1 220px;
   }
 
   .topbar-sync-label {
     order: 3;
     flex: 1 1 100%;
+    margin-left: 0;
     margin-right: 0;
   }
 
@@ -166,8 +168,11 @@
     padding: 10px 12px;
   }
 
-  .topbar-title {
+  .topbar-left {
     flex-basis: calc(100% - 48px);
+  }
+
+  .topbar-title {
     font-size: 1.1rem;
   }
 
@@ -974,7 +979,7 @@
     flex: 0 0 36px;
   }
 
-  .topbar-title {
+  .topbar-left {
     flex-basis: calc(100% - 48px);
   }
 
