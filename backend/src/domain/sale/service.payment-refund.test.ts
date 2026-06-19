@@ -103,6 +103,20 @@ const buildSale = () => ({
   issuedBySnapshot: null,
 });
 
+/**
+ * Sets up findById + findByIdAndUpdate mocks for payment tests.
+ * Uses mockImplementation to capture the exact update payload for the current call.
+ * This supports multiple accept/refund calls inside a single it() without stale mock.calls[0] issues.
+ */
+const setupPaymentMocks = (sale: any) => {
+  saleModel.findById.mockReturnValue({
+    lean: vi.fn().mockResolvedValue(sale),
+  });
+  saleModel.findByIdAndUpdate.mockImplementation((_id: any, update: any) => ({
+    lean: vi.fn().mockResolvedValue({ ...sale, ...update }),
+  }));
+};
+
 describe('sale payment/refund finance coupling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -117,15 +131,7 @@ describe('sale payment/refund finance coupling', () => {
 
   it('creates a deposit and updates sale payment state together', async () => {
     const sale = buildSale();
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -155,9 +161,7 @@ describe('sale payment/refund finance coupling', () => {
 
   it('does not create a deposit when issuing would violate payment rules', async () => {
     const sale = buildSale();
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
+    setupPaymentMocks(sale);
 
     await expect(
       acceptSalePayment('sale-1', {
@@ -180,15 +184,7 @@ describe('sale payment/refund finance coupling', () => {
       status: 'issued',
       paidAmount: 290,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await refundSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -217,9 +213,7 @@ describe('sale payment/refund finance coupling', () => {
       ...buildSale(),
       paidAmount: 50,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
+    setupPaymentMocks(sale);
 
     await expect(
       refundSalePayment('sale-1', {
@@ -240,15 +234,7 @@ describe('sale payment/refund finance coupling', () => {
       status: 'reserved',
       paidAmount: 0,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -282,15 +268,7 @@ describe('sale payment/refund finance coupling', () => {
       status: 'new',
       paidAmount: 0,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -319,15 +297,7 @@ describe('sale payment/refund finance coupling', () => {
         },
       ],
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(repair),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...repair,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(repair);
 
     const updated = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-2',
@@ -353,15 +323,7 @@ describe('sale payment/refund finance coupling', () => {
       status: 'inRepair',
       paidAmount: 0,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(repairWithProduct),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...repairWithProduct,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(repairWithProduct);
 
     const updatedWith = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -391,15 +353,7 @@ describe('sale payment/refund finance coupling', () => {
         },
       ],
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(repairServiceOnly),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...repairServiceOnly,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(repairServiceOnly);
 
     const updatedSvc = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -430,9 +384,7 @@ describe('sale payment/refund finance coupling', () => {
         },
       ],
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(repair),
-    });
+    setupPaymentMocks(repair);
 
     await expect(
       acceptSalePayment('sale-1', {

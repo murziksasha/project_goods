@@ -1,0 +1,5 @@
+
+> backend@1.0.0 typecheck
+> tsc --noEmit ; echo TYPECHECK_EXIT=$? ; findstr /C:error TS typecheck.log
+
+error TS5112: tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error.

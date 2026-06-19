@@ -337,7 +337,7 @@ export const AccountingPanel = ({
           cashboxId: cashbox.id,
           payload: { isArchived: nextArchived },
         }),
-      nextArchived ? 'Cashbox reactivated.' : 'Cashbox deactivated.',
+      nextArchived ? 'Cashbox deactivated.' : 'Cashbox reactivated.',
       {
         skipRefresh: true,
         errorFallback: 'Failed to update cashbox status.',

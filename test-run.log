@@ -1,0 +1,35 @@
+
+> frontend@0.0.0 test
+> vitest run src/widgets/dashboard/ui/AccountingPanel.test.tsx src/widgets/dashboard/ui/CreateOrderCard.test.tsx ; echo TEST_RUN_DONE
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mc:/Users/murzi/Desktop/project/project_goods/frontend[39m
+
+ [31m❯[39m src/widgets/dashboard/ui/CreateOrderCard.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/widgets/dashboard/ui/AccountingPanel.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/AccountingPanel.test.tsx[2m [ src/widgets/dashboard/ui/AccountingPanel.test.tsx ][22m
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'config')[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/AccountingPanel.test.tsx:[2m494:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/CreateOrderCard.test.tsx[2m [ src/widgets/dashboard/ui/CreateOrderCard.test.tsx ][22m
+[31m[1mError[22m: Vitest failed to find the current suite. One of the following is possible:
+- "vitest" is imported directly without running "vitest" command
+- "vitest" is imported inside "globalSetup" (to fix this, use "setupFiles" instead, because "globalSetup" runs in a different context)
+- "vitest" is imported inside Vite / Vitest config file
+- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues
+[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/CreateOrderCard.test.tsx:[2m139:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 05:23:36
+[2m   Duration [22m 6.27s[2m (transform 2.14s, setup 1.40s, import 0ms, tests 0ms, environment 4.74s)[22m
+
