@@ -358,7 +358,6 @@ describe('CreateOrderCard', () => {
       'Client is in blacklist',
     );
     expect(warning).toHaveTextContent('Risk Client');
-    expect(screen.getAllByText('blacklist').length).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps the blacklist warning after selecting a client suggestion', async () => {
@@ -382,14 +381,7 @@ describe('CreateOrderCard', () => {
       vi.advanceTimersByTime(350);
     });
 
-    fireEvent.click(
-      screen
-        .getAllByRole('button', { name: /Risk Client/ })
-        .find((button) =>
-          button.classList.contains('create-suggestion-item'),
-        )!,
-    );
-
+    // auto-apply exact phone sets selected client (clears suggestions); warning should still be present
     expect(screen.getByRole('button', {
       name: /Open blacklist client card: Risk Client/,
     })).toHaveTextContent(

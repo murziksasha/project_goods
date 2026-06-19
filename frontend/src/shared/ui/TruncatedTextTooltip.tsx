@@ -52,15 +52,19 @@ export const TruncatedTextTooltip = ({
   }, [normalized, hasChildren]);
 
   const openTooltip = () => {
-    if (!isOverflow) return;
     const el = triggerRef.current;
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      setPos({
-        top: rect.bottom + window.scrollY + 6,
-        left: rect.left + window.scrollX,
-      });
+    if (!el) return;
+    const overflow = el.scrollWidth > el.clientWidth + 1;
+    if (!overflow) {
+      setIsOverflow(false);
+      return;
     }
+    setIsOverflow(true);
+    const rect = el.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + window.scrollY + 6,
+      left: rect.left + window.scrollX,
+    });
     setShow(true);
   };
 

@@ -1544,6 +1544,7 @@
   align-items: center;
   gap: 12px;
   padding: 0 24px;
+  justify-content: space-between;
 }
 
 .topbar-left {

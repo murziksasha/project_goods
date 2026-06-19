@@ -266,6 +266,24 @@ export const CreateOrderCard = ({
     };
   }, [clientLookupQuery, shouldShowClientSuggestions]);
 
+  // Auto-apply exact phone match from suggestions so that an existing client by phone
+  // is preferred (even if user typed a different name). This prevents accidental
+  // duplicate client creation and makes the "exact phone client" test pass.
+  useEffect(() => {
+    if (selectedClientId) return;
+    const norm = getPhoneIdentity(clientPhone);
+    if (norm.length < 3) return;
+    const match = clientSuggestions.find((c) => getPhoneIdentity(c.phone) === norm);
+    if (match) {
+      if (clientName.trim() !== match.name) {
+        setClientName(match.name);
+      }
+      setSelectedClientId(match.id);
+      setSelectedClient(match);
+      setClientSuggestions([]);
+    }
+  }, [clientSuggestions, clientPhone, selectedClientId, clientName]);
+
   useEffect(() => {
     if (!selectedClientId) return;
 

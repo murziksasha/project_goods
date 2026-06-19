@@ -116,7 +116,8 @@ vi.mock('../../../entities/finance/api/financeApi', () => {
       }) => updateFinanceCurrency(currencyCode, payload),
     }),
     useUpdateFinanceTransactionMutation: () => ({
-      mutateAsync: updateFinanceTransaction,
+      mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: any }) =>
+        updateFinanceTransaction(transactionId, payload),
     }),
   };
 });
@@ -262,6 +263,7 @@ vi.mock('./AccountingTransactionsView', () => ({
       <button type='button' onClick={() => props.onOpenSaleCard({ id: 'sale-1', kind: 'sale' })}>sale card</button>
       <button type='button' onClick={() => props.onEditTransactionNote?.(props.filteredTransactions[0])}>edit note</button>
       <button type='button' onClick={() => props.onEditTransactionNote?.({ ...props.filteredTransactions[0], id: 'tx-manual', note: 'Manual deposit note text' })}>edit manual note</button>
+      <span data-testid="tx-mock-actions" />
     </section>
   ),
 }));
@@ -323,14 +325,14 @@ vi.mock('./AccountingConfirmModals', () => ({
 
 const now = '2026-06-16T10:00:00.000Z';
 
-const employee = (role: Employee['role'] = 'owner'): Employee => ({
+const employee = (role: Employee['role'] = 'owner', permissions: Employee['permissions'] = []): Employee => ({
   id: 'employee-1',
   name: 'Owner',
   phone: '',
   email: '',
   username: 'owner',
   role,
-  permissions: [],
+  permissions,
   isActive: true,
   isRegistered: true,
   note: '',
@@ -494,9 +496,11 @@ describe('AccountingPanel', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
+    vi.useRealTimers();
     mutableState.activeTab = 'cashboxes';
     mutableState.isFinanceSettingsOpen = false;
     setupHooks();
@@ -683,7 +687,7 @@ describe('AccountingPanel', () => {
       | CreateFinanceTransactionPayload
       | undefined;
     expect(lastCall?.idempotencyKey).toBeTruthy();
-    expect(onSuccess).not.toHaveBeenCalled(); // mock does not auto succeed in this flow without further setup
+    expect(onSuccess).toHaveBeenCalledWith('Finance transaction saved.');
   });
 
   it('handles settings actions and validation failures', async () => {
@@ -852,10 +856,15 @@ describe('AccountingPanel', () => {
   });
 
   it('handles transactions tab modals and cancellation', async () => {
+    vi.setSystemTime(new Date('2026-06-16T10:00:00.000Z'));
     mutableState.activeTab = 'transactions';
     const onError = vi.fn();
     const onOpenSaleCard = vi.fn();
-    renderPanel({ onError, onOpenSaleCard });
+    renderPanel({
+      onError,
+      onOpenSaleCard,
+      currentEmployee: employee('owner', ['finance.transactions.transfer']),
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'filter open' }));
     fireEvent.click(screen.getByRole('button', { name: 'date open' }));
@@ -1194,9 +1203,9 @@ describe('AccountingPanel transaction note editing', () => {
     });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit manual note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'edit manual note' })[0]);
     expect(screen.getByText('Transaction note')).toBeInTheDocument();
-    expect(screen.getByRole('textbox')).toHaveValue('Manual deposit note text');
+    expect(screen.getByPlaceholderText('Enter note...')).toHaveValue('Manual deposit note text');
   });
 
   it('editing and saving calls PATCH API via updateFinanceTransaction and closes modal', async () => {
@@ -1207,13 +1216,13 @@ describe('AccountingPanel transaction note editing', () => {
     const onSuccess = vi.fn();
     renderPanel({ onSuccess });
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit note' }));
-    const textarea = screen.getByRole('textbox');
+    fireEvent.click(screen.getAllByRole('button', { name: 'edit note' })[0]);
+    const textarea = screen.getByPlaceholderText('Enter note...');
     fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(updateFinanceTransaction).toHaveBeenCalledWith('tx-manual', { note: 'Updated manual note' });
+      expect(updateFinanceTransaction).toHaveBeenCalledWith('tx2', { note: 'Updated manual note' });
     });
     await waitFor(() => {
       expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
@@ -1228,7 +1237,7 @@ describe('AccountingPanel transaction note editing', () => {
     });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit manual note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'edit manual note' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(updateFinanceTransaction).not.toHaveBeenCalled();
     expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
