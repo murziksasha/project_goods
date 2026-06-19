@@ -98,18 +98,54 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
       : toNumber(payload.warrantyPeriod),
 });
 
-export const normalizeClientPayload = (payload: ClientPayload) => ({
-  phone: normalizeClientPhone(payload.phone),
-  name: toNonEmptyString(payload.name),
-  email: toNonEmptyString(payload.email),
-  address: toNonEmptyString(payload.address),
-  registrationId: toNonEmptyString(payload.registrationId),
-  iban: toNonEmptyString(payload.iban).replace(/\s+/g, '').toUpperCase(),
-  note: toNonEmptyString(payload.note),
-  status: clientStatuses.includes(String(payload.status ?? '') as ClientStatus)
-    ? (payload.status as ClientStatus)
-    : 'new',
-});
+export const normalizeClientPayload = (payload: ClientPayload) => {
+  const legacyPhone = normalizeClientPhone(payload.phone);
+
+  let inputPhones: unknown[] = [];
+  if (Array.isArray(payload.phones)) {
+    inputPhones = payload.phones;
+  } else if (typeof payload.phones === 'string' && payload.phones.trim()) {
+    inputPhones = payload.phones.split(/[;,\n\r]+/);
+  }
+
+  const normalizedList = inputPhones
+    .map(normalizeClientPhone)
+    .filter((p) => p && p.length > 0);
+
+  if (legacyPhone && !normalizedList.includes(legacyPhone)) {
+    normalizedList.unshift(legacyPhone);
+  }
+  if (normalizedList.length === 0 && legacyPhone) {
+    normalizedList.push(legacyPhone);
+  }
+
+  // dedupe preserving order
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const p of normalizedList) {
+    if (!seen.has(p)) {
+      seen.add(p);
+      unique.push(p);
+    }
+  }
+
+  const phone = unique[0] || legacyPhone || '';
+  const phones = phone ? [phone, ...unique.slice(1)] : [];
+
+  return {
+    phone,
+    phones,
+    name: toNonEmptyString(payload.name),
+    email: toNonEmptyString(payload.email),
+    address: toNonEmptyString(payload.address),
+    registrationId: toNonEmptyString(payload.registrationId),
+    iban: toNonEmptyString(payload.iban).replace(/\s+/g, '').toUpperCase(),
+    note: toNonEmptyString(payload.note),
+    status: clientStatuses.includes(String(payload.status ?? '') as ClientStatus)
+      ? (payload.status as ClientStatus)
+      : 'new',
+  };
+};
 
 export const normalizeSalePayload = (payload: SalePayload) => ({
   saleDate: toOptionalDate(payload.saleDate) ?? new Date(),

@@ -5,6 +5,7 @@ export type ClientStatus = 'new' | 'vip' | 'opt' | 'blacklist' | 'ok';
 export type Client = {
   id: string;
   phone: string;
+  phones: string[];
   name: string;
   email: string;
   address: string;
@@ -18,6 +19,7 @@ export type Client = {
 
 export type ClientFormValues = {
   phone: string;
+  phones: string[];
   name: string;
   email: string;
   address: string;

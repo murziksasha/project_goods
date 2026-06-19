@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
+import { getClientPhones } from '../../../entities/client/model/forms';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
@@ -177,9 +178,10 @@ export const CreateOrderCard = ({
     }
 
     const exactMatches = clientSuggestions.filter((client) => {
+      const clientPhones = getClientPhones(client);
       const samePhone =
         normalizedInputPhone.length > 0 &&
-        getPhoneIdentity(client.phone) === normalizedInputPhone;
+        clientPhones.some((ph) => getPhoneIdentity(ph) === normalizedInputPhone);
       const sameName =
         normalizedInputName.length >= 2 && client.name.trim().toLowerCase() === normalizedInputName;
       return samePhone || sameName;
@@ -580,9 +582,10 @@ export const CreateOrderCard = ({
     if (!normalizedPhone || normalizedName.length < 2) return null;
 
     const normalizedPhoneDigits = getPhoneIdentity(normalizedPhone);
-    const fromSuggestions = clientSuggestions.find(
-      (client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits,
-    );
+    const fromSuggestions = clientSuggestions.find((client) => {
+      const ps = getClientPhones(client);
+      return ps.some((ph) => getPhoneIdentity(ph) === normalizedPhoneDigits);
+    });
     if (fromSuggestions) {
       applyClient(fromSuggestions);
       return fromSuggestions;
@@ -592,7 +595,10 @@ export const CreateOrderCard = ({
     try {
       const clients = await getClients(normalizedPhone);
       const existingClient =
-        clients.find((client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits) ?? null;
+        clients.find((client) => {
+          const ps = getClientPhones(client);
+          return ps.some((ph) => getPhoneIdentity(ph) === normalizedPhoneDigits);
+        }) ?? null;
 
       if (existingClient) {
         applyClient(existingClient);
@@ -601,6 +607,7 @@ export const CreateOrderCard = ({
 
       const createdClient = await createClient({
         phone: normalizedPhone,
+        phones: [normalizedPhone],
         name: normalizedName,
         email: '',
         address: '',

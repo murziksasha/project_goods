@@ -5,6 +5,7 @@ import type {
   ClientFormValues,
   ClientStatus,
 } from '../../../entities/client/model/types';
+import { getClientPhones } from '../../../entities/client/model/forms';
 import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 
 type ClientFormProps = {
@@ -60,9 +61,8 @@ export const ClientForm = ({
             const matchesName =
               !normalizedName ||
               client.name.toLowerCase().includes(normalizedName);
-            const matchesPhone = normalizeDigits(
-              client.phone,
-            ).includes(normalizedPhone);
+            const clientPhones = getClientPhones(client);
+            const matchesPhone = clientPhones.some((ph) => normalizeDigits(ph).includes(normalizedPhone));
 
             return matchesName || matchesPhone;
           })
@@ -123,7 +123,10 @@ export const ClientForm = ({
               validatePhone(form.phone);
             }}
             onChange={(event) => {
-              onChange('phone', event.target.value);
+              const val = event.target.value;
+              const nextPhones = Array.isArray(form.phones) && form.phones.length > 0 ? [val, ...form.phones.slice(1)] : [val];
+              onChange('phone', val);
+              onChange('phones', nextPhones);
               setPhoneError(null);
             }}
           />

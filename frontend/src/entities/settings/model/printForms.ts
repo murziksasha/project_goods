@@ -1028,7 +1028,8 @@ export const printDocumentStyles = `
   html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
   body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
   .print-form { page-break-after: always; padding: 16mm; }
-  .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; overflow: hidden; }
+  .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }
+  .print-form-label .print-label { width: 100%; height: 100%; box-sizing: border-box; }
   body.print-screen-preview .print-form-label { margin: 0 auto 18px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.32); page-break-after: auto; zoom: 3.6; }
   .print-document { font-size: 13px; line-height: 1.45; }
   .print-document h1 { font-size: 22px; margin: 0 0 16px; font-weight: 500; }
@@ -1091,11 +1092,11 @@ export const printDocumentStyles = `
   .invoice-signature { display: grid; grid-template-columns: 120px 1fr 220px; align-items: end; gap: 16px; margin-top: 24px; font-size: 12px; }
   .invoice-signature span { border-bottom: 1px solid #333; height: 18px; }
   .invoice-note { margin-top: 44px; font-size: 11px; }
-  @page { size: A4 portrait; margin: 12mm; }
   @media print {
     body { margin: 0; }
     body.print-screen-preview { padding: 0; background: #fff; }
-    .print-form { border: 0 !important; margin: 0 !important; }
+    .print-form { border: 0 !important; margin: 0 !important; padding: 0 !important; }
+    .print-form-label { padding: 0 !important; margin: 0 !important; }
     body.print-screen-preview .print-form-label { box-shadow: none; margin: 0; zoom: 1; }
     .print-form-label { page-break-after: always; }
   }
