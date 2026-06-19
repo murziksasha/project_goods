@@ -261,6 +261,25 @@ describe('normalizeClientPayload', () => {
       note: 'Note',
       status: 'vip',
     });
+    expect(result.phones).toEqual(['+380671112233']);
+  });
+
+  it('normalizes phones array, sets phone to first, dedupes, and keeps phones[0]===phone', () => {
+    const result = normalizeClientPayload({
+      phone: '+380501112233',
+      phones: [' +38 (050) 111-22-33 ', '067 222 33 44', '+380501112233', ''],
+      name: 'Multi Phone',
+    });
+    expect(result.phone).toBe('+380501112233');
+    expect(result.phones).toEqual(['+380501112233', '+380672223344']);
+  });
+
+  it('falls back to legacy phone when phones missing or empty', () => {
+    const r1 = normalizeClientPayload({ phone: '0671234567', phones: [] });
+    expect(r1.phone).toBe('+380671234567');
+    expect(r1.phones).toEqual(['+380671234567']);
+    const r2 = normalizeClientPayload({ phone: '+380501234567' });
+    expect(r2.phones).toEqual(['+380501234567']);
   });
 });
 

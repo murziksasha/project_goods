@@ -1290,20 +1290,19 @@ export const buildOrderPrintHtml = ({
   screenPreview?: boolean;
 }) => {
   const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
-  const pageRuleSize =
-    pageSize === 'label'
-      ? `${orientedLabelSize.widthMm}mm ${orientedLabelSize.heightMm}mm`
-      : `A4 ${orientation}`;
-  const labelStyle =
-    pageSize === 'label'
-      ? ` style="--label-width: ${orientedLabelSize.widthMm}mm; --label-height: ${orientedLabelSize.heightMm}mm;"`
-      : '';
+  const isLabel = pageSize === 'label';
+  const pageRule = isLabel
+    ? `@page { size: ${orientedLabelSize.widthMm}mm ${orientedLabelSize.heightMm}mm; margin: 0; }`
+    : `@page { size: A4 ${orientation}; margin: 12mm; }`;
+  const labelStyle = isLabel
+    ? ` style="--label-width: ${orientedLabelSize.widthMm}mm; --label-height: ${orientedLabelSize.heightMm}mm;"`
+    : '';
   const htmlClasses = [
-    pageSize === 'label' ? 'print-html-label' : '',
+    isLabel ? 'print-html-label' : '',
     screenPreview ? 'print-screen-preview' : '',
   ].filter(Boolean);
   const bodyClasses = [
-    pageSize === 'label' ? 'print-body-label' : '',
+    isLabel ? 'print-body-label' : '',
     screenPreview ? 'print-screen-preview' : '',
   ].filter(Boolean);
   const htmlClass = htmlClasses.length ? ` class="${htmlClasses.join(' ')}"` : '';
@@ -1315,7 +1314,7 @@ export const buildOrderPrintHtml = ({
       <head>
         <title>${title}</title>
         <style>
-          @page { size: ${pageRuleSize}; margin: 0; }
+          ${pageRule}
           ${printDocumentStyles}
         </style>
       </head>
@@ -1365,7 +1364,13 @@ export const openOrderPrintWindow = async ({
         once: true,
       });
     }
-    printWindow.print();
+    const triggerPrint = () => printWindow.print();
+    if (pageSize === 'label') {
+      // wait a frame (or two) to ensure layout and JsBarcode SVG are ready for label physical size
+      requestAnimationFrame(() => requestAnimationFrame(triggerPrint));
+    } else {
+      triggerPrint();
+    }
   }
 };
 

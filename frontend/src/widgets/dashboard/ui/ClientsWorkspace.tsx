@@ -34,9 +34,10 @@ import {
   isOptionalIbanValid,
   isOptionalRegistrationIdValid,
   normalizeClientFiltersForApply,
-  normalizeIban,
   normalizeText,
+  mapClientDraftToPayload,
   type ClientCardTab,
+  type ClientDraft,
   type ClientFilters,
   type ClientMainForm,
   type ClientStats,
@@ -165,20 +166,6 @@ const getClientStatsMap = (sales: Sale[]) => {
   return map;
 };
 
-const mapClientDraftToPayload = (
-  draft: typeof emptyClientDraft,
-  status: ClientStatus | '' = 'new',
-): ClientFormValues => ({
-  phone: draft.phone.trim(),
-  name: draft.name.trim(),
-  email: draft.email.trim(),
-  address: draft.address.trim(),
-  registrationId: draft.registrationId.trim(),
-  iban: normalizeIban(draft.iban),
-  note: draft.note.trim(),
-  status,
-});
-
 export const ClientsWorkspace = ({
   currentEmployee,
   clients,
@@ -278,6 +265,7 @@ export const ClientsWorkspace = ({
   const [mainTabForm, setMainTabForm] = useState<ClientMainForm>({
     name: '',
     phone: '',
+    phones: [''],
     email: '',
     address: '',
     registrationId: '',
@@ -338,9 +326,13 @@ export const ClientsWorkspace = ({
   useEffect(() => {
     if (!selectedClient) return;
 
+    const phones = selectedClient.phones?.length
+      ? [...selectedClient.phones]
+      : [selectedClient.phone || ''];
     setMainTabForm({
       name: selectedClient.name,
-      phone: selectedClient.phone,
+      phone: phones[0] || selectedClient.phone || '',
+      phones,
       email: getLegacyClientEmail(selectedClient),
       address: getLegacyClientAddress(selectedClient),
       registrationId: selectedClient.registrationId,
@@ -600,16 +592,18 @@ export const ClientsWorkspace = ({
       return;
     }
 
-    await onUpdateClient(selectedClientId, {
-      name: mainTabForm.name.trim(),
-      phone: mainTabForm.phone.trim(),
-      email: mainTabForm.email.trim(),
-      address: mainTabForm.address.trim(),
-      registrationId: mainTabForm.registrationId.trim(),
-      iban: normalizeIban(mainTabForm.iban),
-      note: mainTabForm.note.trim(),
-      status: mainTabForm.status as ClientStatus | '',
-    });
+    const draftForSave: ClientDraft = {
+      phone: mainTabForm.phone,
+      phones: mainTabForm.phones || [],
+      name: mainTabForm.name,
+      address: mainTabForm.address,
+      email: mainTabForm.email,
+      registrationId: mainTabForm.registrationId,
+      iban: mainTabForm.iban,
+      note: mainTabForm.note,
+    };
+    const payload = mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | '');
+    await onUpdateClient(selectedClientId, payload);
   };
 
   const handleImportFileSelect = async (file: File | null) => {

@@ -1241,6 +1241,7 @@ export const createDashboardActions = ({
           existingClient ??
           (await mutateCreateClient({
             phone: normalizedPhone,
+            phones: [normalizedPhone],
             name: clientName,
             email: '',
             address: '',

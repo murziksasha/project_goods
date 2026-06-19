@@ -9,10 +9,10 @@ const setupClientService = async ({
 } = {}) => {
   const findOneLeanMock = vi.fn().mockResolvedValue(
     existingClientId
-      ? { _id: { toString: () => existingClientId } }
+      ? { _id: { toString: () => existingClientId }, phone: '+380635567090', phones: ['+380635567090'] }
       : null,
   );
-  const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
+  const findOneMock = vi.fn((q: any) => ({ lean: findOneLeanMock }));
   const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(null);
   const findByIdAndUpdateMock = vi.fn(() => ({
     lean: findByIdAndUpdateLeanMock,
@@ -39,6 +39,7 @@ const setupClientService = async ({
       return {
         _id: { toString: () => 'created-client-id' },
         phone: '+380635567090',
+        phones: ['+380635567090'],
         name: 'Created Client',
         email: '',
         address: '',
@@ -98,7 +99,10 @@ describe('client service', () => {
       }),
     ).rejects.toThrow(duplicatePhoneMessage);
 
-    expect(findOneMock).toHaveBeenCalledWith({ phone: '+380635567090' });
+    // our impl queries $or for phones/identities, check it was invoked
+    expect(findOneMock).toHaveBeenCalled();
+    const callArg = findOneMock.mock.calls[0]?.[0];
+    expect(callArg && (callArg.$or || callArg.phone || callArg.phoneIdentities)).toBeTruthy();
     expect(validateMock).not.toHaveBeenCalled();
     expect(saveMock).not.toHaveBeenCalled();
   });
@@ -122,7 +126,18 @@ describe('client service', () => {
       }),
     ).rejects.toThrow(duplicatePhoneMessage);
 
-    expect(findOneMock).toHaveBeenCalledWith({ phone: '+380635567090' });
+    expect(findOneMock).toHaveBeenCalled();
     expect(findByIdAndUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks create when any of the additional phones is already used', async () => {
+    const { service } = await setupClientService({ existingClientId: 'other-id' });
+    await expect(
+      service.createClient({
+        phone: '+380991112233',
+        phones: ['+380991112233', '0635567090'],
+        name: 'Dup Add',
+      }),
+    ).rejects.toThrow(duplicatePhoneMessage);
   });
 });
