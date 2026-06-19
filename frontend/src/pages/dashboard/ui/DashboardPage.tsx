@@ -853,20 +853,29 @@ export const DashboardPage = () => {
 
       <section className="dashboard-main">
         <header className="topbar">
-          <button
-            type="button"
-            className="topbar-menu-button"
-            aria-label={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
-            onClick={() => setIsSidebarCollapsed((previousValue) => !previousValue)}
-          >
-            &#9776;
-          </button>
-          <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="topbar-menu-button"
+              aria-label={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+              onClick={() => setIsSidebarCollapsed((previousValue) => !previousValue)}
+            >
+              &#9776;
+            </button>
+            <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
+          </div>
+
           {state.lastSyncAt ? (
-            <small className="topbar-sync-label">
+            <button
+              type="button"
+              className="topbar-sync-label topbar-sync-button"
+              title="Reload data"
+              onClick={() => window.location.reload()}
+            >
               {`Last sync: ${new Date(state.lastSyncAt).toLocaleTimeString('uk-UA')}`}
-            </small>
+            </button>
           ) : null}
+
           <div className="topbar-actions">
             <div className="topbar-current-user" title={currentEmployee.name}>
               <span className="topbar-current-user-name">{currentEmployee.name}</span>
@@ -913,6 +922,7 @@ export const DashboardPage = () => {
                   suppliers={state.suppliers}
                   catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
+                  canViewSupplierOrders={canViewSupplierOrders}
                   canManageSupplierOrders={canManageSupplierOrders}
                   onCreateSupplier={actions.createSupplierCard}
                   onUpdateSupplier={actions.updateSupplierCard}

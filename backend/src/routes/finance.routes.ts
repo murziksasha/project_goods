@@ -10,6 +10,7 @@ import {
   listFinanceTransactions,
   updateCashbox,
   updateFinanceCurrency,
+  updateFinanceTransactionNote,
 } from '../domain/finance/service';
 import {
   issueSupplierOrderWithoutPayment,
@@ -77,6 +78,11 @@ financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {
   const permission = transactionPermissionByType[type];
   await requirePermission(req, permission ?? 'finance.transactions.deposit');
   res.status(201).json(await createFinanceTransaction(payload));
+}));
+
+financeRouter.patch('/finance/transactions/:transactionId', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await updateFinanceTransactionNote(routeParam(req, 'transactionId'), req.body as { note?: unknown }));
 }));
 
 financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(async (req, res) => {

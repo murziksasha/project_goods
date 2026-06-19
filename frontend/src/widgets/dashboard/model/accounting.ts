@@ -97,6 +97,24 @@ export const canCancelAccountingTransferTransaction = ({
   getAccountingBusinessDateKey(transaction.transactionDate) ===
     getAccountingBusinessDateKey(now);
 
+const ORDER_TOKEN_PATTERNS = [
+  /Payment for order\s+([A-Za-z0-9-]+)/i,
+  /Refund for order\s+([A-Za-z0-9-]+)/i,
+  /Оплата замовлення\s+([A-Za-z0-9-]+)/i,
+];
+
+export const parseTransactionOrderToken = (note: string | null | undefined): string | null => {
+  if (!note) return null;
+  const trimmed = note.trim();
+  for (const pattern of ORDER_TOKEN_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
+
 export const truncateLabel = (value: string, maxLength: number) => {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)}...`;

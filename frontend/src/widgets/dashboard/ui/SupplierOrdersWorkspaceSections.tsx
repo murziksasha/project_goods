@@ -634,6 +634,7 @@ type SupplierOrdersTableProps = {
   paginatedOrders: SupplierOrder[];
   suppliers: Supplier[];
   visibleColumns: SupplierOrdersColumnKey[];
+  canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
   onError: (message: string) => void;
   onEditOrder: (order: SupplierOrder) => void;
@@ -659,6 +660,7 @@ export const SupplierOrdersTable = ({
   paginatedOrders,
   suppliers,
   visibleColumns,
+  canViewSupplierOrders,
   canManageSupplierOrders,
   onError,
   onEditOrder,
@@ -738,11 +740,8 @@ export const SupplierOrdersTable = ({
                         type='button'
                         className='catalog-name-button'
                         onClick={() => {
-                          if (
-                            !canManageSupplierOrders ||
-                            order.paymentStatus === 'paid' ||
-                            order.paymentStatus === 'without_payment'
-                          ) {
+                          if (!canViewSupplierOrders) {
+                            onError('Current employee does not have permission to view supplier orders.');
                             return;
                           }
                           onEditOrder(order);

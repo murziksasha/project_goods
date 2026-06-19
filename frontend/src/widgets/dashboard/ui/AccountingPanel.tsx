@@ -8,6 +8,7 @@ import {
   usePaySupplierOrderMutation,
   useUpdateCashboxMutation,
   useUpdateFinanceCurrencyMutation,
+  useUpdateFinanceTransactionMutation,
 } from '../../../entities/finance/api/financeApi';
 import type {
   Cashbox,
@@ -105,6 +106,10 @@ export const AccountingPanel = ({
   const [editingCashboxName, setEditingCashboxName] = useState('');
   const [newCurrencyCode, setNewCurrencyCode] = useState('');
 
+  const [noteTransactionToEdit, setNoteTransactionToEdit] =
+    useState<FinanceTransaction | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+
   const createCashboxMutation = useCreateCashboxMutation();
   const updateCashboxMutation = useUpdateCashboxMutation();
   const createFinanceCurrencyMutation = useCreateFinanceCurrencyMutation();
@@ -116,6 +121,7 @@ export const AccountingPanel = ({
   const paySupplierOrderMutation = usePaySupplierOrderMutation();
   const issueSupplierOrderWithoutPaymentMutation =
     useIssueSupplierOrderWithoutPaymentMutation();
+  const updateFinanceTransactionMutation = useUpdateFinanceTransactionMutation();
 
   const canManageCashboxes = hasEmployeePermission(
     currentEmployee,
@@ -538,6 +544,36 @@ export const AccountingPanel = ({
     );
   };
 
+  const openNoteEditor = useCallback((transaction: FinanceTransaction) => {
+    setNoteTransactionToEdit(transaction);
+    setNoteDraft(transaction.note ?? '');
+  }, []);
+
+  const closeNoteEditor = useCallback(() => {
+    setNoteTransactionToEdit(null);
+    setNoteDraft('');
+  }, []);
+
+  const handleSaveNote = async () => {
+    if (!noteTransactionToEdit) return;
+    const payloadNote = noteDraft.trim();
+    await runFinanceAction(
+      () =>
+        updateFinanceTransactionMutation.mutateAsync({
+          transactionId: noteTransactionToEdit.id,
+          payload: { note: payloadNote },
+        }),
+      'Note updated.',
+      {
+        afterSuccess: () => {
+          closeNoteEditor();
+        },
+        skipRefresh: true,
+        errorFallback: 'Failed to update note.',
+      },
+    );
+  };
+
   const closeFinanceSettingsEditing = useCallback(() => {
     setExpandedFinanceSettingsCard(null);
     setEditingCashboxId(null);
@@ -641,6 +677,7 @@ export const AccountingPanel = ({
           onSetAppliedFilters={setAppliedTransactionFilters}
           onSetDraftFilters={setDraftTransactionFilters}
           onSetTransferToCancel={setTransferToCancel}
+          onEditTransactionNote={openNoteEditor}
         />
       ) : activeTab === 'orders' ? (
         <AccountingSupplierOrdersQueue
@@ -714,6 +751,66 @@ export const AccountingPanel = ({
           onClose={() => setWithoutPaymentOrder(null)}
           onConfirm={handleIssueWithoutPayment}
         />
+      ) : null}
+      {noteTransactionToEdit ? (
+        <div
+          className='modal-backdrop'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSaving) {
+              closeNoteEditor();
+            }
+          }}
+        >
+          <div
+            className='catalog-edit-modal finance-note-modal'
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='transaction-note-title'
+          >
+            <header className='catalog-edit-header'>
+              <h2 id='transaction-note-title'>Transaction note</h2>
+              <button
+                type='button'
+                className='ghost-button'
+                disabled={isSaving}
+                onClick={closeNoteEditor}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <textarea
+                className='finance-note-textarea'
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                rows={4}
+                maxLength={300}
+                placeholder='Enter note...'
+                disabled={isSaving}
+              />
+              <p className='muted-copy'>{noteDraft.length}/300</p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                disabled={isSaving}
+                onClick={closeNoteEditor}
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={isSaving}
+                onClick={() => void handleSaveNote()}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </footer>
+          </div>
+        </div>
       ) : null}
     </section>
   );

@@ -15,9 +15,11 @@ import {
   formatMoney,
   formatTransactionDayLabel,
   initialTransactionFilters,
+  parseTransactionOrderToken,
   transactionLabels,
   type TransactionFilters,
 } from '../model/accounting';
+import { getOrderLink } from './create-order-card-shared';
 
 type AccountingTransactionsViewProps = {
   activeFiltersCount: number;
@@ -46,6 +48,7 @@ type AccountingTransactionsViewProps = {
   onSetAppliedFilters: Dispatch<SetStateAction<TransactionFilters>>;
   onSetDraftFilters: Dispatch<SetStateAction<TransactionFilters>>;
   onSetTransferToCancel: (transaction: FinanceTransaction) => void;
+  onEditTransactionNote?: (transaction: FinanceTransaction) => void;
 };
 
 export const AccountingTransactionsView = ({
@@ -67,7 +70,7 @@ export const AccountingTransactionsView = ({
   canCancelTransferTransaction,
   onDateFilterOpenChange,
   onFilterOpenChange,
-  onOpenSaleCard,
+  onOpenSaleCard: _onOpenSaleCard,
   onPageChange,
   onPageSizeChange,
   onSelectedCashboxIdChange,
@@ -75,6 +78,7 @@ export const AccountingTransactionsView = ({
   onSetAppliedFilters,
   onSetDraftFilters,
   onSetTransferToCancel,
+  onEditTransactionNote,
 }: AccountingTransactionsViewProps) => (
   <>
     <div className='orders-toolbar'>
@@ -458,52 +462,61 @@ export const AccountingTransactionsView = ({
                     <td data-label='To'>{transaction.toCashbox?.name ?? '-'}</td>
                     <td data-label='Note'>
                       {(() => {
-                        const normalizedNote = transaction.note.trim();
-                        const parsedOrderNumber =
-                          normalizedNote.match(/order\s+([A-Za-z0-9-]+)/i)?.[1] ??
-                          '';
-                        const parsedOrderNumberNormalized =
-                          parsedOrderNumber.toLowerCase();
-                        const matchedSale = sales.find(
-                          (sale) =>
-                            (sale.recordNumber ?? '').toLowerCase() ===
-                              parsedOrderNumberNormalized ||
-                            sale.id.toLowerCase() ===
-                              parsedOrderNumberNormalized,
-                        );
-                        if (matchedSale) {
+                        const token = parseTransactionOrderToken(transaction.note);
+                        if (token) {
+                          const normalizedToken = token.toLowerCase();
+                          const matchedSale = sales.find(
+                            (sale) =>
+                              (sale.recordNumber ?? '').toLowerCase() === normalizedToken ||
+                              sale.id.toLowerCase() === normalizedToken,
+                          );
+                          if (matchedSale) {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() => {
+                                  const url = getOrderLink(matchedSale.id, matchedSale.kind);
+                                  window.open(url, '_blank', 'noopener,noreferrer');
+                                }}
+                              >
+                                {transaction.note}
+                              </button>
+                            );
+                          }
+                          const matchedOrder = supplierOrders.find(
+                            (order) =>
+                              order.number === token ||
+                              order.orderBaseId === token,
+                          );
+                          if (matchedOrder) {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() =>
+                                  onSelectedSupplierOrderChange(matchedOrder)
+                                }
+                              >
+                                {transaction.note}
+                              </button>
+                            );
+                          }
+                        }
+                        const hasNote = transaction.note && transaction.note.trim().length > 0;
+                        if (hasNote) {
                           return (
                             <button
                               type='button'
                               className='catalog-name-button'
-                              onClick={() =>
-                                onOpenSaleCard({
-                                  id: matchedSale.id,
-                                  kind: matchedSale.kind,
-                                })
-                              }
+                              title='Edit note'
+                              onClick={() => onEditTransactionNote?.(transaction)}
                             >
                               {transaction.note}
                             </button>
                           );
                         }
-                        const matchedOrder = supplierOrders.find(
-                          (order) =>
-                            order.number === parsedOrderNumber ||
-                            order.orderBaseId === parsedOrderNumber,
-                        );
-                        if (!matchedOrder) return transaction.note || '-';
-                        return (
-                          <button
-                            type='button'
-                            className='catalog-name-button'
-                            onClick={() =>
-                              onSelectedSupplierOrderChange(matchedOrder)
-                            }
-                          >
-                            {transaction.note}
-                          </button>
-                        );
+                        return '-';
                       })()}
                     </td>
                     <td className='finance-transaction-action-cell' data-label='Action'>

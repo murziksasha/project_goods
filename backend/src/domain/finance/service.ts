@@ -590,11 +590,20 @@ export const createFinanceTransaction = async (payload: TransactionPayload) => {
     } catch (error: any) {
       if (idempotencyKey && error?.code === 11000) {
         // Unique partial index conflict: another concurrent request created it first.
+        // We must revert any deltas applied in this attempt (the insert never succeeded for us).
+        // In session case: revert nets to 0 inside this tx before returning success.
+        // In no-session (tests): this undoes the pre-apply so balance is correct.
         const existing = await leanWithOptionalSession<FinanceTransactionDocument | null>(
           FinanceTransaction.findOne({ idempotencyKey }),
           session,
         );
         if (existing) {
+          if (fromCashbox) {
+            await applyCashboxDelta(fromCashbox._id, currency, amount, session);
+          }
+          if (toCashbox) {
+            await applyCashboxDelta(toCashbox._id, currency, -amount, session);
+          }
           return formatTransaction(existing);
         }
       }
@@ -733,6 +742,33 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       throw error;
     }
   });
+};
+
+export const updateFinanceTransactionNote = async (
+  transactionId: string,
+  payload: { note?: unknown },
+) => {
+  isValidObjectIdOrThrow(transactionId, 'transactionId');
+
+  const note = String(payload.note ?? '').trim();
+
+  if (note.length > 300) {
+    throw new Error('Transaction note must contain no more than 300 characters');
+  }
+
+  const transaction = await FinanceTransaction.findById(transactionId);
+  if (!transaction) {
+    throw new Error('Transaction not found.');
+  }
+
+  if ((transaction.status ?? 'active') === 'cancelled' || transaction.isCancellation) {
+    throw new Error('Cannot edit note for a cancelled transaction.');
+  }
+
+  transaction.note = note;
+  await transaction.save();
+
+  return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
 };
 
 export const listFinanceTransactions = async () => {

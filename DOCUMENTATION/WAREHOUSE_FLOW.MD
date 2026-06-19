@@ -155,6 +155,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - Click `Product` -> open product editor from catalog.
 - Click `Supplier` -> open supplier editor from suppliers catalog.
 - If catalog/supplier entity is not found, show explicit error toast.
+- Click `#` must work for every supplier-order status when the order exists and the employee has supplier-order read access.
+- If the linked item/order is already received/stocked or otherwise locked, `SupplierOrderModal` opens in read-only mode instead of refusing to open.
 
 ### 6.1) Supplier Order Item Numbering
 - If supplier order has exactly one item, receipt row number is shown as base number without postfix: `<baseSupplierOrderNumber>`.

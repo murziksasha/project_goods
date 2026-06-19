@@ -16,6 +16,7 @@ import {
   getFinanceOverview,
   initialTransactionFilters,
   normalizeCurrencyActivity,
+  parseTransactionOrderToken,
 } from './accounting';
 
 const createCashbox = (
@@ -329,5 +330,17 @@ describe('accounting model helpers', () => {
     expect(canPerformTransferBetweenCashboxes('', 'cashbox-2')).toBe(false);
     expect(canPerformTransferBetweenCashboxes(undefined, 'cashbox-2')).toBe(false);
     expect(canPerformTransferBetweenCashboxes('cashbox-1', undefined)).toBe(false);
+  });
+
+  it('parses order token only from documented payment/refund note patterns', () => {
+    expect(parseTransactionOrderToken('Payment for order r000066')).toBe('r000066');
+    expect(parseTransactionOrderToken('Refund for order ABC-123')).toBe('ABC-123');
+    expect(parseTransactionOrderToken('Оплата замовлення SO-42')).toBe('SO-42');
+    expect(parseTransactionOrderToken('payment for order x1')).toBe('x1'); // case insen
+    expect(parseTransactionOrderToken('Some other note with order foo')).toBe(null);
+    expect(parseTransactionOrderToken('Deposit manual')).toBe(null);
+    expect(parseTransactionOrderToken('')).toBe(null);
+    expect(parseTransactionOrderToken(null)).toBe(null);
+    expect(parseTransactionOrderToken('Payment for order r000066 extra')).toBe('r000066');
   });
 });
