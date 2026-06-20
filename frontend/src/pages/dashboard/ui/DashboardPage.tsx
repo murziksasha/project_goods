@@ -907,6 +907,7 @@ export const DashboardPage = () => {
                   catalogProducts={state.catalogProducts}
                   products={state.allProducts}
                   sales={state.sales}
+                  clients={state.allClients}
                   onSave={actions.saveOrderRequest}
                   onCreated={openCreatedOrder}
                   onError={actions.showError}

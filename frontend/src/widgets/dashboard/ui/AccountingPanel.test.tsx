@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -232,8 +232,8 @@ vi.mock('./AccountingFinanceSettings', () => ({
 
 vi.mock('./AccountingTransactionsView', () => ({
   AccountingTransactionsView: (props: AccountingTransactionsViewProps) => (
-    <section>
-      <span data-testid='transactions-view'>{props.filteredTransactions.length}</span>
+    <section data-testid='transactions-view'>
+      <span>{props.filteredTransactions.length}</span>
       <button type='button' onClick={() => props.onPageSizeChange(10)}>page size</button>
       <button type='button' onClick={() => props.onPageChange(4)}>page high</button>
       <button type='button' onClick={() => props.onFilterOpenChange(true)}>filter open</button>
@@ -981,6 +981,10 @@ describe('AccountingPanel', () => {
 });
 
 describe('AccountingTransactionsView note navigation (real component)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   const baseCashbox = { id: 'cb1', name: 'Main' } as any;
   const baseTx = (note: string) => ({
     id: 'tx-note',
@@ -1190,6 +1194,10 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 });
 
 describe('AccountingPanel transaction note editing', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.mocked(updateFinanceTransaction).mockReset();
     vi.mocked(updateFinanceTransaction).mockResolvedValue({} as any);
@@ -1211,15 +1219,21 @@ describe('AccountingPanel transaction note editing', () => {
   it('editing and saving calls PATCH API via updateFinanceTransaction and closes modal', async () => {
     mutableState.activeTab = 'transactions';
     setupHooks({
-      transactions: [{ id: 'tx2', note: 'Old note', type: 'withdraw' } as any],
+      transactions: [transfer({ id: 'tx2', note: 'Old note', type: 'withdraw' })],
     });
     const onSuccess = vi.fn();
     renderPanel({ onSuccess });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'edit note' })[0]);
-    const textarea = screen.getByPlaceholderText('Enter note...');
-    fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      within(screen.getByTestId('transactions-view')).getByRole('button', { name: 'edit note' }),
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Transaction note' });
+    const textarea = within(dialog).getByPlaceholderText('Enter note...');
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    });
 
     await waitFor(() => {
       expect(updateFinanceTransaction).toHaveBeenCalledWith('tx2', { note: 'Updated manual note' });

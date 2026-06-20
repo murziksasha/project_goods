@@ -117,6 +117,11 @@ export const seedDemoData = async (seedKind?: unknown) => {
         clientSnapshot: {
           name: client.name,
           phone: client.phone,
+          phones: Array.isArray(client.phones) && client.phones.length > 0
+            ? client.phones.filter(Boolean)
+            : client.phone
+              ? [client.phone]
+              : [],
           status: client.status,
         },
       });

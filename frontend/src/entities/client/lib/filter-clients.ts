@@ -1,4 +1,5 @@
 import type { Client, ClientStatus } from '../model/types';
+import { clientMatchesPhoneQuery } from './phone-match';
 
 export const filterClientsByStatus = (
   clients: Client[],
@@ -10,16 +11,5 @@ export const filterClientsByQuery = (clients: Client[], query: string) => {
     return clients;
   }
 
-  const normalizedDigits = query.replace(/\D/g, '');
-  const normalizedQuery = query.toLowerCase();
-
-  return clients.filter((client) => {
-    const clientDigits = client.phone.replace(/\D/g, '');
-
-    return (
-      client.name.toLowerCase().includes(normalizedQuery) ||
-      client.phone.toLowerCase().includes(normalizedQuery) ||
-      (normalizedDigits.length > 0 && clientDigits.includes(normalizedDigits))
-    );
-  });
+  return clients.filter((client) => clientMatchesPhoneQuery(client, query));
 };

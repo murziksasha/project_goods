@@ -1233,9 +1233,11 @@ export const createDashboardActions = ({
         ) {
           throw new Error('Sale item quantity must be at least 1.');
         }
-        const existingClient = allClients.find(
-          (client) =>
-            client.phone.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, ''),
+        const normalizedPhoneDigits = normalizedPhone.replace(/\D/g, '');
+        const existingClient = allClients.find((client) =>
+          (client.phones?.length ? client.phones : [client.phone]).some(
+            (phone) => phone.replace(/\D/g, '') === normalizedPhoneDigits,
+          ),
         );
         const client =
           existingClient ??
