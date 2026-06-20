@@ -1,4 +1,5 @@
 import axios from 'axios';
+import i18n from '../i18n/config';
 
 const authHeaderName = 'Authorization';
 
@@ -30,7 +31,7 @@ apiClient.interceptors.request.use((config) => {
 
   if (typeof navigator !== 'undefined' && !navigator.onLine && !isReadRequest) {
     return Promise.reject(
-      new Error('No internet connection. Read-only mode is active until connection is restored.'),
+      new Error(i18n.t('errors.noInternet')),
     );
   }
 
@@ -51,7 +52,7 @@ export const createApiRequestError = (error: unknown) => {
     return new ApiRequestError(
       error.response?.data?.message ??
       error.message ??
-      'Unexpected request error.',
+      i18n.t('errors.unexpectedRequestError'),
       {
         code: error.code,
         hasResponse: Boolean(error.response),
@@ -64,7 +65,7 @@ export const createApiRequestError = (error: unknown) => {
     return new ApiRequestError(error.message);
   }
 
-  return new ApiRequestError('Unexpected request error.');
+  return new ApiRequestError(i18n.t('errors.unexpectedRequestError'));
 };
 
 export const getApiErrorMessage = (error: unknown) => {

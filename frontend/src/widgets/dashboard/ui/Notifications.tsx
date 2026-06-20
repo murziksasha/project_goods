@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 
 type NotificationsProps = {
@@ -23,6 +24,7 @@ export const Notifications = ({
   successMessage,
   isOffline,
 }: NotificationsProps) => {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [pausedToastId, setPausedToastId] = useState<string | null>(null);
   const lastErrorRef = useRef('');
@@ -154,7 +156,7 @@ export const Notifications = ({
     <section className="toast-stack" aria-live="polite" aria-atomic="true">
     {isOffline ? (
       <p className="toast toast-error toast-persistent" role="status">
-        No internet connection. You can view cached data, but edits are disabled.
+        {t('common.notifications.offlineViewOnly')}
       </p>
     ) : null}
       {toasts.map((toast) => (
@@ -169,7 +171,7 @@ export const Notifications = ({
           <button
             type="button"
             className="toast-close"
-            aria-label="Close notification"
+            aria-label={t('common.notifications.closeNotification')}
             onClick={() => removeToast(toast.id)}
           >
             ×

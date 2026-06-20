@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Sale } from '../model/types';
 import { createWarehouseShipment } from '../api/shipmentApi';
 import {
@@ -27,6 +28,7 @@ export const SerialNumberModal = ({
   onClose,
   onConfirm,
 }: SerialNumberModalProps) => {
+  const { t } = useTranslation();
   const [selectedSerials, setSelectedSerials] = useState<string[]>(
     [],
   );
@@ -36,7 +38,10 @@ export const SerialNumberModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
-  const productName = getSaleProductName(sale, 'Product');
+  const productName = getSaleProductName(
+    sale,
+    t('warehouse.serialModal.productFallback'),
+  );
   const productArticle = getSaleProductArticle(sale);
   const productSerialNumber = getSaleProductSerialNumber(sale) || sale.id;
 
@@ -49,7 +54,7 @@ export const SerialNumberModal = ({
         mockSerials.push({
           id: `serial-${sale.id}-${i}`,
           serialNumber: `${productSerialNumber}-${String(i + 1).padStart(3, '0')}`,
-          warehouse: 'Main Warehouse',
+          warehouse: t('warehouse.serialModal.mainWarehouse'),
           isAvailable: true,
         });
       }
@@ -59,7 +64,7 @@ export const SerialNumberModal = ({
         setSelectedSerials([]);
       }, 0);
     }
-  }, [isOpen, productSerialNumber, sale]);
+  }, [isOpen, productSerialNumber, sale, t]);
 
   const handleSerialToggle = (serialNumber: string) => {
     setSelectedSerials((prev) => {
@@ -94,13 +99,16 @@ export const SerialNumberModal = ({
             onClose();
           }, 1500);
         } else {
-          setError(response.message || 'Failed to create shipment');
+          setError(
+            response.message ||
+              t('warehouse.serialModal.errors.createShipmentFailed'),
+          );
         }
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : 'An error occurred during shipment',
+            : t('warehouse.serialModal.errors.shipmentError'),
         );
       } finally {
         setIsLoading(false);
@@ -128,16 +136,16 @@ export const SerialNumberModal = ({
         className='catalog-edit-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Select Serial Numbers'
+        aria-label={t('warehouse.serialModal.title')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className='catalog-edit-header'>
-          <h2>Select Serial Numbers</h2>
+          <h2>{t('warehouse.serialModal.title')}</h2>
           <button
             type='button'
             className='catalog-edit-close'
             onClick={onClose}
-            aria-label='Close modal'
+            aria-label={t('warehouse.serialModal.closeModal')}
           >
             &times;
           </button>
@@ -147,18 +155,23 @@ export const SerialNumberModal = ({
           {isSuccess ? (
             <div className='success-message'>
               <div className='success-icon'>✓</div>
-              <h3>Shipment Created Successfully!</h3>
-              <p>
-                The serial numbers have been assigned and shipment is
-                ready.
-              </p>
+              <h3>{t('warehouse.serialModal.successTitle')}</h3>
+              <p>{t('warehouse.serialModal.successDescription')}</p>
             </div>
           ) : (
             <>
               <div className='sale-info'>
                 <h3>{productName}</h3>
-                <p>Quantity: {sale.quantity}</p>
-                <p>Article: {productArticle || '-'}</p>
+                <p>
+                  {t('warehouse.serialModal.quantity', {
+                    count: sale.quantity,
+                  })}
+                </p>
+                <p>
+                  {t('warehouse.serialModal.article', {
+                    value: productArticle || '-',
+                  })}
+                </p>
               </div>
 
               {error && (
@@ -171,7 +184,10 @@ export const SerialNumberModal = ({
               <div className='serial-selection-header'>
                 <div className='selection-info'>
                   <span>
-                    Selected: {selectedSerials.length}/{sale.quantity}
+                    {t('warehouse.serialModal.selectedCount', {
+                      selected: selectedSerials.length,
+                      total: sale.quantity,
+                    })}
                   </span>
                   <button
                     type='button'
@@ -180,8 +196,8 @@ export const SerialNumberModal = ({
                     disabled={isLoading}
                   >
                     {selectedSerials.length === sale.quantity
-                      ? 'Deselect All'
-                      : 'Select All'}
+                      ? t('warehouse.serialModal.deselectAll')
+                      : t('warehouse.serialModal.selectAll')}
                   </button>
                 </div>
               </div>
@@ -197,7 +213,9 @@ export const SerialNumberModal = ({
                   >
                     <div className='serial-item-header'>
                       <span className='serial-item-number'>
-                        Item {index + 1}
+                        {t('warehouse.serialModal.itemNumber', {
+                          number: index + 1,
+                        })}
                       </span>
                       <input
                         type='checkbox'
@@ -227,7 +245,7 @@ export const SerialNumberModal = ({
 
               {selectedSerials.length > 0 && (
                 <div className='selected-summary'>
-                  <h4>Selected Serial Numbers:</h4>
+                  <h4>{t('warehouse.serialModal.selectedSerialNumbers')}</h4>
                   <div className='selected-list'>
                     {selectedSerials.map((serial, index) => (
                       <div key={index} className='selected-item'>
@@ -253,7 +271,7 @@ export const SerialNumberModal = ({
               className='secondary-button'
               onClick={onClose}
             >
-              Cancel
+              {t('warehouse.serialModal.cancel')}
             </button>
             <button
               type='button'
@@ -261,7 +279,7 @@ export const SerialNumberModal = ({
               onClick={handleConfirm}
               disabled={selectedSerials.length !== sale.quantity}
             >
-              Confirm Shipment
+              {t('warehouse.serialModal.confirmShipment')}
             </button>
           </div>
         </div>

@@ -1,0 +1,60 @@
+{
+  "list": {
+    "sectionLabel": "List",
+    "title": "Team",
+    "loading": "Loading employees...",
+    "empty": "No employees yet.",
+    "noEmail": "No email",
+    "noPhone": "No phone",
+    "noLogin": "No login",
+    "currentUser": "current user",
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cannotDeleteSelf": "You cannot delete your own account.",
+    "deleteEmployee": "Delete employee",
+    "noPermission": "Only owners can create, edit, or delete employees."
+  },
+  "form": {
+    "sectionLabel": "Employees",
+    "createTitle": "Create employee",
+    "editTitle": "Edit employee",
+    "cancel": "Cancel",
+    "name": "Name",
+    "fullNamePlaceholder": "Full name",
+    "phone": "Phone",
+    "phonePlaceholder": "+380...",
+    "email": "Email",
+    "emailPlaceholder": "employee@example.com",
+    "login": "Login",
+    "loginPlaceholder": "login",
+    "password": "Password",
+    "newPassword": "New password",
+    "passwordPlaceholder": "Password",
+    "passwordKeepCurrent": "Leave blank to keep current password",
+    "role": "Role",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "note": "Note",
+    "saving": "Saving...",
+    "saveEmployee": "Save employee",
+    "updateEmployee": "Update employee"
+  },
+  "permissionGroups": {
+    "orders": "Orders",
+    "supplierOrders": "Supplier Orders",
+    "clients": "Clients",
+    "inventory": "Inventory",
+    "finance": "Finance",
+    "employees": "Employees",
+    "system": "System"
+  },
+  "deleteModal": {
+    "title": "Delete employee",
+    "message": "Are you sure you want to delete user \"{{name}}\"?",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  }
+}

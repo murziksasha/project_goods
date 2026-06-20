@@ -1,0 +1,109 @@
+{
+  "common": {
+    "system": "Система",
+    "administrator": "Адміністратор",
+    "mainMenu": "Головне меню",
+    "noNote": "Без примітки",
+    "noNotes": "Примітки відсутні.",
+    "notSpecified": "Не вказано",
+    "months": "{{count}} міс.",
+    "serial": "Серійний: {{value}}"
+  },
+  "orders": {
+    "supplier": {
+      "orderStatuses": {
+        "request": "Запит на закупівлю",
+        "ordered": "Замовлено",
+        "approved": "Погоджено",
+        "stocked": "На складі",
+        "overdue": "Прострочено",
+        "cancelled": "Скасовано",
+        "unavailable": "Недоступно"
+      },
+      "paymentStatuses": {
+        "pending": "Очікує оплати",
+        "paid": "Оплачено",
+        "without_payment": "Видано без оплати",
+        "cancelled": "Скасовано"
+      }
+    },
+    "serialAvailability": {
+      "inactive": "Неактивний",
+      "alreadyInThisOrder": "Уже в цьому замовленні",
+      "linkedToAnotherOrder": "Прив'язано до іншого замовлення",
+      "noFreeStock": "Немає вільного залишку",
+      "free": "Вільний"
+    },
+    "create": {
+      "warehouseStock": "Складський залишок",
+      "catalogSource": "Каталог",
+      "catalogProduct": "Товар каталогу"
+    }
+  },
+  "warehouse": {
+    "print": {
+      "serialNumbersTitle": "Серійні номери",
+      "productFallback": "Товар",
+      "barcodeAriaLabel": "Штрихкод {{index}}"
+    }
+  },
+  "legacy": {
+    "clientList": {
+      "noSearchResults": "Клієнтів за цим запитом не знайдено.",
+      "empty": "Клієнтів ще немає.",
+      "noNotes": "Примітки відсутні."
+    },
+    "productList": {
+      "loading": "Завантаження товарів...",
+      "noSearchResults": "Товарів за цим запитом не знайдено.",
+      "empty": "Товарів ще немає. Додайте перший, щоб почати каталог.",
+      "inStock": "В наявності",
+      "outOfStock": "Немає в наявності",
+      "salePrices": "Ціни продажу",
+      "totalStock": "Загальний залишок",
+      "freeStock": "Вільний залишок",
+      "reserved": "Резерв",
+      "purchasePlace": "Місце закупівлі",
+      "purchaseDate": "Дата закупівлі",
+      "warranty": "Гарантія",
+      "defaultNote": "Типова примітка"
+    },
+    "salesList": {
+      "loading": "Завантаження продажів...",
+      "empty": "Продажів ще немає.",
+      "defaultProduct": "Товар",
+      "date": "Дата",
+      "quantity": "Кількість",
+      "client": "Клієнт",
+      "phone": "Телефон"
+    },
+    "serviceList": {
+      "loading": "Завантаження послуг...",
+      "noSearchResults": "Послуг за цим запитом не знайдено.",
+      "empty": "Послуг ще немає. Додайте першу до каталогу.",
+      "badge": "Послуга"
+    },
+    "clientForm": {
+      "sectionLabel": "Клієнти",
+      "editTitle": "Редагувати клієнта",
+      "addTitle": "Додати клієнта",
+      "similarClients": "Схожі клієнти",
+      "namePlaceholder": "Іван Петренко",
+      "notePlaceholder": "Переваги, застереження, історія замовлень...",
+      "updateClient": "Оновити клієнта",
+      "addClient": "Додати клієнта"
+    },
+    "saleForm": {
+      "sectionLabel": "Продажі",
+      "editTitle": "Редагувати продаж",
+      "sellTitle": "Продати товар",
+      "date": "Дата",
+      "quantity": "Кількість",
+      "salePrice": "Ціна продажу",
+      "availablePrices": "Доступні ціни: {{prices}}",
+      "notePlaceholder": "Коментар до картки продажу",
+      "updateSale": "Оновити продаж",
+      "createSale": "Створити продаж"
+    }
+  }
+}

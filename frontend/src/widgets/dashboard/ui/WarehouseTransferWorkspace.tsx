@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import { formatDate } from '../../../shared/lib/format';
 import type {
@@ -34,6 +35,7 @@ export const TransferWorkspace = ({
   onFormChange: Dispatch<SetStateAction<TransferFormState>>;
   onSubmit: () => void;
 }) => {
+  const { t } = useTranslation();
   const currentMeta = selectedProduct
     ? productWarehouseMetaById[selectedProduct.id]
     : undefined;
@@ -53,7 +55,7 @@ export const TransferWorkspace = ({
       <div className='warehouse-transfer-grid'>
         <div className='warehouse-transfer-form'>
           <label className='orders-filter-field'>
-            <span>Product</span>
+            <span>{t('warehouse.transfer.product')}</span>
             <select
               value={form.productId}
               onChange={(event) =>
@@ -64,7 +66,7 @@ export const TransferWorkspace = ({
               }
               disabled={isSaving}
             >
-              <option value=''>Select stock item</option>
+              <option value=''>{t('warehouse.transfer.selectStockItem')}</option>
               {selectableProducts.map((product) => (
                 <option key={product.id} value={product.id}>
                   {`${product.name} / ${product.serialNumber || product.article}`}
@@ -74,7 +76,7 @@ export const TransferWorkspace = ({
           </label>
 
           <div className='warehouse-transfer-current'>
-            <span>Current location</span>
+            <span>{t('warehouse.transfer.currentLocation')}</span>
             <strong>
               {currentMeta
                 ? `${currentMeta.warehouseName} / ${currentMeta.locationName}`
@@ -83,7 +85,7 @@ export const TransferWorkspace = ({
           </div>
 
           <label className='orders-filter-field'>
-            <span>Target warehouse</span>
+            <span>{t('warehouse.transfer.targetWarehouse')}</span>
             <select
               value={form.toWarehouseId}
               onChange={(event) => {
@@ -101,8 +103,8 @@ export const TransferWorkspace = ({
             >
               <option value=''>
                 {warehouses.length === 0
-                  ? 'Create warehouse in Settings'
-                  : 'Select warehouse'}
+                  ? t('warehouse.transfer.createWarehouseInSettings')
+                  : t('warehouse.transfer.selectWarehouse')}
               </option>
               {warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
@@ -113,7 +115,7 @@ export const TransferWorkspace = ({
           </label>
 
           <label className='orders-filter-field'>
-            <span>Target location</span>
+            <span>{t('warehouse.transfer.targetLocation')}</span>
             <select
               value={form.toLocationId}
               onChange={(event) =>
@@ -125,7 +127,9 @@ export const TransferWorkspace = ({
               disabled={isSaving || targetLocations.length === 0}
             >
               {targetLocations.length === 0 ? (
-                <option value=''>Create location in Settings</option>
+                <option value=''>
+                  {t('warehouse.transfer.createLocationInSettings')}
+                </option>
               ) : null}
               {targetLocations.map((location) => (
                 <option key={location.id} value={location.id}>
@@ -136,7 +140,7 @@ export const TransferWorkspace = ({
           </label>
 
           <label className='orders-filter-field warehouse-transfer-note'>
-            <span>Note</span>
+            <span>{t('warehouse.transfer.note')}</span>
             <textarea
               value={form.note}
               onChange={(event) =>
@@ -147,7 +151,7 @@ export const TransferWorkspace = ({
               }
               disabled={isSaving}
               rows={3}
-              placeholder='Reason or document number'
+              placeholder={t('warehouse.transfer.notePlaceholder')}
             />
           </label>
 
@@ -158,7 +162,9 @@ export const TransferWorkspace = ({
               onClick={onSubmit}
               disabled={!canSubmit}
             >
-              {isSaving ? 'Transferring...' : 'Transfer stock'}
+              {isSaving
+                ? t('warehouse.transfer.transferring')
+                : t('warehouse.transfer.transferStock')}
             </button>
           </div>
         </div>
@@ -170,17 +176,19 @@ export const TransferWorkspace = ({
           <table className='catalog-table'>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Serial #</th>
-                <th>Warehouse</th>
-                <th>Location</th>
-                <th>Qty</th>
+                <th>{t('warehouse.transfer.stockTable.columns.product')}</th>
+                <th>{t('warehouse.transfer.stockTable.columns.serial')}</th>
+                <th>{t('warehouse.transfer.stockTable.columns.warehouse')}</th>
+                <th>{t('warehouse.transfer.stockTable.columns.location')}</th>
+                <th>{t('warehouse.transfer.stockTable.columns.qty')}</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>No stock rows found.</td>
+                  <td colSpan={5}>
+                    {t('warehouse.transfer.stockTable.empty')}
+                  </td>
                 </tr>
               ) : (
                 products.map((product) => {
@@ -231,18 +239,20 @@ export const TransferWorkspace = ({
         <table className='catalog-table'>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Product</th>
-              <th>From</th>
-              <th>To</th>
-              <th>By</th>
-              <th>Note</th>
+              <th>{t('warehouse.transfer.historyTable.columns.date')}</th>
+              <th>{t('warehouse.transfer.historyTable.columns.product')}</th>
+              <th>{t('warehouse.transfer.historyTable.columns.from')}</th>
+              <th>{t('warehouse.transfer.historyTable.columns.to')}</th>
+              <th>{t('warehouse.transfer.historyTable.columns.by')}</th>
+              <th>{t('warehouse.transfer.historyTable.columns.note')}</th>
             </tr>
           </thead>
           <tbody>
             {history.length === 0 ? (
               <tr>
-                <td colSpan={6}>No transfers in this session.</td>
+                <td colSpan={6}>
+                  {t('warehouse.transfer.historyTable.empty')}
+                </td>
               </tr>
             ) : (
               history.map((transfer) => (
@@ -272,4 +282,3 @@ export const TransferWorkspace = ({
     </section>
   );
 };
-

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 type PaginationPanelProps = {
   totalItems: number;
   page: number;
@@ -49,6 +51,7 @@ export const CompactPaginationPanel = ({
   pageSize,
   onPageChange,
 }: CompactPaginationPanelProps) => {
+  const { t } = useTranslation();
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = clamp(page, 1, pageCount);
   const canGoPrev = currentPage > 1;
@@ -59,7 +62,7 @@ export const CompactPaginationPanel = ({
       <button
         type='button'
         className='pagination-compact-button'
-        aria-label='Previous page'
+        aria-label={t('common.pagination.previousPage')}
         onClick={() => onPageChange(currentPage - 1)}
         disabled={!canGoPrev}
       >
@@ -69,7 +72,7 @@ export const CompactPaginationPanel = ({
       <button
         type='button'
         className='pagination-compact-button'
-        aria-label='Next page'
+        aria-label={t('common.pagination.nextPage')}
         onClick={() => onPageChange(currentPage + 1)}
         disabled={!canGoNext}
       >
@@ -87,6 +90,7 @@ export const PaginationPanel = ({
   onPageSizeChange,
   pageSizeOptions = defaultPageSizeOptions,
 }: PaginationPanelProps) => {
+  const { t } = useTranslation();
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = clamp(page, 1, pageCount);
   const pages = getVisiblePages(currentPage, pageCount);
@@ -99,7 +103,7 @@ export const PaginationPanel = ({
         className='pagination-size-select'
         value={pageSize}
         onChange={(event) => onPageSizeChange(Number(event.target.value))}
-        aria-label='Rows per page'
+        aria-label={t('common.pagination.rowsPerPage')}
       >
         {pageSizeOptions.map((option) => (
           <option key={option} value={option}>
@@ -107,7 +111,9 @@ export const PaginationPanel = ({
           </option>
         ))}
       </select>
-      <div className='pagination-total'>{`Total: ${totalItems} records`}</div>
+      <div className='pagination-total'>
+        {t('common.pagination.totalRecords', { count: totalItems })}
+      </div>
       <div className='pagination-nav'>
         <button
           type='button'
@@ -115,7 +121,7 @@ export const PaginationPanel = ({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!canGoPrev}
         >
-          {'< Prev'}
+          {t('common.pagination.prev')}
         </button>
         {pages.map((pageNumber, index) => {
           const previous = pages[index - 1];
@@ -148,7 +154,7 @@ export const PaginationPanel = ({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!canGoNext}
         >
-          {'Next >'}
+          {t('common.pagination.next')}
         </button>
       </div>
     </div>

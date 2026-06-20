@@ -1,5 +1,6 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import i18n from '../../../shared/i18n/config';
 
 export type StatsPeriod = 'today' | 'currentMonth' | 'lastMonth' | 'currentYear' | 'lastYear';
 
@@ -21,16 +22,18 @@ type PeriodConfig = {
   axisLabels: string[];
 };
 
-export const statsPeriodOptions: Array<{ value: StatsPeriod; label: string }> = [
-  { value: 'today', label: 'Today' },
-  { value: 'currentMonth', label: 'This month' },
-  { value: 'lastMonth', label: 'Last month' },
-  { value: 'currentYear', label: 'This year' },
-  { value: 'lastYear', label: 'Last year' },
+export const statsPeriodOptions: Array<{ value: StatsPeriod; labelKey: string }> = [
+  { value: 'today', labelKey: 'analytics.periods.today' },
+  { value: 'currentMonth', labelKey: 'analytics.periods.currentMonth' },
+  { value: 'lastMonth', labelKey: 'analytics.periods.lastMonth' },
+  { value: 'currentYear', labelKey: 'analytics.periods.currentYear' },
+  { value: 'lastYear', labelKey: 'analytics.periods.lastYear' },
 ];
 
 const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
 const finalStatuses = new Set(['issued', 'issuedWithoutRepair', 'paid', 'returned', 'clientRejected']);
+
+const getDateLocale = () => (i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US');
 
 const metricFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
@@ -45,7 +48,8 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 });
 
-const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
+const getMonthFormatter = () =>
+  new Intl.DateTimeFormat(getDateLocale(), { month: 'short' });
 
 const getLineItemsTotal = (sale: Sale) =>
   Array.isArray(sale.lineItems) && sale.lineItems.length > 0
@@ -75,6 +79,7 @@ const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig =
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   const currentDay = currentDate.getDate();
+  const dateLocale = getDateLocale();
 
   if (period === 'today') {
     return {
@@ -82,7 +87,7 @@ const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig =
       baseYear: currentYear,
       month: currentMonth,
       day: currentDay,
-      detailLabel: currentDate.toLocaleDateString('en-US', {
+      detailLabel: currentDate.toLocaleDateString(dateLocale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -109,7 +114,7 @@ const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig =
       baseYear: monthDate.getFullYear(),
       month: monthDate.getMonth(),
       day: currentDay,
-      detailLabel: monthDate.toLocaleDateString('en-US', {
+      detailLabel: monthDate.toLocaleDateString(dateLocale, {
         month: 'long',
         year: 'numeric',
       }),
@@ -128,7 +133,7 @@ const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig =
     day: currentDay,
     detailLabel: String(baseYear),
     axisLabels: Array.from({ length: 12 }, (_, index) =>
-      monthFormatter.format(new Date(baseYear, index, 1)),
+      getMonthFormatter().format(new Date(baseYear, index, 1)),
     ),
   };
 };
@@ -215,7 +220,9 @@ export const formatMetric = (value: number) => metricFormatter.format(Math.round
 export const formatCompactMetric = (value: number) => compactMetricFormatter.format(value);
 
 export const formatCurrencyMetric = (value: number) =>
-  `UAH ${currencyFormatter.format(Math.round(value))}`;
+  i18n.t('analytics.currency', {
+    value: currencyFormatter.format(Math.round(value)),
+  });
 
 export const buildDashboardAnalytics = (
   productSales: Sale[],
@@ -274,7 +281,6 @@ export const buildDashboardAnalytics = (
   const todayOrders = repairOrders.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
 
   return {
-    statsPeriodOptions,
     detailLabel: config.detailLabel,
     axisLabels: config.axisLabels,
     revenueSnapshots,
@@ -287,24 +293,48 @@ export const buildDashboardAnalytics = (
     currentYearLabel: currentRevenue.label,
     comparisonLabel: revenueSnapshots.map((snapshot) => snapshot.label).join(', '),
     summaryCards: [
-      { label: 'Sales', value: formatMetric(salesCount), accent: comparisonColors[0] },
-      { label: 'Repair orders', value: formatMetric(ordersCount), accent: '#14b8a6' },
-      { label: 'Revenue', value: formatCurrencyMetric(revenue), accent: '#f97316' },
-      { label: 'Average ticket', value: formatCurrencyMetric(averageTicket), accent: '#64748b' },
-      { label: 'Paid', value: formatCurrencyMetric(paidAmount), accent: '#0ea47d' },
-      { label: 'Receivables', value: formatCurrencyMetric(remainingAmount), accent: '#dc2626' },
+      {
+        labelKey: 'analytics.summary.sales',
+        value: formatMetric(salesCount),
+        accent: comparisonColors[0],
+      },
+      {
+        labelKey: 'analytics.summary.repairOrders',
+        value: formatMetric(ordersCount),
+        accent: '#14b8a6',
+      },
+      {
+        labelKey: 'analytics.summary.revenue',
+        value: formatCurrencyMetric(revenue),
+        accent: '#f97316',
+      },
+      {
+        labelKey: 'analytics.summary.averageTicket',
+        value: formatCurrencyMetric(averageTicket),
+        accent: '#64748b',
+      },
+      {
+        labelKey: 'analytics.summary.paid',
+        value: formatCurrencyMetric(paidAmount),
+        accent: '#0ea47d',
+      },
+      {
+        labelKey: 'analytics.summary.receivables',
+        value: formatCurrencyMetric(remainingAmount),
+        accent: '#dc2626',
+      },
     ],
     conversionCards: [
       {
-        label: 'Repair orders / sales',
+        label: i18n.t('analytics.conversion.repairOrdersPerSales'),
         value: salesCount > 0 ? `${formatMetric((ordersCount / salesCount) * 100)}%` : '0%',
       },
       {
-        label: 'Sales / repair orders',
+        label: i18n.t('analytics.conversion.salesPerRepairOrders'),
         value: ordersCount > 0 ? `${formatMetric((salesCount / ordersCount) * 100)}%` : '0%',
       },
       {
-        label: 'Payment coverage',
+        label: i18n.t('analytics.conversion.paymentCoverage'),
         value: `${formatMetric(paymentCoverage)}%`,
       },
     ],
@@ -330,22 +360,22 @@ export const buildDashboardAnalytics = (
     },
     signals: [
       {
-        label: 'Unpaid orders',
+        labelKey: 'analytics.signalsLabels.unpaidOrders',
         value: formatMetric(unpaidOrders),
         tone: unpaidOrders > 0 ? 'risk' : 'good',
       },
       {
-        label: 'Open workflow',
+        labelKey: 'analytics.signalsLabels.openWorkflow',
         value: formatMetric(openOrders),
         tone: openOrders > 0 ? 'watch' : 'good',
       },
       {
-        label: 'Low stock items',
+        labelKey: 'analytics.signalsLabels.lowStockItems',
         value: formatMetric(lowStockProducts + outOfStockProducts),
         tone: lowStockProducts + outOfStockProducts > 0 ? 'risk' : 'good',
       },
       {
-        label: 'Today activity',
+        labelKey: 'analytics.signalsLabels.todayActivity',
         value: formatMetric(todaySales.length + todayOrders.length),
         tone: todaySales.length + todayOrders.length > 0 ? 'good' : 'muted',
       },

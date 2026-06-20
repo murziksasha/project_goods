@@ -1,10 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PageKey } from '../../../pages/dashboard/model/types';
 import { getDashboardHref } from '../../../pages/dashboard/model/types';
 
 interface SidebarItem {
   key: PageKey | 'other';
-  label: string;
+  labelKey: string;
 }
 
 interface DashboardSidebarProps {
@@ -25,6 +26,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   currentEmployee,
   onNavClick,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <aside className='app-sidebar'>
       <div className='sidebar-profile'>
@@ -35,15 +38,15 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         </div>
         <div>
           <p className='sidebar-user-name'>
-            {currentEmployee?.name || 'Guest'}
+            {currentEmployee?.name || t('common.guest')}
           </p>
           <p className='sidebar-user-role'>
-            {currentEmployee?.role || 'No role'}
+            {currentEmployee?.role || t('common.noRole')}
           </p>
         </div>
       </div>
 
-      <nav className='sidebar-nav' aria-label='Main menu'>
+      <nav className='sidebar-nav' aria-label={t('common.mainMenu')}>
         {sidebarItems
           .filter(
             (item) => item.key !== 'employees' || canManageEmployees,
@@ -53,7 +56,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               item.key !== 'other' && item.key === activePage;
             return (
               <a
-                key={item.key + item.label}
+                key={item.key + item.labelKey}
                 href={
                   item.key === 'other'
                     ? '#'
@@ -66,7 +69,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 }
                 onClick={(event) => onNavClick(event, item)}
               >
-                {item.label}
+                {t(item.labelKey)}
               </a>
             );
           })}

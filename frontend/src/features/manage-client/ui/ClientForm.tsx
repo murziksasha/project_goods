@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clientStatuses } from '../../../entities/client/model/constants';
 import type {
   Client,
@@ -38,11 +39,9 @@ export const ClientForm = ({
   onCancelEdit,
   onPickExisting,
 }: ClientFormProps) => {
-  const [recommendations, setRecommendations] = useState<Client[]>(
-    [],
-  );
-  const [showRecommendations, setShowRecommendations] =
-    useState(false);
+  const { t } = useTranslation();
+  const [recommendations, setRecommendations] = useState<Client[]>([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,7 +61,9 @@ export const ClientForm = ({
               !normalizedName ||
               client.name.toLowerCase().includes(normalizedName);
             const clientPhones = getClientPhones(client);
-            const matchesPhone = clientPhones.some((ph) => normalizeDigits(ph).includes(normalizedPhone));
+            const matchesPhone = clientPhones.some((ph) =>
+              normalizeDigits(ph).includes(normalizedPhone),
+            );
 
             return matchesName || matchesPhone;
           })
@@ -73,10 +74,9 @@ export const ClientForm = ({
     return () => window.clearTimeout(timeoutId);
   }, [clients, form.name, form.phone]);
 
-  // Validates Ukrainian phone number: 10 digits (without code) or 12 digits (with 380 code)
   const validatePhone = (phone: string): boolean => {
     if (!isValidUkrainianPhone(phone)) {
-      setPhoneError('Не вірний формат номеру телефона');
+      setPhoneError(t('clients.messages.errors.invalidPhoneFormat'));
       return false;
     }
     setPhoneError(null);
@@ -94,8 +94,12 @@ export const ClientForm = ({
     <section className='panel'>
       <div className='panel-header'>
         <div>
-          <p className='section-label'>Clients</p>
-          <h2>{isEditing ? 'Edit client' : 'Add client'}</h2>
+          <p className='section-label'>{t('legacy.clientForm.sectionLabel')}</p>
+          <h2>
+            {isEditing
+              ? t('legacy.clientForm.editTitle')
+              : t('legacy.clientForm.addTitle')}
+          </h2>
         </div>
         {isEditing ? (
           <button
@@ -103,49 +107,46 @@ export const ClientForm = ({
             type='button'
             onClick={onCancelEdit}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         ) : null}
       </div>
 
       <div className='form-grid'>
         <label className='field'>
-          <span>Phone</span>
+          <span>{t('clients.modal.fields.phone')}</span>
           <input
             value={form.phone}
             placeholder='+38 067 111 22 33'
             onFocus={() => setShowRecommendations(true)}
             onBlur={() => {
-              window.setTimeout(
-                () => setShowRecommendations(false),
-                120,
-              );
+              window.setTimeout(() => setShowRecommendations(false), 120);
               validatePhone(form.phone);
             }}
             onChange={(event) => {
               const val = event.target.value;
-              const nextPhones = Array.isArray(form.phones) && form.phones.length > 0 ? [val, ...form.phones.slice(1)] : [val];
+              const nextPhones =
+                Array.isArray(form.phones) && form.phones.length > 0
+                  ? [val, ...form.phones.slice(1)]
+                  : [val];
               onChange('phone', val);
               onChange('phones', nextPhones);
               setPhoneError(null);
             }}
           />
-          {phoneError && (
+          {phoneError ? (
             <span className='error-message'>{phoneError}</span>
-          )}
+          ) : null}
         </label>
 
         <label className='field'>
-          <span>Name</span>
+          <span>{t('clients.modal.fields.name')}</span>
           <input
             value={form.name}
-            placeholder='Ivan Petrenko'
+            placeholder={t('legacy.clientForm.namePlaceholder')}
             onFocus={() => setShowRecommendations(true)}
             onBlur={() =>
-              window.setTimeout(
-                () => setShowRecommendations(false),
-                120,
-              )
+              window.setTimeout(() => setShowRecommendations(false), 120)
             }
             onChange={(event) => onChange('name', event.target.value)}
           />
@@ -153,7 +154,7 @@ export const ClientForm = ({
 
         {showRecommendations && recommendations.length > 0 ? (
           <div className='field field-wide'>
-            <span>Similar clients</span>
+            <span>{t('legacy.clientForm.similarClients')}</span>
             <div className='suggestions-panel'>
               {recommendations.map((client) => (
                 <button
@@ -177,7 +178,7 @@ export const ClientForm = ({
         ) : null}
 
         <label className='field field-wide'>
-          <span>Status</span>
+          <span>{t('clients.modal.fields.status')}</span>
           <select
             value={form.status}
             onChange={(event) =>
@@ -193,11 +194,11 @@ export const ClientForm = ({
         </label>
 
         <label className='field field-wide'>
-          <span>Note</span>
+          <span>{t('clients.modal.fields.note')}</span>
           <textarea
             rows={4}
             value={form.note}
-            placeholder='Preferences, warnings, order history...'
+            placeholder={t('legacy.clientForm.notePlaceholder')}
             onChange={(event) => onChange('note', event.target.value)}
           />
         </label>
@@ -215,10 +216,10 @@ export const ClientForm = ({
         }
       >
         {isSaving
-          ? 'Saving...'
+          ? t('common.saving')
           : isEditing
-            ? 'Update client'
-            : 'Add client'}
+            ? t('legacy.clientForm.updateClient')
+            : t('legacy.clientForm.addClient')}
       </button>
     </section>
   );

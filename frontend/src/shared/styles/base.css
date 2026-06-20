@@ -100,3 +100,28 @@ p {
   background-color: #6B7280;
   color: white;
 }
+
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.lang-btn {
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid #9ca3af;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 2px;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.lang-btn-active,
+.lang-btn:hover {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}

@@ -16,9 +16,12 @@
   "dependencies": {
     "@tanstack/react-query": "^5.100.9",
     "axios": "^1.15.0",
+    "i18next": "^26.3.1",
     "jsbarcode": "^3.12.3",
+    "project_goods": "file:..",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

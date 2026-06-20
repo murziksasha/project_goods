@@ -1,0 +1,119 @@
+{
+  "orders": {
+    "status": {
+      "repair": {
+        "ready": "Ready",
+        "issued": "Issued",
+        "paid": "Paid",
+        "new": "New repair",
+        "diagnostics": "Diagnostics",
+        "inRepair": "In repair",
+        "waitingParts": "Waiting parts",
+        "clientApproved": "Client approved",
+        "clientRejected": "Client rejected",
+        "issuedWithoutRepair": "Issued without repair"
+      },
+      "sale": {
+        "new": "New sale",
+        "reserved": "Reserved",
+        "paid": "Paid",
+        "issued": "Issued",
+        "returned": "Returned"
+      }
+    },
+    "timeline": {
+      "changedStatus": "{{author}} changed status to \"{{status}}\".",
+      "createdOrder": "created order with status \"{{status}}\"",
+      "addedItem": "{{author}} added {{kind}} \"{{name}}\".",
+      "removedProduct": "{{author}} removed product \"{{name}}\" from order.",
+      "removedService": "{{author}} removed service \"{{name}}\" from order.",
+      "boundSerials": "{{author}} bound serial numbers for \"{{name}}\".",
+      "updatedMainInfo": "{{author}} updated order main information."
+    },
+    "create": {
+      "extraOptions": {
+        "repair": {
+          "deviceStaysWithClient": "Device stays with client",
+          "urgentRepair": "Urgent repair",
+          "acceptedByPost": "Accepted by post",
+          "startWorkWithoutConfirmation": "Start work without confirmation",
+          "clientCanWaitForParts": "Client can wait for parts",
+          "courierTookDevice": "Courier took device",
+          "replacementDeviceIssued": "Replacement device issued",
+          "homeMasterCall": "Home master call"
+        },
+        "sale": {
+          "newSale": "New sale",
+          "issued": "Issued",
+          "atPostalCompany": "At postal company",
+          "waitingForSupply": "Waiting for supply",
+          "reservedForClient": "Reserved for client",
+          "needsInvoice": "Needs invoice",
+          "warrantyCardIssued": "Warranty card issued",
+          "deliveryRequired": "Delivery required"
+        }
+      }
+    },
+    "fallbacks": {
+      "recordNumber": "r------",
+      "repair": "Repair",
+      "product": "Product",
+      "device": "Device"
+    },
+    "supplier": {
+      "fallbacks": {
+        "unknownSupplier": "Unknown supplier",
+        "unnamedProduct": "Unnamed product"
+      }
+    },
+    "messages": {
+      "errors": {
+        "operationFailed": "Operation failed."
+      }
+    }
+  },
+  "product": {
+    "salePrices": "Sale prices",
+    "examples": {
+      "article": "WM-001",
+      "serialNumber": "LOG-M185-0001",
+      "price": "100",
+      "salePriceOptions": "649, 699, 749",
+      "quantity": "5"
+    }
+  },
+  "catalog": {
+    "tables": {
+      "columns": {
+        "select": "Select"
+      }
+    }
+  },
+  "legacy": {
+    "saleForm": {
+      "lookup": {
+        "client": "Client",
+        "name": "Name",
+        "phone": "Phone",
+        "clientPlaceholder": "Write client name",
+        "phonePlaceholder": "Write phone number",
+        "noClientsFound": "No matching clients found.",
+        "product": "Product",
+        "productPlaceholder": "Write product name, serial, or article",
+        "freeStock": "free {{count}}",
+        "noProductsFound": "No matching products found."
+      }
+    },
+    "salesPanel": {
+      "sectionLabel": "Sales",
+      "title": "Sales history"
+    }
+  },
+  "accounting": {
+    "messages": {
+      "errors": {
+        "failedLoadFinance": "Failed to load finance data."
+      }
+    }
+  }
+}

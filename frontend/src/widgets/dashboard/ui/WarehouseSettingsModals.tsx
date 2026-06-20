@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   ServiceCenter,
   ServiceCenterFormState,
@@ -19,18 +20,28 @@ export const ServiceCenterModal = ({
   onClose: () => void;
   onSubmit: () => void;
 }) => {
+  const { t } = useTranslation();
+
   if (!modalId) return null;
 
   return (
     <ModalShell
-      title={modalId === 'new' ? 'create service center' : 'edit service center'}
+      title={
+        modalId === 'new'
+          ? t('warehouse.modals.serviceCenter.createTitle')
+          : t('warehouse.modals.serviceCenter.editTitle')
+      }
       onClose={onClose}
       onSubmit={onSubmit}
-      submitLabel={modalId === 'new' ? 'create' : 'save'}
+      submitLabel={
+        modalId === 'new'
+          ? t('warehouse.common.create')
+          : t('warehouse.common.save')
+      }
       canSubmit={form.name.trim().length > 1}
     >
       <label className='field'>
-        <span>name:</span>
+        <span>{t('warehouse.modals.serviceCenter.nameLabel')}</span>
         <input
           value={form.name}
           onChange={(event) =>
@@ -39,11 +50,11 @@ export const ServiceCenterModal = ({
               name: event.target.value,
             }))
           }
-          placeholder='name'
+          placeholder={t('warehouse.modals.serviceCenter.namePlaceholder')}
         />
       </label>
       <label className='field'>
-        <span>color (#000000):</span>
+        <span>{t('warehouse.modals.serviceCenter.colorLabel')}</span>
         <div className='warehouse-settings-color-field'>
           <input
             value={form.color}
@@ -53,12 +64,12 @@ export const ServiceCenterModal = ({
                 color: event.target.value,
               }))
             }
-            placeholder='#000000'
+            placeholder={t('warehouse.modals.serviceCenter.colorPlaceholder')}
           />
           <input
             className='warehouse-settings-color-picker'
             type='color'
-            aria-label='color'
+            aria-label={t('warehouse.modals.serviceCenter.colorAriaLabel')}
             value={form.color}
             onChange={(event) =>
               onFormChange((current) => ({
@@ -70,7 +81,7 @@ export const ServiceCenterModal = ({
         </div>
       </label>
       <label className='field'>
-        <span>address:</span>
+        <span>{t('warehouse.modals.serviceCenter.addressLabel')}</span>
         <input
           value={form.address}
           onChange={(event) =>
@@ -79,11 +90,11 @@ export const ServiceCenterModal = ({
               address: event.target.value,
             }))
           }
-          placeholder='address'
+          placeholder={t('warehouse.modals.serviceCenter.addressPlaceholder')}
         />
       </label>
       <label className='field'>
-        <span>phone:</span>
+        <span>{t('warehouse.modals.serviceCenter.phoneLabel')}</span>
         <input
           value={form.phone}
           onChange={(event) =>
@@ -92,7 +103,7 @@ export const ServiceCenterModal = ({
               phone: event.target.value,
             }))
           }
-          placeholder='+380'
+          placeholder={t('warehouse.modals.serviceCenter.phonePlaceholder')}
         />
       </label>
     </ModalShell>
@@ -116,6 +127,8 @@ export const WarehouseEditModal = ({
   onClose: () => void;
   onSubmit: () => void;
 }) => {
+  const { t } = useTranslation();
+
   if (!modalId) return null;
   const normalizedLocationNames = form.locations
     .map((location) => location.name.trim().toLowerCase())
@@ -125,10 +138,18 @@ export const WarehouseEditModal = ({
 
   return (
     <ModalShell
-      title={modalId === 'new' ? 'create warehouse' : 'edit warehouse'}
+      title={
+        modalId === 'new'
+          ? t('warehouse.modals.warehouse.createTitle')
+          : t('warehouse.modals.warehouse.editTitle')
+      }
       onClose={onClose}
       onSubmit={onSubmit}
-      submitLabel={modalId === 'new' ? 'create' : 'save'}
+      submitLabel={
+        modalId === 'new'
+          ? t('warehouse.common.create')
+          : t('warehouse.common.save')
+      }
       canSubmit={
         form.name.trim().length > 1 &&
         Boolean(form.serviceCenterId) &&
@@ -137,7 +158,7 @@ export const WarehouseEditModal = ({
       }
     >
       <label className='field'>
-        <span>name:</span>
+        <span>{t('warehouse.modals.warehouse.nameLabel')}</span>
         <input
           value={form.name}
           onChange={(event) =>
@@ -146,7 +167,7 @@ export const WarehouseEditModal = ({
               name: event.target.value,
             }))
           }
-          placeholder='name'
+          placeholder={t('warehouse.modals.warehouse.namePlaceholder')}
         />
       </label>
       <label className='create-inline-checkbox'>
@@ -160,10 +181,10 @@ export const WarehouseEditModal = ({
             }))
           }
         />
-        <span>active</span>
+        <span>{t('warehouse.modals.warehouse.active')}</span>
       </label>
       <label className='field'>
-        <span>Location to Service Center:</span>
+        <span>{t('warehouse.modals.warehouse.serviceCenterLabel')}</span>
         <select
           value={form.serviceCenterId}
           onChange={(event) =>
@@ -173,7 +194,9 @@ export const WarehouseEditModal = ({
             }))
           }
         >
-          <option value=''>select service center</option>
+          <option value=''>
+            {t('warehouse.modals.warehouse.selectServiceCenter')}
+          </option>
           {serviceCenters.map((serviceCenter) => (
             <option key={serviceCenter.id} value={serviceCenter.id}>
               {serviceCenter.name}
@@ -182,7 +205,7 @@ export const WarehouseEditModal = ({
         </select>
       </label>
       <label className='field'>
-        <span>address for suppliers:</span>
+        <span>{t('warehouse.modals.warehouse.receiptAddressLabel')}</span>
         <input
           value={form.receiptAddress}
           onChange={(event) =>
@@ -194,7 +217,7 @@ export const WarehouseEditModal = ({
         />
       </label>
       <label className='field'>
-        <span>phone for suppliers:</span>
+        <span>{t('warehouse.modals.warehouse.receiptPhoneLabel')}</span>
         <input
           value={form.receiptPhone}
           onChange={(event) =>
@@ -206,7 +229,7 @@ export const WarehouseEditModal = ({
         />
       </label>
       <div className='field'>
-        <span>locations:</span>
+        <span>{t('warehouse.modals.warehouse.locationsLabel')}</span>
         <div className='warehouse-settings-locations'>
           {form.locations.map((location, index) => {
             const usageCount = locationUsage[location.id] ?? 0;
@@ -234,11 +257,13 @@ export const WarehouseEditModal = ({
                       locations: nextLocations,
                     }));
                   }}
-                  placeholder='enter location name'
+                  placeholder={t(
+                    'warehouse.modals.warehouse.locationNamePlaceholder',
+                  )}
                 />
                 <span
                   className='warehouse-settings-location-usage'
-                  title='Products referencing this location'
+                  title={t('warehouse.modals.warehouse.locationUsageTitle')}
                 >
                   {usageCount}
                 </span>
@@ -255,14 +280,16 @@ export const WarehouseEditModal = ({
                     }))
                   }
                 >
-                  Delete
+                  {t('warehouse.common.delete')}
                 </button>
               </div>
             );
           })}
         </div>
         {hasDuplicateLocations ? (
-          <small>Location names must be unique inside a warehouse.</small>
+          <small>
+            {t('warehouse.modals.warehouse.duplicateLocationsError')}
+          </small>
         ) : null}
         <button
           type='button'
@@ -277,7 +304,7 @@ export const WarehouseEditModal = ({
             }))
           }
         >
-          location
+          {t('warehouse.modals.warehouse.addLocation')}
         </button>
       </div>
     </ModalShell>

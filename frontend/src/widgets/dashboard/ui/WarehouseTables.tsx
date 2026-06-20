@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { getStockSupplierLabel } from '../model/stock-balance';
 import {
   getReceiptPaymentStatusClass,
-  getReceiptPaymentStatusLabel,
   getWarehouseBadgeAccentStyle,
   type ProductWarehouseMeta,
   type ReceiptRow,
@@ -33,8 +33,12 @@ export const ReceiptsTable = ({
   onToggleFavorite: (receipt: ReceiptRow) => void;
   canManageSupplierOrders: boolean;
 }) => {
+  const { t } = useTranslation();
+
   if (receipts.length === 0)
-    return <p className='empty-state'>No receipt orders created.</p>;
+    return (
+      <p className='empty-state'>{t('warehouse.tables.receipts.empty')}</p>
+    );
   return (
     <div className='catalog-table-wrap'>
       <table className='catalog-table warehouse-receipts-table'>
@@ -42,29 +46,7 @@ export const ReceiptsTable = ({
           <tr>
             {visibleColumns.map((columnKey) => (
               <th key={columnKey}>
-                {columnKey === 'number'
-                  ? '#'
-                  : columnKey === 'product'
-                    ? 'Product'
-                    : columnKey === 'quantity'
-                      ? 'Quantity'
-                      : columnKey === 'price'
-                        ? 'Price'
-                        : columnKey === 'amount'
-                          ? 'Amount'
-                          : columnKey === 'paid'
-                            ? 'Paid'
-                            : columnKey === 'supplier'
-                              ? 'Supplier'
-                              : columnKey === 'receiptDate'
-                                ? 'Receipt Date'
-                                : columnKey === 'acceptedBy'
-                                  ? 'Accepted By'
-                                  : columnKey === 'approvedBy'
-                                    ? 'Approved By'
-                                    : columnKey === 'status'
-                                      ? 'Status'
-                                      : 'Payment'}
+                {t(`warehouse.tables.receipts.columns.${columnKey}`)}
               </th>
             ))}
           </tr>
@@ -86,8 +68,13 @@ export const ReceiptsTable = ({
                           }
                           aria-label={
                             receipt.supplierOrderIsFavorite
-                              ? `Remove star from ${receipt.number}`
-                              : `Star ${receipt.number}`
+                              ? t(
+                                  'warehouse.tables.receipts.removeStarAriaLabel',
+                                  { number: receipt.number },
+                                )
+                              : t('warehouse.tables.receipts.starAriaLabel', {
+                                  number: receipt.number,
+                                })
                           }
                           aria-pressed={receipt.supplierOrderIsFavorite === true}
                           disabled={!canManageSupplierOrders}
@@ -110,7 +97,9 @@ export const ReceiptsTable = ({
                       {receipt.productName}
                     </button>
                   ) : columnKey === 'quantity' ? (
-                    `${receipt.quantity} pcs`
+                    t('warehouse.tables.receipts.quantityPcs', {
+                      count: receipt.quantity,
+                    })
                   ) : columnKey === 'price' ? (
                     formatCurrency(receipt.price)
                   ) : columnKey === 'amount' ? (
@@ -143,13 +132,7 @@ export const ReceiptsTable = ({
                               : 'receipt-status receipt-status-approved'
                       }
                     >
-                      {receipt.status === 'cancelled'
-                        ? 'Cancelled'
-                        : receipt.status === 'received'
-                          ? 'Taken on charge'
-                          : receipt.status === 'new'
-                            ? 'New'
-                            : 'Approved'}
+                      {t(`warehouse.tables.receipts.status.${receipt.status}`)}
                     </span>
                   ) : receipt.status === 'new' ? (
                     '-'
@@ -159,8 +142,8 @@ export const ReceiptsTable = ({
                         receipt.paymentStatus,
                       )}
                     >
-                      {getReceiptPaymentStatusLabel(
-                        receipt.paymentStatus,
+                      {t(
+                        `warehouse.tables.receipts.paymentStatus.${receipt.paymentStatus}`,
                       )}
                     </span>
                   ) : (
@@ -215,6 +198,7 @@ export const StockTable = ({
     itemIndex: number,
   ) => void;
 }) => {
+  const { t } = useTranslation();
   const isPageSelected =
     products.length > 0 &&
     products.every((product) => selectedProductIds.includes(product.id));
@@ -252,14 +236,14 @@ export const StockTable = ({
   if (isLoading)
     return (
       <p className='empty-state warehouse-stock-empty'>
-        Loading warehouse stock...
+        {t('warehouse.tables.stock.loading')}
       </p>
     );
   if (products.length === 0)
     return (
       <div className='empty-state warehouse-stock-empty'>
-        <strong>No stock rows found.</strong>
-        <span>Adjust search or filters to see available stock.</span>
+        <strong>{t('warehouse.tables.stock.emptyTitle')}</strong>
+        <span>{t('warehouse.tables.stock.emptyHint')}</span>
       </div>
     );
   return (
@@ -276,34 +260,14 @@ export const StockTable = ({
                   <input
                     ref={selectAllRef}
                     type='checkbox'
-                    aria-label='Select all stock rows'
+                    aria-label={t(
+                      'warehouse.tables.stock.selectAllAriaLabel',
+                    )}
                     checked={isPageSelected}
                     onChange={onTogglePageSelection}
                   />
-                ) : columnKey === 'name' ? (
-                  'Name'
-                ) : columnKey === 'serial' ? (
-                  'Serial #'
-                ) : columnKey === 'article' ? (
-                  'Article'
-                ) : columnKey === 'date' ? (
-                  'Date'
-                ) : columnKey === 'purchase' ? (
-                  'Purchase'
-                ) : columnKey === 'warehouse' ? (
-                  'Warehouse'
-                ) : columnKey === 'location' ? (
-                  'Location'
-                ) : columnKey === 'clientOrder' ? (
-                  'Client order'
-                ) : columnKey === 'supplierOrder' ? (
-                  'Supplier order'
-                ) : columnKey === 'supplier' ? (
-                  'Supplier'
-                ) : columnKey === 'note' ? (
-                  'Note'
                 ) : (
-                  'Action'
+                  t(`warehouse.tables.stock.columns.${columnKey}`)
                 )}
               </th>
             ))}
@@ -355,7 +319,10 @@ export const StockTable = ({
                         {columnKey === 'select' ? (
                           <input
                             type='checkbox'
-                            aria-label={`Select ${product.name}`}
+                            aria-label={t(
+                              'warehouse.tables.stock.selectRowAriaLabel',
+                              { name: product.name },
+                            )}
                             checked={selectedProductIds.includes(product.id)}
                             onChange={() => onToggleProductSelection(product.id)}
                           />

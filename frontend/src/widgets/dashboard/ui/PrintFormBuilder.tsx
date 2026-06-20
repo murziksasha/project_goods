@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import JsBarcode from 'jsbarcode';
 import type {
   PrintForm,
@@ -39,19 +40,14 @@ const printFormTypeOptions = [
   'custom',
 ];
 
-const blockTypeLabels: Record<PrintLayoutBlock['type'], string> = {
-  heading: 'Heading',
-  paragraph: 'Text',
-  fieldRow: 'Field row',
-  fieldGrid: 'Field grid',
-  customTable: 'Editable table',
-  lineItemsTable: 'Items table',
-  invoiceItemsTable: 'Invoice table',
-  barcode: 'Barcode',
-  signatures: 'Signatures',
-  divider: 'Divider',
-  spacer: 'Spacer',
-  columns: 'Columns',
+const printFormVariableGroupKeys: Record<string, string> = {
+  Order: 'order',
+  Client: 'client',
+  Device: 'device',
+  Finance: 'finance',
+  Team: 'team',
+  'Company and warehouse': 'companyAndWarehouse',
+  'Special blocks': 'specialBlocks',
 };
 
 const blockInsertOptions: PrintLayoutBlock['type'][] = [
@@ -138,29 +134,36 @@ const regenerateLayoutContent = (form: PrintForm, blocks: PrintLayoutBlock[]) =>
   contentFormat: 'html' as const,
 });
 
-const VariablePicker = ({ onInsert }: { onInsert: (variable: string) => void }) => (
-  <div className="settings-variable-catalog">
-    <h3>Template variables</h3>
-    <div className="settings-variable-grid">
-      {printFormVariableGroups.map((group) => (
-        <div key={group.title} className="settings-variable-group">
-          <strong>{group.title}</strong>
-          {group.variables.map((variable) => (
-            <button
-              key={variable.key}
-              type="button"
-              className="settings-variable-row"
-              onClick={() => onInsert(`{{${variable.key}}}`)}
-            >
-              <code>{`{{${variable.key}}}`}</code>
-              <span>{variable.label}</span>
-            </button>
-          ))}
-        </div>
-      ))}
+const VariablePicker = ({ onInsert }: { onInsert: (variable: string) => void }) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="settings-variable-catalog">
+      <h3>{t('settings.printBuilder.templateVariables')}</h3>
+      <div className="settings-variable-grid">
+        {printFormVariableGroups.map((group) => {
+          const groupKey = printFormVariableGroupKeys[group.title] ?? group.title;
+          return (
+            <div key={group.title} className="settings-variable-group">
+              <strong>{t(`settings.printBuilder.variableGroups.${groupKey}`)}</strong>
+              {group.variables.map((variable) => (
+                <button
+                  key={variable.key}
+                  type="button"
+                  className="settings-variable-row"
+                  onClick={() => onInsert(`{{${variable.key}}}`)}
+                >
+                  <code>{`{{${variable.key}}}`}</code>
+                  <span>{t(`settings.printBuilder.variables.${variable.key}`)}</span>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TextInput = ({
   label,
@@ -198,16 +201,30 @@ const AlignInput = ({
 }: {
   value: 'left' | 'center' | 'right' | undefined;
   onChange: (value: 'left' | 'center' | 'right') => void;
-}) => (
-  <label className="field">
-    <span>Align</span>
-    <select value={value ?? 'left'} onChange={(event) => onChange(event.target.value as 'left' | 'center' | 'right')}>
-      {alignOptions.map((align) => (
-        <option key={align} value={align}>{align}</option>
-      ))}
-    </select>
-  </label>
-);
+}) => {
+  const { t } = useTranslation();
+  const alignLabelKeys = {
+    left: 'settings.printBuilder.alignLeft',
+    center: 'settings.printBuilder.alignCenter',
+    right: 'settings.printBuilder.alignRight',
+  } as const;
+
+  return (
+    <label className="field">
+      <span>{t('settings.printBuilder.align')}</span>
+      <select
+        value={value ?? 'left'}
+        onChange={(event) => onChange(event.target.value as 'left' | 'center' | 'right')}
+      >
+        {alignOptions.map((align) => (
+          <option key={align} value={align}>
+            {t(alignLabelKeys[align])}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
 
 const LevelInput = ({
   value,
@@ -215,9 +232,12 @@ const LevelInput = ({
 }: {
   value: 1 | 2 | 3;
   onChange: (value: 1 | 2 | 3) => void;
-}) => (
-  <label className="field">
-    <span>Level</span>
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <label className="field">
+      <span>{t('settings.printBuilder.level')}</span>
     <select
       value={value}
       onChange={(event) => onChange(Number(event.target.value) as 1 | 2 | 3)}
@@ -227,7 +247,8 @@ const LevelInput = ({
       <option value={3}>H3</option>
     </select>
   </label>
-);
+  );
+};
 
 const updateField = (
   fields: PrintLayoutField[],
@@ -263,6 +284,8 @@ const BlockEditor = ({
   block: PrintLayoutBlock;
   onChange: (block: PrintLayoutBlock) => void;
 }) => {
+  const { t } = useTranslation();
+
   const appendToFirstText = (variable: string) => {
     if (block.type === 'heading' || block.type === 'paragraph') {
       onChange({ ...block, text: `${block.text}${variable}` });
@@ -273,7 +296,11 @@ const BlockEditor = ({
     case 'heading':
       return (
         <div className="print-block-editor-fields">
-          <TextInput label="Text" value={block.text} onChange={(text) => onChange({ ...block, text })} />
+          <TextInput
+            label={t('settings.printBuilder.text')}
+            value={block.text}
+            onChange={(text) => onChange({ ...block, text })}
+          />
           <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
@@ -282,7 +309,11 @@ const BlockEditor = ({
     case 'paragraph':
       return (
         <div className="print-block-editor-fields">
-          <TextAreaInput label="Text" value={block.text} onChange={(text) => onChange({ ...block, text })} />
+          <TextAreaInput
+            label={t('settings.printBuilder.text')}
+            value={block.text}
+            onChange={(text) => onChange({ ...block, text })}
+          />
           <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
@@ -294,7 +325,7 @@ const BlockEditor = ({
         <div className="print-block-editor-fields">
           {block.type === 'fieldGrid' ? (
             <label className="field">
-              <span>Columns</span>
+              <span>{t('settings.printBuilder.columns')}</span>
               <select
                 value={block.columns ?? 2}
                 onChange={(event) =>
@@ -311,14 +342,14 @@ const BlockEditor = ({
             {block.fields.map((field, index) => (
               <div key={`${block.id}-field-${index}`} className="print-builder-field-row">
                 <input
-                  aria-label={`Field label ${index + 1}`}
+                  aria-label={t('settings.printBuilder.fieldLabel', { index: index + 1 })}
                   value={field.label}
                   onChange={(event) =>
                     onChange({ ...block, fields: updateField(block.fields, index, { label: event.target.value }) })
                   }
                 />
                 <input
-                  aria-label={`Field value ${index + 1}`}
+                  aria-label={t('settings.printBuilder.fieldValue', { index: index + 1 })}
                   value={field.value}
                   onChange={(event) =>
                     onChange({ ...block, fields: updateField(block.fields, index, { value: event.target.value }) })
@@ -329,7 +360,7 @@ const BlockEditor = ({
                   className="secondary-button"
                   onClick={() => onChange({ ...block, fields: block.fields.filter((_, fieldIndex) => fieldIndex !== index) })}
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             ))}
@@ -338,10 +369,16 @@ const BlockEditor = ({
             type="button"
             className="secondary-button"
             onClick={() =>
-              onChange({ ...block, fields: [...block.fields, { label: 'Label', value: '{{orderNumber}}' }] })
+              onChange({
+                ...block,
+                fields: [
+                  ...block.fields,
+                  { label: t('settings.printBuilder.defaultFieldLabel'), value: '{{orderNumber}}' },
+                ],
+              })
             }
           >
-            Add row
+            {t('settings.printBuilder.addRow')}
           </button>
         </div>
       );
@@ -349,11 +386,11 @@ const BlockEditor = ({
       return (
         <div className="print-block-editor-fields">
           <div className="print-builder-table-editor">
-            <strong>Columns</strong>
+            <strong>{t('settings.printBuilder.columns')}</strong>
             {block.columns.map((column, index) => (
               <div key={column.id} className="print-builder-field-row">
                 <input
-                  aria-label={`Column label ${index + 1}`}
+                  aria-label={t('settings.printBuilder.columnLabel', { index: index + 1 })}
                   value={column.label}
                   onChange={(event) =>
                     onChange({ ...block, columns: updateTableColumn(block.columns, index, { label: event.target.value }) })
@@ -374,7 +411,7 @@ const BlockEditor = ({
                     })
                   }
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             ))}
@@ -382,7 +419,10 @@ const BlockEditor = ({
               type="button"
               className="secondary-button"
               onClick={() => {
-                const column = { id: `col-${Date.now()}`, label: 'Column' };
+                const column = {
+                  id: `col-${Date.now()}`,
+                  label: t('settings.printBuilder.defaultColumnLabel'),
+                };
                 onChange({
                   ...block,
                   columns: [...block.columns, column],
@@ -390,15 +430,18 @@ const BlockEditor = ({
                 });
               }}
             >
-              Add column
+              {t('settings.printBuilder.addColumn')}
             </button>
-            <strong>Rows</strong>
+            <strong>{t('settings.printBuilder.rows')}</strong>
             {block.rows.map((row, rowIndex) => (
               <div key={row.id} className="print-builder-custom-row">
                 {block.columns.map((column) => (
                   <input
                     key={`${row.id}-${column.id}`}
-                    aria-label={`${column.label} row ${rowIndex + 1}`}
+                    aria-label={t('settings.printBuilder.columnRow', {
+                      label: column.label,
+                      index: rowIndex + 1,
+                    })}
                     value={row.cells[column.id] ?? ''}
                     onChange={(event) =>
                       onChange({ ...block, rows: updateTableRow(block.rows, rowIndex, column.id, event.target.value) })
@@ -410,7 +453,7 @@ const BlockEditor = ({
                   className="secondary-button"
                   onClick={() => onChange({ ...block, rows: block.rows.filter((_, index) => index !== rowIndex) })}
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             ))}
@@ -431,31 +474,39 @@ const BlockEditor = ({
               })
             }
           >
-            Add row
+            {t('settings.printBuilder.addRow')}
           </button>
         </div>
       );
     case 'lineItemsTable':
       return (
         <div className="print-block-editor-fields">
-          <TextInput label="Title" value={block.title ?? ''} onChange={(title) => onChange({ ...block, title })} />
+          <TextInput
+            label={t('settings.printBuilder.title')}
+            value={block.title ?? ''}
+            onChange={(title) => onChange({ ...block, title })}
+          />
           <label className="field">
-            <span>Source</span>
+            <span>{t('settings.printBuilder.source')}</span>
             <select
               value={block.kind}
               onChange={(event) =>
                 onChange({ ...block, kind: event.target.value === 'services' ? 'services' : 'products' })
               }
             >
-              <option value="products">Products</option>
-              <option value="services">Services</option>
+              <option value="products">{t('settings.printBuilder.products')}</option>
+              <option value="services">{t('settings.printBuilder.services')}</option>
             </select>
           </label>
         </div>
       );
     case 'invoiceItemsTable':
       return (
-        <TextInput label="Title" value={block.title ?? ''} onChange={(title) => onChange({ ...block, title })} />
+        <TextInput
+          label={t('settings.printBuilder.title')}
+          value={block.title ?? ''}
+          onChange={(title) => onChange({ ...block, title })}
+        />
       );
     case 'barcode':
       {
@@ -463,12 +514,26 @@ const BlockEditor = ({
           onChange({ ...block, value: `${block.value ?? '{{barcode}}'}${variable}` });
         };
 
+        const barcodeSizeLabelKeys = {
+          compact: 'settings.printBuilder.barcodeSizeCompact',
+          standard: 'settings.printBuilder.barcodeSizeStandard',
+          large: 'settings.printBuilder.barcodeSizeLarge',
+        } as const;
+
         return (
           <div className="print-block-editor-fields">
-            <TextInput label="Label" value={block.label ?? ''} onChange={(label) => onChange({ ...block, label })} />
-            <TextInput label="Value" value={block.value ?? '{{barcode}}'} onChange={(value) => onChange({ ...block, value })} />
+            <TextInput
+              label={t('settings.printBuilder.label')}
+              value={block.label ?? ''}
+              onChange={(label) => onChange({ ...block, label })}
+            />
+            <TextInput
+              label={t('settings.printBuilder.value')}
+              value={block.value ?? '{{barcode}}'}
+              onChange={(value) => onChange({ ...block, value })}
+            />
             <label className="field">
-              <span>Size</span>
+              <span>{t('settings.printBuilder.size')}</span>
               <select
                 value={block.size ?? 'standard'}
                 onChange={(event) =>
@@ -483,7 +548,9 @@ const BlockEditor = ({
                 }
               >
                 {barcodeSizeOptions.map((size) => (
-                  <option key={size} value={size}>{size}</option>
+                  <option key={size} value={size}>
+                    {t(barcodeSizeLabelKeys[size])}
+                  </option>
                 ))}
               </select>
             </label>
@@ -493,7 +560,7 @@ const BlockEditor = ({
                 checked={block.showValue === true}
                 onChange={(event) => onChange({ ...block, showValue: event.target.checked })}
               />
-              <span>Show value under barcode</span>
+              <span>{t('settings.printBuilder.showValueUnderBarcode')}</span>
             </label>
             <VariablePicker onInsert={appendToBarcodeValue} />
           </div>
@@ -502,23 +569,31 @@ const BlockEditor = ({
     case 'signatures':
       return (
         <div className="print-block-editor-fields">
-          <TextInput label="Left" value={block.left} onChange={(left) => onChange({ ...block, left })} />
-          <TextInput label="Right" value={block.right} onChange={(right) => onChange({ ...block, right })} />
+          <TextInput
+            label={t('settings.printBuilder.left')}
+            value={block.left}
+            onChange={(left) => onChange({ ...block, left })}
+          />
+          <TextInput
+            label={t('settings.printBuilder.right')}
+            value={block.right}
+            onChange={(right) => onChange({ ...block, right })}
+          />
         </div>
       );
     case 'spacer':
       return (
         <label className="field">
-          <span>Size</span>
+          <span>{t('settings.printBuilder.size')}</span>
           <select
             value={block.size}
             onChange={(event) =>
               onChange({ ...block, size: event.target.value === 'large' ? 'large' : event.target.value === 'small' ? 'small' : 'medium' })
             }
           >
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
+            <option value="small">{t('settings.printBuilder.spacerSmall')}</option>
+            <option value="medium">{t('settings.printBuilder.spacerMedium')}</option>
+            <option value="large">{t('settings.printBuilder.spacerLarge')}</option>
           </select>
         </label>
       );
@@ -528,7 +603,7 @@ const BlockEditor = ({
           {block.columns.map((column, index) => (
             <TextAreaInput
               key={column.id}
-              label={`Column ${index + 1} text`}
+              label={t('settings.printBuilder.columnText', { index: index + 1 })}
               value={column.blocks.map((item) => (item.type === 'paragraph' ? item.text : '')).join('\n')}
               onChange={(text) =>
                 onChange({
@@ -556,7 +631,7 @@ const BlockEditor = ({
       );
     case 'divider':
     default:
-      return <p className="print-builder-muted">This block has no settings.</p>;
+      return <p className="print-builder-muted">{t('settings.printBuilder.noBlockSettings')}</p>;
   }
 };
 
@@ -569,6 +644,7 @@ export const PrintFormBuilder = ({
   onUpdateForm,
   onDeleteForm,
 }: PrintFormBuilderProps) => {
+  const { t } = useTranslation();
   const [activeBlockId, setActiveBlockId] = useState(
     () => selectedForm.layoutBlocks?.[0]?.id ?? '',
   );
@@ -623,7 +699,7 @@ export const PrintFormBuilder = ({
     const converted = createLayoutPrintForm({
       ...selectedForm,
       id: `${selectedForm.id}-layout-${Date.now()}`,
-      title: `${selectedForm.title} layout`,
+      title: t('settings.printBuilder.layoutSuffix', { title: selectedForm.title }),
       type: selectedForm.type || 'custom',
       sortOrder: (forms.length + 1) * 10,
     });
@@ -660,9 +736,13 @@ export const PrintFormBuilder = ({
     <div className="settings-print-builder">
       <div className="settings-print-editor">
         <div className="settings-print-options-row">
-          <TextInput label="Template name" value={selectedForm.title} onChange={(title) => onUpdateForm(selectedForm.id, { title })} />
+          <TextInput
+            label={t('settings.printBuilder.templateName')}
+            value={selectedForm.title}
+            onChange={(title) => onUpdateForm(selectedForm.id, { title })}
+          />
           <label className="field">
-            <span>Document type</span>
+            <span>{t('settings.printBuilder.documentType')}</span>
             <select value={selectedForm.type} onChange={(event) => onUpdateForm(selectedForm.id, { type: event.target.value })}>
               {printFormTypeOptions.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -672,14 +752,14 @@ export const PrintFormBuilder = ({
         </div>
         <div className="settings-print-options-row">
           <label className="field">
-            <span>Page size</span>
+            <span>{t('settings.printBuilder.pageSize')}</span>
             <select value={selectedForm.pageSize} onChange={(event) => updateSelectedFormPageSize(event.target.value === 'label' ? 'label' : 'A4')}>
-              <option value="A4">A4</option>
-              <option value="label">Label</option>
+              <option value="A4">{t('settings.printBuilder.pageSizeA4')}</option>
+              <option value="label">{t('settings.printBuilder.pageSizeLabel')}</option>
             </select>
           </label>
           <label className="field">
-            <span>Orientation</span>
+            <span>{t('settings.printBuilder.orientation')}</span>
             <select
               value={selectedForm.orientation}
               onChange={(event) =>
@@ -688,8 +768,8 @@ export const PrintFormBuilder = ({
                 })
               }
             >
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
+              <option value="portrait">{t('settings.printBuilder.portrait')}</option>
+              <option value="landscape">{t('settings.printBuilder.landscape')}</option>
             </select>
           </label>
           <label className="settings-check">
@@ -698,28 +778,36 @@ export const PrintFormBuilder = ({
               checked={selectedForm.isActive}
               onChange={(event) => onUpdateForm(selectedForm.id, { isActive: event.target.checked })}
             />
-            <span>Active in print menu</span>
+            <span>{t('settings.printBuilder.activeInPrintMenu')}</span>
           </label>
         </div>
         {selectedForm.pageSize === 'label' ? (
           <div className="settings-print-options-row settings-label-size-row">
             <label className="field">
-              <span>Label size</span>
+              <span>{t('settings.printBuilder.labelSize')}</span>
               <select value={labelSize.presetId} onChange={(event) => updateLabelPreset(event.target.value)}>
                 {labelSizePresets.map((preset) => (
                   <option key={preset.id} value={preset.id}>{preset.label}</option>
                 ))}
-                <option value={customLabelSizePresetId}>Custom</option>
+                <option value={customLabelSizePresetId}>{t('settings.printBuilder.custom')}</option>
               </select>
             </label>
-            <TextInput label="Width, mm" value={String(labelSize.widthMm)} onChange={(value) => updateLabelSize('widthMm', Number(value))} />
-            <TextInput label="Height, mm" value={String(labelSize.heightMm)} onChange={(value) => updateLabelSize('heightMm', Number(value))} />
+            <TextInput
+              label={t('settings.printBuilder.widthMm')}
+              value={String(labelSize.widthMm)}
+              onChange={(value) => updateLabelSize('widthMm', Number(value))}
+            />
+            <TextInput
+              label={t('settings.printBuilder.heightMm')}
+              value={String(labelSize.heightMm)}
+              onChange={(value) => updateLabelSize('heightMm', Number(value))}
+            />
           </div>
         ) : null}
 
         {isLegacy ? (
           <div className="settings-legacy-editor">
-            <p className="section-label">Legacy HTML form</p>
+            <p className="section-label">{t('settings.printBuilder.legacyHtmlForm')}</p>
             <textarea
               className="settings-html-source"
               rows={14}
@@ -729,7 +817,7 @@ export const PrintFormBuilder = ({
               }
             />
             <button type="button" className="secondary-button" onClick={convertLegacyToLayout}>
-              Duplicate as block layout
+              {t('settings.printBuilder.duplicateAsBlockLayout')}
             </button>
           </div>
         ) : (
@@ -737,7 +825,7 @@ export const PrintFormBuilder = ({
             <div className="print-builder-toolbar">
               {blockInsertOptions.map((type) => (
                 <button key={type} type="button" className="secondary-button" onClick={() => addBlock(type)}>
-                  {blockTypeLabels[type]}
+                  {t(`settings.printBuilder.blockTypes.${type}`)}
                 </button>
               ))}
             </div>
@@ -750,7 +838,7 @@ export const PrintFormBuilder = ({
                     className={block.id === selectedBlock?.id ? 'print-builder-block-item print-builder-block-item-active' : 'print-builder-block-item'}
                     onClick={() => setActiveBlockId(block.id)}
                   >
-                    <span>{index + 1}. {blockTypeLabels[block.type]}</span>
+                    <span>{index + 1}. {t(`settings.printBuilder.blockTypes.${block.type}`)}</span>
                     <small>{block.id}</small>
                   </button>
                 ))}
@@ -758,16 +846,22 @@ export const PrintFormBuilder = ({
               {selectedBlock ? (
                 <div className="print-builder-block-editor">
                   <div className="print-builder-block-actions">
-                    <strong>{blockTypeLabels[selectedBlock.type]}</strong>
-                    <button type="button" className="secondary-button" onClick={() => moveBlock(selectedBlock.id, -1)}>Up</button>
-                    <button type="button" className="secondary-button" onClick={() => moveBlock(selectedBlock.id, 1)}>Down</button>
-                    <button type="button" className="secondary-button" onClick={() => duplicateBlock(selectedBlock)}>Duplicate</button>
+                    <strong>{t(`settings.printBuilder.blockTypes.${selectedBlock.type}`)}</strong>
+                    <button type="button" className="secondary-button" onClick={() => moveBlock(selectedBlock.id, -1)}>
+                      {t('settings.printBuilder.up')}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => moveBlock(selectedBlock.id, 1)}>
+                      {t('settings.printBuilder.down')}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => duplicateBlock(selectedBlock)}>
+                      {t('settings.printBuilder.duplicate')}
+                    </button>
                     <button
                       type="button"
                       className="danger-button"
                       onClick={() => updateBlocks(blocks.filter((block) => block.id !== selectedBlock.id))}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                   <BlockEditor block={selectedBlock} onChange={(block) => updateBlock(selectedBlock.id, block)} />
@@ -777,11 +871,11 @@ export const PrintFormBuilder = ({
           </>
         )}
         <button type="button" className="danger-button" onClick={onDeleteForm} disabled={forms.length <= 1}>
-          Delete template
+          {t('settings.printBuilder.deleteTemplate')}
         </button>
       </div>
       <aside className="settings-print-preview">
-        <p className="section-label">Live preview</p>
+        <p className="section-label">{t('settings.printBuilder.livePreview')}</p>
         <h3>{selectedForm.title}</h3>
         <PrintPreview html={previewHtml} form={selectedForm} />
       </aside>

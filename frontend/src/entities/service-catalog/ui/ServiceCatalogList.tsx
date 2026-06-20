@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../../shared/lib/format';
 import type { ServiceCatalogItem } from '../model/types';
 
@@ -16,16 +17,18 @@ export const ServiceCatalogList = ({
   onEdit,
   onDelete,
 }: ServiceCatalogListProps) => {
+  const { t } = useTranslation();
+
   if (isLoading) {
-    return <p className="empty-state">Loading services...</p>;
+    return <p className="empty-state">{t('legacy.serviceList.loading')}</p>;
   }
 
   if (services.length === 0) {
     return (
       <p className="empty-state">
         {searchQuery
-          ? 'No services found for this search query.'
-          : 'No services yet. Add the first service to the catalog.'}
+          ? t('legacy.serviceList.noSearchResults')
+          : t('legacy.serviceList.empty')}
       </p>
     );
   }
@@ -38,19 +41,21 @@ export const ServiceCatalogList = ({
             <div>
               <div className="product-title-row">
                 <h3>{service.name}</h3>
-                <span className="stock-badge stock-badge-success">Service</span>
+                <span className="stock-badge stock-badge-success">
+                  {t('legacy.serviceList.badge')}
+                </span>
               </div>
-              <p>{service.note || 'No note'}</p>
+              <p>{service.note || t('common.noNote')}</p>
             </div>
             <strong>{formatCurrency(service.price)}</strong>
           </div>
 
           <div className="card-actions">
             <button className="ghost-button" type="button" onClick={() => onEdit(service)}>
-              Edit
+              {t('common.edit')}
             </button>
             <button className="danger-button" type="button" onClick={() => onDelete(service)}>
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </article>

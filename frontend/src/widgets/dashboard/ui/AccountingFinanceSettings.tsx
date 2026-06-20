@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Cashbox } from '../../../entities/finance/model/types';
 
 type FinanceSettingsTab = 'cashboxes' | 'currencies';
@@ -59,70 +60,74 @@ export const AccountingFinanceSettings = ({
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
   onToggleCurrencyActivity,
-}: AccountingFinanceSettingsProps) => (
-  <section className='warehouse-settings-panel finance-settings-panel'>
-    <div className='warehouse-settings-tabs'>
-      <button
-        type='button'
-        className={
-          activeTab === 'cashboxes'
-            ? 'warehouse-settings-tab warehouse-settings-tab-active'
-            : 'warehouse-settings-tab'
-        }
-        onClick={() => onTabChange('cashboxes')}
-      >
-        Cashboxes
-      </button>
-      <button
-        type='button'
-        className={
-          activeTab === 'currencies'
-            ? 'warehouse-settings-tab warehouse-settings-tab-active'
-            : 'warehouse-settings-tab'
-        }
-        onClick={() => onTabChange('currencies')}
-      >
-        Currencies
-      </button>
-    </div>
+}: AccountingFinanceSettingsProps) => {
+  const { t } = useTranslation();
 
-    {activeTab === 'cashboxes' ? (
-      <CashboxSettings
-        allCashboxes={allCashboxes}
-        allCurrencyCodes={allCurrencyCodes}
-        editingCashboxId={editingCashboxId}
-        editingCashboxName={editingCashboxName}
-        expandedCard={expandedCard}
-        isSaving={isSaving}
-        newCashboxName={newCashboxName}
-        getCurrencyBalance={getCurrencyBalance}
-        isCashboxCurrencyActive={isCashboxCurrencyActive}
-        isGlobalCurrencyActive={isGlobalCurrencyActive}
-        onCancelCashboxEdit={onCancelCashboxEdit}
-        onCreateCashbox={onCreateCashbox}
-        onEditingCashboxNameChange={onEditingCashboxNameChange}
-        onNewCashboxNameChange={onNewCashboxNameChange}
-        onSaveCashbox={onSaveCashbox}
-        onStartEditCashbox={onStartEditCashbox}
-        onToggleCard={onToggleCard}
-        onToggleCashboxArchived={onToggleCashboxArchived}
-        onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
-      />
-    ) : (
-      <CurrencySettings
-        allCurrencyCodes={allCurrencyCodes}
-        expandedCard={expandedCard}
-        newCurrencyCode={newCurrencyCode}
-        isGlobalCurrencyActive={isGlobalCurrencyActive}
-        onAddCurrency={onAddCurrency}
-        onNewCurrencyCodeChange={onNewCurrencyCodeChange}
-        onRemoveCurrency={onRemoveCurrency}
-        onToggleCard={onToggleCard}
-        onToggleCurrencyActivity={onToggleCurrencyActivity}
-      />
-    )}
-  </section>
-);
+  return (
+    <section className='warehouse-settings-panel finance-settings-panel'>
+      <div className='warehouse-settings-tabs'>
+        <button
+          type='button'
+          className={
+            activeTab === 'cashboxes'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => onTabChange('cashboxes')}
+        >
+          {t('accounting.financeSettings.cashboxes')}
+        </button>
+        <button
+          type='button'
+          className={
+            activeTab === 'currencies'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => onTabChange('currencies')}
+        >
+          {t('accounting.financeSettings.currencies')}
+        </button>
+      </div>
+
+      {activeTab === 'cashboxes' ? (
+        <CashboxSettings
+          allCashboxes={allCashboxes}
+          allCurrencyCodes={allCurrencyCodes}
+          editingCashboxId={editingCashboxId}
+          editingCashboxName={editingCashboxName}
+          expandedCard={expandedCard}
+          isSaving={isSaving}
+          newCashboxName={newCashboxName}
+          getCurrencyBalance={getCurrencyBalance}
+          isCashboxCurrencyActive={isCashboxCurrencyActive}
+          isGlobalCurrencyActive={isGlobalCurrencyActive}
+          onCancelCashboxEdit={onCancelCashboxEdit}
+          onCreateCashbox={onCreateCashbox}
+          onEditingCashboxNameChange={onEditingCashboxNameChange}
+          onNewCashboxNameChange={onNewCashboxNameChange}
+          onSaveCashbox={onSaveCashbox}
+          onStartEditCashbox={onStartEditCashbox}
+          onToggleCard={onToggleCard}
+          onToggleCashboxArchived={onToggleCashboxArchived}
+          onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
+        />
+      ) : (
+        <CurrencySettings
+          allCurrencyCodes={allCurrencyCodes}
+          expandedCard={expandedCard}
+          newCurrencyCode={newCurrencyCode}
+          isGlobalCurrencyActive={isGlobalCurrencyActive}
+          onAddCurrency={onAddCurrency}
+          onNewCurrencyCodeChange={onNewCurrencyCodeChange}
+          onRemoveCurrency={onRemoveCurrency}
+          onToggleCard={onToggleCard}
+          onToggleCurrencyActivity={onToggleCurrencyActivity}
+        />
+      )}
+    </section>
+  );
+};
 
 type CashboxSettingsProps = Pick<
   AccountingFinanceSettingsProps,
@@ -167,59 +172,63 @@ const CashboxSettings = ({
   onToggleCard,
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
-}: CashboxSettingsProps) => (
-  <div className='finance-settings-body'>
-    <SettingsCard
-      cardId='cashboxes-create'
-      expandedCard={expandedCard}
-      title='Create cashbox'
-      onToggleCard={onToggleCard}
-    >
-      <div className='catalog-edit-body'>
-        <label className='field'>
-          <span>Name</span>
-          <input
-            value={newCashboxName}
-            onChange={(event) => onNewCashboxNameChange(event.target.value)}
-            placeholder='Enter cashbox name'
-          />
-        </label>
-      </div>
-      <footer className='catalog-edit-footer'>
-        <button
-          type='button'
-          className='primary-button'
-          disabled={isSaving || newCashboxName.trim().length < 2}
-          onClick={onCreateCashbox}
-        >
-          Create
-        </button>
-      </footer>
-    </SettingsCard>
+}: CashboxSettingsProps) => {
+  const { t } = useTranslation();
 
-    {allCashboxes.map((cashbox) => (
-      <CashboxSettingsCard
-        key={`settings-${cashbox.id}`}
-        allCurrencyCodes={allCurrencyCodes}
-        cashbox={cashbox}
-        editingCashboxId={editingCashboxId}
-        editingCashboxName={editingCashboxName}
+  return (
+    <div className='finance-settings-body'>
+      <SettingsCard
+        cardId='cashboxes-create'
         expandedCard={expandedCard}
-        isSaving={isSaving}
-        getCurrencyBalance={getCurrencyBalance}
-        isCashboxCurrencyActive={isCashboxCurrencyActive}
-        isGlobalCurrencyActive={isGlobalCurrencyActive}
-        onCancelCashboxEdit={onCancelCashboxEdit}
-        onEditingCashboxNameChange={onEditingCashboxNameChange}
-        onSaveCashbox={onSaveCashbox}
-        onStartEditCashbox={onStartEditCashbox}
+        title={t('accounting.financeSettings.createCashbox')}
         onToggleCard={onToggleCard}
-        onToggleCashboxArchived={onToggleCashboxArchived}
-        onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
-      />
-    ))}
-  </div>
-);
+      >
+        <div className='catalog-edit-body'>
+          <label className='field'>
+            <span>{t('common.name')}</span>
+            <input
+              value={newCashboxName}
+              onChange={(event) => onNewCashboxNameChange(event.target.value)}
+              placeholder={t('accounting.financeSettings.enterCashboxNamePlaceholder')}
+            />
+          </label>
+        </div>
+        <footer className='catalog-edit-footer'>
+          <button
+            type='button'
+            className='primary-button'
+            disabled={isSaving || newCashboxName.trim().length < 2}
+            onClick={onCreateCashbox}
+          >
+            {t('common.create')}
+          </button>
+        </footer>
+      </SettingsCard>
+
+      {allCashboxes.map((cashbox) => (
+        <CashboxSettingsCard
+          key={`settings-${cashbox.id}`}
+          allCurrencyCodes={allCurrencyCodes}
+          cashbox={cashbox}
+          editingCashboxId={editingCashboxId}
+          editingCashboxName={editingCashboxName}
+          expandedCard={expandedCard}
+          isSaving={isSaving}
+          getCurrencyBalance={getCurrencyBalance}
+          isCashboxCurrencyActive={isCashboxCurrencyActive}
+          isGlobalCurrencyActive={isGlobalCurrencyActive}
+          onCancelCashboxEdit={onCancelCashboxEdit}
+          onEditingCashboxNameChange={onEditingCashboxNameChange}
+          onSaveCashbox={onSaveCashbox}
+          onStartEditCashbox={onStartEditCashbox}
+          onToggleCard={onToggleCard}
+          onToggleCashboxArchived={onToggleCashboxArchived}
+          onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
+        />
+      ))}
+    </div>
+  );
+};
 
 type CashboxSettingsCardProps = Omit<
   CashboxSettingsProps,
@@ -246,13 +255,14 @@ const CashboxSettingsCard = ({
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
 }: CashboxSettingsCardProps) => {
+  const { t } = useTranslation();
   const cardId = `cashbox-${cashbox.id}`;
 
   return (
     <SettingsCard
       cardId={cardId}
       expandedCard={expandedCard}
-      title={`Edit cashbox ${cashbox.name}`}
+      title={t('accounting.financeSettings.editCashboxTitle', { name: cashbox.name })}
       className={
         cashbox.isArchived
           ? 'catalog-edit-modal finance-settings-cashbox finance-settings-cashbox-archived'
@@ -262,7 +272,7 @@ const CashboxSettingsCard = ({
     >
       <div className='catalog-edit-body'>
         <label className='field'>
-          <span>Name</span>
+          <span>{t('common.name')}</span>
           <input
             disabled={editingCashboxId !== cashbox.id || isSaving}
             value={editingCashboxId === cashbox.id ? editingCashboxName : cashbox.name}
@@ -276,7 +286,11 @@ const CashboxSettingsCard = ({
             disabled={cashbox.isDefault || isSaving}
             onChange={() => onToggleCashboxArchived(cashbox)}
           />
-          <span>{cashbox.isDefault ? 'Active (default)' : 'Active'}</span>
+          <span>
+            {cashbox.isDefault
+              ? t('accounting.financeSettings.activeDefault')
+              : t('accounting.financeSettings.active')}
+          </span>
         </label>
         <div className='finance-currency-activity-list'>
           {allCurrencyCodes.map((currencyCode) => (
@@ -301,7 +315,7 @@ const CashboxSettingsCard = ({
               disabled={isSaving || editingCashboxName.trim().length < 2}
               onClick={onSaveCashbox}
             >
-              Save
+              {t('common.save')}
             </button>
             <button
               type='button'
@@ -309,7 +323,7 @@ const CashboxSettingsCard = ({
               disabled={isSaving}
               onClick={onCancelCashboxEdit}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </>
         ) : (
@@ -318,7 +332,7 @@ const CashboxSettingsCard = ({
             className='toolbar-filter-button'
             onClick={() => onStartEditCashbox(cashbox)}
           >
-            Edit cashbox
+            {t('accounting.financeSettings.editCashbox')}
           </button>
         )}
       </footer>
@@ -345,6 +359,7 @@ const CashboxCurrencyToggle = ({
   isGlobalCurrencyActive,
   onToggleCashboxCurrencyActivity,
 }: CashboxCurrencyToggleProps) => {
+  const { t } = useTranslation();
   const isGloballyActive = isGlobalCurrencyActive(currencyCode);
   const isCashboxActive = isCashboxCurrencyActive(cashbox.id, currencyCode);
   const isAcceptActive = isGloballyActive && isCashboxActive;
@@ -369,13 +384,17 @@ const CashboxCurrencyToggle = ({
           }
           title={
             canWithdrawOnly
-              ? 'Currency is inactive for receiving, but cashbox still has balance. Withdraw is allowed.'
-              : (isGloballyActive
-                ? 'Currency is inactive for this cashbox.'
-                : 'Currency is globally inactive and cannot be received.')
+              ? t('accounting.financeSettings.withdrawOnlyCashboxTitle')
+              : isGloballyActive
+                ? t('accounting.financeSettings.inactiveForCashboxTitle')
+                : t('accounting.financeSettings.globallyInactiveTitle')
           }
         >
-          {isAcceptActive ? 'Active' : (canWithdrawOnly ? 'Withdraw only' : 'Inactive')}
+          {isAcceptActive
+            ? t('accounting.financeSettings.active')
+            : canWithdrawOnly
+              ? t('accounting.cashboxes.withdrawOnly')
+              : t('accounting.financeSettings.inactive')}
         </span>
       </label>
     </div>
@@ -405,100 +424,107 @@ const CurrencySettings = ({
   onRemoveCurrency,
   onToggleCard,
   onToggleCurrencyActivity,
-}: CurrencySettingsProps) => (
-  <div className='finance-settings-body'>
-    <SettingsCard
-      cardId='currencies-create'
-      expandedCard={expandedCard}
-      title='Create currency'
-      onToggleCard={onToggleCard}
-    >
-      <div className='catalog-edit-body'>
-        <p className='section-label'>
-          Added currencies become full transaction currencies and are disabled in cashboxes by default.
-        </p>
-        <label className='field'>
-          <span>Currency code</span>
-          <input
-            value={newCurrencyCode}
-            onChange={(event) => onNewCurrencyCodeChange(event.target.value)}
-            placeholder='EUR'
-          />
-        </label>
-      </div>
-      <footer className='catalog-edit-footer'>
-        <button
-          type='button'
-          className='primary-button'
-          onClick={onAddCurrency}
-          disabled={newCurrencyCode.trim().length < 3}
-        >
-          Add currency
-        </button>
-      </footer>
-    </SettingsCard>
+}: CurrencySettingsProps) => {
+  const { t } = useTranslation();
 
-    <SettingsCard
-      cardId='currency-activity'
-      expandedCard={expandedCard}
-      title='Currency activity'
-      onToggleCard={onToggleCard}
-    >
-      <div className='catalog-edit-body'>
-        <p className='section-label'>
-          Turn a currency off to hide empty balances everywhere. Cashboxes that already
-          have money in that currency keep showing it, but it becomes withdraw-only.
-        </p>
-        <div className='finance-currency-activity-list'>
-          {allCurrencyCodes.map((currency) => {
-            const isActive = isGlobalCurrencyActive(currency);
-            const isMainCurrency = currency === 'UAH';
-            const isRemovableCurrency = !isMainCurrency;
-            const canRemove = isRemovableCurrency;
-
-            return (
-              <div key={`activity-${currency}`} className='finance-currency-activity-item'>
-                <label className='field-inline finance-currency-activity-toggle'>
-                  <input
-                    type='checkbox'
-                    checked={isMainCurrency || isActive}
-                    disabled={isMainCurrency}
-                    onChange={() => onToggleCurrencyActivity(currency)}
-                  />
-                  <span>{currency}</span>
-                  <span
-                    className={
-                      isMainCurrency || isActive
-                        ? 'finance-currency-activity-badge'
-                        : 'finance-currency-activity-badge finance-currency-activity-badge-off'
-                    }
-                  >
-                    {isMainCurrency ? 'Always active' : (isActive ? 'Active' : 'Archived')}
-                  </span>
-                </label>
-                {isRemovableCurrency ? (
-                  <button
-                    type='button'
-                    className='orders-filter-delete-button finance-currency-remove-button'
-                    disabled={!canRemove}
-                    title={
-                      canRemove
-                        ? 'Archive currency'
-                        : 'Cannot archive this currency.'
-                    }
-                    onClick={() => onRemoveCurrency(currency)}
-                  >
-                    Archive
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
+  return (
+    <div className='finance-settings-body'>
+      <SettingsCard
+        cardId='currencies-create'
+        expandedCard={expandedCard}
+        title={t('accounting.financeSettings.createCurrency')}
+        onToggleCard={onToggleCard}
+      >
+        <div className='catalog-edit-body'>
+          <p className='section-label'>
+            {t('accounting.financeSettings.createCurrencyHint')}
+          </p>
+          <label className='field'>
+            <span>{t('accounting.financeSettings.currencyCode')}</span>
+            <input
+              value={newCurrencyCode}
+              onChange={(event) => onNewCurrencyCodeChange(event.target.value)}
+              placeholder={t('accounting.financeSettings.currencyCodePlaceholder')}
+            />
+          </label>
         </div>
-      </div>
-    </SettingsCard>
-  </div>
-);
+        <footer className='catalog-edit-footer'>
+          <button
+            type='button'
+            className='primary-button'
+            onClick={onAddCurrency}
+            disabled={newCurrencyCode.trim().length < 3}
+          >
+            {t('accounting.financeSettings.addCurrency')}
+          </button>
+        </footer>
+      </SettingsCard>
+
+      <SettingsCard
+        cardId='currency-activity'
+        expandedCard={expandedCard}
+        title={t('accounting.financeSettings.currencyActivity')}
+        onToggleCard={onToggleCard}
+      >
+        <div className='catalog-edit-body'>
+          <p className='section-label'>
+            {t('accounting.financeSettings.currencyActivityHint')}
+          </p>
+          <div className='finance-currency-activity-list'>
+            {allCurrencyCodes.map((currency) => {
+              const isActive = isGlobalCurrencyActive(currency);
+              const isMainCurrency = currency === 'UAH';
+              const isRemovableCurrency = !isMainCurrency;
+              const canRemove = isRemovableCurrency;
+
+              return (
+                <div key={`activity-${currency}`} className='finance-currency-activity-item'>
+                  <label className='field-inline finance-currency-activity-toggle'>
+                    <input
+                      type='checkbox'
+                      checked={isMainCurrency || isActive}
+                      disabled={isMainCurrency}
+                      onChange={() => onToggleCurrencyActivity(currency)}
+                    />
+                    <span>{currency}</span>
+                    <span
+                      className={
+                        isMainCurrency || isActive
+                          ? 'finance-currency-activity-badge'
+                          : 'finance-currency-activity-badge finance-currency-activity-badge-off'
+                      }
+                    >
+                      {isMainCurrency
+                        ? t('accounting.financeSettings.alwaysActive')
+                        : isActive
+                          ? t('accounting.financeSettings.active')
+                          : t('accounting.financeSettings.archived')}
+                    </span>
+                  </label>
+                  {isRemovableCurrency ? (
+                    <button
+                      type='button'
+                      className='orders-filter-delete-button finance-currency-remove-button'
+                      disabled={!canRemove}
+                      title={
+                        canRemove
+                          ? t('accounting.financeSettings.archiveCurrencyTitle')
+                          : t('accounting.financeSettings.cannotArchiveCurrencyTitle')
+                      }
+                      onClick={() => onRemoveCurrency(currency)}
+                    >
+                      {t('accounting.financeSettings.archive')}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </SettingsCard>
+    </div>
+  );
+};
 
 type SettingsCardProps = {
   cardId: string;

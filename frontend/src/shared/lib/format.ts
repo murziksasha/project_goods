@@ -1,3 +1,5 @@
+import i18n from '../i18n/config';
+
 export const formatCurrency = (value: number) =>
   new Intl.NumberFormat('uk-UA', {
     style: 'currency',
@@ -7,7 +9,7 @@ export const formatCurrency = (value: number) =>
 
 export const formatDate = (value: string | null) => {
   if (!value) {
-    return 'Not specified';
+    return i18n.t('common.notSpecified');
   }
 
   return new Intl.DateTimeFormat('uk-UA').format(new Date(value));

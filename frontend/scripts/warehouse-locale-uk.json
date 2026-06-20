@@ -1,0 +1,475 @@
+{
+  "tabs": {
+    "stock": "Складські залишки",
+    "receipts": "Надходження",
+    "transfers": "Переміщення",
+    "information": "Інформація",
+    "settings": "Налаштування",
+    "ariaLabel": "Розділи складу"
+  },
+  "searchModes": {
+    "serial": "За серійним №",
+    "name": "За назвою",
+    "article": "За артикулом",
+    "warehouse": "За складом",
+    "supplier": "За постачальником"
+  },
+  "columns": {
+    "select": "Обрати",
+    "name": "Назва",
+    "serial": "Серійний №",
+    "article": "Артикул",
+    "date": "Дата",
+    "purchase": "Закупівля",
+    "warehouse": "Склад",
+    "location": "Локація",
+    "clientOrder": "Замовлення клієнта",
+    "supplierOrder": "Замовлення постачальника",
+    "supplier": "Постачальник",
+    "note": "Примітка",
+    "action": "Дія",
+    "number": "#",
+    "product": "Товар",
+    "quantity": "Кількість",
+    "price": "Ціна",
+    "amount": "Сума",
+    "paid": "Оплачено",
+    "receiptDate": "Дата прийому",
+    "acceptedBy": "Прийняв",
+    "approvedBy": "Погодив",
+    "status": "Статус",
+    "payment": "Оплата"
+  },
+  "search": {
+    "receipts": "Пошук прийомів",
+    "serial": "Пошук за серійним номером",
+    "name": "Пошук за назвою товару",
+    "article": "Пошук за артикулом",
+    "warehouse": "Пошук за складом",
+    "supplier": "Пошук за постачальником"
+  },
+  "summary": {
+    "stockRows": "{{count}} рядків залишків",
+    "movableRows": "{{count}} рядків для переміщення",
+    "receiptRows": "{{count}} рядків надходжень"
+  },
+  "filters": {
+    "byName": "За назвою",
+    "bySerial": "За серійним №",
+    "byArticle": "За артикулом",
+    "buyer": "Прийняв",
+    "location": "Локація",
+    "starredOnly": "Лише зірочені",
+    "productNamePlaceholder": "Назва товару",
+    "serialPlaceholder": "Серійний номер",
+    "articlePlaceholder": "Артикул",
+    "supplierPlaceholder": "Назва постачальника"
+  },
+  "receipts": {
+    "subtitle": "Прийоми та історія надходжень від постачальників.",
+    "createOrder": "Створити прийом"
+  },
+  "toolbar": {
+    "printSelectedSerialsAria": "Друк обраних серійних номерів",
+    "printSelectedCount": "Друк {{count}} обраних серійних номерів",
+    "selectRowsToPrint": "Оберіть рядки з серійними номерами для друку",
+    "toggleColumns": "Показати або приховати стовпці",
+    "showAllReceiptOrders": "Показати всі прийоми",
+    "showStarredReceiptOrders": "Показати лише зірочені прийоми",
+    "filter": "Фільтр",
+    "filterWithCount": "Фільтр ({{count}})",
+    "clearSearch": "Очистити пошук"
+  },
+  "messages": {
+    "errors": {
+      "failedSaveSettings": "Не вдалося зберегти налаштування складу.",
+      "failedLoadSettings": "Не вдалося завантажити налаштування складу.",
+      "selectTarget": "Оберіть цільовий склад і локацію.",
+      "inactiveWarehouse": "Цільовий склад неактивний.",
+      "alreadyInLocation": "Товар уже знаходиться в обраній локації.",
+      "failedCreateReceiptOrder": "Не вдалося створити прийом."
+    },
+    "success": {
+      "serviceCenterSaved": "Сервісний центр збережено.",
+      "warehouseSaved": "Склад збережено.",
+      "administratorSaved": "Налаштування адміністратора збережено.",
+      "productTransferred": "Товар переміщено.",
+      "receiptOrderUpdated": "Прийом оновлено.",
+      "receiptOrderCreated": "Прийом створено."
+    }
+  },
+  "emptySection": "Оберіть розділ складу.",
+  "print": {
+    "serialNumbersTitle": "Серійні номери",
+    "productFallback": "Товар",
+    "barcodeAriaLabel": "Штрих-код {{index}}"
+  },
+  "serialModal": {
+    "title": "Вибір серійних номерів",
+    "closeModal": "Закрити вікно",
+    "successTitle": "Відвантаження успішно створено!",
+    "successDescription": "Серійні номери призначено, відвантаження готове.",
+    "quantity": "Кількість: {{count}}",
+    "article": "Артикул: {{value}}",
+    "selectedCount": "Обрано: {{selected}}/{{total}}",
+    "deselectAll": "Зняти всі",
+    "selectAll": "Обрати всі",
+    "itemNumber": "Позиція {{number}}",
+    "selectedSerialNumbers": "Обрані серійні номери:",
+    "cancel": "Скасувати",
+    "confirmShipment": "Підтвердити відвантаження",
+    "mainWarehouse": "Головний склад",
+    "productFallback": "Товар",
+    "errors": {
+      "createShipmentFailed": "Не вдалося створити відвантаження",
+      "shipmentError": "Під час відвантаження сталася помилка"
+    }
+  },
+  "common": {
+    "active": "Активний",
+    "inactive": "Неактивний",
+    "create": "Створити",
+    "save": "Зберегти",
+    "edit": "Редагувати",
+    "delete": "Видалити",
+    "name": "Назва",
+    "address": "Адреса",
+    "phone": "Телефон",
+    "status": "Статус",
+    "all": "Усі",
+    "search": "Пошук",
+    "apply": "Застосувати",
+    "clear": "Очистити",
+    "saving": "Збереження...",
+    "saveChanges": "Зберегти зміни",
+    "pcs": "{{count}} шт",
+    "color": "колір",
+    "id": "Id",
+    "location": "Локація",
+    "locations": "Локації",
+    "products": "Товари",
+    "action": "Дія",
+    "product": "Товар",
+    "article": "Артикул",
+    "units": "Одиниці",
+    "value": "Вартість",
+    "supplier": "Постачальник",
+    "warehouses": "Склади",
+    "latest": "Останнє",
+    "date": "Дата",
+    "note": "Примітка",
+    "direction": "Напрям",
+    "descending": "Спадання",
+    "ascending": "Зростання",
+    "quantity": "Кількість",
+    "purchaseValue": "Закупівельна вартість"
+  },
+  "tables": {
+    "receipts": {
+      "empty": "Не створено жодного прийому.",
+      "quantityPcs": "{{count}} шт",
+      "removeStarAriaLabel": "Прибрати зірку з {{number}}",
+      "starAriaLabel": "Позначити зіркою {{number}}",
+      "columns": {
+        "number": "#",
+        "product": "Товар",
+        "quantity": "Кількість",
+        "price": "Ціна",
+        "amount": "Сума",
+        "paid": "Оплачено",
+        "supplier": "Постачальник",
+        "receiptDate": "Дата прийому",
+        "acceptedBy": "Прийняв",
+        "approvedBy": "Затвердив",
+        "status": "Статус",
+        "payment": "Оплата"
+      },
+      "status": {
+        "cancelled": "Скасовано",
+        "received": "Прийнято на баланс",
+        "new": "Новий",
+        "approved": "Затверджено"
+      },
+      "paymentStatus": {
+        "pending": "Очікує оплати",
+        "paid": "Оплачено",
+        "without_payment": "Видано без оплати",
+        "cancelled": "Скасовано"
+      }
+    },
+    "stock": {
+      "loading": "Завантаження складських залишків...",
+      "emptyTitle": "Рядків залишків не знайдено.",
+      "emptyHint": "Змініть пошук або фільтри, щоб побачити доступні залишки.",
+      "selectAllAriaLabel": "Обрати всі рядки залишків",
+      "selectRowAriaLabel": "Обрати {{name}}",
+      "columns": {
+        "select": "Обрати",
+        "name": "Назва",
+        "serial": "Серійний №",
+        "article": "Артикул",
+        "date": "Дата",
+        "purchase": "Закупівля",
+        "warehouse": "Склад",
+        "location": "Локація",
+        "clientOrder": "Замовлення клієнта",
+        "supplierOrder": "Замовлення постачальника",
+        "supplier": "Постачальник",
+        "note": "Примітка",
+        "action": "Дія"
+      }
+    }
+  },
+  "settings": {
+    "tabsAriaLabel": "Розділи налаштувань складу",
+    "tabs": {
+      "serviceCenters": "Сервісні центри",
+      "warehouses": "Склади",
+      "administrators": "Адміністратори"
+    },
+    "serviceCenters": {
+      "create": "Створити",
+      "editAriaLabel": "Редагувати {{name}}",
+      "columns": {
+        "name": "Назва",
+        "color": "колір",
+        "address": "Адреса",
+        "phone": "Телефон",
+        "warehouses": "Склади"
+      }
+    },
+    "warehouses": {
+      "statusFilter": "Статус",
+      "createWarehouse": "Створити склад",
+      "columns": {
+        "id": "Id",
+        "name": "Назва",
+        "status": "Статус",
+        "location": "Локація",
+        "address": "Адреса",
+        "phone": "Телефон",
+        "locations": "Локації",
+        "products": "Товари",
+        "action": "Дія"
+      }
+    },
+    "administrators": {
+      "administrator": "Адміністратор",
+      "viewWarehouses": "Склади, до яких адміністратор має доступ",
+      "viewDefaultLocation": "Склад і локація за замовчуванням для адміністратора",
+      "allSelected": "Усі ({{count}})",
+      "selectWarehouses": "Оберіть склади",
+      "searchPlaceholder": "Пошук",
+      "selectAll": "Обрати все",
+      "selectLocation": "Оберіть локацію"
+    }
+  },
+  "modals": {
+    "createReceiptOrder": "Створити прийом",
+    "create": "Створити",
+    "supplierRequired": "Постачальник *",
+    "supplierPlaceholder": "Оберіть постачальника",
+    "productRequired": "Товар *",
+    "productNamePlaceholder": "Назва товару",
+    "priceUah": "Ціна, грн",
+    "quantityRequired": "Кількість *",
+    "note": "Примітка",
+    "supplierTitle": "Постачальник",
+    "phone": "Телефон",
+    "saving": "Збереження...",
+    "productTitle": "Товар",
+    "productName": "Назва товару",
+    "serviceCenter": {
+      "createTitle": "створити сервісний центр",
+      "editTitle": "редагувати сервісний центр",
+      "nameLabel": "назва:",
+      "namePlaceholder": "назва",
+      "colorLabel": "колір (#000000):",
+      "colorPlaceholder": "#000000",
+      "colorAriaLabel": "колір",
+      "addressLabel": "адреса:",
+      "addressPlaceholder": "адреса",
+      "phoneLabel": "телефон:",
+      "phonePlaceholder": "+380"
+    },
+    "warehouse": {
+      "createTitle": "створити склад",
+      "editTitle": "редагувати склад",
+      "nameLabel": "назва:",
+      "namePlaceholder": "назва",
+      "active": "активний",
+      "serviceCenterLabel": "Прив'язка до сервісного центру:",
+      "selectServiceCenter": "оберіть сервісний центр",
+      "receiptAddressLabel": "адреса для постачальників:",
+      "receiptPhoneLabel": "телефон для постачальників:",
+      "locationsLabel": "локації:",
+      "locationNamePlaceholder": "введіть назву локації",
+      "locationUsageTitle": "Товари, що посилаються на цю локацію",
+      "duplicateLocationsError": "Назви локацій мають бути унікальними в межах складу.",
+      "addLocation": "локація"
+    }
+  },
+  "information": {
+    "sectionLabel": "Аналітика складу",
+    "title": "Інформація",
+    "unitsStatus": "{{count}} од.",
+    "summary": {
+      "stockUnits": "Одиниці на складі",
+      "positions": "Позиції",
+      "purchaseValue": "Закупівельна вартість",
+      "activeWarehouses": "Активні склади",
+      "inactiveWithStock": "Неактивні з залишками",
+      "locationsWithStock": "Локації з залишками"
+    },
+    "views": {
+      "products": "Товари",
+      "locations": "Локації",
+      "suppliers": "Постачальники"
+    },
+    "exportToFile": "Експорт у файл",
+    "export": {
+      "title": "Інформація про склад",
+      "viewLabel": "Вигляд:",
+      "generatedLabel": "Створено:",
+      "filtersLabel": "Фільтри:",
+      "noFilters": "Без фільтрів",
+      "noRowsFound": "Рядків не знайдено.",
+      "productsFilename": "warehouse-products.doc",
+      "locationsFilename": "warehouse-locations.doc",
+      "suppliersFilename": "warehouse-suppliers.doc"
+    },
+    "filters": {
+      "date": "Дата",
+      "closeDateFiltersAriaLabel": "Закрити панель фільтрів дати",
+      "dateFrom": "Дата від",
+      "dateTo": "Дата до",
+      "search": "Пошук",
+      "searchPlaceholder": "Товар, серійний номер, склад, постачальник",
+      "warehouse": "Склад",
+      "allWarehouses": "Усі склади",
+      "warehouseInactiveSuffix": "{{name}} (неактивний)",
+      "location": "Локація",
+      "allLocations": "Усі локації",
+      "supplier": "Постачальник",
+      "allSuppliers": "Усі постачальники",
+      "noSuppliersFound": "Постачальників не знайдено.",
+      "status": "Статус",
+      "allStatuses": "Усі статуси",
+      "activeWarehouses": "Активні склади",
+      "inactiveWarehouses": "Неактивні склади",
+      "sort": "Сортування",
+      "sortQuantity": "Кількість",
+      "sortValue": "Закупівельна вартість",
+      "sortLatest": "Дата",
+      "direction": "Напрям",
+      "descending": "Спадання",
+      "ascending": "Зростання",
+      "searchActive": "Пошук: {{value}}",
+      "warehouseActive": "Склад: {{name}}",
+      "locationActive": "Локація: {{name}}",
+      "supplierActive": "Постачальник: {{value}}",
+      "statusActive": "Статус: {{value}}",
+      "dateFromActive": "Дата від: {{value}}",
+      "dateToActive": "Дата до: {{value}}",
+      "sortActive": "Сортування: {{field}} {{direction}}"
+    },
+    "productsTable": {
+      "columns": {
+        "product": "Товар",
+        "article": "Артикул",
+        "units": "Одиниці",
+        "value": "Вартість",
+        "warehouses": "Склади",
+        "locations": "Локації",
+        "suppliers": "Постачальники",
+        "latest": "Останнє"
+      },
+      "exportColumns": {
+        "product": "Товар",
+        "article": "Артикул",
+        "units": "Одиниці",
+        "purchaseValue": "Закупівельна вартість",
+        "warehouses": "Склади",
+        "locations": "Локації",
+        "suppliers": "Постачальники",
+        "latestPurchase": "Остання закупівля"
+      },
+      "empty": "Рядків товарів не знайдено."
+    },
+    "locationsTable": {
+      "columns": {
+        "warehouse": "Склад",
+        "status": "Статус",
+        "location": "Локація",
+        "units": "Одиниці",
+        "products": "Товари",
+        "value": "Вартість",
+        "latest": "Останнє"
+      },
+      "exportColumns": {
+        "warehouse": "Склад",
+        "status": "Статус",
+        "location": "Локація",
+        "units": "Одиниці",
+        "uniqueProducts": "Унікальні товари",
+        "purchaseValue": "Закупівельна вартість",
+        "latestPurchase": "Остання закупівля"
+      },
+      "empty": "Рядків локацій не знайдено."
+    },
+    "suppliersTable": {
+      "columns": {
+        "supplier": "Постачальник",
+        "units": "Одиниці",
+        "value": "Вартість",
+        "products": "Товари",
+        "warehouses": "Склади",
+        "latest": "Останнє"
+      },
+      "exportColumns": {
+        "supplier": "Постачальник",
+        "units": "Одиниці",
+        "purchaseValue": "Закупівельна вартість",
+        "products": "Товари",
+        "warehouses": "Склади",
+        "latestPurchase": "Остання закупівля"
+      },
+      "empty": "Рядків постачальників не знайдено."
+    }
+  },
+  "transfer": {
+    "product": "Товар",
+    "selectStockItem": "Оберіть позицію залишку",
+    "currentLocation": "Поточна локація",
+    "targetWarehouse": "Цільовий склад",
+    "createWarehouseInSettings": "Створіть склад у Налаштуваннях",
+    "selectWarehouse": "Оберіть склад",
+    "targetLocation": "Цільова локація",
+    "createLocationInSettings": "Створіть локацію в Налаштуваннях",
+    "note": "Примітка",
+    "notePlaceholder": "Причина або номер документа",
+    "transferring": "Переміщення...",
+    "transferStock": "Перемістити залишок",
+    "stockTable": {
+      "columns": {
+        "product": "Товар",
+        "serial": "Серійний №",
+        "warehouse": "Склад",
+        "location": "Локація",
+        "qty": "К-сть"
+      },
+      "empty": "Рядків залишків не знайдено."
+    },
+    "historyTable": {
+      "columns": {
+        "date": "Дата",
+        "product": "Товар",
+        "from": "Звідки",
+        "to": "Куди",
+        "by": "Ким",
+        "note": "Примітка"
+      },
+      "empty": "У цій сесії переміщень немає."
+    }
+  }
+}

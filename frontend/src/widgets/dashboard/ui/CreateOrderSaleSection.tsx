@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import type { CreateOrderProductSuggestion } from '../model/create-order-products';
 import type { SaleOrderItem } from './create-order-card-shared';
+import { getWarrantyOptions } from './orders-workspace-shared';
 
 type CreateOrderSaleSectionProps = {
   saleItems: SaleOrderItem[];
@@ -40,133 +42,138 @@ export const CreateOrderSaleSection = ({
   onAddSaleItem,
   onRemoveSaleItem,
   onApplySaleProduct,
-}: CreateOrderSaleSectionProps) => (
-  <>
-    <h3 className="create-section-title">Products</h3>
-    <div className="sale-items-list">
-      {saleItems.map((item, index) => (
-        <div key={item.id} className="sale-item-row">
-          <label className="field sale-item-product">
-            <span>{`Product ${index + 1} *`}</span>
-            <input
-              value={item.query}
-              onFocus={() => onFocusSaleItem(item.id)}
-              onChange={(event) => {
-                onFocusSaleItem(item.id);
-                onUpdateSaleItem(item.id, {
-                  query: event.target.value,
-                  source: '',
-                  productId: '',
-                  catalogProductId: '',
-                  article: '',
-                  serialNumber: '',
-                });
-              }}
-              placeholder="Name, serial or article"
-            />
-          </label>
-          <label className="field">
-            <span>Qty</span>
-            <NumberStepper
-              min={1}
-              value={item.quantity}
-              onChange={(value) => onSaleItemQuantityChange(item, value)}
-              disabled={item.source === 'stock' && Boolean(item.serialNumber)}
-            />
-          </label>
-          <label className="field">
-            <span>Price</span>
-            <NumberStepper
-              min={0}
-              step={0.01}
-              precision={2}
-              value={item.price}
-              onChange={(value) => {
-                onSaleItemPriceChange(item, value);
-              }}
-              placeholder="0"
-            />
-          </label>
-          <label className="field">
-            <span>Warranty</span>
-            <select
-              value={item.warrantyPeriod}
-              onChange={(event) =>
-                onUpdateSaleItem(item.id, {
-                  warrantyPeriod: event.target.value,
-                })
-              }
-            >
-              <option value="0">None</option>
-              <option value="1">30 day</option>
-              <option value="3">3 month</option>
-              <option value="6">6 month</option>
-              <option value="12">1 year</option>
-              <option value="24">2 year</option>
-              <option value="36">3 year</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>&nbsp;</span>
-            <button
-              type="button"
-              className="toolbar-square-button sale-item-add-button"
-              onClick={
-                index === saleItems.length - 1
-                  ? onAddSaleItem
-                  : () => onRemoveSaleItem(item.id)
-              }
-              aria-label={
-                index === saleItems.length - 1
-                  ? 'Add product position'
-                  : 'Remove product position'
-              }
-            >
-              {index === saleItems.length - 1 ? '+' : '-'}
-            </button>
-          </label>
-        </div>
-      ))}
-    </div>
+}: CreateOrderSaleSectionProps) => {
+  const { t } = useTranslation();
+  const warrantyOptions = getWarrantyOptions();
 
-    {visibleSaleProductSuggestions.length > 0 ||
-    isSaleProductLookupLoading ? (
-      <div className="create-suggestions">
-        {isSaleProductLookupLoading ? <p>Searching products...</p> : null}
-        {visibleSaleProductSuggestions.map((product) => (
-          <button
-            key={product.id}
-            type="button"
-            className="create-suggestion-item"
-            disabled={!product.selectable}
-            title={product.selectable ? undefined : product.availabilityLabel}
-            onClick={() =>
-              focusedSaleItem &&
-              onApplySaleProduct(focusedSaleItem.id, product)
-            }
-          >
-            <strong>{product.name}</strong>
-            <span>
-              {product.source === 'stock'
-                ? `${product.article || '-'} / ${product.serialNumber || '-'} / ${product.availabilityLabel}`
-                : product.note}
-            </span>
-          </button>
+  return (
+    <>
+      <h3 className="create-section-title">{t('orders.create.products')}</h3>
+      <div className="sale-items-list">
+        {saleItems.map((item, index) => (
+          <div key={item.id} className="sale-item-row">
+            <label className="field sale-item-product">
+              <span>{t('orders.create.productNumber', { number: index + 1 })}</span>
+              <input
+                value={item.query}
+                onFocus={() => onFocusSaleItem(item.id)}
+                onChange={(event) => {
+                  onFocusSaleItem(item.id);
+                  onUpdateSaleItem(item.id, {
+                    query: event.target.value,
+                    source: '',
+                    productId: '',
+                    catalogProductId: '',
+                    article: '',
+                    serialNumber: '',
+                  });
+                }}
+                placeholder={t('orders.create.productSearchPlaceholder')}
+              />
+            </label>
+            <label className="field">
+              <span>{t('orders.create.qty')}</span>
+              <NumberStepper
+                min={1}
+                value={item.quantity}
+                onChange={(value) => onSaleItemQuantityChange(item, value)}
+                disabled={item.source === 'stock' && Boolean(item.serialNumber)}
+              />
+            </label>
+            <label className="field">
+              <span>{t('orders.create.price')}</span>
+              <NumberStepper
+                min={0}
+                step={0.01}
+                precision={2}
+                value={item.price}
+                onChange={(value) => {
+                  onSaleItemPriceChange(item, value);
+                }}
+                placeholder="0"
+              />
+            </label>
+            <label className="field">
+              <span>{t('orders.create.warranty')}</span>
+              <select
+                value={item.warrantyPeriod}
+                onChange={(event) =>
+                  onUpdateSaleItem(item.id, {
+                    warrantyPeriod: event.target.value,
+                  })
+                }
+              >
+                {warrantyOptions.map((option) => (
+                  <option key={option.value} value={String(option.value)}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>&nbsp;</span>
+              <button
+                type="button"
+                className="toolbar-square-button sale-item-add-button"
+                onClick={
+                  index === saleItems.length - 1
+                    ? onAddSaleItem
+                    : () => onRemoveSaleItem(item.id)
+                }
+                aria-label={
+                  index === saleItems.length - 1
+                    ? t('orders.create.addProductPosition')
+                    : t('orders.create.removeProductPosition')
+                }
+              >
+                {index === saleItems.length - 1 ? '+' : '-'}
+              </button>
+            </label>
+          </div>
         ))}
-        <div className="sale-order-unavailable">
-          <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
-        </div>
       </div>
-    ) : null}
 
-    <label className="field">
-      <span>Notes</span>
-      <textarea
-        rows={3}
-        value={issueFromClient}
-        onChange={(event) => onIssueFromClientChange(event.target.value)}
-        placeholder="Sale notes"
-      />
-    </label>
-  </>
-);
+      {visibleSaleProductSuggestions.length > 0 ||
+      isSaleProductLookupLoading ? (
+        <div className="create-suggestions">
+          {isSaleProductLookupLoading ? (
+            <p>{t('orders.create.searchingProducts')}</p>
+          ) : null}
+          {visibleSaleProductSuggestions.map((product) => (
+            <button
+              key={product.id}
+              type="button"
+              className="create-suggestion-item"
+              disabled={!product.selectable}
+              title={product.selectable ? undefined : product.availabilityLabel}
+              onClick={() =>
+                focusedSaleItem &&
+                onApplySaleProduct(focusedSaleItem.id, product)
+              }
+            >
+              <strong>{product.name}</strong>
+              <span>
+                {product.source === 'stock'
+                  ? `${product.article || '-'} / ${product.serialNumber || '-'} / ${product.availabilityLabel}`
+                  : product.note}
+              </span>
+            </button>
+          ))}
+          <div className="sale-order-unavailable">
+            <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
+          </div>
+        </div>
+      ) : null}
+
+      <label className="field">
+        <span>{t('orders.create.saleNotes')}</span>
+        <textarea
+          rows={3}
+          value={issueFromClient}
+          onChange={(event) => onIssueFromClientChange(event.target.value)}
+          placeholder={t('orders.create.saleNotesPlaceholder')}
+        />
+      </label>
+    </>
+  );
+};

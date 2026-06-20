@@ -31,6 +31,8 @@ import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/Clients
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher';
 
 type PageKey =
   | 'home'
@@ -211,15 +213,15 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
   window.localStorage.setItem(ordersTabStorageKey, tab);
 };
 
-const sidebarItems: Array<{ key: PageKey | 'other'; label: string }> = [
-  { key: 'home', label: 'Main' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'accounting', label: 'Accounting' },
-  { key: 'warehouse', label: 'Warehouse' },
-  { key: 'catalog', label: 'Products & Services' },
-  { key: 'clients', label: 'Clients & suppliers' },
-  { key: 'employees', label: 'Employees' },
-  { key: 'settings', label: 'Settings' },
+const sidebarItems: Array<{ key: PageKey | 'other'; labelKey: string }> = [
+  { key: 'home', labelKey: 'nav.home' },
+  { key: 'orders', labelKey: 'nav.orders' },
+  { key: 'accounting', labelKey: 'nav.accounting' },
+  { key: 'warehouse', labelKey: 'nav.warehouse' },
+  { key: 'catalog', labelKey: 'nav.catalog' },
+  { key: 'clients', labelKey: 'nav.clients' },
+  { key: 'employees', labelKey: 'nav.employees' },
+  { key: 'settings', labelKey: 'nav.settings' },
 ];
 
 const sidebarItemIcons: Record<PageKey, string> = {
@@ -244,6 +246,7 @@ const isTemporaryAdmin = (employee: Employee | null) =>
   employee?.role === 'owner' && employee.username === 'admin';
 
 export const DashboardPage = () => {
+  const { t, i18n } = useTranslation();
   const [isOnline, setIsOnline] = useState(
     () => (typeof navigator === 'undefined' ? true : navigator.onLine),
   );
@@ -331,15 +334,16 @@ export const DashboardPage = () => {
     canManageSettings,
     canViewAccounting,
     canViewOrders,
+    t,
   ]);
   const changeOrdersTab = useCallback((tab: OrdersTab) => {
     if (!availableOrdersTabs.includes(tab)) {
-      actions.showError('Current employee does not have permission to open this tab.');
+      actions.showError(t('errors.permissionTab'));
       return;
     }
     setOrdersTabPreference(tab);
     setActiveOrdersTab(tab);
-  }, [actions, availableOrdersTabs]);
+  }, [actions, availableOrdersTabs, t]);
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -383,15 +387,13 @@ export const DashboardPage = () => {
           const snapshot = readEmployeeSnapshot();
           if (snapshot) {
             setCurrentEmployee(snapshot);
-            setAuthError(
-              'Session check failed. Workspace stayed open; please retry the action.',
-            );
+            setAuthError(t('errors.sessionCheckFailed'));
           } else {
             window.localStorage.removeItem(authTokenStorageKey);
             window.localStorage.removeItem(employeeSnapshotStorageKey);
             setApiAuthToken(null);
             setCurrentEmployee(null);
-            setAuthError('Session expired. Please sign in again.');
+            setAuthError(t('errors.sessionExpired'));
           }
           return;
         }
@@ -403,7 +405,7 @@ export const DashboardPage = () => {
             setAuthError('');
           } else {
             setCurrentEmployee(null);
-            setAuthError('No internet connection. Sign in requires network access.');
+            setAuthError(t('errors.noInternetShort'));
           }
           return;
         }
@@ -474,7 +476,7 @@ export const DashboardPage = () => {
         });
       } catch (error) {
         if (!isActive) return;
-        setAuthError(error instanceof Error ? error.message : 'Failed to load invitation.');
+        setAuthError(error instanceof Error ? error.message : t('errors.invitationLoadFailed'));
         setInviteState(createEmptyInviteState());
       }
     })();
@@ -504,6 +506,7 @@ export const DashboardPage = () => {
     activePage,
     canAccessPage,
     isAuthLoading,
+    t,
   ]);
 
   useEffect(() => {
@@ -539,7 +542,7 @@ export const DashboardPage = () => {
 
   const openOrdersPage = () => {
     if (!canViewOrders) {
-      actions.showError('Current employee does not have permission to view orders.');
+      actions.showError(t('errors.permissionOrders'));
       return;
     }
     setActivePage('orders');
@@ -552,7 +555,7 @@ export const DashboardPage = () => {
 
   const openCreateOrder = (tab: OrdersTab) => {
     if (!canCreateOrders) {
-      actions.showError('Current employee does not have permission to create orders.');
+      actions.showError(t('errors.permissionCreateOrder'));
       return;
     }
 
@@ -564,7 +567,7 @@ export const DashboardPage = () => {
 
   const openPage = (page: PageKey) => {
     if (!canAccessPage(page)) {
-      actions.showError('Current employee does not have permission to open this page.');
+      actions.showError(t('errors.permissionPage'));
       return;
     }
     setActivePage(page);
@@ -589,7 +592,7 @@ export const DashboardPage = () => {
 
   const openClientCardFromOrders = (clientId: string) => {
     if (!canManageClients) {
-      actions.showError('Current employee does not have permission to manage clients.');
+      actions.showError(t('errors.permissionClients'));
       return;
     }
     setActivePage('clients');
@@ -614,7 +617,7 @@ export const DashboardPage = () => {
       actions.showError('');
       actions.showSuccessMessage('');
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Failed to login.');
+      setAuthError(error instanceof Error ? error.message : t('errors.loginFailed'));
       setCurrentEmployee(null);
       setApiAuthToken(null);
     } finally {
@@ -647,7 +650,7 @@ export const DashboardPage = () => {
       window.history.replaceState(null, '', url);
       setDashboardUrl('home', 'orders', null);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Failed to complete registration.');
+      setAuthError(error instanceof Error ? error.message : t('errors.registerFailed'));
     } finally {
       setIsRegistering(false);
     }
@@ -676,7 +679,7 @@ export const DashboardPage = () => {
         <section className="dashboard-main">
           <div className="page-shell">
             <section className="panel">
-              <h2>Loading session...</h2>
+              <h2>{t('common.loading')}</h2>
             </section>
           </div>
         </section>
@@ -692,26 +695,26 @@ export const DashboardPage = () => {
             <section className="panel auth-panel">
               <div className="panel-header">
                 <div>
-                  <p className="section-label">Auth</p>
-                  <h2>{inviteToken ? 'Complete registration' : 'Login'}</h2>
+                  <p className="section-label">{t('common.auth')}</p>
+                  <h2>{inviteToken ? t('auth.registerTitle') : t('auth.loginTitle')}</h2>
                 </div>
               </div>
 
               {shouldShowInvitation ? (
                 visibleInviteState.isLoading ? (
-                  <p className="empty-state">Loading invitation...</p>
+                  <p className="empty-state">{t('common.loadingInvitation')}</p>
                 ) : (
                   <div className="form-grid">
                     <label className="field field-wide">
-                      <span>Name</span>
+                      <span>{t('common.name')}</span>
                       <input value={visibleInviteState.name} disabled />
                     </label>
                     <label className="field field-wide">
-                      <span>Email</span>
+                      <span>{t('common.email')}</span>
                       <input value={visibleInviteState.email} disabled />
                     </label>
                     <label className="field field-wide">
-                      <span>Role</span>
+                      <span>{t('common.role')}</span>
                       <input value={visibleInviteState.role} disabled />
                     </label>
                   </div>
@@ -720,24 +723,24 @@ export const DashboardPage = () => {
 
               <div className="form-grid">
                 <label className="field field-wide">
-                  <span>{inviteToken ? 'Create login' : 'Login'}</span>
+                  <span>{inviteToken ? t('auth.createLogin') : t('common.login')}</span>
                   <input
                     value={loginForm.username}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, username: event.target.value }))
                     }
-                    placeholder="username"
+                    placeholder={t('common.username')}
                   />
                 </label>
                 <label className="field field-wide">
-                  <span>Password</span>
+                  <span>{t('common.password')}</span>
                   <input
                     type="password"
                     value={loginForm.password}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, password: event.target.value }))
                     }
-                    placeholder="password"
+                    placeholder={t('common.password')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         void handleLogin();
@@ -761,11 +764,11 @@ export const DashboardPage = () => {
               >
                 {inviteToken
                   ? isRegistering
-                    ? 'Completing registration...'
-                    : 'Complete registration'
+                    ? t('common.completingRegistration')
+                    : t('common.completeRegistration')
                   : isLoggingIn
-                    ? 'Signing in...'
-                    : 'Sign in'}
+                    ? t('common.signingIn')
+                    : t('common.signIn')}
               </button>
             </section>
           </div>
@@ -792,14 +795,14 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Main menu">
+        <nav className="sidebar-nav" aria-label={t('common.openMenu')}>
           {sidebarItems
             .filter((item) => canAccessPage(item.key))
             .map((item) => {
             const isActive = item.key !== 'other' && item.key === activePage;
             return (
               <a
-                key={item.label}
+                key={item.key}
                 href={item.key === 'other' ? '#' : getDashboardHref(item.key)}
                 className={isActive ? 'sidebar-nav-item sidebar-nav-item-active' : 'sidebar-nav-item'}
                 onClick={(event) => {
@@ -843,7 +846,7 @@ export const DashboardPage = () => {
                   {item.key !== 'other' ? sidebarItemIcons[item.key] : '\u2022'}
                 </span>
                 <span className={isSidebarCollapsed ? 'sidebar-nav-item-label sidebar-nav-item-label-hidden' : 'sidebar-nav-item-label'}>
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
               </a>
             );
@@ -857,32 +860,33 @@ export const DashboardPage = () => {
             <button
               type="button"
               className="topbar-menu-button"
-              aria-label={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+              aria-label={isSidebarCollapsed ? t('common.expandMenu') : t('common.collapseMenu')}
               onClick={() => setIsSidebarCollapsed((previousValue) => !previousValue)}
             >
               &#9776;
             </button>
-            <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
+            <p className="topbar-title">{state.settings?.serviceName || t('common.serviceCRM')}</p>
           </div>
 
           {state.lastSyncAt ? (
             <button
               type="button"
               className="topbar-sync-label topbar-sync-button"
-              title="Reload data"
+              title={t('common.reloadData')}
               onClick={() => window.location.reload()}
             >
-              {`Last sync: ${new Date(state.lastSyncAt).toLocaleTimeString('uk-UA')}`}
+              {`${t('common.lastSync')}: ${new Date(state.lastSyncAt).toLocaleTimeString(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US')}`}
             </button>
           ) : null}
 
           <div className="topbar-actions">
+            <LanguageSwitcher />
             <div className="topbar-current-user" title={currentEmployee.name}>
               <span className="topbar-current-user-name">{currentEmployee.name}</span>
               <span className="topbar-current-user-role">{currentEmployee.role}</span>
             </div>
             <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
-              Logout
+              {t('common.logout')}
             </button>
           </div>
         </header>

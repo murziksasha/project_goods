@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { filterIconOptions } from './orders-workspace-shared';
 
 export type SavedFilterViewItem = {
@@ -34,13 +35,15 @@ export const SavedFiltersPanel = ({
   onNameChange,
   onSave,
 }: SavedFiltersPanelProps) => {
+  const { t } = useTranslation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const filterNamePlaceholder = t('orders.filters.drawer.filterNamePlaceholder');
 
   return (
     <>
       <div className='orders-filter-saved-row'>
         <div className='orders-filter-saved-list'>
-          <strong>Saved filters:</strong>
+          <strong>{t('orders.filters.savedLabel')}</strong>
           {items.length > 0 ? (
             items.map((item) => (
               <div key={item.id} className='orders-filter-saved-item'>
@@ -55,14 +58,14 @@ export const SavedFiltersPanel = ({
                   type='button'
                   className='orders-filter-delete-button'
                   onClick={() => onDelete(item.id)}
-                  aria-label={`Delete ${item.name}`}
+                  aria-label={t('orders.filters.deleteFilter', { name: item.name })}
                 >
                   x
                 </button>
               </div>
             ))
           ) : (
-            <small>No saved filters for this tab.</small>
+            <small>{t('orders.filters.noSaved')}</small>
           )}
         </div>
         <button
@@ -72,7 +75,7 @@ export const SavedFiltersPanel = ({
           disabled={!canSave}
           title={saveTitle}
         >
-          Save filter
+          {t('orders.filters.saveFilter')}
         </button>
       </div>
 
@@ -86,26 +89,26 @@ export const SavedFiltersPanel = ({
             onClick={(event) => event.stopPropagation()}
           >
             <header>
-              <h3>Save filter</h3>
+              <h3>{t('orders.filters.drawer.title')}</h3>
               <button
                 type='button'
-                aria-label='Close save filter panel'
+                aria-label={t('orders.filters.drawer.close')}
                 onClick={() => setIsDrawerOpen(false)}
               >
                 x
               </button>
             </header>
             <label className='orders-filter-field'>
-              <span>Filter name</span>
+              <span>{t('orders.filters.drawer.filterName')}</span>
               <input
                 type='text'
                 value={newFilterName}
                 onChange={(event) => onNameChange(event.target.value)}
-                placeholder='My filter'
+                placeholder={filterNamePlaceholder}
               />
             </label>
             <div className='orders-filter-icons'>
-              <span>Choose icon</span>
+              <span>{t('orders.filters.drawer.chooseIcon')}</span>
               <div className='orders-filter-icons-grid'>
                 {filterIconOptions.map((icon, index) => (
                   <button
@@ -124,13 +127,13 @@ export const SavedFiltersPanel = ({
               </div>
             </div>
             <div className='orders-filter-drawer-preview'>
-              <span>Preview</span>
+              <span>{t('orders.filters.drawer.preview')}</span>
               <button type='button' disabled>
-                {`${newFilterIcon} ${newFilterName.trim() || 'My filter'}`}
+                {`${newFilterIcon} ${newFilterName.trim() || filterNamePlaceholder}`}
               </button>
             </div>
             <div className='orders-filter-drawer-list'>
-              <span>Your saved filters</span>
+              <span>{t('orders.filters.drawer.yourSaved')}</span>
               {items.length > 0 ? (
                 items.map((item) => (
                   <div key={item.id} className='orders-filter-drawer-item'>
@@ -141,14 +144,14 @@ export const SavedFiltersPanel = ({
                       type='button'
                       className='orders-filter-delete-button'
                       onClick={() => onDelete(item.id)}
-                      aria-label={`Delete ${item.name}`}
+                      aria-label={t('orders.filters.deleteFilter', { name: item.name })}
                     >
                       x
                     </button>
                   </div>
                 ))
               ) : (
-                <small>No filters yet.</small>
+                <small>{t('orders.filters.drawer.noFiltersYet')}</small>
               )}
             </div>
             <footer>
@@ -161,14 +164,14 @@ export const SavedFiltersPanel = ({
                 }}
                 disabled={!canSave || saveDisabled}
               >
-                Save
+                {t('orders.filters.drawer.save')}
               </button>
               <button
                 type='button'
                 className='toolbar-filter-button'
                 onClick={() => setIsDrawerOpen(false)}
               >
-                Cancel
+                {t('orders.filters.drawer.cancel')}
               </button>
             </footer>
           </aside>

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
@@ -111,6 +112,7 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
 }: WarehousePanelProps) => {
+  const { t, i18n } = useTranslation();
   const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
   const createSupplierOrderMutation = useCreateSupplierOrderMutation();
@@ -265,7 +267,7 @@ export const WarehousePanel = ({
       return [];
     }
   });
-  const [newFilterName, setNewFilterName] = useState('My filter');
+  const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(
     warehouseFilterIconOptions[0],
   );
@@ -377,7 +379,7 @@ export const WarehousePanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to save warehouse settings.',
+          : i18n.t('warehouse.messages.errors.failedSaveSettings'),
       );
     }
   };
@@ -398,11 +400,11 @@ export const WarehousePanel = ({
         paid: order.paid,
         supplierName: order.supplierName || 'Supplier',
         createdAt: order.createdAt,
-        acceptedBy: order.createdBy || 'Administrator',
+        acceptedBy: order.createdBy || t('common.administrator'),
         approvedBy:
           (item.receiptStatus ?? 'new') === 'new'
             ? '-'
-            : order.createdBy || 'Administrator',
+            : order.createdBy || t('common.administrator'),
         acceptedAt: order.updatedAt,
         status:
           order.status === 'cancelled' ||
@@ -511,7 +513,7 @@ export const WarehousePanel = ({
     onError(
       warehouseSettingsQuery.error instanceof Error
         ? warehouseSettingsQuery.error.message
-        : 'Failed to load warehouse settings.',
+        : i18n.t('warehouse.messages.errors.failedLoadSettings'),
     );
   }, [onError, warehouseSettingsQuery.error]);
   useEffect(() => {
@@ -738,9 +740,9 @@ export const WarehousePanel = ({
         article: product.article,
         serialNumber: product.serialNumber,
       })),
-      'Warehouse serial numbers',
+      i18n.t('warehouse.print.serialNumbersTitle'),
     );
-  }, [selectedStockProductsWithSerials]);
+  }, [i18n, selectedStockProductsWithSerials]);
 
   useEffect(() => {
     setSelectedStockProductIds((current) => {
@@ -795,25 +797,17 @@ export const WarehousePanel = ({
   );
   const searchPlaceholder =
     activeTab === 'receipts'
-      ? 'Search receipts'
-      : searchMode === 'serial'
-        ? 'Search by serial number'
-        : searchMode === 'name'
-          ? 'Search by product name'
-          : searchMode === 'article'
-            ? 'Search by article'
-            : searchMode === 'warehouse'
-              ? 'Search by warehouse'
-              : 'Search by supplier';
+      ? t('warehouse.search.receipts')
+      : t(`warehouse.search.${searchMode}`);
   const activeFilterCount = Object.values(appliedFilters).filter((value) =>
     typeof value === 'boolean' ? value : value.trim(),
   ).length;
   const stockSummaryText =
     activeTab === 'stock'
-      ? `${filteredProducts.length} stock rows`
+      ? t('warehouse.summary.stockRows', { count: filteredProducts.length })
       : activeTab === 'transfers'
-        ? `${filteredProducts.length} movable rows`
-        : `${filteredReceipts.length} receipt rows`;
+        ? t('warehouse.summary.movableRows', { count: filteredProducts.length })
+        : t('warehouse.summary.receiptRows', { count: filteredReceipts.length });
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
@@ -994,7 +988,7 @@ export const WarehousePanel = ({
     setServiceCenterModalId(null);
     void persistWarehouseSettings({
       serviceCenters: nextServiceCenters,
-      successMessage: 'Service center settings saved.',
+      successMessage: i18n.t('warehouse.messages.success.serviceCenterSaved'),
     });
   };
 
@@ -1095,7 +1089,7 @@ export const WarehousePanel = ({
     void persistWarehouseSettings({
       warehouses: nextWarehouses,
       administrators: nextAdministrators,
-      successMessage: 'Warehouse settings saved.',
+      successMessage: i18n.t('warehouse.messages.success.warehouseSaved'),
     });
   };
   const createReceipt = () => {
@@ -1121,7 +1115,7 @@ export const WarehousePanel = ({
         paid: amount,
         supplierName: supplier?.name || 'Supplier',
         createdAt: now,
-        acceptedBy: 'Administrator',
+        acceptedBy: t('common.administrator'),
         approvedBy: '-',
         acceptedAt: now,
         status: 'new',
@@ -1141,7 +1135,7 @@ export const WarehousePanel = ({
     onProductChange('quantity', String(quantity));
     onProductChange(
       'purchasePlace',
-      supplier?.name || 'РџРѕСЃС‚Р°С‡Р°Р»СЊРЅРёРє',
+      supplier?.name || i18n.t('common.supplier'),
     );
     onProductChange('purchaseDate', now.slice(0, 10));
     onProductChange('note', receiptForm.note.trim());
@@ -1187,7 +1181,9 @@ export const WarehousePanel = ({
   const toggleReceiptFavorite = async (receipt: ReceiptRow) => {
     if (!receipt.supplierOrderId) return;
     if (!canManageSupplierOrders) {
-      onError('Current employee does not have permission to manage supplier orders.');
+      onError(
+        i18n.t('orders.supplierOrders.messages.errors.noManagePermission'),
+      );
       return;
     }
 
@@ -1203,7 +1199,7 @@ export const WarehousePanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to update receipt order star.',
+          : i18n.t('orders.supplierOrders.messages.errors.failedUpdateStar'),
       );
     }
   };
@@ -1230,7 +1226,7 @@ export const WarehousePanel = ({
     };
     setSavedFilters((current) => [nextFilter, ...current]);
     setIsSaveFilterDrawerOpen(false);
-    setNewFilterName('My filter');
+    setNewFilterName('');
     setNewFilterIcon(warehouseFilterIconOptions[0]);
   };
   const applySavedFilter = (savedFilter: SavedWarehouseFilter) => {
@@ -1293,11 +1289,11 @@ export const WarehousePanel = ({
     const sourceMeta = productWarehouseMetaById[activeTransferProduct.id];
 
     if (!targetWarehouse || !targetLocation) {
-      onError('Select target warehouse and location.');
+      onError(i18n.t('warehouse.messages.errors.selectTarget'));
       return;
     }
     if (!targetWarehouse.isActive) {
-      onError('Selected warehouse is inactive.');
+      onError(i18n.t('warehouse.messages.errors.inactiveWarehouse'));
       return;
     }
 
@@ -1305,7 +1301,7 @@ export const WarehousePanel = ({
       sourceMeta?.warehouseId === targetWarehouse.id &&
       sourceMeta?.locationId === targetLocation.id
     ) {
-      onError('Product is already in the selected location.');
+      onError(i18n.t('warehouse.messages.errors.alreadyInLocation'));
       return;
     }
 
@@ -1328,7 +1324,7 @@ export const WarehousePanel = ({
         toLocationName: targetLocation.name,
         note: transferForm.note.trim(),
         createdAt: new Date().toISOString(),
-        createdBy: currentEmployeeName || 'Administrator',
+        createdBy: currentEmployeeName || t('common.administrator'),
       },
       ...current,
     ]);
@@ -1337,7 +1333,7 @@ export const WarehousePanel = ({
       productId: '',
       note: '',
     }));
-    onSuccess('Product transferred.');
+    onSuccess(i18n.t('warehouse.messages.success.productTransferred'));
   };
 
   return (
@@ -1345,7 +1341,7 @@ export const WarehousePanel = ({
       <div
         className='warehouse-tabs'
         role='tablist'
-        aria-label='Warehouse sections'
+        aria-label={t('warehouse.tabs.ariaLabel')}
       >
         {tabs.map((tab) => (
           <button
@@ -1358,7 +1354,7 @@ export const WarehousePanel = ({
             }
             onClick={() => setActiveTab(tab.key)}
           >
-            <span>{tab.label}</span>
+            <span>{t(tab.labelKey)}</span>
             {tab.badge ? <strong>{tab.badge}</strong> : null}
           </button>
         ))}
@@ -1404,7 +1400,7 @@ export const WarehousePanel = ({
           }
         >
           <div className='orders-filter-saved-row'>
-            <strong>Saved filters:</strong>
+            <strong>{t('orders.filters.savedLabel')}</strong>
             <div className='orders-filter-saved-list'>
               {employeeSavedFilters.length > 0 ? (
                 employeeSavedFilters.map((savedFilter) => (
@@ -1423,20 +1419,22 @@ export const WarehousePanel = ({
                       type='button'
                       className='orders-filter-delete-button'
                       onClick={() => removeSavedFilter(savedFilter.id)}
-                      aria-label={`Delete ${savedFilter.name}`}
+                      aria-label={t('orders.filters.deleteFilter', {
+                        name: savedFilter.name,
+                      })}
                     >
                       x
                     </button>
                   </div>
                 ))
               ) : (
-                <small>No saved filters for this tab.</small>
+                <small>{t('orders.filters.noSaved')}</small>
               )}
             </div>
             <button
               type='button'
               className='toolbar-square-button'
-              aria-label='Save filter'
+              aria-label={t('orders.filters.saveFilter')}
               onClick={() => setIsSaveFilterDrawerOpen(true)}
             >
               +
@@ -1444,7 +1442,7 @@ export const WarehousePanel = ({
           </div>
           <div className='orders-filter-grid'>
             <label className='orders-filter-field'>
-              <span>By name</span>
+              <span>{t('warehouse.filters.byName')}</span>
               <input
                 type='text'
                 value={draftFilters.name}
@@ -1454,11 +1452,11 @@ export const WarehousePanel = ({
                     name: event.target.value,
                   }))
                 }
-                placeholder='Product name'
+                placeholder={t('warehouse.filters.productNamePlaceholder')}
               />
             </label>
             <label className='orders-filter-field'>
-              <span>By serial #</span>
+              <span>{t('warehouse.filters.bySerial')}</span>
               <input
                 type='text'
                 value={draftFilters.serial}
@@ -1468,11 +1466,11 @@ export const WarehousePanel = ({
                     serial: event.target.value,
                   }))
                 }
-                placeholder='Serial number'
+                placeholder={t('warehouse.filters.serialPlaceholder')}
               />
             </label>
             <label className='orders-filter-field'>
-              <span>By article</span>
+              <span>{t('warehouse.filters.byArticle')}</span>
               <input
                 type='text'
                 value={draftFilters.article}
@@ -1482,11 +1480,11 @@ export const WarehousePanel = ({
                     article: event.target.value,
                   }))
                 }
-                placeholder='Article'
+                placeholder={t('warehouse.filters.articlePlaceholder')}
               />
             </label>
             <label className='orders-filter-field'>
-              <span>Warehouse</span>
+              <span>{t('orders.filters.warehouse')}</span>
               <select
                 value={draftFilters.warehouse}
                 onChange={(event) =>
@@ -1496,7 +1494,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>All</option>
+                <option value=''>{t('orders.filters.all')}</option>
                 {warehouseOptions.map((warehouse) => (
                   <option key={warehouse.id} value={warehouse.name}>
                     {warehouse.name}
@@ -1505,7 +1503,7 @@ export const WarehousePanel = ({
               </select>
             </label>
             <label className='orders-filter-field'>
-              <span>Supplier</span>
+              <span>{t('common.supplier')}</span>
               <input
                 list='warehouse-supplier-options'
                 type='text'
@@ -1516,7 +1514,7 @@ export const WarehousePanel = ({
                     supplier: event.target.value,
                   }))
                 }
-                placeholder='Supplier name'
+                placeholder={t('warehouse.filters.supplierPlaceholder')}
               />
               <datalist id='warehouse-supplier-options'>
                 {supplierOptions.map((supplierName) => (
@@ -1525,7 +1523,7 @@ export const WarehousePanel = ({
               </datalist>
             </label>
             <label className='orders-filter-field'>
-              <span>Buyer</span>
+              <span>{t('warehouse.filters.buyer')}</span>
               <select
                 value={draftFilters.buyer}
                 onChange={(event) =>
@@ -1535,7 +1533,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>All</option>
+                <option value=''>{t('orders.filters.all')}</option>
                 {buyerOptions.map((buyer) => (
                   <option key={buyer} value={buyer}>
                     {buyer}
@@ -1545,7 +1543,7 @@ export const WarehousePanel = ({
             </label>
             {activeTab === 'stock' ? (
               <label className='orders-filter-field'>
-                <span>Location</span>
+                <span>{t('warehouse.filters.location')}</span>
                 <select
                   value={draftFilters.location}
                   onChange={(event) =>
@@ -1555,7 +1553,7 @@ export const WarehousePanel = ({
                     }))
                   }
                 >
-                  <option value=''>All</option>
+                  <option value=''>{t('orders.filters.all')}</option>
                   {availableLocationOptions.map((location) => (
                     <option key={location.id} value={location.name}>
                       {location.name}
@@ -1566,7 +1564,7 @@ export const WarehousePanel = ({
             ) : null}
             {activeTab === 'receipts' ? (
               <label className='orders-filter-field warehouse-favorites-filter'>
-                <span>Starred supplier orders only</span>
+                <span>{t('warehouse.filters.starredOnly')}</span>
                 <input
                   type='checkbox'
                   checked={draftFilters.favoritesOnly}
@@ -1586,14 +1584,14 @@ export const WarehousePanel = ({
               className='toolbar-filter-button orders-filter-apply'
               onClick={applyFilters}
             >
-              Apply
+              {t('orders.filters.apply')}
             </button>
             <button
               type='button'
               className='toolbar-filter-button'
               onClick={resetFilters}
             >
-              Clear
+              {t('orders.filters.clear')}
             </button>
           </div>
         </section>
@@ -1608,28 +1606,28 @@ export const WarehousePanel = ({
             onClick={(event) => event.stopPropagation()}
           >
             <header>
-              <h3>Save filter</h3>
+              <h3>{t('orders.filters.drawer.title')}</h3>
               <button
                 type='button'
-                aria-label='Close save filter panel'
+                aria-label={t('orders.filters.drawer.close')}
                 onClick={() => setIsSaveFilterDrawerOpen(false)}
               >
                 x
               </button>
             </header>
             <label className='orders-filter-field'>
-              <span>Filter name</span>
+              <span>{t('orders.filters.drawer.filterName')}</span>
               <input
                 type='text'
                 value={newFilterName}
                 onChange={(event) =>
                   setNewFilterName(event.target.value)
                 }
-                placeholder='My filter'
+                placeholder={t('orders.filters.drawer.filterNamePlaceholder')}
               />
             </label>
             <div className='orders-filter-icons'>
-              <span>Choose icon</span>
+              <span>{t('orders.filters.drawer.chooseIcon')}</span>
               <div className='orders-filter-icons-grid'>
                 {warehouseFilterIconOptions.map((icon) => (
                   <button
@@ -1648,7 +1646,7 @@ export const WarehousePanel = ({
               </div>
             </div>
             <div className='orders-filter-drawer-list'>
-              <span>Your saved filters</span>
+              <span>{t('orders.filters.drawer.yourSaved')}</span>
               {employeeSavedFilters.length > 0 ? (
                 employeeSavedFilters.map((savedFilter) => (
                   <div
@@ -1665,14 +1663,16 @@ export const WarehousePanel = ({
                       type='button'
                       className='orders-filter-delete-button'
                       onClick={() => removeSavedFilter(savedFilter.id)}
-                      aria-label={`Delete ${savedFilter.name}`}
+                      aria-label={t('orders.filters.deleteFilter', {
+                        name: savedFilter.name,
+                      })}
                     >
                       x
                     </button>
                   </div>
                 ))
               ) : (
-                <small>No filters yet.</small>
+                <small>{t('orders.filters.drawer.noFiltersYet')}</small>
               )}
             </div>
             <footer>
@@ -1681,14 +1681,14 @@ export const WarehousePanel = ({
                 className='toolbar-filter-button orders-filter-apply'
                 onClick={saveCurrentFilter}
               >
-                Save
+                {t('common.save')}
               </button>
               <button
                 type='button'
                 className='toolbar-filter-button'
                 onClick={() => setIsSaveFilterDrawerOpen(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </footer>
           </aside>
@@ -1698,8 +1698,7 @@ export const WarehousePanel = ({
       {activeTab === 'receipts' ? (
         <div className='warehouse-receipt-header'>
           <p className='panel-subtitle'>
-            receipts order creation is in progress, but you can add
-            receipt manually by clicking the button below
+            {t('warehouse.receipts.subtitle')}
           </p>
           {canManageSupplierOrders ? (
             <button
@@ -1710,7 +1709,7 @@ export const WarehousePanel = ({
                 setIsSupplierOrderModalOpen(true);
               }}
             >
-              receipt order
+              {t('warehouse.receipts.createOrder')}
             </button>
           ) : null}
         </div>
@@ -1750,7 +1749,9 @@ export const WarehousePanel = ({
                 administrators,
                 warehouses,
               ),
-              successMessage: 'Administrator access saved.',
+              successMessage: i18n.t(
+                'warehouse.messages.success.administratorSaved',
+              ),
             })
           }
           isSaving={isWarehouseSettingsSaving}
@@ -1895,7 +1896,9 @@ export const WarehousePanel = ({
                       receipt.productName.trim().toLowerCase(),
                   );
               if (!matchedProduct) {
-                onError('Product not found in Products catalog.');
+                onError(
+                  i18n.t('orders.supplierOrders.messages.errors.productNotFound'),
+                );
                 return;
               }
               setSelectedCatalogProductForEdit(matchedProduct);
@@ -1916,7 +1919,9 @@ export const WarehousePanel = ({
                   (supplier) => supplier.id === supplierIdFromOrder,
                 );
               if (!matchedSupplier) {
-                onError('Supplier not found in Suppliers catalog.');
+                onError(
+                  i18n.t('orders.supplierOrders.messages.errors.supplierNotFound'),
+                );
                 return;
               }
               setSelectedSupplierForEdit(matchedSupplier);
@@ -1949,7 +1954,7 @@ export const WarehousePanel = ({
         />
       ) : (
         <p className='empty-state'>
-          This warehouse section is ready for the next workflow.
+          {t('warehouse.emptySection')}
         </p>
       )}
       <ServiceCenterModal
@@ -1975,10 +1980,12 @@ export const WarehousePanel = ({
       />
       {isReceiptModalOpen ? (
         <ModalShell
-          title='create receipt order'
+          title={t('warehouse.modals.createReceiptOrder')}
           onClose={() => setIsReceiptModalOpen(false)}
           onSubmit={createReceipt}
-          submitLabel={isProductSaving ? '...' : 'create'}
+          submitLabel={
+            isProductSaving ? '...' : t('warehouse.modals.create')
+          }
           canSubmit={Boolean(
             receiptForm.supplierId &&
             receiptForm.productName.trim() &&
@@ -1987,7 +1994,7 @@ export const WarehousePanel = ({
         >
           <div className='warehouse-receipt-modal-grid'>
             <label className='field'>
-              <span>Supplier*</span>
+              <span>{t('warehouse.modals.supplierRequired')}</span>
               <select
                 value={receiptForm.supplierId}
                 onChange={(event) =>
@@ -1997,7 +2004,7 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>supplier</option>
+                <option value=''>{t('warehouse.modals.supplierPlaceholder')}</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
@@ -2006,7 +2013,7 @@ export const WarehousePanel = ({
               </select>
             </label>
             <label className='field'>
-              <span>Product*</span>
+              <span>{t('warehouse.modals.productRequired')}</span>
               <input
                 value={receiptForm.productName}
                 onChange={(event) =>
@@ -2015,11 +2022,11 @@ export const WarehousePanel = ({
                     productName: event.target.value,
                   }))
                 }
-                placeholder='enter product name'
+                placeholder={t('warehouse.modals.productNamePlaceholder')}
               />
             </label>
             <label className='field'>
-              <span>Price (UAH)*</span>
+              <span>{t('warehouse.modals.priceUah')}</span>
               <input
                 type='text'
                 inputMode='decimal'
@@ -2033,7 +2040,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field'>
-              <span>Quantity*</span>
+              <span>{t('warehouse.modals.quantityRequired')}</span>
               <input
                 type='number'
                 min='1'
@@ -2047,7 +2054,7 @@ export const WarehousePanel = ({
               />
             </label>
             <label className='field field-wide'>
-              <span>Note</span>
+              <span>{t('warehouse.modals.note')}</span>
               <textarea
                 rows={3}
                 value={receiptForm.note}
@@ -2104,7 +2111,7 @@ export const WarehousePanel = ({
               locationId,
             },
           });
-          onSuccess('Order taken on charge.');
+          onSuccess(i18n.t('orders.messages.success.takenOnCharge'));
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshSupplierOrders();
@@ -2116,14 +2123,16 @@ export const WarehousePanel = ({
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
           await cancelSupplierOrderMutation.mutateAsync(orderId);
-          onSuccess('Order cancelled.');
+          onSuccess(i18n.t('orders.messages.success.orderCancelled'));
           await refreshSupplierOrders();
         }}
         onSubmit={async (
           payload: SupplierOrderModalSubmitPayload,
         ) => {
           if (!canManageSupplierOrders) {
-            onError('Current employee does not have permission to manage supplier orders.');
+            onError(
+              i18n.t('orders.supplierOrders.messages.errors.noManagePermission'),
+            );
             return;
           }
           try {
@@ -2157,7 +2166,7 @@ export const WarehousePanel = ({
               supplyType: payload.supplyType,
               number: payload.number,
               note: payload.note,
-              createdBy: currentEmployeeName || 'Administrator',
+              createdBy: currentEmployeeName || t('common.administrator'),
               status: editingSupplierOrder
                 ? editingSupplierOrder.status
                 : 'approved',
@@ -2184,14 +2193,14 @@ export const WarehousePanel = ({
                   items: mergedItems,
                 },
               });
-              onSuccess('Receipt order updated.');
+              onSuccess(i18n.t('warehouse.messages.success.receiptOrderUpdated'));
             } else {
               await createSupplierOrderMutation.mutateAsync({
                 ...supplierOrderPayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
               onSuccess(
-                'Receipt order created and added to warehouse receipts.',
+                i18n.t('warehouse.messages.success.receiptOrderCreated'),
               );
             }
             setIsSupplierOrderModalOpen(false);
@@ -2203,7 +2212,7 @@ export const WarehousePanel = ({
             onError(
               error instanceof Error
                 ? error.message
-                : 'Failed to create receipt order.',
+                : i18n.t('warehouse.messages.errors.failedCreateReceiptOrder'),
             );
           }
         }}
@@ -2222,20 +2231,20 @@ export const WarehousePanel = ({
           <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
             <header className='catalog-edit-header'>
               <div className='catalog-edit-title'>
-                <h2>Supplier</h2>
+                <h2>{t('warehouse.modals.supplierTitle')}</h2>
               </div>
               <button
                 type='button'
                 className='create-order-close'
                 onClick={() => setSelectedSupplierForEdit(null)}
-                aria-label='Close'
+                aria-label={t('common.close')}
               >
                 &times;
               </button>
             </header>
             <div className='catalog-edit-body'>
               <label className='field'>
-                <span>Name</span>
+                <span>{t('common.name')}</span>
                 <input
                   value={supplierEditForm.name}
                   onChange={(event) =>
@@ -2247,7 +2256,7 @@ export const WarehousePanel = ({
                 />
               </label>
               <label className='field'>
-                <span>Phone</span>
+                <span>{t('warehouse.modals.phone')}</span>
                 <input
                   value={supplierEditForm.phone}
                   onChange={(event) =>
@@ -2259,7 +2268,7 @@ export const WarehousePanel = ({
                 />
               </label>
               <label className='field field-wide'>
-                <span>Note</span>
+                <span>{t('warehouse.modals.note')}</span>
                 <textarea
                   rows={3}
                   value={supplierEditForm.note}
@@ -2297,12 +2306,14 @@ export const WarehousePanel = ({
                   );
                   setIsSupplierSaving(false);
                   if (!ok) return;
-                  onSuccess('Supplier updated.');
+                  onSuccess(
+                    i18n.t('orders.supplierOrders.messages.success.supplierUpdated'),
+                  );
                   await refreshSupplierOrders();
                   setSelectedSupplierForEdit(null);
                 }}
               >
-                {isSupplierSaving ? 'Saving...' : 'Save'}
+                {isSupplierSaving ? t('warehouse.modals.saving') : t('common.save')}
               </button>
             </footer>
           </section>
@@ -2321,20 +2332,20 @@ export const WarehousePanel = ({
           <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
             <header className='catalog-edit-header'>
               <div className='catalog-edit-title'>
-                <h2>Product</h2>
+                <h2>{t('warehouse.modals.productTitle')}</h2>
               </div>
               <button
                 type='button'
                 className='create-order-close'
                 onClick={() => setSelectedCatalogProductForEdit(null)}
-                aria-label='Close'
+                aria-label={t('common.close')}
               >
                 &times;
               </button>
             </header>
             <div className='catalog-edit-body'>
               <label className='field'>
-                <span>Product name</span>
+                <span>{t('warehouse.modals.productName')}</span>
                 <input
                   value={productEditForm.name}
                   onChange={(event) =>
@@ -2346,7 +2357,7 @@ export const WarehousePanel = ({
                 />
               </label>
               <label className='field field-wide'>
-                <span>Note</span>
+                <span>{t('warehouse.modals.note')}</span>
                 <textarea
                   rows={3}
                   value={productEditForm.note}
@@ -2387,12 +2398,16 @@ export const WarehousePanel = ({
                     catalogProductId,
                     nextName,
                   );
-                  onSuccess('Product updated.');
+                  onSuccess(
+                    i18n.t('orders.supplierOrders.messages.success.productUpdated'),
+                  );
                   await refreshSupplierOrders();
                   setSelectedCatalogProductForEdit(null);
                 }}
               >
-                {isProductSavingInline ? 'Saving...' : 'Save'}
+                {isProductSavingInline
+                  ? t('warehouse.modals.saving')
+                  : t('common.save')}
               </button>
             </footer>
           </section>

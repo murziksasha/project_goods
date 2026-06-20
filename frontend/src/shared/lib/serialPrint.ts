@@ -1,4 +1,5 @@
 import JsBarcode from 'jsbarcode';
+import i18n from '../i18n/config';
 
 export type SerialPrintItem = {
   name: string;
@@ -16,7 +17,7 @@ const escapeHtml = (value: string) =>
 
 export const printSerialNumbers = (
   items: SerialPrintItem[],
-  title = 'Serial numbers',
+  title = i18n.t('warehouse.print.serialNumbersTitle'),
 ) => {
   const printableItems = items.filter((item) => item.serialNumber.trim());
   if (printableItems.length === 0) return;
@@ -28,8 +29,8 @@ export const printSerialNumbers = (
     .map(
       (item, index) => `
         <section class="serial-label">
-          <strong>${escapeHtml(item.name || 'Product')}</strong>
-          <svg class="serial-barcode" data-serial-barcode="${escapeHtml(item.serialNumber)}" aria-label="Barcode ${index + 1}"></svg>
+          <strong>${escapeHtml(item.name || i18n.t('warehouse.print.productFallback'))}</strong>
+          <svg class="serial-barcode" data-serial-barcode="${escapeHtml(item.serialNumber)}" aria-label="${escapeHtml(i18n.t('warehouse.print.barcodeAriaLabel', { index: index + 1 }))}"></svg>
           <code>${escapeHtml(item.serialNumber)}</code>
           <span>${escapeHtml(item.article || '-')}</span>
         </section>
