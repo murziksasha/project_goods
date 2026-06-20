@@ -6662,6 +6662,30 @@
   line-height: 1;
 }
 
+.settings-print-preview-page .print-document .print-block-paragraph-level-1 {
+  font-size: 22px;
+}
+
+.settings-print-preview-page .print-document .print-block-paragraph-level-2 {
+  font-size: 18px;
+}
+
+.settings-print-preview-page .print-document .print-block-paragraph-level-3 {
+  font-size: 13px;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph-level-1 {
+  font-size: 12px;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph-level-2 {
+  font-size: 10px;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph-level-3 {
+  font-size: 8.2px;
+}
+
 .settings-print-preview-page .print-label strong {
   display: block;
   width: 100%;

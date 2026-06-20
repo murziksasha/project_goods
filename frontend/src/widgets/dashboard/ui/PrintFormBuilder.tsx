@@ -209,6 +209,26 @@ const AlignInput = ({
   </label>
 );
 
+const LevelInput = ({
+  value,
+  onChange,
+}: {
+  value: 1 | 2 | 3;
+  onChange: (value: 1 | 2 | 3) => void;
+}) => (
+  <label className="field">
+    <span>Level</span>
+    <select
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value) as 1 | 2 | 3)}
+    >
+      <option value={1}>H1</option>
+      <option value={2}>H2</option>
+      <option value={3}>H3</option>
+    </select>
+  </label>
+);
+
 const updateField = (
   fields: PrintLayoutField[],
   index: number,
@@ -254,19 +274,7 @@ const BlockEditor = ({
       return (
         <div className="print-block-editor-fields">
           <TextInput label="Text" value={block.text} onChange={(text) => onChange({ ...block, text })} />
-          <label className="field">
-            <span>Level</span>
-            <select
-              value={block.level}
-              onChange={(event) =>
-                onChange({ ...block, level: Number(event.target.value) as 1 | 2 | 3 })
-              }
-            >
-              <option value={1}>H1</option>
-              <option value={2}>H2</option>
-              <option value={3}>H3</option>
-            </select>
-          </label>
+          <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
@@ -275,6 +283,7 @@ const BlockEditor = ({
       return (
         <div className="print-block-editor-fields">
           <TextAreaInput label="Text" value={block.text} onChange={(text) => onChange({ ...block, text })} />
+          <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
@@ -524,20 +533,21 @@ const BlockEditor = ({
               onChange={(text) =>
                 onChange({
                   ...block,
-                  columns: block.columns.map((current) =>
-                    current.id === column.id
-                      ? {
-                          ...current,
-                          blocks: [
-                            {
-                              id: `${column.id}-text`,
-                              type: 'paragraph' as const,
-                              text,
-                            },
-                          ],
-                        }
-                      : current,
-                  ),
+                  columns: block.columns.map((current) => {
+                    if (current.id !== column.id) return current;
+                    const existingParagraph = current.blocks.find((item) => item.type === 'paragraph');
+                    return {
+                      ...current,
+                      blocks: [
+                        {
+                          id: `${column.id}-text`,
+                          type: 'paragraph' as const,
+                          level: existingParagraph?.type === 'paragraph' ? existingParagraph.level : 3,
+                          text,
+                        },
+                      ],
+                    };
+                  }),
                 })
               }
             />

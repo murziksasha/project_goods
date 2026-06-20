@@ -36,6 +36,7 @@ export type PrintLayoutBlock =
       id: string;
       type: 'paragraph';
       text: string;
+      level: 1 | 2 | 3;
       align?: PrintLayoutTextAlign;
     }
   | {
