@@ -12,6 +12,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
+import i18n from '../../../shared/i18n/config';
 
 
 export type ClientFilters = {
@@ -232,7 +233,7 @@ export const formatItemList = (sale: Sale, tab: ClientCardTab) => {
       .join(', ');
   }
 
-  return getSaleProductName(sale, 'Product');
+  return getSaleProductName(sale, i18n.t('orders.fallbacks.product'));
 };
 
 export const getClientStatsMap = (sales: Sale[]) => {

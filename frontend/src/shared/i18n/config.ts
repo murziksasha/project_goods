@@ -31,12 +31,16 @@ i18n.use(initReactI18next).init({
   },
   lng: getInitialLanguage(),
   fallbackLng: 'uk',
+  supportedLngs: ['en', 'uk'],
+  nonExplicitSupportedLngs: true,
   interpolation: {
     escapeValue: false,
   },
   debug: (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ?? false,
   react: {
     useSuspense: false,
+    bindI18n: 'languageChanged',
+    bindI18nStore: 'added removed',
   },
 });
 

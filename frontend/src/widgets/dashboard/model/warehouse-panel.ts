@@ -1,4 +1,6 @@
+import type { TFunction } from 'i18next';
 import type { CSSProperties } from 'react';
+import i18n from '../../../shared/i18n/config';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Product,
@@ -218,31 +220,37 @@ export type WarehousePanelProps = {
 
 export const tabs: Array<{
   key: WarehouseTab;
-  label: string;
+  labelKey: string;
   badge?: string;
 }> = [
-  { key: 'stock', label: 'Stock balances' },
-  { key: 'receipts', label: 'Receipts' },
-  { key: 'transfers', label: 'Transfers' },
-  { key: 'information', label: 'Information' },
-  { key: 'settings', label: 'Settings' },
+  { key: 'stock', labelKey: 'warehouse.tabs.stock' },
+  { key: 'receipts', labelKey: 'warehouse.tabs.receipts' },
+  { key: 'transfers', labelKey: 'warehouse.tabs.transfers' },
+  { key: 'information', labelKey: 'warehouse.tabs.information' },
+  { key: 'settings', labelKey: 'warehouse.tabs.settings' },
 ];
 
 export const searchModes: Array<{
   key: WarehouseSearchMode;
-  label: string;
+  labelKey: string;
 }> = [
-  { key: 'serial', label: 'By serial #' },
-  { key: 'name', label: 'By name' },
-  { key: 'article', label: 'By article' },
-  { key: 'warehouse', label: 'By warehouse' },
-  { key: 'supplier', label: 'By supplier' },
+  { key: 'serial', labelKey: 'warehouse.searchModes.serial' },
+  { key: 'name', labelKey: 'warehouse.searchModes.name' },
+  { key: 'article', labelKey: 'warehouse.searchModes.article' },
+  { key: 'warehouse', labelKey: 'warehouse.searchModes.warehouse' },
+  { key: 'supplier', labelKey: 'warehouse.searchModes.supplier' },
 ];
 
-export const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'service-centers', label: 'Service Centers' },
-  { key: 'warehouses', label: 'Warehouses' },
-  { key: 'administrators', label: 'Administrators' },
+export const settingsTabs: Array<{ key: SettingsTab; labelKey: string }> = [
+  {
+    key: 'service-centers',
+    labelKey: 'warehouse.settings.tabs.serviceCenters',
+  },
+  { key: 'warehouses', labelKey: 'warehouse.settings.tabs.warehouses' },
+  {
+    key: 'administrators',
+    labelKey: 'warehouse.settings.tabs.administrators',
+  },
 ];
 
 export const initialServiceCenters: ServiceCenter[] = [];
@@ -359,18 +367,9 @@ export const lockedWarehouseColumns: {
 export const getReceiptPaymentStatusLabel = (
   status: NonNullable<ReceiptRow['paymentStatus']>,
 ) => {
-  switch (status) {
-    case 'pending':
-      return 'Awaiting payment';
-    case 'paid':
-      return 'Paid';
-    case 'without_payment':
-      return 'Issued without payment';
-    case 'cancelled':
-      return 'Cancelled';
-    default:
-      return status;
-  }
+  const labelKey = `orders.supplier.paymentStatuses.${status}`;
+  const translated = i18n.t(labelKey);
+  return translated === labelKey ? status : translated;
 };
 
 export const getReceiptPaymentStatusClass = (
@@ -477,59 +476,41 @@ export const getWarehouseBadgeAccentStyle = (
   } as CSSProperties;
 };
 
+const translateWarehouseKey = (
+  translate: TFunction,
+  key: string,
+  fallback: string,
+) => {
+  const translated = translate(key);
+  return translated === key ? fallback : translated;
+};
+
+export const getWarehouseColumnLabelKey = (
+  columnKey: StockColumnKey | ReceiptsColumnKey,
+  tab: WarehouseColumnsTab,
+) => `warehouse.tables.${tab}.columns.${columnKey}`;
+
 export const getWarehouseColumnLabel = (
   columnKey: StockColumnKey | ReceiptsColumnKey,
+  tab: WarehouseColumnsTab,
+  translate: TFunction = i18n.t.bind(i18n),
 ) => {
-  switch (columnKey) {
-    case 'select':
-      return 'Select';
-    case 'name':
-      return 'Name';
-    case 'serial':
-      return 'Serial #';
-    case 'article':
-      return 'Article';
-    case 'date':
-      return 'Date';
-    case 'purchase':
-      return 'Purchase';
-    case 'warehouse':
-      return 'Warehouse';
-    case 'location':
-      return 'Location';
-    case 'clientOrder':
-      return 'Client order';
-    case 'supplierOrder':
-      return 'Supplier order';
-    case 'supplier':
-      return 'Supplier';
-    case 'note':
-      return 'Note';
-    case 'action':
-      return 'Action';
-    case 'number':
-      return '#';
-    case 'product':
-      return 'Product';
-    case 'quantity':
-      return 'Quantity';
-    case 'price':
-      return 'Price';
-    case 'amount':
-      return 'Amount';
-    case 'paid':
-      return 'Paid';
-    case 'receiptDate':
-      return 'Receipt Date';
-    case 'acceptedBy':
-      return 'Accepted By';
-    case 'approvedBy':
-      return 'Approved By';
-    case 'status':
-      return 'Status';
-    case 'payment':
-      return 'Payment';
-    default:
-      return '';
-  }
+  const tableKey = getWarehouseColumnLabelKey(columnKey, tab);
+  const tableLabel = translateWarehouseKey(translate, tableKey, '');
+  if (tableLabel) return tableLabel;
+  return translateWarehouseKey(
+    translate,
+    `warehouse.columns.${columnKey}`,
+    columnKey,
+  );
 };
+
+export const getWarehouseSearchModeLabel = (
+  mode: WarehouseSearchMode,
+  translate: TFunction = i18n.t.bind(i18n),
+) =>
+  translateWarehouseKey(
+    translate,
+    `warehouse.searchModes.${mode}`,
+    mode,
+  );

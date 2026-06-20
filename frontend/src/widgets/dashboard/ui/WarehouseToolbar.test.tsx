@@ -1,6 +1,7 @@
 import { createRef } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../../shared/i18n/config';
 import { WarehouseToolbar } from './WarehouseToolbar';
 
 afterEach(() => {
@@ -88,6 +89,33 @@ describe('WarehouseToolbar serial printing', () => {
     fireEvent.click(printButton);
 
     expect(onPrintSelectedSerials).not.toHaveBeenCalled();
+  });
+
+  it('renders translated warehouse toolbar labels', () => {
+    renderToolbar();
+
+    expect(
+      screen.getByRole('button', { name: 'Filter' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'By name' })).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText('Search by serial number'),
+    ).toBeInTheDocument();
+  });
+
+  it('updates warehouse toolbar labels when language changes', async () => {
+    renderToolbar();
+
+    await i18n.changeLanguage('uk');
+
+    expect(
+      screen.getByRole('button', { name: 'Фільтр' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'За назвою' }),
+    ).toBeInTheDocument();
+
+    await i18n.changeLanguage('en');
   });
 
   it('clears selected stock rows from the toolbar counter', () => {

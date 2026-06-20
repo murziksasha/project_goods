@@ -2,7 +2,7 @@ import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 
 export type ProductSerialAvailability = {
-  label: string;
+  labelKey: string;
   selectable: boolean;
 };
 
@@ -44,18 +44,26 @@ export const getProductSerialAvailability = (
 ): ProductSerialAvailability => {
   const serial = normalizeSerialNumber(product.serialNumber);
 
-  if (!product.isActive) return { label: 'Inactive', selectable: false };
+  if (!product.isActive) {
+    return { labelKey: 'orders.serialAvailability.inactive', selectable: false };
+  }
   if (serial && serialUsage.current.has(serial)) {
-    return { label: 'Already in this order', selectable: false };
+    return {
+      labelKey: 'orders.serialAvailability.alreadyInThisOrder',
+      selectable: false,
+    };
   }
   if (serial && serialUsage.other.has(serial)) {
-    return { label: 'Linked to another order', selectable: false };
+    return {
+      labelKey: 'orders.serialAvailability.linkedToAnotherOrder',
+      selectable: false,
+    };
   }
   if (!product.isInStock || product.freeQuantity <= 0) {
-    return { label: 'No free stock', selectable: false };
+    return { labelKey: 'orders.serialAvailability.noFreeStock', selectable: false };
   }
 
-  return { label: 'Free', selectable: true };
+  return { labelKey: 'orders.serialAvailability.free', selectable: true };
 };
 
 export const buildSerializedProductLineItem = ({

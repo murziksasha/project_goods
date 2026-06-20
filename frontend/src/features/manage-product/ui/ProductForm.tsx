@@ -39,7 +39,7 @@ export const ProductForm = ({
       </div>
       {isEditing ? (
         <button className="ghost-button" type="button" onClick={onCancelEdit}>
-          Cancel
+          {t('common.cancel')}
         </button>
       ) : null}
     </div>
@@ -58,7 +58,7 @@ export const ProductForm = ({
         <span>{t('product.article')}</span>
         <input
           value={form.article}
-          placeholder="WM-001"
+          placeholder={t('product.examples.article')}
           onChange={(event) => onChange('article', event.target.value)}
         />
       </label>
@@ -67,38 +67,38 @@ export const ProductForm = ({
         <span>{t('product.serialNumber')}</span>
         <input
           value={form.serialNumber}
-          placeholder="LOG-M185-0001"
+          placeholder={t('product.examples.serialNumber')}
           onChange={(event) => onChange('serialNumber', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Price</span>
+        <span>{t('product.price')}</span>
         <NumberStepper
           min={0}
           step={0.01}
           precision={2}
           value={form.price}
-          placeholder="100"
+          placeholder={t('product.examples.price')}
           onChange={(value) => onChange('price', value)}
         />
       </label>
 
       <label className="field">
-        <span>Sale prices</span>
+        <span>{t('product.salePrices')}</span>
         <input
           value={form.salePriceOptions}
-          placeholder="649, 699, 749"
+          placeholder={t('product.examples.salePriceOptions')}
           onChange={(event) => onChange('salePriceOptions', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Quantity</span>
+        <span>{t('product.quantity')}</span>
         <NumberStepper
           min={0}
           value={form.quantity || "1"}
-          placeholder="5"
+          placeholder={t('product.examples.quantity')}
           onChange={(value) => onChange('quantity', value)}
         />
       </label>
@@ -138,12 +138,12 @@ export const ProductForm = ({
           onChange={(event) => onChange('warrantyPeriod', event.target.value)}
         >
           <option value="">{t('product.selectWarranty')}</option>
-          <option value="1">30 day</option>
-          <option value="3">3 month</option>
-          <option value="6">6 month</option>
-          <option value="12">1 year</option>
-          <option value="24">2 year</option>
-          <option value="36">3 year</option>
+          <option value="1">{t('orders.warranty.day30')}</option>
+          <option value="3">{t('orders.warranty.month3')}</option>
+          <option value="6">{t('orders.warranty.month6')}</option>
+          <option value="12">{t('orders.warranty.year1')}</option>
+          <option value="24">{t('orders.warranty.year2')}</option>
+          <option value="36">{t('orders.warranty.year3')}</option>
         </select>
       </label>
     </div>

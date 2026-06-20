@@ -341,12 +341,16 @@ export const createDashboardActions = ({
   const handleOptimisticConflict = async (
     error: unknown,
     refreshAction: () => Promise<void>,
-    entityLabel: string,
+    entityKey: string,
   ) => {
     if (!isOptimisticConflict(error)) return false;
-    await safeRefresh(refreshAction, `Failed to refresh ${entityLabel}.`);
+    const entityLabel = i18n.t(entityKey);
+    await safeRefresh(
+      refreshAction,
+      i18n.t('dashboard.actions.errors.failedRefresh', { entity: entityLabel }),
+    );
     setError(
-      `${entityLabel} was updated by another user. Latest data loaded, please retry.`,
+      i18n.t('dashboard.actions.errors.optimisticConflict', { entity: entityLabel }),
     );
     return true;
   };
@@ -460,12 +464,18 @@ export const createDashboardActions = ({
       try {
         if (editingProductId) {
           await mutateUpdateProduct(editingProductId, productForm);
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
-          setSuccessMessage('Product updated.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
+          setSuccessMessage(i18n.t('success.productUpdated'));
         } else {
           await mutateCreateProduct(productForm);
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
-          setSuccessMessage('Product saved to MongoDB.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
+          setSuccessMessage(i18n.t('dashboard.actions.success.productSavedToMongo'));
         }
 
         resetProductEditor();
@@ -474,12 +484,17 @@ export const createDashboardActions = ({
           await handleOptimisticConflict(
             requestError,
             refreshProducts,
-            'Product',
+            'dashboard.actions.entities.product',
           )
         ) {
           return;
         }
-        setError(getRequestErrorMessage(requestError, 'Failed to save product.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveProduct'),
+          ),
+        );
       } finally {
         setIsProductSaving(false);
       }
@@ -490,18 +505,21 @@ export const createDashboardActions = ({
 
       try {
         const result = await mutateUpdateProductModel(payload);
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
         setSuccessMessage(
           result.matchedCount > 0
-            ? 'Product model updated.'
-            : 'No stock rows found for this product model.',
+            ? i18n.t('dashboard.actions.success.productModelUpdated')
+            : i18n.t('dashboard.actions.success.productModelNoStockRows'),
         );
         return result.matchedCount > 0;
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
             requestError,
-            'Failed to update product model.',
+            i18n.t('dashboard.actions.errors.failedUpdateProductModel'),
           ),
         );
         return false;
@@ -519,7 +537,7 @@ export const createDashboardActions = ({
         );
 
         if (hasDuplicateService) {
-          setError('Такая услуга уже есть в каталоге.');
+          setError(i18n.t('dashboard.actions.errors.duplicateService'));
           return;
         }
       }
@@ -579,7 +597,12 @@ export const createDashboardActions = ({
 
         resetClientEditor();
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Не вдалося зберегти клієнта.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveClient'),
+          ),
+        );
       } finally {
         setIsClientSaving(false);
       }
@@ -594,7 +617,12 @@ export const createDashboardActions = ({
         setSuccessMessage(i18n.t('success.clientCreated'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Не вдалося створити картку клієнта.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedCreateClientCard'),
+          ),
+        );
         return false;
       } finally {
         setIsClientSaving(false);
@@ -606,10 +634,15 @@ export const createDashboardActions = ({
       try {
         const createdSupplier = await createSupplier(payload);
         setSuppliers((current) => [createdSupplier, ...current]);
-        setSuccessMessage('Supplier created.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.supplierCreated'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to create supplier.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedCreateSupplier'),
+          ),
+        );
         return false;
       } finally {
         setIsClientSaving(false);
@@ -620,11 +653,19 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await mutateCreateClientDevice(payload);
-        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
-        setSuccessMessage('Client device created.');
+        await safeRefresh(
+          refreshClientDevices,
+          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceCreated'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to create client device.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedCreateClientDevice'),
+          ),
+        );
         return false;
       } finally {
         setIsProductSaving(false);
@@ -638,10 +679,15 @@ export const createDashboardActions = ({
         setSuppliers((current) =>
           current.map((item) => (item.id === updatedSupplier.id ? updatedSupplier : item)),
         );
-        setSuccessMessage('Supplier updated.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.supplierUpdated'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to update supplier.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedUpdateSupplier'),
+          ),
+        );
         return false;
       } finally {
         setIsClientSaving(false);
@@ -686,11 +732,18 @@ export const createDashboardActions = ({
         }
 
         setSuccessMessage(
-          `Клієнтів обʼєднано. Перенесено звернень: ${result.movedSalesCount}.`,
+          i18n.t('dashboard.actions.success.clientsMerged', {
+            count: result.movedSalesCount,
+          }),
         );
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Не вдалося обʼєднати клієнтів.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('clients.messages.errors.failedMerge'),
+          ),
+        );
         return false;
       } finally {
         setIsClientSaving(false);
@@ -718,12 +771,17 @@ export const createDashboardActions = ({
             ),
         );
         setSuccessMessage(
-          `Suppliers merged. Moved supplier orders: ${result.movedSupplierOrdersCount}.`,
+          i18n.t('dashboard.actions.success.suppliersMerged', {
+            count: result.movedSupplierOrdersCount,
+          }),
         );
         return true;
       } catch (requestError) {
         setError(
-          getRequestErrorMessage(requestError, 'Failed to merge suppliers.'),
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedMergeSuppliers'),
+          ),
         );
         return false;
       } finally {
@@ -745,10 +803,15 @@ export const createDashboardActions = ({
           setSelectedClientId(updatedClient.id);
           await refreshClientHistory(updatedClient.id);
         }
-        setSuccessMessage('Клієнта оновлено.');
+        setSuccessMessage(i18n.t('success.clientUpdated'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Не вдалося оновити клієнта.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedUpdateClient'),
+          ),
+        );
         return false;
       } finally {
         setIsClientSaving(false);
@@ -761,14 +824,26 @@ export const createDashboardActions = ({
       try {
         if (editingSaleId) {
           await mutateUpdateSale(editingSaleId, saleForm);
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
-          await safeRefresh(refreshSales, 'Failed to refresh sales.');
-          setSuccessMessage('Sale updated and stock recalculated.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
+          await safeRefresh(
+            refreshSales,
+            i18n.t('dashboard.actions.errors.failedRefreshSales'),
+          );
+          setSuccessMessage(i18n.t('dashboard.actions.success.saleUpdatedStockRecalculated'));
         } else {
           await mutateCreateSale(saleForm);
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
-          await safeRefresh(refreshSales, 'Failed to refresh sales.');
-          setSuccessMessage('Sale card created and stock updated.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
+          await safeRefresh(
+            refreshSales,
+            i18n.t('dashboard.actions.errors.failedRefreshSales'),
+          );
+          setSuccessMessage(i18n.t('dashboard.actions.success.saleCreatedStockUpdated'));
         }
 
         resetSaleEditor();
@@ -780,13 +855,21 @@ export const createDashboardActions = ({
           await handleOptimisticConflict(
             requestError,
             refreshSales,
-            'Sale',
+            'dashboard.actions.entities.sale',
           )
         ) {
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
           return;
         }
-        setError(getRequestErrorMessage(requestError, 'Failed to save sale.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveSale'),
+          ),
+        );
       } finally {
         setIsSaleSaving(false);
       }
@@ -802,15 +885,20 @@ export const createDashboardActions = ({
               item.id === updatedEmployee.id ? updatedEmployee : item,
             ),
           );
-          setSuccessMessage('Employee updated.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.employeeUpdated'));
         } else {
           const createdEmployee = await createEmployee(employeeForm);
           setAllEmployees((current) => [createdEmployee, ...current]);
-          setSuccessMessage('Employee created.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.employeeCreated'));
         }
         resetEmployeeEditor();
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to save employee.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveEmployee'),
+          ),
+        );
       } finally {
         setIsEmployeeSaving(false);
       }
@@ -835,42 +923,66 @@ export const createDashboardActions = ({
           financeDefaults: updated.financeDefaults,
           notificationSettings: updated.notificationSettings,
         });
-        setSuccessMessage('Settings saved.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.settingsSaved'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to save settings.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveSettings'),
+          ),
+        );
       } finally {
         setIsSettingsSaving(false);
       }
     },
     deleteProduct: async (product: Product) => {
       clearNotifications();
-      if (!window.confirm(`Delete product "${product.name}"?`)) return;
+      if (
+        !window.confirm(
+          i18n.t('dashboard.actions.confirms.deleteProduct', { name: product.name }),
+        )
+      ) {
+        return;
+      }
 
       try {
         await mutateDeleteProduct(product.id);
         setAllProducts((current) => current.filter((item) => item.id !== product.id));
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
         if (editingProductId === product.id) resetProductEditor();
-        setSuccessMessage('Product deleted.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.productDeleted'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete product.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedDeleteProduct'),
+          ),
+        );
       }
     },
     archiveProduct: async (product: Product) => {
       clearNotifications();
       if (
         !window.confirm(
-          `Alarm: delete or deactivate product "${product.name}"? This action depends on stock and order history.`,
+          i18n.t('dashboard.actions.confirms.archiveProduct', { name: product.name }),
         )
-      ) return;
+      ) {
+        return;
+      }
 
       try {
         const result = await mutateArchiveProduct(product.id);
         if (result.action === 'deleted') {
           setAllProducts((current) => current.filter((item) => item.id !== product.id));
-          await safeRefresh(refreshProducts, 'Failed to refresh products.');
+          await safeRefresh(
+            refreshProducts,
+            i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+          );
           if (editingProductId === product.id) resetProductEditor();
-          setSuccessMessage('Product deleted.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.productDeleted'));
           return;
         }
 
@@ -879,10 +991,18 @@ export const createDashboardActions = ({
             item.id === result.product.id ? result.product : item,
           ),
         );
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
-        setSuccessMessage('Product deactivated.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.productDeactivated'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate product.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedArchiveProduct'),
+          ),
+        );
       }
     },
     activateProduct: async (product: Product) => {
@@ -904,44 +1024,65 @@ export const createDashboardActions = ({
             item.id === updatedProduct.id ? updatedProduct : item,
           ),
         );
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
         if (editingProductId === updatedProduct.id) {
           setProductForm(toProductForm(updatedProduct));
         }
-        setSuccessMessage('Product activated.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.productActivated'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to activate product.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedActivateProduct'),
+          ),
+        );
       } finally {
         setIsProductSaving(false);
       }
     },
     deleteService: async (service: ServiceCatalogItem) => {
       clearNotifications();
-      if (!window.confirm(`Delete service "${service.name}"?`)) return;
+      if (
+        !window.confirm(
+          i18n.t('dashboard.actions.confirms.deleteService', { name: service.name }),
+        )
+      ) {
+        return;
+      }
 
       try {
         await mutateDeleteService(service.id);
         setServices((current) => current.filter((item) => item.id !== service.id));
         if (editingServiceId === service.id) resetServiceEditor();
-        setSuccessMessage('Service deleted.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete service.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedDeleteService'),
+          ),
+        );
       }
     },
     archiveService: async (service: ServiceCatalogItem) => {
       clearNotifications();
       if (
         !window.confirm(
-          `Alarm: delete or deactivate service "${service.name}"? Used services will be deactivated instead of deleted.`,
+          i18n.t('dashboard.actions.confirms.archiveService', { name: service.name }),
         )
-      ) return;
+      ) {
+        return;
+      }
 
       try {
         const result = await mutateArchiveService(service.id);
         if (result.action === 'deleted') {
           setServices((current) => current.filter((item) => item.id !== service.id));
           if (editingServiceId === service.id) resetServiceEditor();
-          setSuccessMessage('Service deleted.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
           return;
         }
 
@@ -950,9 +1091,14 @@ export const createDashboardActions = ({
             item.id === result.service.id ? result.service : item,
           ),
         );
-        setSuccessMessage('Service deactivated.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeactivated'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete or deactivate service.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedArchiveService'),
+          ),
+        );
       }
     },
     activateService: async (service: ServiceCatalogItem) => {
@@ -977,9 +1123,14 @@ export const createDashboardActions = ({
         if (editingServiceId === updatedService.id) {
           setServiceForm(toServiceCatalogForm(updatedService));
         }
-        setSuccessMessage('Service activated.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.serviceActivated'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to activate service.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedActivateService'),
+          ),
+        );
       } finally {
         setIsServiceSaving(false);
       }
@@ -988,10 +1139,16 @@ export const createDashboardActions = ({
       clearNotifications();
       const hasSalesHistory = sales.some((sale) => sale.client.id === client.id);
       if (hasSalesHistory) {
-        setError('Клієнта не можна видалити, бо він має замовлення або продажі.');
+        setError(i18n.t('clients.messages.errors.clientHasOrders'));
         return;
       }
-      if (!window.confirm(`Видалити клієнта "${client.name}"?`)) return;
+      if (
+        !window.confirm(
+          i18n.t('dashboard.actions.confirms.deleteClient', { name: client.name }),
+        )
+      ) {
+        return;
+      }
 
       try {
         await mutateDeleteClient(client.id);
@@ -1001,32 +1158,59 @@ export const createDashboardActions = ({
           setClientHistory(null);
         }
         if (editingClientId === client.id) resetClientEditor();
-        setSuccessMessage('Клієнта видалено.');
+        setSuccessMessage(i18n.t('clients.messages.success.clientDeleted'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Не вдалося видалити клієнта.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedDeleteClient'),
+          ),
+        );
       }
     },
     deleteSale: async (sale: Sale) => {
       clearNotifications();
-      if (!window.confirm(`Delete sale for "${getSaleProductName(sale, 'Product')}"?`)) return;
+      if (
+        !window.confirm(
+          i18n.t('dashboard.actions.confirms.deleteSale', {
+            name: getSaleProductName(
+              sale,
+              i18n.t('dashboard.actions.entities.product'),
+            ),
+          }),
+        )
+      ) {
+        return;
+      }
 
       try {
         await mutateDeleteSale(sale.id);
         setSales((current) => current.filter((item) => item.id !== sale.id));
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
-        await safeRefresh(refreshSales, 'Failed to refresh sales.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
         if (editingSaleId === sale.id) resetSaleEditor();
         if (selectedClientId === sale.client.id) await refreshClientHistory(sale.client.id);
-        setSuccessMessage('Sale deleted and stock restored.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.saleDeletedStockRestored'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete sale.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedDeleteSale'),
+          ),
+        );
       }
     },
     deleteEmployee: async (employee: Employee) => {
       clearNotifications();
 
       if (currentEmployee?.id === employee.id) {
-        setError('You cannot delete your own account.');
+        setError(i18n.t('dashboard.actions.errors.cannotDeleteOwnAccount'));
         return;
       }
 
@@ -1034,9 +1218,14 @@ export const createDashboardActions = ({
         await deleteEmployee(employee.id);
         setAllEmployees((current) => current.filter((item) => item.id !== employee.id));
         if (editingEmployeeId === employee.id) resetEmployeeEditor();
-        setSuccessMessage('Employee deleted.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.employeeDeleted'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to delete employee.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedDeleteEmployee'),
+          ),
+        );
       }
     },
     exportProducts: async () => {
@@ -1044,9 +1233,14 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await exportProducts();
-        setSuccessMessage('Product export prepared.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.productExportPrepared'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to export products.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedExportProducts'),
+          ),
+        );
       } finally {
         setIsExporting(false);
       }
@@ -1056,15 +1250,25 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         const report = await importClients(file);
-        await safeRefresh(refreshClients, 'Failed to refresh clients.');
+        await safeRefresh(
+          refreshClients,
+          i18n.t('dashboard.actions.errors.failedRefreshClients'),
+        );
         setSuccessMessage(
-          `Client import completed: created ${report.created}, skipped existing ${report.skippedExisting}, skipped invalid ${
-            report.skippedMissingRequired + report.validationFailed
-          }.`,
+          i18n.t('dashboard.actions.success.clientImportCompleted', {
+            created: report.created,
+            skippedExisting: report.skippedExisting,
+            skippedInvalid: report.skippedMissingRequired + report.validationFailed,
+          }),
         );
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to import clients.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedImportClients'),
+          ),
+        );
         return false;
       } finally {
         setIsClientImporting(false);
@@ -1075,9 +1279,14 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await exportClients();
-        setSuccessMessage('Client export prepared.');
+        setSuccessMessage(i18n.t('dashboard.actions.success.clientExportPrepared'));
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to export clients.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedExportClients'),
+          ),
+        );
       } finally {
         setIsClientExporting(false);
       }
@@ -1101,11 +1310,19 @@ export const createDashboardActions = ({
         setClientStatusFilter('all');
         setSuccessMessage(
           result.safetyBackupId
-            ? `${result.message} Safety backup: ${result.safetyBackupId}.`
+            ? i18n.t('dashboard.actions.success.demoSeedWithBackup', {
+                message: result.message,
+                safetyBackupId: result.safetyBackupId,
+              })
             : result.message,
         );
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to seed demo data.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSeedDemoData'),
+          ),
+        );
       } finally {
         setIsSeeding(false);
       }
@@ -1115,20 +1332,28 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await mutateUpdateClientDevice(deviceId, payload);
-        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
-        setSuccessMessage('Client device updated.');
+        await safeRefresh(
+          refreshClientDevices,
+          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceUpdated'));
         return true;
       } catch (requestError) {
         if (
           await handleOptimisticConflict(
             requestError,
             refreshClientDevices,
-            'Client device',
+            'dashboard.actions.entities.clientDevice',
           )
         ) {
           return false;
         }
-        setError(getRequestErrorMessage(requestError, 'Failed to update client device.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedUpdateClientDevice'),
+          ),
+        );
         return false;
       } finally {
         setIsProductSaving(false);
@@ -1139,11 +1364,19 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await mutateDeleteClientDevice(deviceId);
-        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
-        setSuccessMessage('Client device removed.');
+        await safeRefresh(
+          refreshClientDevices,
+          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceRemoved'));
         return true;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to remove client device.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedRemoveClientDevice'),
+          ),
+        );
         return false;
       } finally {
         setIsProductSaving(false);
@@ -1168,7 +1401,12 @@ export const createDashboardActions = ({
         setClientStatusFilter('all');
         setSuccessMessage(result.message);
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to erase data.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedEraseData'),
+          ),
+        );
       } finally {
         setIsSeeding(false);
       }
@@ -1214,25 +1452,25 @@ export const createDashboardActions = ({
             : parseDecimal(payload.estimatedCost || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
-          throw new Error('Client phone must include full +380 number.');
+          throw new Error(i18n.t('dashboard.actions.errors.clientPhoneRequired'));
         }
         if (clientName.length < 2) {
-          throw new Error('Client name must contain at least 2 characters.');
+          throw new Error(i18n.t('dashboard.actions.errors.clientNameMinLength'));
         }
         if (deviceName.length < 2) {
-          throw new Error('Device name must contain at least 2 characters.');
+          throw new Error(i18n.t('dashboard.actions.errors.deviceNameMinLength'));
         }
         if (!payload.managerId.trim()) {
-          throw new Error('Manager must be selected from the current logged in employee.');
+          throw new Error(i18n.t('dashboard.actions.errors.managerRequired'));
         }
         if (!Number.isFinite(estimatedCost) || estimatedCost < 0) {
-          throw new Error('Estimated cost must be a non-negative number.');
+          throw new Error(i18n.t('dashboard.actions.errors.estimatedCostInvalid'));
         }
         if (
           payload.sourceTab === 'sale' &&
           saleItems.some((item) => item.productId && item.quantity < 1)
         ) {
-          throw new Error('Sale item quantity must be at least 1.');
+          throw new Error(i18n.t('dashboard.actions.errors.saleItemQuantityMin'));
         }
         const normalizedPhoneDigits = normalizedPhone.replace(/\D/g, '');
         const existingClient = allClients.find((client) =>
@@ -1267,7 +1505,7 @@ export const createDashboardActions = ({
         const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
         const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
         const createdAt = new Date().toISOString();
-        const author = currentEmployee?.name ?? managerName ?? 'System';
+        const author = currentEmployee?.name ?? managerName ?? i18n.t('common.system');
 
         const kitsNote = payload.deviceKit.trim();
         const noteParts = [
@@ -1331,7 +1569,7 @@ export const createDashboardActions = ({
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
         if (!isSaleResponse(createdSaleResult.sale)) {
-          throw new Error('Unexpected create sale response from API.');
+          throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
         }
         setSales((current) => [createdSaleResult.sale, ...current]);
 
@@ -1352,13 +1590,27 @@ export const createDashboardActions = ({
             isActive: true,
           });
         }
-        await safeRefresh(refreshProducts, 'Failed to refresh products.');
-        await safeRefresh(refreshSales, 'Failed to refresh sales.');
-        await safeRefresh(refreshClientDevices, 'Failed to refresh client devices.');
-        setSuccessMessage('Order saved successfully.');
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
+        await safeRefresh(
+          refreshClientDevices,
+          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.orderSaved'));
         return createdSaleResult.sale;
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to save order.'));
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveOrder'),
+          ),
+        );
         return null;
       } finally {
         setIsSaleSaving(false);

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import i18n from '../../../shared/i18n/config';
 
 type FinanceActionOptions = {
   onError: (message: string) => void;
@@ -36,7 +37,7 @@ export const useFinanceAction = ({ onError, onSuccess, refresh }: FinanceActionO
         const message =
           error instanceof Error
             ? error.message
-            : options?.errorFallback ?? 'Operation failed.';
+            : options?.errorFallback ?? i18n.t('orders.messages.errors.operationFailed');
         onError(message);
         return undefined;
       } finally {

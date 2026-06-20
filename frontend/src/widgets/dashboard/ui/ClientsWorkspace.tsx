@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Client,
@@ -80,21 +81,16 @@ type ClientsWorkspaceProps = {
 
 const MAX_PHONE_LENGTH = 10;
 const clientStatusOptions: Array<{
-  label: string;
+  labelKey: string;
   value: ClientStatus | '';
 }> = [
-  { label: '-', value: '' },
-  { label: 'new', value: 'new' },
-  { label: 'blacklist', value: 'blacklist' },
-  { label: 'VIP', value: 'vip' },
-  { label: 'discount', value: 'opt' },
-  { label: 'regular', value: 'ok' },
+  { labelKey: 'clients.statusValues.empty', value: '' },
+  { labelKey: 'clients.statusValues.new', value: 'new' },
+  { labelKey: 'clients.statusValues.blacklist', value: 'blacklist' },
+  { labelKey: 'clients.statusValues.vip', value: 'vip' },
+  { labelKey: 'clients.statusValues.opt', value: 'opt' },
+  { labelKey: 'clients.statusValues.ok', value: 'ok' },
 ];
-
-const filterStatusOptions: Array<{
-  label: string;
-  value: ClientStatus | '' | 'all';
-}> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
 
 const getMetaFieldFromNote = (
   note: string,
@@ -188,6 +184,14 @@ export const ClientsWorkspace = ({
   openClientCardRequestId = null,
   onOpenClientCardHandled,
 }: ClientsWorkspaceProps) => {
+  const { t } = useTranslation();
+  const filterStatusOptions = useMemo(
+    (): Array<{
+      labelKey: string;
+      value: ClientStatus | '' | 'all';
+    }> => [{ labelKey: 'clients.filters.statusAll', value: 'all' }, ...clientStatusOptions],
+    [],
+  );
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
@@ -519,17 +523,18 @@ export const ClientsWorkspace = ({
   };
 
   const validatePhone = (phone: string): boolean => {
+    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     if (normalized.length > MAX_PHONE_LENGTH) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     if (!isValidUkrainianPhone(phone)) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     setMainTabPhoneError(null);

@@ -10,6 +10,7 @@ import {
   getSaleProductSerialNumber,
 } from '../../../entities/sale/lib/sale-product';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
+import i18n from '../../../shared/i18n/config';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
@@ -182,11 +183,11 @@ export type SavedOrdersFilter = {
   createdAt: string;
 };
 
-export const orderTabs: Array<{ key: OrdersTab; label: string }> = [
-  { key: 'orders', label: 'Orders' },
-  { key: 'sales', label: 'Sales' },
-  { key: 'supplierOrders', label: 'Supplier Order' },
-  { key: 'supplierInformation', label: 'Information' },
+export const orderTabs: Array<{ key: OrdersTab; labelKey: string }> = [
+  { key: 'orders', labelKey: 'orders.tabs.orders' },
+  { key: 'sales', labelKey: 'orders.tabs.sales' },
+  { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
+  { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },
 ];
 
 export const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
@@ -300,24 +301,9 @@ export const getStoredOrderDetailRelatedTab = (): OrdersTab => {
 export const getSupplierOrderStatusLabel = (
   status: SupplierOrder['status'],
 ) => {
-  switch (status) {
-    case 'request':
-      return 'Purchase request';
-    case 'ordered':
-      return 'Ordered';
-    case 'approved':
-      return 'Approved';
-    case 'stocked':
-      return 'Stocked';
-    case 'overdue':
-      return 'Overdue';
-    case 'cancelled':
-      return 'Cancelled';
-    case 'unavailable':
-      return 'Unavailable';
-    default:
-      return status;
-  }
+  const labelKey = `orders.supplier.orderStatuses.${status}`;
+  const translated = i18n.t(labelKey);
+  return translated === labelKey ? status : translated;
 };
 
 export const ordersColumnsStorageKey = 'project-goods.orders-columns';
@@ -411,24 +397,24 @@ export const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   supplierInformation: ['orderNumber'],
 };
 
-export const repairStatuses: Array<{ key: RepairStatus; label: string }> = [
-  { key: 'ready', label: 'Ready' },
-  { key: 'issued', label: 'Issued' },
-  { key: 'paid', label: 'Paid' },
-  { key: 'new', label: 'New repair' },
-  { key: 'diagnostics', label: 'Diagnostics' },
-  { key: 'inRepair', label: 'In repair' },
-  { key: 'waitingParts', label: 'Waiting parts' },
-  { key: 'clientApproved', label: 'Client approved' },
-  { key: 'clientRejected', label: 'Client rejected' },
-  { key: 'issuedWithoutRepair', label: 'Issued without repair' },
+export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
+  { key: 'ready', labelKey: 'orders.status.repair.ready' },
+  { key: 'issued', labelKey: 'orders.status.repair.issued' },
+  { key: 'paid', labelKey: 'orders.status.repair.paid' },
+  { key: 'new', labelKey: 'orders.status.repair.new' },
+  { key: 'diagnostics', labelKey: 'orders.status.repair.diagnostics' },
+  { key: 'inRepair', labelKey: 'orders.status.repair.inRepair' },
+  { key: 'waitingParts', labelKey: 'orders.status.repair.waitingParts' },
+  { key: 'clientApproved', labelKey: 'orders.status.repair.clientApproved' },
+  { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
+  { key: 'issuedWithoutRepair', labelKey: 'orders.status.repair.issuedWithoutRepair' },
 ];
-export const saleStatuses: Array<{ key: SaleStatus; label: string }> = [
-  { key: 'new', label: 'New sale' },
-  { key: 'reserved', label: 'Reserved' },
-  { key: 'paid', label: 'Paid' },
-  { key: 'issued', label: 'Issued' },
-  { key: 'returned', label: 'Returned' },
+export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
+  { key: 'new', labelKey: 'orders.status.sale.new' },
+  { key: 'reserved', labelKey: 'orders.status.sale.reserved' },
+  { key: 'paid', labelKey: 'orders.status.sale.paid' },
+  { key: 'issued', labelKey: 'orders.status.sale.issued' },
+  { key: 'returned', labelKey: 'orders.status.sale.returned' },
 ];
 export const finalRepairStatuses: RepairStatus[] = [
   'issued',
@@ -439,8 +425,8 @@ export const stockLockedRepairStatuses = new Set<RepairStatus>([
   'clientRejected',
   'issuedWithoutRepair',
 ]);
-export const stockLockedRepairStatusMessage =
-  'Refund the client for bound products and return them to stock before using a refusal status.';
+export const getStockLockedRepairStatusMessage = () =>
+  i18n.t('orders.payment.stockLocked');
 export const emptyOrdersFilters: OrdersFilters = {
   statuses: [],
   orderNumber: '',
@@ -497,13 +483,16 @@ export const readActiveOrderFilters = () => {
   }
 };
 
-export const statusLabels = repairStatuses.reduce(
-  (acc, status) => ({ ...acc, [status.key]: status.label }),
-  saleStatuses.reduce(
-    (acc, status) => ({ ...acc, [status.key]: status.label }),
-    {} as Record<OrderStatus, string>,
-  ),
-);
+const timelineDetectionMarkers = [
+  'changed status to "',
+  'змінив статус на "',
+  'updated order main information',
+  'оновив основну інформацію замовлення',
+  'created order with status "',
+  'створив замовлення зі статусом "',
+  'returned "',
+  'returned sale to ',
+];
 
 export const normalizeOrderStatus = (
   status: string | null | undefined,
@@ -553,10 +542,48 @@ export const normalizeOrderStatus = (
 export const getStatusOptionsForSale = (sale: Sale) =>
   isRepairOrder(sale) ? repairStatuses : saleStatuses;
 
-export const getStatusLabel = (sale: Sale, status: OrderStatus) =>
-  getStatusOptionsForSale(sale).find(
+export const getStatusLabel = (sale: Sale, status: OrderStatus) => {
+  const option = getStatusOptionsForSale(sale).find(
     (option) => option.key === status,
-  )?.label ?? statusLabels[status];
+  );
+  return option ? i18n.t(option.labelKey) : status;
+};
+
+export const buildChangedStatusTimelineMessage = (
+  author: string,
+  sale: Sale,
+  status: OrderStatus,
+) =>
+  i18n.t('orders.timeline.changedStatus', {
+    author,
+    status: getStatusLabel(sale, status),
+  });
+
+export const buildCreatedOrderTimelineMessage = (
+  sale: Sale,
+  status: OrderStatus,
+) =>
+  i18n.t('orders.timeline.createdOrder', {
+    status: getStatusLabel(sale, status),
+  });
+
+export const buildAddedItemTimelineMessage = (
+  author: string,
+  kind: string,
+  name: string,
+) => i18n.t('orders.timeline.addedItem', { author, kind, name });
+
+export const buildRemovedProductTimelineMessage = (author: string, name: string) =>
+  i18n.t('orders.timeline.removedProduct', { author, name });
+
+export const buildRemovedServiceTimelineMessage = (author: string, name: string) =>
+  i18n.t('orders.timeline.removedService', { author, name });
+
+export const buildBoundSerialsTimelineMessage = (author: string, name: string) =>
+  i18n.t('orders.timeline.boundSerials', { author, name });
+
+export const buildUpdatedMainInfoTimelineMessage = (author: string) =>
+  i18n.t('orders.timeline.updatedMainInfo', { author });
 
 export const readSavedOrderFilters = () => {
   try {
@@ -589,20 +616,23 @@ export const createOrderLineItem = (
   kind,
   productId: kind === 'product' ? getSaleProductId(sale) : undefined,
   serviceId: undefined,
-  name: kind === 'product' ? getSaleProductName(sale, 'Product') : 'Repair',
+  name:
+    kind === 'product'
+      ? getSaleProductName(sale, i18n.t('orders.fallbacks.product'))
+      : i18n.t('orders.fallbacks.repair'),
   price: sale.salePrice,
   quantity: sale.quantity,
   warrantyPeriod: kind === 'service' ? 1 : 0,
 });
 
-export const warrantyOptions = [
-  { label: 'None', value: 0 },
-  { label: '30 day', value: 1 },
-  { label: '3 month', value: 3 },
-  { label: '6 month', value: 6 },
-  { label: '1 year', value: 12 },
-  { label: '2 year', value: 24 },
-  { label: '3 year', value: 36 },
+export const getWarrantyOptions = () => [
+  { labelKey: 'orders.warranty.none', value: 0 },
+  { labelKey: 'orders.warranty.day30', value: 1 },
+  { labelKey: 'orders.warranty.month3', value: 3 },
+  { labelKey: 'orders.warranty.month6', value: 6 },
+  { labelKey: 'orders.warranty.year1', value: 12 },
+  { labelKey: 'orders.warranty.year2', value: 24 },
+  { labelKey: 'orders.warranty.year3', value: 36 },
 ];
 
 export const getDefaultLineItems = (sale: Sale) =>
@@ -807,7 +837,12 @@ export const getRepairCompletionDate = (sale: Sale) => {
   );
   const completionEntry = (sale.timeline ?? []).find((entry) => {
     const text = entry.message.toLowerCase();
-    if (!text.includes('changed status to')) return false;
+    if (
+      !text.includes('changed status to') &&
+      !text.includes('змінив статус на')
+    ) {
+      return false;
+    }
     return Array.from(completionLabels).some((label) => text.includes(`"${label}"`));
   });
 
@@ -902,10 +937,10 @@ export const renderLineItemsTable = (
     <table class="print-line-table">
       <thead>
         <tr>
-          <th>Назва</th>
-          <th>К-сть</th>
-          <th>Ціна</th>
-          <th>Сума</th>
+          <th>${i18n.t('orders.print.table.name')}</th>
+          <th>${i18n.t('orders.print.table.quantityShort')}</th>
+          <th>${i18n.t('orders.print.table.price')}</th>
+          <th>${i18n.t('orders.print.table.sum')}</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -914,10 +949,44 @@ export const renderLineItemsTable = (
 };
 
 export const formatInvoiceAmount = (value: number) =>
-  new Intl.NumberFormat('uk-UA', {
+  new Intl.NumberFormat(i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+
+type AmountPluralForms = {
+  one: string;
+  few: string;
+  many: string;
+};
+
+const getAmountWordArrays = () => ({
+  zero: i18n.t('orders.print.amountInWords.zero'),
+  units: i18n.t('orders.print.amountInWords.units', {
+    returnObjects: true,
+  }) as string[],
+  femaleUnits: i18n.t('orders.print.amountInWords.femaleUnits', {
+    returnObjects: true,
+  }) as string[],
+  teens: i18n.t('orders.print.amountInWords.teens', {
+    returnObjects: true,
+  }) as string[],
+  tens: i18n.t('orders.print.amountInWords.tens', {
+    returnObjects: true,
+  }) as string[],
+  hundreds: i18n.t('orders.print.amountInWords.hundreds', {
+    returnObjects: true,
+  }) as string[],
+  thousand: i18n.t('orders.print.amountInWords.thousand', {
+    returnObjects: true,
+  }) as AmountPluralForms,
+  hryvnia: i18n.t('orders.print.amountInWords.hryvnia', {
+    returnObjects: true,
+  }) as AmountPluralForms,
+  kopiyka: i18n.t('orders.print.amountInWords.kopiyka', {
+    returnObjects: true,
+  }) as AmountPluralForms,
+});
 
 export const pluralizeUk = (
   value: number,
@@ -933,69 +1002,17 @@ export const pluralizeUk = (
   return many;
 };
 
-export const numberToUkrainianWords = (value: number) => {
-  if (value === 0) return 'нуль';
+const pluralizeAmountWord = (value: number, forms: AmountPluralForms) => {
+  if (i18n.language.startsWith('uk')) {
+    return pluralizeUk(value, forms.one, forms.few, forms.many);
+  }
+  return value === 1 ? forms.one : forms.many;
+};
 
-  const units = [
-    '',
-    'один',
-    'два',
-    'три',
-    'чотири',
-    "п'ять",
-    'шість',
-    'сім',
-    'вісім',
-    "дев'ять",
-  ];
-  const femaleUnits = [
-    '',
-    'одна',
-    'дві',
-    'три',
-    'чотири',
-    "п'ять",
-    'шість',
-    'сім',
-    'вісім',
-    "дев'ять",
-  ];
-  const teens = [
-    'десять',
-    'одинадцять',
-    'дванадцять',
-    'тринадцять',
-    'чотирнадцять',
-    "п'ятнадцять",
-    'шістнадцять',
-    'сімнадцять',
-    'вісімнадцять',
-    "дев'ятнадцять",
-  ];
-  const tens = [
-    '',
-    '',
-    'двадцять',
-    'тридцять',
-    'сорок',
-    "п'ятдесят",
-    'шістдесят',
-    'сімдесят',
-    'вісімдесят',
-    "дев'яносто",
-  ];
-  const hundreds = [
-    '',
-    'сто',
-    'двісті',
-    'триста',
-    'чотириста',
-    "п'ятсот",
-    'шістсот',
-    'сімсот',
-    'вісімсот',
-    "дев'ятсот",
-  ];
+export const numberToUkrainianWords = (value: number) => {
+  const { zero, units, femaleUnits, teens, tens, hundreds, thousand } =
+    getAmountWordArrays();
+  if (value === 0) return zero;
 
   const chunkToWords = (chunk: number, female = false) => {
     const parts: string[] = [];
@@ -1020,8 +1037,8 @@ export const numberToUkrainianWords = (value: number) => {
   const words: string[] = [];
   if (thousands > 0) {
     words.push(
-      chunkToWords(thousands, true),
-      pluralizeUk(thousands, 'тисяча', 'тисячі', 'тисяч'),
+      chunkToWords(thousands, i18n.language.startsWith('uk')),
+      pluralizeAmountWord(thousands, thousand),
     );
   }
   if (rest > 0) words.push(chunkToWords(rest));
@@ -1030,18 +1047,15 @@ export const numberToUkrainianWords = (value: number) => {
 };
 
 export const formatAmountInWords = (value: number) => {
+  const { hryvnia, kopiyka } = getAmountWordArrays();
   const hryvnias = Math.floor(value);
   const kopiyky = Math.round((value - hryvnias) * 100);
-  return `${numberToUkrainianWords(hryvnias)} ${pluralizeUk(
+  return `${numberToUkrainianWords(hryvnias)} ${pluralizeAmountWord(
     hryvnias,
-    'гривня',
-    'гривні',
-    'гривень',
-  )} ${String(kopiyky).padStart(2, '0')} ${pluralizeUk(
+    hryvnia,
+  )} ${String(kopiyky).padStart(2, '0')} ${pluralizeAmountWord(
     kopiyky,
-    'копійка',
-    'копійки',
-    'копійок',
+    kopiyka,
   )}`;
 };
 
@@ -1057,10 +1071,12 @@ export const renderInvoiceItemsTable = (sale: Sale) => {
             <strong>${escapeHtml(item.name)}</strong>
             <span class="invoice-item-description">${escapeHtml(
               item.serialNumbers?.length
-                ? `Серійний №: ${item.serialNumbers.join(', ')}`
+                ? i18n.t('orders.print.invoice.serialNumber', {
+                    serials: item.serialNumbers.join(', '),
+                  })
                 : item.kind === 'service'
-                  ? 'Послуга'
-                  : 'Товар',
+                  ? i18n.t('orders.print.invoice.itemTypeService')
+                  : i18n.t('orders.print.invoice.itemTypeProduct'),
             )}</span>
           </td>
           <td>${formatInvoiceAmount(item.quantity)}</td>
@@ -1090,13 +1106,13 @@ export const renderInvoiceItemsTable = (sale: Sale) => {
     <table class="invoice-items-table">
       <thead>
         <tr>
-          <th style="width: 34px;">№</th>
-          <th>Назва</th>
-          <th style="width: 74px;">Кількість</th>
-          <th style="width: 72px;">Ціна без ПДВ</th>
-          <th style="width: 64px;">Ставка ПДВ</th>
-          <th style="width: 82px;">Сума без ПДВ</th>
-          <th style="width: 82px;">Сума з ПДВ</th>
+          <th style="width: 34px;">${i18n.t('orders.print.table.number')}</th>
+          <th>${i18n.t('orders.print.table.name')}</th>
+          <th style="width: 74px;">${i18n.t('orders.print.table.quantity')}</th>
+          <th style="width: 72px;">${i18n.t('orders.print.table.priceWithoutVat')}</th>
+          <th style="width: 64px;">${i18n.t('orders.print.table.vatRate')}</th>
+          <th style="width: 82px;">${i18n.t('orders.print.table.sumWithoutVat')}</th>
+          <th style="width: 82px;">${i18n.t('orders.print.table.sumWithVat')}</th>
         </tr>
       </thead>
       <tbody>${items.join('')}</tbody>
@@ -1185,15 +1201,21 @@ export const getPrintTemplateData = (
     warehouse: getWarehouseLabel(sale),
     warehouse_address: '-',
     warehouse_phone: '-',
-    net_amount: `${formatInvoiceAmount(totalAmount)} грн`,
-    vat_amount: '0,00 грн',
-    total_amount: `${formatInvoiceAmount(totalAmount)} грн`,
+    net_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
+    vat_amount: i18n.t('orders.print.currency.zeroVat'),
+    total_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
     total_written: formatAmountInWords(totalAmount),
-    seller_occupation: 'Директор',
+    seller_occupation: i18n.t('orders.print.invoice.director'),
     seller_name: sale.manager?.name ?? '-',
-    note_label: 'Примітка',
-    products_table: renderLineItemsTable(productItems, 'Товари відсутні'),
-    services_table: renderLineItemsTable(serviceItems, 'Послуги відсутні'),
+    note_label: i18n.t('orders.print.invoice.noteLabel'),
+    products_table: renderLineItemsTable(
+      productItems,
+      i18n.t('orders.print.invoice.noProducts'),
+    ),
+    services_table: renderLineItemsTable(
+      serviceItems,
+      i18n.t('orders.print.invoice.noServices'),
+    ),
     invoice_items_table: renderInvoiceItemsTable({ ...sale, lineItems }),
     barcode: labelData.labelCode,
     labelCode: labelData.labelCode,
@@ -1204,7 +1226,7 @@ export const getPrintTemplateData = (
 };
 
 export const buildOrderNumber = (sale: Sale) =>
-  sale.recordNumber ?? 'r------';
+  sale.recordNumber ?? i18n.t('orders.fallbacks.recordNumber');
 
 export const formatReadyDate = (value: string) =>
   new Intl.DateTimeFormat('uk-UA', {
@@ -1214,7 +1236,7 @@ export const formatReadyDate = (value: string) =>
 
 export const getWarehouseLabel = (sale: Sale) => {
   void sale;
-  return 'Service center';
+  return i18n.t('orders.columns.serviceCenter');
 };
 
 export const renderOrderPrintCodes = async (
@@ -1424,8 +1446,8 @@ export const getCreatedTime = (sale: Sale) =>
 
 export const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
   activeTab === 'orders'
-    ? 'Search by order, client or device'
-    : 'Search by order, client or manager';
+    ? i18n.t('orders.toolbar.searchPlaceholder.orders')
+    : i18n.t('orders.toolbar.searchPlaceholder.sales');
 
 export const ORDERS_CELL_MAX_LENGTH = 15;
 
@@ -1456,7 +1478,9 @@ export const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
 };
 
 export const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
-  activeTab === 'orders' ? 'Device' : 'Service center';
+  activeTab === 'orders'
+    ? i18n.t('orders.columns.device')
+    : i18n.t('orders.columns.serviceCenter');
 
 export const getDeviceLineItem = (sale: Sale) =>
   (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
@@ -1468,7 +1492,7 @@ export const getPrimaryDeviceName = (sale: Sale) => {
   }
   const deviceItem = getDeviceLineItem(sale);
   if (deviceItem?.name?.trim()) return deviceItem.name.trim();
-  return getSaleProductName(sale, 'Device');
+  return getSaleProductName(sale, i18n.t('orders.fallbacks.device'));
 };
 
 export const getPrimaryDeviceSerial = (sale: Sale) => {
@@ -1478,11 +1502,20 @@ export const getPrimaryDeviceSerial = (sale: Sale) => {
 export const getPrimaryItemCellContent = (
   sale: Sale,
   activeTab: OrdersTab,
-) => (activeTab === 'orders' ? getPrimaryDeviceName(sale) : 'Service center');
+) =>
+  activeTab === 'orders'
+    ? getPrimaryDeviceName(sale)
+    : i18n.t('orders.columns.serviceCenter');
 
-export const isUrgentRepairOrder = (sale: Sale) =>
-  isRepairOrder(sale) &&
-  sale.note.toLowerCase().includes('urgent repair');
+export const isUrgentRepairOrder = (sale: Sale) => {
+  if (!isRepairOrder(sale)) return false;
+  const normalizedNote = sale.note.toLowerCase();
+  return (
+    normalizedNote.includes('urgent repair') ||
+    normalizedNote.includes('urgentrepair') ||
+    normalizedNote.includes('терміновий ремонт')
+  );
+};
 
 export const getColumnLabel = (
   columnKey: OrdersColumnKey,
@@ -1490,31 +1523,31 @@ export const getColumnLabel = (
 ) => {
   switch (columnKey) {
     case 'orderNumber':
-      return 'Order #';
+      return i18n.t('orders.columns.orderNumber');
     case 'manager':
-      return 'Manager';
+      return i18n.t('orders.columns.manager');
     case 'received':
-      return 'Issued';
+      return i18n.t('orders.columns.received');
     case 'master':
-      return 'Master';
+      return i18n.t('orders.columns.master');
     case 'status':
-      return 'Status';
+      return i18n.t('orders.columns.status');
     case 'primaryItem':
       return getPrimaryItemColumnLabel(activeTab);
     case 'price':
-      return 'Price';
+      return i18n.t('orders.columns.price');
     case 'paid':
-      return 'Paid';
+      return i18n.t('orders.columns.paid');
     case 'client':
-      return 'Client';
+      return i18n.t('orders.columns.client');
     case 'term':
-      return 'Term';
+      return i18n.t('orders.columns.term');
     case 'warehouse':
-      return 'Warehouse';
+      return i18n.t('orders.columns.warehouse');
     case 'createdAt':
-      return 'Add';
+      return i18n.t('orders.columns.createdAt');
     case 'readyDate':
-      return 'Ready date';
+      return i18n.t('orders.columns.readyDate');
     default:
       return '';
   }
@@ -1555,12 +1588,8 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
 
 export const isSystemTimelineMessage = (message: string) => {
   const normalized = message.trim().toLowerCase();
-  return (
-    normalized.includes('changed status to "') ||
-    normalized.includes('updated order main information') ||
-    normalized.includes('created order with status "') ||
-    normalized.includes('returned "') ||
-    normalized.includes('returned sale to ')
+  return timelineDetectionMarkers.some((marker) =>
+    normalized.includes(marker.toLowerCase()),
   );
 };
 

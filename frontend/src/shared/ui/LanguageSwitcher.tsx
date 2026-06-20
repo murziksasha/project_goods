@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const LanguageSwitcher: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const current = i18n.language?.startsWith('uk') ? 'uk' : 'en';
 
   const setLang = (lng: 'en' | 'uk') => {
@@ -15,8 +15,8 @@ export const LanguageSwitcher: React.FC = () => {
         type="button"
         className={`lang-btn ${current === 'en' ? 'lang-btn-active' : ''}`}
         onClick={() => setLang('en')}
-        aria-label="Switch to English"
-        title="English"
+        aria-label={t('common.languageSwitcher.switchToEnglish')}
+        title={t('common.languageSwitcher.english')}
       >
         EN
       </button>
@@ -24,8 +24,8 @@ export const LanguageSwitcher: React.FC = () => {
         type="button"
         className={`lang-btn ${current === 'uk' ? 'lang-btn-active' : ''}`}
         onClick={() => setLang('uk')}
-        aria-label="Switch to Ukrainian"
-        title="Українська"
+        aria-label={t('common.languageSwitcher.switchToUkrainian')}
+        title={t('common.languageSwitcher.ukrainian')}
       >
         UA
       </button>

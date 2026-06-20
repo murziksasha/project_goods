@@ -66,10 +66,10 @@ describe('settings panel model', () => {
   });
 
   it('exposes company, print form and backup tabs', () => {
-    expect(settingsTabs.map((tab) => tab.label)).toEqual([
-      'Company',
-      'Print forms',
-      'Backups',
+    expect(settingsTabs.map((tab) => tab.labelKey)).toEqual([
+      'settings.tabs.company',
+      'settings.tabs.print',
+      'settings.tabs.backups',
     ]);
   });
 

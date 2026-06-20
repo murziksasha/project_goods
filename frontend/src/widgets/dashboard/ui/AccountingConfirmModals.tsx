@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type {
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
@@ -20,74 +21,83 @@ export const CancelTransferModal = ({
   transfer,
   onClose,
   onConfirm,
-}: CancelTransferModalProps) => (
-  <div
-    className='modal-backdrop'
-    role='presentation'
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !isSaving) {
-        onClose();
-      }
-    }}
-  >
+}: CancelTransferModalProps) => {
+  const { t } = useTranslation();
+
+  return (
     <div
-      className='catalog-edit-modal finance-cancel-transfer-modal'
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='cancel-transfer-title'
+      className='modal-backdrop'
+      role='presentation'
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSaving) {
+          onClose();
+        }
+      }}
     >
-      <header className='catalog-edit-header'>
-        <h2 id='cancel-transfer-title'>Cancel transfer</h2>
-        <button
-          type='button'
-          className='ghost-button'
-          disabled={isSaving}
-          onClick={onClose}
-        >
-          &times;
-        </button>
-      </header>
-      <div className='catalog-edit-body'>
-        <p>
-          This will create a reverse transaction and return funds from{' '}
-          <strong>{transfer.toCashbox?.name ?? '-'}</strong> to{' '}
-          <strong>{transfer.fromCashbox?.name ?? '-'}</strong>.
-        </p>
-        <div className='finance-cancel-transfer-summary'>
-          <span>Date</span>
-          <strong>{formatDateDdMmYyyy(transfer.transactionDate)}</strong>
-          <span>Amount</span>
-          <strong>{formatMoney(transfer.amount, transfer.currency)}</strong>
-          <span>From</span>
-          <strong>{transfer.fromCashbox?.name ?? '-'}</strong>
-          <span>To</span>
-          <strong>{transfer.toCashbox?.name ?? '-'}</strong>
+      <div
+        className='catalog-edit-modal finance-cancel-transfer-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='cancel-transfer-title'
+      >
+        <header className='catalog-edit-header'>
+          <h2 id='cancel-transfer-title'>
+            {t('accounting.confirmModals.cancelTransferTitle')}
+          </h2>
+          <button
+            type='button'
+            className='ghost-button'
+            disabled={isSaving}
+            onClick={onClose}
+          >
+            &times;
+          </button>
+        </header>
+        <div className='catalog-edit-body'>
+          <p>
+            {t('accounting.confirmModals.cancelTransferDescription', {
+              toCashbox: transfer.toCashbox?.name ?? '-',
+              fromCashbox: transfer.fromCashbox?.name ?? '-',
+            })}
+          </p>
+          <div className='finance-cancel-transfer-summary'>
+            <span>{t('accounting.confirmModals.date')}</span>
+            <strong>{formatDateDdMmYyyy(transfer.transactionDate)}</strong>
+            <span>{t('accounting.confirmModals.amount')}</span>
+            <strong>{formatMoney(transfer.amount, transfer.currency)}</strong>
+            <span>{t('accounting.confirmModals.from')}</span>
+            <strong>{transfer.fromCashbox?.name ?? '-'}</strong>
+            <span>{t('accounting.confirmModals.to')}</span>
+            <strong>{transfer.toCashbox?.name ?? '-'}</strong>
+          </div>
+          <p className='muted-copy'>
+            {t('accounting.confirmModals.cancelTransferHistoryNote')}
+          </p>
         </div>
-        <p className='muted-copy'>
-          The original transfer will stay in history with a Cancelled badge.
-        </p>
+        <footer className='catalog-edit-footer'>
+          <button
+            type='button'
+            className='secondary-button'
+            disabled={isSaving}
+            onClick={onClose}
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type='button'
+            className='primary-button finance-danger-button'
+            disabled={isSaving}
+            onClick={onConfirm}
+          >
+            {isSaving
+              ? t('accounting.confirmModals.cancelling')
+              : t('accounting.confirmModals.confirmCancellation')}
+          </button>
+        </footer>
       </div>
-      <footer className='catalog-edit-footer'>
-        <button
-          type='button'
-          className='secondary-button'
-          disabled={isSaving}
-          onClick={onClose}
-        >
-          Cancel
-        </button>
-        <button
-          type='button'
-          className='primary-button finance-danger-button'
-          disabled={isSaving}
-          onClick={onConfirm}
-        >
-          {isSaving ? 'Cancelling...' : 'Confirm cancellation'}
-        </button>
-      </footer>
     </div>
-  </div>
-);
+  );
+};
 
 type IssueWithoutPaymentModalProps = {
   isSaving: boolean;
@@ -101,48 +111,56 @@ export const IssueWithoutPaymentModal = ({
   order,
   onClose,
   onConfirm,
-}: IssueWithoutPaymentModalProps) => (
-  <div
-    className='modal-backdrop'
-    role='presentation'
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        onClose();
-      }
-    }}
-  >
+}: IssueWithoutPaymentModalProps) => {
+  const { t } = useTranslation();
+  const orderNumber = getSupplierOrderDisplayNumber(order);
+
+  return (
     <div
-      className='catalog-edit-modal finance-without-payment-modal'
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='issue-without-payment-title'
+      className='modal-backdrop'
+      role='presentation'
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
     >
-      <header className='catalog-edit-header'>
-        <h2 id='issue-without-payment-title'>Confirm issue without payment</h2>
-        <button type='button' className='ghost-button' onClick={onClose}>
-          &times;
-        </button>
-      </header>
-      <div className='catalog-edit-body'>
-        <p>
-          Order <strong>{getSupplierOrderDisplayNumber(order)}</strong> will be
-          marked as <strong>issued without payment</strong>.
-        </p>
-        <p>No finance transaction will be created. Continue?</p>
+      <div
+        className='catalog-edit-modal finance-without-payment-modal'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='issue-without-payment-title'
+      >
+        <header className='catalog-edit-header'>
+          <h2 id='issue-without-payment-title'>
+            {t('accounting.confirmModals.issueWithoutPaymentTitle')}
+          </h2>
+          <button type='button' className='ghost-button' onClick={onClose}>
+            &times;
+          </button>
+        </header>
+        <div className='catalog-edit-body'>
+          <p>
+            {t('accounting.confirmModals.issueWithoutPaymentDescription', {
+              orderNumber,
+            })}
+          </p>
+          <p>{t('accounting.confirmModals.issueWithoutPaymentConfirm')}</p>
+        </div>
+        <footer className='catalog-edit-footer'>
+          <button type='button' className='secondary-button' onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button
+            type='button'
+            className='primary-button'
+            disabled={isSaving}
+            onClick={onConfirm}
+          >
+            {t('accounting.confirmModals.confirm')}
+          </button>
+        </footer>
       </div>
-      <footer className='catalog-edit-footer'>
-        <button type='button' className='secondary-button' onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          type='button'
-          className='primary-button'
-          disabled={isSaving}
-          onClick={onConfirm}
-        >
-          Confirm
-        </button>
-      </footer>
     </div>
-  </div>
-);
+  );
+};

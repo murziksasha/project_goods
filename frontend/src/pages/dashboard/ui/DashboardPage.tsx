@@ -729,7 +729,7 @@ export const DashboardPage = () => {
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, username: event.target.value }))
                     }
-                    placeholder="username"
+                    placeholder={t('common.username')}
                   />
                 </label>
                 <label className="field field-wide">
@@ -740,7 +740,7 @@ export const DashboardPage = () => {
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, password: event.target.value }))
                     }
-                    placeholder="password"
+                    placeholder={t('common.password')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         void handleLogin();

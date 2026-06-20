@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import type { Product } from '../model/types';
 
@@ -16,16 +17,18 @@ export const ProductList = ({
   onEdit,
   onDelete,
 }: ProductListProps) => {
+  const { t } = useTranslation();
+
   if (isLoading) {
-    return <p className="empty-state">Loading products...</p>;
+    return <p className="empty-state">{t('legacy.productList.loading')}</p>;
   }
 
   if (products.length === 0) {
     return (
       <p className="empty-state">
         {searchQuery
-          ? 'No products found for this search query.'
-          : 'No products yet. Add your first item to start the catalog.'}
+          ? t('legacy.productList.noSearchResults')
+          : t('legacy.productList.empty')}
       </p>
     );
   }
@@ -45,18 +48,20 @@ export const ProductList = ({
                       : 'stock-badge stock-badge-danger'
                   }
                 >
-                  {product.isInStock ? 'In stock' : 'Out of stock'}
+                  {product.isInStock
+                    ? t('legacy.productList.inStock')
+                    : t('legacy.productList.outOfStock')}
                 </span>
               </div>
               <p>{product.article}</p>
-              <p>Serial: {product.serialNumber}</p>
+              <p>{t('common.serial', { value: product.serialNumber })}</p>
             </div>
             <strong>{formatCurrency(product.price)}</strong>
           </div>
 
           <dl className="product-meta">
             <div>
-              <dt>Sale prices</dt>
+              <dt>{t('legacy.productList.salePrices')}</dt>
               <dd>
                 {product.salePriceOptions.length > 0
                   ? product.salePriceOptions
@@ -66,41 +71,41 @@ export const ProductList = ({
               </dd>
             </div>
             <div>
-              <dt>Total stock</dt>
+              <dt>{t('legacy.productList.totalStock')}</dt>
               <dd>{product.quantity}</dd>
             </div>
             <div>
-              <dt>Free stock</dt>
+              <dt>{t('legacy.productList.freeStock')}</dt>
               <dd>{product.freeQuantity}</dd>
             </div>
             <div>
-              <dt>Reserved</dt>
+              <dt>{t('legacy.productList.reserved')}</dt>
               <dd>{product.reservedQuantity}</dd>
             </div>
             <div>
-              <dt>Purchase place</dt>
-              <dd>{product.purchasePlace || 'Not specified'}</dd>
+              <dt>{t('legacy.productList.purchasePlace')}</dt>
+              <dd>{product.purchasePlace || t('common.notSpecified')}</dd>
             </div>
             <div>
-              <dt>Purchase date</dt>
+              <dt>{t('legacy.productList.purchaseDate')}</dt>
               <dd>{formatDate(product.purchaseDate)}</dd>
             </div>
             <div>
-              <dt>Warranty</dt>
-              <dd>{product.warrantyPeriod} months</dd>
+              <dt>{t('legacy.productList.warranty')}</dt>
+              <dd>{t('common.months', { count: product.warrantyPeriod })}</dd>
             </div>
             <div>
-              <dt>Default note</dt>
-              <dd>{product.note || 'No note'}</dd>
+              <dt>{t('legacy.productList.defaultNote')}</dt>
+              <dd>{product.note || t('common.noNote')}</dd>
             </div>
           </dl>
 
           <div className="card-actions">
             <button className="ghost-button" type="button" onClick={() => onEdit(product)}>
-              Edit
+              {t('common.edit')}
             </button>
             <button className="danger-button" type="button" onClick={() => onDelete(product)}>
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </article>

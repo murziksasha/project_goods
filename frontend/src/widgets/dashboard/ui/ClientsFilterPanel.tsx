@@ -1,10 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import type { ClientStatus } from '../../../entities/client/model/types';
 import { getClientStatusColor } from '../../../entities/client/model/constants';
 import type { ClientFilters } from '../model/clients-workspace';
 import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 type ClientStatusOption = {
-  label: string;
+  labelKey: string;
   value: ClientStatus | '' | 'all';
 };
 
@@ -43,6 +44,8 @@ export const ClientsFilterPanel = ({
   onFilterNameChange,
   onSaveFilter,
 }: ClientsFilterPanelProps) => {
+  const { t } = useTranslation();
+
   const updateFilter = <K extends keyof ClientFilters>(
     field: K,
     value: ClientFilters[K],
@@ -64,8 +67,8 @@ export const ClientsFilterPanel = ({
         saveDisabled={!newFilterName.trim()}
         saveTitle={
           canSaveFilter
-            ? 'Save filter'
-            : 'Employee profile is required to save filters.'
+            ? t('clients.filters.saveFilter')
+            : t('clients.filters.saveFilterRequiresEmployee')
         }
         onApply={onApplySavedFilter}
         onDelete={onDeleteSavedFilter}
@@ -75,36 +78,36 @@ export const ClientsFilterPanel = ({
       />
       <div className='orders-filter-grid'>
         <label className='orders-filter-field'>
-          <span>Phone / name</span>
+          <span>{t('clients.filters.phoneOrName')}</span>
           <input
             type='text'
             value={draftFilters.query}
             onChange={(event) => updateFilter('query', event.target.value)}
-            placeholder='+380..., Ivan'
+            placeholder={t('clients.filters.phoneOrNamePlaceholder')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Client ID</span>
+          <span>{t('clients.filters.clientId')}</span>
           <input
             type='text'
             value={draftFilters.clientId}
             onChange={(event) => updateFilter('clientId', event.target.value)}
-            placeholder='ID'
+            placeholder={t('clients.filters.clientIdPlaceholder')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Order No.</span>
+          <span>{t('clients.filters.orderNumber')}</span>
           <input
             type='text'
             value={draftFilters.orderNumber}
             onChange={(event) =>
               updateFilter('orderNumber', event.target.value)
             }
-            placeholder='r000001'
+            placeholder={t('clients.filters.orderNumberPlaceholder')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Date from</span>
+          <span>{t('clients.filters.dateFrom')}</span>
           <input
             type='date'
             value={draftFilters.dateFrom}
@@ -112,7 +115,7 @@ export const ClientsFilterPanel = ({
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Date to</span>
+          <span>{t('clients.filters.dateTo')}</span>
           <input
             type='date'
             value={draftFilters.dateTo}
@@ -120,7 +123,7 @@ export const ClientsFilterPanel = ({
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Status</span>
+          <span>{t('clients.filters.status')}</span>
           <select
             value={draftFilters.status}
             onChange={(event) =>
@@ -141,13 +144,13 @@ export const ClientsFilterPanel = ({
                       : '#6B7280',
                 }}
               >
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
         </label>
         <label className='orders-filter-field'>
-          <span>Visits from</span>
+          <span>{t('clients.filters.visitsFrom')}</span>
           <input
             type='number'
             min='0'
@@ -155,21 +158,21 @@ export const ClientsFilterPanel = ({
             onChange={(event) =>
               updateFilter('visitsFrom', event.target.value)
             }
-            placeholder='0'
+            placeholder={t('clients.filters.placeholderZero')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Visits to</span>
+          <span>{t('clients.filters.visitsTo')}</span>
           <input
             type='number'
             min='0'
             value={draftFilters.visitsTo}
             onChange={(event) => updateFilter('visitsTo', event.target.value)}
-            placeholder='0'
+            placeholder={t('clients.filters.placeholderZero')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Client income from</span>
+          <span>{t('clients.filters.incomeFrom')}</span>
           <input
             type='number'
             min='0'
@@ -177,17 +180,17 @@ export const ClientsFilterPanel = ({
             onChange={(event) =>
               updateFilter('incomeFrom', event.target.value)
             }
-            placeholder='0'
+            placeholder={t('clients.filters.placeholderZero')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Client income to</span>
+          <span>{t('clients.filters.incomeTo')}</span>
           <input
             type='number'
             min='0'
             value={draftFilters.incomeTo}
             onChange={(event) => updateFilter('incomeTo', event.target.value)}
-            placeholder='0'
+            placeholder={t('clients.filters.placeholderZero')}
           />
         </label>
       </div>
@@ -197,14 +200,14 @@ export const ClientsFilterPanel = ({
           className='toolbar-filter-button orders-filter-apply'
           onClick={onApply}
         >
-          Apply
+          {t('clients.filters.apply')}
         </button>
         <button
           type='button'
           className='toolbar-filter-button'
           onClick={onClear}
         >
-          Clear filter
+          {t('clients.filters.clear')}
         </button>
       </div>
     </section>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../entities/employee/model/types';
 import {
   settingsTabs,
@@ -7,6 +8,12 @@ import {
   type SettingsTab,
   type WarehouseItem,
 } from '../model/warehouse-panel';
+
+const settingsTabLabelKeys: Record<SettingsTab, string> = {
+  'service-centers': 'warehouse.settings.tabs.serviceCenters',
+  warehouses: 'warehouse.settings.tabs.warehouses',
+  administrators: 'warehouse.settings.tabs.administrators',
+};
 
 export const WarehouseSettings = ({
   tab,
@@ -47,6 +54,7 @@ export const WarehouseSettings = ({
   onSaveAdministrators: () => void;
   isSaving: boolean;
 }) => {
+  const { t } = useTranslation();
   const serviceCenterMap = useMemo(
     () =>
       serviceCenters.reduce<Record<string, ServiceCenter>>(
@@ -130,7 +138,7 @@ export const WarehouseSettings = ({
       <div
         className='warehouse-settings-tabs'
         role='tablist'
-        aria-label='Warehouse settings sections'
+        aria-label={t('warehouse.settings.tabsAriaLabel')}
       >
         {settingsTabs.map((settingsTab) => (
           <button
@@ -143,7 +151,7 @@ export const WarehouseSettings = ({
             }
             onClick={() => onTabChange(settingsTab.key)}
           >
-            {settingsTab.label}
+            {t(settingsTabLabelKeys[settingsTab.key])}
           </button>
         ))}
       </div>
@@ -156,18 +164,28 @@ export const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateServiceCenter}
             >
-              Create
+              {t('warehouse.settings.serviceCenters.create')}
             </button>
           </div>
           <div className='catalog-table-wrap'>
             <table className='catalog-table warehouse-settings-table'>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>color</th>
-                  <th>Address</th>
-                  <th>Phone</th>
-                  <th>Warehouses</th>
+                  <th>
+                    {t('warehouse.settings.serviceCenters.columns.name')}
+                  </th>
+                  <th>
+                    {t('warehouse.settings.serviceCenters.columns.color')}
+                  </th>
+                  <th>
+                    {t('warehouse.settings.serviceCenters.columns.address')}
+                  </th>
+                  <th>
+                    {t('warehouse.settings.serviceCenters.columns.phone')}
+                  </th>
+                  <th>
+                    {t('warehouse.settings.serviceCenters.columns.warehouses')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -194,7 +212,10 @@ export const WarehouseSettings = ({
                         onClick={() =>
                           onEditServiceCenter(serviceCenter)
                         }
-                        aria-label={`Edit ${serviceCenter.name}`}
+                        aria-label={t(
+                          'warehouse.settings.serviceCenters.editAriaLabel',
+                          { name: serviceCenter.name },
+                        )}
                       />
                     </td>
                     <td>
@@ -237,7 +258,7 @@ export const WarehouseSettings = ({
         <>
           <div className='warehouse-settings-actions'>
             <label className='warehouse-settings-filter'>
-              <span>Status</span>
+              <span>{t('warehouse.settings.warehouses.statusFilter')}</span>
               <select
                 value={warehouseStatusFilter}
                 onChange={(event) =>
@@ -246,9 +267,11 @@ export const WarehouseSettings = ({
                   )
                 }
               >
-                <option value='all'>All</option>
-                <option value='active'>Active</option>
-                <option value='inactive'>Inactive</option>
+                <option value='all'>{t('warehouse.common.all')}</option>
+                <option value='active'>{t('warehouse.common.active')}</option>
+                <option value='inactive'>
+                  {t('warehouse.common.inactive')}
+                </option>
               </select>
             </label>
             <button
@@ -256,22 +279,28 @@ export const WarehouseSettings = ({
               className='orders-create-button'
               onClick={onCreateWarehouse}
             >
-              Create Warehouse
+              {t('warehouse.settings.warehouses.createWarehouse')}
             </button>
           </div>
           <div className='catalog-table-wrap'>
             <table className='catalog-table warehouse-settings-table'>
               <thead>
                 <tr>
-                  <th>Id</th>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Location</th>
-                  <th>Address</th>
-                  <th>Phone</th>
-                  <th>Locations</th>
-                  <th>Products</th>
-                  <th>Action</th>
+                  <th>{t('warehouse.settings.warehouses.columns.id')}</th>
+                  <th>{t('warehouse.settings.warehouses.columns.name')}</th>
+                  <th>{t('warehouse.settings.warehouses.columns.status')}</th>
+                  <th>
+                    {t('warehouse.settings.warehouses.columns.location')}
+                  </th>
+                  <th>{t('warehouse.settings.warehouses.columns.address')}</th>
+                  <th>{t('warehouse.settings.warehouses.columns.phone')}</th>
+                  <th>
+                    {t('warehouse.settings.warehouses.columns.locations')}
+                  </th>
+                  <th>
+                    {t('warehouse.settings.warehouses.columns.products')}
+                  </th>
+                  <th>{t('warehouse.settings.warehouses.columns.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -298,7 +327,9 @@ export const WarehouseSettings = ({
                               : 'receipt-status receipt-status-cancelled'
                           }
                         >
-                          {warehouse.isActive ? 'Active' : 'Inactive'}
+                          {warehouse.isActive
+                            ? t('warehouse.common.active')
+                            : t('warehouse.common.inactive')}
                         </span>
                       </td>
                       <td>
@@ -315,7 +346,11 @@ export const WarehouseSettings = ({
                       </td>
                       <td>{warehouse.receiptAddress || '-'}</td>
                       <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>{warehouse.locations.length} pcs</td>
+                      <td>
+                        {t('warehouse.common.pcs', {
+                          count: warehouse.locations.length,
+                        })}
+                      </td>
                       <td>{warehouseProductCounts[warehouse.id] ?? 0}</td>
                       <td>
                         <button
@@ -323,7 +358,7 @@ export const WarehouseSettings = ({
                           className='secondary-button'
                           onClick={() => onEditWarehouse(warehouse)}
                         >
-                          Edit
+                          {t('warehouse.common.edit')}
                         </button>
                       </td>
                     </tr>
@@ -341,14 +376,12 @@ export const WarehouseSettings = ({
             <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
               <thead>
                 <tr>
-                  <th>Administrator</th>
+                  <th>{t('warehouse.settings.administrators.administrator')}</th>
                   <th>
-                    View Warehouses, to which the administrator has
-                    access
+                    {t('warehouse.settings.administrators.viewWarehouses')}
                   </th>
                   <th>
-                    View Warehouse and Location, to which the
-                    administrator has access
+                    {t('warehouse.settings.administrators.viewDefaultLocation')}
                   </th>
                 </tr>
               </thead>
@@ -404,9 +437,16 @@ export const WarehouseSettings = ({
                         <details className='warehouse-admin-multiselect'>
                           <summary>
                             {isAllSelected
-                              ? `All (${administrator.warehouseIds.length})`
+                              ? t(
+                                  'warehouse.settings.administrators.allSelected',
+                                  {
+                                    count: administrator.warehouseIds.length,
+                                  },
+                                )
                               : selectedWarehouseNames.join(', ') ||
-                                'Select Warehouses'}
+                                t(
+                                  'warehouse.settings.administrators.selectWarehouses',
+                                )}
                           </summary>
                           <div className='warehouse-admin-multiselect-menu'>
                             <input
@@ -420,7 +460,9 @@ export const WarehouseSettings = ({
                                   }),
                                 )
                               }
-                              placeholder='Search'
+                              placeholder={t(
+                                'warehouse.settings.administrators.searchPlaceholder',
+                              )}
                             />
                             <label className='warehouse-admin-checkline'>
                               <input
@@ -450,7 +492,11 @@ export const WarehouseSettings = ({
                                   );
                                 }}
                               />
-                              <span>Select All</span>
+                              <span>
+                                {t(
+                                  'warehouse.settings.administrators.selectAll',
+                                )}
+                              </span>
                             </label>
                             <div className='warehouse-admin-options'>
                               {filteredWarehouses.map((warehouse) => (
@@ -496,7 +542,7 @@ export const WarehouseSettings = ({
                                   <span>{warehouse.name}</span>
                                   {!warehouse.isActive ? (
                                     <span className='catalog-inactive-badge'>
-                                      Inactive
+                                      {t('warehouse.common.inactive')}
                                     </span>
                                   ) : null}
                                 </label>
@@ -529,7 +575,11 @@ export const WarehouseSettings = ({
                           }}
                         >
                           {availableLocations.length === 0 ? (
-                            <option value=''>Select Location</option>
+                            <option value=''>
+                              {t(
+                                'warehouse.settings.administrators.selectLocation',
+                              )}
+                            </option>
                           ) : null}
                           {availableLocations.map((location) => (
                             <option
@@ -553,11 +603,12 @@ export const WarehouseSettings = ({
             onClick={onSaveAdministrators}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving
+              ? t('warehouse.common.saving')
+              : t('warehouse.common.saveChanges')}
           </button>
         </>
       ) : null}
     </div>
   );
 };
-

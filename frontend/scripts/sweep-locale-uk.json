@@ -1,0 +1,130 @@
+{
+  "analytics": {
+    "executiveDashboard": "Виконавча панель",
+    "businessPerformance": "Бізнес-показники",
+    "heroNote": "Продажі, ремонти, платежі та стан складу за {{period}}.",
+    "statisticsPeriod": "Період статистики",
+    "loading": "Завантаження...",
+    "loadingAnalytics": "Завантаження аналітики...",
+    "eraseAllData": "Стерти всі дані",
+    "exporting": "Експорт...",
+    "export": "Експорт",
+    "workflow": "Процеси",
+    "operationalPulse": "Операційний пульс",
+    "open": "Відкриті",
+    "closed": "Закриті",
+    "todaySales": "Продажі сьогодні",
+    "todayRepairs": "Ремонти сьогодні",
+    "stock": "Склад",
+    "inventoryHealth": "Стан запасів",
+    "products": "Товари",
+    "freeStock": "Вільний залишок",
+    "reserved": "Резерв",
+    "stockValue": "Вартість складу",
+    "clients": "Клієнти",
+    "signals": "Сигнали",
+    "attentionQueue": "Черга уваги",
+    "comparativeAnalysis": "Порівняльний аналіз",
+    "comparisonNote": "Поточний період — синій; попередні порівнянні роки — помаранчевий і зелений.",
+    "revenue": "Виручка",
+    "productSales": "Продажі товарів",
+    "noSalesForPeriod": "Продажів за обраний період не знайдено.",
+    "repairOrders": "Ремонтні замовлення",
+    "orderVolume": "Обсяг замовлень",
+    "noOrdersForPeriod": "Ремонтних замовлень за обраний період не знайдено.",
+    "periods": {
+      "today": "Сьогодні",
+      "currentMonth": "Цей місяць",
+      "lastMonth": "Минулий місяць",
+      "currentYear": "Цей рік",
+      "lastYear": "Минулий рік"
+    },
+    "summary": {
+      "sales": "Продажі",
+      "repairOrders": "Ремонтні замовлення",
+      "revenue": "Виручка",
+      "averageTicket": "Середній чек",
+      "paid": "Оплачено",
+      "receivables": "Дебіторка"
+    },
+    "conversion": {
+      "repairOrdersPerSales": "Ремонтні замовлення / продажі",
+      "salesPerRepairOrders": "Продажі / ремонтні замовлення",
+      "paymentCoverage": "Покриття оплатою"
+    },
+    "signalsLabels": {
+      "unpaidOrders": "Неоплачені замовлення",
+      "openWorkflow": "Відкриті процеси",
+      "lowStockItems": "Низький залишок",
+      "todayActivity": "Активність сьогодні"
+    },
+    "currency": "UAH {{value}}"
+  },
+  "common": {
+    "update": "Оновити",
+    "price": "Ціна",
+    "note": "Примітка",
+    "saving": "Збереження...",
+    "export": "Експорт",
+    "exporting": "Експорт...",
+    "pagination": {
+      "previousPage": "Попередня сторінка",
+      "nextPage": "Наступна сторінка",
+      "rowsPerPage": "Рядків на сторінку",
+      "totalRecords": "Всього: {{count}} записів",
+      "prev": "< Назад",
+      "next": "Далі >"
+    },
+    "notifications": {
+      "offlineViewOnly": "Немає інтернет-з'єднання. Доступні кешовані дані, але редагування вимкнено.",
+      "closeNotification": "Закрити сповіщення"
+    },
+    "languageSwitcher": {
+      "switchToEnglish": "Перемкнути на англійську",
+      "switchToUkrainian": "Перемкнути на українську",
+      "english": "English",
+      "ukrainian": "Українська"
+    }
+  },
+  "errors": {
+    "failedLoadProducts": "Не вдалося завантажити товари.",
+    "failedLoadCatalogProducts": "Не вдалося завантажити товари каталогу.",
+    "failedLoadClientDevices": "Не вдалося завантажити пристрої клієнтів.",
+    "failedLoadSales": "Не вдалося завантажити продажі.",
+    "failedLoadClients": "Не вдалося завантажити клієнтів.",
+    "failedLoadServices": "Не вдалося завантажити послуги.",
+    "failedLoadClientHistory": "Не вдалося завантажити історію клієнта.",
+    "unexpectedRequestError": "Несподівана помилка запиту."
+  },
+  "catalog": {
+    "serviceForm": {
+      "editService": "Редагувати послугу",
+      "addService": "Додати послугу",
+      "namePlaceholder": "Налаштування ПЗ",
+      "pricePlaceholder": "700",
+      "notePlaceholder": "Типовий опис або внутрішня примітка",
+      "updateService": "Оновити послугу"
+    }
+  },
+  "orders": {
+    "supplier": {
+      "modal": {
+        "supplyLocal": "Локально",
+        "supplyForeign": "Закордон"
+      }
+    },
+    "print": {
+      "pageSizeA4": "A4",
+      "pageSizeLabel": "Етикетка"
+    }
+  },
+  "app": {
+    "errorBoundary": {
+      "recovery": "Відновлення",
+      "title": "Додатку потрібне оновлення",
+      "message": "Додаток залишився на застарілому або пошкодженому екрані. Оновлення очистить кеш і знову відкриє робочий простір.",
+      "errorPrefix": "Помилка:",
+      "refreshApp": "Оновити додаток"
+    }
+  }
+}

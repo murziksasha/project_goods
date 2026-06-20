@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
 import { createCatalogProduct, getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
@@ -83,6 +84,7 @@ export const SupplierOrderModal = ({
   onError,
   warehouseOptions,
 }: SupplierOrderModalProps) => {
+  const { t } = useTranslation();
   const [fallbackWarehouseOptions, setFallbackWarehouseOptions] =
     useState(EMPTY_WAREHOUSE_OPTIONS);
   const resolvedWarehouseOptions =
@@ -403,7 +405,7 @@ export const SupplierOrderModal = ({
       <section className='catalog-edit-modal supplier-order-modal' role='dialog' aria-modal='true'>
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
-            <h2>Замовити у постачальника</h2>
+            <h2>{t('orders.supplier.modal.title')}</h2>
           </div>
           {isEditing && onCancelOrder ? (
             <button
@@ -421,17 +423,17 @@ export const SupplierOrderModal = ({
               }}
               style={{ marginLeft: 'auto', marginRight: 12 }}
             >
-              Удалить
+              {t('orders.supplier.modal.delete')}
             </button>
           ) : null}
-          <button type='button' className='create-order-close' onClick={onClose} aria-label='Close'>
+          <button type='button' className='create-order-close' onClick={onClose} aria-label={t('common.close')}>
             &times;
           </button>
         </header>
         <div className='catalog-edit-body supplier-order-modal-body'>
           <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
             <label className='field supplier-search-field'>
-              <span>Постачальник</span>
+              <span>{t('common.supplier')}</span>
               <span className='supplier-search-input-wrap'>
                 <input
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
@@ -446,12 +448,12 @@ export const SupplierOrderModal = ({
                     setSupplierSearch(event.target.value);
                     setShowSupplierSuggestions(true);
                   }}
-                  placeholder='Пошук'
+                  placeholder={t('orders.supplier.toolbar.search')}
                 />
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
-                  aria-label='Create supplier'
+                  aria-label={t('orders.supplier.modal.createSupplier')}
                   disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
@@ -486,32 +488,32 @@ export const SupplierOrderModal = ({
           </div>
 
           <label className='field'>
-            <span>Дата поставки</span>
+            <span>{t('orders.supplier.modal.deliveryDate')}</span>
             <input type='date' value={form.deliveryDate} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
           </label>
 
           <label className='field supplier-order-supply-type-field'>
-            <span>Тип поставки</span>
+            <span>{t('orders.supplier.modal.supplyType')}</span>
             <select value={form.supplyType} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
-              <option>Локально</option>
-              <option>Закордон</option>
+              <option value="Локально">{t('orders.supplier.modal.supplyLocal')}</option>
+              <option value="Закордон">{t('orders.supplier.modal.supplyForeign')}</option>
             </select>
           </label>
 
           <label className='field'>
-            <span>Номер</span>
+            <span>{t('orders.supplier.modal.number')}</span>
             <input value={form.number} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
           </label>
 
           <label className='field field-wide'>
-            <span>Примітка</span>
+            <span>{t('orders.supplier.modal.note')}</span>
             <textarea rows={2} value={form.note} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
 
           <div className='supplier-order-product-row field-wide'>
             <div className='supplier-order-product-index'>{isEditing ? 1 : basketItems.length + 1}</div>
             <label className='field supplier-order-product-name modal-suggestions-anchor'>
-              <span>Товар</span>
+              <span>{t('orders.supplier.modal.product')}</span>
               <span className='supplier-search-input-wrap'>
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
@@ -526,12 +528,12 @@ export const SupplierOrderModal = ({
                     setProductSearch(event.target.value);
                     setSelectedCatalogProductId('');
                   }}
-                  placeholder='Введіть щоб знайти та додати'
+                  placeholder={t('orders.supplier.modal.productPlaceholder')}
                 />
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
-                  aria-label='Create catalog product'
+                  aria-label={t('orders.supplier.modal.createCatalogProduct')}
                   disabled={isReadOnly}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
@@ -544,7 +546,7 @@ export const SupplierOrderModal = ({
               </span>
               {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
                 <div className='create-suggestions field-wide'>
-                  {isProductLookupLoading ? <p>Пошук товарів...</p> : null}
+                  {isProductLookupLoading ? <p>{t('orders.supplier.modal.searchingProducts')}</p> : null}
                   {productSuggestions.map((product) => (
                     <button
                       key={product.id}
@@ -559,28 +561,28 @@ export const SupplierOrderModal = ({
                       }}
                     >
                       <strong>{product.name}</strong>
-                      <span>{product.note || 'Product from catalog'}</span>
+                      <span>{product.note || t('orders.supplier.modal.productFromCatalog')}</span>
                     </button>
                   ))}
                 </div>
               ) : null}
             </label>
             <label className='field supplier-order-product-compact'>
-              <span>Ціна (UAH)</span>
+              <span>{t('orders.supplier.modal.priceUah')}</span>
               <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: normalizeDecimalInput(event.target.value) }))} />
             </label>
             <label className='field supplier-order-product-compact'>
-              <span>К-сть</span>
+              <span>{t('orders.supplier.modal.qty')}</span>
               <input value={form.quantity} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
-              <span>Сума</span>
+              <span>{t('orders.supplier.modal.amount')}</span>
               <input value={String(roundMoney(currentQuantity * currentPrice))} readOnly />
             </label>
               <button
                 type='button'
                 className='toolbar-square-button supplier-order-product-add'
-                aria-label='Add product to order list'
+                aria-label={t('orders.supplier.modal.addProduct')}
                 disabled={!canAddBasketItem || isReadOnly}
                 onClick={() => {
                   if (!canAddBasketItem) {
@@ -595,7 +597,7 @@ export const SupplierOrderModal = ({
                       normalizeProductName(item.productName) === nextName,
                   );
                   if (duplicateExists) {
-                    onError('Товар з такою назвою вже додано в замовлення.');
+                    onError(t('orders.supplier.messages.errors.duplicateProductInOrder'));
                     return;
                   }
                   setBasketItems((current) => [
@@ -648,7 +650,7 @@ export const SupplierOrderModal = ({
                     <button
                       type='button'
                       className='toolbar-square-button supplier-order-product-add'
-                      aria-label='Remove product from order list'
+                      aria-label={t('orders.supplier.modal.removeProduct')}
                       disabled={isReadOnly}
                       onClick={() => removeBasketItem(index)}
                     >
@@ -661,7 +663,7 @@ export const SupplierOrderModal = ({
           ) : null}
 
           <div className='supplier-order-total-row field-wide'>
-            <span>Разом</span>
+            <span>{t('orders.supplier.modal.total')}</span>
             <input value={String(totalAmount)} readOnly />
           </div>
         </div>
@@ -681,12 +683,12 @@ export const SupplierOrderModal = ({
               }}
               style={{ background: '#16a34a' }}
             >
-              Оприбуткувати
+              {t('orders.supplier.modal.takeOnCharge')}
             </button>
           ) : null}
           {isReadOnly ? (
             <button type='button' className='secondary-button' onClick={onClose}>
-              Close
+              {t('common.close')}
             </button>
           ) : (
             <button
@@ -699,7 +701,7 @@ export const SupplierOrderModal = ({
                   return;
                 }
                 if (hasDuplicateSubmitItems) {
-                  onError('В замовленні не може бути двох однакових товарів.');
+                  onError(t('orders.supplier.messages.errors.duplicateProductsInOrder'));
                   return;
                 }
                 setIsSubmitting(true);
@@ -725,7 +727,11 @@ export const SupplierOrderModal = ({
                 }
               }}
             >
-              {isSubmitting ? 'Збереження...' : isEditing ? 'Зберегти' : 'Створити'}
+              {isSubmitting
+                ? t('orders.supplier.modal.saving')
+                : isEditing
+                  ? t('common.save')
+                  : t('common.create')}
             </button>
           )}
         </footer>
@@ -734,13 +740,13 @@ export const SupplierOrderModal = ({
       {isCreateCatalogProductModalOpen ? (
         <div className='supplier-order-inline-backdrop' role='presentation'>
           <section className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>Product</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateCatalogProductModalOpen(false)} aria-label='Close'>&times;</button></header>
+            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>{t('orders.supplier.editModal.product')}</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateCatalogProductModalOpen(false)} aria-label={t('common.close')}>&times;</button></header>
             <div className='catalog-edit-body clients-modal-body'>
-              <label className='field field-wide'><span>Product name</span><input value={createCatalogProductForm.name} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, name: event.target.value }))} /></label>
-              <label className='field field-wide'><span>Note</span><textarea rows={3} value={createCatalogProductForm.note} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, note: event.target.value }))} /></label>
+              <label className='field field-wide'><span>{t('orders.supplier.editModal.productName')}</span><input value={createCatalogProductForm.name} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label className='field field-wide'><span>{t('orders.supplier.editModal.note')}</span><textarea rows={3} value={createCatalogProductForm.note} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, note: event.target.value }))} /></label>
             </div>
             <footer className='catalog-edit-footer'>
-              <button type='button' className='secondary-button' onClick={() => setIsCreateCatalogProductModalOpen(false)} disabled={isCreateCatalogProductSaving}>Cancel</button>
+              <button type='button' className='secondary-button' onClick={() => setIsCreateCatalogProductModalOpen(false)} disabled={isCreateCatalogProductSaving}>{t('common.cancel')}</button>
               <button
                 type='button'
                 className='primary-button'
@@ -755,15 +761,15 @@ export const SupplierOrderModal = ({
                     setShowProductSuggestions(false);
                     setCreateCatalogProductForm({ name: '', note: '' });
                     setIsCreateCatalogProductModalOpen(false);
-                    onSuccess('Product created.');
+                    onSuccess(t('orders.supplier.messages.success.productCreated'));
                   } catch (error) {
-                    onError(error instanceof Error ? error.message : 'Failed to create product.');
+                    onError(error instanceof Error ? error.message : t('orders.supplier.messages.errors.failedCreateProduct'));
                   } finally {
                     setIsCreateCatalogProductSaving(false);
                   }
                 }}
               >
-                {isCreateCatalogProductSaving ? 'Saving...' : 'Save'}
+                {isCreateCatalogProductSaving ? t('orders.supplier.editModal.saving') : t('common.save')}
               </button>
             </footer>
           </section>
@@ -778,13 +784,13 @@ export const SupplierOrderModal = ({
           >
             <header className='catalog-edit-header'>
               <div className='catalog-edit-title'>
-                <h2>Оприходование</h2>
+                <h2>{t('orders.supplier.modal.stockReceiptTitle')}</h2>
               </div>
               <button
                 type='button'
                 className='create-order-close'
                 onClick={() => setIsSerialModalOpen(false)}
-                aria-label='Close'
+                aria-label={t('common.close')}
               >
                 &times;
               </button>
@@ -798,7 +804,7 @@ export const SupplierOrderModal = ({
                     setIsAutoSerialEnabled(event.target.checked)
                   }
                 />
-                <span>Автогенерация серийных номеров</span>
+                <span>{t('orders.supplier.modal.autoSerialNumbers')}</span>
               </label>
               {!isAutoSerialEnabled ? (
                 <div className='warehouse-receipt-modal-grid'>
@@ -824,7 +830,7 @@ export const SupplierOrderModal = ({
                             ),
                           )
                         }
-                        placeholder='serial number'
+                        placeholder={t('orders.supplier.modal.serialNumberPlaceholder')}
                       />
                     </label>
                   ))}
@@ -838,7 +844,7 @@ export const SupplierOrderModal = ({
                     setIsAutoArticleEnabled(event.target.checked)
                   }
                 />
-                <span>Автогенерация артикулов</span>
+                <span>{t('orders.supplier.modal.autoArticles')}</span>
               </label>
               <label className='supplier-serial-auto'>
                 <input
@@ -848,22 +854,22 @@ export const SupplierOrderModal = ({
                     setShouldPrintSerials(event.target.checked)
                   }
                 />
-                <span>Печатать серийные номера после оприходования</span>
+                <span>{t('orders.supplier.modal.printSerialsAfterReceipt')}</span>
               </label>
               {!isAutoArticleEnabled ? (
                 <label className='field field-wide'>
-                  <span>Артикул для всего количества</span>
+                  <span>{t('orders.supplier.modal.articleForQuantity')}</span>
                   <input
                     value={manualArticleBase}
                     onChange={(event) =>
                       setManualArticleBase(event.target.value.toUpperCase())
                     }
-                    placeholder='Например: SSD-KINGSTON'
+                    placeholder={t('orders.supplier.modal.articleExamplePlaceholder')}
                   />
                 </label>
               ) : null}
               <label className='field field-wide'>
-                <span>Warehouse</span>
+                <span>{t('orders.supplier.modal.warehouse')}</span>
                 <select
                   className={
                     !takeOnChargeWarehouseId
@@ -876,7 +882,7 @@ export const SupplierOrderModal = ({
                   }
                 >
                   {resolvedWarehouseOptions.length === 0 ? (
-                    <option value=''>No warehouses</option>
+                    <option value=''>{t('orders.supplier.modal.noWarehouses')}</option>
                   ) : null}
                   {resolvedWarehouseOptions.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
@@ -886,7 +892,7 @@ export const SupplierOrderModal = ({
                 </select>
               </label>
               <label className='field field-wide'>
-                <span>Location</span>
+                <span>{t('orders.supplier.modal.location')}</span>
                 <select
                   className={
                     !takeOnChargeLocationId
@@ -900,7 +906,7 @@ export const SupplierOrderModal = ({
                   disabled={selectedTakeOnChargeLocations.length === 0}
                 >
                   {selectedTakeOnChargeLocations.length === 0 ? (
-                    <option value=''>No locations</option>
+                    <option value=''>{t('orders.supplier.modal.noLocations')}</option>
                   ) : null}
                   {selectedTakeOnChargeLocations.map((location) => (
                     <option key={location.id} value={location.id}>
@@ -917,7 +923,7 @@ export const SupplierOrderModal = ({
                 onClick={() => setIsSerialModalOpen(false)}
                 disabled={isActionSubmitting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type='button'
@@ -957,7 +963,7 @@ export const SupplierOrderModal = ({
                           article: product.article,
                           serialNumber: product.serialNumber,
                         })),
-                        'Received serial numbers',
+                        t('orders.supplier.modal.receivedSerialNumbers'),
                       );
                     }
                     setIsSerialModalOpen(false);
@@ -966,14 +972,14 @@ export const SupplierOrderModal = ({
                     onError(
                       error instanceof Error
                         ? error.message
-                        : 'Failed to take order on charge.',
+                        : t('orders.supplier.messages.errors.failedTakeOnCharge'),
                     );
                   } finally {
                     setIsActionSubmitting(false);
                   }
                 }}
               >
-                {isActionSubmitting ? 'Saving...' : 'Оприбуткувати'}
+                {isActionSubmitting ? t('orders.supplier.editModal.saving') : t('orders.supplier.modal.takeOnCharge')}
               </button>
             </footer>
           </section>
@@ -983,11 +989,11 @@ export const SupplierOrderModal = ({
       {isCreateSupplierModalOpen ? (
         <div className='supplier-order-inline-backdrop' role='presentation'>
           <section className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>Create supplier</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateSupplierModalOpen(false)} aria-label='Close'>&times;</button></header>
+            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>{t('orders.supplier.modal.createSupplierTitle')}</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateSupplierModalOpen(false)} aria-label={t('common.close')}>&times;</button></header>
             <div className='catalog-edit-body clients-modal-body'>
-              <label className='field field-wide'><span>Name</span><input value={createSupplierForm.name} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, name: event.target.value }))} /></label>
-              <label className='field field-wide'><span>Phone</span><input value={createSupplierForm.phone} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, phone: event.target.value }))} /></label>
-              <label className='field field-wide'><span>Note</span><textarea rows={4} value={createSupplierForm.note} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, note: event.target.value }))} /></label>
+              <label className='field field-wide'><span>{t('common.name')}</span><input value={createSupplierForm.name} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label className='field field-wide'><span>{t('orders.supplier.editModal.phone')}</span><input value={createSupplierForm.phone} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, phone: event.target.value }))} /></label>
+              <label className='field field-wide'><span>{t('orders.supplier.editModal.note')}</span><textarea rows={4} value={createSupplierForm.note} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, note: event.target.value }))} /></label>
             </div>
             <footer className='catalog-edit-footer'>
               <button
@@ -998,17 +1004,17 @@ export const SupplierOrderModal = ({
                   setIsSupplierCreating(true);
                   const created = await onCreateSupplier({ name: createSupplierForm.name.trim(), phone: createSupplierForm.phone.trim(), note: createSupplierForm.note.trim(), supplierOrder: '', isActive: true });
                   if (created) {
-                    onSuccess('Supplier created.');
+                    onSuccess(t('orders.supplier.messages.success.supplierCreated'));
                     setSupplierSearch(createSupplierForm.name.trim());
                     setSupplierTouched(true);
                     setIsCreateSupplierModalOpen(false);
                   } else {
-                    onError('Failed to create supplier.');
+                    onError(t('orders.supplier.messages.errors.failedCreateSupplier'));
                   }
                   setIsSupplierCreating(false);
                 }}
               >
-                {isSupplierCreating ? 'Saving...' : 'Create'}
+                {isSupplierCreating ? t('orders.supplier.editModal.saving') : t('common.create')}
               </button>
             </footer>
           </section>

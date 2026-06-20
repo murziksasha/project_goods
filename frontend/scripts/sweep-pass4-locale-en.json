@@ -1,0 +1,142 @@
+{
+  "orders": {
+    "print": {
+      "table": {
+        "name": "Name",
+        "quantityShort": "Qty",
+        "price": "Price",
+        "sum": "Sum",
+        "number": "No.",
+        "quantity": "Quantity",
+        "priceWithoutVat": "Price excl. VAT",
+        "vatRate": "VAT rate",
+        "sumWithoutVat": "Sum excl. VAT",
+        "sumWithVat": "Sum incl. VAT"
+      },
+      "invoice": {
+        "director": "Director",
+        "noteLabel": "Note",
+        "noProducts": "No products",
+        "noServices": "No services",
+        "serialNumber": "Serial No.: {{serials}}",
+        "itemTypeService": "Service",
+        "itemTypeProduct": "Product"
+      },
+      "currency": {
+        "short": "UAH",
+        "zeroVat": "0.00 UAH"
+      },
+      "amountInWords": {
+        "zero": "zero",
+        "units": [
+          "",
+          "one",
+          "two",
+          "three",
+          "four",
+          "five",
+          "six",
+          "seven",
+          "eight",
+          "nine"
+        ],
+        "femaleUnits": [
+          "",
+          "one",
+          "two",
+          "three",
+          "four",
+          "five",
+          "six",
+          "seven",
+          "eight",
+          "nine"
+        ],
+        "teens": [
+          "ten",
+          "eleven",
+          "twelve",
+          "thirteen",
+          "fourteen",
+          "fifteen",
+          "sixteen",
+          "seventeen",
+          "eighteen",
+          "nineteen"
+        ],
+        "tens": [
+          "",
+          "",
+          "twenty",
+          "thirty",
+          "forty",
+          "fifty",
+          "sixty",
+          "seventy",
+          "eighty",
+          "ninety"
+        ],
+        "hundreds": [
+          "",
+          "one hundred",
+          "two hundred",
+          "three hundred",
+          "four hundred",
+          "five hundred",
+          "six hundred",
+          "seven hundred",
+          "eight hundred",
+          "nine hundred"
+        ],
+        "thousand": {
+          "one": "thousand",
+          "few": "thousand",
+          "many": "thousand"
+        },
+        "hryvnia": {
+          "one": "hryvnia",
+          "few": "hryvnias",
+          "many": "hryvnias"
+        },
+        "kopiyka": {
+          "one": "kopiyka",
+          "few": "kopiykas",
+          "many": "kopiykas"
+        }
+      }
+    }
+  },
+  "clients": {
+    "statusValues": {
+      "empty": "-",
+      "new": "New",
+      "blacklist": "Blacklist",
+      "vip": "VIP",
+      "opt": "Wholesale",
+      "ok": "Regular"
+    }
+  },
+  "warehouse": {
+    "serialModal": {
+      "title": "Select Serial Numbers",
+      "closeModal": "Close modal",
+      "successTitle": "Shipment Created Successfully!",
+      "successDescription": "The serial numbers have been assigned and shipment is ready.",
+      "quantity": "Quantity: {{count}}",
+      "article": "Article: {{value}}",
+      "selectedCount": "Selected: {{selected}}/{{total}}",
+      "deselectAll": "Deselect All",
+      "selectAll": "Select All",
+      "itemNumber": "Item {{number}}",
+      "selectedSerialNumbers": "Selected Serial Numbers:",
+      "cancel": "Cancel",
+      "confirmShipment": "Confirm Shipment",
+      "mainWarehouse": "Main Warehouse",
+      "productFallback": "Product",
+      "errors": {
+        "createShipmentFailed": "Failed to create shipment",
+        "shipmentError": "An error occurred during shipment"
+      }
+    }
+  }
+}

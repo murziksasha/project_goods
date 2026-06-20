@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../../shared/i18n/config';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
@@ -158,6 +160,8 @@ export const ProductCatalogPanel = ({
   void onProductCancelEdit;
   void onArchiveProduct;
   void onActivateProduct;
+
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<CatalogTab>(() => {
     const storedTab = window.localStorage.getItem(catalogTabStorageKey);
@@ -548,7 +552,7 @@ export const ProductCatalogPanel = ({
 
   return (
     <section className="panel catalog-table-panel">
-      <div className="catalog-tabs" role="tablist" aria-label="Products and services">
+      <div className="catalog-tabs" role="tablist" aria-label={t('catalog.tabsAriaLabel')}>
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -560,7 +564,7 @@ export const ProductCatalogPanel = ({
             }
             onClick={() => setActiveTab(tab.key)}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -601,7 +605,7 @@ export const ProductCatalogPanel = ({
           aria-expanded={isFilterPanelOpen}
           onClick={() => setIsFilterPanelOpen((current) => !current)}
         >
-          Filter
+          {t('catalog.toolbar.filter')}
           {activeFiltersCount > 0 ? (
             <span className="toolbar-filter-count">{activeFiltersCount}</span>
           ) : null}
@@ -611,12 +615,12 @@ export const ProductCatalogPanel = ({
             value={isProductsTab || isCatalogProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
             placeholder={
               isProductsTab
-                ? 'Device name'
+                ? t('catalog.toolbar.searchDeviceName')
                 : isCatalogProductsTab
-                  ? 'Product name'
+                  ? t('catalog.toolbar.searchProductName')
                 : isSuppliersTab
-                  ? 'Supplier name or phone'
-                  : 'Service name or note'
+                  ? t('catalog.toolbar.searchSupplierNameOrPhone')
+                  : t('catalog.toolbar.searchServiceNameOrNote')
             }
             onChange={(event) =>
               isProductsTab || isCatalogProductsTab || isSuppliersTab
@@ -634,7 +638,7 @@ export const ProductCatalogPanel = ({
               role='button'
               tabIndex={0}
               className='orders-search-clear'
-              aria-label='Clear search text'
+              aria-label={t('catalog.toolbar.clearSearchAriaLabel')}
               onClick={() =>
                 isProductsTab || isCatalogProductsTab || isSuppliersTab
                   ? (onSearchChange(''),
@@ -671,11 +675,11 @@ export const ProductCatalogPanel = ({
         <div className="catalog-toolbar-actions">
           {isProductsTab ? (
             <button type="button" className="orders-create-button" onClick={() => setIsCreateDeviceModalOpen(true)}>
-              Create device
+              {t('catalog.toolbar.createDevice')}
             </button>
           ) : isSuppliersTab ? (
             <button type="button" className="orders-create-button" onClick={() => setIsCreateSupplierModalOpen(true)}>
-              Create supplier
+              {t('catalog.toolbar.createSupplier')}
             </button>
           ) : isCatalogProductsTab ? (
             <button
@@ -683,11 +687,11 @@ export const ProductCatalogPanel = ({
               className="orders-create-button"
               onClick={() => setIsCreateCatalogProductModalOpen(true)}
             >
-              Create product
+              {t('catalog.toolbar.createProduct')}
             </button>
           ) : (
             <button type="button" className="orders-create-button" onClick={openServiceForm}>
-              Create service
+              {t('catalog.toolbar.createService')}
             </button>
           )}
         </div>
@@ -851,7 +855,15 @@ export const ProductCatalogPanel = ({
             if (ok) setSelectedClientDevice(null);
           }}
           onRemove={async () => {
-            if (!window.confirm(`Remove device "${selectedClientDevice.name}"?`)) return;
+            if (
+              !window.confirm(
+                i18n.t('catalog.modals.confirmRemoveDevice', {
+                  name: selectedClientDevice.name,
+                }),
+              )
+            ) {
+              return;
+            }
             const ok = await onDeleteClientDevice(selectedClientDevice.id);
             if (ok) setSelectedClientDevice(null);
           }}
@@ -867,7 +879,15 @@ export const ProductCatalogPanel = ({
             if (ok) setSelectedCatalogProduct(null);
           }}
           onRemove={async () => {
-            if (!window.confirm(`Remove product "${selectedCatalogProduct.name}"?`)) return;
+            if (
+              !window.confirm(
+                i18n.t('catalog.modals.confirmRemoveProduct', {
+                  name: selectedCatalogProduct.name,
+                }),
+              )
+            ) {
+              return;
+            }
             const ok = await onDeleteCatalogProduct(selectedCatalogProduct.id);
             if (ok) setSelectedCatalogProduct(null);
           }}
@@ -878,16 +898,16 @@ export const ProductCatalogPanel = ({
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateDeviceModalOpen(false); }}>
           <section className="catalog-edit-modal" role="dialog" aria-modal="true">
             <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>Client device</h2></div>
-              <button type="button" className="create-order-close" onClick={() => setIsCreateDeviceModalOpen(false)} aria-label="Close">&times;</button>
+              <div className="catalog-edit-title"><h2>{t('catalog.modals.clientDevice')}</h2></div>
+              <button type="button" className="create-order-close" onClick={() => setIsCreateDeviceModalOpen(false)} aria-label={t('catalog.modals.close')}>&times;</button>
             </header>
             <div className="catalog-edit-body">
-              <label className="field"><span>Device name</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
-              <label className="field field-wide"><span>Note</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
+              <label className="field"><span>{t('catalog.modals.deviceName')}</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
+              <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
             </div>
             <footer className="catalog-edit-footer">
               <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
-                Cancel
+                {t('catalog.modals.cancel')}
               </button>
               <button type="button" className="primary-button" disabled={!createDeviceForm.name.trim()} onClick={async () => {
                 const ok = await onCreateClientDevice({
@@ -903,7 +923,7 @@ export const ProductCatalogPanel = ({
                   setIsCreateDeviceModalOpen(false);
                   setCreateDeviceForm({ name: '', note: '' });
                 }
-              }}>Save</button>
+              }}>{t('catalog.modals.save')}</button>
             </footer>
           </section>
         </div>
@@ -913,13 +933,13 @@ export const ProductCatalogPanel = ({
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateSupplierModalOpen(false); }}>
           <section className="catalog-edit-modal" role="dialog" aria-modal="true">
             <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>Create supplier</h2></div>
-              <button type="button" className="create-order-close" onClick={() => setIsCreateSupplierModalOpen(false)} aria-label="Close">&times;</button>
+              <div className="catalog-edit-title"><h2>{t('catalog.modals.createSupplier')}</h2></div>
+              <button type="button" className="create-order-close" onClick={() => setIsCreateSupplierModalOpen(false)} aria-label={t('catalog.modals.close')}>&times;</button>
             </header>
             <div className="catalog-edit-body">
-              <label className="field"><span>Name</span><input value={createSupplierForm.name} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, name: e.target.value }))} /></label>
-              <label className="field"><span>Phone</span><input value={createSupplierForm.phone} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, phone: e.target.value }))} /></label>
-              <label className="field field-wide"><span>Note</span><textarea rows={3} value={createSupplierForm.note} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, note: e.target.value }))} /></label>
+              <label className="field"><span>{t('catalog.modals.name')}</span><input value={createSupplierForm.name} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, name: e.target.value }))} /></label>
+              <label className="field"><span>{t('catalog.modals.phone')}</span><input value={createSupplierForm.phone} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, phone: e.target.value }))} /></label>
+              <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createSupplierForm.note} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, note: e.target.value }))} /></label>
             </div>
             <footer className="catalog-edit-footer">
               <button type="button" className="primary-button" disabled={!createSupplierForm.name.trim() || !createSupplierForm.phone.trim()} onClick={async () => {
@@ -928,7 +948,7 @@ export const ProductCatalogPanel = ({
                   setIsCreateSupplierModalOpen(false);
                   setCreateSupplierForm({ name: '', phone: '+380', note: '' });
                 }
-              }}>Create</button>
+              }}>{t('catalog.modals.create')}</button>
             </footer>
           </section>
         </div>
@@ -944,19 +964,19 @@ export const ProductCatalogPanel = ({
         >
           <section className="catalog-edit-modal" role="dialog" aria-modal="true">
             <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>Product</h2></div>
+              <div className="catalog-edit-title"><h2>{t('catalog.modals.product')}</h2></div>
               <button
                 type="button"
                 className="create-order-close"
                 onClick={() => setIsCreateCatalogProductModalOpen(false)}
-                aria-label="Close"
+                aria-label={t('catalog.modals.close')}
               >
                 &times;
               </button>
             </header>
             <div className="catalog-edit-body">
               <label className="field">
-                <span>Product name</span>
+                <span>{t('catalog.modals.productName')}</span>
                 <input
                   value={createCatalogProductForm.name}
                   onChange={(event) =>
@@ -968,7 +988,7 @@ export const ProductCatalogPanel = ({
                 />
               </label>
               <label className="field field-wide">
-                <span>Note</span>
+                <span>{t('catalog.modals.note')}</span>
                 <textarea
                   rows={3}
                   value={createCatalogProductForm.note}
@@ -988,7 +1008,7 @@ export const ProductCatalogPanel = ({
                 onClick={() => setIsCreateCatalogProductModalOpen(false)}
                 disabled={isCreateCatalogProductSaving}
               >
-                Cancel
+                {t('catalog.modals.cancel')}
               </button>
               <button
                 type="button"
@@ -1016,7 +1036,9 @@ export const ProductCatalogPanel = ({
                   setIsCreateCatalogProductSaving(false);
                 }}
               >
-                {isCreateCatalogProductSaving ? 'Saving...' : 'Save'}
+                {isCreateCatalogProductSaving
+                  ? t('catalog.modals.saving')
+                  : t('catalog.modals.save')}
               </button>
             </footer>
           </section>
@@ -1064,15 +1086,16 @@ const CatalogFilterPanel = ({
   onSave,
   onUpdate,
 }: CatalogFilterPanelProps) => {
+  const { t } = useTranslation();
   const isServicesTab = activeTab === 'services';
   const queryLabel =
     activeTab === 'products'
-      ? 'Device name'
+      ? t('catalog.filters.deviceName')
       : activeTab === 'catalogProducts'
-        ? 'Product name'
+        ? t('catalog.filters.productName')
         : activeTab === 'suppliers'
-          ? 'Supplier name or phone'
-          : 'Service name';
+          ? t('catalog.filters.supplierNameOrPhone')
+          : t('catalog.filters.serviceName');
 
   return (
     <section
@@ -1090,8 +1113,8 @@ const CatalogFilterPanel = ({
         saveDisabled={!newFilterName.trim()}
         saveTitle={
           canSave
-            ? 'Save filter'
-            : 'Employee profile is required to save filters.'
+            ? t('orders.filters.saveFilter')
+            : t('orders.filters.saveFilterDenied')
         }
         onApply={onApplySaved}
         onDelete={onDeleteSaved}
@@ -1113,17 +1136,17 @@ const CatalogFilterPanel = ({
         activeTab === 'services' ||
         activeTab === 'suppliers' ? (
           <label className='orders-filter-field'>
-            <span>Note</span>
+            <span>{t('catalog.filters.note')}</span>
             <input
               type='text'
               value={draftFilters.note}
               onChange={(event) => onUpdate('note', event.target.value)}
-              placeholder='Note'
+              placeholder={t('catalog.filters.note')}
             />
           </label>
         ) : null}
         <label className='orders-filter-field'>
-          <span>Status</span>
+          <span>{t('catalog.filters.status')}</span>
           <select
             value={draftFilters.status}
             onChange={(event) =>
@@ -1133,15 +1156,15 @@ const CatalogFilterPanel = ({
               )
             }
           >
-            <option value='all'>All</option>
-            <option value='active'>Active</option>
-            <option value='inactive'>Inactive</option>
+            <option value='all'>{t('catalog.filters.all')}</option>
+            <option value='active'>{t('catalog.filters.active')}</option>
+            <option value='inactive'>{t('catalog.filters.inactive')}</option>
           </select>
         </label>
         {isServicesTab ? (
           <>
             <label className='orders-filter-field'>
-              <span>Price from</span>
+              <span>{t('catalog.filters.priceFrom')}</span>
               <input
                 type='number'
                 min='0'
@@ -1153,7 +1176,7 @@ const CatalogFilterPanel = ({
               />
             </label>
             <label className='orders-filter-field'>
-              <span>Price to</span>
+              <span>{t('catalog.filters.priceTo')}</span>
               <input
                 type='number'
                 min='0'
@@ -1165,7 +1188,7 @@ const CatalogFilterPanel = ({
           </>
         ) : null}
         <label className='orders-filter-field'>
-          <span>Date from</span>
+          <span>{t('catalog.filters.dateFrom')}</span>
           <input
             type='date'
             value={draftFilters.dateFrom}
@@ -1173,7 +1196,7 @@ const CatalogFilterPanel = ({
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Date to</span>
+          <span>{t('catalog.filters.dateTo')}</span>
           <input
             type='date'
             value={draftFilters.dateTo}
@@ -1187,14 +1210,14 @@ const CatalogFilterPanel = ({
           className='toolbar-filter-button orders-filter-apply'
           onClick={onApply}
         >
-          Apply
+          {t('catalog.filters.apply')}
         </button>
         <button
           type='button'
           className='toolbar-filter-button'
           onClick={onClear}
         >
-          Clear filter
+          {t('catalog.filters.clearFilter')}
         </button>
       </div>
     </section>
