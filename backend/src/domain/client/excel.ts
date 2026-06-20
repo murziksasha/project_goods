@@ -298,9 +298,18 @@ export const importClientsWorkbook = async (buffer: Buffer) => {
     readyRows.push(parsed);
   }
 
-  const readyPhones = readyRows
-    .map((row) => toNonEmptyString(row.payload.phone))
-    .filter(Boolean);
+  const getNormalizedPhones = (payload: ClientPayload) => {
+    const normalized = normalizeClientPayload(payload);
+    return normalized.phones.length > 0
+      ? normalized.phones
+      : normalized.phone
+        ? [normalized.phone]
+        : [];
+  };
+
+  const readyPhones = Array.from(
+    new Set(readyRows.flatMap((row) => getNormalizedPhones(row.payload))),
+  );
   const existing = await Client.find({
     $or: [
       { phone: { $in: readyPhones } },
@@ -319,21 +328,24 @@ export const importClientsWorkbook = async (buffer: Buffer) => {
   const rowsToCreate = [];
 
   for (const row of readyRows) {
-    const phone = toNonEmptyString(row.payload.phone);
-    if (existingPhones.has(phone)) {
+    const phones = getNormalizedPhones(row.payload);
+    const primaryPhone = phones[0] ?? '';
+    const conflictingPhone = phones.find((phone) => existingPhones.has(phone));
+    if (conflictingPhone) {
       report.skippedExisting += 1;
       report.skipped.push({
         rowNumber: row.rowNumber,
         reason: 'skippedExisting',
         name: toNonEmptyString(row.payload.name),
-        phone,
+        phone: primaryPhone,
+        details: conflictingPhone !== primaryPhone ? conflictingPhone : undefined,
       });
       continue;
     }
 
     if (await validateClientPayload(row.rowNumber, row.payload, report)) {
       rowsToCreate.push(row);
-      existingPhones.add(phone);
+      phones.forEach((phone) => existingPhones.add(phone));
     }
   }
 

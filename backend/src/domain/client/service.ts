@@ -1,14 +1,21 @@
 import { clientStatuses, type ClientStatus } from './constants';
 import { Client, type ClientDocument } from './model';
 import { Sale, type SaleDocument } from '../sale/model';
+import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { ClientPayload } from '../shared/types';
 
-const getClientSnapshot = (client: Pick<ClientDocument, 'name' | 'phone' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'>) => ({
+const getClientSnapshot = (
+  client: Pick<
+    ClientDocument,
+    'name' | 'phone' | 'phones' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'
+  >,
+) => ({
   name: client.name,
   phone: client.phone,
+  phones: getClientPhonesFromRecord(client),
   status: client.status,
   email: client.email ?? '',
   address: client.address ?? '',
@@ -193,6 +200,8 @@ export const mergeClients = async (
     note: mergedNote,
     status: mergedStatus,
   });
+
+  await assertUniqueClientPhones(payload.phones, targetClientId);
 
   const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
     returnDocument: 'after',

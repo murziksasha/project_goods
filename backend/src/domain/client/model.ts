@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizeClientPhone } from '../../shared/lib/parsers';
 import { clientStatuses } from './constants';
 
 export const clientSchema = new mongoose.Schema(
@@ -81,11 +82,6 @@ export const clientSchema = new mongoose.Schema(
 
 clientSchema.index({ phoneIdentities: 1 }, { unique: true });
 
-const normalizePhoneIdentity = (value: string) =>
-  String(value || '')
-    .replace(/[^\d+]/g, '')
-    .trim();
-
 clientSchema.pre('validate', function ensurePhonesConsistency() {
   const currentPhones: string[] = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];
   if (this.phone) {
@@ -97,10 +93,15 @@ clientSchema.pre('validate', function ensurePhonesConsistency() {
   }
   const base = Array.isArray(this.phones) ? this.phones : [];
   const identities = base
-    .map(normalizePhoneIdentity)
+    .map((value) => normalizeClientPhone(value))
     .filter((p: string) => p.length > 0);
   const deduped = Array.from(new Set(identities));
-  this.phoneIdentities = deduped.length > 0 ? deduped : (this.phone ? [normalizePhoneIdentity(this.phone)] : []);
+  this.phoneIdentities =
+    deduped.length > 0
+      ? deduped
+      : this.phone
+        ? [normalizeClientPhone(this.phone)]
+        : [];
 });
 
 clientSchema.pre('validate', function validateAtLeastOnePhone() {

@@ -140,4 +140,79 @@ describe('client service', () => {
       }),
     ).rejects.toThrow(duplicatePhoneMessage);
   });
+
+  it('allows updating a client own phones without duplicate errors', async () => {
+    const findOneLeanMock = vi.fn().mockResolvedValue(null);
+    const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
+    const updatedClient = {
+      _id: { toString: () => '507f1f77bcf86cd799439011' },
+      phone: '+380635567090',
+      phones: ['+380635567090', '+380501112233'],
+      name: 'Updated Client',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(updatedClient);
+    const findByIdAndUpdateMock = vi.fn(() => ({
+      lean: findByIdAndUpdateLeanMock,
+    }));
+
+    class FakeClient {
+      static findOne = findOneMock;
+      static findByIdAndUpdate = findByIdAndUpdateMock;
+      static find = vi.fn();
+      static findById = vi.fn();
+      static findByIdAndDelete = vi.fn();
+      static exists = vi.fn();
+    }
+
+    vi.doMock('./model', () => ({ Client: FakeClient }));
+    vi.doMock('../sale/model', () => ({
+      Sale: { updateMany: vi.fn(), exists: vi.fn(), find: vi.fn() },
+    }));
+
+    const service = await import('./service');
+    const result = await service.updateClient('507f1f77bcf86cd799439011', {
+      phone: '+380635567090',
+      phones: ['+380635567090', '+380501112233'],
+      name: 'Updated Client',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new',
+    });
+
+    expect(result.phones).toEqual(['+380635567090', '+380501112233']);
+    expect(findByIdAndUpdateMock).toHaveBeenCalled();
+  });
+
+  it('rejects updating a client to another clients additional phone', async () => {
+    const { service, findByIdAndUpdateMock } = await setupClientService({
+      existingClientId: '507f1f77bcf86cd799439012',
+    });
+
+    await expect(
+      service.updateClient('507f1f77bcf86cd799439011', {
+        phone: '+380991112233',
+        phones: ['+380991112233', '+380635567090'],
+        name: 'Updated Client',
+        email: '',
+        address: '',
+        registrationId: '',
+        iban: '',
+        note: '',
+        status: 'new',
+      }),
+    ).rejects.toThrow(duplicatePhoneMessage);
+
+    expect(findByIdAndUpdateMock).not.toHaveBeenCalled();
+  });
 });

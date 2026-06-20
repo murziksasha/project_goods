@@ -7,6 +7,7 @@ import type {
   ClientHistory,
   ClientStatus,
 } from '../../../entities/client/model/types';
+import { clientMatchesPhoneQuery } from '../../../entities/client/lib/phone-match';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
   isValidUkrainianPhone,
@@ -34,7 +35,6 @@ import {
   isOptionalIbanValid,
   isOptionalRegistrationIdValid,
   normalizeClientFiltersForApply,
-  normalizeText,
   mapClientDraftToPayload,
   type ClientCardTab,
   type ClientDraft,
@@ -377,24 +377,20 @@ export const ClientsWorkspace = ({
     clientCardTab === 'services' ? servicesHistory : salesHistory;
 
   const mergeTargetOptions = useMemo(() => {
-    const query = normalizeText(mergeTargetQuery);
+    const query = mergeTargetQuery.trim();
     if (!query) return [];
 
     return clients
-      .filter((client) =>
-        getClientSubtitle(client).toLowerCase().includes(query),
-      )
+      .filter((client) => clientMatchesPhoneQuery(client, query))
       .slice(0, 6);
   }, [clients, mergeTargetQuery]);
 
   const mergeSourceOptions = useMemo(() => {
-    const query = normalizeText(mergeSourceQuery);
+    const query = mergeSourceQuery.trim();
     if (!query) return [];
 
     return clients
-      .filter((client) =>
-        getClientSubtitle(client).toLowerCase().includes(query),
-      )
+      .filter((client) => clientMatchesPhoneQuery(client, query))
       .slice(0, 6);
   }, [clients, mergeSourceQuery]);
 

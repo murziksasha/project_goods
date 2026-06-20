@@ -12,6 +12,10 @@ import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../shared/lib/format';
 import { parseMoney } from '../../../shared/lib/decimal';
+import {
+  getSaleClientPhones,
+  saleMatchesPhoneQuery,
+} from '../../../entities/client/lib/phone-match';
 import { normalizePhone } from '../../../shared/lib/phoneFormatter';
 import { getCashboxes } from '../../../entities/finance/api/financeApi';
 import {
@@ -371,20 +375,25 @@ export const OrdersWorkspace = ({
       const hasWarrantyService = lineItems.some(
         (item) => item.kind === 'service' && item.warrantyPeriod > 0,
       );
+      const salePhones = getSaleClientPhones(sale);
       const searchValues =
         activeTab === 'orders'
-          ? [getPrimaryDeviceName(sale), sale.client.name, sale.client.phone]
+          ? [getPrimaryDeviceName(sale), sale.client.name, ...salePhones]
           : [
               sale.client.name,
-              sale.client.phone,
+              ...salePhones,
               sale.manager?.name ?? '',
               sale.issuedBy?.name ?? '',
             ];
-      const salePhone = normalizePhone(sale.client.phone);
       const matchesPhoneQuery =
-        Boolean(queryPhone) && salePhone.includes(queryPhone);
+        Boolean(queryPhone) &&
+        salePhones.some((phone) => normalizePhone(phone).includes(queryPhone));
       const matchesClientPhoneFilter =
-        Boolean(clientPhoneValue) && salePhone.includes(clientPhoneValue);
+        Boolean(clientPhoneValue) &&
+        salePhones.some((phone) =>
+          normalizePhone(phone).includes(clientPhoneValue),
+        );
+      const matchesClientTextFilter = saleMatchesPhoneQuery(sale, appliedFilters.client);
 
       if (
         appliedFilters.favoritesOnly &&
@@ -413,12 +422,11 @@ export const OrdersWorkspace = ({
       if (
         clientValue &&
         !(
-          [
-            sale.client.name,
-            sale.client.phone,
-            String(orderNumber),
-          ].some((value) => value.toLowerCase().includes(clientValue)) ||
-          matchesClientPhoneFilter
+          [sale.client.name, String(orderNumber)].some((value) =>
+            value.toLowerCase().includes(clientValue),
+          ) ||
+          matchesClientPhoneFilter ||
+          matchesClientTextFilter
         )
       ) {
         return false;
