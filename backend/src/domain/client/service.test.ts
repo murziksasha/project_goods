@@ -215,4 +215,99 @@ describe('client service', () => {
 
     expect(findByIdAndUpdateMock).not.toHaveBeenCalled();
   });
+
+  it('merges two clients without treating source phone as duplicate', async () => {
+    const targetId = '507f1f77bcf86cd799439011';
+    const sourceId = '507f1f77bcf86cd799439012';
+    const findOneLeanMock = vi.fn().mockResolvedValue(null);
+    const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
+    const findByIdLeanMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: { toString: () => targetId },
+        phone: '+380635567090',
+        phones: ['+380635567090'],
+        name: 'Client One',
+        email: '',
+        address: '',
+        registrationId: '',
+        iban: '',
+        note: '',
+        status: 'new',
+      })
+      .mockResolvedValueOnce({
+        _id: { toString: () => sourceId },
+        phone: '+380978128020',
+        phones: ['+380978128020'],
+        name: 'Client Two',
+        email: '',
+        address: '',
+        registrationId: '',
+        iban: '',
+        note: '',
+        status: 'new',
+      });
+    const findByIdMock = vi.fn(() => ({ lean: findByIdLeanMock }));
+    const findByIdAndDeleteLeanMock = vi.fn().mockResolvedValue({
+      _id: { toString: () => sourceId },
+      phone: '+380978128020',
+    });
+    const findByIdAndDeleteMock = vi.fn(() => ({
+      lean: findByIdAndDeleteLeanMock,
+    }));
+    const updatedTarget = {
+      _id: { toString: () => targetId },
+      phone: '+380635567090',
+      phones: ['+380635567090', '+380978128020'],
+      name: 'Client One',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(updatedTarget);
+    const findByIdAndUpdateMock = vi.fn(() => ({
+      lean: findByIdAndUpdateLeanMock,
+    }));
+    const updateManyMock = vi.fn().mockResolvedValue({ modifiedCount: 2 });
+
+    class FakeClient {
+      static findOne = findOneMock;
+      static findById = findByIdMock;
+      static findByIdAndUpdate = findByIdAndUpdateMock;
+      static findByIdAndDelete = findByIdAndDeleteMock;
+      static find = vi.fn();
+      static exists = vi.fn();
+    }
+
+    vi.doMock('./model', () => ({ Client: FakeClient }));
+    vi.doMock('../sale/model', () => ({
+      Sale: { updateMany: updateManyMock, exists: vi.fn(), find: vi.fn() },
+    }));
+
+    const service = await import('./service');
+    const result = await service.mergeClients(targetId, sourceId);
+
+    expect(findOneMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: { $nin: [targetId, sourceId] },
+      }),
+    );
+    expect(findByIdAndDeleteMock).toHaveBeenCalledWith(sourceId);
+    expect(findByIdAndUpdateMock).toHaveBeenCalledWith(
+      targetId,
+      expect.objectContaining({
+        phone: '+380635567090',
+        phones: ['+380635567090', '+380978128020'],
+      }),
+      expect.any(Object),
+    );
+    expect(updateManyMock).toHaveBeenCalled();
+    expect(result.client.phones).toEqual(['+380635567090', '+380978128020']);
+    expect(result.removedClientId).toBe(sourceId);
+  });
 });

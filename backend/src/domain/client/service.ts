@@ -31,26 +31,37 @@ const isDuplicateKeyError = (error: unknown) =>
   'code' in error &&
   (error as { code?: unknown }).code === 11000;
 
-const assertUniqueClientPhones = async (phones: string[], exceptClientId?: string) => {
+const normalizeExceptClientIds = (exceptClientIds?: string | string[]) => {
+  const list = Array.isArray(exceptClientIds)
+    ? exceptClientIds
+    : exceptClientIds
+      ? [exceptClientIds]
+      : [];
+
+  return list.map((id) => id.trim()).filter(Boolean);
+};
+
+const assertUniqueClientPhones = async (
+  phones: string[],
+  exceptClientIds?: string | string[],
+) => {
   const list = (phones || []).filter(Boolean);
   if (list.length === 0) return;
+
+  const excludedIds = normalizeExceptClientIds(exceptClientIds);
 
   // Check via identities for multikey support; also legacy phone field
   const orConditions = [
     { phoneIdentities: { $in: list } },
     { phone: { $in: list } },
   ];
-  const query: any = { $or: orConditions };
-  if (exceptClientId) {
-    query._id = { $ne: exceptClientId };
+  const query: Record<string, unknown> = { $or: orConditions };
+  if (excludedIds.length > 0) {
+    query._id = { $nin: excludedIds };
   }
+
   const existing = await Client.findOne(query).lean<Pick<ClientDocument, '_id' | 'phone' | 'phones'> | null>();
   if (!existing) return;
-
-  // allow if the only match is the same client (but query excluded)
-  if (exceptClientId && existing._id.toString() === exceptClientId) {
-    return;
-  }
 
   throw new Error(duplicatePhoneMessage);
 };
@@ -184,8 +195,8 @@ export const mergeClients = async (
       ? sourceClient.status
       : targetClient.status;
   const mergedPhonesRaw = [
-    ...(Array.isArray(targetClient.phones) ? targetClient.phones : []),
-    ...(Array.isArray(sourceClient.phones) ? sourceClient.phones : []),
+    ...getClientPhonesFromRecord(targetClient),
+    ...getClientPhonesFromRecord(sourceClient),
   ];
   const mergedPhone = targetClient.phone?.trim() || sourceClient.phone;
   const payload = normalizeClientPayload({
@@ -201,7 +212,12 @@ export const mergeClients = async (
     status: mergedStatus,
   });
 
-  await assertUniqueClientPhones(payload.phones, targetClientId);
+  await assertUniqueClientPhones(payload.phones, [targetClientId, sourceClientId]);
+
+  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
+  if (!deletedSource) {
+    throw new Error('Failed to delete source client.');
+  }
 
   const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
     returnDocument: 'after',
@@ -220,11 +236,6 @@ export const mergeClients = async (
       },
     },
   );
-
-  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
-  if (!deletedSource) {
-    throw new Error('Failed to delete source client.');
-  }
 
   return {
     client: formatClient(updatedTarget),
