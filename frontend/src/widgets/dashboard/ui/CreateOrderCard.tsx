@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
-import { getClientPhones } from '../../../entities/client/model/forms';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
+import {
+  clientMatchesPhoneQuery,
+  formatClientPhonesLabel,
+} from '../../../entities/client/lib/phone-match';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
@@ -58,6 +62,7 @@ type CreateOrderCardProps = {
   catalogProducts: CatalogProduct[];
   products: Product[];
   sales: Sale[];
+  clients?: Client[];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
   onCreated?: (sale: Sale) => void;
@@ -73,6 +78,7 @@ export const CreateOrderCard = ({
   catalogProducts,
   products,
   sales,
+  clients = [],
   onClose,
   onSave,
   onCreated,
@@ -253,8 +259,24 @@ export const CreateOrderCard = ({
     const timeoutId = window.setTimeout(async () => {
       setIsClientLookupLoading(true);
       try {
-        const clients = await getClients(clientLookupQuery);
-        if (isActive) setClientSuggestions(clients.slice(0, 6));
+        const localMatches = clients.filter((client) =>
+          clientMatchesPhoneQuery(client, clientLookupQuery),
+        );
+        let apiMatches: Client[] = [];
+
+        try {
+          apiMatches = await getClients(clientLookupQuery);
+        } catch {
+          apiMatches = [];
+        }
+
+        const mergedSuggestions = new Map<string, Client>();
+        localMatches.forEach((client) => mergedSuggestions.set(client.id, client));
+        apiMatches.forEach((client) => mergedSuggestions.set(client.id, client));
+
+        if (isActive) {
+          setClientSuggestions(Array.from(mergedSuggestions.values()).slice(0, 6));
+        }
       } catch {
         if (isActive) setClientSuggestions([]);
       } finally {
@@ -266,7 +288,7 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [clientLookupQuery, shouldShowClientSuggestions]);
+  }, [clientLookupQuery, clients, shouldShowClientSuggestions]);
 
   // Auto-apply exact phone match from suggestions so that an existing client by phone
   // is preferred (even if user typed a different name). This prevents accidental
@@ -275,7 +297,9 @@ export const CreateOrderCard = ({
     if (selectedClientId) return;
     const norm = getPhoneIdentity(clientPhone);
     if (norm.length < 3) return;
-    const match = clientSuggestions.find((c) => getPhoneIdentity(c.phone) === norm);
+    const match = clientSuggestions.find((client) =>
+      getClientPhones(client).some((phone) => getPhoneIdentity(phone) === norm),
+    );
     if (match) {
       if (clientName.trim() !== match.name) {
         setClientName(match.name);
@@ -426,7 +450,7 @@ export const CreateOrderCard = ({
   };
 
   const applyClient = (client: Client) => {
-    setClientPhone(client.phone);
+    setClientPhone(getPrimaryClientPhone(client));
     setClientName(client.name);
     setSelectedClientId(client.id);
     setSelectedClient(client);
@@ -767,7 +791,7 @@ export const CreateOrderCard = ({
                           </span>
                         ) : null}
                       </span>
-                      <span>{client.phone}</span>
+                      <span>{formatClientPhonesLabel(client)}</span>
                     </button>
                   );
                 })}

@@ -4,11 +4,15 @@ import type {
   ClientStatus,
 } from '../../../entities/client/model/types';
 import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
+import {
+  clientMatchesPhoneQuery,
+  normalizeClientPhoneIdentity,
+} from '../../../entities/client/lib/phone-match';
 import type { Sale } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
-import { normalizePhone } from '../../../shared/lib/phoneFormatter';
+
 
 export type ClientFilters = {
   query: string;
@@ -87,13 +91,6 @@ export const defaultClientStats: ClientStats = {
 };
 
 export const normalizeText = (value: string) => value.trim().toLowerCase();
-
-const normalizeClientPhoneIdentity = (value: string) => {
-  const digits = normalizePhone(value);
-  if (digits.startsWith('380')) return digits.slice(3);
-  if (digits.startsWith('0')) return digits.slice(1);
-  return digits;
-};
 
 export const isBlacklistClient = (client: Client) =>
   client.status === 'blacklist';
@@ -360,7 +357,9 @@ export const getFilteredClients = (
         stats.visits,
       );
 
-      if (query && !searchable.includes(query)) return false;
+      if (query && !searchable.includes(query) && !clientMatchesPhoneQuery(client, appliedFilters.query)) {
+        return false;
+      }
       if (
         appliedFilters.clientId &&
         !client.id

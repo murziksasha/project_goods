@@ -120,6 +120,7 @@ const renderCreateOrderCard = (
   initialTab: 'repair' | 'sale',
   onSave = vi.fn(async () => null),
   onOpenClientCard = vi.fn(),
+  clients: Parameters<typeof CreateOrderCard>[0]['clients'] = [],
 ) =>
   render(
     <CreateOrderCard
@@ -130,6 +131,7 @@ const renderCreateOrderCard = (
       catalogProducts={[]}
       products={[product({})]}
       sales={[]}
+      clients={clients}
       onClose={vi.fn()}
       onSave={onSave}
       onError={vi.fn()}
@@ -296,6 +298,73 @@ describe('CreateOrderCard', () => {
           button.classList.contains('create-order-tab-active'),
       ),
     ).toBe(false);
+  });
+
+  it('shows a suggestion when user types an additional phone from loaded clients', async () => {
+    vi.useFakeTimers();
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380671112233',
+      phones: ['+380671112233', '+380635567090'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    vi.mocked(getClients).mockResolvedValue([]);
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '063556709' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByRole('button', { name: /Existing Client/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('');
+    vi.useRealTimers();
+  });
+
+  it('auto-selects an existing client when user types an additional phone', async () => {
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380671112233',
+      phones: ['+380671112233', '+380635567090'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    vi.mocked(getClients).mockResolvedValue([existingClient]);
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Another Name' },
+    });
+    fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
+
+    await waitFor(() => {
+      expect(getClients).toHaveBeenCalledWith('+380635567090');
+    });
+    expect(createClient).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
   });
 
   it('uses an existing exact phone client instead of creating a duplicate for another name', async () => {

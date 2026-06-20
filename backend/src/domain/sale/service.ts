@@ -5,6 +5,7 @@ import { Employee, type EmployeeDocument } from '../employee/model';
 import { CatalogProduct, type CatalogProductDocument } from '../catalog-product/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from './model';
+import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
 import { normalizeSalePayload, toNumber } from '../../shared/lib/parsers';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
@@ -446,6 +447,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       clientSnapshot: {
         name: client.name,
         phone: client.phone,
+        phones: getClientPhonesFromRecord(client),
         status: client.status,
         email: client.email ?? '',
         address: client.address ?? '',
@@ -635,6 +637,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         clientSnapshot: {
           name: client.name,
           phone: client.phone,
+          phones: getClientPhonesFromRecord(client),
           status: client.status,
           email: client.email ?? '',
           address: client.address ?? '',

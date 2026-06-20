@@ -11,7 +11,7 @@
 - The blacklist warning in order creation must open the matched client card when clicked, so the operator can inspect the note/reason.
 - `blacklist` is a warning state, not a hard validation block: creating repair and sale orders remains allowed.
 
-## Planned: Additional Client Phones
+## Additional Client Phones
 
 ### Goal
 
@@ -71,8 +71,8 @@ a later feature explicitly adds phone selection per order.
 5. Update `assertUniqueClientPhone` in
    `backend/src/domain/client/service.ts` to check all normalized phone
    identities, not only `phone`.
-6. Update `getClientSnapshot` and sale snapshot updates only if order snapshots
-   must keep additional phones. For the first pass, keep snapshots primary-only.
+6. Sale snapshots store `phones: string[]` for new and updated orders. Legacy
+   orders without `phones` in the snapshot still match by primary phone only.
 7. Update client import/export after the core change:
    - export additional phones as a separate semicolon-delimited column;
    - import the column into `phones`;
@@ -101,9 +101,25 @@ a later feature explicitly adds phone selection per order.
    phones.
 7. Update blacklist matching to compare the input phone against every phone on
    blacklist clients.
-8. Update client lookup suggestions in order creation only if they currently
-   depend on `client.phone` for matching; the displayed subtitle can remain the
-   primary phone.
+8. Client lookup, merge search, client filters, and order filters must match
+   any stored phone. Suggestion rows may show all phones compactly; selected
+   client fields keep the primary phone for display.
+
+### Merge Rule
+
+- Client 1 is the merge target and keeps its primary phone.
+- All phones from Client 2 are appended to Client 1 unless already present.
+- Client 2 is deleted after merge.
+- Sales and history from Client 2 move to Client 1.
+- Merge fails if any merged phone already belongs to a third client.
+
+### Search Rule
+
+- Every normalized phone on a client is globally unique.
+- Search by any phone must find that client in clients list, merge lookup,
+  order creation lookup, and order filters.
+- Use `backend/src/scripts/backfill-client-phones.ts` with dry-run before
+  applying legacy phone backfill in production.
 
 ### Tests
 

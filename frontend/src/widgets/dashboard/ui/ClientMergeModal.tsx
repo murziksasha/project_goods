@@ -1,4 +1,5 @@
 import type { Client } from '../../../entities/client/model/types';
+import { formatClientPhonesLabel } from '../../../entities/client/lib/phone-match';
 
 type ClientMergeField = 'target' | 'source';
 
@@ -118,7 +119,7 @@ const ClientMergeInput = ({
             onClick={() => onSelectClient(client)}
           >
             <strong>{client.name}</strong>
-            <span>{client.phone}</span>
+            <span>{formatClientPhonesLabel(client)}</span>
           </button>
         ))}
       </div>

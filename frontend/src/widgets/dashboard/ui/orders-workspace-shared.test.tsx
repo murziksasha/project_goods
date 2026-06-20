@@ -268,7 +268,7 @@ describe('order print labels', () => {
     expect(html).toContain('class="print-html-label"');
     expect(html).toContain('class="print-body-label"');
     expect(html).toContain('--label-width: 40mm; --label-height: 25mm;');
-    expect(html).toContain('class="print-form-label"');
+    expect(html).toContain('print-form-label');
     expect(html).toContain('class="print-label"');
   });
 

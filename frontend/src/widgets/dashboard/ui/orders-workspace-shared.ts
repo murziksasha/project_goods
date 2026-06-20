@@ -19,6 +19,7 @@ import {
   getOrientedLabelSize,
   normalizeLabelSize,
   printDocumentStyles,
+  printLabelDocumentStyles,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
 } from '../../../entities/settings/model/printForms';
@@ -1316,6 +1317,7 @@ export const buildOrderPrintHtml = ({
         <style>
           ${pageRule}
           ${printDocumentStyles}
+          ${isLabel ? printLabelDocumentStyles : ''}
         </style>
       </head>
       <body${bodyClass}${labelStyle}>${body}</body>

@@ -704,6 +704,25 @@ describe('OrdersWorkspace', () => {
     expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
   });
 
+  it('matches top search by additional phone in client snapshot', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '+380671112233',
+            phones: ['+380671112233', '+380952898207'],
+          },
+        },
+      ],
+      searchValue: '0952898207',
+    });
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+  });
+
   it('matches client filter by normalized client phone digits', () => {
     renderWorkspace({
       sales: [

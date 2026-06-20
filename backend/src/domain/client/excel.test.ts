@@ -40,7 +40,7 @@ describe('client Excel import row parsing', () => {
     expect(parsed.payload.note).toContain('Дохід від клієнта: 750');
   });
 
-  it('uses the first phone and stores additional phones in note', () => {
+  it('uses the first phone and stores additional phones in phones', () => {
     const parsed = parseClientImportRow(
       {
         ПІБ: 'Multi Phone',
@@ -53,9 +53,11 @@ describe('client Excel import row parsing', () => {
     if (parsed.status !== 'ready') return;
 
     expect(parsed.payload.phone).toBe('+380671112233');
-    expect(parsed.payload.note).toContain(
-      'Additional phones: +380502223344, 0633334455',
-    );
+    expect(parsed.payload.phones).toEqual([
+      '+380671112233',
+      '+380502223344',
+      '+380633334455',
+    ]);
   });
 
   it('skips rows without phone', () => {
