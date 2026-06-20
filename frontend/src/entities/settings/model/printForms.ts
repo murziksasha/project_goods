@@ -1023,14 +1023,7 @@ export const renderPrintTemplate = (
 
 export const printDocumentStyles = `
   body { font-family: Arial, sans-serif; color: #1f2937; background: #fff; }
-  html.print-html-label:not(.print-screen-preview), html.print-html-label:not(.print-screen-preview) body { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
-  .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
-  html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
-  body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
   .print-form { page-break-after: always; padding: 16mm; }
-  .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }
-  .print-form-label .print-label { width: 100%; height: 100%; box-sizing: border-box; }
-  body.print-screen-preview .print-form-label { margin: 0 auto 18px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.32); page-break-after: auto; zoom: 3.6; }
   .print-document { font-size: 13px; line-height: 1.45; }
   .print-document h1 { font-size: 22px; margin: 0 0 16px; font-weight: 500; }
   .print-document h2 { font-size: 18px; margin: 0 0 6px; }
@@ -1060,20 +1053,6 @@ export const printDocumentStyles = `
   .print-spacer-small { height: 6px; }
   .print-spacer-medium { height: 14px; }
   .print-spacer-large { height: 26px; }
-  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2mm; overflow: hidden; padding: 0.45mm 1.25mm 0.45mm; text-align: center; font-size: 8px; line-height: 1.1; }
-  .print-label-code { width: 100%; display: flex; justify-content: center; }
-  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 2.5mm); max-width: 100%; height: 11.6mm; }
-  .print-label .print-code-row { width: 100%; margin: 0; justify-content: center; }
-  .print-label .print-code-row-compact .print-barcode { height: 9mm; }
-  .print-label .print-code-row-standard .print-barcode { height: 10.4mm; }
-  .print-label .print-code-row-large .print-barcode { height: 11.6mm; }
-  .print-label .print-code-value { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
-  .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
-  .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
-  .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
-  .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
-  .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
   .invoice-party { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; font-size: 12px; }
   .invoice-party > strong { text-decoration: underline; }
   .invoice-title { margin: 26px 0 14px; text-align: center; }
@@ -1094,8 +1073,34 @@ export const printDocumentStyles = `
   .invoice-note { margin-top: 44px; font-size: 11px; }
   @media print {
     body { margin: 0; }
-    body.print-screen-preview { padding: 0; background: #fff; }
     .print-form { border: 0 !important; margin: 0 !important; padding: 0 !important; }
+  }
+`;
+
+export const printLabelDocumentStyles = `
+  html.print-html-label:not(.print-screen-preview), html.print-html-label:not(.print-screen-preview) body { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
+  body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
+  .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }
+  .print-form-label .print-label { width: 100%; height: 100%; box-sizing: border-box; }
+  body.print-screen-preview .print-form-label { margin: 0 auto 18px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.32); page-break-after: auto; zoom: 3.6; }
+  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2mm; overflow: hidden; padding: 0.45mm 1.25mm 0.45mm; text-align: center; font-size: 8px; line-height: 1.1; }
+  .print-label-code { width: 100%; display: flex; justify-content: center; }
+  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 2.5mm); max-width: 100%; height: 11.6mm; }
+  .print-label .print-code-row { width: 100%; margin: 0; justify-content: center; }
+  .print-label .print-code-row-compact .print-barcode { height: 9mm; }
+  .print-label .print-code-row-standard .print-barcode { height: 10.4mm; }
+  .print-label .print-code-row-large .print-barcode { height: 11.6mm; }
+  .print-label .print-code-value { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+  .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
+  .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
+  .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
+  @media print {
+    body.print-screen-preview { padding: 0; background: #fff; }
     .print-form-label { padding: 0 !important; margin: 0 !important; }
     body.print-screen-preview .print-form-label { box-shadow: none; margin: 0; zoom: 1; }
     .print-form-label { page-break-after: always; }

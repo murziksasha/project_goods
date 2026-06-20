@@ -321,7 +321,7 @@ describe('CreateOrderCard', () => {
     renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
-      target: { value: '0635567090' },
+      target: { value: '063556709' },
     });
 
     await act(async () => {
@@ -329,6 +329,7 @@ describe('CreateOrderCard', () => {
     });
 
     expect(screen.getByRole('button', { name: /Existing Client/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('');
     vi.useRealTimers();
   });
 

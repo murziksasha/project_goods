@@ -15,9 +15,9 @@
     "import:clients": "node -r ts-node/register src/scripts/import-clients.ts",
     "backfill:client-phones:dry-run": "node -r ts-node/register src/scripts/backfill-client-phones.ts",
     "backfill:client-phones": "node -r ts-node/register src/scripts/backfill-client-phones.ts --apply",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "vitest run --exclude dist/**",
+    "test:watch": "vitest --exclude dist/**",
+    "test:coverage": "vitest run --coverage --exclude dist/**"
   },
   "keywords": [],
   "author": "",
