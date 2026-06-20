@@ -1,5 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Supplier } from '../../../entities/supplier/model/types';
 import type {
@@ -23,7 +24,6 @@ import {
   formatSupplierOrderDate,
   getSupplierOrderStatusClass,
   getSupplierOrderStatusLabel,
-  getSupplierOrdersColumnLabel,
   getSupplierPaymentStatusClass,
   getSupplierPaymentStatusLabel,
   supplierOrderStatuses,
@@ -117,9 +117,12 @@ export const SupplierOrdersToolbar = ({
   onFavoritesOnlyChange,
   onToggleColumnVisibility,
   onToggleStatus,
-}: SupplierOrdersToolbarProps) => (
+}: SupplierOrdersToolbarProps) => {
+  const { t } = useTranslation();
+
+  return (
   <>
-    <div className='orders-tabs' role='tablist' aria-label='Order categories'>
+    <div className='orders-tabs' role='tablist' aria-label={t('orders.toolbar.orderCategories')}>
       {supplierOrderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
         <button
           key={tab.key}
@@ -129,7 +132,7 @@ export const SupplierOrdersToolbar = ({
           }
           onClick={() => onActiveTabChange(tab.key)}
         >
-          {tab.label}
+          {t(`orders.tabs.${tab.key}`)}
         </button>
       ))}
     </div>
@@ -150,7 +153,7 @@ export const SupplierOrdersToolbar = ({
           aria-expanded={isFilterBarOpen}
           onClick={() => onFilterBarOpenChange((current) => !current)}
         >
-          Data
+          {t('orders.supplier.toolbar.data')}
           {dateFiltersCount > 0 ? (
             <span className='toolbar-filter-count'>{dateFiltersCount}</span>
           ) : null}
@@ -161,7 +164,7 @@ export const SupplierOrdersToolbar = ({
             <button
               type='button'
               className='toolbar-square-button'
-              aria-label='Toggle table columns'
+              aria-label={t('orders.toolbar.toggleColumns')}
               aria-expanded={isColumnsMenuOpen}
               onClick={() => onColumnsMenuOpenChange((current) => !current)}
             >
@@ -184,7 +187,7 @@ export const SupplierOrdersToolbar = ({
                       disabled={supplierOrdersLockedColumns.includes(columnKey)}
                       onChange={() => onToggleColumnVisibility(columnKey)}
                     />
-                    <span>{getSupplierOrdersColumnLabel(columnKey)}</span>
+                    <span>{t(`orders.supplier.columns.${columnKey}`)}</span>
                   </label>
                 ))}
               </div>
@@ -202,8 +205,8 @@ export const SupplierOrdersToolbar = ({
             }
             aria-label={
               favoritesOnly
-                ? 'Show all supplier orders'
-                : 'Show starred supplier orders'
+                ? t('orders.supplier.toolbar.showAllOrders')
+                : t('orders.supplier.toolbar.showStarredOrders')
             }
             aria-pressed={favoritesOnly}
             onClick={onFavoritesOnlyChange}
@@ -219,14 +222,14 @@ export const SupplierOrdersToolbar = ({
             <input
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder='Search by number, product, supplier'
+              placeholder={t('orders.supplier.toolbar.searchPlaceholder')}
             />
             {query ? (
               <span
                 role='button'
                 tabIndex={0}
                 className='orders-search-clear'
-                aria-label='Clear search text'
+                aria-label={t('orders.toolbar.clearSearch')}
                 onClick={() => onQueryChange('')}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
@@ -251,15 +254,17 @@ export const SupplierOrdersToolbar = ({
               onClick={() => onOrderStatusOpenChange((current) => !current)}
             >
               {selectedStatuses.length > 0
-                ? `${selectedStatuses.length} order statuses`
-                : 'Order status'}
+                ? t('orders.supplier.toolbar.orderStatusesCount', {
+                    count: selectedStatuses.length,
+                  })
+                : t('orders.supplier.toolbar.orderStatus')}
             </button>
             {isOrderStatusOpen ? (
               <div className='orders-filter-status-menu'>
                 <input
                   value={statusQuery}
                   onChange={(event) => onStatusQueryChange(event.target.value)}
-                  placeholder='Search'
+                  placeholder={t('orders.supplier.toolbar.search')}
                 />
                 <label className='orders-filter-status-all'>
                   <input
@@ -273,7 +278,7 @@ export const SupplierOrdersToolbar = ({
                       )
                     }
                   />
-                  <span>Select all</span>
+                  <span>{t('orders.supplier.toolbar.selectAll')}</span>
                 </label>
                 {filteredOrderStatuses.map((status) => (
                   <label key={status.key}>
@@ -282,7 +287,7 @@ export const SupplierOrdersToolbar = ({
                       checked={selectedStatuses.includes(status.key)}
                       onChange={() => onToggleStatus(status.key)}
                     />
-                    <span>{status.label}</span>
+                    <span>{t(status.labelKey)}</span>
                   </label>
                 ))}
               </div>
@@ -300,7 +305,7 @@ export const SupplierOrdersToolbar = ({
               onClick={() => onPaymentStatusOpenChange((current) => !current)}
             >
               {paymentStatus === 'all'
-                ? 'All payment statuses'
+                ? t('orders.supplier.toolbar.allPaymentStatuses')
                 : getSupplierPaymentStatusLabel(paymentStatus)}
             </button>
             {isPaymentStatusOpen ? (
@@ -308,7 +313,7 @@ export const SupplierOrdersToolbar = ({
                 <input
                   value={paymentQuery}
                   onChange={(event) => onPaymentQueryChange(event.target.value)}
-                  placeholder='Search'
+                  placeholder={t('orders.supplier.toolbar.search')}
                 />
                 <label>
                   <input
@@ -316,7 +321,7 @@ export const SupplierOrdersToolbar = ({
                     checked={paymentStatus === 'all'}
                     onChange={() => onPaymentStatusChange('all')}
                   />
-                  <span>All payment statuses</span>
+                  <span>{t('orders.supplier.toolbar.allPaymentStatuses')}</span>
                 </label>
                 {filteredPaymentStatuses.map((status) => (
                   <label key={status.key}>
@@ -325,7 +330,7 @@ export const SupplierOrdersToolbar = ({
                       checked={paymentStatus === status.key}
                       onChange={() => onPaymentStatusChange(status.key)}
                     />
-                    <span>{status.label}</span>
+                    <span>{t(status.labelKey)}</span>
                   </label>
                 ))}
               </div>
@@ -341,13 +346,14 @@ export const SupplierOrdersToolbar = ({
             className='orders-create-button'
             onClick={onCreateOrder}
           >
-            Order from supplier
+            {t('orders.supplier.toolbar.createOrder')}
           </button>
         ) : null}
       </div>
     </div>
   </>
-);
+  );
+};
 
 type SupplierOrdersDateFilterPanelProps = {
   deliveryDateFrom: string;
@@ -365,7 +371,10 @@ export const SupplierOrdersDateFilterPanel = ({
   onDeliveryDateFromChange,
   onDeliveryDateToChange,
   onClearDates,
-}: SupplierOrdersDateFilterPanelProps) => (
+}: SupplierOrdersDateFilterPanelProps) => {
+  const { t } = useTranslation();
+
+  return (
   <section
     className={
       isOpen ? 'orders-filter-panel orders-filter-panel-open' : 'orders-filter-panel'
@@ -374,7 +383,7 @@ export const SupplierOrdersDateFilterPanel = ({
   >
     <div className='orders-filter-grid'>
       <label className='orders-filter-field supplier-orders-date-filter'>
-        <span>Date from</span>
+        <span>{t('orders.supplier.filters.dateFrom')}</span>
         <input
           type='date'
           value={deliveryDateFrom}
@@ -383,7 +392,7 @@ export const SupplierOrdersDateFilterPanel = ({
       </label>
 
       <label className='orders-filter-field supplier-orders-date-filter'>
-        <span>Date to</span>
+        <span>{t('orders.supplier.filters.dateTo')}</span>
         <input
           type='date'
           value={deliveryDateTo}
@@ -394,11 +403,12 @@ export const SupplierOrdersDateFilterPanel = ({
 
     <div className='orders-filter-actions'>
       <button type='button' className='toolbar-filter-button' onClick={onClearDates}>
-        Clear dates
+        {t('orders.supplier.filters.clearDates')}
       </button>
     </div>
   </section>
-);
+  );
+};
 
 const SupplierInformationMetric = ({
   label,
@@ -426,7 +436,10 @@ const SupplierInformationProductList = ({
   items: SupplierOrderProductStat[];
   valueLabel: string;
   getValue: (item: SupplierOrderProductStat) => string;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <section className='supplier-information-panel'>
     <h2>{title}</h2>
     <div className='supplier-information-list'>
@@ -436,16 +449,17 @@ const SupplierInformationProductList = ({
             <span>{item.productName}</span>
             <strong>{getValue(item)}</strong>
             <small>
-              {`${item.quantity} pcs | ${valueLabel}: ${formatCurrency(item.total)}`}
+              {`${t('orders.supplier.information.quantityPcs', { count: item.quantity })} | ${valueLabel}: ${formatCurrency(item.total)}`}
             </small>
           </div>
         ))
       ) : (
-        <p className='orders-empty'>No product data.</p>
+        <p className='orders-empty'>{t('orders.supplier.information.noProductData')}</p>
       )}
     </div>
   </section>
-);
+  );
+};
 
 const SupplierInformationSupplierList = ({
   title,
@@ -455,7 +469,10 @@ const SupplierInformationSupplierList = ({
   title: string;
   items: SupplierOrderSupplierStat[];
   getValue: (item: SupplierOrderSupplierStat) => string;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <section className='supplier-information-panel'>
     <h2>{title}</h2>
     <div className='supplier-information-list'>
@@ -464,15 +481,21 @@ const SupplierInformationSupplierList = ({
           <div key={`${title}-${item.supplierId}-${item.supplierName}`}>
             <span>{item.supplierName}</span>
             <strong>{getValue(item)}</strong>
-            <small>{`${item.orderCount} orders | paid ${formatCurrency(item.paid)}`}</small>
+            <small>
+              {t('orders.supplier.information.ordersPaid', {
+                count: item.orderCount,
+                amount: formatCurrency(item.paid),
+              })}
+            </small>
           </div>
         ))
       ) : (
-        <p className='orders-empty'>No supplier data.</p>
+        <p className='orders-empty'>{t('orders.supplier.information.noSupplierData')}</p>
       )}
     </div>
   </section>
-);
+  );
+};
 
 export const SupplierInformationDashboard = ({
   filteredOrdersCount,
@@ -482,72 +505,83 @@ export const SupplierInformationDashboard = ({
   filteredOrdersCount: number;
   isLoading: boolean;
   supplierInformation: SupplierOrderAnalytics;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <section className='supplier-information-dashboard'>
-    {isLoading ? <p className='orders-empty'>Loading...</p> : null}
+    {isLoading ? <p className='orders-empty'>{t('orders.supplier.information.loading')}</p> : null}
     {!isLoading && filteredOrdersCount === 0 ? (
       <p className='orders-empty'>
-        No supplier-order information for the selected filters.
+        {t('orders.supplier.information.empty')}
       </p>
     ) : null}
 
     <div className='supplier-information-summary'>
       <SupplierInformationMetric
-        label='Supplier orders'
+        label={t('orders.supplier.information.supplierOrders')}
         value={String(supplierInformation.orderCount)}
-        hint={`${supplierInformation.totalQuantity} pcs ordered`}
+        hint={t('orders.supplier.information.pcsOrdered', {
+          count: supplierInformation.totalQuantity,
+        })}
       />
       <SupplierInformationMetric
-        label='Total value'
+        label={t('orders.supplier.information.totalValue')}
         value={formatCurrency(supplierInformation.totalValue)}
-        hint='Filtered procurement spend'
+        hint={t('orders.supplier.information.filteredSpend')}
       />
       <SupplierInformationMetric
-        label='Paid'
+        label={t('orders.supplier.information.paid')}
         value={formatCurrency(supplierInformation.paidAmount)}
-        hint={`${formatPercent(supplierInformation.paymentCoveragePercent)} covered`}
+        hint={t('orders.supplier.information.covered', {
+          percent: formatPercent(supplierInformation.paymentCoveragePercent),
+        })}
       />
       <SupplierInformationMetric
-        label='Outstanding'
+        label={t('orders.supplier.information.outstanding')}
         value={formatCurrency(supplierInformation.outstandingAmount)}
-        hint='Still pending payment'
+        hint={t('orders.supplier.information.pendingPayment')}
       />
       <SupplierInformationMetric
-        label='Average order'
+        label={t('orders.supplier.information.averageOrder')}
         value={formatCurrency(supplierInformation.averageOrderValue)}
-        hint='Mean supplier-order value'
+        hint={t('orders.supplier.information.meanValue')}
       />
       <SupplierInformationMetric
-        label='Stocked rate'
+        label={t('orders.supplier.information.stockedRate')}
         value={formatPercent(supplierInformation.stockedRate)}
-        hint='Stocked or received orders'
+        hint={t('orders.supplier.information.stockedHint')}
       />
     </div>
 
     <div className='supplier-information-grid'>
       <SupplierInformationProductList
-        title='Most popular goods'
+        title={t('orders.supplier.information.mostPopularGoods')}
         items={supplierInformation.topProductsByQuantity}
-        valueLabel='value'
-        getValue={(item) => `${item.quantity} pcs`}
+        valueLabel={t('orders.supplier.information.valueLabel')}
+        getValue={(item) =>
+          t('orders.supplier.information.quantityPcs', { count: item.quantity })
+        }
       />
       <SupplierInformationProductList
-        title='Highest purchase value'
+        title={t('orders.supplier.information.highestPurchaseValue')}
         items={supplierInformation.topProductsByValue}
-        valueLabel='value'
+        valueLabel={t('orders.supplier.information.valueLabel')}
         getValue={(item) => formatCurrency(item.total)}
       />
       <SupplierInformationProductList
-        title='Most frequent goods'
+        title={t('orders.supplier.information.mostFrequentGoods')}
         items={supplierInformation.topProductsByFrequency}
-        valueLabel='value'
-        getValue={(item) => `${item.orderCount} orders`}
+        valueLabel={t('orders.supplier.information.valueLabel')}
+        getValue={(item) =>
+          t('orders.supplier.information.orderCount', { count: item.orderCount })
+        }
       />
       <section className='supplier-information-panel'>
-        <h2>Price analysis</h2>
+        <h2>{t('orders.supplier.information.priceAnalysis')}</h2>
         <div className='supplier-information-price-grid'>
           <div>
-            <span>Lowest price</span>
+            <span>{t('orders.supplier.information.lowestPrice')}</span>
             <strong>
               {supplierInformation.lowestPricePosition
                 ? formatCurrency(supplierInformation.lowestPricePosition.price)
@@ -556,11 +590,11 @@ export const SupplierInformationDashboard = ({
             <small>
               {supplierInformation.lowestPricePosition
                 ? `${supplierInformation.lowestPricePosition.productName} | ${supplierInformation.lowestPricePosition.orderNumber}`
-                : 'No product positions'}
+                : t('orders.supplier.information.noProductPositions')}
             </small>
           </div>
           <div>
-            <span>Highest price</span>
+            <span>{t('orders.supplier.information.highestPrice')}</span>
             <strong>
               {supplierInformation.highestPricePosition
                 ? formatCurrency(supplierInformation.highestPricePosition.price)
@@ -569,7 +603,7 @@ export const SupplierInformationDashboard = ({
             <small>
               {supplierInformation.highestPricePosition
                 ? `${supplierInformation.highestPricePosition.productName} | ${supplierInformation.highestPricePosition.orderNumber}`
-                : 'No product positions'}
+                : t('orders.supplier.information.noProductPositions')}
             </small>
           </div>
         </div>
@@ -578,51 +612,62 @@ export const SupplierInformationDashboard = ({
             supplierInformation.productPriceRanges.map((item) => (
               <div key={`range-${item.productName}`}>
                 <span>{item.productName}</span>
-                <strong>{`${formatCurrency(item.minPrice)} - ${formatCurrency(item.maxPrice)}`}</strong>
-                <small>{`Avg ${formatCurrency(item.averagePrice)} | ${item.lineCount} lines`}</small>
+                <strong>
+                  {t('orders.supplier.information.priceRange', {
+                    min: formatCurrency(item.minPrice),
+                    max: formatCurrency(item.maxPrice),
+                  })}
+                </strong>
+                <small>
+                  {t('orders.supplier.information.avgLines', {
+                    amount: formatCurrency(item.averagePrice),
+                    count: item.lineCount,
+                  })}
+                </small>
               </div>
             ))
           ) : (
-            <p className='orders-empty'>No repeated price ranges.</p>
+            <p className='orders-empty'>{t('orders.supplier.information.noRepeatedRanges')}</p>
           )}
         </div>
       </section>
       <SupplierInformationSupplierList
-        title='Top suppliers by spend'
+        title={t('orders.supplier.information.topSuppliersBySpend')}
         items={supplierInformation.topSuppliersBySpend}
         getValue={(item) => formatCurrency(item.total)}
       />
       <SupplierInformationSupplierList
-        title='Suppliers by pending amount'
+        title={t('orders.supplier.information.suppliersByPending')}
         items={supplierInformation.topSuppliersByPending}
         getValue={(item) => formatCurrency(item.outstanding)}
       />
       <section className='supplier-information-panel supplier-information-signals'>
-        <h2>Business signals</h2>
+        <h2>{t('orders.supplier.information.businessSignals')}</h2>
         <div className='supplier-information-signal-list'>
           <div>
-            <span>Overdue orders</span>
+            <span>{t('orders.supplier.information.overdueOrders')}</span>
             <strong>{supplierInformation.overdueCount}</strong>
           </div>
           <div>
-            <span>Late risk in 3 days</span>
+            <span>{t('orders.supplier.information.lateRiskIn3Days')}</span>
             <strong>{supplierInformation.lateRiskCount}</strong>
           </div>
           <div>
-            <span>Cancelled / unavailable</span>
+            <span>{t('orders.supplier.information.cancelledUnavailable')}</span>
             <strong>
               {formatPercent(supplierInformation.cancelledUnavailableRate)}
             </strong>
           </div>
           <div>
-            <span>Payment coverage</span>
+            <span>{t('orders.supplier.information.paymentCoverage')}</span>
             <strong>{formatPercent(supplierInformation.paymentCoveragePercent)}</strong>
           </div>
         </div>
       </section>
     </div>
   </section>
-);
+  );
+};
 
 type SupplierOrdersTableProps = {
   catalogProducts: CatalogProduct[];
@@ -670,41 +715,44 @@ export const SupplierOrdersTable = ({
   onOpenStatusOrder,
   onPageChange,
   onPageSizeChange,
-}: SupplierOrdersTableProps) => (
+}: SupplierOrdersTableProps) => {
+  const { t } = useTranslation();
+
+  return (
   <>
     <div className='orders-table-wrap'>
       <table className='orders-table supplier-orders-table'>
         <thead>
           <tr>
             {visibleColumns.includes('number') ? (
-              <th className='supplier-orders-col-number'>No.</th>
+              <th className='supplier-orders-col-number'>{t('orders.supplier.columns.number')}</th>
             ) : null}
             {visibleColumns.includes('product') ? (
-              <th className='supplier-orders-col-product'>Product</th>
+              <th className='supplier-orders-col-product'>{t('orders.supplier.columns.product')}</th>
             ) : null}
             {visibleColumns.includes('quantity') ? (
-              <th className='supplier-orders-col-quantity'>Qty</th>
+              <th className='supplier-orders-col-quantity'>{t('orders.supplier.columns.quantity')}</th>
             ) : null}
             {visibleColumns.includes('price') ? (
-              <th className='supplier-orders-col-money'>Price</th>
+              <th className='supplier-orders-col-money'>{t('orders.supplier.columns.price')}</th>
             ) : null}
             {visibleColumns.includes('total') ? (
-              <th className='supplier-orders-col-money'>Total</th>
+              <th className='supplier-orders-col-money'>{t('orders.supplier.columns.total')}</th>
             ) : null}
             {visibleColumns.includes('paid') ? (
-              <th className='supplier-orders-col-money'>Paid</th>
+              <th className='supplier-orders-col-money'>{t('orders.supplier.columns.paid')}</th>
             ) : null}
             {visibleColumns.includes('supplier') ? (
-              <th className='supplier-orders-col-supplier'>Supplier</th>
+              <th className='supplier-orders-col-supplier'>{t('orders.supplier.columns.supplier')}</th>
             ) : null}
             {visibleColumns.includes('deliveryDate') ? (
-              <th className='supplier-orders-col-date'>Delivery date</th>
+              <th className='supplier-orders-col-date'>{t('orders.supplier.columns.deliveryDate')}</th>
             ) : null}
             {visibleColumns.includes('status') ? (
-              <th className='supplier-orders-col-status'>Status</th>
+              <th className='supplier-orders-col-status'>{t('orders.supplier.columns.status')}</th>
             ) : null}
             {visibleColumns.includes('paymentStatus') ? (
-              <th className='supplier-orders-col-payment'>Payment status</th>
+              <th className='supplier-orders-col-payment'>{t('orders.supplier.columns.paymentStatus')}</th>
             ) : null}
           </tr>
         </thead>
@@ -713,7 +761,7 @@ export const SupplierOrdersTable = ({
             buildGroupedSupplierOrderView(order).map(({ id, item }) => (
               <tr key={id}>
                 {visibleColumns.includes('number') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('number')}>
+                  <td data-label={t('orders.supplier.columns.number')}>
                     <div className='supplier-order-number-cell'>
                       <button
                         type='button'
@@ -724,8 +772,8 @@ export const SupplierOrdersTable = ({
                         }
                         aria-label={
                           order.isFavorite
-                            ? `Remove star from ${id}`
-                            : `Star ${id}`
+                            ? t('orders.supplier.table.unstarOrder', { id })
+                            : t('orders.supplier.table.starOrder', { id })
                         }
                         aria-pressed={order.isFavorite}
                         disabled={!canManageSupplierOrders}
@@ -741,7 +789,7 @@ export const SupplierOrdersTable = ({
                         className='catalog-name-button'
                         onClick={() => {
                           if (!canViewSupplierOrders) {
-                            onError('Current employee does not have permission to view supplier orders.');
+                            onError(t('orders.supplier.messages.errors.noViewPermission'));
                             return;
                           }
                           onEditOrder(order);
@@ -753,7 +801,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('product') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('product')}>
+                  <td data-label={t('orders.supplier.columns.product')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -769,11 +817,11 @@ export const SupplierOrdersTable = ({
                                 item.productName.trim().toLowerCase(),
                             );
                         if (!matchedProduct) {
-                          onError('Product was not found in the Products catalog.');
+                          onError(t('orders.supplier.messages.errors.productNotFound'));
                           return;
                         }
                         if (!canManageSupplierOrders) {
-                          onError('Current employee does not have permission to manage supplier orders.');
+                          onError(t('orders.supplier.messages.errors.noManagePermission'));
                           return;
                         }
                         onOpenCatalogProduct(matchedProduct);
@@ -784,19 +832,21 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('quantity') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('quantity')}>{item.quantity} pcs</td>
+                  <td data-label={t('orders.supplier.columns.quantity')}>
+                    {item.quantity} {t('orders.supplier.table.pcs')}
+                  </td>
                 ) : null}
                 {visibleColumns.includes('price') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('price')}>{formatCurrency(item.price)}</td>
+                  <td data-label={t('orders.supplier.columns.price')}>{formatCurrency(item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('total') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('total')}>{formatCurrency(item.quantity * item.price)}</td>
+                  <td data-label={t('orders.supplier.columns.total')}>{formatCurrency(item.quantity * item.price)}</td>
                 ) : null}
                 {visibleColumns.includes('paid') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('paid')}>{formatCurrency(order.paid)}</td>
+                  <td data-label={t('orders.supplier.columns.paid')}>{formatCurrency(order.paid)}</td>
                 ) : null}
                 {visibleColumns.includes('supplier') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('supplier')}>
+                  <td data-label={t('orders.supplier.columns.supplier')}>
                     <button
                       type='button'
                       className='catalog-name-button'
@@ -805,11 +855,11 @@ export const SupplierOrdersTable = ({
                           (supplier) => supplier.id === order.supplierId,
                         );
                         if (!matchedSupplier) {
-                          onError('Supplier was not found.');
+                          onError(t('orders.supplier.messages.errors.supplierNotFound'));
                           return;
                         }
                         if (!canManageSupplierOrders) {
-                          onError('Current employee does not have permission to manage supplier orders.');
+                          onError(t('orders.supplier.messages.errors.noManagePermission'));
                           return;
                         }
                         onOpenSupplier(matchedSupplier);
@@ -820,10 +870,10 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('deliveryDate') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('deliveryDate')}>{formatSupplierOrderDate(order.deliveryDate)}</td>
+                  <td data-label={t('orders.supplier.columns.deliveryDate')}>{formatSupplierOrderDate(order.deliveryDate)}</td>
                 ) : null}
                 {visibleColumns.includes('status') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('status')}>
+                  <td data-label={t('orders.supplier.columns.status')}>
                     <div className='supplier-order-status-picker'>
                       <button
                         type='button'
@@ -847,7 +897,7 @@ export const SupplierOrdersTable = ({
                   </td>
                 ) : null}
                 {visibleColumns.includes('paymentStatus') ? (
-                  <td data-label={getSupplierOrdersColumnLabel('paymentStatus')}>
+                  <td data-label={t('orders.supplier.columns.paymentStatus')}>
                     <span
                       className={getSupplierPaymentStatusClass(
                         order.paymentStatus,
@@ -862,9 +912,9 @@ export const SupplierOrdersTable = ({
           )}
         </tbody>
       </table>
-      {isLoading ? <p className='orders-empty'>Loading...</p> : null}
+      {isLoading ? <p className='orders-empty'>{t('orders.supplier.table.loading')}</p> : null}
       {!isLoading && paginatedOrders.length === 0 ? (
-        <p className='orders-empty'>No supplier orders found.</p>
+        <p className='orders-empty'>{t('orders.supplier.table.empty')}</p>
       ) : null}
     </div>
 
@@ -876,7 +926,8 @@ export const SupplierOrdersTable = ({
       onPageSizeChange={onPageSizeChange}
     />
   </>
-);
+  );
+};
 
 export const SupplierOrderStatusMenuPortal = ({
   openStatusOrder,
@@ -887,6 +938,8 @@ export const SupplierOrderStatusMenuPortal = ({
   statusMenuPosition: { top: number; left: number } | null;
   onUpdateStatus: (order: SupplierOrder, status: SupplierOrderStatus) => void;
 }) => {
+  const { t } = useTranslation();
+
   if (!openStatusOrder || !statusMenuPosition || typeof document === 'undefined') {
     return null;
   }
@@ -910,7 +963,7 @@ export const SupplierOrderStatusMenuPortal = ({
           }
           onClick={() => onUpdateStatus(openStatusOrder.order, status.key)}
         >
-          {status.label}
+          {t(status.labelKey)}
         </button>
       ))}
     </div>,
@@ -932,7 +985,10 @@ export const SupplierEditModal = ({
     SetStateAction<{ name: string; phone: string; note: string; isActive: boolean }>
   >;
   onSave: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div
     className='modal-backdrop'
     role='presentation'
@@ -943,20 +999,20 @@ export const SupplierEditModal = ({
     <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
       <header className='catalog-edit-header'>
         <div className='catalog-edit-title'>
-          <h2>Supplier</h2>
+          <h2>{t('orders.supplier.editModal.supplier')}</h2>
         </div>
         <button
           type='button'
           className='create-order-close'
           onClick={onClose}
-          aria-label='Close'
+          aria-label={t('common.close')}
         >
           &times;
         </button>
       </header>
       <div className='catalog-edit-body'>
         <label className='field'>
-          <span>Name</span>
+          <span>{t('common.name')}</span>
           <input
             value={form.name}
             onChange={(event) =>
@@ -968,7 +1024,7 @@ export const SupplierEditModal = ({
           />
         </label>
         <label className='field'>
-          <span>Phone</span>
+          <span>{t('orders.supplier.editModal.phone')}</span>
           <input
             value={form.phone}
             onChange={(event) =>
@@ -980,7 +1036,7 @@ export const SupplierEditModal = ({
           />
         </label>
         <label className='field field-wide'>
-          <span>Note</span>
+          <span>{t('orders.supplier.editModal.note')}</span>
           <textarea
             rows={3}
             value={form.note}
@@ -1002,12 +1058,13 @@ export const SupplierEditModal = ({
           }
           onClick={onSave}
         >
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? t('orders.supplier.editModal.saving') : t('common.save')}
         </button>
       </footer>
     </section>
   </div>
-);
+  );
+};
 
 export const CatalogProductEditModal = ({
   form,
@@ -1021,7 +1078,10 @@ export const CatalogProductEditModal = ({
   onClose: () => void;
   onFormChange: Dispatch<SetStateAction<{ name: string; note: string; isActive: boolean }>>;
   onSave: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div
     className='modal-backdrop'
     role='presentation'
@@ -1032,20 +1092,20 @@ export const CatalogProductEditModal = ({
     <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
       <header className='catalog-edit-header'>
         <div className='catalog-edit-title'>
-          <h2>Product</h2>
+          <h2>{t('orders.supplier.editModal.product')}</h2>
         </div>
         <button
           type='button'
           className='create-order-close'
           onClick={onClose}
-          aria-label='Close'
+          aria-label={t('common.close')}
         >
           &times;
         </button>
       </header>
       <div className='catalog-edit-body'>
         <label className='field'>
-          <span>Product name</span>
+          <span>{t('orders.supplier.editModal.productName')}</span>
           <input
             value={form.name}
             onChange={(event) =>
@@ -1057,7 +1117,7 @@ export const CatalogProductEditModal = ({
           />
         </label>
         <label className='field field-wide'>
-          <span>Note</span>
+          <span>{t('orders.supplier.editModal.note')}</span>
           <textarea
             rows={3}
             value={form.note}
@@ -1077,9 +1137,10 @@ export const CatalogProductEditModal = ({
           disabled={isSaving || form.name.trim().length < 2}
           onClick={onSave}
         >
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? t('orders.supplier.editModal.saving') : t('common.save')}
         </button>
       </footer>
     </section>
   </div>
-);
+  );
+};

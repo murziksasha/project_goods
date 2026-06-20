@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
@@ -5,6 +6,7 @@ import {
   buildLinePath,
   formatCurrencyMetric,
   formatMetric,
+  statsPeriodOptions,
   type StatsPeriod,
 } from '../model/sales-analytics';
 
@@ -51,109 +53,113 @@ const ChartPanel = ({
   maxValue,
   axisLabels,
   formatTotal = formatMetric,
-}: ChartPanelProps) => (
-  <section className="analytics-chart-panel">
-    <div className="analytics-panel-header">
-      <div>
-        <p className="section-label">{valueLabel}</p>
-        <h2>{title}</h2>
-      </div>
-      <div className="chart-legend">
-        {snapshots.map((snapshot) => (
-          <div key={snapshot.label} className="chart-legend-item">
-            <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
-            <div>
-              <strong>{snapshot.label}</strong>
-              <p>{formatTotal(snapshot.total)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+}: ChartPanelProps) => {
+  const { t } = useTranslation();
 
-    {isLoading ? (
-      <p className="empty-state">Loading analytics...</p>
-    ) : !hasData ? (
-      <p className="empty-state">{emptyText}</p>
-    ) : (
-      <>
-        <svg className="hero-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img">
-          {[0, 0.25, 0.5, 0.75, 1].map((step) => {
-            const y =
-              chartPadding.top +
-              (chartHeight - chartPadding.top - chartPadding.bottom) * (1 - step);
-            const value = Math.round(maxValue * step);
-
-            return (
-              <g key={step}>
-                <line
-                  x1={chartPadding.left}
-                  x2={chartWidth - chartPadding.right}
-                  y1={y}
-                  y2={y}
-                  className="hero-chart-gridline"
-                />
-                <text x="8" y={y + 4} className="chart-y-label">
-                  {formatMetric(value)}
-                </text>
-              </g>
-            );
-          })}
-
+  return (
+    <section className="analytics-chart-panel">
+      <div className="analytics-panel-header">
+        <div>
+          <p className="section-label">{valueLabel}</p>
+          <h2>{title}</h2>
+        </div>
+        <div className="chart-legend">
           {snapshots.map((snapshot) => (
-            <path
-              key={snapshot.label}
-              d={buildLinePath(
-                snapshot.values,
-                maxValue,
-                chartWidth,
-                chartHeight,
-                chartPadding,
-              )}
-              fill="none"
-              stroke={snapshot.color}
-              strokeWidth={snapshot.label === snapshots[0].label ? '4' : '2.5'}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
-
-          {snapshots.map((snapshot) =>
-            snapshot.values.map((value, index) => {
-              const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
-              const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
-              const x =
-                chartPadding.left +
-                (snapshot.values.length === 1
-                  ? innerWidth / 2
-                  : (index / (snapshot.values.length - 1)) * innerWidth);
-              const y =
-                chartPadding.top +
-                innerHeight -
-                (value / Math.max(maxValue, 1)) * innerHeight;
-
-              return value > 0 ? (
-                <circle
-                  key={`${snapshot.label}-${index}`}
-                  cx={x}
-                  cy={y}
-                  r={snapshot.label === snapshots[0].label ? '4' : '3'}
-                  fill={snapshot.color}
-                />
-              ) : null;
-            }),
-          )}
-        </svg>
-
-        <div className="chart-axis-labels">
-          {axisLabels.map((label, index) => (
-            <span key={`${label}-${index}`}>{label}</span>
+            <div key={snapshot.label} className="chart-legend-item">
+              <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
+              <div>
+                <strong>{snapshot.label}</strong>
+                <p>{formatTotal(snapshot.total)}</p>
+              </div>
+            </div>
           ))}
         </div>
-      </>
-    )}
-  </section>
-);
+      </div>
+
+      {isLoading ? (
+        <p className="empty-state">{t('analytics.loadingAnalytics')}</p>
+      ) : !hasData ? (
+        <p className="empty-state">{emptyText}</p>
+      ) : (
+        <>
+          <svg className="hero-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img">
+            {[0, 0.25, 0.5, 0.75, 1].map((step) => {
+              const y =
+                chartPadding.top +
+                (chartHeight - chartPadding.top - chartPadding.bottom) * (1 - step);
+              const value = Math.round(maxValue * step);
+
+              return (
+                <g key={step}>
+                  <line
+                    x1={chartPadding.left}
+                    x2={chartWidth - chartPadding.right}
+                    y1={y}
+                    y2={y}
+                    className="hero-chart-gridline"
+                  />
+                  <text x="8" y={y + 4} className="chart-y-label">
+                    {formatMetric(value)}
+                  </text>
+                </g>
+              );
+            })}
+
+            {snapshots.map((snapshot) => (
+              <path
+                key={snapshot.label}
+                d={buildLinePath(
+                  snapshot.values,
+                  maxValue,
+                  chartWidth,
+                  chartHeight,
+                  chartPadding,
+                )}
+                fill="none"
+                stroke={snapshot.color}
+                strokeWidth={snapshot.label === snapshots[0].label ? '4' : '2.5'}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+
+            {snapshots.map((snapshot) =>
+              snapshot.values.map((value, index) => {
+                const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
+                const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+                const x =
+                  chartPadding.left +
+                  (snapshot.values.length === 1
+                    ? innerWidth / 2
+                    : (index / (snapshot.values.length - 1)) * innerWidth);
+                const y =
+                  chartPadding.top +
+                  innerHeight -
+                  (value / Math.max(maxValue, 1)) * innerHeight;
+
+                return value > 0 ? (
+                  <circle
+                    key={`${snapshot.label}-${index}`}
+                    cx={x}
+                    cy={y}
+                    r={snapshot.label === snapshots[0].label ? '4' : '3'}
+                    fill={snapshot.color}
+                  />
+                ) : null;
+              }),
+            )}
+          </svg>
+
+          <div className="chart-axis-labels">
+            {axisLabels.map((label, index) => (
+              <span key={`${label}-${index}`}>{label}</span>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+};
 
 export const AnalyticsHeroSection = ({
   sales,
@@ -171,21 +177,22 @@ export const AnalyticsHeroSection = ({
   onSeed,
   onExport,
 }: AnalyticsHeroSectionProps) => {
+  const { t } = useTranslation();
   const analytics = buildDashboardAnalytics(sales, orders, statsPeriod, products);
 
   return (
     <section className="analytics-dashboard">
       <div className="analytics-executive-header">
         <div>
-          <p className="section-label">Executive dashboard</p>
-          <h1>Business performance</h1>
+          <p className="section-label">{t('analytics.executiveDashboard')}</p>
+          <h1>{t('analytics.businessPerformance')}</h1>
           <p className="hero-chart-note">
-            Sales, repair workload, payments and stock health for {analytics.detailLabel}.
+            {t('analytics.heroNote', { period: analytics.detailLabel })}
           </p>
         </div>
         <div className="hero-controls">
-          <div className="period-toggle" role="tablist" aria-label="Statistics period">
-            {analytics.statsPeriodOptions.map((option) => (
+          <div className="period-toggle" role="tablist" aria-label={t('analytics.statisticsPeriod')}>
+            {statsPeriodOptions.map((option) => (
               <button
                 key={option.value}
                 className={
@@ -196,13 +203,13 @@ export const AnalyticsHeroSection = ({
                 type="button"
                 onClick={() => onStatsPeriodChange(option.value)}
               >
-                {option.label}
+                {t(option.labelKey)}
               </button>
             ))}
           </div>
           {canEraseAllData ? (
             <button className="secondary-button" type="button" onClick={onSeed} disabled={isSeeding}>
-              {isSeeding ? 'Loading...' : 'Erase all data'}
+              {isSeeding ? t('analytics.loading') : t('analytics.eraseAllData')}
             </button>
           ) : null}
           {canExportProducts ? (
@@ -212,7 +219,7 @@ export const AnalyticsHeroSection = ({
               onClick={onExport}
               disabled={isExporting || !hasProducts}
             >
-              {isExporting ? 'Exporting...' : 'Export'}
+              {isExporting ? t('analytics.exporting') : t('analytics.export')}
             </button>
           ) : null}
         </div>
@@ -220,8 +227,8 @@ export const AnalyticsHeroSection = ({
 
       <div className="analytics-summary-grid analytics-summary-grid-wide">
         {analytics.summaryCards.map((card) => (
-          <article key={card.label} className="analytics-summary-card">
-            <span className="metric-label">{card.label}</span>
+          <article key={card.labelKey} className="analytics-summary-card">
+            <span className="metric-label">{t(card.labelKey)}</span>
             <strong style={{ color: card.accent }}>{card.value}</strong>
           </article>
         ))}
@@ -232,25 +239,25 @@ export const AnalyticsHeroSection = ({
           <section className="analytics-info-panel">
             <div className="analytics-panel-header">
               <div>
-                <p className="section-label">Workflow</p>
-                <h2>Operational pulse</h2>
+                <p className="section-label">{t('analytics.workflow')}</p>
+                <h2>{t('analytics.operationalPulse')}</h2>
               </div>
             </div>
             <div className="analytics-mini-grid">
               <div>
-                <span className="metric-label">Open</span>
+                <span className="metric-label">{t('analytics.open')}</span>
                 <strong>{formatMetric(analytics.operations.openOrders)}</strong>
               </div>
               <div>
-                <span className="metric-label">Closed</span>
+                <span className="metric-label">{t('analytics.closed')}</span>
                 <strong>{formatMetric(analytics.operations.closedOrders)}</strong>
               </div>
               <div>
-                <span className="metric-label">Today sales</span>
+                <span className="metric-label">{t('analytics.todaySales')}</span>
                 <strong>{formatMetric(analytics.operations.todaySales)}</strong>
               </div>
               <div>
-                <span className="metric-label">Today repairs</span>
+                <span className="metric-label">{t('analytics.todayRepairs')}</span>
                 <strong>{formatMetric(analytics.operations.todayOrders)}</strong>
               </div>
             </div>
@@ -259,29 +266,29 @@ export const AnalyticsHeroSection = ({
           <section className="analytics-info-panel">
             <div className="analytics-panel-header">
               <div>
-                <p className="section-label">Stock</p>
-                <h2>Inventory health</h2>
+                <p className="section-label">{t('analytics.stock')}</p>
+                <h2>{t('analytics.inventoryHealth')}</h2>
               </div>
             </div>
             <div className="analytics-stock-list">
               <div>
-                <span>Products</span>
+                <span>{t('analytics.products')}</span>
                 <strong>{formatMetric(analytics.stock.productCount)}</strong>
               </div>
               <div>
-                <span>Free stock</span>
+                <span>{t('analytics.freeStock')}</span>
                 <strong>{formatMetric(analytics.stock.freeStock)}</strong>
               </div>
               <div>
-                <span>Reserved</span>
+                <span>{t('analytics.reserved')}</span>
                 <strong>{formatMetric(analytics.stock.reservedStock)}</strong>
               </div>
               <div>
-                <span>Stock value</span>
+                <span>{t('analytics.stockValue')}</span>
                 <strong>{formatCurrencyMetric(analytics.stock.stockValue)}</strong>
               </div>
               <div>
-                <span>Clients</span>
+                <span>{t('analytics.clients')}</span>
                 <strong>{formatMetric(clientCount)}</strong>
               </div>
             </div>
@@ -290,14 +297,17 @@ export const AnalyticsHeroSection = ({
           <section className="analytics-info-panel">
             <div className="analytics-panel-header">
               <div>
-                <p className="section-label">Signals</p>
-                <h2>Attention queue</h2>
+                <p className="section-label">{t('analytics.signals')}</p>
+                <h2>{t('analytics.attentionQueue')}</h2>
               </div>
             </div>
             <div className="analytics-signal-list">
               {analytics.signals.map((signal) => (
-                <div key={signal.label} className={`analytics-signal analytics-signal-${signal.tone}`}>
-                  <span>{signal.label}</span>
+                <div
+                  key={signal.labelKey}
+                  className={`analytics-signal analytics-signal-${signal.tone}`}
+                >
+                  <span>{t(signal.labelKey)}</span>
                   <strong>{signal.value}</strong>
                 </div>
               ))}
@@ -308,18 +318,16 @@ export const AnalyticsHeroSection = ({
         <div className="analytics-charts-stack">
           <div className="analytics-period-row">
             <div>
-              <p className="section-label">Comparative analysis</p>
+              <p className="section-label">{t('analytics.comparativeAnalysis')}</p>
               <h2>{analytics.detailLabel}</h2>
             </div>
-            <p className="hero-chart-note">
-              Current period is blue; previous comparable years are orange and green.
-            </p>
+            <p className="hero-chart-note">{t('analytics.comparisonNote')}</p>
           </div>
 
           <ChartPanel
-            title="Revenue"
-            valueLabel="Product sales"
-            emptyText="No sales found for the selected period."
+            title={t('analytics.revenue')}
+            valueLabel={t('analytics.productSales')}
+            emptyText={t('analytics.noSalesForPeriod')}
             isLoading={isSalesLoading}
             hasData={analytics.hasRevenueData}
             snapshots={analytics.revenueSnapshots}
@@ -329,9 +337,9 @@ export const AnalyticsHeroSection = ({
           />
 
           <ChartPanel
-            title="Repair orders"
-            valueLabel="Order volume"
-            emptyText="No repair orders found for the selected period."
+            title={t('analytics.repairOrders')}
+            valueLabel={t('analytics.orderVolume')}
+            emptyText={t('analytics.noOrdersForPeriod')}
             isLoading={isSalesLoading}
             hasData={analytics.hasOrdersData}
             snapshots={analytics.orderSnapshots}

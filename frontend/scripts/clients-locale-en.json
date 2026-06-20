@@ -1,0 +1,233 @@
+{
+  "tabs": {
+    "main": "Main",
+    "services": "Services",
+    "sales": "Sales",
+    "clientsAndSuppliers": "Clients and suppliers",
+    "clients": "Clients",
+    "suppliers": "Suppliers"
+  },
+  "toolbar": {
+    "filter": "Filter",
+    "searchPlaceholder": "Search by name or phone",
+    "searchAriaLabel": "Search client",
+    "clearSearchAriaLabel": "Clear search text",
+    "importXls": "Import XLS",
+    "importing": "Importing...",
+    "exportXls": "Export XLS",
+    "exporting": "Exporting...",
+    "merge": "Merge",
+    "createClient": "Create client"
+  },
+  "table": {
+    "title": "Client list",
+    "columns": {
+      "id": "Id",
+      "tag": "Tag",
+      "name": "Name",
+      "phone": "Phone",
+      "registrationDate": "Registration date",
+      "visits": "Visits",
+      "clientIncome": "Client income",
+      "actions": "Actions"
+    },
+    "loading": "Loading clients...",
+    "empty": "No clients found for the selected filters.",
+    "blacklistTitle": "Client is in blacklist",
+    "blacklistAriaLabel": "{{name}}. Client is in blacklist",
+    "deleteAriaLabel": "Delete {{name}}",
+    "deleteTitle": "Delete client",
+    "deleteDisabledTitle": "Cannot delete a client with orders or sales."
+  },
+  "filters": {
+    "phoneOrName": "Phone / name",
+    "phoneOrNamePlaceholder": "+380..., Ivan",
+    "clientId": "Client ID",
+    "clientIdPlaceholder": "ID",
+    "orderNumber": "Order No.",
+    "orderNumberPlaceholder": "r000001",
+    "dateFrom": "Date from",
+    "dateTo": "Date to",
+    "status": "Status",
+    "statusAll": "All",
+    "visitsFrom": "Visits from",
+    "visitsTo": "Visits to",
+    "incomeFrom": "Client income from",
+    "incomeTo": "Client income to",
+    "placeholderZero": "0",
+    "apply": "Apply",
+    "clear": "Clear filter",
+    "saveFilter": "Save filter",
+    "saveFilterRequiresEmployee": "Employee profile is required to save filters.",
+    "searchLabel": "Search by name or phone",
+    "searchPlaceholder": "Ivan, +38067...",
+    "filterByStatus": "Filter by status"
+  },
+  "card": {
+    "sectionLabel": "Client",
+    "titleFallback": "Client card",
+    "tablistAriaLabel": "Client card",
+    "loadingHistory": "Loading client history...",
+    "selectClient": "Select a client from the list.",
+    "noServices": "No services found for this client.",
+    "noSales": "No sales found for this client.",
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "address": "Address",
+      "phones": "Phones",
+      "primaryPhone": "Primary phone",
+      "additionalPhone": "Additional phone",
+      "primaryPhonePlaceholder": "+380",
+      "status": "Status",
+      "companyIdOrTaxId": "Company ID or tax ID",
+      "iban": "IBAN",
+      "note": "Note"
+    },
+    "addPhone": "+ Add phone",
+    "removePhoneAriaLabel": "Remove phone",
+    "saveClient": "Save client",
+    "saving": "Saving...",
+    "history": {
+      "columns": {
+        "number": "No.",
+        "date": "Date",
+        "service": "Service",
+        "sale": "Sale",
+        "status": "Status",
+        "amount": "Amount"
+      }
+    }
+  },
+  "create": {
+    "title": "Add client",
+    "fields": {
+      "phone": "Phone",
+      "name": "Name",
+      "address": "Address",
+      "email": "Email",
+      "note": "Note",
+      "companyIdOrTaxId": "Company ID or tax ID",
+      "iban": "IBAN"
+    },
+    "add": "Add",
+    "saving": "Saving..."
+  },
+  "merge": {
+    "title": "Merge clients",
+    "description": "Select Client 1 and Client 2. Data from Client 2 will be merged into Client 1, then Client 2 will be deleted.",
+    "client1": "Client 1",
+    "client2": "Client 2",
+    "searchPlaceholder": "Enter name or phone",
+    "mergeClients": "Merge clients",
+    "merging": "Merging..."
+  },
+  "history": {
+    "sectionLabel": "History",
+    "titleFallback": "Client card",
+    "period": "Period",
+    "periods": {
+      "all": "All time",
+      "year": "This year",
+      "lastMonth": "Last month"
+    },
+    "stats": {
+      "sales": "Sales",
+      "itemsSold": "Items sold",
+      "revenue": "Revenue"
+    },
+    "loading": "Loading client history...",
+    "selectClient": "Click a client to view all purchases.",
+    "noPurchases": "No purchases found for this period."
+  },
+  "suppliers": {
+    "toolbar": {
+      "filter": "Filter",
+      "searchPlaceholder": "Search by name, phone or supplier order",
+      "clearSearchAriaLabel": "Clear search text",
+      "merge": "Merge",
+      "createSupplier": "Create supplier"
+    },
+    "filters": {
+      "namePhoneOrOrder": "Name / phone / order",
+      "namePhoneOrOrderPlaceholder": "Supplier name or phone",
+      "supplierId": "Supplier ID",
+      "supplierIdPlaceholder": "ID",
+      "status": "Status",
+      "statusAll": "All",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "dateFrom": "Date from",
+      "dateTo": "Date to",
+      "note": "Note",
+      "notePlaceholder": "Note",
+      "apply": "Apply",
+      "clear": "Clear filter",
+      "saveFilter": "Save filter",
+      "saveFilterRequiresEmployee": "Employee profile is required to save filters."
+    },
+    "table": {
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "phone": "Phone",
+        "status": "Status",
+        "created": "Created"
+      },
+      "statusActive": "active",
+      "statusInactive": "inactive",
+      "empty": "No suppliers found."
+    },
+    "create": {
+      "title": "Create supplier",
+      "editTitle": "Edit supplier",
+      "fields": {
+        "name": "Name",
+        "phone": "Phone",
+        "supplierOrder": "Supplier order",
+        "note": "Note",
+        "status": "Status"
+      },
+      "statusActive": "active",
+      "statusInactive": "inactive",
+      "duplicateError": "Supplier with same phone or name already exists: {{name}}",
+      "create": "Create",
+      "save": "Save",
+      "saving": "Saving..."
+    },
+    "merge": {
+      "title": "Merge suppliers",
+      "description": "Select Supplier 1 and Supplier 2. Data from Supplier 2 will be merged into Supplier 1, then Supplier 2 will be removed.",
+      "supplier1": "Supplier 1",
+      "supplier2": "Supplier 2",
+      "searchPlaceholder": "Enter name or phone",
+      "mergeSuppliers": "Merge suppliers",
+      "merging": "Merging..."
+    }
+  },
+  "messages": {
+    "errors": {
+      "invalidPhoneFormat": "Invalid phone number format",
+      "addressMinLength": "Address must contain at least 5 characters.",
+      "registrationIdFormat": "Value must contain 8-12 characters: letters, digits, or a hyphen.",
+      "ibanFormat": "IBAN must match UA + 27 digits. Spaces are allowed.",
+      "enterFilterName": "Enter a filter name.",
+      "employeeRequiredForFilters": "Current employee is required to save filters.",
+      "filterSaved": "Filter saved.",
+      "failedImport": "Failed to import clients.",
+      "failedExport": "Failed to export clients.",
+      "failedDelete": "Failed to delete client.",
+      "failedMerge": "Failed to merge clients.",
+      "selectTwoClients": "Select two different clients to merge.",
+      "clientHasOrders": "Cannot delete a client with orders or sales.",
+      "invalidClientData": "Please fix validation errors before saving."
+    },
+    "success": {
+      "filterSaved": "Filter saved.",
+      "clientDeleted": "Client deleted.",
+      "clientsMerged": "Clients merged successfully.",
+      "importCompleted": "Import completed.",
+      "exportCompleted": "Export completed."
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
 import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
@@ -85,6 +86,7 @@ export const CreateOrderCard = ({
   onError,
   onOpenClientCard,
 }: CreateOrderCardProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
     () => initialTab,
   );
@@ -476,7 +478,11 @@ export const CreateOrderCard = ({
     suggestion: CreateOrderProductSuggestion,
   ) => {
     if (!suggestion.selectable) {
-      onError(`Product cannot be selected: ${suggestion.availabilityLabel}.`);
+      onError(
+        t('orders.create.errors.productCannotBeSelected', {
+          reason: suggestion.availabilityLabel,
+        }),
+      );
       return;
     }
 
@@ -518,7 +524,7 @@ export const CreateOrderCard = ({
         quantity: '1',
         price: item.unitPrice || item.price,
       });
-      onError('Serialized products are sold one serial per line. Add each serial separately.');
+      onError(t('orders.create.errors.serializedOnePerLine'));
       return;
     }
 
@@ -722,14 +728,14 @@ export const CreateOrderCard = ({
   return (
     <section className="create-order-page">
       <header className="create-order-header">
-        <h2>Create order</h2>
-        <button type="button" className="create-order-close" aria-label="Close create form" onClick={onClose}>
+        <h2>{t('orders.create.title')}</h2>
+        <button type="button" className="create-order-close" aria-label={t('orders.create.closeForm')} onClick={onClose}>
           x
         </button>
       </header>
 
       <div className="create-order-body">
-        <div className="create-order-tabs" role="tablist" aria-label="Order type tabs">
+        <div className="create-order-tabs" role="tablist" aria-label={t('orders.create.orderTypeTabs')}>
           {topTabs.map((tab) => (
             <button
               key={tab.key}
@@ -737,22 +743,22 @@ export const CreateOrderCard = ({
               className={tab.key === activeTab ? 'create-order-tab create-order-tab-active' : 'create-order-tab'}
               onClick={() => setActiveTab(tab.key)}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="create-order-grid">
           <div className="create-order-left">
-            <h3 className="create-section-title">Client</h3>
+            <h3 className="create-section-title">{t('orders.create.client')}</h3>
             <div className="create-row-2">
               <label className="field">
-                <span>Client data *</span>
+                <span>{t('orders.create.clientData')}</span>
                 <input
                   value={clientPhone}
                   onChange={(event) => onClientPhoneChange(event.target.value)}
                   onBlur={onClientPhoneBlur}
-                  placeholder="+380"
+                  placeholder={t('orders.create.phonePlaceholder')}
                 />
               </label>
               <label className="field">
@@ -760,13 +766,13 @@ export const CreateOrderCard = ({
                 <input
                   value={clientName}
                   onChange={(event) => onClientNameChange(event.target.value)}
-                  placeholder="Full name"
+                  placeholder={t('orders.create.fullName')}
                 />
               </label>
             </div>
             {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
-                {isClientLookupLoading ? <p>Searching clients...</p> : null}
+                {isClientLookupLoading ? <p>{t('orders.create.searchingClients')}</p> : null}
                 {visibleClientSuggestions.map((client) => {
                   const isBlacklisted = isBlacklistClient(client);
                   return (
@@ -779,7 +785,9 @@ export const CreateOrderCard = ({
                           : 'create-suggestion-item'
                       }
                       title={
-                        isBlacklisted ? 'Client is in blacklist' : undefined
+                        isBlacklisted
+                          ? t('orders.create.blacklist.clientInBlacklist')
+                          : undefined
                       }
                       onClick={() => applyClient(client)}
                     >
@@ -787,7 +795,7 @@ export const CreateOrderCard = ({
                         <strong>{client.name}</strong>
                         {isBlacklisted ? (
                           <span className="client-status-badge status-blacklist">
-                            blacklist
+                            {t('orders.create.blacklist.badge')}
                           </span>
                         ) : null}
                       </span>
@@ -802,20 +810,22 @@ export const CreateOrderCard = ({
                 type="button"
                 className="create-client-blacklist-warning"
                 disabled={!onOpenClientCard}
-                aria-label={`Open blacklist client card: ${blacklistClientMatch.name}`}
+                aria-label={t('orders.create.blacklist.openClientCard', {
+                  name: blacklistClientMatch.name,
+                })}
                 onClick={() => onOpenClientCard?.(blacklistClientMatch.id)}
               >
                 <span className="create-client-blacklist-warning-copy">
-                  <strong>Client is in blacklist</strong>
+                  <strong>{t('orders.create.blacklist.clientInBlacklist')}</strong>
                   <span>
                     {blacklistClientMatch.name} / {blacklistClientMatch.phone}
                   </span>
                 </span>
                 <span className="create-client-blacklist-warning-message">
-                  Check client card before creating a repair or sale order.
+                  {t('orders.create.blacklist.checkBeforeCreate')}
                 </span>
                 <span className="client-status-badge status-blacklist">
-                  blacklist
+                  {t('orders.create.blacklist.badge')}
                 </span>
                 <span className="visually-hidden">{blacklistClientWarning}</span>
               </button>
@@ -870,7 +880,7 @@ export const CreateOrderCard = ({
             )}
             <div className="create-prepay-row">
               <label className="field">
-                <span>Estimated ready date</span>
+                <span>{t('orders.create.estimatedReadyDate')}</span>
                 <input type="date" value={readyDate} onChange={(event) => setReadyDate(event.target.value)} />
               </label>
               <label className="field">
@@ -879,44 +889,44 @@ export const CreateOrderCard = ({
               </label>
             </div>
 
-            <h4 className="create-subtitle">Additional information</h4>
+            <h4 className="create-subtitle">{t('orders.create.additionalInformation')}</h4>
             <div className="create-checks-grid">
               <div className="create-checks-col">
                 {(activeTab === 'sale' ? saleExtraOptionsLeft : extraOptionsLeft).map((option) => (
-                  <label key={option} className="create-inline-checkbox">
+                  <label key={option.key} className="create-inline-checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedFlags.includes(option)}
-                      onChange={() => toggleFlag(option)}
+                      checked={selectedFlags.includes(option.key)}
+                      onChange={() => toggleFlag(option.key)}
                     />
-                    <span>{option}</span>
+                    <span>{t(option.labelKey)}</span>
                   </label>
                 ))}
               </div>
               <div className="create-checks-col">
                 {(activeTab === 'sale' ? saleExtraOptionsRight : extraOptionsRight).map((option) => (
-                  <label key={option} className="create-inline-checkbox">
+                  <label key={option.key} className="create-inline-checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedFlags.includes(option)}
-                      onChange={() => toggleFlag(option)}
+                      checked={selectedFlags.includes(option.key)}
+                      onChange={() => toggleFlag(option.key)}
                     />
-                    <span>{option}</span>
+                    <span>{t(option.labelKey)}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            <h3 className="create-section-title">Responsible</h3>
+            <h3 className="create-section-title">{t('orders.create.responsible')}</h3>
             <div className="create-row-2">
               <label className="field">
-                  <span>Manager</span>
+                  <span>{t('orders.columns.manager')}</span>
                 <select
                   value={effectiveManagerId}
                   onChange={(event) => setManagerId(event.target.value)}
                   disabled={canCurrentEmployeeManageOrders}
                 >
-                  <option value="">Select manager</option>
+                  <option value="">{t('orders.create.selectManager')}</option>
                   {managers.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.name}
@@ -926,9 +936,9 @@ export const CreateOrderCard = ({
               </label>
               {activeTab === 'repair' ? (
                 <label className="field">
-                  <span>Master</span>
+                  <span>{t('orders.columns.master')}</span>
                   <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
-                    <option value="">Select master</option>
+                    <option value="">{t('orders.create.selectMaster')}</option>
                     {masters.map((employee) => (
                       <option key={employee.id} value={employee.id}>
                         {employee.name}
@@ -941,10 +951,10 @@ export const CreateOrderCard = ({
 
             <div className="create-order-actions">
               <button type="button" className="secondary-button" onClick={onClose}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" className="primary-button" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save order'}
+                {isSaving ? t('orders.create.saving') : t('orders.create.saveOrder')}
               </button>
             </div>
           </div>

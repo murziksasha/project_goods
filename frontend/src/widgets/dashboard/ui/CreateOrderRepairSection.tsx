@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 
 type CreateOrderRepairSectionProps = {
@@ -52,117 +53,125 @@ export const CreateOrderRepairSection = ({
   onEnsureClientForDevice,
   onOpenCreateDevice,
   onApplyDevice,
-}: CreateOrderRepairSectionProps) => (
-  <>
-    <h3 className="create-section-title">Device</h3>
-    <div className="create-device-search">
-      <label className="field">
-        <span>Device #1 *</span>
-        <input
-          value={deviceName}
-          onFocus={() => {
-            void onEnsureClientForDevice();
-          }}
-          onChange={(event) => {
-            onClearSelectedDeviceSuggestion();
-            onDeviceNameChange(event.target.value);
-          }}
-          placeholder="Enter device name"
-        />
-      </label>
-      <button
-        type="button"
-        className="secondary-button"
-        disabled={!canCreateClientDevice || isClientEnsuring}
-        title={
-          selectedDeviceSuggestionId
-            ? 'Selected existing device'
-            : hasExactDeviceMatch
-              ? 'Device already exists'
-              : undefined
-        }
-        onClick={() => void onOpenCreateDevice()}
-      >
-        Create new
-      </button>
-    </div>
-    {hasExactDeviceMatch ? <p>Found existing device with this name.</p> : null}
-    {visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading ? (
-      <div className="create-suggestions create-suggestions-compact create-device-suggestions">
-        {isDeviceLookupLoading ? <p>Searching devices...</p> : null}
-        {visibleDeviceSuggestions.map((device) => (
-          <button
-            key={device.id}
-            type="button"
-            className="create-suggestion-item create-suggestion-item-compact"
-            onClick={() => onApplyDevice(device)}
-          >
-            <strong>{device.name}</strong>
-            <span>{device.serialNumber || '-'}</span>
-          </button>
-        ))}
+}: CreateOrderRepairSectionProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <h3 className="create-section-title">{t('orders.create.device')}</h3>
+      <div className="create-device-search">
+        <label className="field">
+          <span>{t('orders.create.deviceNumber', { number: 1 })}</span>
+          <input
+            value={deviceName}
+            onFocus={() => {
+              void onEnsureClientForDevice();
+            }}
+            onChange={(event) => {
+              onClearSelectedDeviceSuggestion();
+              onDeviceNameChange(event.target.value);
+            }}
+            placeholder={t('orders.create.enterDeviceName')}
+          />
+        </label>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={!canCreateClientDevice || isClientEnsuring}
+          title={
+            selectedDeviceSuggestionId
+              ? t('orders.create.selectedExistingDevice')
+              : hasExactDeviceMatch
+                ? t('orders.create.deviceAlreadyExists')
+                : undefined
+          }
+          onClick={() => void onOpenCreateDevice()}
+        >
+          {t('orders.create.createNew')}
+        </button>
       </div>
-    ) : null}
+      {hasExactDeviceMatch ? (
+        <p>{t('orders.create.foundExistingDevice')}</p>
+      ) : null}
+      {visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading ? (
+        <div className="create-suggestions create-suggestions-compact create-device-suggestions">
+          {isDeviceLookupLoading ? (
+            <p>{t('orders.create.searchingDevices')}</p>
+          ) : null}
+          {visibleDeviceSuggestions.map((device) => (
+            <button
+              key={device.id}
+              type="button"
+              className="create-suggestion-item create-suggestion-item-compact"
+              onClick={() => onApplyDevice(device)}
+            >
+              <strong>{device.name}</strong>
+              <span>{device.serialNumber || '-'}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-    <div className="create-row-2">
+      <div className="create-row-2">
+        <label className="field">
+          <span>&nbsp;</span>
+          <input
+            value={deviceColor}
+            onChange={(event) => onDeviceColorChange(event.target.value)}
+            placeholder={t('orders.create.deviceColor')}
+          />
+        </label>
+        <label className="field">
+          <span>&nbsp;</span>
+          <input
+            value={deviceSerialNumber}
+            onChange={(event) => {
+              onClearSelectedDeviceSuggestion();
+              onDeviceSerialNumberChange(event.target.value);
+            }}
+            placeholder={t('orders.create.serialNumber')}
+          />
+        </label>
+      </div>
+
       <label className="field">
-        <span>&nbsp;</span>
+        <span>{t('orders.create.kit')}</span>
         <input
-          value={deviceColor}
-          onChange={(event) => onDeviceColorChange(event.target.value)}
-          placeholder="Device color"
+          value={deviceKit}
+          onChange={(event) => onDeviceKitChange(event.target.value)}
+          placeholder={t('orders.create.describeAccessories')}
         />
       </label>
+
       <label className="field">
-        <span>&nbsp;</span>
-        <input
-          value={deviceSerialNumber}
-          onChange={(event) => {
-            onClearSelectedDeviceSuggestion();
-            onDeviceSerialNumberChange(event.target.value);
-          }}
-          placeholder="Serial number"
+        <span>{t('orders.filters.repairType')}</span>
+        <select
+          value={repairType}
+          onChange={(event) => onRepairTypeChange(event.target.value)}
+        >
+          <option value="Paid">{t('orders.filters.repairTypePaid')}</option>
+          <option value="Warranty">{t('orders.filters.repairTypeWarranty')}</option>
+        </select>
+      </label>
+
+      <label className="field">
+        <span>{t('orders.create.issueFromClient')}</span>
+        <textarea
+          rows={3}
+          value={issueFromClient}
+          onChange={(event) => onIssueFromClientChange(event.target.value)}
         />
       </label>
-    </div>
 
-    <label className="field">
-      <span>Kit</span>
-      <input
-        value={deviceKit}
-        onChange={(event) => onDeviceKitChange(event.target.value)}
-        placeholder="Describe accessories"
-      />
-    </label>
-
-    <label className="field">
-      <span>Repair type</span>
-      <select
-        value={repairType}
-        onChange={(event) => onRepairTypeChange(event.target.value)}
-      >
-        <option>Paid</option>
-        <option>Warranty</option>
-      </select>
-    </label>
-
-    <label className="field">
-      <span>Issue from client</span>
-      <textarea
-        rows={3}
-        value={issueFromClient}
-        onChange={(event) => onIssueFromClientChange(event.target.value)}
-      />
-    </label>
-
-    <label className="field">
-      <span>External condition</span>
-      <textarea
-        rows={3}
-        value={externalView}
-        onChange={(event) => onExternalViewChange(event.target.value)}
-        placeholder="Scratches, dents..."
-      />
-    </label>
-  </>
-);
+      <label className="field">
+        <span>{t('orders.create.externalCondition')}</span>
+        <textarea
+          rows={3}
+          value={externalView}
+          onChange={(event) => onExternalViewChange(event.target.value)}
+          placeholder={t('orders.create.externalConditionPlaceholder')}
+        />
+      </label>
+    </>
+  );
+};

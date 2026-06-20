@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -66,7 +67,7 @@ import {
   getPrimaryDeviceSerial,
   getRemainingPayment,
   getStoredOrderDetailRelatedTab,
-  getStatusLabel,
+  buildCreatedOrderTimelineMessage,
   getSupplierOrderStatusLabel,
   hasSaleReturnObligations,
   isProductAvailableForOrder,
@@ -81,7 +82,7 @@ import {
   isOrderEditableStatus,
   readOrderDetailSectionsState,
   stockLockedRepairStatuses,
-  warrantyOptions,
+  getWarrantyOptions,
   withSupplierOrderLinkNote,
   writeOrderDetailSectionsState,
   type OrderLineItem,
@@ -98,7 +99,7 @@ type OrderDetailCardProps = {
   supplierOrders: SupplierOrder[];
   employees: Employee[];
   status: OrderStatus;
-  statusOptions: Array<{ key: OrderStatus; label: string }>;
+  statusOptions: Array<{ key: OrderStatus; labelKey: string }>;
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   products: Product[];
@@ -197,6 +198,7 @@ export const OrderDetailCard = ({
   onSuccess,
   onSaveMainInfo,
 }: OrderDetailCardProps) => {
+  const { t } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
   const [isProductsOpen, setIsProductsOpen] = useState(isSaleCard);
@@ -467,23 +469,35 @@ export const OrderDetailCard = ({
     if (
       isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
     ) {
-      return 'Refund client payment for bound products and return them to stock first.';
+      return t('orders.payment.stockLocked');
     }
     if (
       hasRepairProductLineItems &&
       statusOption === 'issued' &&
       getRemainingPayment(sale, paidAmount, lineItems) > 0
     ) {
-      return 'Accept full payment before issuing attached products.';
+      return t('orders.messages.errors.fullPaymentBeforeIssue');
     }
     if (
       !isRepairOrder(sale) &&
       statusOption === 'returned' &&
       hasSaleReturnObligations(sale, lineItems)
     ) {
-      return 'Return products to stock and refund client payment first.';
+      return t('orders.messages.errors.returnProductsFirst');
     }
     return '';
+  };
+  const getStatusDraftBlockedReason = () => {
+    if (isSaleReturnStatusDraftBlocked) {
+      return t('orders.messages.errors.returnProductsFirst');
+    }
+    if (isRepairIssuedDraftBlockedByPayment) {
+      return t('orders.messages.errors.fullPaymentBeforeIssue');
+    }
+    if (isStatusDraftLockedByStock) {
+      return t('orders.payment.stockLocked');
+    }
+    return undefined;
   };
   const relatedRecords = useMemo(
     () =>
@@ -618,8 +632,8 @@ export const OrderDetailCard = ({
       author:
         sale.manager?.name ||
         sale.issuedBy?.name ||
-        'Unknown employee',
-      message: `created order with status "${getStatusLabel(sale, status)}"`,
+        t('orders.messages.errors.unknownEmployee'),
+      message: buildCreatedOrderTimelineMessage(sale, status),
       createdAt: sale.createdAt,
     },
     ...comments,
@@ -682,7 +696,7 @@ export const OrderDetailCard = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to open supplier order modal.',
+          : t('orders.messages.errors.failedOpenSupplierModal'),
       );
     } finally {
       setIsRelatedSupplierOrderOpening(false);
@@ -692,20 +706,34 @@ export const OrderDetailCard = ({
   return (
     <article
       className='order-detail-card'
-      aria-label={isSaleCard ? 'Sale card' : 'Order card'}
+      aria-label={
+        isSaleCard
+          ? t('orders.detail.saleCard')
+          : t('orders.detail.orderCard')
+      }
     >
       <header className='order-detail-header'>
         <div className='order-detail-title'>
           <div className='order-detail-title-label-row'>
             <span className='section-label'>
-              {isSaleCard ? 'Sale card' : 'Order card'}
+              {isSaleCard
+                ? t('orders.detail.saleCard')
+                : t('orders.detail.orderCard')}
             </span>
             <button
               type='button'
               className='toolbar-square-button order-print-icon-button order-header-print-button'
               onClick={onOpenPrint}
-              aria-label={isSaleCard ? 'Print sale' : 'Print order'}
-              title={isSaleCard ? 'Print sale' : 'Print order'}
+              aria-label={
+                isSaleCard
+                  ? t('orders.detail.printSale')
+                  : t('orders.detail.printOrder')
+              }
+              title={
+                isSaleCard
+                  ? t('orders.detail.printSale')
+                  : t('orders.detail.printOrder')
+              }
             >
               <PrinterIcon />
             </button>
@@ -718,15 +746,11 @@ export const OrderDetailCard = ({
             onChange={(event) => {
               setStatusDraft(event.target.value as OrderStatus);
             }}
-            aria-label='Repair status'
+            aria-label={t('orders.detail.repairStatus')}
             disabled={isReadOnly}
             title={
               isStatusDraftBlocked
-                ? isSaleReturnStatusDraftBlocked
-                  ? 'Return products to stock and refund client payment first.'
-                  : isRepairIssuedDraftBlockedByPayment
-                    ? 'Accept full payment before issuing attached products.'
-                    : 'Refund client payment for bound products and return them to stock first.'
+                ? getStatusDraftBlockedReason()
                 : undefined
             }
           >
@@ -740,7 +764,7 @@ export const OrderDetailCard = ({
                   value={statusOption.key}
                   disabled={Boolean(blockedReason)}
                 >
-                  {statusOption.label}
+                  {t(statusOption.labelKey)}
                 </option>
               );
             })}
@@ -749,7 +773,7 @@ export const OrderDetailCard = ({
             type='button'
             className='create-order-close'
             onClick={onClose}
-            aria-label='Close order card'
+            aria-label={t('orders.detail.closeOrderCard')}
           >
             &times;
           </button>
@@ -758,10 +782,10 @@ export const OrderDetailCard = ({
 
       <div className='order-detail-grid'>
         <section className='order-detail-panel'>
-          <h3>Main information</h3>
+          <h3>{t('orders.detail.mainInformation')}</h3>
           <dl className='order-detail-list'>
             <div>
-              <dt>Client</dt>
+              <dt>{t('orders.detail.client')}</dt>
               <dd>
                 <button
                   type='button'
@@ -773,28 +797,28 @@ export const OrderDetailCard = ({
               </dd>
             </div>
             <div>
-              <dt>Phone</dt>
+              <dt>{t('orders.detail.phone')}</dt>
               <dd>{formatPhoneNumber(sale.client.phone)}</dd>
             </div>
             {isSaleCard ? null : (
               <>
                 <div>
-                  <dt>Device</dt>
+                  <dt>{t('orders.detail.device')}</dt>
                   <dd>
                     <button
                       type='button'
                       className='order-detail-device-button'
                       onClick={() => setIsDeviceModalOpen(true)}
                       disabled={isReadOnly}
-                      aria-label='Change device'
+                      aria-label={t('orders.detail.changeDevice')}
                     >
                       <span>{deviceNameInput || '-'}</span>
-                      <small>Change</small>
+                      <small>{t('orders.detail.change')}</small>
                     </button>
                   </dd>
                 </div>
                 <div>
-                  <dt>S/N</dt>
+                  <dt>{t('orders.detail.serialNumberShort')}</dt>
                   <dd className='order-detail-serial-value'>
                     <span>{serialNumberInput || '-'}</span>
                   </dd>
@@ -802,23 +826,27 @@ export const OrderDetailCard = ({
               </>
             )}
             <div>
-              <dt>Created</dt>
+              <dt>{t('orders.detail.created')}</dt>
               <dd>{formatDateTime(sale.createdAt)}</dd>
             </div>
             <div>
-              <dt>{isSaleCard ? 'Created order' : 'Manager'}</dt>
+              <dt>
+                {isSaleCard
+                  ? t('orders.detail.createdOrder')
+                  : t('orders.detail.manager')}
+              </dt>
               <dd>{sale.manager?.name || '-'}</dd>
             </div>
             {isSaleCard ? null : (
               <div>
-                <dt>Master</dt>
+                <dt>{t('orders.detail.master')}</dt>
                 <dd>
                   <select
                     className='order-detail-master-select'
                     value={masterIdInput}
                     onChange={(event) => setMasterIdInput(event.target.value)}
                   >
-                    <option value=''>Select master</option>
+                    <option value=''>{t('orders.detail.selectMaster')}</option>
                     {masterOptions.map((employee) => (
                       <option key={employee.id} value={employee.id}>
                         {employee.name}
@@ -830,19 +858,19 @@ export const OrderDetailCard = ({
             )}
             {isSaleCard ? (
               <div>
-                <dt>Issued order</dt>
+                <dt>{t('orders.detail.issuedOrder')}</dt>
                 <dd>{sale.issuedBy?.name || '-'}</dd>
               </div>
             ) : (
               <div>
-                <dt>Issued</dt>
+                <dt>{t('orders.detail.issued')}</dt>
                 <dd>{sale.issuedBy?.name || '-'}</dd>
               </div>
             )}
             {isSaleCard ? (
               <div className='order-detail-notes-row'>
-                <dt>Notes</dt>
-                <dd>{sale.note || 'No notes for this sale yet.'}</dd>
+                <dt>{t('orders.detail.notes')}</dt>
+                <dd>{sale.note || t('orders.detail.noNotesSale')}</dd>
               </div>
             ) : null}
             {isMainInfoDirty ? (
@@ -859,11 +887,7 @@ export const OrderDetailCard = ({
                     }
                     title={
                       isStatusDraftBlocked
-                        ? isSaleReturnStatusDraftBlocked
-                          ? 'Return products to stock and refund client payment first.'
-                          : isRepairIssuedDraftBlockedByPayment
-                            ? 'Accept full payment before issuing attached products.'
-                            : 'Refund client payment for bound products and return them to stock first.'
+                        ? getStatusDraftBlockedReason()
                         : undefined
                     }
                     onClick={async () => {
@@ -880,7 +904,9 @@ export const OrderDetailCard = ({
                       }
                     }}
                   >
-                    {isSavingMainInfo ? 'Saving...' : 'Save changes'}
+                    {isSavingMainInfo
+                      ? t('orders.payment.saving')
+                      : t('orders.detail.saveChanges')}
                   </button>
                 </dd>
               </div>
@@ -889,7 +915,7 @@ export const OrderDetailCard = ({
         </section>
 
         <section className='order-detail-panel order-detail-live-panel'>
-          <h3>Live feed</h3>
+          <h3>{t('orders.detail.liveFeed')}</h3>
           <div className='order-timeline'>
             <div className='order-timeline-list'>
             {timelineItems.map((item, index) => (
@@ -914,7 +940,7 @@ export const OrderDetailCard = ({
             </div>
             <div className='order-timeline-composer'>
             <textarea
-              placeholder='Comment'
+              placeholder={t('orders.detail.comment')}
               rows={2}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
@@ -926,7 +952,7 @@ export const OrderDetailCard = ({
               onClick={submitComment}
               disabled={!comment.trim() || isCommentComposerDisabled}
             >
-              Add
+              {t('orders.detail.add')}
             </button>
             </div>
           </div>
@@ -941,14 +967,13 @@ export const OrderDetailCard = ({
             }}
             aria-expanded={isProductsOpen}
           >
-            <span>Products</span>
+            <span>{t('orders.detail.products')}</span>
             <span className='order-detail-collapse-icon'>
               {isProductsOpen ? '⌃' : '⌄'}
             </span>
           </button>
           {isProductsOpen ? (
             <LineItemsPanel
-              title='Products'
               kind='product'
               sales={sales}
               currentSaleId={sale.id}
@@ -984,14 +1009,13 @@ export const OrderDetailCard = ({
             }}
             aria-expanded={isServicesOpen}
           >
-            <span>Services</span>
+            <span>{t('orders.detail.services')}</span>
             <span className='order-detail-collapse-icon'>
               {isServicesOpen ? '⌃' : '⌄'}
             </span>
           </button>
           {isServicesOpen ? (
             <LineItemsPanel
-              title='Services'
               kind='service'
               sales={sales}
               currentSaleId={sale.id}
@@ -1019,16 +1043,16 @@ export const OrderDetailCard = ({
         </section>
 
         <section className='order-detail-panel order-detail-payment-panel'>
-          <h3>Payment</h3>
+          <h3>{t('orders.detail.payment')}</h3>
           <dl className='order-payment-list'>
             <div>
-              <dt>Repair cost</dt>
+              <dt>{t('orders.payment.repairCost')}</dt>
               <dd>{formatCurrency(total)}</dd>
             </div>
             <div>
               <dt>
                 <span className='payment-summary-discount-label'>
-                  Discount
+                  {t('orders.payment.discount')}
                   <span className='payment-summary-discount-badge'>
                     {discount.mode === 'percent' ? '%' : '₴'}
                   </span>
@@ -1078,7 +1102,7 @@ export const OrderDetailCard = ({
                           : discount.value,
                       });
                     }}
-                    aria-label='Toggle discount mode'
+                    aria-label={t('orders.payment.toggleDiscountMode')}
                     disabled={isReadOnly}
                   >
                     {discount.mode === 'percent' ? '%' : '₴'}
@@ -1087,11 +1111,11 @@ export const OrderDetailCard = ({
               </dd>
             </div>
             <div>
-              <dt>Paid</dt>
+              <dt>{t('orders.payment.paid')}</dt>
               <dd>{formatCurrency(paidAmount)}</dd>
             </div>
             <div>
-              <dt>To pay</dt>
+              <dt>{t('orders.payment.toPay')}</dt>
               <dd>{formatCurrency(remainingPayment)}</dd>
             </div>
           </dl>
@@ -1105,7 +1129,9 @@ export const OrderDetailCard = ({
             }}
             disabled={remainingPayment <= 0 || isReadOnly || !canAcceptPayment}
           >
-            {remainingPayment <= 0 ? 'Paid' : 'Accept payment'}
+            {remainingPayment <= 0
+              ? t('orders.payment.paid')
+              : t('orders.payment.acceptPayment')}
           </button>
           {paidAmount > 0 ? (
             <button
@@ -1114,15 +1140,15 @@ export const OrderDetailCard = ({
               onClick={onRefundPayment}
               disabled={!canRefundPayment || (isReadOnly && status !== 'issued')}
             >
-              Refund to client
+              {t('orders.payment.refundToClient')}
             </button>
           ) : null}
         </section>
 
         {!isSaleCard ? (
           <section className='order-detail-panel order-detail-note'>
-            <h3>Notes</h3>
-            <p>{sale.note || 'No notes for this order yet.'}</p>
+            <h3>{t('orders.detail.notes')}</h3>
+            <p>{sale.note || t('orders.detail.noNotesOrder')}</p>
           </section>
         ) : null}
 
@@ -1139,14 +1165,14 @@ export const OrderDetailCard = ({
                 }
                 onClick={() => setRelatedTab(tab.key)}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
           <div className='order-related-list'>
             {relatedTab === 'supplierOrders' ? (
               relatedSupplierOrderItems.length === 0 ? (
-                <p>No supplier orders linked to this sale.</p>
+                <p>{t('orders.detail.noSupplierOrdersLinked')}</p>
               ) : (
                 relatedSupplierOrderItems.map(({ order, item }) => {
                   return (
@@ -1183,25 +1209,25 @@ export const OrderDetailCard = ({
             ) : relatedTab === 'supplierInformation' ? (
               <dl className='order-payment-list order-related-stats-list'>
                 <div>
-                  <dt>Orders (sales)</dt>
+                  <dt>{t('orders.detail.stats.ordersSales')}</dt>
                   <dd>
                     {clientStats.salesCount} | {formatCurrency(clientStats.salesAmount)}
                   </dd>
                 </div>
                 <div>
-                  <dt>Repair orders</dt>
+                  <dt>{t('orders.detail.stats.repairOrders')}</dt>
                   <dd>
                     {clientStats.repairsCount} | {formatCurrency(clientStats.repairsAmount)}
                   </dd>
                 </div>
                 <div>
-                  <dt>Total</dt>
+                  <dt>{t('orders.detail.stats.total')}</dt>
                   <dd>
                     {clientStats.totalCount} | {formatCurrency(clientStats.totalAmount)}
                   </dd>
                 </div>
                 <div>
-                  <dt>First contact</dt>
+                  <dt>{t('orders.detail.stats.firstContact')}</dt>
                   <dd>
                     {clientStats.firstContactAt
                       ? formatReadyDate(clientStats.firstContactAt)
@@ -1209,7 +1235,7 @@ export const OrderDetailCard = ({
                   </dd>
                 </div>
                 <div>
-                  <dt>Last contact</dt>
+                  <dt>{t('orders.detail.stats.lastContact')}</dt>
                   <dd>
                     {clientStats.lastContactAt
                       ? formatReadyDate(clientStats.lastContactAt)
@@ -1220,8 +1246,8 @@ export const OrderDetailCard = ({
             ) : relatedVisibleRecords.length === 0 ? (
               <p>
                 {relatedTab === 'orders'
-                  ? 'No orders for this client.'
-                  : 'No sales for this client.'}
+                  ? t('orders.detail.noOrdersForClient')
+                  : t('orders.detail.noSalesForClient')}
               </p>
             ) : (
               relatedVisibleRecords.map((record) => (
@@ -1244,7 +1270,7 @@ export const OrderDetailCard = ({
                   }}
                 >
                   <span>{buildOrderNumber(record)}</span>
-                  <strong>{getSaleProductName(record, 'Product')}</strong>
+                  <strong>{getSaleProductName(record, t('orders.fallbacks.product'))}</strong>
                   <span>{formatCurrency(getOrderTotal(record))}</span>
                   <span>{formatReadyDate(record.createdAt)}</span>
                 </a>
@@ -1267,35 +1293,35 @@ export const OrderDetailCard = ({
             className='catalog-edit-modal order-device-change-modal'
             role='dialog'
             aria-modal='true'
-            aria-label='Change device'
+            aria-label={t('orders.detail.changeDevice')}
           >
             <header className='catalog-edit-header'>
               <div className='catalog-edit-title'>
-                <h2>Change device</h2>
+                <h2>{t('orders.detail.deviceModal.title')}</h2>
               </div>
               <button
                 type='button'
                 className='create-order-close'
                 onClick={() => setIsDeviceModalOpen(false)}
-                aria-label='Close'
+                aria-label={t('orders.detail.close')}
               >
                 &times;
               </button>
             </header>
             <div className='catalog-edit-body order-device-change-body'>
               <label className='field field-wide'>
-                <span>Find device</span>
+                <span>{t('orders.detail.deviceModal.findDevice')}</span>
                 <input
                   value={deviceSearch}
                   onChange={(event) => setDeviceSearch(event.target.value)}
-                  placeholder='Search client devices'
+                  placeholder={t('orders.detail.deviceModal.searchClientDevices')}
                 />
               </label>
               <div className='order-device-options' role='list'>
                 {isDeviceLookupLoading ? (
-                  <p>Searching devices...</p>
+                  <p>{t('orders.detail.deviceModal.searchingDevices')}</p>
                 ) : clientDeviceOptions.length === 0 ? (
-                  <p>No active client devices found.</p>
+                  <p>{t('orders.detail.deviceModal.noActiveDevices')}</p>
                 ) : (
                   clientDeviceOptions.map((device) => (
                     <button
@@ -1311,11 +1337,11 @@ export const OrderDetailCard = ({
                 )}
               </div>
               <label className='field field-wide'>
-                <span>New device</span>
+                <span>{t('orders.detail.deviceModal.newDevice')}</span>
                 <input
                   value={newDeviceName}
                   onChange={(event) => setNewDeviceName(event.target.value)}
-                  placeholder='Device name'
+                  placeholder={t('orders.detail.deviceModal.deviceName')}
                 />
               </label>
               <label className='create-inline-checkbox order-device-clear-serial'>
@@ -1326,7 +1352,7 @@ export const OrderDetailCard = ({
                     setClearSerialOnDeviceApply(event.target.checked)
                   }
                 />
-                <span>Clear S/N for this order</span>
+                <span>{t('orders.detail.deviceModal.clearSerial')}</span>
               </label>
             </div>
             <footer className='catalog-edit-footer'>
@@ -1335,7 +1361,7 @@ export const OrderDetailCard = ({
                 className='secondary-button'
                 onClick={() => setIsDeviceModalOpen(false)}
               >
-                Cancel
+                {t('orders.detail.cancel')}
               </button>
               <button
                 type='button'
@@ -1343,7 +1369,9 @@ export const OrderDetailCard = ({
                 disabled={isCreatingDevice || !canCreateDevice}
                 onClick={() => void createAndApplyDevice()}
               >
-                {isCreatingDevice ? 'Creating...' : 'Create and apply'}
+                {isCreatingDevice
+                  ? t('orders.detail.creating')
+                  : t('orders.detail.createAndApply')}
               </button>
             </footer>
           </section>
@@ -1377,7 +1405,7 @@ export const OrderDetailCard = ({
             onError(
               error instanceof Error
                 ? error.message
-                : 'Failed to create supplier.',
+                : t('orders.messages.errors.failedCreateSupplier'),
             );
             return false;
           }
@@ -1407,7 +1435,7 @@ export const OrderDetailCard = ({
             warehouseId,
             locationId,
           });
-          onSuccess('Order taken on charge.');
+          onSuccess(t('orders.messages.success.takenOnCharge'));
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await onSupplierOrderCreated();
@@ -1426,7 +1454,7 @@ export const OrderDetailCard = ({
           try {
             if (relatedSupplierOrderSource.items.length <= 1) {
               await cancelSupplierOrder(relatedSupplierOrderSource.id);
-              onSuccess('Order cancelled.');
+              onSuccess(t('orders.messages.success.orderCancelled'));
             } else {
               const nextItems = relatedSupplierOrderSource.items
                 .filter(
@@ -1455,7 +1483,7 @@ export const OrderDetailCard = ({
                   relatedSupplierOrderSource.paymentStatus,
                 items: nextItems,
               });
-              onSuccess('Supplier order item removed.');
+              onSuccess(t('orders.messages.success.supplierItemRemoved'));
             }
             await onSupplierOrderCreated();
             setIsRelatedSupplierOrderModalOpen(false);
@@ -1465,7 +1493,7 @@ export const OrderDetailCard = ({
             onError(
               error instanceof Error
                 ? error.message
-                : 'Failed to remove supplier order.',
+                : t('orders.messages.errors.failedRemoveSupplierOrder'),
             );
           }
         }}
@@ -1497,7 +1525,7 @@ export const OrderDetailCard = ({
             paymentStatus: relatedSupplierOrderSource.paymentStatus,
             items: mergedItems,
           });
-          onSuccess('Supplier order updated.');
+          onSuccess(t('orders.messages.success.supplierOrderUpdated'));
           await onSupplierOrderCreated();
         }}
       />
@@ -1506,7 +1534,6 @@ export const OrderDetailCard = ({
 };
 
 type LineItemsPanelProps = {
-  title: string;
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
@@ -1555,7 +1582,6 @@ type ProductEntrySuggestion =
   | { type: 'stock'; product: Product };
 
 const LineItemsPanel = ({
-  title,
   kind,
   sales,
   currentSaleId,
@@ -1579,6 +1605,8 @@ const LineItemsPanel = ({
   onError,
   onSuccess,
 }: LineItemsPanelProps) => {
+  const { t } = useTranslation();
+  const warrantyOptions = getWarrantyOptions();
   const isProductKind = kind === 'product';
 
   const [name, setName] = useState('');
@@ -1728,7 +1756,7 @@ const LineItemsPanel = ({
   }, [isProductKind, currentSaleId, sales, serialsEditingItem]);
   const getProductSuggestionState = useCallback(
     (product: Product): ProductSerialAvailability => {
-      if (!isProductKind) return { label: '', selectable: true };
+      if (!isProductKind) return { labelKey: 'orders.serialAvailability.free', selectable: true };
       return getProductSerialAvailability(product, serialUsage);
     },
     [isProductKind, serialUsage],
@@ -1762,18 +1790,18 @@ const LineItemsPanel = ({
       isIssuedSale &&
       (item.serialNumbers ?? []).length === 0
     ) {
-      return 'Bind sold serial number before stock return.';
+      return t('orders.messages.errors.bindSerialBeforeReturnDetail');
     }
     if (isReadOnly) {
-      return 'Use Return flow for shipped serialized product.';
+      return t('orders.messages.errors.useReturnFlow');
     }
     if (!canRemoveItemAfterPayment(item)) {
-      return 'Refund the line item amount before removing it.';
+      return t('orders.messages.errors.refundBeforeRemoveItem');
     }
     if ((item.serialNumbers ?? []).length > 0) {
-      return 'Unbind serial numbers before removing this product.';
+      return t('orders.messages.errors.unbindSerialsFirst');
     }
-    return 'Action is unavailable for this item.';
+    return t('orders.messages.errors.actionUnavailable');
   };
 
   const openSupplierOrderModalForSerialItem = async () => {
@@ -1791,7 +1819,7 @@ const LineItemsPanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to load suppliers.',
+          : t('orders.messages.errors.failedLoadSuppliers'),
       );
     } finally {
       setIsSuppliersLoading(false);
@@ -1809,7 +1837,7 @@ const LineItemsPanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to create supplier.',
+          : t('orders.messages.errors.failedCreateSupplier'),
       );
       return false;
     }
@@ -1828,7 +1856,7 @@ const LineItemsPanel = ({
         currentSaleRecordNumber ?? currentSaleId,
         currentClientId,
       ),
-      createdBy: 'Administrator',
+      createdBy: t('common.administrator'),
       orderBaseId: `SO-${Date.now()}`,
       status: 'request',
       paymentStatus: 'pending',
@@ -1836,9 +1864,7 @@ const LineItemsPanel = ({
     };
     await createSupplierOrder(createPayload);
     await onSupplierOrderCreated();
-    onSuccess(
-      'Supplier order created with status New and added to Supplier Order tab.',
-    );
+    onSuccess(t('orders.messages.success.supplierOrderCreated'));
   };
 
   useEffect(() => {
@@ -2049,7 +2075,11 @@ const LineItemsPanel = ({
     const { product } = suggestion;
     const state = getProductSuggestionState(product);
     if (!state.selectable) {
-      onError(`Product cannot be selected: ${state.label}.`);
+      onError(
+        t('orders.messages.errors.productNotSelectable', {
+          reason: t(state.labelKey),
+        }),
+      );
       return;
     }
     const suggestedPrice =
@@ -2075,7 +2105,12 @@ const LineItemsPanel = ({
       setSelectedProductId(undefined);
       setSelectedCatalogProductId(undefined);
       setProductSuggestions([]);
-      onSuccess(`Product "${product.name}" with S/N ${serial} added.`);
+      onSuccess(
+        t('orders.messages.success.productWithSerialAdded', {
+          name: product.name,
+          serial,
+        }),
+      );
       return;
     }
 
@@ -2109,12 +2144,12 @@ const LineItemsPanel = ({
       setSelectedServiceId(createdService.id);
       setServiceSuggestions([createdService]);
       setIsCreateServiceOpen(false);
-      onSuccess('Service saved to catalog.');
+      onSuccess(t('orders.messages.success.serviceSaved'));
     } catch (error) {
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to save service.',
+          : t('orders.messages.errors.failedSaveService'),
       );
     } finally {
       setIsCreateServiceSaving(false);
@@ -2146,7 +2181,7 @@ const LineItemsPanel = ({
         services.find((candidate) => candidate.name === item.name) ??
         null;
       if (!service) {
-        onError('Service was not found in catalog.');
+        onError(t('orders.messages.errors.serviceNotFound'));
         return;
       }
       setSelectedService(service);
@@ -2155,7 +2190,7 @@ const LineItemsPanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to load catalog item.',
+          : t('orders.messages.errors.failedLoadCatalogItem'),
       );
     }
   };
@@ -2177,13 +2212,13 @@ const LineItemsPanel = ({
         price: updatedService.price,
         warrantyPeriod: 1,
       });
-      onSuccess('Service updated.');
+      onSuccess(t('orders.messages.success.serviceUpdated'));
       setSelectedService(null);
     } catch (error) {
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to update service.',
+          : t('orders.messages.errors.failedUpdateService'),
       );
     } finally {
       setIsCatalogSaving(false);
@@ -2229,12 +2264,12 @@ const LineItemsPanel = ({
         );
         nextServiceId = createdService.id;
         setServiceSuggestions([createdService]);
-        onSuccess('Service saved to catalog.');
+        onSuccess(t('orders.messages.success.serviceSaved'));
       } catch (error) {
         onError(
           error instanceof Error
             ? error.message
-            : 'Failed to save service.',
+            : t('orders.messages.errors.failedSaveService'),
         );
         return;
       }
@@ -2273,9 +2308,7 @@ const LineItemsPanel = ({
       selectedProductSerial &&
       normalizedQuantity > 1
     ) {
-      onError(
-        'Serialized products are sold one serial per line. Add each serial separately.',
-      );
+      onError(t('orders.messages.errors.oneSerialPerLineAddSeparately'));
       return;
     }
 
@@ -2339,16 +2372,32 @@ const LineItemsPanel = ({
         className='order-detail-table order-detail-table-wide'
         style={{ gridTemplateColumns }}
       >
-        <div className="order-detail-table-header">Name</div>
+        <div className="order-detail-table-header">
+          {t('orders.detail.lineItems.name')}
+        </div>
         {showSerialColumn ? (
-          <div className="order-detail-table-header">Serial number</div>
+          <div className="order-detail-table-header">
+            {t('orders.detail.lineItems.serialNumber')}
+          </div>
         ) : null}
-        <div className="order-detail-table-header">Price</div>
-        <div className="order-detail-table-header">Qty</div>
-        <div className="order-detail-table-header">Warranty</div>
-        <div className="order-detail-table-header">Action</div>
+        <div className="order-detail-table-header">
+          {t('orders.detail.lineItems.price')}
+        </div>
+        <div className="order-detail-table-header">
+          {t('orders.detail.lineItems.qty')}
+        </div>
+        <div className="order-detail-table-header">
+          {t('orders.detail.lineItems.warranty')}
+        </div>
+        <div className="order-detail-table-header">
+          {t('orders.detail.lineItems.action')}
+        </div>
         {items.length === 0 ? (
-          <div className='order-line-items-empty'>{`No ${title.toLowerCase()} added.`}</div>
+          <div className='order-line-items-empty'>
+            {isProductKind
+              ? t('orders.detail.lineItems.noProductsAdded')
+              : t('orders.detail.lineItems.noServicesAdded')}
+          </div>
         ) : (
           items.map((item, itemIndex) => {
             const isLastRow = itemIndex === items.length - 1;
@@ -2439,9 +2488,7 @@ const LineItemsPanel = ({
                       item.kind === 'product' &&
                       (item.serialNumbers ?? []).length > 0
                     ) {
-                      onError(
-                        'Serialized products are sold one serial per line. Add another serial instead.',
-                      );
+                      onError(t('orders.messages.errors.oneSerialPerLine'));
                       return;
                     }
                     onUpdateItem(item.id, undefined, {
@@ -2471,7 +2518,7 @@ const LineItemsPanel = ({
                 >
                   {warrantyOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </option>
                   ))}
                 </select>
@@ -2493,16 +2540,16 @@ const LineItemsPanel = ({
                     : !canRemoveService;
                   const actionLabel = isProduct
                     ? canReturnIssued
-                      ? 'Return'
-                      : 'Remove'
-                    : 'Remove';
+                      ? t('orders.detail.lineItems.return')
+                      : t('orders.detail.lineItems.remove')
+                    : t('orders.detail.lineItems.remove');
                   const actionBlockedReason =
                     isProduct && actionDisabled
                       ? getProductActionBlockedReason(item)
                       : !isProduct && actionDisabled
                         ? isReadOnly
-                          ? 'Editing is blocked for current order status.'
-                          : 'Refund the line item amount before removing it.'
+                          ? t('orders.messages.errors.editingBlocked')
+                          : t('orders.messages.errors.refundBeforeRemoveItem')
                         : '';
                   return (
                     <>
@@ -2520,10 +2567,10 @@ const LineItemsPanel = ({
                     title={
                       canOpenSerials
                         ? undefined
-                        : 'Editing is blocked for current order status.'
+                        : t('orders.messages.errors.editingBlocked')
                     }
                   >
-                    <span>{'Serials '}</span>
+                    <span>{t('orders.detail.lineItems.serials')}</span>
                     <span className='line-item-serials-count'>
                       {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
                     </span>
@@ -2569,7 +2616,11 @@ const LineItemsPanel = ({
               setSelectedProductId(undefined);
               setSelectedCatalogProductId(undefined);
             }}
-            placeholder={`Add ${kind}`}
+            placeholder={
+              isProductKind
+                ? t('orders.detail.lineItems.addProductPlaceholder')
+                : t('orders.detail.lineItems.addServicePlaceholder')
+            }
             disabled={isReadOnly}
           />
           <NumberStepper
@@ -2578,14 +2629,14 @@ const LineItemsPanel = ({
             precision={2}
             value={price}
             onChange={setPrice}
-            placeholder='Price'
+            placeholder={t('orders.detail.lineItems.price')}
             disabled={isReadOnly}
           />
           <NumberStepper
             min={1}
             value={quantity}
             onChange={setQuantity}
-            placeholder='Qty'
+            placeholder={t('orders.detail.lineItems.qty')}
             disabled={isReadOnly}
           />
           <select
@@ -2595,7 +2646,7 @@ const LineItemsPanel = ({
           >
             {warrantyOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
@@ -2605,21 +2656,26 @@ const LineItemsPanel = ({
             onClick={() => void submitItem()}
             disabled={isReadOnly}
           >
-            Add {kind}
+            {isProductKind
+              ? t('orders.detail.lineItems.addProduct')
+              : t('orders.detail.lineItems.addService')}
           </button>
         </div>
         {kind === 'product' &&
         (productSuggestions.length > 0 || isProductLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>
             {isProductLookupLoading ? (
-              <p>Searching products...</p>
+              <p>{t('orders.detail.lineItems.searchingProducts')}</p>
             ) : null}
             {productSuggestions.map((suggestion) => {
               const isStockSuggestion = suggestion.type === 'stock';
               const product = isStockSuggestion ? suggestion.product : null;
               const state = product
                 ? getProductSuggestionState(product)
-                : { selectable: true, label: 'Product List' };
+                : {
+                    selectable: true,
+                    labelKey: 'orders.detail.lineItems.productList',
+                  };
               const suggestionKey =
                 suggestion.type === 'catalog'
                   ? `catalog-${suggestion.catalogProduct.id}`
@@ -2630,8 +2686,8 @@ const LineItemsPanel = ({
                   : suggestion.product.name;
               const suggestionDetails =
                 suggestion.type === 'catalog'
-                  ? `${formatCurrency(suggestion.price)} / Product List`
-                  : `${formatCurrency(suggestion.product.salePriceOptions[0] ?? suggestion.product.price ?? 0)} / ${suggestion.product.article} / ${suggestion.product.serialNumber} / ${state.label}`;
+                  ? `${formatCurrency(suggestion.price)} / ${t('orders.detail.lineItems.productList')}`
+                  : `${formatCurrency(suggestion.product.salePriceOptions[0] ?? suggestion.product.price ?? 0)} / ${suggestion.product.article} / ${suggestion.product.serialNumber} / ${t(state.labelKey)}`;
               return (
                 <button
                   key={suggestionKey}
@@ -2643,7 +2699,7 @@ const LineItemsPanel = ({
                   }}
                   onClick={() => applyProductSuggestion(suggestion)}
                   disabled={isReadOnly || !state.selectable}
-                  title={state.selectable ? undefined : state.label}
+                  title={state.selectable ? undefined : t(state.labelKey)}
                 >
                   <strong>{suggestionName}</strong>
                   <span>{suggestionDetails}</span>
@@ -2656,7 +2712,7 @@ const LineItemsPanel = ({
         (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>
             {isServiceLookupLoading ? (
-              <p>Searching services...</p>
+              <p>{t('orders.detail.lineItems.searchingServices')}</p>
             ) : null}
             {serviceSuggestions.map((service) => (
               <button
@@ -2679,13 +2735,13 @@ const LineItemsPanel = ({
             onClick={openCreateServiceModal}
             disabled={isReadOnly}
           >
-            Add service
+            {t('orders.detail.lineItems.addServiceButton')}
           </button>
         ) : null}
       </div>
       {isCreateServiceOpen ? (
         <CatalogServiceEditorModal
-          title='Create service'
+          title={t('orders.detail.lineItems.createService')}
           form={createServiceForm}
           isSaving={isCreateServiceSaving}
           isEditing
@@ -2746,8 +2802,12 @@ const LineItemsPanel = ({
         >
           <section className='payment-modal payment-modal-message serial-bind-modal'>
             <div className='serial-bind-modal-scroll'>
-              <h3>Bind serial numbers</h3>
-              <p>{`Select up to ${serialsEditingItem.quantity} serials.`}</p>
+              <h3>{t('orders.detail.lineItems.bindSerialNumbers')}</h3>
+              <p>
+                {t('orders.detail.lineItems.selectSerialsUpTo', {
+                  count: serialsEditingItem.quantity,
+                })}
+              </p>
               <div className='modal-actions'>
                 <button
                   type='button'
@@ -2766,16 +2826,16 @@ const LineItemsPanel = ({
                     availableSerialProducts.length === 0
                   }
                 >
-                  Auto-select oldest
+                  {t('orders.detail.lineItems.autoSelectOldest')}
                 </button>
               </div>
               <div className='create-suggestions line-item-suggestions'>
                 {isSerialLookupLoading ? (
-                  <p>Loading available serials...</p>
+                  <p>{t('orders.detail.lineItems.loadingAvailableSerials')}</p>
                 ) : null}
                 {!isSerialLookupLoading &&
                 availableSerialProducts.length === 0 ? (
-                  <p>No available serials found in stock.</p>
+                  <p>{t('orders.detail.lineItems.noAvailableSerials')}</p>
                 ) : null}
                 {availableSerialProducts.map((product) => {
                   const serial = normalizeSerialNumber(product.serialNumber);
@@ -2795,7 +2855,7 @@ const LineItemsPanel = ({
                           nextSet.add(serial);
                         } else {
                           onError(
-                            'Serial count cannot exceed line quantity.',
+                            t('orders.messages.errors.serialCountExceedsQty'),
                           );
                           return;
                         }
@@ -2807,9 +2867,11 @@ const LineItemsPanel = ({
                         {serial}
                       </strong>
                       <span>
-                        {`Date: ${formatDateTime(
-                          product.purchaseDate ?? product.createdAt,
-                        )}`}
+                        {t('orders.detail.lineItems.dateLabel', {
+                          date: formatDateTime(
+                            product.purchaseDate ?? product.createdAt,
+                          ),
+                        })}
                       </span>
                     </button>
                   );
@@ -2817,13 +2879,17 @@ const LineItemsPanel = ({
               </div>
               {selectedSerials.length > 0 ? (
                 <div className='modal-actions'>
-                  <span>{`Selected: ${selectedSerials.length}`}</span>
+                  <span>
+                    {t('orders.detail.lineItems.selectedCount', {
+                      count: selectedSerials.length,
+                    })}
+                  </span>
                   <button
                     type='button'
                     className='secondary-button'
                     onClick={() => setSerialsInput('')}
                   >
-                    Clear selected
+                    {t('orders.detail.lineItems.clearSelected')}
                   </button>
                 </div>
               ) : null}
@@ -2846,7 +2912,7 @@ const LineItemsPanel = ({
                           )
                         }
                       >
-                        Remove
+                        {t('orders.detail.lineItems.remove')}
                       </button>
                     </div>
                   ))}
@@ -2860,14 +2926,16 @@ const LineItemsPanel = ({
                 onClick={() => void openSupplierOrderModalForSerialItem()}
                 disabled={isSuppliersLoading}
               >
-                {isSuppliersLoading ? 'Loading...' : 'Order'}
+                {isSuppliersLoading
+                  ? t('orders.detail.lineItems.loading')
+                  : t('orders.detail.lineItems.order')}
               </button>
               <button
                 type='button'
                 className='secondary-button'
                 onClick={() => setSerialsEditingItem(null)}
               >
-                Cancel
+                {t('orders.detail.cancel')}
               </button>
               <button
                 type='button'
@@ -2879,7 +2947,7 @@ const LineItemsPanel = ({
                     serialsEditingItem.quantity
                   ) {
                     onError(
-                      'Serial count cannot exceed line quantity.',
+                      t('orders.messages.errors.serialCountExceedsQty'),
                     );
                     return;
                   }
@@ -2888,7 +2956,9 @@ const LineItemsPanel = ({
                   );
                   if (conflictingSerials.length > 0) {
                     onError(
-                      `Serial already linked to another order: ${conflictingSerials.join(', ')}.`,
+                      t('orders.messages.errors.serialAlreadyLinked', {
+                        serials: conflictingSerials.join(', '),
+                      }),
                     );
                     return;
                   }
@@ -2905,7 +2975,9 @@ const LineItemsPanel = ({
                     .map(({ serial }) => serial);
                   if (missingSerials.length > 0) {
                     onError(
-                      `Serial was not found in stock: ${missingSerials.join(', ')}.`,
+                      t('orders.messages.errors.serialNotInStock', {
+                        serials: missingSerials.join(', '),
+                      }),
                     );
                     return;
                   }
@@ -2923,7 +2995,9 @@ const LineItemsPanel = ({
                     .map(({ serial }) => serial);
                   if (unavailableSerials.length > 0) {
                     onError(
-                      `Serial has no free stock: ${unavailableSerials.join(', ')}.`,
+                      t('orders.messages.errors.serialNoFreeStock', {
+                        serials: unavailableSerials.join(', '),
+                      }),
                     );
                     return;
                   }
@@ -2954,7 +3028,7 @@ const LineItemsPanel = ({
                             }),
                       })),
                     );
-                    onSuccess('Serial numbers updated.');
+                    onSuccess(t('orders.messages.success.serialsUpdated'));
                     setSerialsEditingItem(null);
                     return;
                   }
@@ -2972,11 +3046,11 @@ const LineItemsPanel = ({
                       serialNumbers: uniqueSerials,
                     },
                   );
-                  onSuccess('Serial numbers updated.');
+                  onSuccess(t('orders.messages.success.serialsUpdated'));
                   setSerialsEditingItem(null);
                 }}
               >
-                Save
+                {t('orders.detail.lineItems.save')}
               </button>
             </div>
           </section>
@@ -3023,6 +3097,7 @@ const CatalogServiceEditorModal = ({
   onSubmit,
   onClose,
 }: CatalogServiceEditorModalProps) => {
+  const { t } = useTranslation();
   useLockBodyScroll();
 
   return (
@@ -3040,22 +3115,26 @@ const CatalogServiceEditorModal = ({
       >
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
-            <span>{service ? 'Service' : 'New service'}</span>
+            <span>
+              {service
+                ? t('orders.detail.serviceEditor.service')
+                : t('orders.detail.serviceEditor.newService')}
+            </span>
             <h2>{title}</h2>
           </div>
           <button
             type='button'
             className='create-order-close'
             onClick={onClose}
-            aria-label='Close'
+            aria-label={t('orders.detail.close')}
           >
             &times;
           </button>
         </header>
         <div className='catalog-edit-body'>
-          <h3>Main information</h3>
+          <h3>{t('orders.detail.mainInformation')}</h3>
           <label className='field'>
-            <span>Name</span>
+            <span>{t('orders.detail.lineItems.name')}</span>
             <input
               value={form.name}
               onChange={(event) =>
@@ -3064,16 +3143,18 @@ const CatalogServiceEditorModal = ({
             />
           </label>
           <fieldset className='catalog-type-field'>
-            <legend>Item type</legend>
+            <legend>{t('orders.detail.serviceEditor.itemType')}</legend>
             <label>
-              <input type='radio' disabled /> Product
+              <input type='radio' disabled />{' '}
+              {t('orders.detail.serviceEditor.product')}
             </label>
             <label>
-              <input type='radio' checked readOnly /> Service
+              <input type='radio' checked readOnly />{' '}
+              {t('orders.detail.serviceEditor.service')}
             </label>
           </fieldset>
           <label className='field'>
-            <span>Retail price</span>
+            <span>{t('orders.detail.serviceEditor.retailPrice')}</span>
             <NumberStepper
               min={0}
               step={0.01}
@@ -3083,7 +3164,7 @@ const CatalogServiceEditorModal = ({
             />
           </label>
           <label className='field field-wide'>
-            <span>Note</span>
+            <span>{t('orders.detail.serviceEditor.note')}</span>
             <textarea
               rows={3}
               value={form.note}
@@ -3099,7 +3180,7 @@ const CatalogServiceEditorModal = ({
             className='secondary-button'
             onClick={onClose}
           >
-            Cancel
+            {t('orders.detail.cancel')}
           </button>
           <button
             type='button'
@@ -3107,7 +3188,9 @@ const CatalogServiceEditorModal = ({
             onClick={onSubmit}
             disabled={isSaving || !isEditing}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving
+              ? t('orders.payment.saving')
+              : t('orders.detail.lineItems.save')}
           </button>
         </footer>
       </section>

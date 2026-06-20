@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
@@ -33,6 +34,7 @@ export const ProductModelModal = ({
   onClose,
   onSave,
 }: ProductModelModalProps) => {
+  const { t } = useTranslation();
   const matchingProducts = useMemo(
     () => getProductsByExactModelName(products, name),
     [name, products],
@@ -89,7 +91,7 @@ export const ProductModelModal = ({
   const copyName = async () => {
     try {
       await navigator.clipboard.writeText(name);
-      setCopyStatus('Copied');
+      setCopyStatus(t('catalog.productModel.copied'));
     } catch {
       const textarea = document.createElement('textarea');
       textarea.value = name;
@@ -100,7 +102,11 @@ export const ProductModelModal = ({
       textarea.select();
       const didCopy = document.execCommand('copy');
       textarea.remove();
-      setCopyStatus(didCopy ? 'Copied' : 'Copy failed');
+      setCopyStatus(
+        didCopy
+          ? t('catalog.productModel.copied')
+          : t('catalog.productModel.copyFailed'),
+      );
     }
   };
 
@@ -115,14 +121,11 @@ export const ProductModelModal = ({
           serialNumber: printProduct.serialNumber,
         },
       ],
-      'Warehouse serial number',
+      t('catalog.productModel.printSerialTitle'),
     );
   };
 
-  const renderSectionHeader = (
-    section: ProductModelSection,
-    label: string,
-  ) => {
+  const renderSectionHeader = (section: ProductModelSection) => {
     const isOpen = isSectionOpen(section);
 
     return (
@@ -132,7 +135,7 @@ export const ProductModelModal = ({
         onClick={() => toggleSection(section)}
         aria-expanded={isOpen}
       >
-        <span>{label}</span>
+        <span>{t(`catalog.productModel.sections.${section}`)}</span>
         <span aria-hidden='true'>{isOpen ? '^' : 'v'}</span>
       </button>
     );
@@ -150,7 +153,7 @@ export const ProductModelModal = ({
         className='catalog-edit-modal product-model-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Product model'
+        aria-label={t('catalog.productModel.ariaLabel')}
       >
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
@@ -158,9 +161,9 @@ export const ProductModelModal = ({
               type='button'
               className='product-model-copy-label'
               onClick={() => void copyName()}
-              title={copyStatus || 'Copy product name'}
+              title={copyStatus || t('catalog.productModel.copyProductName')}
             >
-              Product model
+              {t('catalog.productModel.title')}
             </button>
             <div className='product-model-title-row'>
               <h2>
@@ -168,7 +171,7 @@ export const ProductModelModal = ({
                   type='button'
                   className='product-model-title-button'
                   onClick={() => void copyName()}
-                  title={copyStatus || 'Copy product name'}
+                  title={copyStatus || t('catalog.productModel.copyProductName')}
                 >
                   {name}
                 </button>
@@ -177,10 +180,10 @@ export const ProductModelModal = ({
                 type='button'
                 className='product-model-copy-button'
                 onClick={() => void copyName()}
-                aria-label='Copy product name'
-                title={copyStatus || 'Copy product name'}
+                aria-label={t('catalog.productModel.copyProductName')}
+                title={copyStatus || t('catalog.productModel.copyProductName')}
               >
-                <span aria-hidden='true'>Copy</span>
+                <span aria-hidden='true'>{t('catalog.productModel.copy')}</span>
               </button>
               {copyStatus ? (
                 <span className='product-model-copy-tooltip'>
@@ -193,8 +196,8 @@ export const ProductModelModal = ({
                   className='toolbar-square-button order-print-icon-button product-model-print-button'
                   onClick={printSelectedSerialNumber}
                   disabled={!printProduct.serialNumber.trim()}
-                  aria-label='Print serial number'
-                  title='Print serial number'
+                  aria-label={t('catalog.productModel.printSerialNumber')}
+                  title={t('catalog.productModel.printSerialNumber')}
                 >
                   <PrinterIcon />
                 </button>
@@ -205,7 +208,7 @@ export const ProductModelModal = ({
             type='button'
             className='create-order-close'
             onClick={onClose}
-            aria-label='Close'
+            aria-label={t('catalog.modals.close')}
           >
             &times;
           </button>
@@ -214,19 +217,19 @@ export const ProductModelModal = ({
         <div className='catalog-edit-body'>
           {!hasStockRows ? (
             <p className='empty-state'>
-              No stock rows exist for this exact product name.
+              {t('catalog.productModel.noStockRows')}
             </p>
           ) : null}
 
-          {renderSectionHeader('main', 'MAIN INFORMATION')}
+          {renderSectionHeader('main')}
           {isSectionOpen('main') ? (
             <div className='product-model-section-body'>
               <label className='field'>
-                <span>Name</span>
+                <span>{t('catalog.productModel.name')}</span>
                 <input value={name} readOnly />
               </label>
               <label className='field'>
-                <span>Article</span>
+                <span>{t('catalog.productModel.article')}</span>
                 <input
                   value={form.article}
                   onChange={(event) =>
@@ -239,7 +242,7 @@ export const ProductModelModal = ({
                 />
               </label>
               <label className='field'>
-                <span>Note</span>
+                <span>{t('catalog.productModel.note')}</span>
                 <textarea
                   rows={3}
                   value={form.note}
@@ -255,12 +258,12 @@ export const ProductModelModal = ({
             </div>
           ) : null}
 
-          {renderSectionHeader('prices', 'PRICES')}
+          {renderSectionHeader('prices')}
           {isSectionOpen('prices') ? (
             <div className='product-model-section-body'>
               <div className='form-grid'>
                 <label className='field'>
-                  <span>Retail price</span>
+                  <span>{t('catalog.productModel.retailPrice')}</span>
                   <input
                     value={form.retailPrice}
                     onChange={(event) =>
@@ -273,7 +276,7 @@ export const ProductModelModal = ({
                   />
                 </label>
                 <label className='field'>
-                  <span>Wholesale price</span>
+                  <span>{t('catalog.productModel.wholesalePrice')}</span>
                   <input
                     value={form.wholesalePrice}
                     onChange={(event) =>
@@ -286,7 +289,7 @@ export const ProductModelModal = ({
                   />
                 </label>
                 <label className='field'>
-                  <span>Purchase price</span>
+                  <span>{t('catalog.productModel.purchasePrice')}</span>
                   <input
                     value={form.purchasePrice}
                     onChange={(event) =>
@@ -301,28 +304,29 @@ export const ProductModelModal = ({
               </div>
               {hasStockRows ? (
                 <p className='muted-copy'>
-                  {`Last batch price: ${formatCurrency(
-                    parseDecimal(form.purchasePrice) || 0,
-                  )}. Matching stock rows: ${matchingProducts.length}.`}
+                  {t('catalog.productModel.lastBatchPrice', {
+                    price: formatCurrency(parseDecimal(form.purchasePrice) || 0),
+                    count: matchingProducts.length,
+                  })}
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          {renderSectionHeader('stock', 'STOCK SUMMARY')}
+          {renderSectionHeader('stock')}
           {isSectionOpen('stock') ? (
             <div className='product-model-section-body'>
               <div className='product-model-summary'>
                 <div>
-                  <span>Total</span>
+                  <span>{t('catalog.productModel.total')}</span>
                   <strong>{totalStock}</strong>
                 </div>
                 <div>
-                  <span>Free</span>
+                  <span>{t('catalog.productModel.free')}</span>
                   <strong>{freeStock}</strong>
                 </div>
                 <div>
-                  <span>Reserved</span>
+                  <span>{t('catalog.productModel.reserved')}</span>
                   <strong>{reservedStock}</strong>
                 </div>
               </div>
@@ -330,17 +334,19 @@ export const ProductModelModal = ({
               <table className='catalog-table product-model-stock-table'>
                 <thead>
                   <tr>
-                    <th>Warehouse</th>
-                    <th>Location</th>
-                    <th>Total</th>
-                    <th>Free</th>
-                    <th>Reserved</th>
+                    <th>{t('catalog.productModel.warehouse')}</th>
+                    <th>{t('catalog.productModel.location')}</th>
+                    <th>{t('catalog.productModel.total')}</th>
+                    <th>{t('catalog.productModel.free')}</th>
+                    <th>{t('catalog.productModel.reserved')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stockSummary.length === 0 ? (
                     <tr>
-                      <td colSpan={5}>No stock rows.</td>
+                      <td colSpan={5}>
+                        {t('catalog.productModel.noStockRowsTable')}
+                      </td>
                     </tr>
                   ) : (
                     stockSummary.map((item) => (
@@ -366,7 +372,7 @@ export const ProductModelModal = ({
             onClick={onClose}
             disabled={isSaving}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type='button'
@@ -377,7 +383,9 @@ export const ProductModelModal = ({
             }}
             disabled={!hasStockRows || isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save model'}
+            {isSaving
+              ? t('catalog.productModel.saving')
+              : t('catalog.productModel.saveModel')}
           </button>
         </footer>
       </section>

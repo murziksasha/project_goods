@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ApiRequestError } from '../api/http';
+import i18n from '../i18n/config';
 
 export const isAxiosRequestError = (error: unknown) =>
   axios.isAxiosError(error) || error instanceof ApiRequestError;
@@ -40,14 +41,19 @@ export const getRequestErrorMessage = (
   fallback: string,
 ) => {
   if (isNetworkRequestError(error)) {
-    return 'No internet connection. Read-only mode is active until connection is restored.';
+    return i18n.t('errors.noInternet');
   }
 
   if (
     error instanceof Error &&
     error.message.trim().toLowerCase() === 'session not found.'
   ) {
-    return 'Session check failed. The app kept your workspace open; please retry the action.';
+    return i18n.t('errors.sessionCheckFailed');
+  }
+
+  if (error instanceof Error && error.message.trim().toLowerCase().includes('session')) {
+    // generic session messages
+    return i18n.t('errors.sessionExpired');
   }
 
   return error instanceof Error ? error.message : fallback;

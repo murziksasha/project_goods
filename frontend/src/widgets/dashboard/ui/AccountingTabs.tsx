@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AccountingTab } from '../model/accounting';
 
 type AccountingTabsProps = {
@@ -9,10 +10,10 @@ type AccountingTabsProps = {
 };
 
 const accountingTabs: Array<[AccountingTab, string]> = [
-  ['cashboxes', 'Cashboxes'],
-  ['transactions', 'Transactions'],
-  ['orders', 'Orders'],
-  ['reports', 'Information'],
+  ['cashboxes', 'accounting.tabs.cashboxes'],
+  ['transactions', 'accounting.tabs.transactions'],
+  ['orders', 'accounting.tabs.orders'],
+  ['reports', 'accounting.tabs.information'],
 ];
 
 export const AccountingTabs = ({
@@ -21,17 +22,20 @@ export const AccountingTabs = ({
   isFinanceSettingsOpen,
   onOpenSettings,
   onTabChange,
-}: AccountingTabsProps) => (
+}: AccountingTabsProps) => {
+  const { t } = useTranslation();
+
+  return (
   <div className='finance-tabs-row'>
-    <div className='orders-tabs' role='tablist' aria-label='Accounting sections'>
-      {accountingTabs.map(([key, label]) => (
+    <div className='orders-tabs' role='tablist' aria-label={t('accounting.tabs.ariaLabel')}>
+      {accountingTabs.map(([key, labelKey]) => (
         <button
           key={key}
           type='button'
           className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
           onClick={() => onTabChange(key)}
         >
-          {label}
+          {t(labelKey)}
         </button>
       ))}
     </div>
@@ -40,7 +44,7 @@ export const AccountingTabs = ({
         <button
           type='button'
           className='toolbar-square-button'
-          aria-label='Accounting settings'
+          aria-label={t('accounting.tabs.settingsAriaLabel')}
           aria-expanded={isFinanceSettingsOpen}
           onClick={onOpenSettings}
         >
@@ -56,4 +60,5 @@ export const AccountingTabs = ({
       </div>
     ) : null}
   </div>
-);
+  );
+};

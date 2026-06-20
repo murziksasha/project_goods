@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   createBackup,
   deleteBackup,
@@ -50,84 +51,90 @@ const CompanySettingsSection = ({
   form,
   validation,
   onChange,
-}: CompanySettingsSectionProps) => (
-  <section className="settings-section">
-    <div className="form-grid">
-      <label className="field field-wide">
-        <span>Service name in header</span>
-        <input
-          value={form.serviceName}
-          onChange={(event) => onChange('serviceName', event.target.value)}
-          placeholder="Service CRM"
-        />
-      </label>
-      <label className="field">
-        <span>Company name ({'{{company}}'})</span>
-        <input
-          value={form.company}
-          onChange={(event) => onChange('company', event.target.value)}
-          placeholder="Company name"
-          aria-invalid={!validation.isCompanyNameValid}
-        />
-        {!validation.isCompanyNameValid ? (
-          <small>Company name must be at least 2 characters.</small>
-        ) : null}
-      </label>
-      <label className="field">
-        <span>Company ID ({'{{company_id}}'})</span>
-        <input
-          value={form.companyId}
-          onChange={(event) => onChange('companyId', event.target.value)}
-          placeholder="Company registration ID"
-          aria-invalid={!validation.isCompanyIdValid}
-        />
-        {!validation.isCompanyIdValid ? (
-          <small>Company ID must be 8-12 characters (letters, digits, dash).</small>
-        ) : null}
-      </label>
-      <label className="field field-wide">
-        <span>Company address ({'{{company_address}}'})</span>
-        <input
-          value={form.companyAddress}
-          onChange={(event) => onChange('companyAddress', event.target.value)}
-          placeholder="Company address"
-          aria-invalid={!validation.isCompanyAddressValid}
-        />
-        {!validation.isCompanyAddressValid ? (
-          <small>Company address must be at least 5 characters.</small>
-        ) : null}
-      </label>
-      <label className="field field-wide">
-        <span>Company IBAN ({'{{company_iban}}'})</span>
-        <input
-          value={form.companyIban}
-          onChange={(event) => onChange('companyIban', event.target.value)}
-          placeholder="UA00 0000 0000 0000 0000 0000 0000 000"
-          aria-invalid={!validation.isCompanyIbanValid}
-        />
-        {!validation.isCompanyIbanValid ? (
-          <small>IBAN must match UA + 27 digits (spaces are allowed).</small>
-        ) : null}
-      </label>
-      <label className="field">
-        <span>Company e-mail ({'{{company_email}}'})</span>
-        <input
-          value={form.companyEmail}
-          onChange={(event) => onChange('companyEmail', event.target.value)}
-          placeholder="service@example.com"
-        />
-      </label>
-      <label className="field">
-        <span>Company site ({'{{company_site}}'})</span>
-        <input
-          value={form.companySite}
-          onChange={(event) => onChange('companySite', event.target.value)}
-          placeholder="https://example.com"
-        />
-      </label>
-    </div>
-  </section>
-);
+}: CompanySettingsSectionProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <section className="settings-section">
+      <div className="form-grid">
+        <label className="field field-wide">
+          <span>{t('settings.company.serviceNameInHeader')}</span>
+          <input
+            value={form.serviceName}
+            onChange={(event) => onChange('serviceName', event.target.value)}
+            placeholder={t('settings.company.serviceNamePlaceholder')}
+          />
+        </label>
+        <label className="field">
+          <span>{t('settings.company.companyName', { company: '{{company}}' })}</span>
+          <input
+            value={form.company}
+            onChange={(event) => onChange('company', event.target.value)}
+            placeholder={t('settings.company.companyNamePlaceholder')}
+            aria-invalid={!validation.isCompanyNameValid}
+          />
+          {!validation.isCompanyNameValid ? (
+            <small>{t('settings.company.companyNameMinLength')}</small>
+          ) : null}
+        </label>
+        <label className="field">
+          <span>{t('settings.company.companyId', { company_id: '{{company_id}}' })}</span>
+          <input
+            value={form.companyId}
+            onChange={(event) => onChange('companyId', event.target.value)}
+            placeholder={t('settings.company.companyIdPlaceholder')}
+            aria-invalid={!validation.isCompanyIdValid}
+          />
+          {!validation.isCompanyIdValid ? (
+            <small>{t('settings.company.companyIdFormat')}</small>
+          ) : null}
+        </label>
+        <label className="field field-wide">
+          <span>
+            {t('settings.company.companyAddress', { company_address: '{{company_address}}' })}
+          </span>
+          <input
+            value={form.companyAddress}
+            onChange={(event) => onChange('companyAddress', event.target.value)}
+            placeholder={t('settings.company.companyAddressPlaceholder')}
+            aria-invalid={!validation.isCompanyAddressValid}
+          />
+          {!validation.isCompanyAddressValid ? (
+            <small>{t('settings.company.companyAddressMinLength')}</small>
+          ) : null}
+        </label>
+        <label className="field field-wide">
+          <span>{t('settings.company.companyIban', { company_iban: '{{company_iban}}' })}</span>
+          <input
+            value={form.companyIban}
+            onChange={(event) => onChange('companyIban', event.target.value)}
+            placeholder={t('settings.company.companyIbanPlaceholder')}
+            aria-invalid={!validation.isCompanyIbanValid}
+          />
+          {!validation.isCompanyIbanValid ? (
+            <small>{t('settings.company.companyIbanFormat')}</small>
+          ) : null}
+        </label>
+        <label className="field">
+          <span>{t('settings.company.companyEmail', { company_email: '{{company_email}}' })}</span>
+          <input
+            value={form.companyEmail}
+            onChange={(event) => onChange('companyEmail', event.target.value)}
+            placeholder={t('settings.company.companyEmailPlaceholder')}
+          />
+        </label>
+        <label className="field">
+          <span>{t('settings.company.companySite', { company_site: '{{company_site}}' })}</span>
+          <input
+            value={form.companySite}
+            onChange={(event) => onChange('companySite', event.target.value)}
+            placeholder={t('settings.company.companySitePlaceholder')}
+          />
+        </label>
+      </div>
+    </section>
+  );
+};
 
 type PrintFormsSectionProps = {
   printForms: PrintForm[];
@@ -151,59 +158,63 @@ const PrintFormsSection = ({
   onSelectForm,
   onUpdateForm,
   onUpdateForms,
-}: PrintFormsSectionProps) => (
-  <section className="settings-section settings-print-section">
-    <div className="panel-header panel-header-row">
-      <div>
-        <p className="section-label">Print forms</p>
-        <div className="settings-print-title-row">
-          <h2>Order documents</h2>
-          <label className="settings-print-document-select">
-            <span className="visually-hidden">Document template</span>
-            <select
-              value={selectedForm?.id ?? ''}
-              onChange={(event) => onSelectForm(event.target.value)}
-            >
-              {printForms.map((printForm) => (
-                <option key={printForm.id} value={printForm.id}>
-                  {printForm.title}
-                </option>
-              ))}
-            </select>
-          </label>
+}: PrintFormsSectionProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <section className="settings-section settings-print-section">
+      <div className="panel-header panel-header-row">
+        <div>
+          <p className="section-label">{t('settings.print.sectionLabel')}</p>
+          <div className="settings-print-title-row">
+            <h2>{t('settings.print.title')}</h2>
+            <label className="settings-print-document-select">
+              <span className="visually-hidden">{t('settings.print.documentTemplate')}</span>
+              <select
+                value={selectedForm?.id ?? ''}
+                onChange={(event) => onSelectForm(event.target.value)}
+              >
+                {printForms.map((printForm) => (
+                  <option key={printForm.id} value={printForm.id}>
+                    {printForm.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="settings-actions">
+          <button type="button" className="secondary-button" onClick={onAddPrintForm}>
+            {t('settings.print.add')}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onDuplicateSelectedForm}
+            disabled={!selectedForm}
+          >
+            {t('settings.print.duplicate')}
+          </button>
         </div>
       </div>
-      <div className="settings-actions">
-        <button type="button" className="secondary-button" onClick={onAddPrintForm}>
-          Add
-        </button>
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onDuplicateSelectedForm}
-          disabled={!selectedForm}
-        >
-          Duplicate
-        </button>
-      </div>
-    </div>
 
-    <div className="settings-print-grid">
-      {selectedForm ? (
-        <PrintFormBuilder
-          key={selectedForm.id}
-          forms={printForms}
-          selectedForm={selectedForm}
-          previewValues={previewValues}
-          onSelectForm={onSelectForm}
-          onUpdateForms={onUpdateForms}
-          onUpdateForm={onUpdateForm}
-          onDeleteForm={onDeleteSelectedForm}
-        />
-      ) : null}
-    </div>
-  </section>
-);
+      <div className="settings-print-grid">
+        {selectedForm ? (
+          <PrintFormBuilder
+            key={selectedForm.id}
+            forms={printForms}
+            selectedForm={selectedForm}
+            previewValues={previewValues}
+            onSelectForm={onSelectForm}
+            onUpdateForms={onUpdateForms}
+            onUpdateForm={onUpdateForm}
+            onDeleteForm={onDeleteSelectedForm}
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+};
 
 const formatBackupSize = (sizeBytes: number) => {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -218,17 +229,12 @@ const formatBackupDate = (value: string) => {
   return date.toLocaleString('uk-UA');
 };
 
-const getBackupStatusLabel = (status: BackupMetadata['status']) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
-
-const getBackupTypeLabel = (type: BackupMetadata['type']) =>
-  type.charAt(0).toUpperCase() + type.slice(1);
-
 type BackupsSectionProps = {
   canManageBackups: boolean;
 };
 
 const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
+  const { t } = useTranslation();
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -250,7 +256,11 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     try {
       setBackups(await listBackups());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to load backups.');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t('settings.backups.messages.failedLoad'),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -270,11 +280,15 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       await refreshBackups();
       setMessage(
         backup.status === 'completed'
-          ? 'Backup created.'
-          : backup.error || 'Backup finished with an error.',
+          ? t('settings.backups.messages.created')
+          : backup.error || t('settings.backups.messages.finishedWithError'),
       );
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to create backup.');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t('settings.backups.messages.failedCreate'),
+      );
     } finally {
       setIsCreating(false);
     }
@@ -294,7 +308,11 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to download backup.');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t('settings.backups.messages.failedDownload'),
+      );
     } finally {
       setDownloadingBackupId('');
     }
@@ -309,9 +327,13 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       await deleteBackup(deleteTarget.id);
       setDeleteTarget(null);
       await refreshBackups();
-      setMessage('Backup deleted.');
+      setMessage(t('settings.backups.messages.deleted'));
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to delete backup.');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t('settings.backups.messages.failedDelete'),
+      );
     } finally {
       setDeletingBackupId('');
     }
@@ -327,9 +349,17 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       setRestoreTarget(null);
       setRestoreConfirmation('');
       await refreshBackups();
-      setMessage(`Backup restored. Safety backup: ${result.safetyBackupId}.`);
+      setMessage(
+        t('settings.backups.messages.restored', {
+          safetyBackupId: result.safetyBackupId,
+        }),
+      );
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to restore backup.');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t('settings.backups.messages.failedRestore'),
+      );
     } finally {
       setIsRestoring(false);
     }
@@ -353,12 +383,16 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       );
       closeRestoreFileModal();
       await refreshBackups();
-      setMessage(`Backup file restored. Safety backup: ${result.safetyBackupId}.`);
+      setMessage(
+        t('settings.backups.messages.restoredFromFile', {
+          safetyBackupId: result.safetyBackupId,
+        }),
+      );
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : 'Failed to restore backup from file.',
+          : t('settings.backups.messages.failedRestoreFromFile'),
       );
     } finally {
       setIsRestoring(false);
@@ -368,7 +402,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
   if (!canManageBackups) {
     return (
       <section className="settings-section">
-        <p className="empty-state">Current employee cannot manage backups.</p>
+        <p className="empty-state">{t('settings.backups.noPermission')}</p>
       </section>
     );
   }
@@ -377,15 +411,10 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     <section className="settings-section">
       <div className="panel-header panel-header-row">
         <div>
-          <p className="section-label">Database backups</p>
-          <h2>Manual restore points</h2>
-          <p className="panel-subtitle">
-            Create MongoDB archives, download them, or restore a completed backup.
-          </p>
-          <p className="panel-subtitle">
-            Automatic backup: daily at 15:00 UTC / 18:00 Kyiv time, scheduled
-            copies kept for 14 days.
-          </p>
+          <p className="section-label">{t('settings.backups.sectionLabel')}</p>
+          <h2>{t('settings.backups.title')}</h2>
+          <p className="panel-subtitle">{t('settings.backups.subtitleCreate')}</p>
+          <p className="panel-subtitle">{t('settings.backups.subtitleSchedule')}</p>
         </div>
         <div className="settings-actions">
           <button
@@ -394,7 +423,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
             onClick={() => setIsRestoreFileModalOpen(true)}
             disabled={isCreating || isRestoring}
           >
-            Restore from file
+            {t('settings.backups.restoreFromFile')}
           </button>
           <button
             type="button"
@@ -402,7 +431,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
             onClick={() => void handleCreateBackup()}
             disabled={isCreating || isRestoring}
           >
-            {isCreating ? 'Creating...' : 'Create backup'}
+            {isCreating ? t('settings.backups.creating') : t('settings.backups.createBackup')}
           </button>
         </div>
       </div>
@@ -411,11 +440,11 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       {error ? <p className="empty-state">{error}</p> : null}
 
       {isLoading ? (
-        <p className="empty-state">Loading backups...</p>
+        <p className="empty-state">{t('settings.backups.loading')}</p>
       ) : backups.length === 0 ? (
-        <p className="empty-state">No backups yet.</p>
+        <p className="empty-state">{t('settings.backups.empty')}</p>
       ) : (
-        <div className="backup-list" aria-label="Backup archives">
+        <div className="backup-list" aria-label={t('settings.backups.archivesAriaLabel')}>
           {backups.map((backup) => (
             <article
               key={backup.id}
@@ -428,19 +457,19 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                 </div>
                 <div className="backup-card-badges">
                   <span className={`backup-badge backup-badge-${backup.status}`}>
-                    {getBackupStatusLabel(backup.status)}
+                    {t(`settings.backups.status.${backup.status}`)}
                   </span>
                   <span className={`backup-badge backup-badge-${backup.type}`}>
-                    {getBackupTypeLabel(backup.type)}
+                    {t(`settings.backups.type.${backup.type}`)}
                   </span>
                 </div>
                 <dl className="backup-card-meta">
                   <div>
-                    <dt>Size</dt>
+                    <dt>{t('settings.backups.size')}</dt>
                     <dd>{formatBackupSize(backup.sizeBytes)}</dd>
                   </div>
                   <div>
-                    <dt>Author</dt>
+                    <dt>{t('settings.backups.author')}</dt>
                     <dd>{backup.author || '-'}</dd>
                   </div>
                 </dl>
@@ -455,7 +484,9 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                       isRestoring
                     }
                   >
-                    {downloadingBackupId === backup.id ? 'Downloading...' : 'Download'}
+                    {downloadingBackupId === backup.id
+                      ? t('settings.backups.downloading')
+                      : t('settings.backups.download')}
                   </button>
                   <button
                     type="button"
@@ -463,7 +494,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                     onClick={() => setDeleteTarget(backup)}
                     disabled={backup.status === 'running' || isCreating || isRestoring}
                   >
-                    Delete
+                    {t('settings.backups.delete')}
                   </button>
                   <button
                     type="button"
@@ -474,13 +505,13 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                     }}
                     disabled={backup.status !== 'completed' || isCreating || isRestoring}
                   >
-                    Restore
+                    {t('settings.backups.restore')}
                   </button>
                 </div>
               </div>
               {backup.error ? (
                 <div className="backup-error-panel">
-                  <strong>Error</strong>
+                  <strong>{t('settings.backups.error')}</strong>
                   <p>{backup.error}</p>
                 </div>
               ) : null}
@@ -493,11 +524,8 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         <div className="modal-backdrop" role="presentation">
           <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
             <div className="payment-modal-summary">
-              <h3>Delete backup</h3>
-              <p>
-                Delete "{deleteTarget.id}"? The archive and metadata file will be
-                removed from the backup folder.
-              </p>
+              <h3>{t('settings.backups.deleteTitle')}</h3>
+              <p>{t('settings.backups.deleteMessage', { id: deleteTarget.id })}</p>
             </div>
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
@@ -507,7 +535,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   onClick={() => setDeleteTarget(null)}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -515,7 +543,9 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   onClick={() => void handleDeleteBackup()}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
-                  {deletingBackupId === deleteTarget.id ? 'Deleting...' : 'Delete'}
+                  {deletingBackupId === deleteTarget.id
+                    ? t('settings.backups.deleting')
+                    : t('settings.backups.delete')}
                 </button>
               </div>
             </footer>
@@ -527,18 +557,15 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         <div className="modal-backdrop" role="presentation">
           <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
             <div className="payment-modal-summary">
-              <h3>Restore backup</h3>
-              <p>
-                Restoring "{restoreTarget.id}" will replace current MongoDB data.
-                A safety backup will be created first.
-              </p>
+              <h3>{t('settings.backups.restoreTitle')}</h3>
+              <p>{t('settings.backups.restoreMessage', { id: restoreTarget.id })}</p>
             </div>
             <label className="field field-wide">
-              <span>Type RESTORE to confirm</span>
+              <span>{t('settings.backups.typeRestoreToConfirm')}</span>
               <input
                 value={restoreConfirmation}
                 onChange={(event) => setRestoreConfirmation(event.target.value)}
-                placeholder="RESTORE"
+                placeholder={t('settings.backups.restorePlaceholder')}
               />
             </label>
             <footer className="payment-modal-footer">
@@ -552,7 +579,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   }}
                   disabled={isRestoring}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -560,7 +587,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   onClick={() => void handleRestoreBackup()}
                   disabled={isRestoring || restoreConfirmation !== 'RESTORE'}
                 >
-                  {isRestoring ? 'Restoring...' : 'Restore'}
+                  {isRestoring ? t('settings.backups.restoring') : t('settings.backups.restore')}
                 </button>
               </div>
             </footer>
@@ -572,14 +599,11 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         <div className="modal-backdrop" role="presentation">
           <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
             <div className="payment-modal-summary">
-              <h3>Restore from file</h3>
-              <p>
-                Select a downloaded .archive.gz backup. Current MongoDB data will
-                be replaced after a safety backup is created.
-              </p>
+              <h3>{t('settings.backups.restoreFromFileTitle')}</h3>
+              <p>{t('settings.backups.restoreFromFileMessage')}</p>
             </div>
             <label className="field field-wide">
-              <span>Backup archive file</span>
+              <span>{t('settings.backups.backupArchiveFile')}</span>
               <input
                 type="file"
                 accept=".gz,.archive.gz,application/gzip,application/octet-stream"
@@ -592,13 +616,13 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
               <p className="backup-file-selection">{restoreFile.name}</p>
             ) : null}
             <label className="field field-wide">
-              <span>Type RESTORE to confirm</span>
+              <span>{t('settings.backups.typeRestoreToConfirm')}</span>
               <input
                 value={restoreFileConfirmation}
                 onChange={(event) =>
                   setRestoreFileConfirmation(event.target.value)
                 }
-                placeholder="RESTORE"
+                placeholder={t('settings.backups.restorePlaceholder')}
               />
             </label>
             <footer className="payment-modal-footer">
@@ -609,7 +633,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   onClick={closeRestoreFileModal}
                   disabled={isRestoring}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -621,7 +645,9 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                     restoreFileConfirmation !== 'RESTORE'
                   }
                 >
-                  {isRestoring ? 'Restoring...' : 'Restore from file'}
+                  {isRestoring
+                    ? t('settings.backups.restoring')
+                    : t('settings.backups.restoreFromFileButton')}
                 </button>
               </div>
             </footer>
@@ -640,6 +666,7 @@ export const SettingsPanel = ({
   onChange,
   onSubmit,
 }: SettingsPanelProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(getStoredSettingsTab);
   const visibleSettingsTabs = useMemo(
     () =>
@@ -699,7 +726,7 @@ export const SettingsPanel = ({
     const nextForm = {
       ...selectedForm,
       id: `form-${Date.now()}`,
-      title: `${selectedForm.title} copy`,
+      title: t('settings.print.duplicateTitle', { title: selectedForm.title }),
       sortOrder: (printForms.length + 1) * 10,
     };
     updatePrintForms([...printForms, nextForm]);
@@ -738,12 +765,9 @@ export const SettingsPanel = ({
     <section className="panel settings-page">
       <div className="panel-header panel-header-row">
         <div>
-          <p className="section-label">Settings</p>
-          <h2>Service configuration</h2>
-          <p className="panel-subtitle">
-            Global CRM settings for orders, print forms, finance and future
-            client notifications.
-          </p>
+          <p className="section-label">{t('settings.panel.sectionLabel')}</p>
+          <h2>{t('settings.panel.title')}</h2>
+          <p className="panel-subtitle">{t('settings.panel.subtitle')}</p>
         </div>
         {canEditSettings && activeTab !== 'backups' ? (
           <button
@@ -752,12 +776,16 @@ export const SettingsPanel = ({
             onClick={onSubmit}
             disabled={isSaveDisabled}
           >
-            {isSaving ? 'Saving...' : 'Save settings'}
+            {isSaving ? t('settings.panel.saving') : t('settings.panel.saveSettings')}
           </button>
         ) : null}
       </div>
 
-      <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+      <div
+        className="settings-tabs"
+        role="tablist"
+        aria-label={t('settings.tabsAriaLabel')}
+      >
         {visibleSettingsTabs.map((tab) => (
           <button
             key={tab.key}
@@ -769,7 +797,7 @@ export const SettingsPanel = ({
             }
             onClick={() => setActiveTab(tab.key)}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>

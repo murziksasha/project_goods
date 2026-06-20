@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   Employee,
   EmployeeFormValues,
@@ -10,11 +11,11 @@ import {
 } from '../../../entities/employee/model/types';
 
 const permissionGroups: Array<{
-  title: string;
+  titleKey: string;
   permissions: EmployeePermission[];
 }> = [
   {
-    title: 'Orders',
+    titleKey: 'employees.permissionGroups.orders',
     permissions: [
       'orders.view',
       'orders.manage',
@@ -24,19 +25,19 @@ const permissionGroups: Array<{
     ],
   },
   {
-    title: 'Supplier Orders',
+    titleKey: 'employees.permissionGroups.supplierOrders',
     permissions: ['supplierOrders.view', 'supplierOrders.manage'],
   },
   {
-    title: 'Clients',
+    titleKey: 'employees.permissionGroups.clients',
     permissions: ['clients.manage'],
   },
   {
-    title: 'Inventory',
+    titleKey: 'employees.permissionGroups.inventory',
     permissions: ['inventory.manage'],
   },
   {
-    title: 'Finance',
+    titleKey: 'employees.permissionGroups.finance',
     permissions: [
       'finance.view',
       'finance.cashboxes.view',
@@ -49,11 +50,11 @@ const permissionGroups: Array<{
     ],
   },
   {
-    title: 'Employees',
+    titleKey: 'employees.permissionGroups.employees',
     permissions: ['employees.manage'],
   },
   {
-    title: 'System',
+    titleKey: 'employees.permissionGroups.system',
     permissions: ['system.backups.manage'],
   },
 ];
@@ -92,6 +93,7 @@ export const EmployeeManagementPanel = ({
   onEdit,
   onDelete,
 }: EmployeeManagementPanelProps) => {
+  const { t } = useTranslation();
   const formTopRef = useRef<HTMLDivElement | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const isOwnerRoleSelected = form.role === 'owner';
@@ -145,15 +147,15 @@ export const EmployeeManagementPanel = ({
     <section className="panel">
             <div className="panel-header" style={{ marginTop: 20 }}>
         <div>
-          <p className="section-label">List</p>
-          <h2>Team</h2>
+          <p className="section-label">{t('employees.list.sectionLabel')}</p>
+          <h2>{t('employees.list.title')}</h2>
         </div>
       </div>
 
       {isLoading ? (
-        <p className="empty-state">Loading employees...</p>
+        <p className="empty-state">{t('employees.list.loading')}</p>
       ) : employees.length === 0 ? (
-        <p className="empty-state">No employees yet.</p>
+        <p className="empty-state">{t('employees.list.empty')}</p>
       ) : (
         <div className="stack-list">
           {employees.map((employee) => {
@@ -165,9 +167,19 @@ export const EmployeeManagementPanel = ({
                 <div className="list-card-row">
                   <div>
                     <h3>{employee.name}</h3>
-                    <p>{employee.email || 'No email'} | {employee.phone || 'No phone'} | {employee.role}</p>
-                    <p>{employee.username || 'No login'}{isCurrentEmployee ? ' | current user' : ''}</p>
-                    <p>{employee.isActive ? 'Active' : 'Inactive'}</p>
+                    <p>
+                      {employee.email || t('employees.list.noEmail')} |{' '}
+                      {employee.phone || t('employees.list.noPhone')} | {employee.role}
+                    </p>
+                    <p>
+                      {employee.username || t('employees.list.noLogin')}
+                      {isCurrentEmployee ? ` | ${t('employees.list.currentUser')}` : ''}
+                    </p>
+                    <p>
+                      {employee.isActive
+                        ? t('employees.list.active')
+                        : t('employees.list.inactive')}
+                    </p>
                   </div>
                   <div className="card-actions">
                     <button
@@ -176,16 +188,20 @@ export const EmployeeManagementPanel = ({
                       onClick={() => handleEdit(employee)}
                       disabled={!canManageEmployees || !canWriteThisEmployee}
                     >
-                      Edit
+                      {t('employees.list.edit')}
                     </button>
                     <button
                       className="danger-button"
                       type="button"
                       onClick={() => setEmployeeToDelete(employee)}
                       disabled={!canManageEmployees || isCurrentEmployee || !canWriteThisEmployee}
-                      title={isCurrentEmployee ? 'You cannot delete your own account.' : 'Delete employee'}
+                      title={
+                        isCurrentEmployee
+                          ? t('employees.list.cannotDeleteSelf')
+                          : t('employees.list.deleteEmployee')
+                      }
                     >
-                      Delete
+                      {t('employees.list.delete')}
                     </button>
                   </div>
                 </div>
@@ -196,66 +212,74 @@ export const EmployeeManagementPanel = ({
       )}
       <div ref={formTopRef} />
       {!canManageEmployees ? (
-        <p className="empty-state">Only owners can create, edit, or delete employees.</p>
+        <p className="empty-state">{t('employees.list.noPermission')}</p>
       ) : null}
 
       <div className="panel-header" style={{marginTop:80}}>
         <div>
-          <p className="section-label">Employees</p>
-          <h2>{isEditing ? 'Edit employee' : 'Create employee'}</h2>
+          <p className="section-label">{t('employees.form.sectionLabel')}</p>
+          <h2>
+            {isEditing ? t('employees.form.editTitle') : t('employees.form.createTitle')}
+          </h2>
         </div>
         {isEditing ? (
           <button className="ghost-button" type="button" onClick={onCancelEdit}>
-            Cancel
+            {t('common.cancel')}
           </button>
         ) : null}
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>Name</span>
+          <span>{t('employees.form.name')}</span>
           <input
             value={form.name}
             onChange={(event) => onChange('name', event.target.value)}
-            placeholder="Full name"
+            placeholder={t('employees.form.fullNamePlaceholder')}
           />
         </label>
         <label className="field">
-          <span>Phone</span>
+          <span>{t('employees.form.phone')}</span>
           <input
             value={form.phone}
             onChange={(event) => onChange('phone', event.target.value)}
-            placeholder="+380..."
+            placeholder={t('employees.form.phonePlaceholder')}
           />
         </label>
         <label className="field">
-          <span>Email</span>
+          <span>{t('employees.form.email')}</span>
           <input
             type="email"
             value={form.email}
             onChange={(event) => onChange('email', event.target.value)}
-            placeholder="employee@example.com"
+            placeholder={t('employees.form.emailPlaceholder')}
           />
         </label>
         <label className="field">
-          <span>Login</span>
+          <span>{t('employees.form.login')}</span>
           <input
             value={form.username}
             onChange={(event) => onChange('username', event.target.value)}
-            placeholder="login"
+            placeholder={t('employees.form.loginPlaceholder')}
           />
         </label>
         <label className="field">
-          <span>{isEditing ? 'New password' : 'Password'}</span>
+          <span>
+            {isEditing ? t('employees.form.newPassword') : t('employees.form.password')}
+          </span>
           <input
             type="password"
             value={form.password}
             onChange={(event) => onChange('password', event.target.value)}
-            placeholder={isEditing ? 'Leave blank to keep current password' : 'Password'}
+            placeholder={
+              isEditing
+                ? t('employees.form.passwordKeepCurrent')
+                : t('employees.form.passwordPlaceholder')
+            }
           />
         </label>
         <label className="field">
-          <span>Role</span>
+          <span>{t('employees.form.role')}</span>
           <select
             value={form.role}
             onChange={(event) => handleRoleChange(event.target.value as EmployeeFormValues['role'])}
@@ -270,17 +294,17 @@ export const EmployeeManagementPanel = ({
           </select>
         </label>
         <label className="field">
-          <span>Status</span>
+          <span>{t('employees.form.status')}</span>
           <select
             value={form.isActive ? 'active' : 'inactive'}
             onChange={(event) => onChange('isActive', event.target.value === 'active')}
           >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="active">{t('employees.form.active')}</option>
+            <option value="inactive">{t('employees.form.inactive')}</option>
           </select>
         </label>
         <label className="field field-wide">
-          <span>Note</span>
+          <span>{t('employees.form.note')}</span>
           <textarea
             rows={3}
             value={form.note}
@@ -291,8 +315,8 @@ export const EmployeeManagementPanel = ({
 
       <div className="employee-permissions">
         {permissionGroups.map((group) => (
-          <section key={group.title} className="employee-permission-group">
-            <h3>{group.title}</h3>
+          <section key={group.titleKey} className="employee-permission-group">
+            <h3>{t(group.titleKey)}</h3>
             {group.permissions.map((permission) => (
               <label key={permission} className="create-inline-checkbox">
                 <input
@@ -329,25 +353,29 @@ export const EmployeeManagementPanel = ({
           (!isEditing && form.password.trim().length < 3)
         }
       >
-        {isSaving ? 'Saving...' : isEditing ? 'Update employee' : 'Save employee'}
+        {isSaving
+          ? t('employees.form.saving')
+          : isEditing
+            ? t('employees.form.updateEmployee')
+            : t('employees.form.saveEmployee')}
       </button>
 
       {employeeToDelete ? (
         <div className="modal-backdrop" role="presentation">
           <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
             <div className="payment-modal-summary">
-              <h3>Delete employee</h3>
+              <h3>{t('employees.deleteModal.title')}</h3>
               <p>
-                Are you sure you want to delete user "{employeeToDelete.name}"?
+                {t('employees.deleteModal.message', { name: employeeToDelete.name })}
               </p>
             </div>
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
                 <button type="button" className="secondary-button" onClick={() => setEmployeeToDelete(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="button" className="danger-button" onClick={confirmDelete}>
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </footer>

@@ -4,6 +4,7 @@ import type {
   CreateFinanceTransactionPayload,
   FinanceTransactionType,
 } from '../../../entities/finance/model/types';
+import i18n from '../../../shared/i18n/config';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import {
@@ -128,9 +129,7 @@ export const useTransactionForm = ({
 
   const startForCashbox = (type: FinanceTransactionType, cashbox: Cashbox) => {
     if (!permittedTransactionTypes.includes(type)) {
-      onError(
-        'Current employee does not have permission for this finance operation.',
-      );
+      onError(i18n.t('accounting.messages.errors.noPermissionFinanceOperation'));
       return;
     }
     const nextFromCashboxId =
@@ -162,25 +161,23 @@ export const useTransactionForm = ({
     if (isSaving) return;
     const { type, amount, currency, fromCashboxId, toCashboxId } = transactionForm;
     if (!permittedTransactionTypes.includes(type)) {
-      onError(
-        'Current employee does not have permission for this finance operation.',
-      );
+      onError(i18n.t('accounting.messages.errors.noPermissionFinanceOperation'));
       return;
     }
     if (
       type === 'transfer' &&
       !canPerformTransferBetweenCashboxes(fromCashboxId, toCashboxId)
     ) {
-      onError('Transfer cashboxes must be different.');
+      onError(i18n.t('accounting.messages.errors.transferCashboxesMustDiffer'));
       return;
     }
     const normalizedAmount = parseDecimal(amount);
     if (!allowedTransactionCurrencies.includes(currency)) {
-      onError('Selected currency is not available for this operation.');
+      onError(i18n.t('accounting.messages.errors.currencyNotAvailable'));
       return;
     }
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      onError('Transaction amount must be greater than 0.');
+      onError(i18n.t('accounting.messages.errors.amountMustBePositive'));
       return;
     }
 
@@ -192,7 +189,7 @@ export const useTransactionForm = ({
 
     await runFinanceAction(
       () => createFinanceTransaction(payload),
-      'Finance transaction saved.',
+      i18n.t('accounting.messages.success.financeTransactionSaved'),
       {
         afterSuccess: () => {
           if (
@@ -219,7 +216,7 @@ export const useTransactionForm = ({
           });
         },
         skipRefresh: true,
-        errorFallback: 'Failed to save transaction.',
+        errorFallback: i18n.t('accounting.messages.errors.failedSaveTransaction'),
       },
     );
   };

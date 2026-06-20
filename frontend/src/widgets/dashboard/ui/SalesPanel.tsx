@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../entities/sale/model/types';
 import { SalesList } from '../../../entities/sale/ui/SalesList';
 
@@ -13,20 +14,24 @@ export const SalesPanel = ({
   isLoading,
   onEdit,
   onDelete,
-}: SalesPanelProps) => (
-  <section className="panel">
-    <div className="panel-header">
-      <div>
-        <p className="section-label">Sales</p>
-        <h2>Sales history</h2>
-      </div>
-    </div>
+}: SalesPanelProps) => {
+  const { t } = useTranslation();
 
-    <SalesList
-      sales={sales}
-      isLoading={isLoading}
-      onEdit={onEdit}
-      onDelete={onDelete}
-    />
-  </section>
-);
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <p className="section-label">{t('legacy.salesPanel.sectionLabel')}</p>
+          <h2>{t('legacy.salesPanel.title')}</h2>
+        </div>
+      </div>
+
+      <SalesList
+        sales={sales}
+        isLoading={isLoading}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    </section>
+  );
+};

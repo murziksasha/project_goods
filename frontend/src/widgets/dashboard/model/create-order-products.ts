@@ -7,6 +7,7 @@ import {
   normalizeSerialNumber,
 } from './order-line-serials';
 import { parseDecimal } from '../../../shared/lib/decimal';
+import i18n from '../../../shared/i18n/config';
 
 export type CreateOrderProductSuggestion = {
   id: string;
@@ -97,14 +98,14 @@ export const buildCreateOrderProductSuggestions = ({
         id: `stock-${product.id}`,
         source: 'stock' as const,
         name: product.name,
-        note: product.note || 'Warehouse stock',
+        note: product.note || i18n.t('orders.create.warehouseStock'),
         productId: product.id,
         catalogProductId: '',
         article: product.article,
         serialNumber: normalizeSerialNumber(product.serialNumber),
         price: getDefaultProductSalePrice(product),
         warrantyPeriod: product.warrantyPeriod,
-        availabilityLabel: availability.label,
+        availabilityLabel: i18n.t(availability.labelKey),
         selectable: availability.selectable,
         rank: getStockProductRank(product, normalizedQuery),
       };
@@ -142,14 +143,14 @@ export const buildCreateOrderProductSuggestions = ({
       id: `catalog-${product.id}`,
       source: 'catalog' as const,
       name: product.name,
-      note: product.note || 'Catalog product',
+      note: product.note || i18n.t('orders.create.catalogProduct'),
       productId: '',
       catalogProductId: product.id,
       article: '',
       serialNumber: '',
       price: 0,
       warrantyPeriod: 0,
-      availabilityLabel: 'Catalog',
+      availabilityLabel: i18n.t('orders.create.catalogSource'),
       selectable: true,
     }));
 

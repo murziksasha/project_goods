@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   customLabelSizePresetId,
@@ -76,6 +77,7 @@ export const OrderPrintDialog = ({
   companySettings,
   onClose,
 }: OrderPrintDialogProps) => {
+  const { t } = useTranslation();
   const availablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
   ).filter((form) => form.isActive);
@@ -167,7 +169,9 @@ export const OrderPrintDialog = ({
 
   const openPreviewWindow = () =>
     openOrderPrintWindow({
-      title: `Preview ${request.orderNumber}`,
+      title: t('orders.print.previewTitle', {
+        orderNumber: request.orderNumber,
+      }),
       body: previewBody,
       pageSize: resolvedPageSize,
       labelSize: resolvedLabelSize,
@@ -179,7 +183,9 @@ export const OrderPrintDialog = ({
 
   const printSelectedForms = () =>
     openOrderPrintWindow({
-      title: `Print forms ${request.orderNumber}`,
+      title: t('orders.print.printFormsTitle', {
+        orderNumber: request.orderNumber,
+      }),
       body: previewBody,
       pageSize: resolvedPageSize,
       labelSize: resolvedLabelSize,
@@ -195,18 +201,18 @@ export const OrderPrintDialog = ({
         className='order-print-dialog'
         role='dialog'
         aria-modal='true'
-        aria-label='Print order'
+        aria-label={t('orders.print.title')}
       >
         <header className='order-print-dialog-header'>
           <div>
-            <p className='section-label'>Print preview</p>
+            <p className='section-label'>{t('orders.print.sectionPreview')}</p>
             <h2>{request.orderNumber}</h2>
           </div>
           <button
             type='button'
             className='create-order-close'
             onClick={onClose}
-            aria-label='Close print preview'
+            aria-label={t('orders.print.closePreview')}
           >
             &times;
           </button>
@@ -214,7 +220,7 @@ export const OrderPrintDialog = ({
 
         <div className='order-print-dialog-grid'>
           <aside className='order-print-settings'>
-            <h3>Forms</h3>
+            <h3>{t('orders.print.forms')}</h3>
             <div className='order-print-form-list'>
               {availablePrintForms.map((form) => (
                 <label key={form.id} className='payment-print-option'>
@@ -228,23 +234,23 @@ export const OrderPrintDialog = ({
               ))}
             </div>
 
-            <h3>Print settings</h3>
+            <h3>{t('orders.print.settings')}</h3>
             <label className='field'>
-              <span>Page size</span>
+              <span>{t('orders.print.pageSize')}</span>
               <select
                 value={pageSize}
                 onChange={(event) =>
                   setPageSize(event.target.value === 'label' ? 'label' : 'A4')
                 }
               >
-                <option value='A4'>A4</option>
-                <option value='label'>Label</option>
+                <option value='A4'>{t('orders.print.pageSizeA4')}</option>
+                <option value='label'>{t('orders.print.pageSizeLabel')}</option>
               </select>
             </label>
             {pageSize === 'label' ? (
               <>
                 <label className='field'>
-                  <span>Label size</span>
+                  <span>{t('orders.print.labelSize')}</span>
                   <select
                     value={labelSize.presetId}
                     onChange={(event) => updateLabelPreset(event.target.value)}
@@ -254,11 +260,13 @@ export const OrderPrintDialog = ({
                         {preset.label}
                       </option>
                     ))}
-                    <option value={customLabelSizePresetId}>Custom</option>
+                    <option value={customLabelSizePresetId}>
+                      {t('orders.print.custom')}
+                    </option>
                   </select>
                 </label>
                 <label className='field'>
-                  <span>Width, mm</span>
+                  <span>{t('orders.print.widthMm')}</span>
                   <input
                     type='number'
                     min={10}
@@ -272,7 +280,7 @@ export const OrderPrintDialog = ({
                   />
                 </label>
                 <label className='field'>
-                  <span>Height, mm</span>
+                  <span>{t('orders.print.heightMm')}</span>
                   <input
                     type='number'
                     min={10}
@@ -288,7 +296,7 @@ export const OrderPrintDialog = ({
               </>
             ) : null}
             <label className='field'>
-              <span>Orientation</span>
+              <span>{t('orders.print.orientation')}</span>
               <select
                 value={orientation}
                 onChange={(event) =>
@@ -297,12 +305,12 @@ export const OrderPrintDialog = ({
                   )
                 }
               >
-                <option value='portrait'>Portrait</option>
-                <option value='landscape'>Landscape</option>
+                <option value='portrait'>{t('orders.print.portrait')}</option>
+                <option value='landscape'>{t('orders.print.landscape')}</option>
               </select>
             </label>
             <label className='field'>
-              <span>Copies</span>
+              <span>{t('orders.print.copies')}</span>
               <input
                 type='number'
                 min={1}
@@ -319,7 +327,7 @@ export const OrderPrintDialog = ({
                 checked={autoClose}
                 onChange={(event) => setAutoClose(event.target.checked)}
               />
-              <span>Close print window after print</span>
+              <span>{t('orders.print.autoClose')}</span>
             </label>
           </aside>
 
@@ -333,14 +341,14 @@ export const OrderPrintDialog = ({
                 orientation={resolvedOrientation}
               />
             ) : (
-              <p className='empty-state'>Select at least one print form.</p>
+              <p className='empty-state'>{t('orders.print.selectForm')}</p>
             )}
           </main>
         </div>
 
         <footer className='order-print-dialog-footer'>
           <button type='button' className='secondary-button' onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type='button'
@@ -348,7 +356,7 @@ export const OrderPrintDialog = ({
             onClick={() => void openPreviewWindow()}
             disabled={!canPrint}
           >
-            Preview
+            {t('orders.print.preview')}
           </button>
           <button
             type='button'
@@ -357,7 +365,7 @@ export const OrderPrintDialog = ({
             disabled={!canPrint}
           >
             <PrinterIcon />
-            Print
+            {t('orders.payment.print')}
           </button>
         </footer>
       </section>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
@@ -28,10 +29,10 @@ const formatList = (items: string[]) =>
 
 const pageSizeDefault = 30;
 
-const viewLabels: Record<WarehouseInformationView, string> = {
-  products: 'Products',
-  locations: 'Locations',
-  suppliers: 'Suppliers',
+const viewLabelKeys: Record<WarehouseInformationView, string> = {
+  products: 'warehouse.information.views.products',
+  locations: 'warehouse.information.views.locations',
+  suppliers: 'warehouse.information.views.suppliers',
 };
 
 const escapeHtml = (value: string | number | null | undefined) =>
@@ -47,18 +48,28 @@ const downloadWordFile = ({
   headers,
   rows,
   title,
-  view,
+  viewLabel,
+  templateLabels,
 }: {
   activeFilters: string[];
   filename: string;
   headers: string[];
   rows: Array<Array<string | number>>;
   title: string;
-  view: WarehouseInformationView;
+  viewLabel: string;
+  templateLabels: {
+    view: string;
+    generated: string;
+    filters: string;
+    noFilters: string;
+    noRowsFound: string;
+  };
 }) => {
   const generatedAt = new Date().toLocaleString();
   const filterText =
-    activeFilters.length > 0 ? activeFilters.join('; ') : 'No filters';
+    activeFilters.length > 0
+      ? activeFilters.join('; ')
+      : templateLabels.noFilters;
   const tableHead = headers
     .map((header) => `<th>${escapeHtml(header)}</th>`)
     .join('');
@@ -72,7 +83,7 @@ const downloadWordFile = ({
                 .join('')}</tr>`,
           )
           .join('')
-      : `<tr><td colspan="${headers.length}">No rows found.</td></tr>`;
+      : `<tr><td colspan="${headers.length}">${escapeHtml(templateLabels.noRowsFound)}</td></tr>`;
   const content = `<!doctype html>
 <html>
 <head>
@@ -89,9 +100,9 @@ const downloadWordFile = ({
 </head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  <p><strong>View:</strong> ${escapeHtml(viewLabels[view])}</p>
-  <p><strong>Generated:</strong> ${escapeHtml(generatedAt)}</p>
-  <p><strong>Filters:</strong> ${escapeHtml(filterText)}</p>
+  <p><strong>${escapeHtml(templateLabels.view)}</strong> ${escapeHtml(viewLabel)}</p>
+  <p><strong>${escapeHtml(templateLabels.generated)}</strong> ${escapeHtml(generatedAt)}</p>
+  <p><strong>${escapeHtml(templateLabels.filters)}</strong> ${escapeHtml(filterText)}</p>
   <table>
     <thead><tr>${tableHead}</tr></thead>
     <tbody>${tableRows}</tbody>
@@ -127,6 +138,7 @@ export const WarehouseInformationPanel = ({
   warehouses: WarehouseItem[];
   supplierOrders: SupplierOrder[];
 }) => {
+  const { t } = useTranslation();
   const [view, setView] = useState<WarehouseInformationView>('products');
   const [filters, setFilters] =
     useState<WarehouseInformationFilters>(defaultFilters);
@@ -243,6 +255,14 @@ export const WarehouseInformationPanel = ({
     }
   }, [currentPage, currentPageSize, rowCount, view]);
 
+  const exportTemplateLabels = {
+    view: t('warehouse.information.export.viewLabel'),
+    generated: t('warehouse.information.export.generatedLabel'),
+    filters: t('warehouse.information.export.filtersLabel'),
+    noFilters: t('warehouse.information.export.noFilters'),
+    noRowsFound: t('warehouse.information.export.noRowsFound'),
+  };
+
   const getActiveFilterLabels = () => {
     const labels: string[] = [];
     const warehouse = warehouseOptions.find(
@@ -251,27 +271,73 @@ export const WarehouseInformationPanel = ({
     const location = locationOptions.find(
       (option) => option.id === filters.locationId,
     );
-    if (filters.search.trim()) labels.push(`Search: ${filters.search.trim()}`);
-    if (warehouse) labels.push(`Warehouse: ${warehouse.name}`);
-    if (location) labels.push(`Location: ${location.name}`);
+    if (filters.search.trim()) {
+      labels.push(
+        t('warehouse.information.filters.searchActive', {
+          value: filters.search.trim(),
+        }),
+      );
+    }
+    if (warehouse) {
+      labels.push(
+        t('warehouse.information.filters.warehouseActive', {
+          name: warehouse.name,
+        }),
+      );
+    }
+    if (location) {
+      labels.push(
+        t('warehouse.information.filters.locationActive', {
+          name: location.name,
+        }),
+      );
+    }
     if (filters.supplier.trim()) {
-      labels.push(`Supplier: ${filters.supplier.trim()}`);
+      labels.push(
+        t('warehouse.information.filters.supplierActive', {
+          value: filters.supplier.trim(),
+        }),
+      );
     }
     if (filters.status !== 'all') {
       labels.push(
-        `Status: ${filters.status === 'active' ? 'Active warehouses' : 'Inactive warehouses'}`,
+        t('warehouse.information.filters.statusActive', {
+          value:
+            filters.status === 'active'
+              ? t('warehouse.information.filters.activeWarehouses')
+              : t('warehouse.information.filters.inactiveWarehouses'),
+        }),
       );
     }
-    if (filters.dateFrom) labels.push(`Date from: ${filters.dateFrom}`);
-    if (filters.dateTo) labels.push(`Date to: ${filters.dateTo}`);
+    if (filters.dateFrom) {
+      labels.push(
+        t('warehouse.information.filters.dateFromActive', {
+          value: filters.dateFrom,
+        }),
+      );
+    }
+    if (filters.dateTo) {
+      labels.push(
+        t('warehouse.information.filters.dateToActive', {
+          value: filters.dateTo,
+        }),
+      );
+    }
+    const sortField =
+      filters.sort === 'quantity'
+        ? t('warehouse.information.filters.sortQuantity')
+        : filters.sort === 'value'
+          ? t('warehouse.information.filters.sortValue')
+          : t('warehouse.information.filters.sortLatest');
+    const sortDirection =
+      filters.sortDirection === 'asc'
+        ? t('warehouse.information.filters.ascending')
+        : t('warehouse.information.filters.descending');
     labels.push(
-      `Sort: ${
-        filters.sort === 'quantity'
-          ? 'Quantity'
-          : filters.sort === 'value'
-            ? 'Purchase value'
-            : 'Date'
-      } ${filters.sortDirection === 'asc' ? 'ascending' : 'descending'}`,
+      t('warehouse.information.filters.sortActive', {
+        field: sortField,
+        direction: sortDirection,
+      }),
     );
     return labels;
   };
@@ -280,18 +346,19 @@ export const WarehouseInformationPanel = ({
     if (view === 'products') {
       downloadWordFile({
         activeFilters: getActiveFilterLabels(),
-        filename: 'warehouse-products.doc',
-        title: 'Warehouse Information',
-        view,
+        filename: t('warehouse.information.export.productsFilename'),
+        title: t('warehouse.information.export.title'),
+        viewLabel: t(viewLabelKeys[view]),
+        templateLabels: exportTemplateLabels,
         headers: [
-          'Product',
-          'Article',
-          'Units',
-          'Purchase value',
-          'Warehouses',
-          'Locations',
-          'Suppliers',
-          'Latest purchase',
+          t('warehouse.information.productsTable.exportColumns.product'),
+          t('warehouse.information.productsTable.exportColumns.article'),
+          t('warehouse.information.productsTable.exportColumns.units'),
+          t('warehouse.information.productsTable.exportColumns.purchaseValue'),
+          t('warehouse.information.productsTable.exportColumns.warehouses'),
+          t('warehouse.information.productsTable.exportColumns.locations'),
+          t('warehouse.information.productsTable.exportColumns.suppliers'),
+          t('warehouse.information.productsTable.exportColumns.latestPurchase'),
         ],
         rows: report.products.map((row) => [
           row.name,
@@ -309,21 +376,24 @@ export const WarehouseInformationPanel = ({
     if (view === 'locations') {
       downloadWordFile({
         activeFilters: getActiveFilterLabels(),
-        filename: 'warehouse-locations.doc',
-        title: 'Warehouse Information',
-        view,
+        filename: t('warehouse.information.export.locationsFilename'),
+        title: t('warehouse.information.export.title'),
+        viewLabel: t(viewLabelKeys[view]),
+        templateLabels: exportTemplateLabels,
         headers: [
-          'Warehouse',
-          'Status',
-          'Location',
-          'Units',
-          'Unique products',
-          'Purchase value',
-          'Latest purchase',
+          t('warehouse.information.locationsTable.exportColumns.warehouse'),
+          t('warehouse.information.locationsTable.exportColumns.status'),
+          t('warehouse.information.locationsTable.exportColumns.location'),
+          t('warehouse.information.locationsTable.exportColumns.units'),
+          t('warehouse.information.locationsTable.exportColumns.uniqueProducts'),
+          t('warehouse.information.locationsTable.exportColumns.purchaseValue'),
+          t('warehouse.information.locationsTable.exportColumns.latestPurchase'),
         ],
         rows: report.locations.map((row) => [
           row.warehouseName,
-          row.isWarehouseActive ? 'Active' : 'Inactive',
+          row.isWarehouseActive
+            ? t('warehouse.common.active')
+            : t('warehouse.common.inactive'),
           row.locationName,
           row.units,
           row.uniqueProducts,
@@ -335,16 +405,17 @@ export const WarehouseInformationPanel = ({
     }
     downloadWordFile({
       activeFilters: getActiveFilterLabels(),
-      filename: 'warehouse-suppliers.doc',
-      title: 'Warehouse Information',
-      view,
+      filename: t('warehouse.information.export.suppliersFilename'),
+      title: t('warehouse.information.export.title'),
+      viewLabel: t(viewLabelKeys[view]),
+      templateLabels: exportTemplateLabels,
       headers: [
-        'Supplier',
-        'Units',
-        'Purchase value',
-        'Products',
-        'Warehouses',
-        'Latest purchase',
+        t('warehouse.information.suppliersTable.exportColumns.supplier'),
+        t('warehouse.information.suppliersTable.exportColumns.units'),
+        t('warehouse.information.suppliersTable.exportColumns.purchaseValue'),
+        t('warehouse.information.suppliersTable.exportColumns.products'),
+        t('warehouse.information.suppliersTable.exportColumns.warehouses'),
+        t('warehouse.information.suppliersTable.exportColumns.latestPurchase'),
       ],
       rows: report.suppliers.map((row) => [
         row.supplierName,
@@ -379,74 +450,88 @@ export const WarehouseInformationPanel = ({
     <section className='warehouse-information'>
       <div className='finance-information-header warehouse-information-header'>
         <div>
-          <p className='section-label'>Warehouse analytics</p>
-          <h2>Information</h2>
+          <p className='section-label'>
+            {t('warehouse.information.sectionLabel')}
+          </p>
+          <h2>{t('warehouse.information.title')}</h2>
         </div>
         <div className='finance-information-status'>
-          <span>{`${report.summary.totalUnits} units`}</span>
+          <span>
+            {t('warehouse.information.unitsStatus', {
+              count: report.summary.totalUnits,
+            })}
+          </span>
           <span>{formatCurrency(report.summary.purchaseValue)}</span>
         </div>
       </div>
 
       <div className='finance-report-grid finance-report-grid-wide warehouse-information-summary'>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Stock units</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.stockUnits')}
+          </span>
           <strong>{report.summary.totalUnits}</strong>
         </article>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Positions</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.positions')}
+          </span>
           <strong>{report.summary.uniquePositions}</strong>
         </article>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Purchase value</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.purchaseValue')}
+          </span>
           <strong>{formatCurrency(report.summary.purchaseValue)}</strong>
         </article>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Active warehouses</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.activeWarehouses')}
+          </span>
           <strong>{report.summary.activeWarehouses}</strong>
         </article>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Inactive with stock</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.inactiveWithStock')}
+          </span>
           <strong>{report.summary.inactiveWarehousesWithStock}</strong>
         </article>
         <article className='analytics-summary-card'>
-          <span className='metric-label'>Locations with stock</span>
+          <span className='metric-label'>
+            {t('warehouse.information.summary.locationsWithStock')}
+          </span>
           <strong>{report.summary.locationsWithStock}</strong>
         </article>
       </div>
 
       <div className='warehouse-information-controls'>
         <div className='warehouse-search-modes'>
-          {([
-            ['products', 'Products'],
-            ['locations', 'Locations'],
-            ['suppliers', 'Suppliers'],
-          ] as Array<[WarehouseInformationView, string]>).map(
-            ([key, label]) => (
-              <button
-                key={key}
-                type='button'
-                className={
-                  view === key
-                    ? 'warehouse-mode-button warehouse-mode-button-active'
-                    : 'warehouse-mode-button'
-                }
-                onClick={() => {
-                  setView(key);
-                  setPageByView((current) => ({ ...current, [key]: 1 }));
-                }}
-              >
-                {label}
-              </button>
-            ),
-          )}
+          {(
+            ['products', 'locations', 'suppliers'] as WarehouseInformationView[]
+          ).map((key) => (
+            <button
+              key={key}
+              type='button'
+              className={
+                view === key
+                  ? 'warehouse-mode-button warehouse-mode-button-active'
+                  : 'warehouse-mode-button'
+              }
+              onClick={() => {
+                setView(key);
+                setPageByView((current) => ({ ...current, [key]: 1 }));
+              }}
+            >
+              {t(viewLabelKeys[key])}
+            </button>
+          ))}
         </div>
         <button
           type='button'
           className='secondary-button'
           onClick={exportActiveView}
         >
-          Export to file
+          {t('warehouse.information.exportToFile')}
         </button>
       </div>
 
@@ -457,7 +542,7 @@ export const WarehouseInformationPanel = ({
           aria-expanded={isDateFilterOpen}
           onClick={() => setIsDateFilterOpen((current) => !current)}
         >
-          Date
+          {t('warehouse.information.filters.date')}
           {filters.dateFrom || filters.dateTo ? (
             <span className='toolbar-filter-count'>
               {filters.dateFrom && filters.dateTo ? '2' : '1'}
@@ -476,14 +561,14 @@ export const WarehouseInformationPanel = ({
         <button
           type='button'
           className='orders-filter-panel-close'
-          aria-label='Close date filters panel'
+          aria-label={t('warehouse.information.filters.closeDateFiltersAriaLabel')}
           onClick={() => setIsDateFilterOpen(false)}
         >
           &times;
         </button>
         <div className='orders-filter-grid'>
           <label className='orders-filter-field'>
-            <span>Date from</span>
+            <span>{t('warehouse.information.filters.dateFrom')}</span>
             <input
               type='date'
               value={draftDateFilters.dateFrom}
@@ -496,7 +581,7 @@ export const WarehouseInformationPanel = ({
             />
           </label>
           <label className='orders-filter-field'>
-            <span>Date to</span>
+            <span>{t('warehouse.information.filters.dateTo')}</span>
             <input
               type='date'
               value={draftDateFilters.dateTo}
@@ -521,7 +606,7 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            Apply
+            {t('warehouse.common.apply')}
           </button>
           <button
             type='button'
@@ -535,14 +620,14 @@ export const WarehouseInformationPanel = ({
               }));
             }}
           >
-            Clear
+            {t('warehouse.common.clear')}
           </button>
         </div>
       </section>
 
       <div className='warehouse-information-filters'>
         <label className='orders-filter-field'>
-          <span>Search</span>
+          <span>{t('warehouse.information.filters.search')}</span>
           <input
             value={filters.search}
             onChange={(event) =>
@@ -551,11 +636,11 @@ export const WarehouseInformationPanel = ({
                 search: event.target.value,
               }))
             }
-            placeholder='Product, serial, warehouse, supplier'
+            placeholder={t('warehouse.information.filters.searchPlaceholder')}
           />
         </label>
         <label className='orders-filter-field'>
-          <span>Warehouse</span>
+          <span>{t('warehouse.information.filters.warehouse')}</span>
           <select
             value={filters.warehouseId}
             onChange={(event) =>
@@ -566,18 +651,22 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            <option value=''>All warehouses</option>
+            <option value=''>
+              {t('warehouse.information.filters.allWarehouses')}
+            </option>
             {warehouseOptions.map((warehouse) => (
               <option key={warehouse.id} value={warehouse.id}>
                 {warehouse.isActive === false
-                  ? `${warehouse.name} (inactive)`
+                  ? t('warehouse.information.filters.warehouseInactiveSuffix', {
+                      name: warehouse.name,
+                    })
                   : warehouse.name}
               </option>
             ))}
           </select>
         </label>
         <label className='orders-filter-field'>
-          <span>Location</span>
+          <span>{t('warehouse.information.filters.location')}</span>
           <select
             value={filters.locationId}
             onChange={(event) =>
@@ -587,7 +676,9 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            <option value=''>All locations</option>
+            <option value=''>
+              {t('warehouse.information.filters.allLocations')}
+            </option>
             {locationOptions.map((location) => (
               <option
                 key={`${location.warehouseName}-${location.id}`}
@@ -601,7 +692,7 @@ export const WarehouseInformationPanel = ({
           </select>
         </label>
         <label className='orders-filter-field warehouse-supplier-combobox'>
-          <span>Supplier</span>
+          <span>{t('warehouse.information.filters.supplier')}</span>
           <input
             value={filters.supplier}
             onFocus={() => setIsSupplierMenuOpen(true)}
@@ -615,7 +706,7 @@ export const WarehouseInformationPanel = ({
               }));
               setIsSupplierMenuOpen(true);
             }}
-            placeholder='All suppliers'
+            placeholder={t('warehouse.information.filters.allSuppliers')}
           />
           {isSupplierMenuOpen ? (
             <div className='warehouse-supplier-combobox-menu'>
@@ -627,10 +718,10 @@ export const WarehouseInformationPanel = ({
                   setIsSupplierMenuOpen(false);
                 }}
               >
-                All suppliers
+                {t('warehouse.information.filters.allSuppliers')}
               </button>
               {visibleSupplierOptions.length === 0 ? (
-                <span>No suppliers found.</span>
+                <span>{t('warehouse.information.filters.noSuppliersFound')}</span>
               ) : (
                 visibleSupplierOptions.map((supplier) => (
                   <button
@@ -653,7 +744,7 @@ export const WarehouseInformationPanel = ({
           ) : null}
         </label>
         <label className='orders-filter-field'>
-          <span>Status</span>
+          <span>{t('warehouse.information.filters.status')}</span>
           <select
             value={filters.status}
             onChange={(event) =>
@@ -664,13 +755,19 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            <option value='all'>All statuses</option>
-            <option value='active'>Active warehouses</option>
-            <option value='inactive'>Inactive warehouses</option>
+            <option value='all'>
+              {t('warehouse.information.filters.allStatuses')}
+            </option>
+            <option value='active'>
+              {t('warehouse.information.filters.activeWarehouses')}
+            </option>
+            <option value='inactive'>
+              {t('warehouse.information.filters.inactiveWarehouses')}
+            </option>
           </select>
         </label>
         <label className='orders-filter-field'>
-          <span>Sort</span>
+          <span>{t('warehouse.information.filters.sort')}</span>
           <select
             value={filters.sort}
             onChange={(event) =>
@@ -681,13 +778,19 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            <option value='quantity'>Quantity</option>
-            <option value='value'>Purchase value</option>
-            <option value='latest'>Date</option>
+            <option value='quantity'>
+              {t('warehouse.information.filters.sortQuantity')}
+            </option>
+            <option value='value'>
+              {t('warehouse.information.filters.sortValue')}
+            </option>
+            <option value='latest'>
+              {t('warehouse.information.filters.sortLatest')}
+            </option>
           </select>
         </label>
         <label className='orders-filter-field'>
-          <span>Direction</span>
+          <span>{t('warehouse.information.filters.direction')}</span>
           <select
             value={filters.sortDirection}
             onChange={(event) =>
@@ -698,8 +801,12 @@ export const WarehouseInformationPanel = ({
               }))
             }
           >
-            <option value='desc'>Descending</option>
-            <option value='asc'>Ascending</option>
+            <option value='desc'>
+              {t('warehouse.information.filters.descending')}
+            </option>
+            <option value='asc'>
+              {t('warehouse.information.filters.ascending')}
+            </option>
           </select>
         </label>
       </div>
@@ -709,20 +816,32 @@ export const WarehouseInformationPanel = ({
           <table className='catalog-table warehouse-information-table'>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Article</th>
-                <th>Units</th>
-                <th>Value</th>
-                <th>Warehouses</th>
-                <th>Locations</th>
-                <th>Suppliers</th>
-                <th>Latest</th>
+                <th>
+                  {t('warehouse.information.productsTable.columns.product')}
+                </th>
+                <th>
+                  {t('warehouse.information.productsTable.columns.article')}
+                </th>
+                <th>{t('warehouse.information.productsTable.columns.units')}</th>
+                <th>{t('warehouse.information.productsTable.columns.value')}</th>
+                <th>
+                  {t('warehouse.information.productsTable.columns.warehouses')}
+                </th>
+                <th>
+                  {t('warehouse.information.productsTable.columns.locations')}
+                </th>
+                <th>
+                  {t('warehouse.information.productsTable.columns.suppliers')}
+                </th>
+                <th>{t('warehouse.information.productsTable.columns.latest')}</th>
               </tr>
             </thead>
             <tbody>
               {report.products.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>No product rows found.</td>
+                  <td colSpan={8}>
+                    {t('warehouse.information.productsTable.empty')}
+                  </td>
                 </tr>
               ) : (
                 paginatedProducts.map((row) => (
@@ -749,19 +868,31 @@ export const WarehouseInformationPanel = ({
           <table className='catalog-table warehouse-information-table'>
             <thead>
               <tr>
-                <th>Warehouse</th>
-                <th>Status</th>
-                <th>Location</th>
-                <th>Units</th>
-                <th>Products</th>
-                <th>Value</th>
-                <th>Latest</th>
+                <th>
+                  {t('warehouse.information.locationsTable.columns.warehouse')}
+                </th>
+                <th>
+                  {t('warehouse.information.locationsTable.columns.status')}
+                </th>
+                <th>
+                  {t('warehouse.information.locationsTable.columns.location')}
+                </th>
+                <th>{t('warehouse.information.locationsTable.columns.units')}</th>
+                <th>
+                  {t('warehouse.information.locationsTable.columns.products')}
+                </th>
+                <th>{t('warehouse.information.locationsTable.columns.value')}</th>
+                <th>
+                  {t('warehouse.information.locationsTable.columns.latest')}
+                </th>
               </tr>
             </thead>
             <tbody>
               {report.locations.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>No location rows found.</td>
+                  <td colSpan={7}>
+                    {t('warehouse.information.locationsTable.empty')}
+                  </td>
                 </tr>
               ) : (
                 paginatedLocations.map((row) => (
@@ -775,7 +906,9 @@ export const WarehouseInformationPanel = ({
                             : 'receipt-status receipt-status-cancelled'
                         }
                       >
-                        {row.isWarehouseActive ? 'Active' : 'Inactive'}
+                        {row.isWarehouseActive
+                          ? t('warehouse.common.active')
+                          : t('warehouse.common.inactive')}
                       </span>
                     </td>
                     <td>{row.locationName}</td>
@@ -797,18 +930,28 @@ export const WarehouseInformationPanel = ({
           <table className='catalog-table warehouse-information-table'>
             <thead>
               <tr>
-                <th>Supplier</th>
-                <th>Units</th>
-                <th>Value</th>
-                <th>Products</th>
-                <th>Warehouses</th>
-                <th>Latest</th>
+                <th>
+                  {t('warehouse.information.suppliersTable.columns.supplier')}
+                </th>
+                <th>{t('warehouse.information.suppliersTable.columns.units')}</th>
+                <th>{t('warehouse.information.suppliersTable.columns.value')}</th>
+                <th>
+                  {t('warehouse.information.suppliersTable.columns.products')}
+                </th>
+                <th>
+                  {t('warehouse.information.suppliersTable.columns.warehouses')}
+                </th>
+                <th>
+                  {t('warehouse.information.suppliersTable.columns.latest')}
+                </th>
               </tr>
             </thead>
             <tbody>
               {report.suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No supplier rows found.</td>
+                  <td colSpan={6}>
+                    {t('warehouse.information.suppliersTable.empty')}
+                  </td>
                 </tr>
               ) : (
                 paginatedSuppliers.map((row) => (

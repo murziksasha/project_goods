@@ -1,0 +1,60 @@
+{
+  "list": {
+    "sectionLabel": "Список",
+    "title": "Команда",
+    "loading": "Завантаження співробітників...",
+    "empty": "Співробітників ще немає.",
+    "noEmail": "Немає email",
+    "noPhone": "Немає телефону",
+    "noLogin": "Немає логіну",
+    "currentUser": "поточний користувач",
+    "active": "Активний",
+    "inactive": "Неактивний",
+    "edit": "Редагувати",
+    "delete": "Видалити",
+    "cannotDeleteSelf": "Ви не можете видалити власний обліковий запис.",
+    "deleteEmployee": "Видалити співробітника",
+    "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників."
+  },
+  "form": {
+    "sectionLabel": "Співробітники",
+    "createTitle": "Створити співробітника",
+    "editTitle": "Редагувати співробітника",
+    "cancel": "Скасувати",
+    "name": "Ім'я",
+    "fullNamePlaceholder": "Повне ім'я",
+    "phone": "Телефон",
+    "phonePlaceholder": "+380...",
+    "email": "Email",
+    "emailPlaceholder": "employee@example.com",
+    "login": "Логін",
+    "loginPlaceholder": "login",
+    "password": "Пароль",
+    "newPassword": "Новий пароль",
+    "passwordPlaceholder": "Пароль",
+    "passwordKeepCurrent": "Залиште порожнім, щоб зберегти поточний пароль",
+    "role": "Роль",
+    "status": "Статус",
+    "active": "Активний",
+    "inactive": "Неактивний",
+    "note": "Примітка",
+    "saving": "Збереження...",
+    "saveEmployee": "Зберегти співробітника",
+    "updateEmployee": "Оновити співробітника"
+  },
+  "permissionGroups": {
+    "orders": "Замовлення",
+    "supplierOrders": "Замовлення постачальникам",
+    "clients": "Клієнти",
+    "inventory": "Склад",
+    "finance": "Фінанси",
+    "employees": "Співробітники",
+    "system": "Система"
+  },
+  "deleteModal": {
+    "title": "Видалити співробітника",
+    "message": "Ви впевнені, що хочете видалити користувача «{{name}}»?",
+    "cancel": "Скасувати",
+    "delete": "Видалити"
+  }
+}

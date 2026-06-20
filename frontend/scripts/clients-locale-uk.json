@@ -1,0 +1,233 @@
+{
+  "tabs": {
+    "main": "Основне",
+    "services": "Послуги",
+    "sales": "Продажі",
+    "clientsAndSuppliers": "Клієнти та постачальники",
+    "clients": "Клієнти",
+    "suppliers": "Постачальники"
+  },
+  "toolbar": {
+    "filter": "Фільтр",
+    "searchPlaceholder": "Пошук за імʼям або телефоном",
+    "searchAriaLabel": "Пошук клієнта",
+    "clearSearchAriaLabel": "Очистити пошук",
+    "importXls": "Імпорт XLS",
+    "importing": "Імпорт...",
+    "exportXls": "Експорт XLS",
+    "exporting": "Експорт...",
+    "merge": "Обʼєднати",
+    "createClient": "Створити клієнта"
+  },
+  "table": {
+    "title": "Список клієнтів",
+    "columns": {
+      "id": "Id",
+      "tag": "Мітка",
+      "name": "Імʼя",
+      "phone": "Телефон",
+      "registrationDate": "Дата реєстрації",
+      "visits": "Візити",
+      "clientIncome": "Дохід клієнта",
+      "actions": "Дії"
+    },
+    "loading": "Завантаження клієнтів...",
+    "empty": "Клієнтів за обраними фільтрами не знайдено.",
+    "blacklistTitle": "Клієнт у чорному списку",
+    "blacklistAriaLabel": "{{name}}. Клієнт у чорному списку",
+    "deleteAriaLabel": "Видалити {{name}}",
+    "deleteTitle": "Видалити клієнта",
+    "deleteDisabledTitle": "Неможливо видалити клієнта з замовленнями або продажами."
+  },
+  "filters": {
+    "phoneOrName": "Телефон / імʼя",
+    "phoneOrNamePlaceholder": "+380..., Іван",
+    "clientId": "ID клієнта",
+    "clientIdPlaceholder": "ID",
+    "orderNumber": "Замовлення №",
+    "orderNumberPlaceholder": "r000001",
+    "dateFrom": "Дата від",
+    "dateTo": "Дата до",
+    "status": "Статус",
+    "statusAll": "Усі",
+    "visitsFrom": "Візити від",
+    "visitsTo": "Візити до",
+    "incomeFrom": "Дохід клієнта від",
+    "incomeTo": "Дохід клієнта до",
+    "placeholderZero": "0",
+    "apply": "Застосувати",
+    "clear": "Очистити фільтр",
+    "saveFilter": "Зберегти фільтр",
+    "saveFilterRequiresEmployee": "Для збереження фільтрів потрібен профіль співробітника.",
+    "searchLabel": "Пошук за імʼям або телефоном",
+    "searchPlaceholder": "Іван, +38067...",
+    "filterByStatus": "Фільтр за статусом"
+  },
+  "card": {
+    "sectionLabel": "Клієнт",
+    "titleFallback": "Картка клієнта",
+    "tablistAriaLabel": "Картка клієнта",
+    "loadingHistory": "Завантаження історії клієнта...",
+    "selectClient": "Оберіть клієнта зі списку.",
+    "noServices": "Послуг для цього клієнта не знайдено.",
+    "noSales": "Продажів для цього клієнта не знайдено.",
+    "fields": {
+      "name": "Імʼя",
+      "email": "Email",
+      "address": "Адреса",
+      "phones": "Телефони",
+      "primaryPhone": "Основний телефон",
+      "additionalPhone": "Додатковий телефон",
+      "primaryPhonePlaceholder": "+380",
+      "status": "Статус",
+      "companyIdOrTaxId": "ЄДРПОУ або ІПН",
+      "iban": "IBAN",
+      "note": "Примітка"
+    },
+    "addPhone": "+ Додати телефон",
+    "removePhoneAriaLabel": "Видалити телефон",
+    "saveClient": "Зберегти клієнта",
+    "saving": "Збереження...",
+    "history": {
+      "columns": {
+        "number": "№",
+        "date": "Дата",
+        "service": "Послуга",
+        "sale": "Продаж",
+        "status": "Статус",
+        "amount": "Сума"
+      }
+    }
+  },
+  "create": {
+    "title": "Додати клієнта",
+    "fields": {
+      "phone": "Телефон",
+      "name": "Імʼя",
+      "address": "Адреса",
+      "email": "Email",
+      "note": "Примітка",
+      "companyIdOrTaxId": "ЄДРПОУ або ІПН",
+      "iban": "IBAN"
+    },
+    "add": "Додати",
+    "saving": "Збереження..."
+  },
+  "merge": {
+    "title": "Обʼєднати клієнтів",
+    "description": "Оберіть Клієнт 1 і Клієнт 2. Дані з Клієнт 2 будуть перенесені в Клієнт 1, після чого Клієнт 2 буде видалено.",
+    "client1": "Клієнт 1",
+    "client2": "Клієнт 2",
+    "searchPlaceholder": "Введіть імʼя або телефон",
+    "mergeClients": "Обʼєднати клієнтів",
+    "merging": "Обʼєднання..."
+  },
+  "history": {
+    "sectionLabel": "Історія",
+    "titleFallback": "Картка клієнта",
+    "period": "Період",
+    "periods": {
+      "all": "Увесь час",
+      "year": "Цей рік",
+      "lastMonth": "Минулий місяць"
+    },
+    "stats": {
+      "sales": "Продажі",
+      "itemsSold": "Продано позицій",
+      "revenue": "Виручка"
+    },
+    "loading": "Завантаження історії клієнта...",
+    "selectClient": "Натисніть клієнта, щоб переглянути всі покупки.",
+    "noPurchases": "Покупок за цей період не знайдено."
+  },
+  "suppliers": {
+    "toolbar": {
+      "filter": "Фільтр",
+      "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
+      "clearSearchAriaLabel": "Очистити пошук",
+      "merge": "Обʼєднати",
+      "createSupplier": "Створити постачальника"
+    },
+    "filters": {
+      "namePhoneOrOrder": "Імʼя / телефон / замовлення",
+      "namePhoneOrOrderPlaceholder": "Імʼя або телефон постачальника",
+      "supplierId": "ID постачальника",
+      "supplierIdPlaceholder": "ID",
+      "status": "Статус",
+      "statusAll": "Усі",
+      "statusActive": "Активний",
+      "statusInactive": "Неактивний",
+      "dateFrom": "Дата від",
+      "dateTo": "Дата до",
+      "note": "Примітка",
+      "notePlaceholder": "Примітка",
+      "apply": "Застосувати",
+      "clear": "Очистити фільтр",
+      "saveFilter": "Зберегти фільтр",
+      "saveFilterRequiresEmployee": "Для збереження фільтрів потрібен профіль співробітника."
+    },
+    "table": {
+      "columns": {
+        "id": "ID",
+        "name": "Імʼя",
+        "phone": "Телефон",
+        "status": "Статус",
+        "created": "Створено"
+      },
+      "statusActive": "active",
+      "statusInactive": "inactive",
+      "empty": "Постачальників не знайдено."
+    },
+    "create": {
+      "title": "Створити постачальника",
+      "editTitle": "Редагувати постачальника",
+      "fields": {
+        "name": "Імʼя",
+        "phone": "Телефон",
+        "supplierOrder": "Замовлення постачальника",
+        "note": "Примітка",
+        "status": "Статус"
+      },
+      "statusActive": "active",
+      "statusInactive": "inactive",
+      "duplicateError": "Постачальник з таким телефоном або імʼям уже існує: {{name}}",
+      "create": "Створити",
+      "save": "Зберегти",
+      "saving": "Збереження..."
+    },
+    "merge": {
+      "title": "Обʼєднати постачальників",
+      "description": "Оберіть Постачальник 1 і Постачальник 2. Дані з Постачальник 2 будуть перенесені в Постачальник 1, після чого Постачальник 2 буде видалено.",
+      "supplier1": "Постачальник 1",
+      "supplier2": "Постачальник 2",
+      "searchPlaceholder": "Введіть імʼя або телефон",
+      "mergeSuppliers": "Обʼєднати постачальників",
+      "merging": "Обʼєднання..."
+    }
+  },
+  "messages": {
+    "errors": {
+      "invalidPhoneFormat": "Невірний формат номера телефону",
+      "addressMinLength": "Адреса має містити щонайменше 5 символів.",
+      "registrationIdFormat": "Значення має містити 8-12 символів: літери, цифри або дефіс.",
+      "ibanFormat": "IBAN має відповідати формату UA + 27 цифр. Пробіли дозволені.",
+      "enterFilterName": "Введіть назву фільтра.",
+      "employeeRequiredForFilters": "Для збереження фільтрів потрібен поточний співробітник.",
+      "filterSaved": "Фільтр збережено.",
+      "failedImport": "Не вдалося імпортувати клієнтів.",
+      "failedExport": "Не вдалося експортувати клієнтів.",
+      "failedDelete": "Не вдалося видалити клієнта.",
+      "failedMerge": "Не вдалося обʼєднати клієнтів.",
+      "selectTwoClients": "Оберіть двох різних клієнтів для обʼєднання.",
+      "clientHasOrders": "Неможливо видалити клієнта з замовленнями або продажами.",
+      "invalidClientData": "Виправте помилки валідації перед збереженням."
+    },
+    "success": {
+      "filterSaved": "Фільтр збережено.",
+      "clientDeleted": "Клієнта видалено.",
+      "clientsMerged": "Клієнтів успішно обʼєднано.",
+      "importCompleted": "Імпорт завершено.",
+      "exportCompleted": "Експорт завершено."
+    }
+  }
+}

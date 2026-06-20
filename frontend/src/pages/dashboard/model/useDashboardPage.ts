@@ -60,6 +60,7 @@ import {
 } from '../../../entities/sale/api/saleApi';
 import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
 import { queryClient, queryKeys } from '../../../shared/api/queryClient';
+import i18n from '../../../shared/i18n/config';
 import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
 import type {
   ServiceCatalogFormValues,
@@ -579,13 +580,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
           });
           setCatalogProducts(nextCatalogProducts);
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage('Catalog product updated.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductUpdated'));
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : 'Failed to update catalog product.',
+              : i18n.t('dashboard.actions.errors.failedUpdateCatalogProduct'),
           );
           return false;
         }
@@ -602,13 +603,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
           });
           setCatalogProducts(nextCatalogProducts);
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage('Catalog product created.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductCreated'));
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : 'Failed to create catalog product.',
+              : i18n.t('dashboard.actions.errors.failedCreateCatalogProduct'),
           );
           return false;
         }
@@ -625,13 +626,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
           });
           setCatalogProducts(nextCatalogProducts);
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage('Catalog product removed.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductRemoved'));
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : 'Failed to remove catalog product.',
+              : i18n.t('dashboard.actions.errors.failedRemoveCatalogProduct'),
           );
           return false;
         }
@@ -652,7 +653,12 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
               warehouseId: target.warehouseId,
               locationId: target.locationId,
               note: target.note
-                ? [product.note, `Transfer note: ${target.note}`]
+                ? [
+                    product.note,
+                    i18n.t('dashboard.actions.notes.transferNote', {
+                      note: target.note,
+                    }),
+                  ]
                     .filter(Boolean)
                     .join('\n')
                 : product.note,
@@ -672,13 +678,13 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
           });
           setAllProducts(nextProducts);
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage('Product transferred.');
+          setSuccessMessage(i18n.t('dashboard.actions.success.productTransferred'));
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : 'Failed to transfer product.',
+              : i18n.t('dashboard.actions.errors.failedTransferProduct'),
           );
           return false;
         } finally {

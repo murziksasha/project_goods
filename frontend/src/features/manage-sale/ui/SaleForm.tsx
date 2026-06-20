@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../entities/client/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
@@ -39,6 +40,7 @@ export const SaleForm = ({
   onSubmit,
   onCancelEdit,
 }: SaleFormProps) => {
+  const { t } = useTranslation();
   const [clientNameInput, setClientNameInput] = useState('');
   const [clientPhoneInput, setClientPhoneInput] = useState('');
   const [productInput, setProductInput] = useState('');
@@ -130,19 +132,23 @@ export const SaleForm = ({
     <section className="panel">
       <div className="panel-header">
         <div>
-          <p className="section-label">Sales</p>
-          <h2>{isEditing ? 'Edit sale' : 'Sell product'}</h2>
+          <p className="section-label">{t('legacy.saleForm.sectionLabel')}</p>
+          <h2>
+            {isEditing
+              ? t('legacy.saleForm.editTitle')
+              : t('legacy.saleForm.sellTitle')}
+          </h2>
         </div>
         {isEditing ? (
           <button className="ghost-button" type="button" onClick={onCancelEdit}>
-            Cancel
+            {t('common.cancel')}
           </button>
         ) : null}
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>Date</span>
+          <span>{t('legacy.saleForm.date')}</span>
           <input
             type="date"
             value={form.saleDate}
@@ -151,7 +157,7 @@ export const SaleForm = ({
         </label>
 
         <label className="field">
-          <span>Quantity</span>
+          <span>{t('legacy.saleForm.quantity')}</span>
           <NumberStepper
             min={1}
             value={form.quantity}
@@ -194,7 +200,7 @@ export const SaleForm = ({
         />
 
         <label className="field">
-          <span>Sale price</span>
+          <span>{t('legacy.saleForm.salePrice')}</span>
           <NumberStepper
             min={0}
             step={0.01}
@@ -206,16 +212,20 @@ export const SaleForm = ({
             onChange={(value) => onChange('salePrice', value)}
           />
           {productSalePriceOptions.length > 0 ? (
-            <span>{`Available prices: ${productSalePriceOptions.join(', ')}`}</span>
+            <span>
+              {t('legacy.saleForm.availablePrices', {
+                prices: productSalePriceOptions.join(', '),
+              })}
+            </span>
           ) : null}
         </label>
 
         <label className="field field-wide">
-          <span>Note</span>
+          <span>{t('common.note')}</span>
           <textarea
             rows={4}
             value={form.note}
-            placeholder="Comment for the sale card"
+            placeholder={t('legacy.saleForm.notePlaceholder')}
             onChange={(event) => onChange('note', event.target.value)}
           />
         </label>
@@ -233,7 +243,11 @@ export const SaleForm = ({
           !form.salePrice.trim()
         }
       >
-        {isSaving ? 'Saving...' : isEditing ? 'Update sale' : 'Create sale'}
+        {isSaving
+          ? t('common.saving')
+          : isEditing
+            ? t('legacy.saleForm.updateSale')
+            : t('legacy.saleForm.createSale')}
       </button>
     </section>
   );

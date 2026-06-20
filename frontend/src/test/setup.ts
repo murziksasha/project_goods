@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import i18n from '../shared/i18n/config';
 
 const createStorageMock = (): Storage => {
   const values = new Map<string, string>();
@@ -45,3 +46,6 @@ if (typeof window !== 'undefined') {
     };
   }
 }
+
+// Initialize i18n for tests (stable English strings in assertions)
+i18n.changeLanguage('en');

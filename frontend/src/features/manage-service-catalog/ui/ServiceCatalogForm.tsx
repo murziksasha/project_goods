@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ServiceCatalogFormValues } from '../../../entities/service-catalog/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
@@ -23,60 +24,74 @@ export const ServiceCatalogForm = ({
   onChange,
   onSubmit,
   onCancelEdit,
-}: ServiceCatalogFormProps) => (
-  <section className="panel">
-    <div className="panel-header">
-      <div>
-        <p className="section-label">{isEditing ? 'Update' : 'Create'}</p>
-        <h2>{isEditing ? 'Edit service' : 'Add service'}</h2>
+}: ServiceCatalogFormProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <p className="section-label">
+            {isEditing ? t('common.update') : t('common.create')}
+          </p>
+          <h2>
+            {isEditing
+              ? t('catalog.serviceForm.editService')
+              : t('catalog.serviceForm.addService')}
+          </h2>
+        </div>
+        {isEditing ? (
+          <button className="ghost-button" type="button" onClick={onCancelEdit}>
+            {t('common.cancel')}
+          </button>
+        ) : null}
       </div>
-      {isEditing ? (
-        <button className="ghost-button" type="button" onClick={onCancelEdit}>
-          Cancel
-        </button>
-      ) : null}
-    </div>
 
-    <div className="form-grid">
-      <label className="field">
-        <span>Name</span>
-        <input
-          value={form.name}
-          placeholder="Software setup"
-          onChange={(event) => onChange('name', event.target.value)}
-        />
-      </label>
+      <div className="form-grid">
+        <label className="field">
+          <span>{t('common.name')}</span>
+          <input
+            value={form.name}
+            placeholder={t('catalog.serviceForm.namePlaceholder')}
+            onChange={(event) => onChange('name', event.target.value)}
+          />
+        </label>
 
-      <label className="field">
-        <span>Price</span>
-        <NumberStepper
-          min={0}
-          step={0.01}
-          precision={2}
-          value={form.price}
-          placeholder="700"
-          onChange={(value) => onChange('price', value)}
-        />
-      </label>
+        <label className="field">
+          <span>{t('common.price')}</span>
+          <NumberStepper
+            min={0}
+            step={0.01}
+            precision={2}
+            value={form.price}
+            placeholder={t('catalog.serviceForm.pricePlaceholder')}
+            onChange={(value) => onChange('price', value)}
+          />
+        </label>
 
-      <label className="field field-wide">
-        <span>Note</span>
-        <textarea
-          rows={3}
-          value={form.note}
-          placeholder="Default description or internal note"
-          onChange={(event) => onChange('note', event.target.value)}
-        />
-      </label>
-    </div>
+        <label className="field field-wide">
+          <span>{t('common.note')}</span>
+          <textarea
+            rows={3}
+            value={form.note}
+            placeholder={t('catalog.serviceForm.notePlaceholder')}
+            onChange={(event) => onChange('note', event.target.value)}
+          />
+        </label>
+      </div>
 
-    <button
-      className="primary-button"
-      type="button"
-      onClick={onSubmit}
-      disabled={isSaving || hasEmptyRequiredFields(form)}
-    >
-      {isSaving ? 'Saving...' : isEditing ? 'Update service' : 'Add service'}
-    </button>
-  </section>
-);
+      <button
+        className="primary-button"
+        type="button"
+        onClick={onSubmit}
+        disabled={isSaving || hasEmptyRequiredFields(form)}
+      >
+        {isSaving
+          ? t('common.saving')
+          : isEditing
+            ? t('catalog.serviceForm.updateService')
+            : t('catalog.serviceForm.addService')}
+      </button>
+    </section>
+  );
+};

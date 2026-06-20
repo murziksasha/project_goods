@@ -31,6 +31,9 @@ export const getClientStatusClass = (status: ClientStatus | ''): string => {
   return `status-${status}`;
 };
 
+export const getClientStatusLabelKey = (status: ClientStatus | ''): string =>
+  status ? `clients.statusValues.${status}` : 'clients.statusValues.empty';
+
 /**
  * Логика определения эффективного статуса клиента:
  * - blacklist всегда имеет приоритет (не может быть изменен автоматически)

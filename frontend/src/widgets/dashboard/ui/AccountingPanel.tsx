@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../../shared/i18n/config';
 import {
   useCancelFinanceTransactionMutation,
   useCreateCashboxMutation,
@@ -61,6 +63,7 @@ export const AccountingPanel = ({
   sales,
   onOpenSaleCard,
 }: AccountingPanelProps) => {
+  const { t } = useTranslation();
   const {
     allCashboxes,
     cashboxes,
@@ -304,7 +307,7 @@ export const AccountingPanel = ({
   const saveCashbox = async () => {
     if (!editingCashboxId) return;
     if (!canManageCashboxes) {
-      onError('Current employee does not have permission to manage cashboxes.');
+      onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
       return;
     }
     await runFinanceAction(
@@ -313,21 +316,21 @@ export const AccountingPanel = ({
           cashboxId: editingCashboxId,
           payload: { name: editingCashboxName.trim() },
         }),
-      'Cashbox updated.',
+      i18n.t('accounting.messages.success.cashboxUpdated'),
       {
         afterSuccess: () => {
           setEditingCashboxId(null);
           setEditingCashboxName('');
         },
         skipRefresh: true,
-        errorFallback: 'Failed to update cashbox.',
+        errorFallback: i18n.t('accounting.messages.errors.failedUpdateCashbox'),
       },
     );
   };
 
   const toggleCashboxArchived = async (cashbox: Cashbox) => {
     if (!canManageCashboxes) {
-      onError('Current employee does not have permission to manage cashboxes.');
+      onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
       return;
     }
     const nextArchived = !cashbox.isArchived;
@@ -337,10 +340,12 @@ export const AccountingPanel = ({
           cashboxId: cashbox.id,
           payload: { isArchived: nextArchived },
         }),
-      nextArchived ? 'Cashbox deactivated.' : 'Cashbox reactivated.',
+      nextArchived
+        ? i18n.t('accounting.messages.success.cashboxDeactivated')
+        : i18n.t('accounting.messages.success.cashboxReactivated'),
       {
         skipRefresh: true,
-        errorFallback: 'Failed to update cashbox status.',
+        errorFallback: i18n.t('accounting.messages.errors.failedUpdateCashboxStatus'),
       },
     );
   };
@@ -348,22 +353,22 @@ export const AccountingPanel = ({
   const addCurrencyCode = async () => {
     const normalized = newCurrencyCode.trim().toUpperCase();
     if (!/^[A-Z]{3,6}$/.test(normalized)) {
-      onError('Currency code must be 3-6 latin letters.');
+      onError(i18n.t('accounting.messages.errors.currencyCodeInvalid'));
       return;
     }
     if (currencies.some((currency) => currency.code === normalized && !currency.isArchived)) {
-      onError('Currency already exists.');
+      onError(i18n.t('accounting.messages.errors.currencyAlreadyExists'));
       return;
     }
     await runFinanceAction(
       () => createFinanceCurrencyMutation.mutateAsync({ code: normalized }),
-      'Currency created.',
+      i18n.t('accounting.messages.success.currencyCreated'),
       {
         afterSuccess: () => {
           setNewCurrencyCode('');
         },
         skipRefresh: true,
-        errorFallback: 'Failed to create currency.',
+        errorFallback: i18n.t('accounting.messages.errors.failedCreateCurrency'),
       },
     );
   };
@@ -371,7 +376,7 @@ export const AccountingPanel = ({
   const handleRemoveCurrency = useCallback(
     (code: string) => {
       if (code === 'UAH') {
-        onError('UAH is the main currency and cannot be archived.');
+        onError(i18n.t('accounting.messages.errors.uahCannotBeArchived'));
         return;
       }
       void runFinanceAction(
@@ -380,10 +385,10 @@ export const AccountingPanel = ({
             currencyCode: code,
             payload: { isArchived: true },
           }),
-        'Currency archived.',
+        i18n.t('accounting.messages.success.currencyArchived'),
         {
           skipRefresh: true,
-          errorFallback: 'Failed to archive currency.',
+          errorFallback: i18n.t('accounting.messages.errors.failedArchiveCurrency'),
         },
       );
     },
@@ -401,7 +406,7 @@ export const AccountingPanel = ({
 
   const toggleCurrencyActivity = async (currencyCode: string) => {
     if (currencyCode === 'UAH') {
-      onError('UAH is always active.');
+      onError(i18n.t('accounting.messages.errors.uahAlwaysActive'));
       return;
     }
     const currency = currencies.find((item) => item.code === currencyCode);
@@ -413,10 +418,12 @@ export const AccountingPanel = ({
           currencyCode,
           payload: { isArchived: nextArchived },
         }),
-      nextArchived ? 'Currency archived.' : 'Currency restored.',
+      nextArchived
+        ? i18n.t('accounting.messages.success.currencyArchived')
+        : i18n.t('accounting.messages.success.currencyRestored'),
       {
         skipRefresh: true,
-        errorFallback: 'Failed to update currency.',
+        errorFallback: i18n.t('accounting.messages.errors.failedUpdateCurrency'),
       },
     );
   };
@@ -426,7 +433,7 @@ export const AccountingPanel = ({
     currencyCode: string,
   ) => {
     if (currencyCode === 'UAH') {
-      onError('UAH is always active.');
+      onError(i18n.t('accounting.messages.errors.uahAlwaysActive'));
       return;
     }
     const cashbox = allCashboxes.find((item) => item.id === cashboxId);
@@ -444,10 +451,12 @@ export const AccountingPanel = ({
             },
           },
         }),
-      'Cashbox currency settings updated.',
+      i18n.t('accounting.messages.success.cashboxCurrencySettingsUpdated'),
       {
         skipRefresh: true,
-        errorFallback: 'Failed to update cashbox currency settings.',
+        errorFallback: i18n.t(
+          'accounting.messages.errors.failedUpdateCashboxCurrencySettings',
+        ),
       },
     );
   };
@@ -455,18 +464,18 @@ export const AccountingPanel = ({
   const handleCreateCashbox = async () => {
     if (!newCashboxName.trim()) return;
     if (!canManageCashboxes) {
-      onError('Current employee does not have permission to manage cashboxes.');
+      onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
       return;
     }
     await runFinanceAction(
       () => createCashboxMutation.mutateAsync({ name: newCashboxName }),
-      'Cashbox created.',
+      i18n.t('accounting.messages.success.cashboxCreated'),
       {
         afterSuccess: () => {
           setNewCashboxName('');
         },
         skipRefresh: true,
-        errorFallback: 'Failed to create cashbox.',
+        errorFallback: i18n.t('accounting.messages.errors.failedCreateCashbox'),
       },
     );
   };
@@ -484,20 +493,20 @@ export const AccountingPanel = ({
   const handleCancelTransfer = async () => {
     const transfer = transferToCancel!;
     if (!canCancelTransferTransaction(transfer)) {
-      onError('Transfer can be cancelled only during the transaction day.');
+      onError(i18n.t('accounting.messages.errors.transferCancelOnlySameDay'));
       setTransferToCancel(null);
       return;
     }
 
     await runFinanceAction(
       () => cancelFinanceTransactionMutation.mutateAsync(transfer.id),
-      'Transfer cancelled. A reverse transaction was created.',
+      i18n.t('accounting.messages.success.transferCancelled'),
       {
         afterSuccess: () => {
           setTransferToCancel(null);
         },
         skipRefresh: true,
-        errorFallback: 'Failed to cancel transfer.',
+        errorFallback: i18n.t('accounting.messages.errors.failedCancelTransfer'),
       },
     );
   };
@@ -506,14 +515,14 @@ export const AccountingPanel = ({
     const order = withoutPaymentOrder!;
     await runFinanceAction(
       () => issueSupplierOrderWithoutPaymentMutation.mutateAsync(order.id),
-      'Order issued without payment.',
+      i18n.t('accounting.messages.success.orderIssuedWithoutPayment'),
       {
         afterSuccess: () => {
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           setWithoutPaymentOrder(null);
         },
         skipRefresh: true,
-        errorFallback: 'Failed to issue order without payment.',
+        errorFallback: i18n.t('accounting.messages.errors.failedIssueWithoutPayment'),
       },
     );
   };
@@ -530,16 +539,16 @@ export const AccountingPanel = ({
           supplierOrderId: order.id,
           payload: {
             cashboxId,
-            note: `Payment for order ${orderNumber}`,
+            note: i18n.t('accounting.orders.paymentNote', { orderNumber }),
           },
         }),
-      'Order has been paid.',
+      i18n.t('accounting.messages.success.orderPaid'),
       {
         afterSuccess: () => {
           window.dispatchEvent(new Event('project-goods:finance-updated'));
         },
         skipRefresh: true,
-        errorFallback: 'Failed to pay order.',
+        errorFallback: i18n.t('accounting.messages.errors.failedPayOrder'),
       },
     );
   };
@@ -563,13 +572,13 @@ export const AccountingPanel = ({
           transactionId: noteTransactionToEdit.id,
           payload: { note: payloadNote },
         }),
-      'Note updated.',
+      i18n.t('accounting.messages.success.noteUpdated'),
       {
         afterSuccess: () => {
           closeNoteEditor();
         },
         skipRefresh: true,
-        errorFallback: 'Failed to update note.',
+        errorFallback: i18n.t('accounting.messages.errors.failedUpdateNote'),
       },
     );
   };
@@ -610,7 +619,7 @@ export const AccountingPanel = ({
       />
 
       {isLoading ? (
-        <p className='empty-state'>Loading finance data...</p>
+        <p className='empty-state'>{t('accounting.transactions.loading')}</p>
       ) : isFinanceSettingsOpen ? (
         <AccountingFinanceSettings
           activeTab={financeSettingsTab}
@@ -769,7 +778,7 @@ export const AccountingPanel = ({
             aria-labelledby='transaction-note-title'
           >
             <header className='catalog-edit-header'>
-              <h2 id='transaction-note-title'>Transaction note</h2>
+              <h2 id='transaction-note-title'>{t('accounting.transactions.noteModalTitle')}</h2>
               <button
                 type='button'
                 className='ghost-button'
@@ -786,7 +795,7 @@ export const AccountingPanel = ({
                 onChange={(e) => setNoteDraft(e.target.value)}
                 rows={4}
                 maxLength={300}
-                placeholder='Enter note...'
+                placeholder={t('accounting.transactions.noteModalPlaceholder')}
                 disabled={isSaving}
               />
               <p className='muted-copy'>{noteDraft.length}/300</p>
@@ -798,7 +807,7 @@ export const AccountingPanel = ({
                 disabled={isSaving}
                 onClick={closeNoteEditor}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type='button'
@@ -806,7 +815,7 @@ export const AccountingPanel = ({
                 disabled={isSaving}
                 onClick={() => void handleSaveNote()}
               >
-                {isSaving ? 'Saving...' : 'Save'}
+                {isSaving ? t('accounting.transactions.saving') : t('common.save')}
               </button>
             </footer>
           </div>

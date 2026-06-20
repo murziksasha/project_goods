@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import type { Cashbox } from '../../../entities/finance/model/types';
@@ -104,6 +105,7 @@ export const PaymentModal = ({
   onOpenPrint,
   onSubmit,
 }: PaymentModalProps) => {
+  const { t } = useTranslation();
   const numericAmount = parseDecimal(amount);
   const nextPaymentRemaining = Math.max(
     currentPaymentRemaining -
@@ -112,12 +114,12 @@ export const PaymentModal = ({
   );
   const submitWithStatusLabel =
     paymentTargetStatus === 'paid'
-      ? 'Accept and mark paid'
-      : 'Accept and issue';
+      ? t('orders.payment.acceptAndMarkPaid')
+      : t('orders.payment.acceptAndIssue');
   const submitWithoutPaymentLabel =
     paymentTargetStatus === 'paid'
-      ? 'Mark paid without payment'
-      : 'Issue without payment';
+      ? t('orders.payment.markPaidWithoutPayment')
+      : t('orders.payment.issueWithoutPayment');
   const hasAvailablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
   ).some((form) => form.isActive);
@@ -137,13 +139,13 @@ export const PaymentModal = ({
         className='payment-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Accept payment'
+        aria-label={t('orders.payment.acceptPayment')}
       >
         <button
           type='button'
           className='payment-modal-close'
           onClick={onClose}
-          aria-label='Close payment modal'
+          aria-label={t('orders.payment.closePayment')}
         >
           &times;
         </button>
@@ -151,17 +153,17 @@ export const PaymentModal = ({
         <div className='payment-modal-summary'>
           <dl>
             <div>
-              <dt>Repair cost</dt>
+              <dt>{t('orders.payment.repairCost')}</dt>
               <dd>{formatCurrency(total)}</dd>
             </div>
             <div>
-              <dt>Paid</dt>
+              <dt>{t('orders.payment.paid')}</dt>
               <dd>{formatCurrency(paidAmount)}</dd>
             </div>
             <div>
               <dt>
                 <span className='payment-summary-discount-label'>
-                  Discount
+                  {t('orders.payment.discount')}
                   <span className='payment-summary-discount-badge'>
                     {discount.mode === 'percent' ? '%' : '₴'}
                   </span>
@@ -174,7 +176,7 @@ export const PaymentModal = ({
               </dd>
             </div>
             <div>
-              <dt>To pay</dt>
+              <dt>{t('orders.payment.toPay')}</dt>
               <dd>{formatCurrency(currentPaymentRemaining)}</dd>
             </div>
           </dl>
@@ -192,13 +194,15 @@ export const PaymentModal = ({
             }
             disabled={isLoading || isSaving}
           >
-            {paymentMethod === 'cash' ? 'Cash' : 'Non-cash'}
+            {paymentMethod === 'cash'
+              ? t('orders.payment.cash')
+              : t('orders.payment.nonCash')}
           </button>
         </div>
 
         <div className='payment-modal-form'>
           <label className='field payment-cashbox-field'>
-            <span>* Cashbox</span>
+            <span>* {t('orders.payment.cashbox')}</span>
             <select
               value={selectedCashboxId}
               onChange={(event) =>
@@ -214,7 +218,7 @@ export const PaymentModal = ({
             </select>
           </label>
           <label className='field'>
-            <span>Amount</span>
+            <span>{t('orders.payment.amount')}</span>
             <NumberStepper
               min={0}
               max={currentPaymentRemaining}
@@ -226,7 +230,7 @@ export const PaymentModal = ({
             />
           </label>
           <label className='field'>
-            <span>To pay</span>
+            <span>{t('orders.payment.toPay')}</span>
             <input
               value={String(nextPaymentRemaining)}
               disabled
@@ -243,7 +247,7 @@ export const PaymentModal = ({
             disabled={isSaving || !hasAvailablePrintForms}
           >
             <PrinterIcon />
-            Print
+            {t('orders.payment.print')}
           </button>
           <div className='payment-modal-actions'>
             <button
@@ -252,7 +256,7 @@ export const PaymentModal = ({
               onClick={onClose}
               disabled={isSaving}
             >
-              Cancel
+              {t('orders.payment.cancel')}
             </button>
             <button
               type='button'
@@ -264,7 +268,9 @@ export const PaymentModal = ({
               }}
               disabled={isSubmitDisabled}
             >
-              {isSaving ? 'Saving...' : 'Accept to cashbox'}
+              {isSaving
+                ? t('orders.payment.saving')
+                : t('orders.payment.acceptToCashbox')}
             </button>
             <button
               type='button'
@@ -279,7 +285,7 @@ export const PaymentModal = ({
               }
               title={
                 isRepairTargetStatusBlockedByStock
-                  ? 'Refund client payment for bound products and return them to stock first.'
+                  ? t('orders.payment.stockLocked')
                   : undefined
               }
             >
@@ -297,10 +303,10 @@ export const PaymentModal = ({
               title={
                 isIssueWithoutPaymentBlocked
                   ? isRepairTargetStatusBlockedByStock
-                    ? 'Refund client payment for bound products and return them to stock first.'
+                    ? t('orders.payment.stockLocked')
                     : isRepairOrder(sale)
-                    ? 'Repair orders with products can be issued after full payment.'
-                    : 'Issued sale requires payment to cashbox unless total is 0.'
+                    ? t('orders.payment.repairProductsNeedFullPayment')
+                    : t('orders.payment.issuedRequiresPayment')
                   : undefined
               }
             >
@@ -340,6 +346,7 @@ export const RefundModal = ({
   onClose,
   onSubmit,
 }: RefundModalProps) => {
+  const { t } = useTranslation();
   const numericAmount = parseDecimal(amount);
   const isSubmitDisabled =
     isLoading ||
@@ -355,13 +362,13 @@ export const RefundModal = ({
         className='payment-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Refund payment'
+        aria-label={t('orders.payment.refundTitle')}
       >
         <button
           type='button'
           className='payment-modal-close'
           onClick={onClose}
-          aria-label='Close refund modal'
+          aria-label={t('orders.payment.closeRefund')}
         >
           &times;
         </button>
@@ -369,15 +376,15 @@ export const RefundModal = ({
         <div className='payment-modal-summary'>
           <dl>
             <div>
-              <dt>Order total</dt>
+              <dt>{t('orders.payment.orderTotal')}</dt>
               <dd>{formatCurrency(total)}</dd>
             </div>
             <div>
-              <dt>Paid</dt>
+              <dt>{t('orders.payment.paid')}</dt>
               <dd>{formatCurrency(paidAmount)}</dd>
             </div>
             <div>
-              <dt>Refund amount</dt>
+              <dt>{t('orders.payment.refundAmount')}</dt>
               <dd>
                 {formatCurrency(
                   Number.isFinite(numericAmount) ? numericAmount : 0,
@@ -385,12 +392,14 @@ export const RefundModal = ({
               </dd>
             </div>
           </dl>
-          <span className='payment-cash-badge'>Refund</span>
+          <span className='payment-cash-badge'>
+            {t('orders.payment.refundBadge')}
+          </span>
         </div>
 
         <div className='payment-modal-form'>
           <label className='field payment-cashbox-field'>
-            <span>* Cashbox</span>
+            <span>* {t('orders.payment.cashbox')}</span>
             <select
               value={selectedCashboxId}
               onChange={(event) =>
@@ -406,7 +415,7 @@ export const RefundModal = ({
             </select>
           </label>
           <label className='field'>
-            <span>Amount</span>
+            <span>{t('orders.payment.amount')}</span>
             <NumberStepper
               min={0}
               max={paidAmount}
@@ -418,7 +427,7 @@ export const RefundModal = ({
             />
           </label>
           <label className='field'>
-            <span>Available</span>
+            <span>{t('orders.payment.available')}</span>
             <input value={String(paidAmount)} disabled readOnly />
           </label>
         </div>
@@ -432,7 +441,7 @@ export const RefundModal = ({
               onClick={onClose}
               disabled={isSaving}
             >
-              Cancel
+              {t('orders.payment.cancel')}
             </button>
             <button
               type='button'
@@ -440,7 +449,9 @@ export const RefundModal = ({
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
-              {isSaving ? 'Saving...' : 'Refund to client'}
+              {isSaving
+                ? t('orders.payment.saving')
+                : t('orders.payment.refundToClient')}
             </button>
           </div>
         </footer>
@@ -493,6 +504,7 @@ export const ReturnSaleModal = ({
   onClose,
   onSubmit,
 }: ReturnSaleModalProps) => {
+  const { t } = useTranslation();
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -506,7 +518,7 @@ export const ReturnSaleModal = ({
   const maxRefund = Math.min(productTotal, paidAmount);
   const suggestedCashboxName =
     cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
-      ?.name ?? 'Cashbox';
+      ?.name ?? t('orders.payment.cashbox');
   const isSubmitDisabled =
     isLoading ||
     isSaving ||
@@ -523,13 +535,13 @@ export const ReturnSaleModal = ({
         className='payment-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Return sale'
+        aria-label={t('orders.payment.returnSale')}
       >
         <button
           type='button'
           className='payment-modal-close'
           onClick={onClose}
-          aria-label='Close return modal'
+          aria-label={t('orders.payment.closeReturn')}
         >
           &times;
         </button>
@@ -537,11 +549,11 @@ export const ReturnSaleModal = ({
         <div className='payment-modal-summary'>
           <dl>
             <div>
-              <dt>Order</dt>
+              <dt>{t('orders.payment.order')}</dt>
               <dd>{sale.recordNumber ?? 'r------'}</dd>
             </div>
             <div>
-              <dt>Products to stock</dt>
+              <dt>{t('orders.payment.productsToStock')}</dt>
               <dd>
                 {productItems
                   .map((item) => `${item.name} x${item.quantity}`)
@@ -549,20 +561,22 @@ export const ReturnSaleModal = ({
               </dd>
             </div>
             <div>
-              <dt>Product total</dt>
+              <dt>{t('orders.payment.productTotal')}</dt>
               <dd>{formatCurrency(productTotal)}</dd>
             </div>
             <div>
-              <dt>Paid</dt>
+              <dt>{t('orders.payment.paid')}</dt>
               <dd>{formatCurrency(paidAmount)}</dd>
             </div>
           </dl>
-          <span className='payment-cash-badge'>Return</span>
+          <span className='payment-cash-badge'>
+            {t('orders.payment.returnBadge')}
+          </span>
         </div>
 
         <div className='payment-modal-form'>
           <label className='field'>
-            <span>Receive to warehouse</span>
+            <span>{t('orders.payment.receiveToWarehouse')}</span>
             <input
               value={warehouse}
               onChange={(event) =>
@@ -572,7 +586,7 @@ export const ReturnSaleModal = ({
             />
           </label>
           <label className='field payment-cashbox-field'>
-            <span>Refund from cashbox</span>
+            <span>{t('orders.payment.refundFromCashbox')}</span>
             <select
               value={selectedCashboxId}
               onChange={(event) =>
@@ -588,7 +602,7 @@ export const ReturnSaleModal = ({
             </select>
           </label>
           <label className='field'>
-            <span>Refund amount</span>
+            <span>{t('orders.payment.refundAmount')}</span>
             <NumberStepper
               min={minRefund}
               max={maxRefund}
@@ -602,7 +616,11 @@ export const ReturnSaleModal = ({
         </div>
 
         <footer className='payment-modal-footer'>
-          <p className='muted-copy'>{`Suggested cashbox: ${suggestedCashboxName}`}</p>
+          <p className='muted-copy'>
+            {t('orders.payment.suggestedCashbox', {
+              name: suggestedCashboxName,
+            })}
+          </p>
           <div className='payment-modal-actions'>
             <button
               type='button'
@@ -610,7 +628,7 @@ export const ReturnSaleModal = ({
               onClick={onClose}
               disabled={isSaving}
             >
-              Cancel
+              {t('orders.payment.cancel')}
             </button>
             <button
               type='button'
@@ -618,7 +636,9 @@ export const ReturnSaleModal = ({
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
-              {isSaving ? 'Saving...' : 'Return sale'}
+              {isSaving
+                ? t('orders.payment.saving')
+                : t('orders.payment.returnSaleButton')}
             </button>
           </div>
         </footer>
@@ -637,6 +657,7 @@ export const ReturnLineItemModal = ({
   onClose,
   onSubmit,
 }: ReturnLineItemModalProps) => {
+  const { t } = useTranslation();
   const itemTotal = item.price * item.quantity;
   const isSubmitDisabled =
     isLoading ||
@@ -649,13 +670,13 @@ export const ReturnLineItemModal = ({
         className='payment-modal'
         role='dialog'
         aria-modal='true'
-        aria-label='Return product'
+        aria-label={t('orders.payment.returnProduct')}
       >
         <button
           type='button'
           className='payment-modal-close'
           onClick={onClose}
-          aria-label='Close return modal'
+          aria-label={t('orders.payment.closeReturn')}
         >
           &times;
         </button>
@@ -663,24 +684,26 @@ export const ReturnLineItemModal = ({
         <div className='payment-modal-summary'>
           <dl>
             <div>
-              <dt>Product</dt>
+              <dt>{t('orders.payment.product')}</dt>
               <dd>{item.name}</dd>
             </div>
             <div>
-              <dt>Order</dt>
+              <dt>{t('orders.payment.order')}</dt>
               <dd>{sale.recordNumber ?? 'r------'}</dd>
             </div>
             <div>
-              <dt>Item total</dt>
+              <dt>{t('orders.payment.itemTotal')}</dt>
               <dd>{formatCurrency(itemTotal)}</dd>
             </div>
           </dl>
-          <span className='payment-cash-badge'>Return</span>
+          <span className='payment-cash-badge'>
+            {t('orders.payment.returnBadge')}
+          </span>
         </div>
 
         <div className='payment-modal-form'>
           <label className='field'>
-            <span>Receive to warehouse</span>
+            <span>{t('orders.payment.receiveToWarehouse')}</span>
             <input
               value={warehouse}
               onChange={(event) =>
@@ -693,7 +716,7 @@ export const ReturnLineItemModal = ({
 
         <footer className='payment-modal-footer'>
           <p className='muted-copy'>
-            Refund must be completed via "Refund to client" before stock return.
+            {t('orders.payment.refundBeforeReturn')}
           </p>
           <div className='payment-modal-actions'>
             <button
@@ -702,7 +725,7 @@ export const ReturnLineItemModal = ({
               onClick={onClose}
               disabled={isSaving}
             >
-              Cancel
+              {t('orders.payment.cancel')}
             </button>
             <button
               type='button'
@@ -710,7 +733,9 @@ export const ReturnLineItemModal = ({
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
-              {isSaving ? 'Saving...' : 'Return product'}
+              {isSaving
+                ? t('orders.payment.saving')
+                : t('orders.payment.returnProduct')}
             </button>
           </div>
         </footer>
@@ -729,30 +754,34 @@ export const MessageModal = ({
   title,
   message,
   onClose,
-}: MessageModalProps) => (
-  <div className='modal-backdrop' role='presentation'>
-    <section
-      className='payment-modal payment-modal-message'
-      role='dialog'
-      aria-modal='true'
-      aria-label={title}
-    >
-      <div className='payment-modal-summary'>
-        <h3>{title}</h3>
-        <p>{message}</p>
-      </div>
-      <footer className='payment-modal-footer'>
-        <div />
-        <div className='payment-modal-actions'>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={onClose}
-          >
-            OK
-          </button>
+}: MessageModalProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className='modal-backdrop' role='presentation'>
+      <section
+        className='payment-modal payment-modal-message'
+        role='dialog'
+        aria-modal='true'
+        aria-label={title}
+      >
+        <div className='payment-modal-summary'>
+          <h3>{title}</h3>
+          <p>{message}</p>
         </div>
-      </footer>
-    </section>
-  </div>
-);
+        <footer className='payment-modal-footer'>
+          <div />
+          <div className='payment-modal-actions'>
+            <button
+              type='button'
+              className='primary-button'
+              onClick={onClose}
+            >
+              {t('common.ok')}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+};

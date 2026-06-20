@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import i18n from '../../../shared/i18n/config';
 import {
   useCashboxesQuery,
   useFinanceCurrenciesQuery,
@@ -18,7 +19,9 @@ type UseAccountingFinanceDataOptions = {
 };
 
 const getLoadErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : 'Failed to load finance data.';
+  error instanceof Error
+    ? error.message
+    : i18n.t('accounting.messages.errors.failedLoadFinance');
 
 export const useAccountingFinanceData = ({
   onError,

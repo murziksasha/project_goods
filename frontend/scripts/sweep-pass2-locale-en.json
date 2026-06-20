@@ -1,0 +1,109 @@
+{
+  "common": {
+    "system": "System",
+    "administrator": "Administrator",
+    "mainMenu": "Main menu",
+    "noNote": "No note",
+    "noNotes": "No notes.",
+    "notSpecified": "Not specified",
+    "months": "{{count}} months",
+    "serial": "Serial: {{value}}"
+  },
+  "orders": {
+    "supplier": {
+      "orderStatuses": {
+        "request": "Purchase request",
+        "ordered": "Ordered",
+        "approved": "Approved",
+        "stocked": "Stocked",
+        "overdue": "Overdue",
+        "cancelled": "Cancelled",
+        "unavailable": "Unavailable"
+      },
+      "paymentStatuses": {
+        "pending": "Awaiting payment",
+        "paid": "Paid",
+        "without_payment": "Issued without payment",
+        "cancelled": "Cancelled"
+      }
+    },
+    "serialAvailability": {
+      "inactive": "Inactive",
+      "alreadyInThisOrder": "Already in this order",
+      "linkedToAnotherOrder": "Linked to another order",
+      "noFreeStock": "No free stock",
+      "free": "Free"
+    },
+    "create": {
+      "warehouseStock": "Warehouse stock",
+      "catalogSource": "Catalog",
+      "catalogProduct": "Catalog product"
+    }
+  },
+  "warehouse": {
+    "print": {
+      "serialNumbersTitle": "Serial numbers",
+      "productFallback": "Product",
+      "barcodeAriaLabel": "Barcode {{index}}"
+    }
+  },
+  "legacy": {
+    "clientList": {
+      "noSearchResults": "No clients found for this search query.",
+      "empty": "No clients yet.",
+      "noNotes": "No notes yet."
+    },
+    "productList": {
+      "loading": "Loading products...",
+      "noSearchResults": "No products found for this search query.",
+      "empty": "No products yet. Add your first item to start the catalog.",
+      "inStock": "In stock",
+      "outOfStock": "Out of stock",
+      "salePrices": "Sale prices",
+      "totalStock": "Total stock",
+      "freeStock": "Free stock",
+      "reserved": "Reserved",
+      "purchasePlace": "Purchase place",
+      "purchaseDate": "Purchase date",
+      "warranty": "Warranty",
+      "defaultNote": "Default note"
+    },
+    "salesList": {
+      "loading": "Loading sales...",
+      "empty": "No sales yet.",
+      "defaultProduct": "Product",
+      "date": "Date",
+      "quantity": "Quantity",
+      "client": "Client",
+      "phone": "Phone"
+    },
+    "serviceList": {
+      "loading": "Loading services...",
+      "noSearchResults": "No services found for this search query.",
+      "empty": "No services yet. Add the first service to the catalog.",
+      "badge": "Service"
+    },
+    "clientForm": {
+      "sectionLabel": "Clients",
+      "editTitle": "Edit client",
+      "addTitle": "Add client",
+      "similarClients": "Similar clients",
+      "namePlaceholder": "Ivan Petrenko",
+      "notePlaceholder": "Preferences, warnings, order history...",
+      "updateClient": "Update client",
+      "addClient": "Add client"
+    },
+    "saleForm": {
+      "sectionLabel": "Sales",
+      "editTitle": "Edit sale",
+      "sellTitle": "Sell product",
+      "date": "Date",
+      "quantity": "Quantity",
+      "salePrice": "Sale price",
+      "availablePrices": "Available prices: {{prices}}",
+      "notePlaceholder": "Comment for the sale card",
+      "updateSale": "Update sale",
+      "createSale": "Create sale"
+    }
+  }
+}
