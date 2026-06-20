@@ -242,6 +242,31 @@ const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
 const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
   align && align !== 'left' ? ` print-align-${align}` : '';
 
+export const clampTextLevel = (level: unknown): 1 | 2 | 3 =>
+  level === 1 || level === 2 || level === 3 ? level : 3;
+
+export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
+  switch (block.type) {
+    case 'heading':
+      return { ...block, level: clampTextLevel(block.level) };
+    case 'paragraph':
+      return { ...block, level: clampTextLevel(block.level) };
+    case 'columns':
+      return {
+        ...block,
+        columns: block.columns.map((column) => ({
+          ...column,
+          blocks: column.blocks.map(normalizePrintLayoutBlock),
+        })),
+      };
+    default:
+      return block;
+  }
+};
+
+export const normalizePrintLayoutBlocks = (blocks: PrintLayoutBlock[]) =>
+  blocks.map(normalizePrintLayoutBlock);
+
 const codeSizeClass = (
   size: 'compact' | 'standard' | 'large' | undefined,
 ) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
@@ -319,13 +344,13 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
     .map((block) => {
       switch (block.type) {
         case 'heading': {
-          const level = block.level === 1 || block.level === 2 || block.level === 3
-            ? block.level
-            : 2;
+          const level = clampTextLevel(block.level);
           return `<h${level} class="print-block-heading${alignClass(block.align)}">${renderInlineTemplate(block.text)}</h${level}>`;
         }
-        case 'paragraph':
-          return `<p class="print-block-paragraph${alignClass(block.align)}">${renderInlineTemplate(block.text)}</p>`;
+        case 'paragraph': {
+          const level = clampTextLevel(block.level);
+          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}">${renderInlineTemplate(block.text)}</p>`;
+        }
         case 'fieldRow':
           return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, 2)}</tbody></table>`;
         case 'fieldGrid':
@@ -588,7 +613,7 @@ export const createPrintLayoutBlock = (
     case 'heading':
       return { id, type, level: 1, text: 'New heading', align: 'left' };
     case 'paragraph':
-      return { id, type, text: 'New text {{orderNumber}}', align: 'left' };
+      return { id, type, level: 3, text: 'New text {{orderNumber}}', align: 'left' };
     case 'fieldRow':
       return {
         id,
@@ -659,7 +684,7 @@ export const createPrintLayoutBlock = (
         ],
       };
     default:
-      return { id, type: 'paragraph', text: 'New text', align: 'left' };
+      return { id, type: 'paragraph', level: 3, text: 'New text', align: 'left' };
   }
 };
 
@@ -667,6 +692,7 @@ const receiptLayoutBlocks: PrintLayoutBlock[] = [
   {
     id: 'receipt-company',
     type: 'paragraph',
+    level: 3,
     text: '{{company}}\n{{warehouse_address}} {{warehouse_phone}}',
     align: 'right',
   },
@@ -692,6 +718,7 @@ const receiptLayoutBlocks: PrintLayoutBlock[] = [
   {
     id: 'receipt-terms',
     type: 'paragraph',
+    level: 3,
     text: 'Service center is not responsible for data loss. Diagnostics term is 1-3 days. Warranty covers completed works and installed parts.',
   },
   { id: 'receipt-signatures', type: 'signatures', left: 'Accepted by: {{managerName}}', right: 'Client: __________________' },
@@ -717,7 +744,7 @@ const checkLayoutBlocks: PrintLayoutBlock[] = [
 
 const warrantyLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'warranty-title', type: 'heading', level: 1, text: 'Warranty card' },
-  { id: 'warranty-order', type: 'paragraph', text: 'Order #{{orderNumber}} from {{date}}' },
+  { id: 'warranty-order', type: 'paragraph', level: 3, text: 'Order #{{orderNumber}} from {{date}}' },
   {
     id: 'warranty-details',
     type: 'fieldGrid',
@@ -733,17 +760,17 @@ const warrantyLayoutBlocks: PrintLayoutBlock[] = [
   },
   { id: 'warranty-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
   { id: 'warranty-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
-  { id: 'warranty-text', type: 'paragraph', text: 'Warranty is valid if there are no mechanical damages or third-party intervention traces.' },
+  { id: 'warranty-text', type: 'paragraph', level: 3, text: 'Warranty is valid if there are no mechanical damages or third-party intervention traces.' },
   { id: 'warranty-signatures', type: 'signatures', left: 'Service: __________________', right: 'Client: __________________' },
 ];
 
 const completionActLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'act-title', type: 'heading', level: 1, text: 'Completion act #{{orderNumber}}' },
-  { id: 'act-date', type: 'paragraph', text: 'Date: {{date}}' },
-  { id: 'act-client', type: 'paragraph', text: 'Client: {{clientName}}, {{clientPhone}}' },
+  { id: 'act-date', type: 'paragraph', level: 3, text: 'Date: {{date}}' },
+  { id: 'act-client', type: 'paragraph', level: 3, text: 'Client: {{clientName}}, {{clientPhone}}' },
   { id: 'act-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
   { id: 'act-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
-  { id: 'act-total', type: 'paragraph', text: 'Total: {{total}}', align: 'right' },
+  { id: 'act-total', type: 'paragraph', level: 3, text: 'Total: {{total}}', align: 'right' },
   { id: 'act-signatures', type: 'signatures', left: 'Executor: {{masterName}}', right: 'Customer: __________________' },
 ];
 
@@ -755,19 +782,19 @@ const invoiceLayoutBlocks: PrintLayoutBlock[] = [
       {
         id: 'invoice-seller',
         blocks: [
-          { id: 'invoice-seller-text', type: 'paragraph', text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nID: {{company_id}}\nIBAN: {{company_iban}}' },
+          { id: 'invoice-seller-text', type: 'paragraph', level: 3, text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nID: {{company_id}}\nIBAN: {{company_iban}}' },
         ],
       },
       {
         id: 'invoice-customer',
         blocks: [
-          { id: 'invoice-customer-text', type: 'paragraph', text: 'Customer\n{{clientName}}\nAddress: {{customer_address}}\nID: {{customer_reg_id}}\n{{clientPhone}}\nIBAN: {{customer_iban}}' },
+          { id: 'invoice-customer-text', type: 'paragraph', level: 3, text: 'Customer\n{{clientName}}\nAddress: {{customer_address}}\nID: {{customer_reg_id}}\n{{clientPhone}}\nIBAN: {{customer_iban}}' },
         ],
       },
     ],
   },
   { id: 'invoice-title', type: 'heading', level: 1, text: 'Invoice #{{orderNumber}}', align: 'center' },
-  { id: 'invoice-date', type: 'paragraph', text: 'from {{date}}', align: 'center' },
+  { id: 'invoice-date', type: 'paragraph', level: 3, text: 'from {{date}}', align: 'center' },
   { id: 'invoice-items', type: 'invoiceItemsTable' },
   {
     id: 'invoice-totals',
@@ -778,17 +805,17 @@ const invoiceLayoutBlocks: PrintLayoutBlock[] = [
       { label: 'Total with VAT', value: '{{total_amount}}' },
     ],
   },
-  { id: 'invoice-written', type: 'paragraph', text: 'Total in words: {{total_written}}\nVAT: {{vat_amount}}' },
-  { id: 'invoice-payable', type: 'paragraph', text: 'Amount payable: {{total_amount}}', align: 'right' },
+  { id: 'invoice-written', type: 'paragraph', level: 3, text: 'Total in words: {{total_written}}\nVAT: {{vat_amount}}' },
+  { id: 'invoice-payable', type: 'paragraph', level: 3, text: 'Amount payable: {{total_amount}}', align: 'right' },
   { id: 'invoice-signature', type: 'signatures', left: '{{seller_occupation}}', right: '{{seller_name}}' },
-  { id: 'invoice-note', type: 'paragraph', text: '{{note_label}}: {{note}}' },
+  { id: 'invoice-note', type: 'paragraph', level: 3, text: '{{note_label}}: {{note}}' },
 ];
 
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
   { id: 'barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
-  { id: 'barcode-title', type: 'paragraph', text: '{{labelTitle}}', align: 'center' },
-  { id: 'barcode-contact', type: 'paragraph', text: '{{labelContact}}', align: 'center' },
+  { id: 'barcode-title', type: 'paragraph', level: 3, text: '{{labelTitle}}', align: 'center' },
+  { id: 'barcode-contact', type: 'paragraph', level: 3, text: '{{labelContact}}', align: 'center' },
 ];
 
 export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
@@ -811,9 +838,11 @@ export const createLayoutPrintForm = (form: PrintForm): PrintForm =>
   withGeneratedContent({
     ...form,
     layoutVersion: 1,
-    layoutBlocks: form.layoutBlocks?.length
-      ? form.layoutBlocks
-      : getDefaultPrintLayoutBlocks(form.type || form.id),
+    layoutBlocks: normalizePrintLayoutBlocks(
+      form.layoutBlocks?.length
+        ? form.layoutBlocks
+        : getDefaultPrintLayoutBlocks(form.type || form.id),
+    ),
   });
 
 const isBarcodeForm = (form: PrintForm) =>
@@ -921,7 +950,10 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
       const normalizedForm = shouldUseDefaultLayout
         ? createLayoutPrintForm(defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form)
         : hasLayoutBlocks(form)
-          ? withGeneratedContent(form)
+          ? withGeneratedContent({
+              ...form,
+              layoutBlocks: normalizePrintLayoutBlocks(form.layoutBlocks ?? []),
+            })
         : form;
 
       const pageSize =
@@ -1048,6 +1080,9 @@ export const printDocumentStyles = `
   .print-align-center { text-align: center; }
   .print-align-right { text-align: right; }
   .print-block-paragraph { white-space: normal; }
+  .print-document .print-block-paragraph-level-1 { font-size: 22px; }
+  .print-document .print-block-paragraph-level-2 { font-size: 18px; }
+  .print-document .print-block-paragraph-level-3 { font-size: 13px; }
   .print-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .print-divider { border: 0; border-top: 1px solid #d1d5db; margin: 14px 0; }
   .print-spacer-small { height: 6px; }
@@ -1096,6 +1131,9 @@ export const printLabelDocumentStyles = `
   .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
   .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
   .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
+  .print-label .print-block-paragraph-level-1 { font-size: 12px; }
+  .print-label .print-block-paragraph-level-2 { font-size: 10px; }
+  .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }
   .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
