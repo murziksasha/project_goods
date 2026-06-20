@@ -1,0 +1,97 @@
+{
+  "nav": {
+    "home": "Main",
+    "orders": "Orders",
+    "accounting": "Accounting",
+    "warehouse": "Warehouse",
+    "catalog": "Products & Services",
+    "clients": "Clients & suppliers",
+    "employees": "Employees",
+    "settings": "Settings"
+  },
+  "common": {
+    "logout": "Logout",
+    "loading": "Loading session...",
+    "loadingInvitation": "Loading invitation...",
+    "signIn": "Sign in",
+    "signingIn": "Signing in...",
+    "completeRegistration": "Complete registration",
+    "completingRegistration": "Completing registration...",
+    "login": "Login",
+    "password": "Password",
+    "username": "username",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "auth": "Auth",
+    "serviceCRM": "Service CRM",
+    "guest": "Guest",
+    "noRole": "No role",
+    "lastSync": "Last sync",
+    "reloadData": "Reload data",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu",
+    "openMenu": "Open menu",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "close": "Close",
+    "supplier": "Supplier"
+  },
+  "auth": {
+    "loginTitle": "Login",
+    "registerTitle": "Complete registration",
+    "createLogin": "Create login"
+  },
+  "errors": {
+    "noInternet": "No internet connection. Read-only mode is active until connection is restored.",
+    "sessionCheckFailed": "Session check failed. Workspace stayed open; please retry the action.",
+    "sessionExpired": "Session expired. Please sign in again.",
+    "noInternetShort": "No internet connection. Sign in requires network access.",
+    "loginFailed": "Failed to login.",
+    "registerFailed": "Failed to complete registration.",
+    "invitationLoadFailed": "Failed to load invitation.",
+    "permissionOrders": "Current employee does not have permission to view orders.",
+    "permissionCreateOrder": "Current employee does not have permission to create orders.",
+    "permissionPage": "Current employee does not have permission to open this page.",
+    "permissionClients": "Current employee does not have permission to manage clients.",
+    "permissionTab": "Current employee does not have permission to open this tab.",
+    "failedToSaveService": "Failed to save service."
+  },
+  "success": {
+    "clientUpdated": "Client updated.",
+    "clientCreated": "Client card created.",
+    "productUpdated": "Product updated.",
+    "productCreated": "Product created.",
+    "serviceUpdated": "Service updated.",
+    "serviceSaved": "Service saved to catalog."
+  },
+  "topbar": {
+    "currentUser": "User"
+  },
+  "settings": {
+    "tabs": {
+      "company": "Company",
+      "print": "Print forms",
+      "backups": "Backups"
+    }
+  },
+  "product": {
+    "name": "Name",
+    "article": "Article",
+    "serialNumber": "Serial number",
+    "price": "Price",
+    "quantity": "Quantity",
+    "purchasePlace": "Purchase place",
+    "defaultNote": "Default note",
+    "purchaseDate": "Purchase date",
+    "warranty": "Warranty",
+    "selectWarranty": "Select warranty",
+    "add": "Add product",
+    "edit": "Edit product",
+    "saving": "Saving...",
+    "update": "Update product"
+  }
+}

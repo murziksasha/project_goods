@@ -5,6 +5,7 @@ import {
   mergeClients as mergeClientsApi,
 } from '../../../entities/client/api/clientApi';
 import { parseDecimal } from '../../../shared/lib/decimal';
+import i18n from '../../../shared/i18n/config';
 import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
 import type {
   Client,
@@ -542,16 +543,16 @@ export const createDashboardActions = ({
               item.id === updatedService.id ? updatedService : item,
             ),
           );
-          setSuccessMessage('Service updated.');
+          setSuccessMessage(i18n.t('success.serviceUpdated'));
         } else {
           const createdService = await mutateCreateService(serviceForm);
           setServices((current) => [createdService, ...current]);
-          setSuccessMessage('Service saved to catalog.');
+          setSuccessMessage(i18n.t('success.serviceSaved'));
         }
 
         resetServiceEditor();
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, 'Failed to save service.'));
+        setError(getRequestErrorMessage(requestError, i18n.t('errors.failedToSaveService')));
       } finally {
         setIsServiceSaving(false);
       }
@@ -569,11 +570,11 @@ export const createDashboardActions = ({
           if (selectedClientId === updatedClient.id) {
             setSelectedClientId(updatedClient.id);
           }
-          setSuccessMessage('Клієнта оновлено.');
+          setSuccessMessage(i18n.t('success.clientUpdated'));
         } else {
           const createdClient = await mutateCreateClient(clientForm);
           setAllClients((current) => [createdClient, ...current]);
-          setSuccessMessage('Картку клієнта створено.');
+          setSuccessMessage(i18n.t('success.clientCreated'));
         }
 
         resetClientEditor();
@@ -590,7 +591,7 @@ export const createDashboardActions = ({
       try {
         const createdClient = await mutateCreateClient(payload);
         setAllClients((current) => [createdClient, ...current]);
-        setSuccessMessage('Картку клієнта створено.');
+        setSuccessMessage(i18n.t('success.clientCreated'));
         return true;
       } catch (requestError) {
         setError(getRequestErrorMessage(requestError, 'Не вдалося створити картку клієнта.'));
