@@ -16,6 +16,8 @@ import {
   type ClientMainForm,
 } from '../model/clients-workspace';
 import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
+import { hasDuplicatePhones } from '../../../shared/lib/phones';
+import { PhonesField } from '../../../shared/ui/PhonesField';
 
 type ClientStatusOption = {
   labelKey: string;
@@ -224,73 +226,15 @@ const ClientMainFormFields = ({
           <small>{t('clients.messages.errors.addressMinLength')}</small>
         ) : null}
       </label>
-      <div className='field field-wide phones-field'>
-        <span>{t('clients.card.fields.phones')}</span>
-        {(form.phones && form.phones.length > 0 ? form.phones : [form.phone || '']).map((ph, idx) => {
-          const isPrimary = idx === 0;
-          const label = isPrimary
-            ? t('clients.card.fields.primaryPhone')
-            : t('clients.card.fields.additionalPhone');
-          const rowPhone = ph ?? '';
-          return (
-            <div key={idx} className='phone-row' style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
-              <input
-                value={rowPhone}
-                placeholder={
-                  isPrimary
-                    ? t('clients.card.fields.primaryPhonePlaceholder')
-                    : ''
-                }
-                style={{ flex: 1 }}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  const next = [...(form.phones && form.phones.length ? form.phones : [form.phone || ''])];
-                  next[idx] = val;
-                  const cleaned = next.filter((v, i) => v || i === 0);
-                  onChange('phones', cleaned.length ? cleaned : ['']);
-                  if (idx === 0) {
-                    onChange('phone', val);
-                    onClearPhoneError();
-                  }
-                }}
-                onBlur={() => {
-                  if (idx === 0) onValidatePhone(rowPhone);
-                }}
-              />
-              <small style={{ width: '92px', color: '#64748b' }}>{label}</small>
-              {!isPrimary ? (
-                <button
-                  type='button'
-                  className='ghost-button'
-                  aria-label={t('clients.card.removePhoneAriaLabel')}
-                  onClick={() => {
-                    const next = (form.phones || []).filter((_, i) => i !== idx);
-                    onChange('phones', next.length ? next : [form.phone || '']);
-                  }}
-                >
-                  −
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
-        <div>
-          <button
-            type='button'
-            className='ghost-button'
-            onClick={() => {
-              const current = form.phones && form.phones.length ? form.phones : [form.phone || '+380'];
-              onChange('phones', [...current, '+380']);
-            }}
-            style={{ padding: '2px 8px', fontSize: '12px' }}
-          >
-            {t('clients.card.addPhone')}
-          </button>
-        </div>
-        {phoneError ? (
-          <span className='error-message'>{phoneError}</span>
-        ) : null}
-      </div>
+      <PhonesField
+        phone={form.phone}
+        phones={form.phones}
+        phoneError={phoneError}
+        onPhoneChange={(phone) => onChange('phone', phone)}
+        onPhonesChange={(phones) => onChange('phones', phones)}
+        onClearPhoneError={onClearPhoneError}
+        onValidatePhone={onValidatePhone}
+      />
       <label className='field field-wide'>
         <span>{t('clients.card.fields.status')}</span>
         <select
@@ -374,17 +318,6 @@ const ClientMainFormFields = ({
       </div>
     </div>
   );
-};
-
-const hasDuplicatePhones = (phones: string[]) => {
-  const seen = new Set<string>();
-  for (const p of phones || []) {
-    const t = (p || '').trim();
-    if (!t) continue;
-    if (seen.has(t)) return true;
-    seen.add(t);
-  }
-  return false;
 };
 
 const ClientHistoryTable = ({

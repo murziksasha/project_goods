@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Supplier } from '../../../entities/supplier/model/types';
@@ -23,6 +23,7 @@ const supplier = (patch: Partial<Supplier> = {}): Supplier => ({
   id: 'supplier-1',
   name: 'Main Parts',
   phone: '+380501111111',
+  phones: ['+380501111111'],
   supplierOrder: 'SO-1',
   note: '',
   isActive: true,
@@ -102,6 +103,18 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
 
     expect(screen.getByText('Fresh Supplier')).toBeInTheDocument();
     expect(screen.queryByText('Old Supplier')).not.toBeInTheDocument();
+  });
+
+  it('allows adding additional phones in supplier editor modal', () => {
+    renderWorkspace([supplier()]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByText('Main Parts'));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add phone' }));
+
+    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
+    expect(within(phonesField).getAllByRole('textbox')).toHaveLength(2);
+    expect(screen.getByText('Additional phone')).toBeInTheDocument();
   });
 
   it('keeps saved supplier filters on the suppliers tab', () => {

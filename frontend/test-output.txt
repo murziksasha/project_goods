@@ -1,0 +1,691 @@
+
+> frontend@0.0.0 test
+> vitest run --run src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx src/widgets/dashboard/ui/OrdersWorkspace.test.tsx src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx src/widgets/dashboard/ui/ClientsWorkspace.test.tsx
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mf:/SSD PROJECT/project_goods/frontend[39m
+
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+(node:26816) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28840) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstdout[2m | src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/OrdersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+(node:27612) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34496) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16900) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/OrdersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+ [31m❯[39m src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+[90mstdout[2m | src/widgets/dashboard/ui/ClientsWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/OrdersWorkspace.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+ [31m❯[39m src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/widgets/dashboard/ui/ClientsWorkspace.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/widgets/dashboard/ui/OrdersWorkspace.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 5 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx[2m [ src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx ][22m
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'config')[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/AccountingCashboxesView.test.tsx:[2m77:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx[2m [ src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx ][22m
+[31m[1mError[22m: Vitest failed to find the current suite. One of the following is possible:
+- "vitest" is imported directly without running "vitest" command
+- "vitest" is imported inside "globalSetup" (to fix this, use "setupFiles" instead, because "globalSetup" runs in a different context)
+- "vitest" is imported inside Vite / Vitest config file
+- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues
+[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/ClientsSuppliersWorkspace.test.tsx:[2m63:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/ClientsWorkspace.test.tsx[2m [ src/widgets/dashboard/ui/ClientsWorkspace.test.tsx ][22m
+[31m[1mError[22m: Vitest failed to find the current suite. One of the following is possible:
+- "vitest" is imported directly without running "vitest" command
+- "vitest" is imported inside "globalSetup" (to fix this, use "setupFiles" instead, because "globalSetup" runs in a different context)
+- "vitest" is imported inside Vite / Vitest config file
+- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues
+[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/ClientsWorkspace.test.tsx:[2m19:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/OrdersWorkspace.test.tsx[2m [ src/widgets/dashboard/ui/OrdersWorkspace.test.tsx ][22m
+[31m[1mError[22m: Vitest failed to find the current suite. One of the following is possible:
+- "vitest" is imported directly without running "vitest" command
+- "vitest" is imported inside "globalSetup" (to fix this, use "setupFiles" instead, because "globalSetup" runs in a different context)
+- "vitest" is imported inside Vite / Vitest config file
+- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues
+[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/OrdersWorkspace.test.tsx:[2m151:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx[2m [ src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx ][22m
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'config')[39m
+[90m [2m❯[22m src/widgets/dashboard/ui/useAccountingFinanceData.test.tsx:[2m226:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m5 failed[39m[22m[90m (5)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 16:01:00
+[2m   Duration [22m 1.96s[2m (transform 1.44s, setup 1.36s, import 0ms, tests 0ms, environment 3.38s)[22m
+

@@ -1,26 +1,59 @@
 import { formatSupplier } from '../../shared/lib/formatters';
-import { normalizePhone, toNonEmptyString } from '../../shared/lib/parsers';
+import { normalizeSupplierPayload } from '../../shared/lib/parsers';
+import { getSupplierPhonesFromRecord } from '../../shared/lib/supplier-phones';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
 import { SupplierOrder } from '../supplier-order/model';
 import type { SupplierPayload } from '../shared/types';
 
-const normalizeSupplierPayload = (payload: SupplierPayload) => ({
-  phone: normalizePhone(payload.phone),
-  name: toNonEmptyString(payload.name),
-  note: toNonEmptyString(payload.note),
-  supplierOrder: toNonEmptyString(payload.supplierOrder),
-  isActive:
-    payload.isActive === undefined
-      ? true
-      : payload.isActive === true || String(payload.isActive).toLowerCase() === 'true',
-});
+const duplicatePhoneMessage = 'Supplier with this phone already exists.';
+
+const isDuplicateKeyError = (error: unknown) =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: unknown }).code === 11000;
+
+const normalizeExceptSupplierIds = (exceptSupplierIds?: string | string[]) => {
+  const list = Array.isArray(exceptSupplierIds)
+    ? exceptSupplierIds
+    : exceptSupplierIds
+      ? [exceptSupplierIds]
+      : [];
+
+  return list.map((id) => id.trim()).filter(Boolean);
+};
+
+const assertUniqueSupplierPhones = async (
+  phones: string[],
+  exceptSupplierIds?: string | string[],
+) => {
+  const list = (phones || []).filter(Boolean);
+  if (list.length === 0) return;
+
+  const excludedIds = normalizeExceptSupplierIds(exceptSupplierIds);
+  const orConditions = [
+    { phoneIdentities: { $in: list } },
+    { phone: { $in: list } },
+  ];
+  const query: Record<string, unknown> = { $or: orConditions };
+  if (excludedIds.length > 0) {
+    query._id = { $nin: excludedIds };
+  }
+
+  const existing = await Supplier.findOne(query).lean<Pick<SupplierDocument, '_id'> | null>();
+  if (!existing) return;
+
+  throw new Error(duplicatePhoneMessage);
+};
 
 const mapSupplierError = (error: unknown) => {
-  if (error && typeof error === 'object' && 'code' in error && (error as { code?: number }).code === 11000) {
-    const duplicateField = Object.keys((error as { keyPattern?: Record<string, unknown> }).keyPattern ?? {})[0];
-    if (duplicateField === 'phone') {
-      return new Error('Supplier with this phone already exists.');
+  if (isDuplicateKeyError(error)) {
+    const duplicateField = Object.keys(
+      (error as { keyPattern?: Record<string, unknown> }).keyPattern ?? {},
+    )[0];
+    if (duplicateField === 'phone' || duplicateField === 'phoneIdentities') {
+      return new Error(duplicatePhoneMessage);
     }
     if (duplicateField === 'name') {
       return new Error('Supplier with this name already exists.');
@@ -28,6 +61,24 @@ const mapSupplierError = (error: unknown) => {
     return new Error('Supplier with same data already exists.');
   }
   return error;
+};
+
+const mergeSupplierPhones = (
+  targetSupplier: SupplierDocument,
+  sourceSupplier: SupplierDocument,
+) => {
+  const mergedPhonesRaw = [
+    ...getSupplierPhonesFromRecord(targetSupplier),
+    ...getSupplierPhonesFromRecord(sourceSupplier),
+  ];
+  const seen = new Set<string>();
+  const mergedPhones = mergedPhonesRaw.filter((phone) => {
+    if (!phone || seen.has(phone)) return false;
+    seen.add(phone);
+    return true;
+  });
+
+  return mergedPhones;
 };
 
 export const listSuppliers = async (queryValue: unknown) => {
@@ -40,7 +91,11 @@ export const listSuppliers = async (queryValue: unknown) => {
 
 export const createSupplier = async (payload: SupplierPayload) => {
   try {
-    const supplier = new Supplier(normalizeSupplierPayload(payload));
+    const normalizedPayload = normalizeSupplierPayload(payload);
+    await assertUniqueSupplierPhones(
+      normalizedPayload.phones || [normalizedPayload.phone],
+    );
+    const supplier = new Supplier(normalizedPayload);
     await supplier.validate();
     await supplier.save();
     return formatSupplier(supplier.toObject<SupplierDocument>());
@@ -52,9 +107,14 @@ export const createSupplier = async (payload: SupplierPayload) => {
 export const updateSupplier = async (supplierId: string, payload: SupplierPayload) => {
   isValidObjectIdOrThrow(supplierId, 'supplierId');
   try {
+    const normalizedPayload = normalizeSupplierPayload(payload);
+    await assertUniqueSupplierPhones(
+      normalizedPayload.phones || [normalizedPayload.phone],
+      supplierId,
+    );
     const supplier = await Supplier.findByIdAndUpdate(
       supplierId,
-      normalizeSupplierPayload(payload),
+      normalizedPayload,
       { returnDocument: 'after', runValidators: true },
     ).lean<SupplierDocument | null>();
 
@@ -115,11 +175,13 @@ export const mergeSuppliers = async (
     .filter(Boolean)
     .filter((value, index, collection) => collection.indexOf(value) === index)
     .join('\n');
+  const mergedPhones = mergeSupplierPhones(targetSupplier, sourceSupplier);
 
   const updatedTarget = await Supplier.findByIdAndUpdate(
     targetSupplierId,
     normalizeSupplierPayload({
-      phone: targetSupplier.phone?.trim() || sourceSupplier.phone,
+      phone: mergedPhones[0] || targetSupplier.phone?.trim() || sourceSupplier.phone,
+      phones: mergedPhones,
       name: targetSupplier.name?.trim() || sourceSupplier.name,
       note: mergedNote,
       supplierOrder: mergedSupplierOrder,

@@ -203,7 +203,7 @@ describe('ClientsWorkspace', () => {
     );
     expect(blacklistRow).toHaveClass('clients-table-row-blacklist');
     expect(
-      within(blacklistRow).getByText('blacklist'),
+      within(blacklistRow).getByText('Blacklist'),
     ).toHaveClass('status-blacklist');
     expect(screen.getByText('Regular Client').closest('tr')).not.toHaveClass(
       'clients-table-row-blacklist',

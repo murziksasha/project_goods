@@ -15,6 +15,16 @@ import type {
   Supplier,
   SupplierFormValues,
 } from '../../../entities/supplier/model/types';
+import {
+  getPrimarySupplierPhone,
+  getSupplierPhones,
+  mapSupplierFormToPayload,
+  toSupplierForm,
+  type SupplierFormState,
+} from '../../../entities/supplier/model/forms';
+import { hasDuplicatePhones } from '../../../shared/lib/phones';
+import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
+import { PhonesField } from '../../../shared/ui/PhonesField';
 import type { Employee } from '../../../entities/employee/model/types';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import { filterIconOptions } from './orders-workspace-shared';
@@ -30,7 +40,6 @@ import {
 import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
-type SupplierFormState = Required<SupplierFormValues>;
 type SupplierSuggestionField = 'target' | 'source';
 type SupplierStatusFilter = 'all' | 'active' | 'inactive';
 type SupplierFilters = {
@@ -47,6 +56,7 @@ const supplierFiltersStorageKey = 'project-goods.suppliers-active-filters';
 const defaultSupplierForm: SupplierFormState = {
   name: '',
   phone: '+380',
+  phones: ['+380'],
   supplierOrder: '',
   note: '',
   isActive: true,
@@ -122,26 +132,13 @@ const getActiveSupplierFiltersCount = (filters: SupplierFilters) =>
   (filters.dateTo ? 1 : 0) +
   (filters.note ? 1 : 0);
 
-const toSupplierForm = (supplier?: Supplier): SupplierFormState => ({
-  name: supplier?.name ?? defaultSupplierForm.name,
-  phone: supplier?.phone ?? defaultSupplierForm.phone,
-  supplierOrder: supplier?.supplierOrder ?? defaultSupplierForm.supplierOrder,
-  note: supplier?.note ?? defaultSupplierForm.note,
-  isActive: supplier?.isActive ?? defaultSupplierForm.isActive,
-});
-
-const toSupplierPayload = (form: SupplierFormState): SupplierFormValues => ({
-  name: form.name.trim(),
-  phone: form.phone.trim(),
-  supplierOrder: form.supplierOrder.trim(),
-  note: form.note.trim(),
-  isActive: form.isActive,
-});
+const toSupplierPayload = (form: SupplierFormState): SupplierFormValues =>
+  mapSupplierFormToPayload(form);
 
 const getSearchText = (supplier: Supplier) =>
   [
     supplier.name,
-    supplier.phone,
+    ...getSupplierPhones(supplier),
     supplier.note,
     supplier.supplierOrder,
   ]
@@ -149,7 +146,7 @@ const getSearchText = (supplier: Supplier) =>
     .toLowerCase();
 
 const getSupplierLabel = (supplier: Supplier) =>
-  `${supplier.name} (${supplier.phone})`;
+  `${supplier.name} (${getPrimarySupplierPhone(supplier)})`;
 
 const getSupplierMergeOptions = (
   suppliers: Supplier[],
@@ -160,10 +157,14 @@ const getSupplierMergeOptions = (
 
   return suppliers
     .filter((supplier) =>
-      `${supplier.name} ${supplier.phone}`.toLowerCase().includes(normalized),
+      `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
+        .toLowerCase()
+        .includes(normalized),
     )
     .slice(0, 6);
 };
+
+const normalizeSupplierPhoneDigits = (phone: string) => phone.replace(/\D/g, '');
 
 const findDuplicateSupplier = (
   suppliers: Supplier[],
@@ -171,7 +172,9 @@ const findDuplicateSupplier = (
   editingSupplierId: string | null,
 ) => {
   const name = form.name.trim().toLowerCase();
-  const phoneDigits = form.phone.replace(/\D/g, '');
+  const formPhoneDigits = (form.phones?.length ? form.phones : [form.phone])
+    .map((phone) => normalizeSupplierPhoneDigits(phone || ''))
+    .filter((phone) => phone.length > 0);
 
   return suppliers.find((supplier) => {
     if (editingSupplierId && supplier.id === editingSupplierId) {
@@ -180,9 +183,12 @@ const findDuplicateSupplier = (
 
     const sameName =
       name.length > 0 && supplier.name.trim().toLowerCase() === name;
-    const samePhone =
-      phoneDigits.length > 0 &&
-      supplier.phone.replace(/\D/g, '') === phoneDigits;
+    const supplierPhoneDigits = getSupplierPhones(supplier).map((phone) =>
+      normalizeSupplierPhoneDigits(phone),
+    );
+    const samePhone = formPhoneDigits.some((phoneDigits) =>
+      supplierPhoneDigits.includes(phoneDigits),
+    );
 
     return sameName || samePhone;
   });
@@ -1044,7 +1050,9 @@ const SuppliersTable = ({
             >
               <td data-label={columns.id}>{supplier.id.slice(-6)}</td>
               <td data-label={columns.name}>{supplier.name}</td>
-              <td data-label={columns.phone}>{supplier.phone}</td>
+              <td data-label={columns.phone}>
+                {getPrimarySupplierPhone(supplier)}
+              </td>
               <td data-label={columns.status}>
                 {supplier.isActive
                   ? t('clients.suppliers.table.statusActive')
@@ -1082,16 +1090,32 @@ const SupplierEditorModal = ({
   onSave: () => void;
 }) => {
   const { t } = useTranslation();
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const isEditing = Boolean(editingSupplierId);
+  const phoneRows = form.phones?.length ? form.phones : [form.phone || ''];
   const canSave =
     !isSaving &&
     !duplicateSupplier &&
     Boolean(form.name.trim()) &&
-    Boolean(form.phone.trim());
+    Boolean(form.phone.trim()) &&
+    phoneRows.some((phone) => (phone || '').trim()) &&
+    phoneRows.every(
+      (phone) => !(phone || '').trim() || isValidUkrainianPhone(phone || ''),
+    ) &&
+    !hasDuplicatePhones(phoneRows);
   const updateForm = <K extends keyof SupplierFormState>(
     field: K,
     value: SupplierFormState[K],
   ) => onChange({ ...form, [field]: value });
+  const validatePhone = (phone: string) => {
+    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
+    if (!phone.trim() || !isValidUkrainianPhone(phone)) {
+      setPhoneError(phoneFormatError);
+      return false;
+    }
+    setPhoneError(null);
+    return true;
+  };
 
   return (
     <ModalShell
@@ -1110,13 +1134,15 @@ const SupplierEditorModal = ({
             onChange={(event) => updateForm('name', event.target.value)}
           />
         </label>
-        <label className='field field-wide'>
-          <span>{t('clients.suppliers.create.fields.phone')}</span>
-          <input
-            value={form.phone}
-            onChange={(event) => updateForm('phone', event.target.value)}
-          />
-        </label>
+        <PhonesField
+          phone={form.phone}
+          phones={form.phones}
+          phoneError={phoneError}
+          onPhoneChange={(phone) => updateForm('phone', phone)}
+          onPhonesChange={(phones) => updateForm('phones', phones)}
+          onClearPhoneError={() => setPhoneError(null)}
+          onValidatePhone={validatePhone}
+        />
         <label className='field field-wide'>
           <span>{t('clients.suppliers.create.fields.supplierOrder')}</span>
           <input
@@ -1304,7 +1330,7 @@ const SupplierSuggestions = ({
         onClick={() => onSelectSupplier(supplier)}
       >
         <strong>{supplier.name}</strong>
-        <span>{supplier.phone}</span>
+        <span>{getPrimarySupplierPhone(supplier)}</span>
       </button>
     ))}
   </div>

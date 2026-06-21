@@ -67,7 +67,11 @@ export const getSupplierSuggestions = (
     .filter(
       (supplier) =>
         supplier.isActive &&
-        [supplier.name, supplier.phone]
+        [
+          supplier.name,
+          supplier.phone,
+          ...(supplier.phones?.length ? supplier.phones : []),
+        ]
           .join(' ')
           .toLowerCase()
           .includes(normalized),

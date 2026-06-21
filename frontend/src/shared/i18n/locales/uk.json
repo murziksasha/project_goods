@@ -2043,7 +2043,8 @@
         "failedCancelTransfer": "Не вдалося скасувати переказ.",
         "failedIssueWithoutPayment": "Не вдалося видати замовлення без оплати.",
         "failedPayOrder": "Не вдалося оплатити замовлення.",
-        "failedUpdateNote": "Не вдалося оновити примітку."
+        "failedUpdateNote": "Не вдалося оновити примітку.",
+        "failedLoadFinance": "Не вдалося завантажити фінансові дані."
       },
       "success": {
         "cashboxUpdated": "Касу оновлено.",
