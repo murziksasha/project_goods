@@ -201,6 +201,7 @@ export const OrdersWorkspace = ({
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
+  const orderDetailAnchorRef = useRef<HTMLDivElement>(null);
   const [printRequest, setPrintRequest] =
     useState<OrderPrintRequest | null>(null);
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
@@ -1203,6 +1204,17 @@ export const OrdersWorkspace = ({
     onExternalSaleOpenHandled,
     onSelectedSaleIdChange,
   ]);
+
+  useEffect(() => {
+    if (!selectedSaleId) return;
+
+    window.requestAnimationFrame(() => {
+      orderDetailAnchorRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  }, [selectedSaleId]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (
@@ -2282,81 +2294,83 @@ export const OrdersWorkspace = ({
   return (
     <section className='orders-page'>
       {selectedSale ? (
-        <OrderDetailCard
-          sale={selectedSale}
-          sales={sales}
-          supplierOrders={supplierOrders}
-          employees={employees}
-          status={selectedSaleStatus}
-          statusOptions={selectedSaleStatusOptions}
-          comments={selectedSale.timeline ?? []}
-          lineItems={getLineItems(selectedSale)}
-          products={products}
-          clientDevices={clientDevices}
-          catalogProducts={catalogProducts}
-          paidAmount={getPaidAmount(selectedSale)}
-          isReadOnly={
-            !isRepairOrder(selectedSale) &&
-            !isOrderEditableStatus(
-              selectedSale,
-              normalizeOrderStatus(selectedSale.status),
-            )
-          }
-          canAddComment={canChatInOrders}
-          canAcceptPayment={canAcceptFinanceDeposit}
-          canRefundPayment={canCreateFinanceWithdraw}
-          onClose={closeSelectedSaleCard}
-          onAddComment={(comment) =>
-            addComment(selectedSale, comment)
-          }
-          onAddLineItem={(item) => addLineItem(selectedSale, item)}
-          onReplaceLineItem={(itemId, itemIndex, nextItems) =>
-            replaceLineItem(
-              selectedSale,
-              itemId,
-              itemIndex,
-              nextItems,
-            )
-          }
-          onRemoveLineItem={(itemId, itemIndex) =>
-            removeLineItem(selectedSale, itemId, itemIndex)
-          }
-          onUpdateLineItem={(itemId, itemIndex, patch) =>
-            updateLineItem(selectedSale, itemId, itemIndex, patch)
-          }
-          onReturnLineItem={(item) =>
-            openReturnLineItemModal(selectedSale, item)
-          }
-          onOpenRelatedSale={openSaleCard}
-          onAcceptPayment={() =>
-            openPaymentModal(
-              selectedSale,
-              'issued',
-            )
-          }
-          onOpenPrint={() =>
-            openPrintDialog(
-              selectedSale,
-              getLineItems(selectedSale),
-              getPaidAmount(selectedSale),
-            )
-          }
-          onRefundPayment={() => openRefundModal(selectedSale)}
-          onDiscountChange={(discount) =>
-            updateDiscount(selectedSale, discount)
-          }
-          onOpenClientCard={() =>
-            onOpenClientCard(selectedSale.client.id)
-          }
-          onSupplierOrderCreated={loadSupplierOrders}
-          onCreateClientDevice={onCreateClientDevice}
-          onUpdateProductModel={onUpdateProductModel}
-          onError={onError}
-          onSuccess={onSuccess}
-          onSaveMainInfo={(payload) =>
-            saveOrderMainInfo(selectedSale, payload)
-          }
-        />
+        <div ref={orderDetailAnchorRef}>
+          <OrderDetailCard
+            sale={selectedSale}
+            sales={sales}
+            supplierOrders={supplierOrders}
+            employees={employees}
+            status={selectedSaleStatus}
+            statusOptions={selectedSaleStatusOptions}
+            comments={selectedSale.timeline ?? []}
+            lineItems={getLineItems(selectedSale)}
+            products={products}
+            clientDevices={clientDevices}
+            catalogProducts={catalogProducts}
+            paidAmount={getPaidAmount(selectedSale)}
+            isReadOnly={
+              !isRepairOrder(selectedSale) &&
+              !isOrderEditableStatus(
+                selectedSale,
+                normalizeOrderStatus(selectedSale.status),
+              )
+            }
+            canAddComment={canChatInOrders}
+            canAcceptPayment={canAcceptFinanceDeposit}
+            canRefundPayment={canCreateFinanceWithdraw}
+            onClose={closeSelectedSaleCard}
+            onAddComment={(comment) =>
+              addComment(selectedSale, comment)
+            }
+            onAddLineItem={(item) => addLineItem(selectedSale, item)}
+            onReplaceLineItem={(itemId, itemIndex, nextItems) =>
+              replaceLineItem(
+                selectedSale,
+                itemId,
+                itemIndex,
+                nextItems,
+              )
+            }
+            onRemoveLineItem={(itemId, itemIndex) =>
+              removeLineItem(selectedSale, itemId, itemIndex)
+            }
+            onUpdateLineItem={(itemId, itemIndex, patch) =>
+              updateLineItem(selectedSale, itemId, itemIndex, patch)
+            }
+            onReturnLineItem={(item) =>
+              openReturnLineItemModal(selectedSale, item)
+            }
+            onOpenRelatedSale={openSaleCard}
+            onAcceptPayment={() =>
+              openPaymentModal(
+                selectedSale,
+                'issued',
+              )
+            }
+            onOpenPrint={() =>
+              openPrintDialog(
+                selectedSale,
+                getLineItems(selectedSale),
+                getPaidAmount(selectedSale),
+              )
+            }
+            onRefundPayment={() => openRefundModal(selectedSale)}
+            onDiscountChange={(discount) =>
+              updateDiscount(selectedSale, discount)
+            }
+            onOpenClientCard={() =>
+              onOpenClientCard(selectedSale.client.id)
+            }
+            onSupplierOrderCreated={loadSupplierOrders}
+            onCreateClientDevice={onCreateClientDevice}
+            onUpdateProductModel={onUpdateProductModel}
+            onError={onError}
+            onSuccess={onSuccess}
+            onSaveMainInfo={(payload) =>
+              saveOrderMainInfo(selectedSale, payload)
+            }
+          />
+        </div>
       ) : null}
 
       <div
