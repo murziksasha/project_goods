@@ -1862,9 +1862,9 @@
       "addCashbox": "Додати касу",
       "default": "За замовчуванням",
       "noActiveCurrencyBalances": "Немає активних валютних залишків",
-      "withdraw": "Withdraw",
-      "deposit": "Deposit",
-      "transfer": "Transfer",
+      "withdraw": "Вивести",
+      "deposit": "Внести",
+      "transfer": "Переказати",
       "withdrawOnly": "Лише виведення",
       "withdrawOnlyTitle": "Валюта неактивна для прийому. Можна лише вивести наявний залишок.",
       "transactions": "Транзакції",
@@ -2043,8 +2043,7 @@
         "failedCancelTransfer": "Не вдалося скасувати переказ.",
         "failedIssueWithoutPayment": "Не вдалося видати замовлення без оплати.",
         "failedPayOrder": "Не вдалося оплатити замовлення.",
-        "failedUpdateNote": "Не вдалося оновити примітку.",
-        "failedLoadFinance": "Не вдалося завантажити фінансові дані."
+        "failedUpdateNote": "Не вдалося оновити примітку."
       },
       "success": {
         "cashboxUpdated": "Касу оновлено.",

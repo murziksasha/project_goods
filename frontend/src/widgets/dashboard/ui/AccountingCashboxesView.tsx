@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
@@ -66,8 +67,22 @@ export const AccountingCashboxesView = ({
   onTransactionTypeChange,
 }: AccountingCashboxesViewProps) => {
   const { t } = useTranslation();
+  const operationPanelRef = useRef<HTMLElement>(null);
   const transactionTypeLabel = (type: FinanceTransactionType) =>
     t(`accounting.cashboxes.${type}`);
+
+  const handleStartTransaction = useCallback(
+    (type: FinanceTransactionType, cashbox: Cashbox) => {
+      onStartTransaction(type, cashbox);
+      window.requestAnimationFrame(() => {
+        operationPanelRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end',
+        });
+      });
+    },
+    [onStartTransaction],
+  );
 
   return (
     <>
@@ -181,7 +196,7 @@ export const AccountingCashboxesView = ({
               {canCreateWithdraw ? (
                 <button
                   type='button'
-                  onClick={() => onStartTransaction('withdraw', cashbox)}
+                  onClick={() => handleStartTransaction('withdraw', cashbox)}
                 >
                   {t('accounting.cashboxes.withdraw')}
                 </button>
@@ -189,7 +204,7 @@ export const AccountingCashboxesView = ({
               {canCreateDeposit ? (
                 <button
                   type='button'
-                  onClick={() => onStartTransaction('deposit', cashbox)}
+                  onClick={() => handleStartTransaction('deposit', cashbox)}
                 >
                   {t('accounting.cashboxes.deposit')}
                 </button>
@@ -197,7 +212,7 @@ export const AccountingCashboxesView = ({
               {canCreateTransfer ? (
                 <button
                   type='button'
-                  onClick={() => onStartTransaction('transfer', cashbox)}
+                  onClick={() => handleStartTransaction('transfer', cashbox)}
                 >
                   {t('accounting.cashboxes.transfer')}
                 </button>
@@ -214,7 +229,7 @@ export const AccountingCashboxesView = ({
       </div>
 
       {permittedTransactionTypes.length > 0 ? (
-        <section className='finance-operation-panel'>
+        <section ref={operationPanelRef} className='finance-operation-panel'>
           <div className='panel-header'>
             <div>
               <p className='section-label'>{t('accounting.cashboxes.operation')}</p>
