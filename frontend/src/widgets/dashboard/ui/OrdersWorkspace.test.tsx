@@ -185,6 +185,84 @@ describe('OrdersWorkspace', () => {
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
   });
 
+  it('scrolls the order card into view when opening from the order number link', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
+
+  it('scrolls the order card into view when opening from the device serial button', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          product: {
+            ...sale.product!,
+            serialNumber: 'R0035759',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /s\/n: r0035759/i }));
+
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
+
+  it('does not scroll when closing the order card', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText('Close order card'));
+
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
   it('allows a master with role defaults to use the live feed composer', async () => {
     renderWorkspace({
       sales: [sale],

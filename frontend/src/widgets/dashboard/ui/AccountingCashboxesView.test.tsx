@@ -77,6 +77,7 @@ const renderView = (
 describe('AccountingCashboxesView', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it('renders totals, cashbox balances, management controls and action callbacks', () => {
@@ -118,6 +119,29 @@ describe('AccountingCashboxesView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
     expect(props.onCreateTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('scrolls the operation panel into view when starting a cashbox transaction', () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    const { props } = renderView();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[0]);
+
+    expect(props.onStartTransaction).toHaveBeenCalledWith(
+      'withdraw',
+      props.cashboxes[0],
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'end',
+    });
   });
 
   it('hides unauthorized controls and renders empty balances', () => {
