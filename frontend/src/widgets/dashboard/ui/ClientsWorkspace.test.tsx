@@ -203,7 +203,7 @@ describe('ClientsWorkspace', () => {
     );
     expect(blacklistRow).toHaveClass('clients-table-row-blacklist');
     expect(
-      within(blacklistRow).getByText('blacklist'),
+      within(blacklistRow).getByText('Blacklist'),
     ).toHaveClass('status-blacklist');
     expect(screen.getByText('Regular Client').closest('tr')).not.toHaveClass(
       'clients-table-row-blacklist',
@@ -321,6 +321,53 @@ describe('ClientsWorkspace', () => {
     );
 
     expect(mergeButton).not.toBeDisabled();
+  });
+
+  it('keeps primary phone edits in the client card modal', () => {
+    const client = createClient({
+      id: 'client-ivan',
+      phone: '+380501111111',
+      phones: ['+380501111111', '+380502222222'],
+    });
+    const { rerender } = renderWorkspace({ clients: [client] });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    const phoneInputs = screen.getAllByRole('textbox');
+    fireEvent.change(phoneInputs[3], {
+      target: { value: '+380509999999' },
+    });
+
+    expect(phoneInputs[3]).toHaveValue('+380509999999');
+
+    rerender(
+      <ClientsWorkspace
+        currentEmployee={employee}
+        clients={[
+          {
+            ...client,
+            updatedAt: client.updatedAt,
+          },
+        ]}
+        sales={[]}
+        selectedClientId={client.id}
+        history={null}
+        isClientsLoading={false}
+        isHistoryLoading={false}
+        isSaving={false}
+        isClientImporting={false}
+        isClientExporting={false}
+        onSelectClient={vi.fn()}
+        onDeleteClient={vi.fn()}
+        onCreateClient={vi.fn().mockResolvedValue(true)}
+        onImportClients={vi.fn().mockResolvedValue(true)}
+        onExportClients={vi.fn().mockResolvedValue(undefined)}
+        onMergeClients={vi.fn().mockResolvedValue(true)}
+        onUpdateClient={vi.fn().mockResolvedValue(true)}
+        onOpenSaleCard={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole('textbox')[3]).toHaveValue('+380509999999');
   });
 
   it('opens a sale from the client card history', () => {

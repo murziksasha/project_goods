@@ -111,6 +111,7 @@ export type ServiceCatalogPayload = {
 
 export type SupplierPayload = {
   phone?: unknown;
+  phones?: unknown;
   name?: unknown;
   note?: unknown;
   supplierOrder?: unknown;

@@ -55,6 +55,30 @@ import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
 const getPhoneIdentity = (value: string) => phoneDigitsOnly(toApiPhone(value) || value);
 
+const findClientByPhoneIdentity = (
+  phoneIdentity: string,
+  sources: Client[][],
+): Client | null => {
+  if (phoneIdentity.length < 3) return null;
+
+  const seen = new Set<string>();
+  for (const source of sources) {
+    for (const client of source) {
+      if (seen.has(client.id)) continue;
+      seen.add(client.id);
+      if (
+        getClientPhones(client).some(
+          (phone) => getPhoneIdentity(phone) === phoneIdentity,
+        )
+      ) {
+        return client;
+      }
+    }
+  }
+
+  return null;
+};
+
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
@@ -299,9 +323,7 @@ export const CreateOrderCard = ({
     if (selectedClientId) return;
     const norm = getPhoneIdentity(clientPhone);
     if (norm.length < 3) return;
-    const match = clientSuggestions.find((client) =>
-      getClientPhones(client).some((phone) => getPhoneIdentity(phone) === norm),
-    );
+    const match = findClientByPhoneIdentity(norm, [clientSuggestions, clients]);
     if (match) {
       if (clientName.trim() !== match.name) {
         setClientName(match.name);
@@ -310,7 +332,7 @@ export const CreateOrderCard = ({
       setSelectedClient(match);
       setClientSuggestions([]);
     }
-  }, [clientSuggestions, clientPhone, selectedClientId, clientName]);
+  }, [clientSuggestions, clientPhone, selectedClientId, clientName, clients]);
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -604,31 +626,36 @@ export const CreateOrderCard = ({
   };
 
   const ensureClientForDevice = async () => {
-    if (selectedClientId && selectedClient) return selectedClient;
-    if (isClientEnsuring) return null;
+    if (isClientEnsuring) return selectedClient;
 
     const normalizedPhone = toApiPhone(clientPhone);
     const normalizedName = clientName.trim();
-    if (!normalizedPhone || normalizedName.length < 2) return null;
+    if (!normalizedPhone || normalizedName.length < 2) {
+      return selectedClient;
+    }
 
     const normalizedPhoneDigits = getPhoneIdentity(normalizedPhone);
-    const fromSuggestions = clientSuggestions.find((client) => {
-      const ps = getClientPhones(client);
-      return ps.some((ph) => getPhoneIdentity(ph) === normalizedPhoneDigits);
-    });
-    if (fromSuggestions) {
-      applyClient(fromSuggestions);
-      return fromSuggestions;
+    const knownClient =
+      findClientByPhoneIdentity(normalizedPhoneDigits, [
+        clientSuggestions,
+        clients,
+      ]) ??
+      (selectedClient &&
+      getClientPhones(selectedClient).some(
+        (phone) => getPhoneIdentity(phone) === normalizedPhoneDigits,
+      )
+        ? selectedClient
+        : null);
+    if (knownClient && selectedClientId !== knownClient.id) {
+      applyClient(knownClient);
     }
 
     setIsClientEnsuring(true);
     try {
-      const clients = await getClients(normalizedPhone);
+      const apiClients = await getClients(normalizedPhone);
       const existingClient =
-        clients.find((client) => {
-          const ps = getClientPhones(client);
-          return ps.some((ph) => getPhoneIdentity(ph) === normalizedPhoneDigits);
-        }) ?? null;
+        findClientByPhoneIdentity(normalizedPhoneDigits, [apiClients]) ??
+        knownClient;
 
       if (existingClient) {
         applyClient(existingClient);

@@ -6,6 +6,7 @@ import {
   normalizeProductPayload,
   normalizeSalePayload,
   normalizeSettingsPayload,
+  normalizeSupplierPayload,
   toNumber,
 } from './parsers';
 
@@ -280,6 +281,28 @@ describe('normalizeClientPayload', () => {
     expect(r1.phones).toEqual(['+380671234567']);
     const r2 = normalizeClientPayload({ phone: '+380501234567' });
     expect(r2.phones).toEqual(['+380501234567']);
+  });
+});
+
+describe('normalizeSupplierPayload', () => {
+  it('normalizes supplier phones array and keeps primary first', () => {
+    const result = normalizeSupplierPayload({
+      phone: '+380501112233',
+      phones: ['067 222 33 44', '+380501112233'],
+      name: ' Supplier ',
+      note: ' note ',
+      supplierOrder: ' SO-1 ',
+      isActive: 'true',
+    });
+
+    expect(result).toEqual({
+      phone: '+380501112233',
+      phones: ['+380501112233', '+380672223344'],
+      name: 'Supplier',
+      note: 'note',
+      supplierOrder: 'SO-1',
+      isActive: true,
+    });
   });
 });
 
