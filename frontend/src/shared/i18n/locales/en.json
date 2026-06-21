@@ -1219,6 +1219,8 @@
         "note": "Note"
       },
       "addPhone": "+ Add phone",
+      "setPrimaryPhone": "Set as primary",
+      "setPrimaryPhoneAriaLabel": "Set as primary phone",
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
       "saving": "Saving...",
@@ -2043,7 +2045,8 @@
         "failedCancelTransfer": "Failed to cancel transfer.",
         "failedIssueWithoutPayment": "Failed to issue order without payment.",
         "failedPayOrder": "Failed to pay order.",
-        "failedUpdateNote": "Failed to update note."
+        "failedUpdateNote": "Failed to update note.",
+        "failedLoadFinance": "Failed to load finance data."
       },
       "success": {
         "cashboxUpdated": "Cashbox updated.",

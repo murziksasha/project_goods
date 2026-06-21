@@ -56,6 +56,9 @@ export const formatClient = (client: ClientDocument) => ({
 export const formatSupplier = (supplier: SupplierDocument) => ({
   id: supplier._id.toString(),
   phone: supplier.phone,
+  phones: Array.isArray(supplier.phones) && supplier.phones.length > 0
+    ? supplier.phones
+    : supplier.phone ? [supplier.phone] : [],
   name: supplier.name,
   note: supplier.note,
   supplierOrder: supplier.supplierOrder ?? '',

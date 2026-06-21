@@ -45,6 +45,11 @@ if (typeof window !== 'undefined') {
       disconnect() {}
     };
   }
+
+  // jsdom does not implement scrollIntoView; components and tests rely on it.
+  if (typeof HTMLElement.prototype.scrollIntoView !== 'function') {
+    HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
+  }
 }
 
 // Initialize i18n for tests (stable English strings in assertions)

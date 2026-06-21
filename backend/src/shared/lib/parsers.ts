@@ -12,6 +12,7 @@ import type {
   ProductPayload,
   SalePayload,
   SettingsPayload,
+  SupplierPayload,
   WarehouseSettingsPayload,
 } from '../../domain/shared/types';
 
@@ -98,7 +99,7 @@ export const normalizeProductPayload = (payload: ProductPayload) => ({
       : toNumber(payload.warrantyPeriod),
 });
 
-export const normalizeClientPayload = (payload: ClientPayload) => {
+const normalizePhonesList = (payload: { phone?: unknown; phones?: unknown }) => {
   const legacyPhone = normalizeClientPhone(payload.phone);
 
   let inputPhones: unknown[] = [];
@@ -119,7 +120,6 @@ export const normalizeClientPayload = (payload: ClientPayload) => {
     normalizedList.push(legacyPhone);
   }
 
-  // dedupe preserving order
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const p of normalizedList) {
@@ -129,8 +129,16 @@ export const normalizeClientPayload = (payload: ClientPayload) => {
     }
   }
 
-  const phone = unique[0] || legacyPhone || '';
-  const phones = phone ? [phone, ...unique.slice(1)] : [];
+  const phone = legacyPhone || unique[0] || '';
+  const phones = phone
+    ? [phone, ...unique.filter((value) => value !== phone)]
+    : [];
+
+  return { phone, phones };
+};
+
+export const normalizeClientPayload = (payload: ClientPayload) => {
+  const { phone, phones } = normalizePhonesList(payload);
 
   return {
     phone,
@@ -144,6 +152,22 @@ export const normalizeClientPayload = (payload: ClientPayload) => {
     status: clientStatuses.includes(String(payload.status ?? '') as ClientStatus)
       ? (payload.status as ClientStatus)
       : 'new',
+  };
+};
+
+export const normalizeSupplierPayload = (payload: SupplierPayload) => {
+  const { phone, phones } = normalizePhonesList(payload);
+
+  return {
+    phone,
+    phones,
+    name: toNonEmptyString(payload.name),
+    note: toNonEmptyString(payload.note),
+    supplierOrder: toNonEmptyString(payload.supplierOrder),
+    isActive:
+      payload.isActive === undefined
+        ? true
+        : payload.isActive === true || String(payload.isActive).toLowerCase() === 'true',
   };
 };
 
