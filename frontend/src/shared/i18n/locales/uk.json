@@ -1219,6 +1219,8 @@
         "note": "Примітка"
       },
       "addPhone": "+ Додати телефон",
+      "setPrimaryPhone": "Зробити основним",
+      "setPrimaryPhoneAriaLabel": "Зробити основним телефоном",
       "removePhoneAriaLabel": "Видалити телефон",
       "saveClient": "Зберегти клієнта",
       "saving": "Збереження...",

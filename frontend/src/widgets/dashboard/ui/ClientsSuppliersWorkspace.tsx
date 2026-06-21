@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../shared/lib/format';
 import {
@@ -1085,7 +1092,7 @@ const SupplierEditorModal = ({
   editingSupplierId: string | null;
   form: SupplierFormState;
   isSaving: boolean;
-  onChange: (form: SupplierFormState) => void;
+  onChange: Dispatch<SetStateAction<SupplierFormState>>;
   onClose: () => void;
   onSave: () => void;
 }) => {
@@ -1106,7 +1113,7 @@ const SupplierEditorModal = ({
   const updateForm = <K extends keyof SupplierFormState>(
     field: K,
     value: SupplierFormState[K],
-  ) => onChange({ ...form, [field]: value });
+  ) => onChange((current) => ({ ...current, [field]: value }));
   const validatePhone = (phone: string) => {
     const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
     if (!phone.trim() || !isValidUkrainianPhone(phone)) {
@@ -1138,8 +1145,13 @@ const SupplierEditorModal = ({
           phone={form.phone}
           phones={form.phones}
           phoneError={phoneError}
-          onPhoneChange={(phone) => updateForm('phone', phone)}
-          onPhonesChange={(phones) => updateForm('phones', phones)}
+          onPhonesUpdate={(next) =>
+            onChange((current) => ({
+              ...current,
+              phone: next.phone,
+              phones: next.phones,
+            }))
+          }
           onClearPhoneError={() => setPhoneError(null)}
           onValidatePhone={validatePhone}
         />

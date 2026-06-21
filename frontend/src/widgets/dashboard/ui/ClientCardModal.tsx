@@ -1,3 +1,4 @@
+import { type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Client,
@@ -36,7 +37,7 @@ type ClientCardModalProps = {
   selectedClientId: string | null;
   statusOptions: ClientStatusOption[];
   onClose: () => void;
-  onMainTabFormChange: (form: ClientMainForm) => void;
+  onMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>>;
   onOpenSaleCard: (sale: Sale) => void;
   onSaveMainTab: () => void;
   onTabChange: (tab: ClientCardTab) => void;
@@ -74,7 +75,11 @@ export const ClientCardModal = ({
   const updateForm = <K extends keyof ClientMainForm>(
     field: K,
     value: ClientMainForm[K],
-  ) => onMainTabFormChange({ ...mainTabForm, [field]: value });
+  ) =>
+    onMainTabFormChange((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
 
   return (
     <div className='modal-backdrop' role='presentation' onClick={onClose}>
@@ -132,6 +137,7 @@ export const ClientCardModal = ({
               phoneError={mainTabPhoneError}
               statusOptions={statusOptions}
               onChange={updateForm}
+              onFormChange={onMainTabFormChange}
               onClearPhoneError={onClearPhoneError}
               onSave={onSaveMainTab}
               onValidatePhone={onValidatePhone}
@@ -181,6 +187,7 @@ const ClientMainFormFields = ({
   phoneError,
   statusOptions,
   onChange,
+  onFormChange,
   onClearPhoneError,
   onSave,
   onValidatePhone,
@@ -193,6 +200,7 @@ const ClientMainFormFields = ({
     field: K,
     value: ClientMainForm[K],
   ) => void;
+  onFormChange: Dispatch<SetStateAction<ClientMainForm>>;
   onClearPhoneError: () => void;
   onSave: () => void;
   onValidatePhone: (phone: string) => boolean;
@@ -230,8 +238,13 @@ const ClientMainFormFields = ({
         phone={form.phone}
         phones={form.phones}
         phoneError={phoneError}
-        onPhoneChange={(phone) => onChange('phone', phone)}
-        onPhonesChange={(phones) => onChange('phones', phones)}
+        onPhonesUpdate={(next) =>
+          onFormChange((current) => ({
+            ...current,
+            phone: next.phone,
+            phones: next.phones,
+          }))
+        }
         onClearPhoneError={onClearPhoneError}
         onValidatePhone={onValidatePhone}
       />

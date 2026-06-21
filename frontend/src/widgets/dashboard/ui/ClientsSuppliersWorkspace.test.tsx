@@ -105,6 +105,44 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     expect(screen.queryByText('Old Supplier')).not.toBeInTheDocument();
   });
 
+  it('keeps primary phone edits in the supplier editor modal', () => {
+    renderWorkspace([
+      supplier({
+        phones: ['+380501111111', '+380502222222'],
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByText('Main Parts'));
+
+    const phoneInputs = screen.getAllByRole('textbox');
+    fireEvent.change(phoneInputs[1], {
+      target: { value: '+380509999999' },
+    });
+
+    expect(phoneInputs[1]).toHaveValue('+380509999999');
+  });
+
+  it('allows promoting an additional supplier phone to primary', () => {
+    renderWorkspace([
+      supplier({
+        phones: ['+380501111111', '+380502222222'],
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByText('Main Parts'));
+
+    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
+    fireEvent.click(
+      within(phonesField).getByRole('button', { name: 'Set as primary phone' }),
+    );
+
+    const phoneInputs = within(phonesField).getAllByRole('textbox');
+    expect(phoneInputs[0]).toHaveValue('+380502222222');
+    expect(phoneInputs[1]).toHaveValue('+380501111111');
+  });
+
   it('allows adding additional phones in supplier editor modal', () => {
     renderWorkspace([supplier()]);
 

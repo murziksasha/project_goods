@@ -1,13 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import { getPhoneRows } from '../lib/phones';
+import {
+  addPhoneRow,
+  getPhoneRows,
+  removePhoneAtIndex,
+  setPrimaryPhoneAtIndex,
+  updatePhoneAtIndex,
+  type PhoneFieldState,
+} from '../lib/phones';
 
 type PhonesFieldProps = {
   phone: string;
   phones?: string[];
   phoneError?: string | null;
-  onPhoneChange: (phone: string) => void;
-  onPhonesChange: (phones: string[]) => void;
-  onValidatePhone?: (phone: string) => void;
+  onPhonesUpdate: (next: PhoneFieldState) => void;
+  onValidatePhone?: (phone: string) => boolean;
   onClearPhoneError?: () => void;
 };
 
@@ -15,13 +21,19 @@ export const PhonesField = ({
   phone,
   phones,
   phoneError,
-  onPhoneChange,
-  onPhonesChange,
+  onPhonesUpdate,
   onValidatePhone,
   onClearPhoneError,
 }: PhonesFieldProps) => {
   const { t } = useTranslation();
   const phoneRows = getPhoneRows(phone, phones);
+  const canRemoveRow = phoneRows.length > 1;
+
+  const handleBlur = (rowPhone: string) => {
+    const trimmed = (rowPhone || '').trim();
+    if (!trimmed) return;
+    onValidatePhone?.(trimmed);
+  };
 
   return (
     <div className='field field-wide phones-field'>
@@ -33,16 +45,7 @@ export const PhonesField = ({
           : t('clients.card.fields.additionalPhone');
 
         return (
-          <div
-            key={index}
-            className='phone-row'
-            style={{
-              display: 'flex',
-              gap: '6px',
-              alignItems: 'center',
-              marginBottom: '4px',
-            }}
-          >
+          <div key={`phone-row-${index}`} className='phone-row'>
             <input
               value={rowPhone ?? ''}
               placeholder={
@@ -50,38 +53,48 @@ export const PhonesField = ({
                   ? t('clients.card.fields.primaryPhonePlaceholder')
                   : ''
               }
-              style={{ flex: 1 }}
               onChange={(event) => {
-                const value = event.target.value;
-                const next = [...phoneRows];
-                next[index] = value;
-                const cleaned = next.filter((item, itemIndex) => item || itemIndex === 0);
-                onPhonesChange(cleaned.length ? cleaned : ['']);
-                if (index === 0) {
-                  onPhoneChange(value);
-                  onClearPhoneError?.();
-                }
+                const next = updatePhoneAtIndex(
+                  phone,
+                  phones,
+                  index,
+                  event.target.value,
+                );
+                onPhonesUpdate(next);
+                onClearPhoneError?.();
               }}
-              onBlur={() => {
-                if (index === 0) {
-                  onValidatePhone?.(rowPhone ?? '');
-                }
-              }}
+              onBlur={() => handleBlur(rowPhone ?? '')}
             />
-            <small style={{ width: '92px', color: '#64748b' }}>{label}</small>
-            {!isPrimary ? (
-              <button
-                type='button'
-                className='ghost-button'
-                aria-label={t('clients.card.removePhoneAriaLabel')}
-                onClick={() => {
-                  const next = phoneRows.filter((_, itemIndex) => itemIndex !== index);
-                  onPhonesChange(next.length ? next : [phone || '']);
-                }}
-              >
-                −
-              </button>
-            ) : null}
+            <small className='phone-row-label'>{label}</small>
+            <div className='phone-row-actions'>
+              {!isPrimary ? (
+                <button
+                  type='button'
+                  className='ghost-button phone-primary-action'
+                  aria-label={t('clients.card.setPrimaryPhoneAriaLabel')}
+                  title={t('clients.card.setPrimaryPhone')}
+                  onClick={() => {
+                    onPhonesUpdate(setPrimaryPhoneAtIndex(phone, phones, index));
+                    onClearPhoneError?.();
+                  }}
+                >
+                  ★
+                </button>
+              ) : null}
+              {canRemoveRow ? (
+                <button
+                  type='button'
+                  className='ghost-button'
+                  aria-label={t('clients.card.removePhoneAriaLabel')}
+                  onClick={() => {
+                    onPhonesUpdate(removePhoneAtIndex(phone, phones, index));
+                    onClearPhoneError?.();
+                  }}
+                >
+                  −
+                </button>
+              ) : null}
+            </div>
           </div>
         );
       })}
@@ -89,11 +102,7 @@ export const PhonesField = ({
         <button
           type='button'
           className='ghost-button'
-          onClick={() => {
-            const current = getPhoneRows(phone, phones);
-            onPhonesChange([...current, '+380']);
-          }}
-          style={{ padding: '2px 8px', fontSize: '12px' }}
+          onClick={() => onPhonesUpdate(addPhoneRow(phone, phones))}
         >
           {t('clients.card.addPhone')}
         </button>

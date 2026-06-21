@@ -1219,6 +1219,8 @@
         "note": "Note"
       },
       "addPhone": "+ Add phone",
+      "setPrimaryPhone": "Set as primary",
+      "setPrimaryPhoneAriaLabel": "Set as primary phone",
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
       "saving": "Saving...",

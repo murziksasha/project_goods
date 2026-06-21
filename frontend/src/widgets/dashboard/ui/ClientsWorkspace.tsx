@@ -1,5 +1,11 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { useRef } from 'react';
+﻿import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
@@ -283,6 +289,9 @@ export const ClientsWorkspace = ({
   const [clientsPage, setClientsPage] = useState(1);
   const [clientsPageSize, setClientsPageSize] = useState(30);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const isMainTabDirtyRef = useRef(false);
+  const hydratedClientIdRef = useRef<string | null>(null);
+  const hydratedUpdatedAtRef = useRef<string | null>(null);
 
   const statsByClient = useMemo(
     () => getClientStatsMap(sales),
@@ -328,7 +337,14 @@ export const ClientsWorkspace = ({
   );
 
   useEffect(() => {
-    if (!selectedClient) return;
+    if (!selectedClient || !selectedClientId) return;
+
+    const clientChanged = hydratedClientIdRef.current !== selectedClientId;
+    const serverChanged =
+      hydratedUpdatedAtRef.current !== selectedClient.updatedAt;
+
+    if (!clientChanged && !serverChanged) return;
+    if (!clientChanged && isMainTabDirtyRef.current) return;
 
     const phones = selectedClient.phones?.length
       ? [...selectedClient.phones]
@@ -344,7 +360,10 @@ export const ClientsWorkspace = ({
       note: getPlainNote(selectedClient.note),
       status: selectedClient.status || '',
     });
-  }, [selectedClient]);
+    hydratedClientIdRef.current = selectedClientId;
+    hydratedUpdatedAtRef.current = selectedClient.updatedAt;
+    isMainTabDirtyRef.current = false;
+  }, [selectedClient, selectedClientId]);
 
   useEffect(() => {
     if (!openClientCardRequestId) return;
@@ -520,6 +539,16 @@ export const ClientsWorkspace = ({
   const closeClientCard = () => {
     setIsClientCardOpen(false);
     onSelectClient(null);
+    isMainTabDirtyRef.current = false;
+    hydratedClientIdRef.current = null;
+    hydratedUpdatedAtRef.current = null;
+  };
+
+  const handleMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>> = (
+    value,
+  ) => {
+    isMainTabDirtyRef.current = true;
+    setMainTabForm(value);
   };
 
   const validatePhone = (phone: string): boolean => {
@@ -604,7 +633,10 @@ export const ClientsWorkspace = ({
       note: mainTabForm.note,
     };
     const payload = mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | '');
-    await onUpdateClient(selectedClientId, payload);
+    const isSuccess = await onUpdateClient(selectedClientId, payload);
+    if (isSuccess) {
+      isMainTabDirtyRef.current = false;
+    }
   };
 
   const handleImportFileSelect = async (file: File | null) => {
@@ -766,7 +798,7 @@ export const ClientsWorkspace = ({
           statusOptions={clientStatusOptions}
           onClearPhoneError={() => setMainTabPhoneError(null)}
           onClose={closeClientCard}
-          onMainTabFormChange={setMainTabForm}
+          onMainTabFormChange={handleMainTabFormChange}
           onOpenSaleCard={openSaleCardFromClientModal}
           onSaveMainTab={() => {
             void handleMainTabSave();
