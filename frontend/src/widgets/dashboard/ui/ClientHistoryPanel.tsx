@@ -4,6 +4,7 @@ import type { ClientHistory } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { SalesList } from '../../../entities/sale/ui/SalesList';
 import { formatCurrency } from '../../../shared/lib/format';
+import { getClientSaleIncome } from '../model/clients-workspace';
 
 type ClientHistoryPanelProps = {
   history: ClientHistory | null;
@@ -52,7 +53,7 @@ const calculateHistoryStats = (sales: Sale[]): HistoryStats =>
   sales.reduce<HistoryStats>(
     (stats, sale) => ({
       totalSales: stats.totalSales + 1,
-      totalRevenue: stats.totalRevenue + sale.salePrice * sale.quantity,
+      totalRevenue: stats.totalRevenue + getClientSaleIncome(sale),
       totalItemsSold: stats.totalItemsSold + sale.quantity,
     }),
     emptyHistoryStats,

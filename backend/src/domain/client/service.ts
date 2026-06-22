@@ -1,4 +1,8 @@
-import { clientStatuses, type ClientStatus } from './constants';
+import {
+  clientStatuses,
+  getEffectiveClientStatus,
+  type ClientStatus,
+} from './constants';
 import { Client, type ClientDocument } from './model';
 import { Sale, type SaleDocument } from '../sale/model';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
@@ -6,15 +10,19 @@ import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import type { ClientPayload } from '../shared/types';
 
-const getClientSnapshot = (client: Pick<ClientDocument, 'name' | 'phone' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'>) => ({
-  name: client.name,
-  phone: client.phone,
-  status: client.status,
-  email: client.email ?? '',
-  address: client.address ?? '',
-  registrationId: client.registrationId ?? '',
-  iban: client.iban ?? '',
-});
+const getClientSnapshot = async (client: ClientDocument) => {
+  const visitCount = await Sale.countDocuments({ client: client._id });
+
+  return {
+    name: client.name,
+    phone: client.phone,
+    status: getEffectiveClientStatus(client.status ?? '', visitCount),
+    email: client.email ?? '',
+    address: client.address ?? '',
+    registrationId: client.registrationId ?? '',
+    iban: client.iban ?? '',
+  };
+};
 
 const duplicatePhoneMessage = 'Client phone already exists.';
 
@@ -86,7 +94,7 @@ export const updateClient = async (clientId: string, payload: ClientPayload) => 
 
   await Sale.updateMany(
     { client: client._id },
-    { $set: { clientSnapshot: getClientSnapshot(client) } },
+    { $set: { clientSnapshot: await getClientSnapshot(client) } },
   );
 
   return formatClient(client);

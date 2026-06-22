@@ -1,11 +1,19 @@
 import type { Client } from '../model/types';
+import {
+  getClientStatusClass,
+  getClientStatusColor,
+  getEffectiveClientStatusLogic,
+} from '../model/constants';
 import { formatUkrainianPhone } from '../../../shared/lib/phoneFormatter';
+import type { ClientStats } from '../../../widgets/dashboard/model/clients-workspace';
+import { defaultClientStats } from '../../../widgets/dashboard/model/clients-workspace';
 
 type ClientListProps = {
   clients: Client[];
   isLoading: boolean;
   searchQuery: string;
   selectedClientId: string | null;
+  statsByClient?: Map<string, ClientStats>;
   onSelect: (client: Client) => void;
   onEdit: (client: Client) => void;
   onDelete: (client: Client) => void;
@@ -16,6 +24,7 @@ export const ClientList = ({
   isLoading,
   searchQuery,
   selectedClientId,
+  statsByClient,
   onSelect,
   onEdit,
   onDelete,
@@ -55,9 +64,24 @@ export const ClientList = ({
               <h3>{client.name}</h3>
               <p>{formatUkrainianPhone(client.phone)}</p>
             </div>
-            <span className={`status-pill status-${client.status}`}>
-              {client.status}
-            </span>
+            {(() => {
+              const stats = statsByClient?.get(client.id) ?? defaultClientStats;
+              const effectiveStatus = getEffectiveClientStatusLogic(
+                client.status || '',
+                stats.visits,
+              );
+              return (
+                <span
+                  className={`status-pill ${getClientStatusClass(effectiveStatus || '')}`}
+                  style={{
+                    backgroundColor: getClientStatusColor(effectiveStatus || ''),
+                    color: 'white',
+                  }}
+                >
+                  {effectiveStatus || '-'}
+                </span>
+              );
+            })()}
           </div>
           <p className='muted-copy'>
             {client.note || 'No notes yet.'}

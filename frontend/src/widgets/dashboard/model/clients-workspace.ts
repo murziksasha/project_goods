@@ -7,6 +7,9 @@ import type { Sale } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
+import { getSaleTotal } from './sales-analytics';
+
+export const getClientSaleIncome = (sale: Sale) => getSaleTotal(sale);
 
 export type ClientFilters = {
   query: string;
@@ -197,7 +200,7 @@ export const getClientStatsMap = (sales: Sale[]) => {
 
   sales.forEach((sale) => {
     const current = map.get(sale.client.id) ?? { ...defaultClientStats };
-    const income = sale.salePrice * sale.quantity;
+    const income = getClientSaleIncome(sale);
     const orderNumbers = sale.recordNumber
       ? [...current.orderNumbers, sale.recordNumber]
       : current.orderNumbers;
@@ -217,7 +220,7 @@ export const getClientStatsMap = (sales: Sale[]) => {
 
 export const mapClientDraftToPayload = (
   draft: ClientDraft,
-  status: ClientStatus | '' = 'new',
+  status: ClientStatus | '' = '',
 ): ClientFormValues => ({
   phone: draft.phone.trim(),
   name: draft.name.trim(),

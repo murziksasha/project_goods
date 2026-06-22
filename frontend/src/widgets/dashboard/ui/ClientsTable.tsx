@@ -66,6 +66,8 @@ export const ClientsTable = ({
               stats.visits,
             );
 
+            const openClientCard = () => onOpenClientCard(client.id);
+
             return (
               <tr
                 key={client.id}
@@ -74,7 +76,6 @@ export const ClientsTable = ({
                     ? 'clients-table-row clients-table-row-active'
                     : 'clients-table-row'
                 }
-                onClick={() => onOpenClientCard(client.id)}
               >
                 <td data-label='ID'>{client.id.slice(-6)}</td>
                 <td data-label='Tag'>
@@ -92,7 +93,21 @@ export const ClientsTable = ({
                     {effectiveStatus || '-'}
                   </span>
                 </td>
-                <td data-label='Name'>{client.name}</td>
+                <td
+                  data-label='Name'
+                  className='clients-table-name-link'
+                  role='button'
+                  tabIndex={0}
+                  onClick={openClientCard}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openClientCard();
+                    }
+                  }}
+                >
+                  {client.name}
+                </td>
                 <td data-label='Phone'>
                   <a
                     href={`tel:${client.phone}`}

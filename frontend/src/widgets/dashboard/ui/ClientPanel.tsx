@@ -1,6 +1,7 @@
 import { clientStatusFilters } from '../../../entities/client/model/constants';
 import type { Client, ClientStatus } from '../../../entities/client/model/types';
 import { ClientList } from '../../../entities/client/ui/ClientList';
+import type { ClientStats } from '../model/clients-workspace';
 
 type ClientPanelProps = {
   clients: Client[];
@@ -9,6 +10,7 @@ type ClientPanelProps = {
   currentSearchValue: string;
   selectedClientId: string | null;
   statusFilter: ClientStatus | 'all';
+  statsByClient?: Map<string, ClientStats>;
   onSearchChange: (value: string) => void;
   onStatusFilterChange: (value: ClientStatus | 'all') => void;
   onSelect: (client: Client) => void;
@@ -23,6 +25,7 @@ export const ClientPanel = ({
   currentSearchValue,
   selectedClientId,
   statusFilter,
+  statsByClient,
   onSearchChange,
   onStatusFilterChange,
   onSelect,
@@ -69,6 +72,7 @@ export const ClientPanel = ({
       isLoading={isLoading}
       searchQuery={searchQuery}
       selectedClientId={selectedClientId}
+      statsByClient={statsByClient}
       onSelect={onSelect}
       onEdit={onEdit}
       onDelete={onDelete}

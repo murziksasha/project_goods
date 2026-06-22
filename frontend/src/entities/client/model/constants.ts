@@ -31,21 +31,21 @@ export const getClientStatusClass = (status: ClientStatus | ''): string => {
   return `status-${status}`;
 };
 
+export const isAutoManagedClientStatus = (status: ClientStatus | '') =>
+  status === '' || status === 'new';
+
 /**
- * Логика определения эффективного статуса клиента:
- * - blacklist всегда имеет приоритет (не может быть изменен автоматически)
- * - если статус установлен вручную (не пустой) - используется как есть
- * - если статус пустой - автоматически определяется по количеству заказов
+ * Effective client status for UI and filters:
+ * - blacklist always wins
+ * - ok / opt / vip are manual overrides
+ * - empty or legacy "new" auto-derive from visit count
  */
 export const getEffectiveClientStatusLogic = (
   status: ClientStatus | '',
   visits: number,
 ): ClientStatus | '' => {
-  // blacklist всегда имеет приоритет
   if (status === 'blacklist') return 'blacklist';
-  // если статус установлен вручную (не пустой), используем его
-  if (status !== '') return status;
-  // иначе автоматически определяем статус по количеству заказов
+  if (!isAutoManagedClientStatus(status)) return status;
   if (visits >= 10) return 'vip';
   if (visits >= 5) return 'opt';
   if (visits >= 3) return 'ok';

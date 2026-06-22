@@ -106,9 +106,13 @@ export const normalizeClientPayload = (payload: ClientPayload) => ({
   registrationId: toNonEmptyString(payload.registrationId),
   iban: toNonEmptyString(payload.iban).replace(/\s+/g, '').toUpperCase(),
   note: toNonEmptyString(payload.note),
-  status: clientStatuses.includes(String(payload.status ?? '') as ClientStatus)
-    ? (payload.status as ClientStatus)
-    : 'new',
+  status: (() => {
+    const raw = String(payload.status ?? '');
+    if (raw === '') return '';
+    return clientStatuses.includes(raw as ClientStatus)
+      ? (raw as ClientStatus)
+      : '';
+  })(),
 });
 
 export const normalizeSalePayload = (payload: SalePayload) => ({

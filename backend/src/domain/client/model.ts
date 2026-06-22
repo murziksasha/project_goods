@@ -56,8 +56,8 @@ export const clientSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: clientStatuses,
-      default: 'new',
+      enum: [...clientStatuses, ''],
+      default: '',
     },
     searchText: {
       type: String,

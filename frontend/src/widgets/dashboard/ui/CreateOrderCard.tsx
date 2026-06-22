@@ -568,7 +568,7 @@ export const CreateOrderCard = ({
         registrationId: '',
         iban: '',
         note: '',
-        status: 'new',
+        status: '',
       });
       applyClient(createdClient);
       return createdClient;

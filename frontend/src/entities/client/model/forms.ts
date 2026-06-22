@@ -8,7 +8,7 @@ export const initialClientForm: ClientFormValues = {
   registrationId: '',
   iban: '',
   note: '',
-  status: 'new',
+  status: '',
 };
 
 export const toClientForm = (client: Client): ClientFormValues => ({

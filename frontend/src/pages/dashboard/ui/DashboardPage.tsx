@@ -31,6 +31,7 @@ import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/Clients
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
+import { hardReloadApp } from '../../../shared/lib/hardReload';
 
 type PageKey =
   | 'home'
@@ -856,9 +857,14 @@ export const DashboardPage = () => {
           </button>
           <p className="topbar-title">{state.settings?.serviceName || 'Service CRM'}</p>
           {state.lastSyncAt ? (
-            <small className="topbar-sync-label">
+            <button
+              type="button"
+              className="topbar-sync-label"
+              title="Hard reload workspace"
+              onClick={() => void hardReloadApp()}
+            >
               {`Last sync: ${new Date(state.lastSyncAt).toLocaleTimeString('uk-UA')}`}
-            </small>
+            </button>
           ) : null}
           <div className="topbar-actions">
             <div className="topbar-current-user" title={currentEmployee.name}>
