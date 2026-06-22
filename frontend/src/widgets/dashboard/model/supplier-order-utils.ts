@@ -1,4 +1,5 @@
 import type { Supplier } from '../../../entities/supplier/model/types';
+import i18n from '../../../shared/i18n/config';
 import type {
   SupplierOrder,
   SupplierOrderItem,
@@ -66,7 +67,11 @@ export const getSupplierSuggestions = (
     .filter(
       (supplier) =>
         supplier.isActive &&
-        [supplier.name, supplier.phone]
+        [
+          supplier.name,
+          supplier.phone,
+          ...(supplier.phones?.length ? supplier.phones : []),
+        ]
           .join(' ')
           .toLowerCase()
           .includes(normalized),
@@ -166,7 +171,8 @@ export const buildSupplierOrderAnalytics = (
     const supplierEntry =
       supplierStats.get(supplierKey) ?? {
         supplierId: order.supplierId,
-        supplierName: order.supplierName || 'Unknown supplier',
+        supplierName:
+          order.supplierName || i18n.t('orders.supplier.fallbacks.unknownSupplier'),
         orderCount: 0,
         total: 0,
         paid: 0,
@@ -209,7 +215,8 @@ export const buildSupplierOrderAnalytics = (
         item.catalogProductId || normalizeProductName(item.productName);
       const entry =
         productStats.get(productKey) ?? {
-          productName: item.productName || 'Unnamed product',
+          productName:
+            item.productName || i18n.t('orders.supplier.fallbacks.unnamedProduct'),
           quantity: 0,
           total: 0,
           lineCount: 0,

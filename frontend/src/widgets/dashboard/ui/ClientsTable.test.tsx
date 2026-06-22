@@ -10,6 +10,7 @@ afterEach(() => {
 const client: Client = {
   id: 'client-abc123',
   phone: '+380501111111',
+  phones: ['+380501111111'],
   name: 'Ivan Petrenko',
   email: '',
   address: '',

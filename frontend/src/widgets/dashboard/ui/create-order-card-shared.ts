@@ -27,38 +27,49 @@ export type ClientRequestTab = 'orders' | 'sales';
 
 export const topTabs: Array<{
   key: CreateOrderRequestPayload['sourceTab'];
-  label: string;
+  labelKey: string;
 }> = [
-  { key: 'repair', label: 'Repair order' },
-  { key: 'sale', label: 'Sales order' },
+  { key: 'repair', labelKey: 'orders.tabs.repairOrder' },
+  { key: 'sale', labelKey: 'orders.tabs.salesOrder' },
 ];
 
-export const extraOptionsLeft = [
-  'Device stays with client',
-  'Urgent repair',
-  'Accepted by post',
-  'Start work without confirmation',
-  'Client can wait for parts',
+export type CreateOrderExtraOption = {
+  key: string;
+  labelKey: string;
+};
+
+export const extraOptionsLeft: CreateOrderExtraOption[] = [
+  { key: 'deviceStaysWithClient', labelKey: 'orders.create.extraOptions.repair.deviceStaysWithClient' },
+  { key: 'urgentRepair', labelKey: 'orders.create.extraOptions.repair.urgentRepair' },
+  { key: 'acceptedByPost', labelKey: 'orders.create.extraOptions.repair.acceptedByPost' },
+  {
+    key: 'startWorkWithoutConfirmation',
+    labelKey: 'orders.create.extraOptions.repair.startWorkWithoutConfirmation',
+  },
+  { key: 'clientCanWaitForParts', labelKey: 'orders.create.extraOptions.repair.clientCanWaitForParts' },
 ];
 
-export const extraOptionsRight = [
-  'Courier took device',
-  'Replacement device issued',
-  'Home master call',
+export const extraOptionsRight: CreateOrderExtraOption[] = [
+  { key: 'courierTookDevice', labelKey: 'orders.create.extraOptions.repair.courierTookDevice' },
+  {
+    key: 'replacementDeviceIssued',
+    labelKey: 'orders.create.extraOptions.repair.replacementDeviceIssued',
+  },
+  { key: 'homeMasterCall', labelKey: 'orders.create.extraOptions.repair.homeMasterCall' },
 ];
 
-export const saleExtraOptionsLeft = [
-  'New sale',
-  'Issued',
-  'At postal company',
-  'Waiting for supply',
+export const saleExtraOptionsLeft: CreateOrderExtraOption[] = [
+  { key: 'newSale', labelKey: 'orders.create.extraOptions.sale.newSale' },
+  { key: 'issued', labelKey: 'orders.create.extraOptions.sale.issued' },
+  { key: 'atPostalCompany', labelKey: 'orders.create.extraOptions.sale.atPostalCompany' },
+  { key: 'waitingForSupply', labelKey: 'orders.create.extraOptions.sale.waitingForSupply' },
 ];
 
-export const saleExtraOptionsRight = [
-  'Reserved for client',
-  'Needs invoice',
-  'Warranty card issued',
-  'Delivery required',
+export const saleExtraOptionsRight: CreateOrderExtraOption[] = [
+  { key: 'reservedForClient', labelKey: 'orders.create.extraOptions.sale.reservedForClient' },
+  { key: 'needsInvoice', labelKey: 'orders.create.extraOptions.sale.needsInvoice' },
+  { key: 'warrantyCardIssued', labelKey: 'orders.create.extraOptions.sale.warrantyCardIssued' },
+  { key: 'deliveryRequired', labelKey: 'orders.create.extraOptions.sale.deliveryRequired' },
 ];
 
 export const createOrderTabStorageKey = 'project-goods.create-order-tab';

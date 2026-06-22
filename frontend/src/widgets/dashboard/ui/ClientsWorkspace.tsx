@@ -1,5 +1,12 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { useRef } from 'react';
+﻿import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../entities/employee/model/types';
 import type {
   Client,
@@ -7,6 +14,7 @@ import type {
   ClientHistory,
   ClientStatus,
 } from '../../../entities/client/model/types';
+import { clientMatchesPhoneQuery } from '../../../entities/client/lib/phone-match';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
   isValidUkrainianPhone,
@@ -35,9 +43,9 @@ import {
   isOptionalIbanValid,
   isOptionalRegistrationIdValid,
   normalizeClientFiltersForApply,
-  normalizeIban,
-  normalizeText,
+  mapClientDraftToPayload,
   type ClientCardTab,
+  type ClientDraft,
   type ClientFilters,
   type ClientMainForm,
 } from '../model/clients-workspace';
@@ -79,21 +87,16 @@ type ClientsWorkspaceProps = {
 
 const MAX_PHONE_LENGTH = 10;
 const clientStatusOptions: Array<{
-  label: string;
+  labelKey: string;
   value: ClientStatus | '';
 }> = [
-  { label: '-', value: '' },
-  { label: 'new', value: 'new' },
-  { label: 'blacklist', value: 'blacklist' },
-  { label: 'VIP', value: 'vip' },
-  { label: 'discount', value: 'opt' },
-  { label: 'regular', value: 'ok' },
+  { labelKey: 'clients.statusValues.empty', value: '' },
+  { labelKey: 'clients.statusValues.new', value: 'new' },
+  { labelKey: 'clients.statusValues.blacklist', value: 'blacklist' },
+  { labelKey: 'clients.statusValues.vip', value: 'vip' },
+  { labelKey: 'clients.statusValues.opt', value: 'opt' },
+  { labelKey: 'clients.statusValues.ok', value: 'ok' },
 ];
-
-const filterStatusOptions: Array<{
-  label: string;
-  value: ClientStatus | '' | 'all';
-}> = [{ label: 'All', value: 'all' }, ...clientStatusOptions];
 
 const getMetaFieldFromNote = (
   note: string,
@@ -140,20 +143,6 @@ const getLegacyClientAddress = (client: Client) =>
   getMetaFieldFromNote(client.note, 'Address') ||
   getMetaFieldFromNoteLegacy(client.note, 'Address');
 
-const mapClientDraftToPayload = (
-  draft: typeof emptyClientDraft,
-  status: ClientStatus | '' = '',
-): ClientFormValues => ({
-  phone: draft.phone.trim(),
-  name: draft.name.trim(),
-  email: draft.email.trim(),
-  address: draft.address.trim(),
-  registrationId: draft.registrationId.trim(),
-  iban: normalizeIban(draft.iban),
-  note: draft.note.trim(),
-  status,
-});
-
 export const ClientsWorkspace = ({
   currentEmployee,
   clients,
@@ -176,6 +165,14 @@ export const ClientsWorkspace = ({
   openClientCardRequestId = null,
   onOpenClientCardHandled,
 }: ClientsWorkspaceProps) => {
+  const { t } = useTranslation();
+  const filterStatusOptions = useMemo(
+    (): Array<{
+      labelKey: string;
+      value: ClientStatus | '' | 'all';
+    }> => [{ labelKey: 'clients.filters.statusAll', value: 'all' }, ...clientStatusOptions],
+    [],
+  );
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
@@ -253,6 +250,7 @@ export const ClientsWorkspace = ({
   const [mainTabForm, setMainTabForm] = useState<ClientMainForm>({
     name: '',
     phone: '',
+    phones: [''],
     email: '',
     address: '',
     registrationId: '',
@@ -266,6 +264,9 @@ export const ClientsWorkspace = ({
   const [clientsPage, setClientsPage] = useState(1);
   const [clientsPageSize, setClientsPageSize] = useState(30);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const isMainTabDirtyRef = useRef(false);
+  const hydratedClientIdRef = useRef<string | null>(null);
+  const hydratedUpdatedAtRef = useRef<string | null>(null);
 
   const statsByClient = useMemo(
     () => getClientStatsMap(sales),
@@ -311,11 +312,22 @@ export const ClientsWorkspace = ({
   );
 
   useEffect(() => {
-    if (!selectedClient) return;
+    if (!selectedClient || !selectedClientId) return;
 
+    const clientChanged = hydratedClientIdRef.current !== selectedClientId;
+    const serverChanged =
+      hydratedUpdatedAtRef.current !== selectedClient.updatedAt;
+
+    if (!clientChanged && !serverChanged) return;
+    if (!clientChanged && isMainTabDirtyRef.current) return;
+
+    const phones = selectedClient.phones?.length
+      ? [...selectedClient.phones]
+      : [selectedClient.phone || ''];
     setMainTabForm({
       name: selectedClient.name,
-      phone: selectedClient.phone,
+      phone: phones[0] || selectedClient.phone || '',
+      phones,
       email: getLegacyClientEmail(selectedClient),
       address: getLegacyClientAddress(selectedClient),
       registrationId: selectedClient.registrationId,
@@ -323,7 +335,10 @@ export const ClientsWorkspace = ({
       note: getPlainNote(selectedClient.note),
       status: selectedClient.status || '',
     });
-  }, [selectedClient]);
+    hydratedClientIdRef.current = selectedClientId;
+    hydratedUpdatedAtRef.current = selectedClient.updatedAt;
+    isMainTabDirtyRef.current = false;
+  }, [selectedClient, selectedClientId]);
 
   useEffect(() => {
     if (!openClientCardRequestId) return;
@@ -360,24 +375,20 @@ export const ClientsWorkspace = ({
     clientCardTab === 'services' ? servicesHistory : salesHistory;
 
   const mergeTargetOptions = useMemo(() => {
-    const query = normalizeText(mergeTargetQuery);
+    const query = mergeTargetQuery.trim();
     if (!query) return [];
 
     return clients
-      .filter((client) =>
-        getClientSubtitle(client).toLowerCase().includes(query),
-      )
+      .filter((client) => clientMatchesPhoneQuery(client, query))
       .slice(0, 6);
   }, [clients, mergeTargetQuery]);
 
   const mergeSourceOptions = useMemo(() => {
-    const query = normalizeText(mergeSourceQuery);
+    const query = mergeSourceQuery.trim();
     if (!query) return [];
 
     return clients
-      .filter((client) =>
-        getClientSubtitle(client).toLowerCase().includes(query),
-      )
+      .filter((client) => clientMatchesPhoneQuery(client, query))
       .slice(0, 6);
   }, [clients, mergeSourceQuery]);
 
@@ -503,20 +514,31 @@ export const ClientsWorkspace = ({
   const closeClientCard = () => {
     setIsClientCardOpen(false);
     onSelectClient(null);
+    isMainTabDirtyRef.current = false;
+    hydratedClientIdRef.current = null;
+    hydratedUpdatedAtRef.current = null;
+  };
+
+  const handleMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>> = (
+    value,
+  ) => {
+    isMainTabDirtyRef.current = true;
+    setMainTabForm(value);
   };
 
   const validatePhone = (phone: string): boolean => {
+    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     if (normalized.length > MAX_PHONE_LENGTH) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     if (!isValidUkrainianPhone(phone)) {
-      setMainTabPhoneError('Invalid phone number format');
+      setMainTabPhoneError(phoneFormatError);
       return false;
     }
     setMainTabPhoneError(null);
@@ -575,16 +597,21 @@ export const ClientsWorkspace = ({
       return;
     }
 
-    await onUpdateClient(selectedClientId, {
-      name: mainTabForm.name.trim(),
-      phone: mainTabForm.phone.trim(),
-      email: mainTabForm.email.trim(),
-      address: mainTabForm.address.trim(),
-      registrationId: mainTabForm.registrationId.trim(),
-      iban: normalizeIban(mainTabForm.iban),
-      note: mainTabForm.note.trim(),
-      status: mainTabForm.status as ClientStatus | '',
-    });
+    const draftForSave: ClientDraft = {
+      phone: mainTabForm.phone,
+      phones: mainTabForm.phones || [],
+      name: mainTabForm.name,
+      address: mainTabForm.address,
+      email: mainTabForm.email,
+      registrationId: mainTabForm.registrationId,
+      iban: mainTabForm.iban,
+      note: mainTabForm.note,
+    };
+    const payload = mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | '');
+    const isSuccess = await onUpdateClient(selectedClientId, payload);
+    if (isSuccess) {
+      isMainTabDirtyRef.current = false;
+    }
   };
 
   const handleImportFileSelect = async (file: File | null) => {
@@ -754,7 +781,7 @@ export const ClientsWorkspace = ({
           statusOptions={clientStatusOptions}
           onClearPhoneError={() => setMainTabPhoneError(null)}
           onClose={closeClientCard}
-          onMainTabFormChange={setMainTabForm}
+          onMainTabFormChange={handleMainTabFormChange}
           onOpenSaleCard={openSaleCardFromClientModal}
           onSaveMainTab={() => {
             void handleMainTabSave();

@@ -42,6 +42,7 @@ export const formatProduct = (product: ProductDocument) => {
 export const formatClient = (client: ClientDocument) => ({
   id: client._id.toString(),
   phone: client.phone,
+  phones: Array.isArray(client.phones) && client.phones.length > 0 ? client.phones : (client.phone ? [client.phone] : []),
   name: client.name,
   email: client.email ?? '',
   address: client.address ?? '',
@@ -56,6 +57,9 @@ export const formatClient = (client: ClientDocument) => ({
 export const formatSupplier = (supplier: SupplierDocument) => ({
   id: supplier._id.toString(),
   phone: supplier.phone,
+  phones: Array.isArray(supplier.phones) && supplier.phones.length > 0
+    ? supplier.phones
+    : supplier.phone ? [supplier.phone] : [],
   name: supplier.name,
   note: supplier.note,
   supplierOrder: supplier.supplierOrder ?? '',

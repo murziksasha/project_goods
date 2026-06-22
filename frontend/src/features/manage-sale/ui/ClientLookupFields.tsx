@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../entities/client/model/types';
 
 type ClientLookupFieldsProps = {
@@ -22,55 +23,61 @@ export const ClientLookupFields = ({
   onPickClient,
   onShowSuggestions,
   onHideSuggestions,
-}: ClientLookupFieldsProps) => (
-  <div className="field field-wide modal-suggestions-anchor">
-    <span>Client</span>
-    <div className="form-grid compact-form-grid">
-      <label className="field">
-        <span>Name</span>
-        <input
-          value={clientNameInput}
-          placeholder="Write client name"
-          onFocus={onShowSuggestions}
-          onBlur={() => window.setTimeout(onHideSuggestions, 120)}
-          onChange={(event) => onNameChange(event.target.value)}
-        />
-      </label>
+}: ClientLookupFieldsProps) => {
+  const { t } = useTranslation();
 
-      <label className="field">
-        <span>Phone</span>
-        <input
-          value={clientPhoneInput}
-          placeholder="Write phone number"
-          onFocus={onShowSuggestions}
-          onBlur={() => window.setTimeout(onHideSuggestions, 120)}
-          onChange={(event) => onPhoneChange(event.target.value)}
-        />
-      </label>
-    </div>
+  return (
+    <div className="field field-wide modal-suggestions-anchor">
+      <span>{t('legacy.saleForm.lookup.client')}</span>
+      <div className="form-grid compact-form-grid">
+        <label className="field">
+          <span>{t('legacy.saleForm.lookup.name')}</span>
+          <input
+            value={clientNameInput}
+            placeholder={t('legacy.saleForm.lookup.clientPlaceholder')}
+            onFocus={onShowSuggestions}
+            onBlur={() => window.setTimeout(onHideSuggestions, 120)}
+            onChange={(event) => onNameChange(event.target.value)}
+          />
+        </label>
 
-    {showClientSuggestions ? (
-      <div className="suggestions-panel">
-        {clientSuggestions.length > 0 ? (
-          clientSuggestions.map((client) => (
-            <button
-              key={client.id}
-              className="suggestion-item"
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                onPickClient(client);
-                onHideSuggestions();
-              }}
-            >
-              <strong>{client.name}</strong>
-              <span>{client.phone} • {client.status}</span>
-            </button>
-          ))
-        ) : (
-          <p className="suggestion-empty">No matching clients found.</p>
-        )}
+        <label className="field">
+          <span>{t('legacy.saleForm.lookup.phone')}</span>
+          <input
+            value={clientPhoneInput}
+            placeholder={t('legacy.saleForm.lookup.phonePlaceholder')}
+            onFocus={onShowSuggestions}
+            onBlur={() => window.setTimeout(onHideSuggestions, 120)}
+            onChange={(event) => onPhoneChange(event.target.value)}
+          />
+        </label>
       </div>
-    ) : null}
-  </div>
-);
+
+      {showClientSuggestions ? (
+        <div className="suggestions-panel">
+          {clientSuggestions.length > 0 ? (
+            clientSuggestions.map((client) => (
+              <button
+                key={client.id}
+                className="suggestion-item"
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onPickClient(client);
+                  onHideSuggestions();
+                }}
+              >
+                <strong>{client.name}</strong>
+                <span>
+                  {client.phone} • {client.status}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="suggestion-empty">{t('legacy.saleForm.lookup.noClientsFound')}</p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+};

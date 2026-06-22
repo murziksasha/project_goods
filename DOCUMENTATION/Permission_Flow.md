@@ -100,6 +100,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `POST /finance/transactions` with `type = deposit` | `finance.transactions.deposit`. |
 | `POST /finance/transactions` with `type = withdraw` | `finance.transactions.withdraw`. |
 | `POST /finance/transactions` with `type = transfer` | `finance.transactions.transfer`. |
+| `PATCH /finance/transactions/:transactionId` | `finance.view`. (allows editing the note on active transactions) |
 | `GET /finance/report` | `finance.view`. |
 | `GET /finance/supplier-orders` | `finance.view`. |
 | `POST /finance/supplier-orders/:supplierOrderId/pay` | `finance.supplierOrders.pay`. |

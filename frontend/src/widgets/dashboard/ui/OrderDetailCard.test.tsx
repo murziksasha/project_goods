@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
+import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getProducts } from '../../../entities/product/api/productApi';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { OrderDetailCard } from './OrderDetailCard';
 import {
@@ -13,6 +16,10 @@ import {
 
 vi.mock('../../../entities/product/api/productApi', () => ({
   getProducts: vi.fn(async () => []),
+}));
+
+vi.mock('../../../entities/client-device/api/clientDeviceApi', () => ({
+  getClientDevices: vi.fn(async () => []),
 }));
 
 vi.mock('../../../entities/service-catalog/api/serviceCatalogApi', () => ({
@@ -74,6 +81,25 @@ const catalogProduct = (
   ...patch,
 });
 
+const clientDevice = (
+  patch: Partial<ClientDevice> = {},
+): ClientDevice => ({
+  id: 'client-device-1',
+  clientId: 'client-1',
+  clientName: 'Client',
+  clientPhone: '+380000000000',
+  name: 'Coffee machine RZTK',
+  serialNumber: '',
+  note: '',
+  source: 'repairOrder',
+  isActive: true,
+  canRemove: true,
+  usageCount: 0,
+  createdAt: now,
+  updatedAt: now,
+  ...patch,
+});
+
 const sale = (patch: Partial<Sale> = {}): Sale => ({
   id: 'sale-1',
   recordNumber: 'R000001',
@@ -114,10 +140,14 @@ const sale = (patch: Partial<Sale> = {}): Sale => ({
 const renderCard = ({
   products = [product()],
   catalogProducts = [catalogProduct()],
+  clientDevices = [],
   onAddLineItem = vi.fn(),
+  onReplaceLineItem = vi.fn(),
   onUpdateLineItem = vi.fn(),
   onRemoveLineItem = vi.fn(),
   onDiscountChange = vi.fn(),
+  onCreateClientDevice = vi.fn(async () => true),
+  onSaveMainInfo = vi.fn(async () => undefined),
   onError = vi.fn(),
   canAddComment = true,
   isReadOnly = false,
@@ -130,7 +160,13 @@ const renderCard = ({
 }: {
   products?: Product[];
   catalogProducts?: CatalogProduct[];
+  clientDevices?: ClientDevice[];
   onAddLineItem?: (item: Omit<OrderLineItem, 'id'>) => void;
+  onReplaceLineItem?: (
+    itemId: string,
+    itemIndex: number | undefined,
+    nextItems: Omit<OrderLineItem, 'id'>[],
+  ) => void;
   onUpdateLineItem?: (
     itemId: string,
     itemIndex: number | undefined,
@@ -152,6 +188,8 @@ const renderCard = ({
     mode: 'percent' | 'amount';
     value: number;
   }) => void;
+  onCreateClientDevice?: Parameters<typeof OrderDetailCard>[0]['onCreateClientDevice'];
+  onSaveMainInfo?: Parameters<typeof OrderDetailCard>[0]['onSaveMainInfo'];
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
@@ -177,10 +215,11 @@ const renderCard = ({
       supplierOrders={[]}
       employees={[]}
       status={cardStatus}
-      statusOptions={[{ key: cardStatus, label: 'Test status' }]}
+      statusOptions={[{ key: cardStatus, labelKey: 'orders.status.repair.new' }]}
       comments={comments}
       lineItems={lineItems}
       products={products}
+      clientDevices={clientDevices}
       catalogProducts={catalogProducts}
       paidAmount={0}
       isReadOnly={isReadOnly}
@@ -190,7 +229,7 @@ const renderCard = ({
       onClose={vi.fn()}
       onAddComment={vi.fn()}
       onAddLineItem={onAddLineItem}
-      onReplaceLineItem={vi.fn()}
+      onReplaceLineItem={onReplaceLineItem}
       onRemoveLineItem={onRemoveLineItem}
       onUpdateLineItem={onUpdateLineItem}
       onReturnLineItem={vi.fn()}
@@ -201,19 +240,191 @@ const renderCard = ({
       onDiscountChange={onDiscountChange}
       onOpenClientCard={vi.fn()}
       onSupplierOrderCreated={vi.fn(async () => undefined)}
+      onCreateClientDevice={onCreateClientDevice}
       onUpdateProductModel={vi.fn(async () => true)}
       onError={onError}
       onSuccess={vi.fn()}
-      onSaveMainInfo={vi.fn(async () => undefined)}
+      onSaveMainInfo={onSaveMainInfo}
     />,
   );
-  return { ...result, onOpenRelatedSale };
+  return { ...result, onCreateClientDevice, onOpenRelatedSale, onSaveMainInfo };
 };
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.mocked(getClientDevices).mockResolvedValue([]);
   window.localStorage.clear();
+});
+
+describe('OrderDetailCard repair device replacement', () => {
+  const repairSale: Partial<Sale> = {
+    kind: 'repair',
+    status: 'new',
+    product: {
+      id: 'device-snapshot',
+      article: '',
+      name: 'Old device',
+      serialNumber: 'SN-OLD',
+    },
+  };
+
+  it('shows the device change action only for repair orders', () => {
+    renderCard({ saleOverride: repairSale });
+
+    expect(screen.getByLabelText('Change device')).toBeInTheDocument();
+
+    cleanup();
+    renderCard();
+
+    expect(screen.queryByLabelText('Change device')).not.toBeInTheDocument();
+  });
+
+  it('lists only active devices for the current client', () => {
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [
+        clientDevice({ id: 'active-1', name: 'Espresso machine' }),
+        clientDevice({ id: 'inactive-1', name: 'Inactive grinder', isActive: false }),
+        clientDevice({ id: 'other-client', clientId: 'client-2', name: 'Other client phone' }),
+      ],
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+
+    expect(screen.getByText('Espresso machine')).toBeInTheDocument();
+    expect(screen.queryByText('Inactive grinder')).not.toBeInTheDocument();
+    expect(screen.queryByText('Other client phone')).not.toBeInTheDocument();
+  });
+
+  it('finds active devices through the same lookup used by create order', async () => {
+    const lookupDevice = clientDevice({
+      id: 'lookup-device',
+      clientId: 'another-client',
+      name: 'Lookup RZTK coffee machine',
+    });
+    vi.mocked(getClientDevices).mockImplementation(async (query = '') =>
+      query.trim().length >= 2 ? [lookupDevice] : [],
+    );
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [],
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.change(screen.getByPlaceholderText('Search client devices'), {
+      target: { value: 'Lookup RZTK coffee machine' },
+    });
+
+    await waitFor(() => {
+      expect(getClientDevices).toHaveBeenCalledWith(
+        'Lookup RZTK coffee machine',
+      );
+    });
+    expect(
+      await screen.findByRole('button', {
+        name: /Lookup RZTK coffee machine/,
+      }, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  });
+
+  it('selects an existing client device and saves it as order main info', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [clientDevice({ id: 'device-new', name: 'New client laptop' })],
+      onSaveMainInfo,
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.click(screen.getByRole('button', { name: /New client laptop/ }));
+    fireEvent.click(screen.getByText('Save changes'));
+
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deviceName: 'New client laptop',
+          serialNumber: 'SN-OLD',
+        }),
+      );
+    });
+  });
+
+  it('creates a new client device and applies it to the order draft', async () => {
+    const onCreateClientDevice = vi.fn(async () => true);
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: repairSale,
+      onCreateClientDevice,
+      onSaveMainInfo,
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.change(screen.getByPlaceholderText('Device name'), {
+      target: { value: 'Brand new kettle' },
+    });
+    fireEvent.click(screen.getByText('Create and apply'));
+    fireEvent.click(await screen.findByText('Save changes'));
+
+    expect(onCreateClientDevice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        clientName: 'Client',
+        clientPhone: '+380000000000',
+        name: 'Brand new kettle',
+        serialNumber: '',
+        source: 'repairOrder',
+        isActive: true,
+      }),
+    );
+    expect(onSaveMainInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceName: 'Brand new kettle',
+        serialNumber: 'SN-OLD',
+      }),
+    );
+  });
+
+  it('clears order serial only when the modal checkbox is enabled', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [clientDevice({ id: 'device-new', name: 'Replacement tablet' })],
+      onSaveMainInfo,
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.click(screen.getByLabelText('Clear S/N for this order'));
+    fireEvent.click(screen.getByRole('button', { name: /Replacement tablet/ }));
+    fireEvent.click(screen.getByText('Save changes'));
+
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deviceName: 'Replacement tablet',
+          serialNumber: '',
+        }),
+      );
+    });
+  });
+
+  it('renders long device names inside the change control', () => {
+    renderCard({
+      saleOverride: {
+        ...repairSale,
+        product: {
+          id: 'long-device',
+          article: '',
+          name: 'Very long customer device name with additional model details and color',
+          serialNumber: '',
+        },
+      },
+    });
+
+    expect(screen.getByLabelText('Change device')).toHaveTextContent(
+      'Very long customer device name with additional model details and color',
+    );
+  });
 });
 
 describe('OrderDetailCard product entry', () => {
@@ -273,6 +484,70 @@ describe('OrderDetailCard product entry', () => {
         warrantyPeriod: 0,
         serialNumbers: ['S000003'],
       }),
+    );
+  });
+
+  it('binds selected serials without showing the manual serial textarea', async () => {
+    const onReplaceLineItem = vi.fn();
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000003' }),
+      product({ id: 'product-2', serialNumber: 'S000004' }),
+    ];
+    vi.mocked(getProducts).mockResolvedValue(stockProducts);
+
+    const { container } = renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      onReplaceLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
+
+    expect(await screen.findByText('[ ] S000003')).toBeInTheDocument();
+    expect(screen.getByText('[ ] S000004')).toBeInTheDocument();
+    expect(container.querySelector('.serial-bind-modal textarea')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000003/i }));
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
+    expect(screen.getByText('Selected: 2')).toBeInTheDocument();
+
+    const selectedRemoveButton = container.querySelector<HTMLButtonElement>(
+      '.serial-bind-selected-item .line-item-remove-button',
+    );
+    expect(selectedRemoveButton).not.toBeNull();
+    fireEvent.click(selectedRemoveButton!);
+    expect(screen.getByText('Selected: 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selected' }));
+    expect(screen.queryByText('Selected: 1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onReplaceLineItem).toHaveBeenCalledWith(
+      'line-item-1',
+      undefined,
+      [
+        expect.objectContaining({
+          kind: 'product',
+          productId: 'product-2',
+          name: 'TerraE 30E INR18650 2900mAh',
+          quantity: 1,
+          serialNumbers: ['S000004'],
+        }),
+      ],
     );
   });
 
@@ -589,10 +864,11 @@ describe('OrderDetailCard product entry', () => {
         supplierOrders={[]}
         employees={[]}
         status={'new' as OrderStatus}
-        statusOptions={[{ key: 'new' as OrderStatus, label: 'New repair' }]}
+        statusOptions={[{ key: 'new' as OrderStatus, labelKey: 'orders.status.repair.new' }]}
         comments={[]}
         lineItems={[]}
         products={[product()]}
+        clientDevices={[]}
         catalogProducts={[catalogProduct()]}
         paidAmount={0}
         isReadOnly={false}
@@ -613,6 +889,7 @@ describe('OrderDetailCard product entry', () => {
         onDiscountChange={vi.fn()}
         onOpenClientCard={vi.fn()}
         onSupplierOrderCreated={vi.fn(async () => undefined)}
+        onCreateClientDevice={vi.fn(async () => true)}
         onUpdateProductModel={vi.fn(async () => true)}
         onError={vi.fn()}
         onSuccess={vi.fn()}

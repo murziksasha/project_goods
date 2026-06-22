@@ -8,13 +8,16 @@
     "build": "tsc -p tsconfig.json",
     "prestart": "npm run build",
     "start": "node dist/server.js",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "clear:sales": "node -r ts-node/register src/scripts/clear-sales.ts",
     "import:clients:dry-run": "node -r ts-node/register src/scripts/import-clients.ts --dry-run",
     "import:clients": "node -r ts-node/register src/scripts/import-clients.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "backfill:client-phones:dry-run": "node -r ts-node/register src/scripts/backfill-client-phones.ts",
+    "backfill:client-phones": "node -r ts-node/register src/scripts/backfill-client-phones.ts --apply",
+    "test": "vitest run --exclude dist/**",
+    "test:watch": "vitest --exclude dist/**",
+    "test:coverage": "vitest run --coverage --exclude dist/**"
   },
   "keywords": [],
   "author": "",
@@ -25,15 +28,20 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.4.1",
+    "project_goods": "file:..",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.5",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1",
     "vitest": "^4.1.5"
   }
 }

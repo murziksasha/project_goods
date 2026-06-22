@@ -63,13 +63,15 @@
     padding-block: 10px;
   }
 
-  .topbar-title {
+  .topbar-title,
+  .topbar-left {
     flex: 1 1 220px;
   }
 
   .topbar-sync-label {
     order: 3;
     flex: 1 1 100%;
+    margin-left: 0;
     margin-right: 0;
   }
 
@@ -166,8 +168,11 @@
     padding: 10px 12px;
   }
 
-  .topbar-title {
+  .topbar-left {
     flex-basis: calc(100% - 48px);
+  }
+
+  .topbar-title {
     font-size: 1.1rem;
   }
 
@@ -834,6 +839,20 @@
     white-space: nowrap;
   }
 
+  .create-client-suggestion-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .create-client-blacklist-warning {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .create-client-blacklist-warning .client-status-badge {
+    justify-self: start;
+  }
+
   .create-row-2,
   .create-row-3,
   .create-device-search,
@@ -960,7 +979,7 @@
     flex: 0 0 36px;
   }
 
-  .topbar-title {
+  .topbar-left {
     flex-basis: calc(100% - 48px);
   }
 

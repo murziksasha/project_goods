@@ -10,10 +10,10 @@ export type SettingsTab =
   | 'print'
   | 'backups';
 
-export const settingsTabs: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'company', label: 'Company' },
-  { key: 'print', label: 'Print forms' },
-  { key: 'backups', label: 'Backups' },
+export const settingsTabs: Array<{ key: SettingsTab; labelKey: string }> = [
+  { key: 'company', labelKey: 'settings.tabs.company' },
+  { key: 'print', labelKey: 'settings.tabs.print' },
+  { key: 'backups', labelKey: 'settings.tabs.backups' },
 ];
 
 export const settingsTabStorageKey = 'project-goods.settings-tab';

@@ -173,6 +173,7 @@ export const saleSchema = new mongoose.Schema(
     clientSnapshot: {
       name: { type: String, required: true },
       phone: { type: String, required: true },
+      phones: { type: [String], default: [] },
       status: { type: String, required: true },
       email: { type: String, required: false, default: '' },
       address: { type: String, required: false, default: '' },

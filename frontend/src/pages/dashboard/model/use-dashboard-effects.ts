@@ -21,6 +21,7 @@ import type { AppSettings, AppSettingsFormValues } from '../../../entities/setti
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import { queryKeys } from '../../../shared/api/queryClient';
+import i18n from '../../../shared/i18n/config';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -157,6 +158,7 @@ export const useDashboardEffects = ({
     setIsServicesLoading,
     setIsProductsLoading,
     setIsSuppliersLoading,
+    setLastSyncAt,
     setServices,
   ]);
 
@@ -223,7 +225,10 @@ export const useDashboardEffects = ({
     }
     if (productsQuery.error) {
       setError(
-        getRequestErrorMessage(productsQuery.error, 'Failed to load products.'),
+        getRequestErrorMessage(
+          productsQuery.error,
+          i18n.t('errors.failedLoadProducts'),
+        ),
       );
     }
   }, [
@@ -248,7 +253,7 @@ export const useDashboardEffects = ({
       setError(
         getRequestErrorMessage(
           catalogProductsQuery.error,
-          'Failed to load catalog products.',
+          i18n.t('errors.failedLoadCatalogProducts'),
         ),
       );
     }
@@ -273,7 +278,7 @@ export const useDashboardEffects = ({
       setError(
         getRequestErrorMessage(
           clientDevicesQuery.error,
-          'Failed to load client devices.',
+          i18n.t('errors.failedLoadClientDevices'),
         ),
       );
     }
@@ -294,7 +299,9 @@ export const useDashboardEffects = ({
       setLastSyncAt(new Date().toISOString());
     }
     if (salesQuery.error) {
-      setError(getRequestErrorMessage(salesQuery.error, 'Failed to load sales.'));
+      setError(
+        getRequestErrorMessage(salesQuery.error, i18n.t('errors.failedLoadSales')),
+      );
     }
   }, [
     enabled,
@@ -316,7 +323,7 @@ export const useDashboardEffects = ({
     }
     if (clientsQuery.error) {
       setError(
-        getRequestErrorMessage(clientsQuery.error, 'Failed to load clients.'),
+        getRequestErrorMessage(clientsQuery.error, i18n.t('errors.failedLoadClients')),
       );
     }
   }, [
@@ -341,7 +348,7 @@ export const useDashboardEffects = ({
       setError(
         getRequestErrorMessage(
           servicesQuery.error,
-          'Failed to load services.',
+          i18n.t('errors.failedLoadServices'),
         ),
       );
     }
@@ -368,7 +375,12 @@ export const useDashboardEffects = ({
         if (isActive) setClientHistory(history);
       } catch (requestError) {
         if (isActive) {
-          setError(getRequestErrorMessage(requestError, 'Failed to load client history.'));
+          setError(
+            getRequestErrorMessage(
+              requestError,
+              i18n.t('errors.failedLoadClientHistory'),
+            ),
+          );
         }
       } finally {
         if (isActive) setIsClientHistoryLoading(false);

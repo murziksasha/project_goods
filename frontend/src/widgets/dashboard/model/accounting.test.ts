@@ -6,14 +6,17 @@ import type {
 } from '../../../entities/finance/model/types';
 import {
   canCancelAccountingTransferTransaction,
+  canPerformTransferBetweenCashboxes,
   filterFinanceTransactions,
   getAccountingTotals,
+  getAccountingCashboxCurrencyRows,
+  getAllowedAccountingTransactionCurrencies,
   getActiveTransactionFiltersCount,
   getBalanceAfterByTransactionId,
   getFinanceOverview,
   initialTransactionFilters,
-  normalizeCashboxCurrencyActivity,
   normalizeCurrencyActivity,
+  parseTransactionOrderToken,
 } from './accounting';
 
 const createCashbox = (
@@ -24,6 +27,7 @@ const createCashbox = (
   id,
   name: `Cashbox ${id}`,
   balances,
+  enabledCurrencies: { UAH: true, USD: false },
   isDefault: id === 'cash-1',
   isArchived,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -154,18 +158,89 @@ describe('accounting model helpers', () => {
       UAH: true,
       USD: false,
     });
+  });
+
+  it('hides disabled empty USD balances and shows existing disabled USD as withdraw-only', () => {
+    const emptyUsdCashbox = createCashbox('cash-1', { UAH: 100, USD: 0 });
+    const fundedUsdCashbox = createCashbox('cash-2', { UAH: 50, USD: 7 });
+    const getCurrencyBalance = (cashbox: Cashbox, currency: string) =>
+      cashbox.balances[currency] ?? 0;
+    const isCashboxCurrencyActive = (cashboxId: string, currency: string) => {
+      const cashbox = [emptyUsdCashbox, fundedUsdCashbox].find(
+        (item) => item.id === cashboxId,
+      );
+      return cashbox?.enabledCurrencies[currency] === true;
+    };
+
     expect(
-      normalizeCashboxCurrencyActivity({
-        allCashboxes: [createCashbox('cash-1', { UAH: 0, USD: 0 })],
+      getAccountingCashboxCurrencyRows({
         allCurrencyCodes: ['UAH', 'USD'],
-        current: { 'cash-1': { USD: false } },
+        cashbox: emptyUsdCashbox,
+        getCurrencyBalance,
+        isCashboxCurrencyActive,
+        isGlobalCurrencyActive: () => true,
+      }).map((row) => row.currency),
+    ).toEqual(['UAH']);
+
+    expect(
+      getAccountingCashboxCurrencyRows({
+        allCurrencyCodes: ['UAH', 'USD'],
+        cashbox: fundedUsdCashbox,
+        getCurrencyBalance,
+        isCashboxCurrencyActive,
+        isGlobalCurrencyActive: () => true,
       }),
-    ).toEqual({
-      'cash-1': {
-        UAH: true,
-        USD: false,
-      },
+    ).toContainEqual({
+      currency: 'USD',
+      balance: 7,
+      canAccept: false,
+      canWithdraw: true,
     });
+  });
+
+  it('allows transaction currencies according to per-cashbox currency settings', () => {
+    const source = {
+      ...createCashbox('cash-1', { UAH: 100, USD: 20 }),
+      enabledCurrencies: { UAH: true, USD: true } as Record<string, boolean>,
+    };
+    const disabledDestination = createCashbox('cash-2', { UAH: 0, USD: 0 });
+    const enabledDestination = {
+      ...createCashbox('cash-3', { UAH: 0, USD: 0 }),
+      enabledCurrencies: { UAH: true, USD: true } as Record<string, boolean>,
+    };
+    const cashboxes = [source, disabledDestination, enabledDestination];
+    const getCurrencyBalance = (cashbox: Cashbox, currency: string) =>
+      cashbox.balances[currency] ?? 0;
+    const isCashboxCurrencyActive = (cashboxId: string, currency: string) =>
+      cashboxes.find((cashbox) => cashbox.id === cashboxId)?.enabledCurrencies[
+        currency
+      ] === true;
+
+    expect(
+      getAllowedAccountingTransactionCurrencies({
+        allCurrencyCodes: ['UAH', 'USD'],
+        cashboxes,
+        fromCashboxId: source.id,
+        getCurrencyBalance,
+        isCashboxCurrencyActive,
+        isGlobalCurrencyActive: () => true,
+        toCashboxId: disabledDestination.id,
+        type: 'transfer',
+      }),
+    ).toEqual(['UAH']);
+
+    expect(
+      getAllowedAccountingTransactionCurrencies({
+        allCurrencyCodes: ['UAH', 'USD'],
+        cashboxes,
+        fromCashboxId: source.id,
+        getCurrencyBalance,
+        isCashboxCurrencyActive,
+        isGlobalCurrencyActive: () => true,
+        toCashboxId: enabledDestination.id,
+        type: 'transfer',
+      }),
+    ).toEqual(['UAH', 'USD']);
   });
 
   it('allows cancelling an eligible transfer on the same business day', () => {
@@ -246,5 +321,26 @@ describe('accounting model helpers', () => {
         transaction: { ...transfer, type: 'deposit' },
       }),
     ).toBe(false);
+  });
+
+  it('validates whether a transfer can be performed between two different cashboxes', () => {
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', 'cashbox-2')).toBe(true);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', 'cashbox-1')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', '')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('', 'cashbox-2')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes(undefined, 'cashbox-2')).toBe(false);
+    expect(canPerformTransferBetweenCashboxes('cashbox-1', undefined)).toBe(false);
+  });
+
+  it('parses order token only from documented payment/refund note patterns', () => {
+    expect(parseTransactionOrderToken('Payment for order r000066')).toBe('r000066');
+    expect(parseTransactionOrderToken('Refund for order ABC-123')).toBe('ABC-123');
+    expect(parseTransactionOrderToken('Оплата замовлення SO-42')).toBe('SO-42');
+    expect(parseTransactionOrderToken('payment for order x1')).toBe('x1'); // case insen
+    expect(parseTransactionOrderToken('Some other note with order foo')).toBe(null);
+    expect(parseTransactionOrderToken('Deposit manual')).toBe(null);
+    expect(parseTransactionOrderToken('')).toBe(null);
+    expect(parseTransactionOrderToken(null)).toBe(null);
+    expect(parseTransactionOrderToken('Payment for order r000066 extra')).toBe('r000066');
   });
 });

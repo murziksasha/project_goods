@@ -26,6 +26,7 @@ export type ProductModelUpdatePayload = {
 
 export type ClientPayload = {
   phone?: unknown;
+  phones?: unknown;
   name?: unknown;
   email?: unknown;
   address?: unknown;
@@ -110,6 +111,7 @@ export type ServiceCatalogPayload = {
 
 export type SupplierPayload = {
   phone?: unknown;
+  phones?: unknown;
   name?: unknown;
   note?: unknown;
   supplierOrder?: unknown;

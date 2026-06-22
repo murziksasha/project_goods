@@ -288,6 +288,9 @@ describe('backup service', () => {
       {
         backupDir,
         now: () => nowValues.shift() ?? new Date(2026, 5, 7, 10, 1, 1),
+        clearDatabase: async () => {
+          commands.push('clear');
+        },
         runCommand: async (command, args) => {
           commands.push(command);
           const archiveArg = args.find((arg) => arg.startsWith('--archive='));
@@ -303,7 +306,35 @@ describe('backup service', () => {
       safetyBackupId: 'project-goods-20260607-100100-safety',
       success: true,
     });
-    expect(commands).toEqual(['mongodump', 'mongorestore']);
+    expect(commands).toEqual(['mongodump', 'clear', 'mongorestore']);
+  });
+
+  it('does not clear the current database when safety backup fails', async () => {
+    const backupDir = await makeTempDir();
+    await writeBackupPair(backupDir, 'project-goods-20260607-100000');
+    const commands: string[] = [];
+
+    await expect(
+      restoreBackup(
+        'project-goods-20260607-100000',
+        'RESTORE',
+        'Owner',
+        {
+          backupDir,
+          clearDatabase: async () => {
+            commands.push('clear');
+          },
+          runCommand: async (command) => {
+            commands.push(command);
+            if (command === 'mongodump') {
+              throw new Error('safety failed');
+            }
+          },
+        },
+      ),
+    ).rejects.toThrow('Safety backup failed. Restore was not started.');
+
+    expect(commands).toEqual(['mongodump']);
   });
 
   it('restores from an uploaded archive and removes the temporary file', async () => {
@@ -322,6 +353,9 @@ describe('backup service', () => {
       {
         backupDir,
         now: () => nowValues.shift() ?? new Date(2026, 5, 7, 10, 2, 1),
+        clearDatabase: async () => {
+          restoreArchivePaths.push('clear');
+        },
         runCommand: async (command, args) => {
           const archiveArg = args.find((arg) => arg.startsWith('--archive='));
           if (!archiveArg) throw new Error('archive arg missing');
@@ -344,8 +378,9 @@ describe('backup service', () => {
       safetyBackupId: 'project-goods-20260607-100200-safety',
       success: true,
     });
-    expect(restoreArchivePaths).toHaveLength(1);
-    await expect(fs.access(restoreArchivePaths[0]!)).rejects.toThrow();
+    expect(restoreArchivePaths).toHaveLength(2);
+    expect(restoreArchivePaths[0]).toBe('clear');
+    await expect(fs.access(restoreArchivePaths[1]!)).rejects.toThrow();
     const entries = await fs.readdir(backupDir);
     expect(entries.some((entry) => entry.startsWith('.restore-'))).toBe(false);
   });
@@ -369,6 +404,28 @@ describe('backup service', () => {
       ),
     ).rejects.toThrow('Restore confirmation phrase is invalid.');
     expect(commands).toEqual([]);
+  });
+
+  it('full mongodump command covers finance collections (cashboxes, financetransactions, financecurrencyconfigs)', async () => {
+    const backupDir = await makeTempDir();
+    const seenArgs: string[] = [];
+    await createManualBackup('tester', {
+      backupDir,
+      mongoUri: 'mongodb://mongo:27017/inventory?replicaSet=rs0',
+      runCommand: async (command, args) => {
+        seenArgs.push(...args);
+        const archiveArg = args.find((a) => a.startsWith('--archive='));
+        if (archiveArg) {
+          await fs.writeFile(archiveArg.replace('--archive=', ''), Buffer.from('dummy-gz'));
+        }
+      },
+    });
+
+    // No --collection or --db filter => dumps entire inventory DB incl. finance ones
+    expect(seenArgs).toContain('--gzip');
+    expect(seenArgs.some((a) => a.includes('inventory')) || seenArgs.some((a) => a.includes('mongo'))).toBe(true);
+    expect(seenArgs.find((a) => a.startsWith('--archive='))).toBeTruthy();
+    // mongodump without --collection includes cashboxes, financetransactions, financecurrencyconfigs
   });
 
   it('blocks uploaded archive restore while another job is running', async () => {

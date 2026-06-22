@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 
 type NotificationsProps = {
@@ -23,6 +24,7 @@ export const Notifications = ({
   successMessage,
   isOffline,
 }: NotificationsProps) => {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [pausedToastId, setPausedToastId] = useState<string | null>(null);
   const lastErrorRef = useRef('');
@@ -30,26 +32,26 @@ export const Notifications = ({
   const pauseStartedAtRef = useRef<number | null>(null);
   const timersRef = useRef<Map<string, number>>(new Map());
 
-  const clearToastTimer = (toastId: string) => {
+  const clearToastTimer = useCallback((toastId: string) => {
     const timeoutId = timersRef.current.get(toastId);
     if (typeof timeoutId !== 'undefined') {
       window.clearTimeout(timeoutId);
       timersRef.current.delete(toastId);
     }
-  };
+  }, []);
 
-  const removeToast = (toastId: string) => {
+  const removeToast = useCallback((toastId: string) => {
     clearToastTimer(toastId);
     setToasts((current) => current.filter((toast) => toast.id !== toastId));
-  };
+  }, [clearToastTimer]);
 
-  const scheduleToastRemoval = (toastId: string, delayMs: number) => {
+  const scheduleToastRemoval = useCallback((toastId: string, delayMs: number) => {
     clearToastTimer(toastId);
     const timeoutId = window.setTimeout(() => {
       removeToast(toastId);
     }, Math.max(0, delayMs));
     timersRef.current.set(toastId, timeoutId);
-  };
+  }, [clearToastTimer, removeToast]);
 
   useEffect(() => {
     if (!error) {
@@ -73,7 +75,7 @@ export const Notifications = ({
       [nextToast, ...current].slice(0, maxToastsInStack),
     );
     scheduleToastRemoval(toastId, errorToastTtlMs);
-  }, [error]);
+  }, [error, scheduleToastRemoval]);
 
   useEffect(() => {
     if (!successMessage) {
@@ -97,7 +99,7 @@ export const Notifications = ({
       [nextToast, ...current].slice(0, maxToastsInStack),
     );
     scheduleToastRemoval(toastId, successToastTtlMs);
-  }, [successMessage]);
+  }, [scheduleToastRemoval, successMessage]);
 
   useEffect(() => {
     if (!pausedToastId) {
@@ -110,12 +112,13 @@ export const Notifications = ({
     return () => {
       pauseStartedAtRef.current = null;
     };
-  }, [pausedToastId]);
+  }, [clearToastTimer, pausedToastId]);
 
   useEffect(() => {
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      timersRef.current.clear();
+      timers.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timers.clear();
     };
   }, []);
 
@@ -153,7 +156,7 @@ export const Notifications = ({
     <section className="toast-stack" aria-live="polite" aria-atomic="true">
     {isOffline ? (
       <p className="toast toast-error toast-persistent" role="status">
-        No internet connection. You can view cached data, but edits are disabled.
+        {t('common.notifications.offlineViewOnly')}
       </p>
     ) : null}
       {toasts.map((toast) => (
@@ -168,7 +171,7 @@ export const Notifications = ({
           <button
             type="button"
             className="toast-close"
-            aria-label="Close notification"
+            aria-label={t('common.notifications.closeNotification')}
             onClick={() => removeToast(toast.id)}
           >
             ×

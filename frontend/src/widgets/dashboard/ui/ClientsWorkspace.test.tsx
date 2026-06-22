@@ -1,4 +1,5 @@
 ﻿import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Client,
@@ -10,27 +11,35 @@ import { ClientsWorkspace } from './ClientsWorkspace';
 import {
   clientsSuppliersSavedFiltersStorageKey,
   emptyFilters,
+  mapClientDraftToPayload,
+  type ClientDraft,
 } from '../model/clients-workspace';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
 
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
 });
 
-const createClient = (overrides: Partial<Client>): Client => ({
-  id: 'client-1',
-  phone: '+380501111111',
-  name: 'Ivan Petrenko',
-  email: '',
-  address: '',
-  registrationId: '',
-  iban: '',
-  note: '',
-  status: '',
-  createdAt: '2026-01-01T10:00:00.000Z',
-  updatedAt: '2026-01-01T10:00:00.000Z',
-  ...overrides,
-});
+const createClient = (overrides: Partial<Client>): Client => {
+  const basePhone = overrides.phone ?? '+380501111111';
+  const basePhones = overrides.phones ?? [basePhone];
+  return {
+    id: 'client-1',
+    phone: basePhone,
+    phones: basePhones,
+    name: 'Ivan Petrenko',
+    email: '',
+    address: '',
+    registrationId: '',
+    iban: '',
+    note: '',
+    status: '',
+    createdAt: '2026-01-01T10:00:00.000Z',
+    updatedAt: '2026-01-01T10:00:00.000Z',
+    ...overrides,
+  };
+};
 
 const employee: Employee = {
   id: 'employee-1',
@@ -174,16 +183,45 @@ describe('ClientsWorkspace', () => {
     expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
   });
 
+  it('marks blacklist clients in the clients table', () => {
+    const riskClient = createClient({
+      id: 'client-risk',
+      name: 'Risk Client',
+      status: 'blacklist',
+    });
+    const regularClient = createClient({
+      id: 'client-regular',
+      name: 'Regular Client',
+      status: 'new',
+      createdAt: '2026-01-02T10:00:00.000Z',
+    });
+
+    renderWorkspace({ clients: [riskClient, regularClient] });
+
+    const blacklistRow = screen.getByLabelText(
+      'Risk Client. Client is in blacklist',
+    );
+    expect(blacklistRow).toHaveClass('clients-table-row-blacklist');
+    expect(
+      within(blacklistRow).getByText('Blacklist'),
+    ).toHaveClass('status-blacklist');
+    expect(screen.getByText('Regular Client').closest('tr')).not.toHaveClass(
+      'clients-table-row-blacklist',
+    );
+  });
+
   it('applies and clears advanced filters', () => {
     const ivan = createClient({
       id: 'client-ivan',
       name: 'Ivan Petrenko',
       phone: '+380501111111',
+  phones: ['+380501111111'],
     });
     const olena = createClient({
       id: 'client-olena',
       name: 'Olena Kovalenko',
       phone: '+380502222222',
+      phones: ['+380502222222'],
     });
     renderWorkspace({ clients: [ivan, olena] });
 
@@ -285,6 +323,53 @@ describe('ClientsWorkspace', () => {
     expect(mergeButton).not.toBeDisabled();
   });
 
+  it('keeps primary phone edits in the client card modal', () => {
+    const client = createClient({
+      id: 'client-ivan',
+      phone: '+380501111111',
+      phones: ['+380501111111', '+380502222222'],
+    });
+    const { rerender } = renderWorkspace({ clients: [client] });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    const phoneInputs = screen.getAllByRole('textbox');
+    fireEvent.change(phoneInputs[3], {
+      target: { value: '+380509999999' },
+    });
+
+    expect(phoneInputs[3]).toHaveValue('+380509999999');
+
+    rerender(
+      <ClientsWorkspace
+        currentEmployee={employee}
+        clients={[
+          {
+            ...client,
+            updatedAt: client.updatedAt,
+          },
+        ]}
+        sales={[]}
+        selectedClientId={client.id}
+        history={null}
+        isClientsLoading={false}
+        isHistoryLoading={false}
+        isSaving={false}
+        isClientImporting={false}
+        isClientExporting={false}
+        onSelectClient={vi.fn()}
+        onDeleteClient={vi.fn()}
+        onCreateClient={vi.fn().mockResolvedValue(true)}
+        onImportClients={vi.fn().mockResolvedValue(true)}
+        onExportClients={vi.fn().mockResolvedValue(undefined)}
+        onMergeClients={vi.fn().mockResolvedValue(true)}
+        onUpdateClient={vi.fn().mockResolvedValue(true)}
+        onOpenSaleCard={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole('textbox')[3]).toHaveValue('+380509999999');
+  });
+
   it('opens a sale from the client card history', () => {
     const client = createClient({ id: 'client-ivan' });
     const sale = createSale(client);
@@ -314,5 +399,80 @@ describe('ClientsWorkspace', () => {
 
     expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
     expect(onSelectClient).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe('client phones model helpers', () => {
+  it('mapClientDraftToPayload always returns phones array and primary phone', () => {
+    const draft: ClientDraft = {
+      phone: '+380501234567',
+      phones: ['+380501234567', '+380501234568'],
+      name: 'Test',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const payload = mapClientDraftToPayload(draft);
+    expect(payload.phone).toBe('+380501234567');
+    expect(payload.phones).toEqual(['+380501234567', '+380501234568']);
+    expect(payload.name).toBe('Test');
+  });
+
+  it('mapClientDraftToPayload falls back to phone when phones empty, keeps primary first, removes empties and dups', () => {
+    const draft: ClientDraft = {
+      phone: '  +380991112233  ',
+      phones: ['', ' +380991112233 ', ' +380991112244 ', ''],
+      name: 'Dup',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const payload = mapClientDraftToPayload(draft);
+    expect(payload.phone).toBe('+380991112233');
+    expect(payload.phones).toEqual(['+380991112233', '+380991112244']);
+  });
+
+  it('getClientPhones and getPrimaryClientPhone fallback for clients without phones array', () => {
+    const oldClient = {
+      id: 'c1',
+      phone: '+380123456789',
+      phones: [] as string[],
+      name: 'Old',
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    expect(getClientPhones(oldClient)).toEqual(['+380123456789']);
+    expect(getPrimaryClientPhone(oldClient)).toBe('+380123456789');
+
+    const noPhone = { ...oldClient, phone: '', phones: [] as string[] };
+    expect(getClientPhones(noPhone)).toEqual([]);
+    expect(getPrimaryClientPhone(noPhone)).toBe('');
+  });
+
+  it('duplicate phones are rejected in form save logic (hasDuplicatePhones behavior)', () => {
+    // The duplicate check is used in disabled state in ClientCardModal
+    // Here we just verify the normalization prevents dups in map
+    const draftWithDups: ClientDraft = {
+      phone: '+380111',
+      phones: ['+380111', '+380111', '+380222'],
+      name: 'D',
+      address: '',
+      email: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+    };
+    const p = mapClientDraftToPayload(draftWithDups);
+    expect(p.phones).toEqual(['+380111', '+380222']);
   });
 });

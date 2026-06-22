@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import type { Client } from '../model/types';
 import {
   getClientStatusClass,
   getClientStatusColor,
+  getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
 } from '../model/constants';
 import { formatUkrainianPhone } from '../../../shared/lib/phoneFormatter';
@@ -29,16 +31,18 @@ export const ClientList = ({
   onEdit,
   onDelete,
 }: ClientListProps) => {
+  const { t } = useTranslation();
+
   if (isLoading) {
-    return <p className='empty-state'>Loading clients...</p>;
+    return <p className='empty-state'>{t('clients.table.loading')}</p>;
   }
 
   if (clients.length === 0) {
     return (
       <p className='empty-state'>
         {searchQuery
-          ? 'No clients found for this search query.'
-          : 'No clients yet.'}
+          ? t('legacy.clientList.noSearchResults')
+          : t('legacy.clientList.empty')}
       </p>
     );
   }
@@ -78,13 +82,13 @@ export const ClientList = ({
                     color: 'white',
                   }}
                 >
-                  {effectiveStatus || '-'}
+                  {t(getClientStatusLabelKey(effectiveStatus))}
                 </span>
               );
             })()}
           </div>
           <p className='muted-copy'>
-            {client.note || 'No notes yet.'}
+            {client.note || t('legacy.clientList.noNotes')}
           </p>
           <div className='card-actions'>
             <button
@@ -95,7 +99,7 @@ export const ClientList = ({
                 onEdit(client);
               }}
             >
-              Edit
+              {t('common.edit')}
             </button>
             <button
               className='danger-button'
@@ -105,7 +109,7 @@ export const ClientList = ({
                 onDelete(client);
               }}
             >
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </article>

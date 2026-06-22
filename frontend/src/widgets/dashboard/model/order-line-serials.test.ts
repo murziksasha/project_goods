@@ -50,7 +50,7 @@ describe('order line serial helpers', () => {
     const usage = getSaleSerialUsage([sale], 'sale-1');
 
     expect(getProductSerialAvailability(product, usage)).toEqual({
-      label: 'Already in this order',
+      labelKey: 'orders.serialAvailability.alreadyInThisOrder',
       selectable: false,
     });
   });

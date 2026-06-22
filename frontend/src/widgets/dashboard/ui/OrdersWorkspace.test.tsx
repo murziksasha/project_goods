@@ -89,6 +89,7 @@ const cashbox = {
   id: 'cashbox-1',
   name: 'Основная',
   balances: { UAH: 5000, USD: 0 },
+  enabledCurrencies: { UAH: true, USD: false },
   isDefault: true,
   isArchived: false,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -129,6 +130,7 @@ const renderWorkspace = (
       onSuccess={vi.fn()}
       onOpenClientCard={vi.fn()}
       products={[]}
+      clientDevices={[]}
       catalogProducts={[]}
       printForms={[]}
       printCompanySettings={{
@@ -140,6 +142,7 @@ const renderWorkspace = (
         companyEmail: '',
         companySite: '',
       }}
+      onCreateClientDevice={vi.fn(async () => true)}
       onUpdateProductModel={vi.fn(async () => true)}
       {...props}
     />,
@@ -180,6 +183,84 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByLabelText('Close order card'));
 
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('scrolls the order card into view when opening from the order number link', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
+
+  it('scrolls the order card into view when opening from the device serial button', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          product: {
+            ...sale.product!,
+            serialNumber: 'R0035759',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /s\/n: r0035759/i }));
+
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
+
+  it('does not scroll when closing the order card', async () => {
+    const scrollIntoView = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      scrollIntoView,
+    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText('Close order card'));
+
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it('allows a master with role defaults to use the live feed composer', async () => {
@@ -349,6 +430,7 @@ describe('OrdersWorkspace', () => {
         onSuccess={vi.fn()}
         onOpenClientCard={vi.fn()}
         products={[]}
+        clientDevices={[]}
         catalogProducts={[]}
         printForms={[]}
         printCompanySettings={{
@@ -360,12 +442,71 @@ describe('OrdersWorkspace', () => {
           companyEmail: '',
           companySite: '',
         }}
+        onCreateClientDevice={vi.fn(async () => true)}
         onUpdateProductModel={vi.fn(async () => true)}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Diagnostics' })).toBeInTheDocument();
     expect(screen.getByText('Fallback device')).toBeInTheDocument();
+  });
+
+  it('saves a replacement repair device through the workspace API', async () => {
+    const onSaleUpdate = vi.fn();
+    const updatedSale: Sale = {
+      ...sale,
+      product: {
+        ...sale.product!,
+        name: 'Replacement device',
+      },
+      timeline: [
+        {
+          id: 'timeline-1',
+          author: 'Manager',
+          message: 'Manager updated order main information.',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    vi.mocked(updateSaleWorkspace).mockResolvedValueOnce(updatedSale);
+
+    renderWorkspace({
+      sales: [sale],
+      onSaleUpdate,
+      clientDevices: [
+        {
+          id: 'device-2',
+          clientId: 'client-1',
+          clientName: 'Client',
+          clientPhone: '+380000000000',
+          name: 'Replacement device',
+          serialNumber: '',
+          note: '',
+          source: 'repairOrder',
+          isActive: true,
+          canRemove: true,
+          usageCount: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    fireEvent.click(await screen.findByLabelText('Change device'));
+    fireEvent.click(screen.getByRole('button', { name: /Replacement device/ }));
+    fireEvent.click(screen.getByText('Save changes'));
+
+    await waitFor(() => {
+      expect(updateSaleWorkspace).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          deviceName: 'Replacement device',
+          serialNumber: '',
+        }),
+      );
+      expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
+    });
   });
 
   it('accepts sale payment through sale API instead of raw finance transaction API', async () => {
@@ -392,6 +533,7 @@ describe('OrdersWorkspace', () => {
         id: 'cashbox-1',
         name: 'Основная',
         balances: { UAH: 500, USD: 0 },
+        enabledCurrencies: { UAH: true, USD: false },
         isDefault: true,
         isArchived: false,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -470,10 +612,12 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Accept to cashbox' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.getByLabelText('Sale card')).toBeInTheDocument();
   });
 
   it('opens repair card payment as issue flow from Accept payment', async () => {
     const onSaleUpdate = vi.fn();
+    const onSelectedSaleIdChange = vi.fn();
     const issuedSale: Sale = {
       ...sale,
       status: 'issued',
@@ -484,6 +628,7 @@ describe('OrdersWorkspace', () => {
         id: 'cashbox-1',
         name: 'Основная',
         balances: { UAH: 5000, USD: 0 },
+        enabledCurrencies: { UAH: true, USD: false },
         isDefault: true,
         isArchived: false,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -517,6 +662,7 @@ describe('OrdersWorkspace', () => {
         ],
       },
       onSaleUpdate,
+      onSelectedSaleIdChange,
     });
 
     const orderLink = screen.getByRole('link', { name: /r000001/i });
@@ -548,10 +694,13 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Accept and issue' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
   });
 
   it('closes payment modal after successful issue without payment', async () => {
     const onSaleUpdate = vi.fn();
+    const onSelectedSaleIdChange = vi.fn();
     const issuedSale: Sale = {
       ...sale,
       status: 'issued',
@@ -585,6 +734,7 @@ describe('OrdersWorkspace', () => {
         ],
       },
       onSaleUpdate,
+      onSelectedSaleIdChange,
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
@@ -610,6 +760,68 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Issue without payment' }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('matches top search by normalized client phone digits', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '095 289 82 07',
+          },
+        },
+      ],
+      searchValue: '0952898207',
+    });
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+  });
+
+  it('matches top search by additional phone in client snapshot', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '+380671112233',
+            phones: ['+380671112233', '+380952898207'],
+          },
+        },
+      ],
+      searchValue: '0952898207',
+    });
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+  });
+
+  it('matches client filter by normalized client phone digits', () => {
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          client: {
+            ...sale.client,
+            phone: '+380952898207',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    fireEvent.change(screen.getByPlaceholderText('Client name or phone'), {
+      target: { value: '095 289 82 07' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
+    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
   });
 
   it('keeps payment modal open when opening print from payment modal', async () => {

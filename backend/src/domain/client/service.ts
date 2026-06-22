@@ -5,6 +5,7 @@ import {
 } from './constants';
 import { Client, type ClientDocument } from './model';
 import { Sale, type SaleDocument } from '../sale/model';
+import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
@@ -16,6 +17,7 @@ const getClientSnapshot = async (client: ClientDocument) => {
   return {
     name: client.name,
     phone: client.phone,
+    phones: getClientPhonesFromRecord(client),
     status: getEffectiveClientStatus(client.status ?? '', visitCount),
     email: client.email ?? '',
     address: client.address ?? '',
@@ -32,15 +34,37 @@ const isDuplicateKeyError = (error: unknown) =>
   'code' in error &&
   (error as { code?: unknown }).code === 11000;
 
-const assertUniqueClientPhone = async (phone: string, exceptClientId?: string) => {
-  if (!phone) return;
+const normalizeExceptClientIds = (exceptClientIds?: string | string[]) => {
+  const list = Array.isArray(exceptClientIds)
+    ? exceptClientIds
+    : exceptClientIds
+      ? [exceptClientIds]
+      : [];
 
-  const existingClient = await Client.findOne({ phone }).lean<Pick<ClientDocument, '_id'> | null>();
-  if (!existingClient) return;
+  return list.map((id) => id.trim()).filter(Boolean);
+};
 
-  if (exceptClientId && existingClient._id.toString() === exceptClientId) {
-    return;
+const assertUniqueClientPhones = async (
+  phones: string[],
+  exceptClientIds?: string | string[],
+) => {
+  const list = (phones || []).filter(Boolean);
+  if (list.length === 0) return;
+
+  const excludedIds = normalizeExceptClientIds(exceptClientIds);
+
+  // Check via identities for multikey support; also legacy phone field
+  const orConditions = [
+    { phoneIdentities: { $in: list } },
+    { phone: { $in: list } },
+  ];
+  const query: Record<string, unknown> = { $or: orConditions };
+  if (excludedIds.length > 0) {
+    query._id = { $nin: excludedIds };
   }
+
+  const existing = await Client.findOne(query).lean<Pick<ClientDocument, '_id' | 'phone' | 'phones'> | null>();
+  if (!existing) return;
 
   throw new Error(duplicatePhoneMessage);
 };
@@ -63,7 +87,7 @@ export const listClients = async (queryValue: unknown, statusValue: unknown) => 
 
 export const createClient = async (payload: ClientPayload) => {
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhone(normalizedPayload.phone);
+  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone]);
 
   const client = new Client(normalizedPayload);
   await client.validate();
@@ -71,7 +95,7 @@ export const createClient = async (payload: ClientPayload) => {
     await client.save();
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new Error(duplicatePhoneMessage);
+      throw new Error(duplicatePhoneMessage, { cause: error });
     }
     throw error;
   }
@@ -81,7 +105,7 @@ export const createClient = async (payload: ClientPayload) => {
 export const updateClient = async (clientId: string, payload: ClientPayload) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhone(normalizedPayload.phone, clientId);
+  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone], clientId);
 
   const client = await Client.findByIdAndUpdate(clientId, normalizedPayload, {
     returnDocument: 'after',
@@ -173,8 +197,14 @@ export const mergeClients = async (
     targetClient.status === 'new' && sourceClient.status !== 'new'
       ? sourceClient.status
       : targetClient.status;
+  const mergedPhonesRaw = [
+    ...getClientPhonesFromRecord(targetClient),
+    ...getClientPhonesFromRecord(sourceClient),
+  ];
+  const mergedPhone = targetClient.phone?.trim() || sourceClient.phone;
   const payload = normalizeClientPayload({
-    phone: targetClient.phone?.trim() || sourceClient.phone,
+    phone: mergedPhone,
+    phones: mergedPhonesRaw.length ? mergedPhonesRaw : [mergedPhone],
     name: targetClient.name?.trim() || sourceClient.name,
     email: targetClient.email?.trim() || sourceClient.email,
     address: targetClient.address?.trim() || sourceClient.address,
@@ -184,6 +214,13 @@ export const mergeClients = async (
     note: mergedNote,
     status: mergedStatus,
   });
+
+  await assertUniqueClientPhones(payload.phones, [targetClientId, sourceClientId]);
+
+  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
+  if (!deletedSource) {
+    throw new Error('Failed to delete source client.');
+  }
 
   const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
     returnDocument: 'after',
@@ -202,11 +239,6 @@ export const mergeClients = async (
       },
     },
   );
-
-  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
-  if (!deletedSource) {
-    throw new Error('Failed to delete source client.');
-  }
 
   return {
     client: formatClient(updatedTarget),

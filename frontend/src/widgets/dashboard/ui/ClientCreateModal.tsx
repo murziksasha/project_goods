@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   isOptionalAddressValid,
   isOptionalIbanValid,
@@ -21,6 +22,8 @@ export const ClientCreateModal = ({
   onClose,
   onSave,
 }: ClientCreateModalProps) => {
+  const { t } = useTranslation();
+
   const updateForm = <K extends keyof ClientDraft>(
     field: K,
     value: ClientDraft[K],
@@ -35,7 +38,7 @@ export const ClientCreateModal = ({
         onClick={(event) => event.stopPropagation()}
       >
         <header className='catalog-edit-header'>
-          <h2>Add client</h2>
+          <h2>{t('clients.create.title')}</h2>
           <button type='button' className='ghost-button' onClick={onClose}>
             x
           </button>
@@ -43,21 +46,27 @@ export const ClientCreateModal = ({
         <div className='catalog-edit-body clients-modal-body'>
           <div className='form-grid compact-form-grid'>
             <label className='field field-wide'>
-              <span>Phone</span>
+              <span>{t('clients.create.fields.phone')}</span>
               <input
                 value={form.phone}
-                onChange={(event) => updateForm('phone', event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  const nextPhones = Array.isArray(form.phones) && form.phones.length > 0
+                    ? [val, ...form.phones.slice(1)]
+                    : [val];
+                  onChange({ ...form, phone: val, phones: nextPhones });
+                }}
               />
             </label>
             <label className='field field-wide'>
-              <span>Name</span>
+              <span>{t('clients.create.fields.name')}</span>
               <input
                 value={form.name}
                 onChange={(event) => updateForm('name', event.target.value)}
               />
             </label>
             <label className='field field-wide'>
-              <span>Address</span>
+              <span>{t('clients.create.fields.address')}</span>
               <input
                 value={form.address}
                 aria-invalid={!isOptionalAddressValid(form.address)}
@@ -66,20 +75,18 @@ export const ClientCreateModal = ({
                 }
               />
               {!isOptionalAddressValid(form.address) ? (
-                <small>
-                  Address must contain at least 5 characters.
-                </small>
+                <small>{t('clients.messages.errors.addressMinLength')}</small>
               ) : null}
             </label>
             <label className='field field-wide'>
-              <span>Email</span>
+              <span>{t('clients.create.fields.email')}</span>
               <input
                 value={form.email}
                 onChange={(event) => updateForm('email', event.target.value)}
               />
             </label>
             <label className='field field-wide'>
-              <span>Note</span>
+              <span>{t('clients.create.fields.note')}</span>
               <textarea
                 rows={4}
                 value={form.note}
@@ -87,7 +94,7 @@ export const ClientCreateModal = ({
               />
             </label>
             <label className='field field-wide'>
-              <span>Company ID or tax ID</span>
+              <span>{t('clients.create.fields.companyIdOrTaxId')}</span>
               <input
                 value={form.registrationId}
                 aria-invalid={
@@ -99,12 +106,12 @@ export const ClientCreateModal = ({
               />
               {!isOptionalRegistrationIdValid(form.registrationId) ? (
                 <small>
-                  Value must contain 8-12 characters: letters, digits, or a hyphen.
+                  {t('clients.messages.errors.registrationIdFormat')}
                 </small>
               ) : null}
             </label>
             <label className='field field-wide'>
-              <span>IBAN</span>
+              <span>{t('clients.create.fields.iban')}</span>
               <input
                 value={form.iban}
                 aria-invalid={!isOptionalIbanValid(form.iban)}
@@ -112,9 +119,7 @@ export const ClientCreateModal = ({
                 onChange={(event) => updateForm('iban', event.target.value)}
               />
               {!isOptionalIbanValid(form.iban) ? (
-                <small>
-                  IBAN must match UA + 27 digits. Spaces are allowed.
-                </small>
+                <small>{t('clients.messages.errors.ibanFormat')}</small>
               ) : null}
             </label>
           </div>
@@ -133,7 +138,7 @@ export const ClientCreateModal = ({
             }
             onClick={onSave}
           >
-            {isSaving ? 'Saving...' : 'Add'}
+            {isSaving ? t('clients.create.saving') : t('clients.create.add')}
           </button>
         </footer>
       </article>

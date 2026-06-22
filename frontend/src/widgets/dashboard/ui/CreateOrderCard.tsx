@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createClient, getClients, getClientHistory } from '../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../entities/client/model/types';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
+import {
+  clientMatchesPhoneQuery,
+  formatClientPhonesLabel,
+} from '../../../entities/client/lib/phone-match';
 import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
@@ -16,6 +22,11 @@ import {
   buildCreateOrderProductSuggestions,
   type CreateOrderProductSuggestion,
 } from '../model/create-order-products';
+import {
+  findBlacklistClientMatch,
+  getBlacklistClientWarning,
+  isBlacklistClient,
+} from '../model/clients-workspace';
 import { normalizeSerialNumber } from '../model/order-line-serials';
 import {
   createOrderClientRequestsTabStorageKey,
@@ -44,6 +55,30 @@ import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
 const getPhoneIdentity = (value: string) => phoneDigitsOnly(toApiPhone(value) || value);
 
+const findClientByPhoneIdentity = (
+  phoneIdentity: string,
+  sources: Client[][],
+): Client | null => {
+  if (phoneIdentity.length < 3) return null;
+
+  const seen = new Set<string>();
+  for (const source of sources) {
+    for (const client of source) {
+      if (seen.has(client.id)) continue;
+      seen.add(client.id);
+      if (
+        getClientPhones(client).some(
+          (phone) => getPhoneIdentity(phone) === phoneIdentity,
+        )
+      ) {
+        return client;
+      }
+    }
+  }
+
+  return null;
+};
+
 type CreateOrderCardProps = {
   isSaving: boolean;
   employees: Employee[];
@@ -52,10 +87,12 @@ type CreateOrderCardProps = {
   catalogProducts: CatalogProduct[];
   products: Product[];
   sales: Sale[];
+  clients?: Client[];
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
   onCreated?: (sale: Sale) => void;
   onError: (message: string) => void;
+  onOpenClientCard?: (clientId: string) => void;
 };
 
 export const CreateOrderCard = ({
@@ -66,11 +103,14 @@ export const CreateOrderCard = ({
   catalogProducts,
   products,
   sales,
+  clients = [],
   onClose,
   onSave,
   onCreated,
   onError,
+  onOpenClientCard,
 }: CreateOrderCardProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<CreateOrderRequestPayload['sourceTab']>(
     () => initialTab,
   );
@@ -144,6 +184,20 @@ export const CreateOrderCard = ({
   const shouldShowClientSuggestions =
     !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
+  const blacklistClientMatch = useMemo(() => {
+    if (selectedClient && isBlacklistClient(selectedClient)) {
+      return selectedClient;
+    }
+
+    return findBlacklistClientMatch(
+      clientSuggestions,
+      clientPhone,
+      clientName,
+    );
+  }, [clientName, clientPhone, clientSuggestions, selectedClient]);
+  const blacklistClientWarning = blacklistClientMatch
+    ? getBlacklistClientWarning(blacklistClientMatch)
+    : null;
   const resolvedClientForDeviceCreate = useMemo(() => {
     if (selectedClientId && selectedClient) {
       return selectedClient;
@@ -156,9 +210,10 @@ export const CreateOrderCard = ({
     }
 
     const exactMatches = clientSuggestions.filter((client) => {
+      const clientPhones = getClientPhones(client);
       const samePhone =
         normalizedInputPhone.length > 0 &&
-        getPhoneIdentity(client.phone) === normalizedInputPhone;
+        clientPhones.some((ph) => getPhoneIdentity(ph) === normalizedInputPhone);
       const sameName =
         normalizedInputName.length >= 2 && client.name.trim().toLowerCase() === normalizedInputName;
       return samePhone || sameName;
@@ -230,8 +285,24 @@ export const CreateOrderCard = ({
     const timeoutId = window.setTimeout(async () => {
       setIsClientLookupLoading(true);
       try {
-        const clients = await getClients(clientLookupQuery);
-        if (isActive) setClientSuggestions(clients.slice(0, 6));
+        const localMatches = clients.filter((client) =>
+          clientMatchesPhoneQuery(client, clientLookupQuery),
+        );
+        let apiMatches: Client[] = [];
+
+        try {
+          apiMatches = await getClients(clientLookupQuery);
+        } catch {
+          apiMatches = [];
+        }
+
+        const mergedSuggestions = new Map<string, Client>();
+        localMatches.forEach((client) => mergedSuggestions.set(client.id, client));
+        apiMatches.forEach((client) => mergedSuggestions.set(client.id, client));
+
+        if (isActive) {
+          setClientSuggestions(Array.from(mergedSuggestions.values()).slice(0, 6));
+        }
       } catch {
         if (isActive) setClientSuggestions([]);
       } finally {
@@ -243,7 +314,25 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [clientLookupQuery, shouldShowClientSuggestions]);
+  }, [clientLookupQuery, clients, shouldShowClientSuggestions]);
+
+  // Auto-apply exact phone match from suggestions so that an existing client by phone
+  // is preferred (even if user typed a different name). This prevents accidental
+  // duplicate client creation and makes the "exact phone client" test pass.
+  useEffect(() => {
+    if (selectedClientId) return;
+    const norm = getPhoneIdentity(clientPhone);
+    if (norm.length < 3) return;
+    const match = findClientByPhoneIdentity(norm, [clientSuggestions, clients]);
+    if (match) {
+      if (clientName.trim() !== match.name) {
+        setClientName(match.name);
+      }
+      setSelectedClientId(match.id);
+      setSelectedClient(match);
+      setClientSuggestions([]);
+    }
+  }, [clientSuggestions, clientPhone, selectedClientId, clientName, clients]);
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -385,7 +474,7 @@ export const CreateOrderCard = ({
   };
 
   const applyClient = (client: Client) => {
-    setClientPhone(client.phone);
+    setClientPhone(getPrimaryClientPhone(client));
     setClientName(client.name);
     setSelectedClientId(client.id);
     setSelectedClient(client);
@@ -411,7 +500,11 @@ export const CreateOrderCard = ({
     suggestion: CreateOrderProductSuggestion,
   ) => {
     if (!suggestion.selectable) {
-      onError(`Product cannot be selected: ${suggestion.availabilityLabel}.`);
+      onError(
+        t('orders.create.errors.productCannotBeSelected', {
+          reason: suggestion.availabilityLabel,
+        }),
+      );
       return;
     }
 
@@ -453,7 +546,7 @@ export const CreateOrderCard = ({
         quantity: '1',
         price: item.unitPrice || item.price,
       });
-      onError('Serialized products are sold one serial per line. Add each serial separately.');
+      onError(t('orders.create.errors.serializedOnePerLine'));
       return;
     }
 
@@ -533,27 +626,36 @@ export const CreateOrderCard = ({
   };
 
   const ensureClientForDevice = async () => {
-    if (selectedClientId && selectedClient) return selectedClient;
-    if (isClientEnsuring) return null;
+    if (isClientEnsuring) return selectedClient;
 
     const normalizedPhone = toApiPhone(clientPhone);
     const normalizedName = clientName.trim();
-    if (!normalizedPhone || normalizedName.length < 2) return null;
+    if (!normalizedPhone || normalizedName.length < 2) {
+      return selectedClient;
+    }
 
     const normalizedPhoneDigits = getPhoneIdentity(normalizedPhone);
-    const fromSuggestions = clientSuggestions.find(
-      (client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits,
-    );
-    if (fromSuggestions) {
-      applyClient(fromSuggestions);
-      return fromSuggestions;
+    const knownClient =
+      findClientByPhoneIdentity(normalizedPhoneDigits, [
+        clientSuggestions,
+        clients,
+      ]) ??
+      (selectedClient &&
+      getClientPhones(selectedClient).some(
+        (phone) => getPhoneIdentity(phone) === normalizedPhoneDigits,
+      )
+        ? selectedClient
+        : null);
+    if (knownClient && selectedClientId !== knownClient.id) {
+      applyClient(knownClient);
     }
 
     setIsClientEnsuring(true);
     try {
-      const clients = await getClients(normalizedPhone);
+      const apiClients = await getClients(normalizedPhone);
       const existingClient =
-        clients.find((client) => getPhoneIdentity(client.phone) === normalizedPhoneDigits) ?? null;
+        findClientByPhoneIdentity(normalizedPhoneDigits, [apiClients]) ??
+        knownClient;
 
       if (existingClient) {
         applyClient(existingClient);
@@ -562,6 +664,7 @@ export const CreateOrderCard = ({
 
       const createdClient = await createClient({
         phone: normalizedPhone,
+        phones: [normalizedPhone],
         name: normalizedName,
         email: '',
         address: '',
@@ -652,14 +755,14 @@ export const CreateOrderCard = ({
   return (
     <section className="create-order-page">
       <header className="create-order-header">
-        <h2>Create order</h2>
-        <button type="button" className="create-order-close" aria-label="Close create form" onClick={onClose}>
+        <h2>{t('orders.create.title')}</h2>
+        <button type="button" className="create-order-close" aria-label={t('orders.create.closeForm')} onClick={onClose}>
           x
         </button>
       </header>
 
       <div className="create-order-body">
-        <div className="create-order-tabs" role="tablist" aria-label="Order type tabs">
+        <div className="create-order-tabs" role="tablist" aria-label={t('orders.create.orderTypeTabs')}>
           {topTabs.map((tab) => (
             <button
               key={tab.key}
@@ -667,22 +770,22 @@ export const CreateOrderCard = ({
               className={tab.key === activeTab ? 'create-order-tab create-order-tab-active' : 'create-order-tab'}
               onClick={() => setActiveTab(tab.key)}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="create-order-grid">
           <div className="create-order-left">
-            <h3 className="create-section-title">Client</h3>
+            <h3 className="create-section-title">{t('orders.create.client')}</h3>
             <div className="create-row-2">
               <label className="field">
-                <span>Client data *</span>
+                <span>{t('orders.create.clientData')}</span>
                 <input
                   value={clientPhone}
                   onChange={(event) => onClientPhoneChange(event.target.value)}
                   onBlur={onClientPhoneBlur}
-                  placeholder="+380"
+                  placeholder={t('orders.create.phonePlaceholder')}
                 />
               </label>
               <label className="field">
@@ -690,25 +793,69 @@ export const CreateOrderCard = ({
                 <input
                   value={clientName}
                   onChange={(event) => onClientNameChange(event.target.value)}
-                  placeholder="Full name"
+                  placeholder={t('orders.create.fullName')}
                 />
               </label>
             </div>
             {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
-                {isClientLookupLoading ? <p>Searching clients...</p> : null}
-                {visibleClientSuggestions.map((client) => (
-                  <button
-                    key={client.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    onClick={() => applyClient(client)}
-                  >
-                    <strong>{client.name}</strong>
-                    <span>{client.phone}</span>
-                  </button>
-                ))}
+                {isClientLookupLoading ? <p>{t('orders.create.searchingClients')}</p> : null}
+                {visibleClientSuggestions.map((client) => {
+                  const isBlacklisted = isBlacklistClient(client);
+                  return (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className={
+                        isBlacklisted
+                          ? 'create-suggestion-item create-client-suggestion-blacklist'
+                          : 'create-suggestion-item'
+                      }
+                      title={
+                        isBlacklisted
+                          ? t('orders.create.blacklist.clientInBlacklist')
+                          : undefined
+                      }
+                      onClick={() => applyClient(client)}
+                    >
+                      <span className="create-client-suggestion-heading">
+                        <strong>{client.name}</strong>
+                        {isBlacklisted ? (
+                          <span className="client-status-badge status-blacklist">
+                            {t('orders.create.blacklist.badge')}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span>{formatClientPhonesLabel(client)}</span>
+                    </button>
+                  );
+                })}
               </div>
+            ) : null}
+            {blacklistClientMatch ? (
+              <button
+                type="button"
+                className="create-client-blacklist-warning"
+                disabled={!onOpenClientCard}
+                aria-label={t('orders.create.blacklist.openClientCard', {
+                  name: blacklistClientMatch.name,
+                })}
+                onClick={() => onOpenClientCard?.(blacklistClientMatch.id)}
+              >
+                <span className="create-client-blacklist-warning-copy">
+                  <strong>{t('orders.create.blacklist.clientInBlacklist')}</strong>
+                  <span>
+                    {blacklistClientMatch.name} / {blacklistClientMatch.phone}
+                  </span>
+                </span>
+                <span className="create-client-blacklist-warning-message">
+                  {t('orders.create.blacklist.checkBeforeCreate')}
+                </span>
+                <span className="client-status-badge status-blacklist">
+                  {t('orders.create.blacklist.badge')}
+                </span>
+                <span className="visually-hidden">{blacklistClientWarning}</span>
+              </button>
             ) : null}
 
             {activeTab === 'sale' ? (
@@ -760,7 +907,7 @@ export const CreateOrderCard = ({
             )}
             <div className="create-prepay-row">
               <label className="field">
-                <span>Estimated ready date</span>
+                <span>{t('orders.create.estimatedReadyDate')}</span>
                 <input type="date" value={readyDate} onChange={(event) => setReadyDate(event.target.value)} />
               </label>
               <label className="field">
@@ -769,44 +916,44 @@ export const CreateOrderCard = ({
               </label>
             </div>
 
-            <h4 className="create-subtitle">Additional information</h4>
+            <h4 className="create-subtitle">{t('orders.create.additionalInformation')}</h4>
             <div className="create-checks-grid">
               <div className="create-checks-col">
                 {(activeTab === 'sale' ? saleExtraOptionsLeft : extraOptionsLeft).map((option) => (
-                  <label key={option} className="create-inline-checkbox">
+                  <label key={option.key} className="create-inline-checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedFlags.includes(option)}
-                      onChange={() => toggleFlag(option)}
+                      checked={selectedFlags.includes(option.key)}
+                      onChange={() => toggleFlag(option.key)}
                     />
-                    <span>{option}</span>
+                    <span>{t(option.labelKey)}</span>
                   </label>
                 ))}
               </div>
               <div className="create-checks-col">
                 {(activeTab === 'sale' ? saleExtraOptionsRight : extraOptionsRight).map((option) => (
-                  <label key={option} className="create-inline-checkbox">
+                  <label key={option.key} className="create-inline-checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedFlags.includes(option)}
-                      onChange={() => toggleFlag(option)}
+                      checked={selectedFlags.includes(option.key)}
+                      onChange={() => toggleFlag(option.key)}
                     />
-                    <span>{option}</span>
+                    <span>{t(option.labelKey)}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            <h3 className="create-section-title">Responsible</h3>
+            <h3 className="create-section-title">{t('orders.create.responsible')}</h3>
             <div className="create-row-2">
               <label className="field">
-                  <span>Manager</span>
+                  <span>{t('orders.columns.manager')}</span>
                 <select
                   value={effectiveManagerId}
                   onChange={(event) => setManagerId(event.target.value)}
                   disabled={canCurrentEmployeeManageOrders}
                 >
-                  <option value="">Select manager</option>
+                  <option value="">{t('orders.create.selectManager')}</option>
                   {managers.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.name}
@@ -816,9 +963,9 @@ export const CreateOrderCard = ({
               </label>
               {activeTab === 'repair' ? (
                 <label className="field">
-                  <span>Master</span>
+                  <span>{t('orders.columns.master')}</span>
                   <select value={masterId} onChange={(event) => setMasterId(event.target.value)}>
-                    <option value="">Select master</option>
+                    <option value="">{t('orders.create.selectMaster')}</option>
                     {masters.map((employee) => (
                       <option key={employee.id} value={employee.id}>
                         {employee.name}
@@ -831,10 +978,10 @@ export const CreateOrderCard = ({
 
             <div className="create-order-actions">
               <button type="button" className="secondary-button" onClick={onClose}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" className="primary-button" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save order'}
+                {isSaving ? t('orders.create.saving') : t('orders.create.saveOrder')}
               </button>
             </div>
           </div>

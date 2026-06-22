@@ -60,6 +60,24 @@ const clientDevice = (
   ...patch,
 });
 
+const lookupClient = (patch: {
+  id: string;
+  name: string;
+  phone: string;
+  status?: 'new' | 'vip' | 'opt' | 'blacklist' | 'ok' | '';
+}) => ({
+  email: '',
+  address: '',
+  registrationId: '',
+  iban: '',
+  note: '',
+  status: 'new' as const,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  phones: [patch.phone],
+  ...patch,
+});
+
 const ownerEmployee: Employee = {
   id: 'employee-1',
   name: 'Owner',
@@ -98,7 +116,12 @@ Object.defineProperty(window, 'localStorage', {
   configurable: true,
 });
 
-const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(async () => null)) =>
+const renderCreateOrderCard = (
+  initialTab: 'repair' | 'sale',
+  onSave = vi.fn(async () => null),
+  onOpenClientCard = vi.fn(),
+  clients: Parameters<typeof CreateOrderCard>[0]['clients'] = [],
+) =>
   render(
     <CreateOrderCard
       isSaving={false}
@@ -108,9 +131,11 @@ const renderCreateOrderCard = (initialTab: 'repair' | 'sale', onSave = vi.fn(asy
       catalogProducts={[]}
       products={[product({})]}
       sales={[]}
+      clients={clients}
       onClose={vi.fn()}
       onSave={onSave}
       onError={vi.fn()}
+      onOpenClientCard={onOpenClientCard}
     />,
 );
 
@@ -275,11 +300,79 @@ describe('CreateOrderCard', () => {
     ).toBe(false);
   });
 
+  it('shows a suggestion when user types an additional phone from loaded clients', async () => {
+    vi.useFakeTimers();
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380671112233',
+      phones: ['+380671112233', '+380635567090'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    vi.mocked(getClients).mockResolvedValue([]);
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '063556709' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByRole('button', { name: /Existing Client/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('');
+    vi.useRealTimers();
+  });
+
+  it('auto-selects an existing client when user types an additional phone', async () => {
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380671112233',
+      phones: ['+380671112233', '+380635567090'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    vi.mocked(getClients).mockResolvedValue([existingClient]);
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Another Name' },
+    });
+    fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
+
+    await waitFor(() => {
+      expect(getClients).toHaveBeenCalledWith('+380635567090');
+    });
+    expect(createClient).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
+  });
+
   it('uses an existing exact phone client instead of creating a duplicate for another name', async () => {
     const existingClient = {
       id: 'client-existing',
       name: 'Existing Client',
       phone: '+380635567090',
+      phones: ['+380635567090'],
       email: '',
       address: '',
       registrationId: '',
@@ -306,6 +399,154 @@ describe('CreateOrderCard', () => {
     });
     expect(createClient).not.toHaveBeenCalled();
     expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
+  });
+
+  it('shows a blacklist warning while typing a matching repair client phone', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    const warning = screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    });
+    expect(warning).toHaveTextContent(
+      'Client is in blacklist',
+    );
+    expect(warning).toHaveTextContent('Risk Client');
+  });
+
+  it('keeps the blacklist warning after selecting a client suggestion', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    // auto-apply exact phone sets selected client (clears suggestions); warning should still be present
+    expect(screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    })).toHaveTextContent(
+      'Client is in blacklist',
+    );
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Risk Client');
+  });
+
+  it('opens the selected blacklist client card from the warning notice', async () => {
+    vi.useFakeTimers();
+    const onOpenClientCard = vi.fn();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair', vi.fn(async () => null), onOpenClientCard);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Open blacklist client card: Risk Client/,
+      }),
+    );
+
+    expect(onOpenClientCard).toHaveBeenCalledWith('client-blacklist');
+  });
+
+  it('shows a blacklist warning on the sales order tab', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-blacklist',
+        name: 'Risk Client',
+        phone: '+380635567090',
+        status: 'blacklist',
+      }),
+    ]);
+
+    renderCreateOrderCard('sale');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByRole('button', {
+      name: /Open blacklist client card: Risk Client/,
+    })).toHaveTextContent(
+      'Client is in blacklist',
+    );
+  });
+
+  it('does not show a blacklist warning for a regular client suggestion', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getClients).mockResolvedValue([
+      lookupClient({
+        id: 'client-regular',
+        name: 'Regular Client',
+        phone: '+380635567090',
+        status: 'new',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(
+      screen.queryByRole('button', {
+        name: /Open blacklist client card/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('blacklist')).not.toBeInTheDocument();
   });
 
   it('renders repair device suggestions as a compact selectable list', async () => {

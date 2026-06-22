@@ -3,6 +3,7 @@ import type {
   SupplierOrderStatus,
   SupplierPaymentStatus,
 } from '../../../entities/supplier-order/model/types';
+import i18n from '../../../shared/i18n/config';
 import { buildSupplierOrderItemNumber } from './supplier-order-utils';
 
 export type OrdersTab =
@@ -11,34 +12,37 @@ export type OrdersTab =
   | 'supplierOrders'
   | 'supplierInformation';
 
-export const supplierOrderTabs: Array<{ key: OrdersTab; label: string }> = [
-  { key: 'orders', label: 'Orders' },
-  { key: 'sales', label: 'Sales' },
-  { key: 'supplierOrders', label: 'Supplier Order' },
-  { key: 'supplierInformation', label: 'Information' },
+export const supplierOrderTabs: Array<{ key: OrdersTab; labelKey: string }> = [
+  { key: 'orders', labelKey: 'orders.tabs.orders' },
+  { key: 'sales', labelKey: 'orders.tabs.sales' },
+  { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
+  { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },
 ];
 
 export const supplierOrderStatuses: Array<{
   key: SupplierOrderStatus;
-  label: string;
+  labelKey: string;
 }> = [
-  { key: 'request', label: 'Purchase request' },
-  { key: 'ordered', label: 'Ordered' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'stocked', label: 'Stocked' },
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'cancelled', label: 'Cancelled' },
-  { key: 'unavailable', label: 'Unavailable' },
+  { key: 'request', labelKey: 'orders.supplier.orderStatuses.request' },
+  { key: 'ordered', labelKey: 'orders.supplier.orderStatuses.ordered' },
+  { key: 'approved', labelKey: 'orders.supplier.orderStatuses.approved' },
+  { key: 'stocked', labelKey: 'orders.supplier.orderStatuses.stocked' },
+  { key: 'overdue', labelKey: 'orders.supplier.orderStatuses.overdue' },
+  { key: 'cancelled', labelKey: 'orders.supplier.orderStatuses.cancelled' },
+  { key: 'unavailable', labelKey: 'orders.supplier.orderStatuses.unavailable' },
 ];
 
 export const supplierPaymentStatuses: Array<{
   key: SupplierPaymentStatus;
-  label: string;
+  labelKey: string;
 }> = [
-  { key: 'pending', label: 'Awaiting payment' },
-  { key: 'paid', label: 'Paid' },
-  { key: 'without_payment', label: 'Issued without payment' },
-  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'pending', labelKey: 'orders.supplier.paymentStatuses.pending' },
+  { key: 'paid', labelKey: 'orders.supplier.paymentStatuses.paid' },
+  {
+    key: 'without_payment',
+    labelKey: 'orders.supplier.paymentStatuses.without_payment',
+  },
+  { key: 'cancelled', labelKey: 'orders.supplier.paymentStatuses.cancelled' },
 ];
 
 export const supplierOrdersFiltersStorageKey =
@@ -46,7 +50,9 @@ export const supplierOrdersFiltersStorageKey =
 export const supplierOrdersColumnsStorageKey =
   'project-goods.supplier-orders-columns';
 
-const supplierOrderDateFormatter = new Intl.DateTimeFormat('en-US', {
+const getDateLocale = () => (i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US');
+
+const supplierOrderDateFormatter = new Intl.DateTimeFormat(getDateLocale(), {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
@@ -58,12 +64,17 @@ export const getSupplierPaymentStatusClass = (
   status: SupplierPaymentStatus,
 ) => `supplier-payment-status-badge supplier-payment-status-${status}`;
 
-export const getSupplierOrderStatusLabel = (status: SupplierOrderStatus) =>
-  supplierOrderStatuses.find((item) => item.key === status)?.label ?? status;
+export const getSupplierOrderStatusLabel = (status: SupplierOrderStatus) => {
+  const labelKey = supplierOrderStatuses.find((item) => item.key === status)?.labelKey;
+  return labelKey ? i18n.t(labelKey) : status;
+};
 
 export const getSupplierPaymentStatusLabel = (
   status: SupplierPaymentStatus,
-) => supplierPaymentStatuses.find((item) => item.key === status)?.label ?? status;
+) => {
+  const labelKey = supplierPaymentStatuses.find((item) => item.key === status)?.labelKey;
+  return labelKey ? i18n.t(labelKey) : status;
+};
 
 export const formatSupplierOrderDate = (value: string) =>
   supplierOrderDateFormatter.format(new Date(value));
@@ -102,32 +113,7 @@ export const supplierOrdersLockedColumns: SupplierOrdersColumnKey[] = [
 
 export const getSupplierOrdersColumnLabel = (
   columnKey: SupplierOrdersColumnKey,
-) => {
-  switch (columnKey) {
-    case 'number':
-      return 'No.';
-    case 'product':
-      return 'Product';
-    case 'quantity':
-      return 'Qty';
-    case 'price':
-      return 'Price';
-    case 'total':
-      return 'Total';
-    case 'paid':
-      return 'Paid';
-    case 'supplier':
-      return 'Supplier';
-    case 'deliveryDate':
-      return 'Delivery date';
-    case 'status':
-      return 'Status';
-    case 'paymentStatus':
-      return 'Payment status';
-    default:
-      return columnKey;
-  }
-};
+) => i18n.t(`orders.supplier.columns.${columnKey}`);
 
 export type SupplierOrdersFilters = {
   query: string;

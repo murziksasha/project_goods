@@ -1,13 +1,36 @@
 # Accounting Logic
 
 ## Purpose
-This document defines financial behavior for supplier-order related operations in the `Accounting` workspace and connected Warehouse flows.
+This document defines financial behavior in the `Accounting` workspace (cashboxes, transactions, supplier order payments, etc.) and connected flows in Warehouse and Orders.
 
-## Transactions Tab Rules
-- In `Accounting -> Транзакції`, notes that reference supplier order identifiers are clickable.
-- Clickable patterns are parsed from note text by token after `замовлення` or `order`.
-- Clicking such note opens supplier order details in a modal.
-- The modal opened from `Accounting -> Транзакції` is strictly read-only.
+## Transactions Tab (`Accounting -> Транзакції`)
+
+### Notes column behavior
+- The **Note** column shows the transaction note (or `-` if empty).
+- Most notes are interactive:
+  - Notes matching documented payment/refund patterns are treated as **order links** (see below).
+  - All other notes with content are **editable**: clicking the note text opens the **"Transaction note"** modal (a simple textarea editor).
+    - Save calls `PATCH /finance/transactions/:transactionId`.
+    - Empty notes are allowed (note can be cleared).
+    - Max length 300 characters (trimmed on save).
+- Editing is only permitted on active transactions. Cancelled transactions and reversal/cancellation transactions cannot have their notes changed.
+- Notes are always visible (even for system-generated payment notes).
+
+### Action column
+- Shows a **"Cancel transfer"** button only for eligible cashbox-to-cashbox transfers (see Transfer Cancellation Rules below).
+
+### Transaction-to-Order Navigation (Payment/Refund)
+- Notes for payment and refund operations are parsed when they match these patterns:
+  - `Payment for order <token>`
+  - `Refund for order <token>`
+  - `Оплата замовлення <token>`
+- Resolution priority for `<token>`:
+  1. Sales or Service orders (by `sale.recordNumber` or `sale.id`)
+  2. Supplier orders (by `order.number` or `order.orderBaseId`)
+- Click behavior:
+  - **Sales / Service orders**: opens the order in a **new browser tab** in the Orders workspace (`?page=orders&ordersTab=orders&saleId=...` or `ordersTab=sales` for regular sales).
+  - **Supplier orders**: opens the supplier order in a **read-only modal** (same behavior as before).
+- Non-matching notes (manual deposits, withdraws, transfers, free-text, etc.) do **not** attempt order navigation — arbitrary text containing the word "order" is not treated as a link. They render as plain clickable text for note editing (if they contain content).
 
 ## Transfer Cancellation Rules
 - Only active cashbox-to-cashbox transfer transactions can be cancelled.
@@ -55,18 +78,6 @@ This document defines financial behavior for supplier-order related operations i
 - Warehouse receipts must refresh on this event to reflect latest payment status changes.
 - Read-only modal behavior must be reused across modules to avoid divergent financial UX and logic.
 
-## Transaction-to-Order Navigation (Payment/Refund)
-- In `Accounting -> Transactions`, notes for payment/refund operations are clickable when they include an order token:
-  - `Payment for order <token>`
-  - `Refund for order <token>`
-  - `Оплата замовлення <token>`
-- Resolution priority for `<token>`:
-  - 1) Sales/Service orders by `sale.recordNumber` or `sale.id`.
-  - 2) Supplier orders by `order.number` or `order.orderBaseId`.
-- Click behavior:
-  - If sales/service order is resolved: open that order card in `Orders` workspace.
-  - If supplier order is resolved: open supplier order modal in read-only mode.
-
 ## Transactions Table Visual + Total Rules
 - Type color coding:
   - `Deposit` is shown in green.
@@ -97,5 +108,21 @@ This document defines financial behavior for supplier-order related operations i
 - Transactions/cashbox runtime lists continue to use active cashboxes only.
 
 ## Currency Settings Rules
-- `Currencies` settings section supports adding/removing custom currency codes for planning/configuration storage.
-- System transaction currencies remain fixed to backend-supported currencies.
+- `Currencies` settings section supports creating and archiving finance currency codes.
+- New currencies are stored in MongoDB and become full transaction currencies for `deposit`, `withdraw`, and `transfer`.
+- New currencies are added to every cashbox with zero balance and disabled receiving by default.
+- Archived currencies cannot receive deposits or incoming transfers, but existing positive balances remain visible and can be withdrawn.
+
+## Cashbox Currency Visibility Rules
+- System currency visibility for cashboxes is stored in MongoDB per cashbox, not in browser-local user preferences.
+- `UAH` is always enabled for every cashbox and cannot be disabled.
+- `USD` and all custom currencies exist for every current and future cashbox, but are disabled by default.
+- Enabling a non-UAH currency in one cashbox setting is global for all users because it updates that cashbox document in the database.
+- If a currency is disabled for a cashbox but its balance is greater than zero, the balance remains visible as `Withdraw only`.
+- Disabled currency cashboxes cannot receive deposits or incoming transfers in that currency; withdrawing existing balance is allowed.
+
+## Concurrency Safety Rules
+- Finance mutations must use MongoDB transactions when the database is connected as a replica set.
+- Cashbox debits must use conditional atomic updates so the balance can never become negative under concurrent requests.
+- Transfer and cancellation flows must update balances and transaction records in one transaction.
+- Manual transaction requests may include an optional idempotency key; repeated requests with the same key return the existing transaction.

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Cashbox,
@@ -11,6 +12,7 @@ import {
   truncateLabel,
   type FinanceOverview,
 } from '../model/accounting';
+import { TruncatedTextTooltip } from '../../../shared/ui/TruncatedTextTooltip';
 import { formatMetric } from '../model/sales-analytics';
 import { getSupplierOrderDisplayNumber } from '../model/supplier-order-utils';
 
@@ -50,151 +52,203 @@ export const AccountingSupplierOrdersQueue = ({
   onPaySupplierOrder,
   onSelectedSupplierOrderChange,
   onTransactionFormChange,
-}: AccountingSupplierOrdersQueueProps) => (
-  <section className='finance-orders-view'>
-    <div className='finance-information-header finance-orders-header'>
-      <div>
-        <p className='section-label'>Supplier payments</p>
-        <h2>Orders payment queue</h2>
-      </div>
-      <div className='finance-information-status'>
-        <span>{`${financeOverview.pendingSupplierCount} waiting`}</span>
-        <span>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</span>
-      </div>
-    </div>
+}: AccountingSupplierOrdersQueueProps) => {
+  const { t } = useTranslation();
 
-    <div className='finance-orders-summary-grid'>
-      <article className='analytics-summary-card'>
-        <span className='metric-label'>Queue amount</span>
-        <strong>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</strong>
-      </article>
-      <article className='analytics-summary-card'>
-        <span className='metric-label'>Orders waiting</span>
-        <strong>{formatMetric(financeOverview.pendingSupplierCount)}</strong>
-      </article>
-      <article className='analytics-summary-card'>
-        <span className='metric-label'>Active cashboxes</span>
-        <strong>{formatMetric(financeOverview.activeCashboxCount)}</strong>
-      </article>
-    </div>
+  return (
+    <section className='finance-orders-view'>
+      <div className='finance-information-header finance-orders-header'>
+        <div>
+          <p className='section-label'>
+            {t('accounting.orders.sectionLabel')}
+          </p>
+          <h2>{t('accounting.orders.title')}</h2>
+        </div>
+        <div className='finance-information-status'>
+          <span>
+            {t('accounting.orders.waitingStatus', {
+              count: financeOverview.pendingSupplierCount,
+            })}
+          </span>
+          <span>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</span>
+        </div>
+      </div>
 
-    <div className='orders-table-wrap finance-orders-table-wrap finance-card-table-wrap'>
-      <table className='orders-table finance-orders-table'>
-        <thead>
-          <tr>
-            <th className='finance-orders-col-number'>Order</th>
-            <th className='finance-orders-col-date'>Date</th>
-            <th className='finance-orders-col-supplier'>Supplier</th>
-            <th className='finance-orders-col-amount'>Amount</th>
-            <th className='finance-orders-col-payment'>Payment</th>
-          </tr>
-        </thead>
-        <tbody>
-          {supplierOrdersQueue.length === 0 ? (
+      <div className='finance-orders-summary-grid'>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('accounting.orders.queueAmount')}
+          </span>
+          <strong>{formatMoney(financeOverview.pendingSupplierTotal, 'UAH')}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('accounting.orders.ordersWaiting')}
+          </span>
+          <strong>{formatMetric(financeOverview.pendingSupplierCount)}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('accounting.orders.activeCashboxes')}
+          </span>
+          <strong>{formatMetric(financeOverview.activeCashboxCount)}</strong>
+        </article>
+      </div>
+
+      <div className='orders-table-wrap finance-orders-table-wrap finance-card-table-wrap'>
+        <table className='orders-table finance-orders-table'>
+          <thead>
             <tr>
-              <td colSpan={5} className='orders-empty finance-orders-empty'>
-                No orders are waiting for payment.
-              </td>
+              <th className='finance-orders-col-number'>
+                {t('accounting.orders.order')}
+              </th>
+              <th className='finance-orders-col-date'>
+                {t('accounting.orders.date')}
+              </th>
+              <th className='finance-orders-col-supplier'>
+                {t('common.supplier')}
+              </th>
+              <th className='finance-orders-col-amount'>
+                {t('accounting.orders.amount')}
+              </th>
+              <th className='finance-orders-col-payment'>
+                {t('accounting.orders.payment')}
+              </th>
             </tr>
-          ) : (
-            supplierOrdersQueue.map((order) => {
-              const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
-              const orderNumber = getSupplierOrderDisplayNumber(order);
-              const fullOrder = supplierOrders.find(
-                (supplierOrder) =>
-                  supplierOrder.id === order.id ||
-                  supplierOrder.orderBaseId === order.orderBaseId ||
-                  supplierOrder.number === order.number,
-              );
-              return (
-                <tr key={order.id} className='finance-orders-row'>
-                  <td className='finance-orders-number-cell' title={orderNumber} data-label='Order'>
-                    <button
-                      type='button'
-                      className='finance-orders-number-button'
-                      onClick={() => {
-                        if (fullOrder) {
-                          onSelectedSupplierOrderChange(fullOrder);
-                        }
-                      }}
-                      disabled={!fullOrder}
-                      aria-label={`Open supplier order ${orderNumber}`}
+          </thead>
+          <tbody>
+            {supplierOrdersQueue.length === 0 ? (
+              <tr>
+                <td colSpan={5} className='orders-empty finance-orders-empty'>
+                  {t('accounting.orders.empty')}
+                </td>
+              </tr>
+            ) : (
+              supplierOrdersQueue.map((order) => {
+                const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
+                const orderNumber = getSupplierOrderDisplayNumber(order);
+                const fullOrder = supplierOrders.find(
+                  (supplierOrder) =>
+                    supplierOrder.id === order.id ||
+                    supplierOrder.orderBaseId === order.orderBaseId ||
+                    supplierOrder.number === order.number,
+                );
+                return (
+                  <tr key={order.id} className='finance-orders-row'>
+                    <td
+                      className='finance-orders-number-cell'
+                      title={orderNumber}
+                      data-label={t('accounting.orders.order')}
                     >
-                      {orderNumber}
-                    </button>
-                    <span className='finance-orders-cell-note'>Supplier order</span>
-                  </td>
-                  <td className='finance-orders-date-cell' data-label='Date'>
-                    <span>
-                      {formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}
-                    </span>
-                    <small>{order.deliveryDate ? 'Delivery' : 'Created'}</small>
-                  </td>
-                  <td className='finance-orders-supplier-cell' data-label='Supplier'>
-                    <span className='orders-table-cell-truncate'>
-                      {order.supplierName}
-                    </span>
-                    <small>Payment required</small>
-                  </td>
-                  <td className='finance-orders-amount-cell' data-label='Amount'>
-                    <strong>{formatMoney(order.total, 'UAH')}</strong>
-                  </td>
-                  <td className='finance-orders-payment-cell' data-label='Payment'>
-                    <div className='finance-orders-payment-actions'>
-                      {canPaySupplierOrders ? (
-                        <>
-                          <label className='finance-orders-cashbox-select'>
-                            <span>Cashbox</span>
-                            <select
-                              value={cashboxId}
-                              onChange={(event) =>
-                                onTransactionFormChange((current) => ({
-                                  ...current,
-                                  fromCashboxId: event.target.value,
-                                }))
+                      <button
+                        type='button'
+                        className='finance-orders-number-button'
+                        onClick={() => {
+                          if (fullOrder) {
+                            onSelectedSupplierOrderChange(fullOrder);
+                          }
+                        }}
+                        disabled={!fullOrder}
+                        aria-label={t(
+                          'accounting.orders.openSupplierOrderAriaLabel',
+                          { orderNumber },
+                        )}
+                      >
+                        {orderNumber}
+                      </button>
+                      <span className='finance-orders-cell-note'>
+                        {t('accounting.orders.supplierOrder')}
+                      </span>
+                    </td>
+                    <td
+                      className='finance-orders-date-cell'
+                      data-label={t('accounting.orders.date')}
+                    >
+                      <span>
+                        {formatDateDdMmYyyy(order.deliveryDate || order.createdAt)}
+                      </span>
+                      <small>
+                        {order.deliveryDate
+                          ? t('accounting.orders.delivery')
+                          : t('accounting.orders.created')}
+                      </small>
+                    </td>
+                    <td
+                      className='finance-orders-supplier-cell'
+                      data-label={t('common.supplier')}
+                    >
+                      <TruncatedTextTooltip
+                        text={order.supplierName}
+                        className='orders-table-cell-truncate'
+                      />
+                      <small>{t('accounting.orders.paymentRequired')}</small>
+                    </td>
+                    <td
+                      className='finance-orders-amount-cell'
+                      data-label={t('accounting.orders.amount')}
+                    >
+                      <strong>{formatMoney(order.total, 'UAH')}</strong>
+                    </td>
+                    <td
+                      className='finance-orders-payment-cell'
+                      data-label={t('accounting.orders.payment')}
+                    >
+                      <div className='finance-orders-payment-actions'>
+                        {canPaySupplierOrders ? (
+                          <>
+                            <label className='finance-orders-cashbox-select'>
+                              <span>{t('accounting.orders.cashbox')}</span>
+                              <select
+                                value={cashboxId}
+                                onChange={(event) =>
+                                  onTransactionFormChange((current) => ({
+                                    ...current,
+                                    fromCashboxId: event.target.value,
+                                  }))
+                                }
+                              >
+                                {cashboxes.map((cashbox) => (
+                                  <option
+                                    key={cashbox.id}
+                                    value={cashbox.id}
+                                    title={cashbox.name}
+                                  >
+                                    {truncateLabel(cashbox.name, 14)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button
+                              type='button'
+                              className='primary-button'
+                              disabled={isSaving || !cashboxId}
+                              onClick={() =>
+                                onPaySupplierOrder(order, cashboxId, orderNumber)
                               }
                             >
-                              {cashboxes.map((cashbox) => (
-                                <option
-                                  key={cashbox.id}
-                                  value={cashbox.id}
-                                  title={cashbox.name}
-                                >
-                                  {truncateLabel(cashbox.name, 14)}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                              {t('accounting.orders.pay')}
+                            </button>
+                          </>
+                        ) : null}
+                        {canIssueSupplierOrdersWithoutPayment ? (
                           <button
                             type='button'
-                            className='primary-button'
-                            disabled={isSaving || !cashboxId}
-                            onClick={() =>
-                              onPaySupplierOrder(order, cashboxId, orderNumber)
-                            }
+                            className='secondary-button'
+                            disabled={isSaving}
+                            onClick={() => onIssueWithoutPayment(order)}
                           >
-                            Pay
+                            {t('accounting.orders.issueWithoutPayment')}
                           </button>
-                        </>
-                      ) : null}
-                      {canIssueSupplierOrdersWithoutPayment ? (
-                        <button
-                          type='button'
-                          className='secondary-button'
-                          disabled={isSaving}
-                          onClick={() => onIssueWithoutPayment(order)}
-                        >
-                          Issue without payment
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  </section>
-);
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+};

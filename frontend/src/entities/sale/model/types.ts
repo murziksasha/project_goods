@@ -56,6 +56,7 @@ export type Sale = {
     id: string;
     name: string;
     phone: string;
+    phones?: string[];
     status: string;
     email?: string;
     address?: string;

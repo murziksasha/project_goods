@@ -181,10 +181,6 @@ export const parseClientImportRow = (
 
   appendNoteLine(noteLines, 'Source note', getRowValue(row, 'Примітка'));
 
-  if (phones.length > 1) {
-    noteLines.push(`Additional phones: ${phones.slice(1).join(', ')}`);
-  }
-
   if (legalAddress && physicalAddress) {
     appendNoteLine(noteLines, 'Physical address', physicalAddress);
   }
@@ -208,6 +204,7 @@ export const parseClientImportRow = (
     sourcePhone: phone,
     payload: normalizeClientPayload({
       phone,
+      phones,
       name,
       email: readString(row, 'Ел. адреса'),
       address,
@@ -301,34 +298,54 @@ export const importClientsWorkbook = async (buffer: Buffer) => {
     readyRows.push(parsed);
   }
 
-  const readyPhones = readyRows
-    .map((row) => toNonEmptyString(row.payload.phone))
-    .filter(Boolean);
-  const existingPhones = new Set(
-    (
-      await Client.find({ phone: { $in: readyPhones } })
-        .select({ phone: 1 })
-        .lean<Array<{ phone: string }>>()
-    ).map((client) => client.phone),
+  const getNormalizedPhones = (payload: ClientPayload) => {
+    const normalized = normalizeClientPayload(payload);
+    return normalized.phones.length > 0
+      ? normalized.phones
+      : normalized.phone
+        ? [normalized.phone]
+        : [];
+  };
+
+  const readyPhones = Array.from(
+    new Set(readyRows.flatMap((row) => getNormalizedPhones(row.payload))),
   );
+  const existing = await Client.find({
+    $or: [
+      { phone: { $in: readyPhones } },
+      { phones: { $in: readyPhones } },
+      { phoneIdentities: { $in: readyPhones } },
+    ],
+  })
+    .select({ phone: 1, phones: 1, phoneIdentities: 1 })
+    .lean<Array<{ phone: string; phones?: string[]; phoneIdentities?: string[] }>>();
+  const existingPhones = new Set<string>();
+  for (const c of existing) {
+    if (c.phone) existingPhones.add(c.phone);
+    (c.phones || []).forEach((p) => p && existingPhones.add(p));
+    (c.phoneIdentities || []).forEach((p) => p && existingPhones.add(p));
+  }
   const rowsToCreate = [];
 
   for (const row of readyRows) {
-    const phone = toNonEmptyString(row.payload.phone);
-    if (existingPhones.has(phone)) {
+    const phones = getNormalizedPhones(row.payload);
+    const primaryPhone = phones[0] ?? '';
+    const conflictingPhone = phones.find((phone) => existingPhones.has(phone));
+    if (conflictingPhone) {
       report.skippedExisting += 1;
       report.skipped.push({
         rowNumber: row.rowNumber,
         reason: 'skippedExisting',
         name: toNonEmptyString(row.payload.name),
-        phone,
+        phone: primaryPhone,
+        details: conflictingPhone !== primaryPhone ? conflictingPhone : undefined,
       });
       continue;
     }
 
     if (await validateClientPayload(row.rowNumber, row.payload, report)) {
       rowsToCreate.push(row);
-      existingPhones.add(phone);
+      phones.forEach((phone) => existingPhones.add(phone));
     }
   }
 
@@ -352,19 +369,24 @@ export const exportClientsWorkbook = async () => {
   const clients = await Client.find().sort({ createdAt: -1 }).lean<ClientDocument[]>();
 
   const worksheet = XLSX.utils.json_to_sheet(
-    clients.map((client) => ({
-      Id: client._id.toString(),
-      Phone: client.phone,
-      Name: client.name,
-      Email: client.email ?? '',
-      Address: client.address ?? '',
-      'Registration ID': client.registrationId ?? '',
-      IBAN: client.iban ?? '',
-      Note: client.note ?? '',
-      Status: client.status,
-      'Created At': client.createdAt.toISOString(),
-      'Updated At': client.updatedAt.toISOString(),
-    })),
+    clients.map((client) => {
+      const phones = Array.isArray(client.phones) && client.phones.length > 0 ? client.phones : (client.phone ? [client.phone] : []);
+      const additional = phones.length > 1 ? phones.slice(1).join('; ') : '';
+      return {
+        Id: client._id.toString(),
+        Phone: phones[0] || client.phone || '',
+        'Additional Phones': additional,
+        Name: client.name,
+        Email: client.email ?? '',
+        Address: client.address ?? '',
+        'Registration ID': client.registrationId ?? '',
+        IBAN: client.iban ?? '',
+        Note: client.note ?? '',
+        Status: client.status,
+        'Created At': client.createdAt.toISOString(),
+        'Updated At': client.updatedAt.toISOString(),
+      };
+    }),
   );
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients');

@@ -253,4 +253,37 @@ describe('order print labels', () => {
     expect(preview).toContain('class="print-body-label print-screen-preview"');
     expect(preview).toContain('@page { size: 40mm 25mm; margin: 0; }');
   });
+
+  it('label print HTML contains label @page, label classes/vars, no A4 @page', () => {
+    const html = buildOrderPrintHtml({
+      title: 'Barcode label',
+      body: '<section class="print-form print-form-label" style="--label-width: 40mm; --label-height: 25mm;"><div class="print-label">X</div></section>',
+      pageSize: 'label',
+      labelSize: { presetId: '40x25', widthMm: 40, heightMm: 25 },
+      orientation: 'landscape',
+    });
+
+    expect(html).toContain('@page { size: 40mm 25mm; margin: 0; }');
+    expect(html).not.toContain('A4');
+    expect(html).toContain('class="print-html-label"');
+    expect(html).toContain('class="print-body-label"');
+    expect(html).toContain('--label-width: 40mm; --label-height: 25mm;');
+    expect(html).toContain('print-form-label');
+    expect(html).toContain('class="print-label"');
+  });
+
+  it('A4 print HTML contains A4 @page with 12mm margin, no label-only classes', () => {
+    const html = buildOrderPrintHtml({
+      title: 'Receipt',
+      body: '<section class="print-form">content</section>',
+      pageSize: 'A4',
+      labelSize: { presetId: '40x25', widthMm: 40, heightMm: 25 },
+      orientation: 'portrait',
+    });
+
+    expect(html).toContain('@page { size: A4 portrait; margin: 12mm; }');
+    expect(html).not.toContain('print-html-label');
+    expect(html).not.toContain('print-body-label');
+    expect(html).not.toContain('--label-width');
+  });
 });

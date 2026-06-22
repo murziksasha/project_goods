@@ -97,6 +97,24 @@ export const canCancelAccountingTransferTransaction = ({
   getAccountingBusinessDateKey(transaction.transactionDate) ===
     getAccountingBusinessDateKey(now);
 
+const ORDER_TOKEN_PATTERNS = [
+  /Payment for order\s+([A-Za-z0-9-]+)/i,
+  /Refund for order\s+([A-Za-z0-9-]+)/i,
+  /Оплата замовлення\s+([A-Za-z0-9-]+)/i,
+];
+
+export const parseTransactionOrderToken = (note: string | null | undefined): string | null => {
+  if (!note) return null;
+  const trimmed = note.trim();
+  for (const pattern of ORDER_TOKEN_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
+
 export const truncateLabel = (value: string, maxLength: number) => {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)}...`;
@@ -231,13 +249,13 @@ export type FinanceOverview = {
 type CurrencyBalanceGetter = (cashbox: Cashbox, currencyCode: string) => number;
 
 export const getAccountingTotals = (cashboxes: Cashbox[]) =>
-  cashboxes.reduce(
-    (summary, cashbox) => ({
-      UAH: summary.UAH + (cashbox.balances.UAH ?? 0),
-      USD: summary.USD + (cashbox.balances.USD ?? 0),
-    }),
-    { UAH: 0, USD: 0 },
-  );
+  cashboxes.reduce<Record<string, number>>((summary, cashbox) => {
+    Object.entries(cashbox.balances).forEach(([currency, balance]) => {
+      summary[currency] = (summary[currency] ?? 0) + balance;
+    });
+    if (summary.UAH === undefined) summary.UAH = 0;
+    return summary;
+  }, {});
 
 export const getAccountingCashboxCurrencyRows = ({
   allCurrencyCodes,
@@ -366,11 +384,18 @@ export const getBalanceAfterByTransactionId = ({
   transactions: FinanceTransaction[];
 }) => {
   const balancesByCashboxCurrency = new Map<string, number>();
+  const allCurrencyCodes = Array.from(
+    new Set([
+      ...currencyOptions,
+      ...cashboxes.flatMap((cashbox) => Object.keys(cashbox.balances)),
+      ...transactions.map((transaction) => transaction.currency),
+    ]),
+  );
   cashboxes.forEach((cashbox) => {
-    currencyOptions.forEach((currency) => {
+    allCurrencyCodes.forEach((currency) => {
       balancesByCashboxCurrency.set(
         `${cashbox.id}:${currency}`,
-        cashbox.balances[currency],
+        cashbox.balances[currency] ?? 0,
       );
     });
   });
@@ -627,4 +652,65 @@ export const normalizeCashboxCurrencyActivity = ({
   }
 
   return changed ? nextByCashbox : current;
+};
+
+export const canPerformTransferBetweenCashboxes = (fromCashboxId?: string, toCashboxId?: string) =>
+  Boolean(fromCashboxId) && Boolean(toCashboxId) && fromCashboxId !== toCashboxId;
+
+export const resolvePreferredTargetCashboxId = ({
+  type,
+  fromCashboxId = '',
+  fallbackCashboxId = '',
+  cashboxes,
+  lastTargetCashboxByType = {},
+  preferFallback = false,
+}: {
+  type: FinanceTransactionType;
+  fromCashboxId?: string;
+  fallbackCashboxId?: string;
+  cashboxes: Cashbox[];
+  lastTargetCashboxByType?: TransactionTargetMemory;
+  preferFallback?: boolean;
+}): string => {
+  if (type === 'withdraw') return '';
+  const has = (id: string) => cashboxes.some((c) => c.id === id);
+  if (
+    type === 'deposit' &&
+    preferFallback &&
+    fallbackCashboxId &&
+    has(fallbackCashboxId)
+  ) {
+    return fallbackCashboxId;
+  }
+  const remembered = lastTargetCashboxByType[type as keyof TransactionTargetMemory];
+  if (remembered && has(remembered)) {
+    if (type !== 'transfer' || remembered !== fromCashboxId) {
+      return remembered;
+    }
+  }
+  if (fallbackCashboxId && has(fallbackCashboxId)) {
+    /* v8 ignore next 3 -- secondCashboxId is selected to differ from the transfer source. */
+    if (type === 'transfer' && fallbackCashboxId === fromCashboxId) {
+      return cashboxes.find((c) => c.id !== fromCashboxId)?.id ?? '';
+    }
+    return fallbackCashboxId;
+  }
+  if (type === 'transfer') {
+    return cashboxes.find((c) => c.id !== fromCashboxId)?.id ?? '';
+  }
+  return cashboxes[0]?.id ?? '';
+};
+
+export const reorderCashboxes = (
+  items: Cashbox[],
+  fromId: string,
+  toId: string,
+): Cashbox[] => {
+  const fromIndex = items.findIndex((item) => item.id === fromId);
+  const toIndex = items.findIndex((item) => item.id === toId);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return items;
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
 };

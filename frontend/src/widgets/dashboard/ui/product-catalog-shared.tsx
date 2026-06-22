@@ -20,11 +20,11 @@ export const catalogActiveFiltersStorageKey =
 export const catalogSavedFiltersStorageKey =
   'project-goods.catalog-saved-filters';
 
-export const tabs: Array<{ key: CatalogTab; label: string }> = [
-  { key: 'products', label: 'Clients Device' },
-  { key: 'catalogProducts', label: 'Products' },
-  { key: 'services', label: 'Services' },
-  { key: 'suppliers', label: 'Suppliers' },
+export const tabs: Array<{ key: CatalogTab; labelKey: string }> = [
+  { key: 'products', labelKey: 'catalog.tabs.products' },
+  { key: 'catalogProducts', labelKey: 'catalog.tabs.catalogProducts' },
+  { key: 'services', labelKey: 'catalog.tabs.services' },
+  { key: 'suppliers', labelKey: 'catalog.tabs.suppliers' },
 ];
 
 export const emptyCatalogFilters: CatalogFilters = {

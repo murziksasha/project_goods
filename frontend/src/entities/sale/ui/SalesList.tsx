@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import {
   getSaleProductArticle,
@@ -16,16 +17,19 @@ type SalesListProps = {
 export const SalesList = ({
   sales,
   isLoading,
-  emptyText = 'No sales yet.',
+  emptyText,
   onEdit,
   onDelete,
 }: SalesListProps) => {
+  const { t } = useTranslation();
+  const resolvedEmptyText = emptyText ?? t('legacy.salesList.empty');
+
   if (isLoading) {
-    return <p className="empty-state">Loading sales...</p>;
+    return <p className="empty-state">{t('legacy.salesList.loading')}</p>;
   }
 
   if (sales.length === 0) {
-    return <p className="empty-state">{emptyText}</p>;
+    return <p className="empty-state">{resolvedEmptyText}</p>;
   }
 
   return (
@@ -34,7 +38,7 @@ export const SalesList = ({
         <article key={sale.id} className="list-card">
           <div className="list-card-row">
             <div>
-              <h3>{getSaleProductName(sale, 'Product')}</h3>
+              <h3>{getSaleProductName(sale, t('legacy.salesList.defaultProduct'))}</h3>
               <p>
                 {sale.recordNumber ?? 'r------'} - {getSaleProductArticle(sale) || '-'}
               </p>
@@ -44,32 +48,32 @@ export const SalesList = ({
 
           <dl className="sale-meta">
             <div>
-              <dt>Date</dt>
+              <dt>{t('legacy.salesList.date')}</dt>
               <dd>{formatDateTime(sale.saleDate)}</dd>
             </div>
             <div>
-              <dt>Quantity</dt>
+              <dt>{t('legacy.salesList.quantity')}</dt>
               <dd>{sale.quantity}</dd>
             </div>
             <div>
-              <dt>Client</dt>
+              <dt>{t('legacy.salesList.client')}</dt>
               <dd>{sale.client.name}</dd>
             </div>
             <div>
-              <dt>Phone</dt>
+              <dt>{t('legacy.salesList.phone')}</dt>
               <dd>{sale.client.phone}</dd>
             </div>
           </dl>
 
-          <p className="muted-copy">{sale.note || 'No notes.'}</p>
+          <p className="muted-copy">{sale.note || t('common.noNotes')}</p>
 
           {onEdit && onDelete ? (
             <div className="card-actions">
               <button className="ghost-button" type="button" onClick={() => onEdit(sale)}>
-                Edit
+                {t('common.edit')}
               </button>
               <button className="danger-button" type="button" onClick={() => onDelete(sale)}>
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           ) : null}

@@ -12,9 +12,10 @@
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
-    "lint": "npm run lint --prefix frontend",
+    "lint": "npm run lint --prefix frontend && npm run lint --prefix backend",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
     "test": "npm run test --prefix backend && npm run test --prefix frontend",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test:watch": "concurrently -k -n backend-test,frontend-test -c green,blue \"npm run test:watch --prefix backend\" \"npm run test:watch --prefix frontend\"",
     "test:coverage": "npm run test:coverage --prefix backend && npm run test:coverage --prefix frontend"
   },

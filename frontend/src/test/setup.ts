@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import i18n from '../shared/i18n/config';
 
 const createStorageMock = (): Storage => {
   const values = new Map<string, string>();
@@ -31,4 +32,25 @@ if (typeof window !== 'undefined') {
       value: createStorageMock(),
     });
   }
+
+  // Polyfill for ResizeObserver (used by TruncatedTextTooltip and any component
+  // that performs overflow/resize observation). jsdom does not implement it.
+  // A minimal no-op implementation is sufficient because consuming tests
+  // that need layout detection manually patch scrollWidth/clientWidth and/or
+  // dispatch 'resize' events to trigger recompute.
+  if (!(window as any).ResizeObserver) {
+    (window as any).ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+
+  // jsdom does not implement scrollIntoView; components and tests rely on it.
+  if (typeof HTMLElement.prototype.scrollIntoView !== 'function') {
+    HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
+  }
 }
+
+// Initialize i18n for tests (stable English strings in assertions)
+i18n.changeLanguage('en');

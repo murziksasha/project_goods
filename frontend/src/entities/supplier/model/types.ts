@@ -1,6 +1,7 @@
-﻿export type Supplier = {
+export type Supplier = {
   id: string;
   phone: string;
+  phones: string[];
   name: string;
   note: string;
   supplierOrder: string;
@@ -11,6 +12,7 @@
 
 export type SupplierFormValues = {
   phone: string;
+  phones?: string[];
   name: string;
   note: string;
   supplierOrder?: string;

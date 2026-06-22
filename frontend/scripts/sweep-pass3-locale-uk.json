@@ -1,0 +1,119 @@
+{
+  "orders": {
+    "status": {
+      "repair": {
+        "ready": "Готово",
+        "issued": "Видано",
+        "paid": "Оплачено",
+        "new": "Новий ремонт",
+        "diagnostics": "Діагностика",
+        "inRepair": "В ремонті",
+        "waitingParts": "Очікує запчастини",
+        "clientApproved": "Погоджено клієнтом",
+        "clientRejected": "Відхилено клієнтом",
+        "issuedWithoutRepair": "Видано без ремонту"
+      },
+      "sale": {
+        "new": "Новий продаж",
+        "reserved": "Зарезервовано",
+        "paid": "Оплачено",
+        "issued": "Видано",
+        "returned": "Повернено"
+      }
+    },
+    "timeline": {
+      "changedStatus": "{{author}} змінив статус на \"{{status}}\".",
+      "createdOrder": "створив замовлення зі статусом \"{{status}}\"",
+      "addedItem": "{{author}} додав {{kind}} \"{{name}}\".",
+      "removedProduct": "{{author}} видалив товар \"{{name}}\" з замовлення.",
+      "removedService": "{{author}} видалив послугу \"{{name}}\" з замовлення.",
+      "boundSerials": "{{author}} прив'язав серійні номери для \"{{name}}\".",
+      "updatedMainInfo": "{{author}} оновив основну інформацію замовлення."
+    },
+    "create": {
+      "extraOptions": {
+        "repair": {
+          "deviceStaysWithClient": "Пристрій залишається у клієнта",
+          "urgentRepair": "Терміновий ремонт",
+          "acceptedByPost": "Прийнято поштою",
+          "startWorkWithoutConfirmation": "Почати роботу без підтвердження",
+          "clientCanWaitForParts": "Клієнт може чекати запчастини",
+          "courierTookDevice": "Кур'єр забрав пристрій",
+          "replacementDeviceIssued": "Видано замінний пристрій",
+          "homeMasterCall": "Виклик майстра додому"
+        },
+        "sale": {
+          "newSale": "Новий продаж",
+          "issued": "Видано",
+          "atPostalCompany": "У поштовій компанії",
+          "waitingForSupply": "Очікує поставку",
+          "reservedForClient": "Зарезервовано для клієнта",
+          "needsInvoice": "Потрібен рахунок",
+          "warrantyCardIssued": "Видано гарантійний талон",
+          "deliveryRequired": "Потрібна доставка"
+        }
+      }
+    },
+    "fallbacks": {
+      "recordNumber": "r------",
+      "repair": "Ремонт",
+      "product": "Товар",
+      "device": "Пристрій"
+    },
+    "supplier": {
+      "fallbacks": {
+        "unknownSupplier": "Невідомий постачальник",
+        "unnamedProduct": "Безназивний товар"
+      }
+    },
+    "messages": {
+      "errors": {
+        "operationFailed": "Операцію не виконано."
+      }
+    }
+  },
+  "product": {
+    "salePrices": "Ціни продажу",
+    "examples": {
+      "article": "WM-001",
+      "serialNumber": "LOG-M185-0001",
+      "price": "100",
+      "salePriceOptions": "649, 699, 749",
+      "quantity": "5"
+    }
+  },
+  "catalog": {
+    "tables": {
+      "columns": {
+        "select": "Вибрати"
+      }
+    }
+  },
+  "legacy": {
+    "saleForm": {
+      "lookup": {
+        "client": "Клієнт",
+        "name": "Ім'я",
+        "phone": "Телефон",
+        "clientPlaceholder": "Введіть ім'я клієнта",
+        "phonePlaceholder": "Введіть номер телефону",
+        "noClientsFound": "Відповідних клієнтів не знайдено.",
+        "product": "Товар",
+        "productPlaceholder": "Введіть назву, серійний номер або артикул",
+        "freeStock": "вільно {{count}}",
+        "noProductsFound": "Відповідних товарів не знайдено."
+      }
+    },
+    "salesPanel": {
+      "sectionLabel": "Продажі",
+      "title": "Історія продажів"
+    }
+  },
+  "accounting": {
+    "messages": {
+      "errors": {
+        "failedLoadFinance": "Не вдалося завантажити фінансові дані."
+      }
+    }
+  }
+}

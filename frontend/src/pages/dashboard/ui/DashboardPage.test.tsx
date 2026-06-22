@@ -18,9 +18,10 @@ vi.mock('../../../entities/auth/api/authApi', async () => {
   };
 });
 
-vi.mock('../model/useDashboardPage', () => ({
-  useDashboardPage: () => ({
-    state: {
+vi.mock('../model/useDashboardPage', () => {
+  return {
+    useDashboardPage: vi.fn(() => ({
+      state: {
       allProducts: [],
       clientDevices: [],
       catalogProducts: [],
@@ -132,8 +133,9 @@ vi.mock('../model/useDashboardPage', () => ({
       exportProducts: vi.fn(),
       setStatsPeriod: vi.fn(),
     },
-  }),
-}));
+  })),
+  };
+});
 
 vi.mock('../../../widgets/dashboard/ui/Notifications', () => ({
   Notifications: ({ error }: { error: string }) => (
@@ -242,5 +244,43 @@ describe('DashboardPage auth recovery', () => {
     expect(screen.getByTestId('notifications')).toHaveTextContent(
       'Session check failed.',
     );
+  });
+});
+
+describe('DashboardPage last sync reload', () => {
+  it('clicking Last sync hard reloads the page and preserves login state', async () => {
+    const reloadSpy = vi.fn();
+    const originalLocation = window.location;
+    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
+
+    delete (window as any).location;
+    (window as any).location = {
+      href: 'http://localhost/',
+      pathname: '/',
+      search: '',
+      hash: '',
+      reload: reloadSpy,
+    };
+
+    try {
+      render(<DashboardPage />);
+
+      const syncButton = await screen.findByRole('button', { name: /Last sync/i });
+      expect(syncButton).toHaveClass('topbar-sync-button');
+      expect(syncButton).toHaveAttribute('title', 'Reload data');
+
+      // click
+      fireEvent.click(syncButton);
+
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+      // login state preserved (no localStorage clear triggered by handler)
+      expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
+    } finally {
+      // restore
+      // @ts-expect-error
+      window.location = originalLocation;
+    }
   });
 });

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
@@ -55,6 +56,7 @@ type Props = {
   suppliers: Supplier[];
   catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
+  canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (
@@ -76,6 +78,7 @@ export const SupplierOrdersWorkspace = ({
   suppliers,
   catalogProducts,
   currentEmployeeName,
+  canViewSupplierOrders,
   canManageSupplierOrders,
   onCreateSupplier,
   onUpdateSupplier,
@@ -83,6 +86,7 @@ export const SupplierOrdersWorkspace = ({
   onSuccess,
   onError,
 }: Props) => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -227,7 +231,7 @@ export const SupplierOrdersWorkspace = ({
     };
   }, [openStatusOrder]);
 
-  const refreshOrders = async () => {
+  const refreshOrders = useCallback(async () => {
     setIsLoading(true);
     try {
       const loaded = await getSupplierOrders();
@@ -236,16 +240,16 @@ export const SupplierOrdersWorkspace = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to load supplier orders.',
+          : t('orders.supplier.messages.errors.failedLoad'),
       );
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onError, t]);
 
   useEffect(() => {
     void refreshOrders();
-  }, []);
+  }, [refreshOrders]);
 
   useEffect(() => {
     void (async () => {
@@ -295,19 +299,19 @@ export const SupplierOrdersWorkspace = ({
     const normalized = statusQuery.trim().toLowerCase();
     return normalized
       ? supplierOrderStatuses.filter((item) =>
-          item.label.toLowerCase().includes(normalized),
+          t(item.labelKey).toLowerCase().includes(normalized),
         )
       : supplierOrderStatuses;
-  }, [statusQuery]);
+  }, [statusQuery, t]);
 
   const filteredPaymentStatuses = useMemo(() => {
     const normalized = paymentQuery.trim().toLowerCase();
     return normalized
       ? supplierPaymentStatuses.filter((item) =>
-          item.label.toLowerCase().includes(normalized),
+          t(item.labelKey).toLowerCase().includes(normalized),
         )
       : supplierPaymentStatuses;
-  }, [paymentQuery]);
+  }, [paymentQuery, t]);
 
   const paginatedOrders = useMemo(
     () => paginateSupplierOrders(filteredOrders, page, pageSize),
@@ -382,7 +386,7 @@ export const SupplierOrdersWorkspace = ({
 
       if (nextStatus === 'stocked') {
         if (!defaultTakeOnChargeWarehouse) {
-          onError('Default warehouse or location for stock receipt was not found.');
+          onError(t('orders.supplier.messages.errors.defaultWarehouseNotFound'));
           return;
         }
         await takeOnChargeSupplierOrder(order.id, {
@@ -409,19 +413,19 @@ export const SupplierOrdersWorkspace = ({
       }
       setOpenStatusOrder(null);
       await refreshOrders();
-      onSuccess('Supplier order status updated.');
+      onSuccess(t('orders.supplier.messages.success.statusUpdated'));
     } catch (error) {
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to update supplier order status.',
+          : t('orders.supplier.messages.errors.failedUpdateStatus'),
       );
     }
   };
 
   const toggleSupplierOrderFavorite = async (order: SupplierOrder) => {
     if (!canManageSupplierOrders) {
-      onError('Current employee does not have permission to manage supplier orders.');
+      onError(t('orders.supplier.messages.errors.noManagePermission'));
       return;
     }
 
@@ -448,7 +452,7 @@ export const SupplierOrdersWorkspace = ({
       onError(
         error instanceof Error
           ? error.message
-          : 'Failed to update supplier order star.',
+          : t('orders.supplier.messages.errors.failedUpdateStar'),
       );
     }
   };
@@ -484,7 +488,7 @@ export const SupplierOrdersWorkspace = ({
     });
     setIsSupplierSaving(false);
     if (!ok) return;
-    onSuccess('Supplier updated.');
+    onSuccess(t('orders.supplier.messages.success.supplierUpdated'));
     await refreshOrders();
     setSelectedSupplierForEdit(null);
   };
@@ -499,7 +503,7 @@ export const SupplierOrdersWorkspace = ({
     });
     setIsProductSaving(false);
     if (!ok) return;
-    onSuccess('Product updated.');
+    onSuccess(t('orders.supplier.messages.success.productUpdated'));
     await refreshOrders();
     setSelectedCatalogProductForEdit(null);
   };
@@ -534,7 +538,7 @@ export const SupplierOrdersWorkspace = ({
         onActiveTabChange={onActiveTabChange}
         onCreateOrder={() => {
           if (!canManageSupplierOrders) {
-            onError('Current employee does not have permission to manage supplier orders.');
+            onError(t('orders.supplier.messages.errors.noManagePermission'));
             return;
           }
           setEditingOrder(null);
@@ -597,6 +601,7 @@ export const SupplierOrdersWorkspace = ({
           paginatedOrders={paginatedOrders}
           suppliers={suppliers}
           visibleColumns={visibleColumns}
+          canViewSupplierOrders={canViewSupplierOrders}
           canManageSupplierOrders={canManageSupplierOrders}
           onError={onError}
           onEditOrder={(order) => {
@@ -608,7 +613,7 @@ export const SupplierOrdersWorkspace = ({
           onToggleFavorite={(order) => void toggleSupplierOrderFavorite(order)}
           onOpenStatusOrder={(key, order, rect) => {
             if (!canManageSupplierOrders) {
-              onError('Current employee does not have permission to manage supplier orders.');
+              onError(t('orders.supplier.messages.errors.noManagePermission'));
               return;
             }
             setStatusMenuPosition({
@@ -645,7 +650,9 @@ export const SupplierOrdersWorkspace = ({
             (editingOrder.status === 'stocked' ||
               editingOrder.receiptStatus === 'received' ||
               editingOrder.status === 'cancelled' ||
-              editingOrder.paymentStatus === 'cancelled')),
+              editingOrder.paymentStatus === 'cancelled' ||
+              editingOrder.paymentStatus === 'paid' ||
+              editingOrder.paymentStatus === 'without_payment')),
         )}
         onClose={() => {
           setIsModalOpen(false);
@@ -672,7 +679,7 @@ export const SupplierOrdersWorkspace = ({
             warehouseId,
             locationId,
           });
-          onSuccess('Supplier order stocked.');
+          onSuccess(t('orders.supplier.messages.success.stocked'));
           window.dispatchEvent(new Event('project-goods:finance-updated'));
           window.dispatchEvent(new Event('project-goods:products-updated'));
           await refreshOrders();
@@ -682,12 +689,12 @@ export const SupplierOrdersWorkspace = ({
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
           await cancelSupplierOrder(editingOrder.id);
-          onSuccess('Supplier order cancelled.');
+          onSuccess(t('orders.supplier.messages.success.cancelled'));
           await refreshOrders();
         }}
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
           if (!canManageSupplierOrders) {
-            onError('Current employee does not have permission to manage supplier orders.');
+            onError(t('orders.supplier.messages.errors.noManagePermission'));
             return;
           }
           try {
@@ -706,20 +713,20 @@ export const SupplierOrdersWorkspace = ({
                 ...basePayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
-              onSuccess('Supplier order created.');
+              onSuccess(t('orders.supplier.messages.success.created'));
             } else {
               await updateSupplierOrder(editingOrder.id, {
                 ...basePayload,
                 orderBaseId: editingOrder.orderBaseId,
               });
-              onSuccess('Supplier order updated.');
+              onSuccess(t('orders.supplier.messages.success.updated'));
             }
             await refreshOrders();
           } catch (error) {
             onError(
               error instanceof Error
                 ? error.message
-                : 'Failed to save supplier order.',
+                : t('orders.supplier.messages.errors.failedSave'),
             );
           }
         }}

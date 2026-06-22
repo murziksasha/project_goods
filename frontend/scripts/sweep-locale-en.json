@@ -1,0 +1,130 @@
+{
+  "analytics": {
+    "executiveDashboard": "Executive dashboard",
+    "businessPerformance": "Business performance",
+    "heroNote": "Sales, repair workload, payments and stock health for {{period}}.",
+    "statisticsPeriod": "Statistics period",
+    "loading": "Loading...",
+    "loadingAnalytics": "Loading analytics...",
+    "eraseAllData": "Erase all data",
+    "exporting": "Exporting...",
+    "export": "Export",
+    "workflow": "Workflow",
+    "operationalPulse": "Operational pulse",
+    "open": "Open",
+    "closed": "Closed",
+    "todaySales": "Today sales",
+    "todayRepairs": "Today repairs",
+    "stock": "Stock",
+    "inventoryHealth": "Inventory health",
+    "products": "Products",
+    "freeStock": "Free stock",
+    "reserved": "Reserved",
+    "stockValue": "Stock value",
+    "clients": "Clients",
+    "signals": "Signals",
+    "attentionQueue": "Attention queue",
+    "comparativeAnalysis": "Comparative analysis",
+    "comparisonNote": "Current period is blue; previous comparable years are orange and green.",
+    "revenue": "Revenue",
+    "productSales": "Product sales",
+    "noSalesForPeriod": "No sales found for the selected period.",
+    "repairOrders": "Repair orders",
+    "orderVolume": "Order volume",
+    "noOrdersForPeriod": "No repair orders found for the selected period.",
+    "periods": {
+      "today": "Today",
+      "currentMonth": "This month",
+      "lastMonth": "Last month",
+      "currentYear": "This year",
+      "lastYear": "Last year"
+    },
+    "summary": {
+      "sales": "Sales",
+      "repairOrders": "Repair orders",
+      "revenue": "Revenue",
+      "averageTicket": "Average ticket",
+      "paid": "Paid",
+      "receivables": "Receivables"
+    },
+    "conversion": {
+      "repairOrdersPerSales": "Repair orders / sales",
+      "salesPerRepairOrders": "Sales / repair orders",
+      "paymentCoverage": "Payment coverage"
+    },
+    "signalsLabels": {
+      "unpaidOrders": "Unpaid orders",
+      "openWorkflow": "Open workflow",
+      "lowStockItems": "Low stock items",
+      "todayActivity": "Today activity"
+    },
+    "currency": "UAH {{value}}"
+  },
+  "common": {
+    "update": "Update",
+    "price": "Price",
+    "note": "Note",
+    "saving": "Saving...",
+    "export": "Export",
+    "exporting": "Exporting...",
+    "pagination": {
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "rowsPerPage": "Rows per page",
+      "totalRecords": "Total: {{count}} records",
+      "prev": "< Prev",
+      "next": "Next >"
+    },
+    "notifications": {
+      "offlineViewOnly": "No internet connection. You can view cached data, but edits are disabled.",
+      "closeNotification": "Close notification"
+    },
+    "languageSwitcher": {
+      "switchToEnglish": "Switch to English",
+      "switchToUkrainian": "Switch to Ukrainian",
+      "english": "English",
+      "ukrainian": "Ukrainian"
+    }
+  },
+  "errors": {
+    "failedLoadProducts": "Failed to load products.",
+    "failedLoadCatalogProducts": "Failed to load catalog products.",
+    "failedLoadClientDevices": "Failed to load client devices.",
+    "failedLoadSales": "Failed to load sales.",
+    "failedLoadClients": "Failed to load clients.",
+    "failedLoadServices": "Failed to load services.",
+    "failedLoadClientHistory": "Failed to load client history.",
+    "unexpectedRequestError": "Unexpected request error."
+  },
+  "catalog": {
+    "serviceForm": {
+      "editService": "Edit service",
+      "addService": "Add service",
+      "namePlaceholder": "Software setup",
+      "pricePlaceholder": "700",
+      "notePlaceholder": "Default description or internal note",
+      "updateService": "Update service"
+    }
+  },
+  "orders": {
+    "supplier": {
+      "modal": {
+        "supplyLocal": "Local",
+        "supplyForeign": "Foreign"
+      }
+    },
+    "print": {
+      "pageSizeA4": "A4",
+      "pageSizeLabel": "Label"
+    }
+  },
+  "app": {
+    "errorBoundary": {
+      "recovery": "Recovery",
+      "title": "Application needs a refresh",
+      "message": "The app stayed on an outdated or broken screen. Refresh will clear cached files and open the workspace again.",
+      "errorPrefix": "Error:",
+      "refreshApp": "Refresh app"
+    }
+  }
+}

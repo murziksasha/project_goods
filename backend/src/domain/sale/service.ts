@@ -6,6 +6,7 @@ import { Employee, type EmployeeDocument } from '../employee/model';
 import { CatalogProduct, type CatalogProductDocument } from '../catalog-product/model';
 import { Product, type ProductDocument } from '../product/model';
 import { Sale, type SaleDocument } from './model';
+import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatProduct, formatSale } from '../../shared/lib/formatters';
 import { normalizeSalePayload, toNumber } from '../../shared/lib/parsers';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
@@ -29,12 +30,13 @@ import {
 const buildClientSnapshot = (
   client: Pick<
     ClientDocument,
-    'name' | 'phone' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'
+    'name' | 'phone' | 'phones' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'
   >,
   visitCount: number,
 ) => ({
   name: client.name,
   phone: client.phone,
+  phones: getClientPhonesFromRecord(client),
   status: getEffectiveClientStatus(client.status ?? '', visitCount),
   email: client.email ?? '',
   address: client.address ?? '',
@@ -1025,14 +1027,10 @@ export const acceptSalePayment = async (
     throw new Error('Product shipped but payment has not been received.');
   }
 
-  const shouldAutoMarkPaidOnDeposit =
-    action === 'deposit' &&
-    (targetStatus === 'paid' ||
-      (sale.kind !== 'repair' && targetStatus === 'issued'));
   const nextStatus =
     action === 'depositAndIssue' || action === 'issueWithoutPayment'
       ? targetStatus
-      : shouldAutoMarkPaidOnDeposit
+      : action === 'deposit' && nextPaymentRemaining === 0
         ? 'paid'
         : sale.status;
   const issuedById = String(payload.issuedById ?? '').trim();

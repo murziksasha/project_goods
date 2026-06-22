@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import type { PrintLayoutBlock } from './types';
 import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
   defaultPrintForms,
   normalizePrintFormsForView,
+  normalizePrintLayoutBlocks,
   renderPrintLayout,
   renderPrintTemplate,
 } from './printForms';
@@ -111,7 +113,7 @@ describe('renderPrintLayout', () => {
   it('renders supported layout blocks to stable html', () => {
     const rendered = renderPrintLayout([
       { id: 'h', type: 'heading', level: 1, text: 'Order {{orderNumber}}' },
-      { id: 'p', type: 'paragraph', text: 'Client {{clientName}}' },
+      { id: 'p', type: 'paragraph', level: 3, text: 'Client {{clientName}}' },
       {
         id: 'fields',
         type: 'fieldGrid',
@@ -139,14 +141,15 @@ describe('renderPrintLayout', () => {
         id: 'cols',
         type: 'columns',
         columns: [
-          { id: 'left', blocks: [{ id: 'left-text', type: 'paragraph', text: '{{company}}' }] },
-          { id: 'right', blocks: [{ id: 'right-text', type: 'paragraph', text: '{{clientName}}' }] },
+          { id: 'left', blocks: [{ id: 'left-text', type: 'paragraph', level: 3, text: '{{company}}' }] },
+          { id: 'right', blocks: [{ id: 'right-text', type: 'paragraph', level: 3, text: '{{clientName}}' }] },
         ],
       },
     ]);
 
     expect(rendered).toContain('<div class="print-document">');
     expect(rendered).toContain('<h1 class="print-block-heading">Order {{orderNumber}}</h1>');
+    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Client {{clientName}}</p>');
     expect(rendered).toContain('{{products_table}}');
     expect(rendered).toContain('{{services_table}}');
     expect(rendered).toContain('{{invoice_items_table}}');
@@ -160,15 +163,95 @@ describe('renderPrintLayout', () => {
 
   it('escapes literal html while preserving variables', () => {
     const rendered = renderPrintLayout([
-      { id: 'p', type: 'paragraph', text: '<script>x</script> {{clientName}}' },
+      { id: 'p', type: 'paragraph', level: 3, text: '<script>x</script> {{clientName}}' },
     ]);
 
     expect(rendered).toContain('&lt;script&gt;x&lt;/script&gt; {{clientName}}');
     expect(rendered).not.toContain('<script>');
   });
+
+  it('renders paragraph level classes for font sizing', () => {
+    const rendered = renderPrintLayout([
+      { id: 'large', type: 'paragraph', level: 1, text: 'Large text' },
+      { id: 'medium', type: 'paragraph', level: 2, text: 'Medium text' },
+      { id: 'normal', type: 'paragraph', level: 3, text: 'Normal text' },
+    ]);
+
+    expect(rendered).toContain('print-block-paragraph-level-1');
+    expect(rendered).toContain('print-block-paragraph-level-2');
+    expect(rendered).toContain('print-block-paragraph-level-3');
+  });
+
+  it('defaults missing paragraph level to level 3 in rendered output', () => {
+    const legacyParagraph = {
+      id: 'legacy',
+      type: 'paragraph',
+      text: 'Legacy text',
+    } as PrintLayoutBlock;
+
+    const rendered = renderPrintLayout([legacyParagraph]);
+
+    expect(rendered).toContain('print-block-paragraph-level-3');
+  });
+});
+
+describe('normalizePrintLayoutBlocks', () => {
+  it('adds default level 3 to legacy paragraph blocks', () => {
+    const legacyParagraph = {
+      id: 'legacy',
+      type: 'paragraph',
+      text: 'Legacy text',
+    } as PrintLayoutBlock;
+
+    const normalized = normalizePrintLayoutBlocks([legacyParagraph]);
+
+    expect(normalized[0]).toMatchObject({ type: 'paragraph', level: 3 });
+  });
+
+  it('normalizes nested column paragraph blocks', () => {
+    const normalized = normalizePrintLayoutBlocks([
+      {
+        id: 'cols',
+        type: 'columns',
+        columns: [
+          {
+            id: 'left',
+            blocks: [{ id: 'left-text', type: 'paragraph', text: '{{company}}' } as PrintLayoutBlock],
+          },
+        ],
+      },
+    ]);
+
+    expect(normalized[0]).toMatchObject({
+      type: 'columns',
+      columns: [{ blocks: [{ type: 'paragraph', level: 3 }] }],
+    });
+  });
 });
 
 describe('normalizePrintFormsForView', () => {
+  it('normalizes legacy paragraph levels when loading layout forms', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'legacy-paragraph',
+        title: 'Legacy paragraph',
+        type: 'custom',
+        content: '<p>old</p>',
+        contentFormat: 'html',
+        layoutVersion: 1,
+        layoutBlocks: [{ id: 'text', type: 'paragraph', text: 'Hello' } as PrintLayoutBlock],
+        pageSize: 'A4',
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 10,
+      },
+    ]);
+
+    expect(
+      normalized.find((form) => form.id === 'legacy-paragraph')?.layoutBlocks?.[0],
+    ).toMatchObject({ type: 'paragraph', level: 3 });
+  });
+
   it('generates content from layout blocks', () => {
     const form = createLayoutPrintForm({
       id: 'custom-layout',
@@ -247,6 +330,16 @@ describe('normalizePrintFormsForView', () => {
     expect(barcode?.content).toContain('{{labelCode}}');
     expect(barcode?.content).toContain('{{labelTitle}}');
     expect(barcode?.content).toContain('{{labelContact}}');
+  });
+
+  it('default Barcode form: page size label, 40x25mm, landscape, renders inside .print-label', () => {
+    const forms = normalizePrintFormsForView(defaultPrintForms);
+    const barcode = forms.find((f) => f.id === 'barcode');
+    expect(barcode?.pageSize).toBe('label');
+    expect(barcode?.labelSize?.widthMm).toBe(40);
+    expect(barcode?.labelSize?.heightMm).toBe(25);
+    expect(barcode?.orientation).toBe('landscape');
+    expect(barcode?.content).toContain('class="print-label"');
   });
 
   it('updates the old built-in barcode form without replacing custom barcode forms', () => {

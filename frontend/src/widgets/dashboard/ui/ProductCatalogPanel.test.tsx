@@ -56,6 +56,7 @@ const supplier = (patch: Partial<Supplier> = {}): Supplier => ({
   id: 'supplier-1',
   name: 'Main Parts',
   phone: '+380501111111',
+  phones: ['+380501111111'],
   supplierOrder: '',
   note: '',
   isActive: true,

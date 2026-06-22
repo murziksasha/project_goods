@@ -1,5 +1,6 @@
 import type { ProductFormValues } from '../../../entities/product/model/types';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { useTranslation } from 'react-i18next';
 
 type ProductFormProps = {
   form: ProductFormValues;
@@ -27,100 +28,102 @@ export const ProductForm = ({
   onChange,
   onSubmit,
   onCancelEdit,
-}: ProductFormProps) => (
+}: ProductFormProps) => {
+  const { t } = useTranslation();
+  return (
   <section className="panel">
     <div className="panel-header">
       <div>
-        <p className="section-label">{isEditing ? 'Update' : 'Create'}</p>
-        <h2>{isEditing ? 'Edit product' : 'Add product'}</h2>
+        <p className="section-label">{isEditing ? t('common.edit') : t('common.create')}</p>
+        <h2>{isEditing ? t('product.edit') : t('product.add')}</h2>
       </div>
       {isEditing ? (
         <button className="ghost-button" type="button" onClick={onCancelEdit}>
-          Cancel
+          {t('common.cancel')}
         </button>
       ) : null}
     </div>
 
     <div className="form-grid">
       <label className="field">
-        <span>Name</span>
+        <span>{t('product.name')}</span>
         <input
           value={form.name}
-          placeholder="Назва товару"
+          placeholder={t('product.name')}
           onChange={(event) => onChange('name', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Article</span>
+        <span>{t('product.article')}</span>
         <input
           value={form.article}
-          placeholder="WM-001"
+          placeholder={t('product.examples.article')}
           onChange={(event) => onChange('article', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Serial number</span>
+        <span>{t('product.serialNumber')}</span>
         <input
           value={form.serialNumber}
-          placeholder="LOG-M185-0001"
+          placeholder={t('product.examples.serialNumber')}
           onChange={(event) => onChange('serialNumber', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Price</span>
+        <span>{t('product.price')}</span>
         <NumberStepper
           min={0}
           step={0.01}
           precision={2}
           value={form.price}
-          placeholder="100"
+          placeholder={t('product.examples.price')}
           onChange={(value) => onChange('price', value)}
         />
       </label>
 
       <label className="field">
-        <span>Sale prices</span>
+        <span>{t('product.salePrices')}</span>
         <input
           value={form.salePriceOptions}
-          placeholder="649, 699, 749"
+          placeholder={t('product.examples.salePriceOptions')}
           onChange={(event) => onChange('salePriceOptions', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Quantity</span>
+        <span>{t('product.quantity')}</span>
         <NumberStepper
           min={0}
           value={form.quantity || "1"}
-          placeholder="5"
+          placeholder={t('product.examples.quantity')}
           onChange={(value) => onChange('quantity', value)}
         />
       </label>
 
       <label className="field">
-        <span>Purchase place</span>
+        <span>{t('product.purchasePlace')}</span>
         <input
           value={form.purchasePlace}
-          placeholder="Постачальник"
+          placeholder={t('product.purchasePlace')}
           onChange={(event) => onChange('purchasePlace', event.target.value)}
         />
       </label>
 
       <label className="field field-wide">
-        <span>Default note</span>
+        <span>{t('product.defaultNote')}</span>
         <textarea
           rows={3}
           value={form.note}
-          placeholder="This note will auto-fill in the sale card."
+          placeholder={t('product.defaultNote')}
           onChange={(event) => onChange('note', event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Purchase date</span>
+        <span>{t('product.purchaseDate')}</span>
         <input
           type="date"
           value={form.purchaseDate}
@@ -129,18 +132,18 @@ export const ProductForm = ({
       </label>
 
       <label className="field field-wide">
-        <span>Warranty</span>
+        <span>{t('product.warranty')}</span>
         <select
           value={form.warrantyPeriod}
           onChange={(event) => onChange('warrantyPeriod', event.target.value)}
         >
-          <option value="">Select warranty</option>
-          <option value="1">30 day</option>
-          <option value="3">3 month</option>
-          <option value="6">6 month</option>
-          <option value="12">1 year</option>
-          <option value="24">2 year</option>
-          <option value="36">3 year</option>
+          <option value="">{t('product.selectWarranty')}</option>
+          <option value="1">{t('orders.warranty.day30')}</option>
+          <option value="3">{t('orders.warranty.month3')}</option>
+          <option value="6">{t('orders.warranty.month6')}</option>
+          <option value="12">{t('orders.warranty.year1')}</option>
+          <option value="24">{t('orders.warranty.year2')}</option>
+          <option value="36">{t('orders.warranty.year3')}</option>
         </select>
       </label>
     </div>
@@ -151,7 +154,8 @@ export const ProductForm = ({
       onClick={onSubmit}
       disabled={isSaving || hasEmptyRequiredFields(form)}
     >
-      {isSaving ? 'Saving...' : isEditing ? 'Update product' : 'Add product'}
+      {isSaving ? t('product.saving') : isEditing ? t('product.update') : t('product.add')}
     </button>
   </section>
-);
+  );
+};

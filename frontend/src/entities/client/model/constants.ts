@@ -34,6 +34,9 @@ export const getClientStatusClass = (status: ClientStatus | ''): string => {
 export const isAutoManagedClientStatus = (status: ClientStatus | '') =>
   status === '' || status === 'new';
 
+export const getClientStatusLabelKey = (status: ClientStatus | ''): string =>
+  status ? `clients.statusValues.${status}` : 'clients.statusValues.empty';
+
 /**
  * Effective client status for UI and filters:
  * - blacklist always wins

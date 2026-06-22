@@ -103,6 +103,20 @@ const buildSale = () => ({
   issuedBySnapshot: null,
 });
 
+/**
+ * Sets up findById + findByIdAndUpdate mocks for payment tests.
+ * Uses mockImplementation to capture the exact update payload for the current call.
+ * This supports multiple accept/refund calls inside a single it() without stale mock.calls[0] issues.
+ */
+const setupPaymentMocks = (sale: any) => {
+  saleModel.findById.mockReturnValue({
+    lean: vi.fn().mockResolvedValue(sale),
+  });
+  saleModel.findByIdAndUpdate.mockImplementation((_id: any, update: any) => ({
+    lean: vi.fn().mockResolvedValue({ ...sale, ...update }),
+  }));
+};
+
 describe('sale payment/refund finance coupling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -117,15 +131,7 @@ describe('sale payment/refund finance coupling', () => {
 
   it('creates a deposit and updates sale payment state together', async () => {
     const sale = buildSale();
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await acceptSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -155,9 +161,7 @@ describe('sale payment/refund finance coupling', () => {
 
   it('does not create a deposit when issuing would violate payment rules', async () => {
     const sale = buildSale();
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
+    setupPaymentMocks(sale);
 
     await expect(
       acceptSalePayment('sale-1', {
@@ -180,15 +184,7 @@ describe('sale payment/refund finance coupling', () => {
       status: 'issued',
       paidAmount: 290,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockImplementation(async () => ({
-        ...sale,
-        ...saleModel.findByIdAndUpdate.mock.calls[0][1],
-      })),
-    });
+    setupPaymentMocks(sale);
 
     const updatedSale = await refundSalePayment('sale-1', {
       cashboxId: 'cashbox-1',
@@ -217,9 +213,7 @@ describe('sale payment/refund finance coupling', () => {
       ...buildSale(),
       paidAmount: 50,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(sale),
-    });
+    setupPaymentMocks(sale);
 
     await expect(
       refundSalePayment('sale-1', {
@@ -231,5 +225,176 @@ describe('sale payment/refund finance coupling', () => {
 
     expect(createFinanceTransactionMock).not.toHaveBeenCalled();
     expect(saleModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('partial deposit creates finance transaction and does not change status', async () => {
+    const sale = {
+      ...buildSale(),
+      kind: 'sale',
+      status: 'reserved',
+      paidAmount: 0,
+    };
+    setupPaymentMocks(sale);
+
+    const updatedSale = await acceptSalePayment('sale-1', {
+      cashboxId: 'cashbox-1',
+      amount: '100',
+      paymentMethod: 'cash',
+      action: 'deposit',
+      targetStatus: 'paid',
+      author: 'Manager',
+    });
+
+    expect(createFinanceTransactionMock).toHaveBeenCalledWith({
+      type: 'deposit',
+      amount: '100',
+      currency: 'UAH',
+      toCashboxId: 'cashbox-1',
+      note: 'Payment for order r000008',
+    });
+    expect(updatedSale.paidAmount).toBe(100);
+    expect(updatedSale.status).toBe('reserved'); // unchanged because partial
+    expect(updatedSale.paymentHistory[0]).toMatchObject({
+      type: 'deposit',
+      amount: 100,
+      cashboxId: 'cashbox-1',
+    });
+  });
+
+  it('full deposit via deposit action auto marks paid when remaining reaches 0', async () => {
+    const sale = {
+      ...buildSale(),
+      kind: 'sale',
+      status: 'new',
+      paidAmount: 0,
+    };
+    setupPaymentMocks(sale);
+
+    const updatedSale = await acceptSalePayment('sale-1', {
+      cashboxId: 'cashbox-1',
+      amount: '290',
+      paymentMethod: 'non-cash',
+      action: 'deposit',
+      targetStatus: 'issued', // even if target suggests issued, full deposit -> paid
+      author: 'Manager',
+    });
+
+    expect(createFinanceTransactionMock).toHaveBeenCalled();
+    expect(updatedSale.paidAmount).toBe(290);
+    expect(updatedSale.status).toBe('paid');
+  });
+
+  it('partial deposit on repair order creates tx and keeps original status (no auto paid or issue)', async () => {
+    const repair = {
+      ...buildSale(),
+      kind: 'repair',
+      status: 'diagnostics',
+      paidAmount: 50,
+      lineItems: [
+        {
+          ...lineItem,
+          kind: 'product',
+        },
+      ],
+    };
+    setupPaymentMocks(repair);
+
+    const updated = await acceptSalePayment('sale-1', {
+      cashboxId: 'cashbox-2',
+      amount: '100',
+      paymentMethod: 'cash',
+      action: 'deposit',
+      targetStatus: 'issued', // opened from repair card
+      author: 'Technician',
+    });
+
+    expect(createFinanceTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ toCashboxId: 'cashbox-2', amount: '100' }),
+    );
+    expect(updated.paidAmount).toBe(150);
+    expect(updated.status).toBe('diagnostics'); // partial, no change, no issue
+  });
+
+  it('full deposit on repair order (with and without products) auto sets paid only', async () => {
+    // with product
+    const repairWithProduct = {
+      ...buildSale(),
+      kind: 'repair',
+      status: 'inRepair',
+      paidAmount: 0,
+    };
+    setupPaymentMocks(repairWithProduct);
+
+    const updatedWith = await acceptSalePayment('sale-1', {
+      cashboxId: 'cashbox-1',
+      amount: '290',
+      paymentMethod: 'cash',
+      action: 'deposit',
+      targetStatus: 'issued',
+      author: 'Tech',
+    });
+    expect(updatedWith.paidAmount).toBe(290);
+    expect(updatedWith.status).toBe('paid'); // payment complete, but not issued
+
+    // without product (service only)
+    const repairServiceOnly = {
+      ...buildSale(),
+      kind: 'repair',
+      status: 'waitingParts',
+      paidAmount: 100,
+      lineItems: [
+        {
+          id: 'li-svc',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 190,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    };
+    setupPaymentMocks(repairServiceOnly);
+
+    const updatedSvc = await acceptSalePayment('sale-1', {
+      cashboxId: 'cashbox-1',
+      amount: '90',
+      paymentMethod: 'non-cash',
+      action: 'deposit',
+      targetStatus: 'paid',
+      author: 'Tech',
+    });
+    expect(updatedSvc.paidAmount).toBe(190);
+    expect(updatedSvc.status).toBe('paid');
+  });
+
+  it('rejects payment greater than remaining balance', async () => {
+    const repair = {
+      ...buildSale(),
+      kind: 'repair',
+      status: 'inRepair',
+      paidAmount: 100,
+      lineItems: [
+        {
+          id: 'li-svc',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 190,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    };
+    setupPaymentMocks(repair);
+
+    await expect(
+      acceptSalePayment('sale-1', {
+        cashboxId: 'cashbox-1',
+        amount: '100',
+        paymentMethod: 'cash',
+        action: 'deposit',
+        targetStatus: 'paid',
+        author: 'Tech',
+      }),
+    ).rejects.toThrow('Payment amount cannot exceed the remaining balance.');
   });
 });

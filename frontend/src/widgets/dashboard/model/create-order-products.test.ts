@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import i18n from '../../../shared/i18n/config';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -60,7 +61,7 @@ describe('create order product helpers', () => {
       source: 'stock',
       productId: 'p-serial',
       serialNumber: 'S000003',
-      availabilityLabel: 'Free',
+      availabilityLabel: i18n.t('orders.serialAvailability.free'),
       selectable: true,
     });
   });
@@ -133,7 +134,7 @@ describe('create order product helpers', () => {
 
     expect(suggestions.map((item) => item.productId)).toEqual(['free']);
     expect(suggestions[0]).toMatchObject({
-      availabilityLabel: 'Free',
+      availabilityLabel: i18n.t('orders.serialAvailability.free'),
       selectable: true,
     });
   });

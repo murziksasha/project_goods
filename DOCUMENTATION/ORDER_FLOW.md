@@ -4,6 +4,9 @@
 
 - Clicking `Create order` opens the modal.
 - `Client phone` + `Client name` perform lookup in clients.
+- If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
+- The blacklist warning must include the client name/phone and must not prevent saving the repair order.
+- Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
 - Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
@@ -87,6 +90,10 @@
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
 - `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- Partial deposits are allowed for repair orders while the order remains in its current non-final status.
+- A repair order may receive several payments at different times and into different cashboxes.
+- `Accept to cashbox` records only the deposit and must not require full remaining payment.
+- `Accept to cashbox` must not issue the repair order while `To pay > 0`; it only closes the payment modal and refreshes the payment state.
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
@@ -115,11 +122,12 @@
 
 ## Order Card Editing Rules
 
-- In order card `Main information`, `Device` is read-only (no `Edit` button and no device-edit modal in order card).
+- In order card `Main information`, `Device` opens a change modal for repair orders.
+- The device change modal shows active `Clients goods` records for the current client and can create a new client device.
 - In order card `Main information`, `S/N` is editable.
 - `S/N` must remain editable at any time, including empty value.
 - Empty `S/N` must be accepted by backend validation and must not prevent saving order-card changes.
-- `Save changes` from order card does not modify device name.
+- `Save changes` from order card persists the selected device name to the order snapshot.
 - `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
 - `Manager` remains informational.
 - `Article` is removed from order card main information.
@@ -134,9 +142,9 @@
   - `client rejected`
   - `issued without repair`
   then `Issued` worker is cleared in both orders list and order card.
-- Saving order card main information does not provide device editing via order-card modal; device management is performed via `Clients goods`.
+- Existing device editing remains in `Clients goods`; the order-card modal only selects or creates a client device.
 - `S/N` in order card remains order-specific and must not be written to `Clients goods`.
-- In order card device modal, if no exact device-name match is found in `Clients goods`, the form must stay in `New device` mode.
+- In order card device modal, if no exact device-name match is found in `Clients goods`, the create-new flow remains available.
 - The modal must not auto-select the first available client device as fallback.
 - `Live feed` composer (comment input + `Add` button) is fixed at the bottom of the live feed panel and must not shrink.
 - Manual `Live feed` composer comments are rendered green; generated timeline messages keep system styling.
@@ -260,6 +268,17 @@
   - shows success or error feedback.
 - If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
 - If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
+- Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
+- If the order is locked by receipt/payment/final status, the opened modal is read-only instead of blocked.
+- Editable controls remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order lock rules.
+
+## Truncated Text Hover Tooltip
+
+- Any visible value that is truncated with ellipsis because of limited column/card width must expose the full text on hover/focus.
+- The tooltip must be a custom interactive tooltip, not only the native browser `title`, when the text is expected to be copied.
+- The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
+- Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
+- The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
 
 ## Supplier Order Information Tab (2026-05-29)
 

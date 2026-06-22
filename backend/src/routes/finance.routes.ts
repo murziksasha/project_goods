@@ -2,11 +2,15 @@ import { Router } from 'express';
 import {
   cancelFinanceTransaction,
   createCashbox,
+  createFinanceCurrency,
   createFinanceTransaction,
   getFinanceReport,
   listCashboxes,
+  listFinanceCurrencies,
   listFinanceTransactions,
   updateCashbox,
+  updateFinanceCurrency,
+  updateFinanceTransactionNote,
 } from '../domain/finance/service';
 import {
   issueSupplierOrderWithoutPayment,
@@ -21,6 +25,7 @@ import {
 } from '../shared/lib/http';
 import type { EmployeePermission } from '../domain/employee/constants';
 import type { TransactionType } from '../domain/finance/model';
+import { validateFinanceTransactionPayload } from '../domain/finance/validators';
 
 export const financeRouter = Router();
 
@@ -43,7 +48,23 @@ financeRouter.post('/finance/cashboxes', asyncHandler(async (req, res) => {
 
 financeRouter.patch('/finance/cashboxes/:cashboxId', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.cashboxes.manage');
-  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown }));
+  res.json(await updateCashbox(routeParam(req, 'cashboxId'), req.body as { name?: unknown; isArchived?: unknown; enabledCurrencies?: unknown }));
+}));
+
+financeRouter.get('/finance/currencies', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
+  res.json(await listFinanceCurrencies({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
+}));
+
+financeRouter.post('/finance/currencies', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.status(201).json(await createFinanceCurrency(req.body));
+}));
+
+financeRouter.patch('/finance/currencies/:currencyCode', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.json(await updateFinanceCurrency(routeParam(req, 'currencyCode'), req.body as { isArchived?: unknown }));
 }));
 
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
@@ -52,10 +73,16 @@ financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
 }));
 
 financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {
-  const type = String((req.body as { type?: unknown })?.type ?? '') as TransactionType;
+  const payload = validateFinanceTransactionPayload(req.body);
+  const type = String(payload.type ?? '') as TransactionType;
   const permission = transactionPermissionByType[type];
   await requirePermission(req, permission ?? 'finance.transactions.deposit');
-  res.status(201).json(await createFinanceTransaction(req.body));
+  res.status(201).json(await createFinanceTransaction(payload));
+}));
+
+financeRouter.patch('/finance/transactions/:transactionId', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await updateFinanceTransactionNote(routeParam(req, 'transactionId'), req.body as { note?: unknown }));
 }));
 
 financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(async (req, res) => {

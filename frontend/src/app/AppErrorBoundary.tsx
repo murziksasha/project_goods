@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { hardReloadApp } from '../shared/lib/hardReload';
+import i18n from '../shared/i18n/config';
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
@@ -41,17 +42,14 @@ export class AppErrorBoundary extends Component<
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <p className="section-label">Recovery</p>
-                  <h2>Application needs a refresh</h2>
+                  <p className="section-label">{i18n.t('app.errorBoundary.recovery')}</p>
+                  <h2>{i18n.t('app.errorBoundary.title')}</h2>
                 </div>
               </div>
-              <p className="empty-state">
-                The app stayed on an outdated or broken screen. Refresh will
-                clear cached files and open the workspace again.
-              </p>
+              <p className="empty-state">{i18n.t('app.errorBoundary.message')}</p>
               {isDevelopment && this.state.error.message ? (
                 <p className="empty-state">
-                  Error: {this.state.error.message}
+                  {i18n.t('app.errorBoundary.errorPrefix')} {this.state.error.message}
                 </p>
               ) : null}
               <button
@@ -59,7 +57,7 @@ export class AppErrorBoundary extends Component<
                 className="primary-button"
                 onClick={() => void this.reloadApp()}
               >
-                Refresh app
+                {i18n.t('app.errorBoundary.refreshApp')}
               </button>
             </section>
           </div>
