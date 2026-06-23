@@ -205,6 +205,12 @@ export const AnalyticsHeroSection = ({
 
   return (
     <section className="analytics-dashboard">
+      {dashboardPreferences.marketWeatherEnabled ? (
+        <div className="analytics-live-insights">
+          <MarketWeatherWidget dashboardPreferences={dashboardPreferences} />
+        </div>
+      ) : null}
+
       <div className="analytics-executive-header">
         <div>
           <p className="section-label">{t('analytics.executiveDashboard')}</p>
@@ -257,10 +263,6 @@ export const AnalyticsHeroSection = ({
         onClear={onClearAnalyticsDateRange}
         onClose={() => onAnalyticsDateFilterOpenChange(false)}
       />
-
-      {dashboardPreferences.marketWeatherEnabled ? (
-        <MarketWeatherWidget dashboardPreferences={dashboardPreferences} />
-      ) : null}
 
       <div className="analytics-summary-grid analytics-summary-grid-wide">
         {analytics.summaryCards.map((card) => (

@@ -2481,6 +2481,8 @@
     "marketWeather": {
       "sectionLabel": "Актуальні дані",
       "title": "Курс і погода",
+      "collapseWidget": "Згорнути віджет курсу і погоди",
+      "expandWidget": "Розгорнути віджет курсу і погоди",
       "exchangeRates": "Курси валют",
       "weatherForecast": "Прогноз погоди",
       "refresh": "Оновити",

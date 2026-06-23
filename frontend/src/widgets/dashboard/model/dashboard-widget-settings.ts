@@ -2,6 +2,7 @@ import { getWeatherLocationPreset } from '../../../shared/config/default-weather
 import type { DashboardPreferences, WeatherLocationPreset } from '../../../entities/settings/model/types';
 
 export type DashboardWidgetOverrides = Partial<{
+  collapsed: boolean;
   contentVisible: boolean;
   hiddenCurrencies: string[];
   hiddenProviders: string[];
@@ -39,6 +40,7 @@ export const storeDashboardWidgetOverrides = (overrides: DashboardWidgetOverride
 
 export type EffectiveDashboardWidgetSettings = {
   marketWeatherEnabled: boolean;
+  collapsed: boolean;
   contentVisible: boolean;
   exchangeRatesEnabled: boolean;
   weatherEnabled: boolean;
@@ -62,6 +64,7 @@ export const getEffectiveDashboardWidgetSettings = (
 
   return {
     marketWeatherEnabled: preferences.marketWeatherEnabled,
+    collapsed: overrides.collapsed ?? false,
     contentVisible: overrides.contentVisible ?? true,
     exchangeRatesEnabled:
       overrides.exchangeRatesEnabled ?? preferences.exchangeRatesEnabled,

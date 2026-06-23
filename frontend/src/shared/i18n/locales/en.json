@@ -2481,6 +2481,8 @@
     "marketWeather": {
       "sectionLabel": "Live insights",
       "title": "Market & weather",
+      "collapseWidget": "Collapse Market & weather widget",
+      "expandWidget": "Expand Market & weather widget",
       "exchangeRates": "Exchange rates",
       "weatherForecast": "Weather forecast",
       "refresh": "Refresh",
