@@ -216,6 +216,7 @@ export type WarehousePanelProps = {
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  onOpenSaleCard?: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
 };
 
 export const tabs: Array<{

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   acceptInvitation,
   getCurrentEmployee,
@@ -32,23 +32,22 @@ import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-ki
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { useTranslation } from 'react-i18next';
+import { hardReloadApp } from '../../../shared/lib/hardReload';
 import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher';
-
-type PageKey =
-  | 'home'
-  | 'orders'
-  | 'clients'
-  | 'employees'
-  | 'settings'
-  | 'accounting'
-  | 'catalog'
-  | 'warehouse';
-type OrdersTab =
-  | 'orders'
-  | 'sales'
-  | 'supplierOrders'
-  | 'supplierInformation';
-type CreateOrderTab = 'repair' | 'sale';
+import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
+import {
+  getDashboardHref,
+  navigateDashboard,
+  parseDashboardLocationFromWindow,
+  type DashboardLocation,
+} from '../model/dashboard-navigation';
+import {
+  getCreateOrderForOrdersTab,
+  ordersTabs,
+  type CreateOrderTab,
+  type OrdersTab,
+  type PageKey,
+} from '../model/types';
 
 const pageKeys: PageKey[] = [
   'home',
@@ -59,12 +58,6 @@ const pageKeys: PageKey[] = [
   'accounting',
   'catalog',
   'warehouse',
-];
-const ordersTabs: OrdersTab[] = [
-  'orders',
-  'sales',
-  'supplierOrders',
-  'supplierInformation',
 ];
 const ordersTabStorageKey = 'project-goods.orders-tab';
 const activePageStorageKey = 'project-goods.dashboard-page';
@@ -149,66 +142,6 @@ const createLoadingInviteState = () => ({
   isLoading: true,
 });
 
-const getOrdersTabForCreateOrder = (tab: CreateOrderTab): OrdersTab =>
-  tab === 'sale' ? 'sales' : 'orders';
-
-const getCreateOrderForOrdersTab = (tab: OrdersTab): CreateOrderTab =>
-  tab === 'sales' ? 'sale' : 'repair';
-
-const getDashboardHref = (
-  page: PageKey,
-  options: { ordersTab?: OrdersTab; createOrder?: CreateOrderTab; saleId?: string } = {},
-) => {
-  const url = new URL(window.location.href);
-
-  if (page === 'home') {
-    url.searchParams.delete('page');
-  } else {
-    url.searchParams.set('page', page);
-  }
-
-  if (page === 'orders') {
-    url.searchParams.set('ordersTab', options.ordersTab ?? 'orders');
-  } else {
-    url.searchParams.delete('ordersTab');
-  }
-
-  if (page !== 'accounting') {
-    url.searchParams.delete('accountingTab');
-  }
-
-  if (page === 'orders' && options.createOrder) {
-    url.searchParams.set('createOrder', options.createOrder);
-  } else {
-    url.searchParams.delete('createOrder');
-  }
-
-  if (page === 'orders' && options.saleId) {
-    url.searchParams.set('saleId', options.saleId);
-  } else {
-    url.searchParams.delete('saleId');
-  }
-
-  return `${url.pathname}${url.search}${url.hash}`;
-};
-
-const setDashboardUrl = (
-  page: PageKey,
-  ordersTab: OrdersTab,
-  createOrder: CreateOrderTab | null,
-  saleId: string | null = null,
-) => {
-  window.history.replaceState(
-    null,
-    '',
-    getDashboardHref(page, {
-      ordersTab,
-      createOrder: createOrder ?? undefined,
-      saleId: saleId ?? undefined,
-    }),
-  );
-};
-
 const setOrdersTabPreference = (tab: OrdersTab) => {
   window.localStorage.setItem(ordersTabStorageKey, tab);
 };
@@ -279,6 +212,9 @@ export const DashboardPage = () => {
     () => getSaleIdFromUrl() || null,
   );
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
+  const [syncedAccountingTab, setSyncedAccountingTab] = useState<AccountingTab | null>(
+    () => parseDashboardLocationFromWindow().accountingTab,
+  );
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
@@ -336,14 +272,100 @@ export const DashboardPage = () => {
     canViewOrders,
     t,
   ]);
-  const changeOrdersTab = useCallback((tab: OrdersTab) => {
-    if (!availableOrdersTabs.includes(tab)) {
-      actions.showError(t('errors.permissionTab'));
-      return;
+  const accountingPopstateSyncRef = useRef<
+    ((tab: AccountingTab | null) => void) | null
+  >(null);
+  const hasNormalizedInitialUrlRef = useRef(false);
+  const registerAccountingPopstateSync = useCallback(
+    (sync: ((tab: AccountingTab | null) => void) | null) => {
+      accountingPopstateSyncRef.current = sync;
+    },
+    [],
+  );
+  const buildLocationFromState = useCallback(
+    (): DashboardLocation => {
+      const parsed = parseDashboardLocationFromWindow();
+
+      return {
+        page: activePage,
+        ordersTab: effectiveOrdersTab,
+        createOrder:
+          activePage === 'orders' && isCreateOrderOpen
+            ? getCreateOrderForOrdersTab(effectiveOrdersTab)
+            : null,
+        saleId:
+          activePage === 'orders' && !isCreateOrderOpen
+            ? urlSelectedSaleId
+            : null,
+        accountingTab:
+          activePage === 'accounting' ? parsed.accountingTab : null,
+      };
+    },
+    [
+      activePage,
+      effectiveOrdersTab,
+      isCreateOrderOpen,
+      urlSelectedSaleId,
+    ],
+  );
+  const applyLocationToState = useCallback((location: DashboardLocation) => {
+    setActivePage(location.page);
+    setActiveOrdersTab(location.ordersTab);
+    setIsCreateOrderOpen(Boolean(location.createOrder));
+    setUrlSelectedSaleId(location.saleId);
+    setExternalSelectedSaleId(location.saleId);
+    if (location.page !== 'orders') {
+      setIsCreateOrderOpen(false);
     }
-    setOrdersTabPreference(tab);
-    setActiveOrdersTab(tab);
-  }, [actions, availableOrdersTabs, t]);
+
+    const nextInviteToken = getInvitationTokenFromUrl();
+    setInviteToken(nextInviteToken);
+    setInviteState(
+      nextInviteToken ? createLoadingInviteState() : createEmptyInviteState(),
+    );
+    setSyncedAccountingTab(location.accountingTab);
+    accountingPopstateSyncRef.current?.(location.accountingTab);
+  }, []);
+  const navigateTo = useCallback(
+    (next: Partial<DashboardLocation>, options?: { replace?: boolean }) => {
+      const parsed = parseDashboardLocationFromWindow();
+      const location: DashboardLocation = {
+        ...buildLocationFromState(),
+        accountingTab:
+          next.page === 'accounting' || activePage === 'accounting'
+            ? (next.accountingTab ?? parsed.accountingTab)
+            : null,
+        ...next,
+      };
+
+      if (location.page !== 'accounting') {
+        location.accountingTab = null;
+      }
+
+      applyLocationToState(location);
+      navigateDashboard(location, options);
+    },
+    [activePage, applyLocationToState, buildLocationFromState],
+  );
+  const changeOrdersTab = useCallback(
+    (tab: OrdersTab, options?: { replace?: boolean }) => {
+      if (!availableOrdersTabs.includes(tab)) {
+        actions.showError(t('errors.permissionTab'));
+        return;
+      }
+      setOrdersTabPreference(tab);
+      navigateTo(
+        {
+          page: 'orders',
+          ordersTab: tab,
+          createOrder: null,
+          saleId: null,
+        },
+        options,
+      );
+    },
+    [actions, availableOrdersTabs, navigateTo, t],
+  );
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
@@ -428,15 +450,7 @@ export const DashboardPage = () => {
 
   useEffect(() => {
     window.localStorage.setItem(ordersTabStorageKey, activeOrdersTab);
-    setDashboardUrl(
-      activePage,
-      activeOrdersTab,
-      activePage === 'orders' && isCreateOrderOpen
-        ? getCreateOrderForOrdersTab(activeOrdersTab)
-        : null,
-      activePage === 'orders' && !isCreateOrderOpen ? urlSelectedSaleId : null,
-    );
-  }, [activeOrdersTab, activePage, isCreateOrderOpen, urlSelectedSaleId]);
+  }, [activeOrdersTab]);
 
   useEffect(() => {
     window.localStorage.setItem(activePageStorageKey, activePage);
@@ -447,15 +461,23 @@ export const DashboardPage = () => {
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
-    const syncInviteToken = () => {
-      const nextInviteToken = getInvitationTokenFromUrl();
-      setInviteToken(nextInviteToken);
-      setInviteState(nextInviteToken ? createLoadingInviteState() : createEmptyInviteState());
+    if (!currentEmployee || hasNormalizedInitialUrlRef.current) {
+      return;
+    }
+
+    hasNormalizedInitialUrlRef.current = true;
+    navigateTo(buildLocationFromState(), { replace: true });
+  }, [buildLocationFromState, currentEmployee, navigateTo]);
+
+  useEffect(() => {
+    const syncFromHistory = () => {
+      applyLocationToState(parseDashboardLocationFromWindow());
     };
 
-    window.addEventListener('popstate', syncInviteToken);
-    return () => window.removeEventListener('popstate', syncInviteToken);
-  }, []);
+    window.addEventListener('popstate', syncFromHistory);
+
+    return () => window.removeEventListener('popstate', syncFromHistory);
+  }, [applyLocationToState]);
 
   useEffect(() => {
     if (!inviteToken || currentEmployee) {
@@ -491,8 +513,17 @@ export const DashboardPage = () => {
       return;
     }
 
-    setDashboardUrl('home', activeOrdersTab, null);
-  }, [activeOrdersTab, currentEmployee, isAuthLoading]);
+    navigateTo(
+      {
+        page: 'home',
+        ordersTab: activeOrdersTab,
+        createOrder: null,
+        saleId: null,
+        accountingTab: null,
+      },
+      { replace: true },
+    );
+  }, [activeOrdersTab, currentEmployee, isAuthLoading, navigateTo]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -500,12 +531,21 @@ export const DashboardPage = () => {
     }
 
     if (!canAccessPage(activePage)) {
-      setActivePage('home');
+      navigateTo(
+        {
+          page: 'home',
+          createOrder: null,
+          saleId: null,
+          accountingTab: null,
+        },
+        { replace: true },
+      );
     }
   }, [
     activePage,
     canAccessPage,
     isAuthLoading,
+    navigateTo,
     t,
   ]);
 
@@ -514,7 +554,7 @@ export const DashboardPage = () => {
       return;
     }
 
-    changeOrdersTab(fallbackOrdersTab);
+    changeOrdersTab(fallbackOrdersTab, { replace: true });
   }, [
     activeOrdersTab,
     availableOrdersTabs,
@@ -523,34 +563,23 @@ export const DashboardPage = () => {
     fallbackOrdersTab,
   ]);
 
-  useEffect(() => {
-    const syncPageFromHistory = () => {
-      const createOrderTab = getCreateOrderFromUrl();
-      setActivePage(getPageFromUrl() ?? getStoredActivePage());
-      setActiveOrdersTab(
-        createOrderTab ? getOrdersTabForCreateOrder(createOrderTab) : getOrdersTabFromUrl() ?? getStoredOrdersTab(),
-      );
-      setIsCreateOrderOpen(Boolean(createOrderTab));
-      setExternalSelectedSaleId(getSaleIdFromUrl() || null);
-      setUrlSelectedSaleId(getSaleIdFromUrl() || null);
-    };
-
-    window.addEventListener('popstate', syncPageFromHistory);
-
-    return () => window.removeEventListener('popstate', syncPageFromHistory);
-  }, []);
-
   const openOrdersPage = () => {
     if (!canViewOrders) {
       actions.showError(t('errors.permissionOrders'));
       return;
     }
-    setActivePage('orders');
-    if (!availableOrdersTabs.includes(activeOrdersTab)) {
-      changeOrdersTab(fallbackOrdersTab);
-    }
-    setIsCreateOrderOpen(false);
-    setUrlSelectedSaleId(null);
+
+    const ordersTab = availableOrdersTabs.includes(activeOrdersTab)
+      ? activeOrdersTab
+      : fallbackOrdersTab;
+
+    navigateTo({
+      page: 'orders',
+      ordersTab,
+      createOrder: null,
+      saleId: null,
+      accountingTab: null,
+    });
   };
 
   const openCreateOrder = (tab: OrdersTab) => {
@@ -559,10 +588,13 @@ export const DashboardPage = () => {
       return;
     }
 
-    setActivePage('orders');
-    changeOrdersTab(tab);
-    setIsCreateOrderOpen(true);
-    setUrlSelectedSaleId(null);
+    navigateTo({
+      page: 'orders',
+      ordersTab: tab,
+      createOrder: getCreateOrderForOrdersTab(tab),
+      saleId: null,
+      accountingTab: null,
+    });
   };
 
   const openPage = (page: PageKey) => {
@@ -570,33 +602,73 @@ export const DashboardPage = () => {
       actions.showError(t('errors.permissionPage'));
       return;
     }
-    setActivePage(page);
-    setIsCreateOrderOpen(false);
+
+    navigateTo({
+      page,
+      createOrder: null,
+      saleId: null,
+      accountingTab: null,
+    });
   };
 
   const openSaleFromClientCard = (sale: { id: string; kind: 'repair' | 'sale' }) => {
-    setActivePage('orders');
-    setIsCreateOrderOpen(false);
-    changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
+    navigateTo({
+      page: 'orders',
+      ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
+      createOrder: null,
+      saleId: sale.id,
+      accountingTab: null,
+    });
     setExternalSelectedSaleId(sale.id);
-    setUrlSelectedSaleId(sale.id);
   };
 
   const openCreatedOrder = (sale: { id: string; kind: 'repair' | 'sale' }) => {
-    setActivePage('orders');
-    setIsCreateOrderOpen(false);
-    changeOrdersTab(sale.kind === 'sale' ? 'sales' : 'orders');
+    navigateTo({
+      page: 'orders',
+      ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
+      createOrder: null,
+      saleId: sale.id,
+      accountingTab: null,
+    });
     setExternalSelectedSaleId(sale.id);
-    setUrlSelectedSaleId(sale.id);
   };
+
+  const handleSelectedSaleIdChange = useCallback(
+    (saleId: string | null) => {
+      navigateTo({
+        page: 'orders',
+        ordersTab: effectiveOrdersTab,
+        createOrder: null,
+        saleId,
+        accountingTab: null,
+      });
+    },
+    [effectiveOrdersTab, navigateTo],
+  );
+
+  const handleNavigateAccountingTab = useCallback(
+    (tab: AccountingTab) => {
+      navigateTo({
+        page: 'accounting',
+        accountingTab: tab,
+        createOrder: null,
+        saleId: null,
+      });
+    },
+    [navigateTo],
+  );
 
   const openClientCardFromOrders = (clientId: string) => {
     if (!canManageClients) {
       actions.showError(t('errors.permissionClients'));
       return;
     }
-    setActivePage('clients');
-    setIsCreateOrderOpen(false);
+    navigateTo({
+      page: 'clients',
+      createOrder: null,
+      saleId: null,
+      accountingTab: null,
+    });
     setOpenClientCardRequestId(clientId);
   };
 
@@ -610,10 +682,16 @@ export const DashboardPage = () => {
       setApiAuthToken(session.token);
       setCurrentEmployee(session.employee);
       saveEmployeeSnapshot(session.employee);
-      setActivePage('home');
-      setActiveOrdersTab('orders');
-      setIsCreateOrderOpen(false);
-      setDashboardUrl('home', 'orders', null);
+      navigateTo(
+        {
+          page: 'home',
+          ordersTab: 'orders',
+          createOrder: null,
+          saleId: null,
+          accountingTab: null,
+        },
+        { replace: true },
+      );
       actions.showError('');
       actions.showSuccessMessage('');
     } catch (error) {
@@ -642,13 +720,19 @@ export const DashboardPage = () => {
       setLoginForm({ username: '', password: '' });
       setInviteToken('');
       setInviteState(createEmptyInviteState());
-      setActivePage('home');
-      setActiveOrdersTab('orders');
-      setIsCreateOrderOpen(false);
       const url = new URL(window.location.href);
       url.searchParams.delete('inviteToken');
       window.history.replaceState(null, '', url);
-      setDashboardUrl('home', 'orders', null);
+      navigateTo(
+        {
+          page: 'home',
+          ordersTab: 'orders',
+          createOrder: null,
+          saleId: null,
+          accountingTab: null,
+        },
+        { replace: true },
+      );
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : t('errors.registerFailed'));
     } finally {
@@ -666,10 +750,16 @@ export const DashboardPage = () => {
       window.localStorage.removeItem(employeeSnapshotStorageKey);
       setApiAuthToken(null);
       setCurrentEmployee(null);
-      setIsCreateOrderOpen(false);
-      setActiveOrdersTab('orders');
-      setActivePage('home');
-      setDashboardUrl('home', 'orders', null);
+      navigateTo(
+        {
+          page: 'home',
+          ordersTab: 'orders',
+          createOrder: null,
+          saleId: null,
+          accountingTab: null,
+        },
+        { replace: true },
+      );
     }
   };
 
@@ -873,7 +963,7 @@ export const DashboardPage = () => {
               type="button"
               className="topbar-sync-label topbar-sync-button"
               title={t('common.reloadData')}
-              onClick={() => window.location.reload()}
+              onClick={() => void hardReloadApp()}
             >
               {`${t('common.lastSync')}: ${new Date(state.lastSyncAt).toLocaleTimeString(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US')}`}
             </button>
@@ -958,7 +1048,7 @@ export const DashboardPage = () => {
                   onSuccess={actions.showSuccessMessage}
                   externalSelectedSaleId={externalSelectedSaleId}
                   onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
-                  onSelectedSaleIdChange={setUrlSelectedSaleId}
+                  onSelectedSaleIdChange={handleSelectedSaleIdChange}
                   onOpenClientCard={openClientCardFromOrders}
                   clientDevices={state.clientDevices}
                   catalogProducts={state.catalogProducts}
@@ -1040,6 +1130,9 @@ export const DashboardPage = () => {
               onSuccess={actions.showSuccessMessage}
               sales={state.sales}
               onOpenSaleCard={openSaleFromClientCard}
+              onNavigateAccountingTab={handleNavigateAccountingTab}
+              registerAccountingPopstateSync={registerAccountingPopstateSync}
+              syncedAccountingTab={syncedAccountingTab}
             />
           ) : activePage === 'catalog' && canManageInventory ? (
             <ProductCatalogPanel
@@ -1110,6 +1203,7 @@ export const DashboardPage = () => {
               currentEmployeeName={currentEmployee.name}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
+              onOpenSaleCard={openSaleFromClientCard}
             />
           ) : (
             <AnalyticsHeroSection

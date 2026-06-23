@@ -1489,7 +1489,7 @@ export const createDashboardActions = ({
             registrationId: '',
             iban: '',
             note: payload.discountCode ? `Discount code: ${payload.discountCode.trim()}` : '',
-            status: 'new',
+            status: '',
           }));
 
         if (!existingClient) {

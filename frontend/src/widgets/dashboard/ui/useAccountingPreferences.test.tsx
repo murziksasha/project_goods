@@ -25,13 +25,24 @@ const cashbox = (id: string): Cashbox => ({
 const Harness = ({
   cashboxes = [],
   isCashboxesOrderHydrated = false,
+  onNavigateAccountingTab,
+  registerPopstateSync,
+  syncedAccountingTab = null,
 }: {
   cashboxes?: Cashbox[];
   isCashboxesOrderHydrated?: boolean;
+  onNavigateAccountingTab?: (tab: 'cashboxes' | 'transactions' | 'orders' | 'reports') => void;
+  registerPopstateSync?: (
+    sync: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null,
+  ) => void;
+  syncedAccountingTab?: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null;
 }) => {
   const preferences = useAccountingPreferences({
     cashboxes,
     isCashboxesOrderHydrated,
+    onNavigateAccountingTab,
+    registerPopstateSync,
+    syncedAccountingTab,
   });
 
   return (
@@ -96,6 +107,7 @@ describe('useAccountingPreferences', () => {
   });
 
   it('initializes from URL first and persists preference changes', () => {
+    const onNavigateAccountingTab = vi.fn();
     window.localStorage.setItem(accountingTabStorageKey, 'orders');
     window.localStorage.setItem(accountingSettingsOpenStorageKey, 'true');
     window.localStorage.setItem(accountingFinanceSettingsTabStorageKey, 'currencies');
@@ -117,6 +129,7 @@ describe('useAccountingPreferences', () => {
       <Harness
         cashboxes={[cashbox('cashbox-2'), cashbox('cashbox-1')]}
         isCashboxesOrderHydrated
+        onNavigateAccountingTab={onNavigateAccountingTab}
       />,
     );
 
@@ -134,7 +147,7 @@ describe('useAccountingPreferences', () => {
     fireEvent.click(screen.getByRole('button', { name: 'reports' }));
     expect(screen.getByTestId('active-tab')).toHaveTextContent('reports');
     expect(window.localStorage.getItem(accountingTabStorageKey)).toBe('reports');
-    expect(window.location.search).toBe('?accountingTab=reports');
+    expect(onNavigateAccountingTab).toHaveBeenCalledWith('reports');
 
     fireEvent.click(screen.getByRole('button', { name: 'toggle settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'currencies' }));
@@ -160,7 +173,11 @@ describe('useAccountingPreferences', () => {
     ).toBeNull();
   });
 
-  it('falls back for invalid stored values and syncs from popstate', async () => {
+  it('falls back for invalid stored values and syncs from history callbacks', async () => {
+    const popstateSyncHolder: {
+      current: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null;
+    } = { current: null };
+
     window.localStorage.setItem(accountingTabStorageKey, 'bad');
     window.localStorage.setItem(accountingFinanceSettingsTabStorageKey, 'bad');
     window.localStorage.setItem(
@@ -168,26 +185,54 @@ describe('useAccountingPreferences', () => {
       JSON.stringify({ deposit: 123, transfer: null }),
     );
 
-    render(<Harness />);
+    render(
+      <Harness
+        registerPopstateSync={(sync) => {
+          popstateSyncHolder.current = sync;
+        }}
+      />,
+    );
 
     expect(screen.getByTestId('active-tab')).toHaveTextContent('cashboxes');
     expect(screen.getByTestId('settings-tab')).toHaveTextContent('cashboxes');
     expect(screen.getByTestId('targets')).toHaveTextContent('{}');
 
-    window.history.replaceState(null, '', '/?accountingTab=orders');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    popstateSyncHolder.current?.('orders');
 
     await waitFor(() =>
       expect(screen.getByTestId('active-tab')).toHaveTextContent('orders'),
     );
   });
 
-  it('ignores popstate without a valid accounting tab', () => {
-    render(<Harness />);
+  it('syncs from syncedAccountingTab prop', async () => {
+    const { rerender } = render(<Harness syncedAccountingTab='transactions' />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('active-tab')).toHaveTextContent('transactions'),
+    );
+
+    rerender(<Harness syncedAccountingTab='reports' />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('active-tab')).toHaveTextContent('reports'),
+    );
+  });
+
+  it('ignores popstate sync without a valid accounting tab', () => {
+    const popstateSyncHolder: {
+      current: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null;
+    } = { current: null };
+
+    render(
+      <Harness
+        registerPopstateSync={(sync) => {
+          popstateSyncHolder.current = sync;
+        }}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'reports' }));
-    window.history.replaceState(null, '', '/?accountingTab=bad');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    popstateSyncHolder.current?.(null);
 
     expect(screen.getByTestId('active-tab')).toHaveTextContent('reports');
   });
@@ -203,7 +248,7 @@ describe('useAccountingPreferences', () => {
     expect(window.localStorage.getItem(accountingCashboxOrderStorageKey)).toBeNull();
   });
 
-  it('survives localStorage and history failures', () => {
+  it('survives localStorage failures', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('storage unavailable');
     });
@@ -212,9 +257,6 @@ describe('useAccountingPreferences', () => {
     });
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('storage unavailable');
-    });
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
-      throw new Error('history unavailable');
     });
 
     render(

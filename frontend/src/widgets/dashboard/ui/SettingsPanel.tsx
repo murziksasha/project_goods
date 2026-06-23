@@ -23,6 +23,7 @@ import {
   settingsTabStorageKey,
   type SettingsTab,
 } from '../model/settings-panel';
+import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import { PrintFormBuilder } from './PrintFormBuilder';
 
 type SettingsPanelProps = {
@@ -250,6 +251,9 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  const [backupsPage, setBackupsPage] = useState(1);
+  const [backupsPageSize, setBackupsPageSize] = useState(30);
+
   const refreshBackups = async () => {
     setIsLoading(true);
     setError('');
@@ -270,6 +274,18 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     if (!canManageBackups) return;
     void refreshBackups();
   }, [canManageBackups]);
+
+  const paginatedBackups = useMemo(() => {
+    const start = (backupsPage - 1) * backupsPageSize;
+    return backups.slice(start, start + backupsPageSize);
+  }, [backups, backupsPage, backupsPageSize]);
+
+  useEffect(() => {
+    const pageCount = Math.max(1, Math.ceil(backups.length / backupsPageSize));
+    if (backupsPage > pageCount) {
+      setBackupsPage(pageCount);
+    }
+  }, [backups.length, backupsPage, backupsPageSize]);
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
@@ -445,7 +461,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         <p className="empty-state">{t('settings.backups.empty')}</p>
       ) : (
         <div className="backup-list" aria-label={t('settings.backups.archivesAriaLabel')}>
-          {backups.map((backup) => (
+          {paginatedBackups.map((backup) => (
             <article
               key={backup.id}
               className={`backup-card backup-card-${backup.status}`}
@@ -519,6 +535,19 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
           ))}
         </div>
       )}
+
+      {backups.length > 0 ? (
+        <PaginationPanel
+          totalItems={backups.length}
+          page={backupsPage}
+          pageSize={backupsPageSize}
+          onPageChange={setBackupsPage}
+          onPageSizeChange={(nextPageSize) => {
+            setBackupsPageSize(nextPageSize);
+            setBackupsPage(1);
+          }}
+        />
+      ) : null}
 
       {deleteTarget ? (
         <div className="modal-backdrop" role="presentation">

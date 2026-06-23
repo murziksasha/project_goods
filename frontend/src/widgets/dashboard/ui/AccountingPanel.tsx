@@ -54,6 +54,11 @@ type AccountingPanelProps = {
   onSuccess: (message: string) => void;
   sales: Sale[];
   onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
+  onNavigateAccountingTab?: (tab: AccountingTab) => void;
+  registerAccountingPopstateSync?: (
+    sync: ((tab: AccountingTab | null) => void) | null,
+  ) => void;
+  syncedAccountingTab?: AccountingTab | null;
 };
 
 export const AccountingPanel = ({
@@ -62,6 +67,9 @@ export const AccountingPanel = ({
   onSuccess,
   sales,
   onOpenSaleCard,
+  onNavigateAccountingTab,
+  registerAccountingPopstateSync,
+  syncedAccountingTab = null,
 }: AccountingPanelProps) => {
   const { t } = useTranslation();
   const {
@@ -91,6 +99,9 @@ export const AccountingPanel = ({
   } = useAccountingPreferences({
     cashboxes,
     isCashboxesOrderHydrated,
+    onNavigateAccountingTab,
+    registerPopstateSync: registerAccountingPopstateSync,
+    syncedAccountingTab,
   });
 
   const [selectedSupplierOrder, setSelectedSupplierOrder] =

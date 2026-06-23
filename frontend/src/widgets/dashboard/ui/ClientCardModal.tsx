@@ -5,10 +5,15 @@ import type {
   ClientStatus,
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getClientStatusColor } from '../../../entities/client/model/constants';
+import {
+  getClientStatusClass,
+  getClientStatusColor,
+  getEffectiveClientStatusLogic,
+} from '../../../entities/client/model/constants';
 import { formatDateTime } from '../../../shared/lib/format';
 import {
   formatClientIncome,
+  getClientSaleIncome,
   formatItemList,
   isOptionalAddressValid,
   isOptionalIbanValid,
@@ -36,6 +41,8 @@ type ClientCardModalProps = {
   selectedClient: Client | null;
   selectedClientId: string | null;
   statusOptions: ClientStatusOption[];
+  clientVisitCount?: number;
+  clientTotalRevenue?: number;
   onClose: () => void;
   onMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>>;
   onOpenSaleCard: (sale: Sale) => void;
@@ -62,6 +69,8 @@ export const ClientCardModal = ({
   selectedClient,
   selectedClientId,
   statusOptions,
+  clientVisitCount,
+  clientTotalRevenue,
   onClose,
   onMainTabFormChange,
   onOpenSaleCard,
@@ -100,6 +109,21 @@ export const ClientCardModal = ({
             <p className='panel-subtitle'>
               {selectedClient?.phone ?? historyClient?.phone ?? ''}
             </p>
+            {(() => {
+              const visits = clientVisitCount ?? activeHistoryRows.length;
+              const stored = (selectedClient?.status ?? historyClient?.status ?? '') as ClientStatus | '';
+              const effective = getEffectiveClientStatusLogic(stored || '', visits);
+              if (!effective) return null;
+              return (
+                <span
+                  className={`client-status-badge ${getClientStatusClass(effective)}`}
+                  style={{ backgroundColor: getClientStatusColor(effective), color: 'white', fontSize: '0.75rem', padding: '1px 6px', marginLeft: 8 }}
+                  title="Effective status (auto if not manually overridden)"
+                >
+                  {effective}
+                </span>
+              );
+            })()}
           </div>
           <button type='button' className='ghost-button' onClick={onClose}>
             x
@@ -149,11 +173,27 @@ export const ClientCardModal = ({
                 : t('clients.card.noSales')}
             </p>
           ) : (
-            <ClientHistoryTable
-              rows={activeHistoryRows}
-              tab={clientCardTab}
-              onOpenSaleCard={onOpenSaleCard}
-            />
+            <>
+              <div className="history-stats" style={{ marginBottom: 8 }}>
+                <div className="metric-card compact">
+                  <span className="metric-label">Total for client</span>
+                  <strong>
+                    {formatClientIncome(
+                      clientTotalRevenue ??
+                        activeHistoryRows.reduce(
+                          (sum, sale) => sum + getClientSaleIncome(sale),
+                          0,
+                        ),
+                    )}
+                  </strong>
+                </div>
+              </div>
+              <ClientHistoryTable
+                rows={activeHistoryRows}
+                tab={clientCardTab}
+                onOpenSaleCard={onOpenSaleCard}
+              />
+            </>
           )}
         </div>
       </article>
@@ -389,7 +429,7 @@ const ClientHistoryTable = ({
                 {sale.status}
               </td>
               <td data-label={t('clients.card.history.columns.amount')}>
-                {formatClientIncome(sale.salePrice * sale.quantity)}
+                {formatClientIncome(getClientSaleIncome(sale))}
               </td>
             </tr>
           ))}

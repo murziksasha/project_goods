@@ -34,6 +34,16 @@ export const ordersTabs: OrdersTab[] = [
 ];
 export const ordersTabStorageKey = 'project-goods.orders-tab';
 
+export {
+  buildDashboardHref,
+  getDashboardHref,
+  getOrderLink,
+  navigateDashboard,
+  parseDashboardLocation,
+  parseDashboardLocationFromWindow,
+  type DashboardLocation,
+} from './dashboard-navigation';
+
 export const getPageFromUrl = (): PageKey => {
   const page = new URLSearchParams(window.location.search).get(
     'page',
@@ -77,52 +87,3 @@ export const getOrdersTabForCreateOrder = (
 export const getCreateOrderForOrdersTab = (
   tab: OrdersTab,
 ): CreateOrderTab => (tab === 'sales' ? 'sale' : 'repair');
-
-export const getDashboardHref = (
-  page: PageKey,
-  options: {
-    ordersTab?: OrdersTab;
-    createOrder?: CreateOrderTab;
-  } = {},
-) => {
-  const url = new URL(window.location.href);
-
-  if (page === 'home') {
-    url.searchParams.delete('page');
-  } else {
-    url.searchParams.set('page', page);
-  }
-
-  if (page === 'orders') {
-    url.searchParams.set('ordersTab', options.ordersTab ?? 'orders');
-  } else {
-    url.searchParams.delete('ordersTab');
-  }
-
-  if (page !== 'accounting') {
-    url.searchParams.delete('accountingTab');
-  }
-
-  if (page === 'orders' && options.createOrder) {
-    url.searchParams.set('createOrder', options.createOrder);
-  } else {
-    url.searchParams.delete('createOrder');
-  }
-
-  return `${url.pathname}${url.search}${url.hash}`;
-};
-
-export const setDashboardUrl = (
-  page: PageKey,
-  ordersTab: OrdersTab,
-  createOrder: CreateOrderTab | null,
-) => {
-  window.history.replaceState(
-    null,
-    '',
-    getDashboardHref(page, {
-      ordersTab,
-      createOrder: createOrder ?? undefined,
-    }),
-  );
-};
