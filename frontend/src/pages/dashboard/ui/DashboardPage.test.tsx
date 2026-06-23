@@ -247,6 +247,36 @@ describe('DashboardPage auth recovery', () => {
   });
 });
 
+describe('DashboardPage browser history', () => {
+  it('pushes history entries for in-app navigation and restores state on popstate', async () => {
+    const pushState = vi.spyOn(window.history, 'pushState');
+    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    window.localStorage.setItem(authTokenStorageKey, 'valid-token');
+    window.history.replaceState(null, '', '/');
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /Orders/i }));
+    expect(pushState).toHaveBeenCalled();
+    expect(window.location.search).toContain('page=orders');
+
+    await waitFor(() => {
+      expect(screen.getByText('Orders workspace')).toBeInTheDocument();
+    });
+
+    window.history.replaceState(null, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+    });
+  });
+});
+
 describe('DashboardPage last sync reload', () => {
   it('clicking Last sync hard reloads the page and preserves login state', async () => {
     const reloadSpy = vi.fn();

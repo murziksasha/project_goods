@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import { getOrderLink } from '../../../pages/dashboard/model/dashboard-navigation';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { getStockSupplierLabel } from '../model/stock-balance';
 import {
@@ -177,6 +178,7 @@ export const StockTable = ({
   onOpenSerial,
   onDelete,
   onOpenSupplierOrder,
+  onOpenSaleCard,
 }: {
   products: Product[];
   isLoading: boolean;
@@ -197,6 +199,7 @@ export const StockTable = ({
     supplierOrderId: string,
     itemIndex: number,
   ) => void;
+  onOpenSaleCard?: (sale: Sale) => void;
 }) => {
   const { t } = useTranslation();
   const isPageSelected =
@@ -292,18 +295,6 @@ export const StockTable = ({
                   : '';
                 const warehouseBadgeStyle =
                   getWarehouseBadgeAccentStyle(serviceCenterColor);
-                const getOrderHref = (
-                  sale: Sale,
-                  tab: 'orders' | 'sales',
-                ) => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('page', 'orders');
-                  url.searchParams.set('ordersTab', tab);
-                  url.searchParams.set('saleId', sale.id);
-                  url.searchParams.delete('createOrder');
-                  return `${url.pathname}${url.search}${url.hash}`;
-                };
-
                 return (
                   <>
                     {visibleColumns.map((columnKey) => (
@@ -383,12 +374,20 @@ export const StockTable = ({
                                   {index > 0 ? ', ' : null}
                                   <a
                                     className='warehouse-link-badge'
-                                    href={getOrderHref(
-                                      sale,
-                                      sale.kind === 'sale'
-                                        ? 'sales'
-                                        : 'orders',
-                                    )}
+                                    href={getOrderLink(sale.id, sale.kind)}
+                                    onClick={(event) => {
+                                      if (
+                                        event.button !== 0 ||
+                                        event.metaKey ||
+                                        event.ctrlKey ||
+                                        event.shiftKey ||
+                                        event.altKey
+                                      ) {
+                                        return;
+                                      }
+                                      event.preventDefault();
+                                      onOpenSaleCard?.(sale);
+                                    }}
                                   >
                                     {sale.recordNumber ||
                                       sale.id.slice(0, 8)}

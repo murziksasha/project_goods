@@ -20,11 +20,19 @@ export type FinanceSettingsTab = 'cashboxes' | 'currencies';
 type UseAccountingPreferencesOptions = {
   cashboxes: Cashbox[];
   isCashboxesOrderHydrated: boolean;
+  onNavigateAccountingTab?: (tab: AccountingTab) => void;
+  registerPopstateSync?: (
+    sync: ((tab: AccountingTab | null) => void) | null,
+  ) => void;
+  syncedAccountingTab?: AccountingTab | null;
 };
 
 export const useAccountingPreferences = ({
   cashboxes,
   isCashboxesOrderHydrated,
+  onNavigateAccountingTab,
+  registerPopstateSync,
+  syncedAccountingTab = null,
 }: UseAccountingPreferencesOptions) => {
   const [activeTab, setActiveTab] = useState<AccountingTab>(
     () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
@@ -77,31 +85,26 @@ export const useAccountingPreferences = ({
   }, [activeTab]);
 
   useEffect(() => {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('accountingTab', activeTab);
-      window.history.replaceState(
-        null,
-        '',
-        `${url.pathname}${url.search}${url.hash}`,
-      );
-    } catch {
-      // Ignore URL update errors.
+    if (!registerPopstateSync) {
+      return;
     }
-  }, [activeTab]);
+
+    registerPopstateSync((tab) => {
+      if (tab) {
+        setActiveTab(tab);
+      }
+    });
+
+    return () => {
+      registerPopstateSync(null);
+    };
+  }, [registerPopstateSync]);
 
   useEffect(() => {
-    const syncTabFromHistory = () => {
-      const tabFromUrl = getAccountingTabFromUrl();
-      if (!tabFromUrl) return;
-      setActiveTab(tabFromUrl);
-    };
-
-    window.addEventListener('popstate', syncTabFromHistory);
-    return () => {
-      window.removeEventListener('popstate', syncTabFromHistory);
-    };
-  }, []);
+    if (syncedAccountingTab) {
+      setActiveTab(syncedAccountingTab);
+    }
+  }, [syncedAccountingTab]);
 
   useEffect(() => {
     if (!isCashboxesOrderHydrated || cashboxes.length === 0) return;
@@ -166,13 +169,18 @@ export const useAccountingPreferences = ({
     }
   }, [expandedFinanceSettingsCard]);
 
+  const changeActiveTab = (tab: AccountingTab) => {
+    setActiveTab(tab);
+    onNavigateAccountingTab?.(tab);
+  };
+
   return {
     activeTab,
     expandedFinanceSettingsCard,
     financeSettingsTab,
     isFinanceSettingsOpen,
     lastTargetCashboxByType,
-    setActiveTab,
+    setActiveTab: changeActiveTab,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
     setIsFinanceSettingsOpen,
