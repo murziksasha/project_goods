@@ -1585,9 +1585,9 @@
         "filtersLabel": "Filters:",
         "noFilters": "No filters",
         "noRowsFound": "No rows found.",
-        "productsFilename": "warehouse-products.doc",
-        "locationsFilename": "warehouse-locations.doc",
-        "suppliersFilename": "warehouse-suppliers.doc"
+        "productsFilename": "warehouse-products.xlsx",
+        "locationsFilename": "warehouse-locations.xlsx",
+        "suppliersFilename": "warehouse-suppliers.xlsx"
       },
       "filters": {
         "date": "Date",

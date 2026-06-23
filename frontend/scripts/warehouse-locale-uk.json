@@ -334,9 +334,9 @@
       "filtersLabel": "Фільтри:",
       "noFilters": "Без фільтрів",
       "noRowsFound": "Рядків не знайдено.",
-      "productsFilename": "warehouse-products.doc",
-      "locationsFilename": "warehouse-locations.doc",
-      "suppliersFilename": "warehouse-suppliers.doc"
+      "productsFilename": "warehouse-products.xlsx",
+      "locationsFilename": "warehouse-locations.xlsx",
+      "suppliersFilename": "warehouse-suppliers.xlsx"
     },
     "filters": {
       "date": "Дата",
