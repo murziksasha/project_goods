@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { clientStatuses } from '../../../entities/client/model/constants';
+import {
+  clientStatusOptions,
+  getClientStatusColor,
+} from '../../../entities/client/model/constants';
 import type {
   Client,
   ClientFormValues,
@@ -185,9 +188,13 @@ export const ClientForm = ({
               onChange('status', event.target.value as ClientStatus)
             }
           >
-            {clientStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
+            {clientStatusOptions.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+                style={{ color: getClientStatusColor(option.value) }}
+              >
+                {t(option.labelKey)}
               </option>
             ))}
           </select>

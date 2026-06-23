@@ -15,6 +15,7 @@ import type {
   ClientStatus,
 } from '../../../entities/client/model/types';
 import { clientMatchesPhoneQuery } from '../../../entities/client/lib/phone-match';
+import { clientStatusOptions } from '../../../entities/client/model/constants';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
   isValidUkrainianPhone,
@@ -86,17 +87,6 @@ type ClientsWorkspaceProps = {
 };
 
 const MAX_PHONE_LENGTH = 10;
-const clientStatusOptions: Array<{
-  labelKey: string;
-  value: ClientStatus | '';
-}> = [
-  { labelKey: 'clients.statusValues.empty', value: '' },
-  { labelKey: 'clients.statusValues.new', value: 'new' },
-  { labelKey: 'clients.statusValues.blacklist', value: 'blacklist' },
-  { labelKey: 'clients.statusValues.vip', value: 'vip' },
-  { labelKey: 'clients.statusValues.opt', value: 'opt' },
-  { labelKey: 'clients.statusValues.ok', value: 'ok' },
-];
 
 const getMetaFieldFromNote = (
   note: string,
@@ -169,7 +159,7 @@ export const ClientsWorkspace = ({
   const filterStatusOptions = useMemo(
     (): Array<{
       labelKey: string;
-      value: ClientStatus | '' | 'all';
+      value: ClientStatus | 'all';
     }> => [{ labelKey: 'clients.filters.statusAll', value: 'all' }, ...clientStatusOptions],
     [],
   );
@@ -778,7 +768,6 @@ export const ClientsWorkspace = ({
           mainTabPhoneError={mainTabPhoneError}
           selectedClient={selectedClient}
           selectedClientId={selectedClientId}
-          statusOptions={clientStatusOptions}
           onClearPhoneError={() => setMainTabPhoneError(null)}
           onClose={closeClientCard}
           onMainTabFormChange={handleMainTabFormChange}

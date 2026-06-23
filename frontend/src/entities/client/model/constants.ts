@@ -1,5 +1,18 @@
 import type { ClientStatus } from './types';
 
+export type ClientStatusOption = {
+  labelKey: string;
+  value: ClientStatus;
+};
+
+export const clientStatusOptions: ClientStatusOption[] = [
+  { labelKey: 'clients.statusValues.new', value: 'new' },
+  { labelKey: 'clients.statusValues.blacklist', value: 'blacklist' },
+  { labelKey: 'clients.statusValues.vip', value: 'vip' },
+  { labelKey: 'clients.statusValues.opt', value: 'opt' },
+  { labelKey: 'clients.statusValues.ok', value: 'ok' },
+];
+
 export const clientStatuses: ClientStatus[] = [
   'new',
   'vip',
@@ -54,3 +67,8 @@ export const getEffectiveClientStatusLogic = (
   if (visits >= 3) return 'ok';
   return 'new';
 };
+
+export const getClientEffectiveStatus = (
+  status: ClientStatus | '',
+  visits: number,
+): ClientStatus | '' => getEffectiveClientStatusLogic(status, visits);

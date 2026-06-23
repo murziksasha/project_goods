@@ -13,6 +13,15 @@
 - Clicking request number opens a new browser tab/window (`target="_blank"`).
 - The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
 
+## In-App Navigation and Browser History (2026-06-22)
+
+- Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
+- Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
+- Opening an order/sale card from the orders workspace, client card, or warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
+- URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
+- See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
+
 ## Create Order Sidebar: Client Devices / Client Requests Tabs (2026-05-24)
 
 - In right sidebar block `Client devices`, show devices only from `Repair order` history (`sale.kind = repair`).
