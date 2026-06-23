@@ -50,17 +50,28 @@ Related files:
 
 ## Market & Weather widget
 
-A responsive insights block is shown between the executive header and summary KPI cards when enabled in settings.
+A responsive insights block (**Live insights**) is shown at the **top of the home page**, above the Executive dashboard header, when enabled in settings.
 
-### Collapsed mode
+### Header collapse (quick toggle)
+
+Clicking the **Live insights / Market & weather** header toggles the widget body (exchange rates + weather panels):
+
+- First click → collapse (header, chevron, Refresh, and Settings remain)
+- Second click → expand
+- State persists in browser `localStorage` (`collapsed` override, default `false`)
+
+This is separate from the settings-drawer switch **Show rates and weather** (`contentVisible`).
+
+Related: `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.tsx`
+
+### Settings-drawer collapsed mode
 
 The widget gear drawer includes **Show rates and weather**. When turned off:
 
-- Only the **Live insights** label and **Settings** button remain visible
+- Only the **Live insights** label, **Market & weather** title, and **Settings** button remain visible
 - Refresh, exchange rates, and weather panels are hidden
-- The **Market & weather** title is hidden
 
-This preference is stored per user in `localStorage` (`contentVisible` override).
+This preference is stored per browser in `localStorage` (`contentVisible` override).
 
 ### Exchange rates
 
@@ -120,30 +131,75 @@ The widget shows a non-blocking hint, for example: `Showing weather for Chornomo
 
 - Temperature
 - Humidity
+- Wind speed (km/h), optional gusts, compass direction when available
 - Condition label (clear, partly-cloudy, cloudy, rain, thunder, snow, fog)
+- Precipitation intensity label when applicable (light / moderate / heavy)
 
 #### Weather animation
 
-When animation is enabled, the hero forecast uses a CSS animated scene (`WeatherAnimatedScene.tsx`) instead of a static SVG icon:
+When animation is enabled, the hero forecast uses a layered scene (`WeatherAnimatedScene.tsx`) instead of a static SVG icon. Both **Open-Meteo** and **OpenWeatherMap** normalize to the same `condition` + `intensity` vocabulary on the backend (`mapWeatherCodeToScene` for WMO codes, `mapOpenWeatherIdToScene` for OpenWeather `weather.id`), so animations behave the same regardless of provider.
 
-- **Clear** — sun glow pulse + rotating rays
-- **Partly cloudy / cloudy** — drifting clouds
-- **Rain / thunder** — falling rain drops (+ lightning flash for thunder)
-- **Snow** — drifting snowflakes
-- **Fog** — moving fog layers
+**Layer stack (bottom → top):**
 
-Animation is independent of location resolution and works with preset cities on LAN. It respects `prefers-reduced-motion`.
+| z-index | Layer | Implementation |
+|---------|-------|----------------|
+| 0 | Sky | SVG fallback rect (`WeatherSceneSkyFallback.tsx`) + CSS gradient (`.weather-scene-sky`) with solid color fallback |
+| 1 | Sun glow | CSS radial gradient (`.weather-scene-sun-glow`) |
+| 2 | Sun + rays | SVG (`WeatherSunGraphic.tsx`) with rotating ray group |
+| 3 | Clouds | CSS `box-shadow` puff shapes |
+| 4–5 | Rain / snow / fog / lightning | CSS animated particles |
 
-The widget settings drawer shows a side-by-side preview:
+**Condition → visible elements:**
 
-- **Static icon** — flat SVG (animation off)
-- **Animated scene** — live rain preview (animation on)
+| `condition` | Sky | Sun + rays | Clouds | Extra |
+|-------------|-----|------------|--------|-------|
+| `clear` | blue/yellow | full sun + glow + SVG rays | — | — |
+| `partly-cloudy` | blue | small sun + glow + subtle SVG rays | 2 drifting | — |
+| `cloudy` / `fog` | gray | — | 3 drifting | fog layers for `fog` |
+| `rain` / `thunder` | dark gray | — | 2 dark clouds | rain drops; lightning for `thunder` |
+| `snow` | light gray | — | 1 cloud | snowflakes |
+
+**Intensity modifiers** (class `weather-scene--intensity-light|moderate|heavy`):
+
+| Effect | light | heavy |
+|--------|-------|-------|
+| Rain | fewer/thinner drops, lighter sky | more/thicker drops, darker sky |
+| Snow | smaller flakes | larger flakes, grayer sky |
+| Thunder | slower lightning cadence | faster lightning cadence |
+| Fog | default layers | dense fog layers |
+
+**Wind modifiers** (class `weather-scene--wind-calm|breezy|windy`):
+
+- Wind speed and direction are shown in the copy block (not inside the 148×104px scene)
+- CSS vars `--weather-wind-slant`, `--weather-cloud-drift-duration`, `--weather-rain-duration` adjust particle slant and drift
+- `windy` tier (≥ 29 km/h) adds horizontal wind streaks
+
+Sun rays use **SVG lines** (same geometry as the static icon), not CSS `conic-gradient`, for consistent rendering on localhost and LAN browsers.
+
+Animation is independent of location resolution and works with preset cities on LAN. It respects `prefers-reduced-motion` (layers remain visible; motion stops).
+
+In dev builds, animated scenes expose `data-weather-condition` on the root `.weather-scene` node for LAN vs localhost debugging.
+
+The widget settings drawer shows a side-by-side preview with selectable **condition**, **intensity** (for rain/snow/thunder/fog), and **wind tier**:
+
+- **Static icon** — flat SVG for the selected preview
+- **Animated scene** — live scene for the same selection (respects the animation toggle)
 
 Related files:
 
 - `frontend/src/widgets/dashboard/ui/WeatherVisual.tsx`
 - `frontend/src/widgets/dashboard/ui/WeatherAnimatedScene.tsx`
+- `frontend/src/widgets/dashboard/ui/WeatherSunGraphic.tsx`
+- `frontend/src/widgets/dashboard/ui/WeatherSceneSkyFallback.tsx`
 - `frontend/src/widgets/dashboard/ui/MarketWeatherSettingsDrawer.tsx`
+
+**LAN troubleshooting (animation looks wrong):**
+
+1. Compare `data-weather-condition` (dev) or the condition label — different weather data can explain missing sun (e.g. `cloudy` has no sun by design).
+2. Hard-refresh the LAN client (Ctrl+F5) to avoid a stale CSS bundle.
+3. In DevTools → Elements, confirm `.weather-scene-sky-fallback`, `.weather-scene-sky`, and `.weather-scene-sun-graphic` exist.
+4. Align widget settings (location, provider) and click **Refresh** on both clients.
+5. Ensure LAN clients load the same frontend build as the machine used for verification (`npm run build` + redeploy `dist/` for production).
 
 ### Refresh behavior
 
@@ -166,55 +222,116 @@ Loader component:
 
 Query cache TTL on frontend and backend proxy cache: **15 minutes**.
 
-## Settings model
+## Settings storage (Dashboard tab vs widget drawer)
 
-Settings use a two-layer model:
+Dashboard-related preferences use a **two-layer model**: shared server defaults in **MongoDB** and per-browser widget overrides in **localStorage**.
 
-### Server defaults (`dashboardPreferences` in App Settings)
+```mermaid
+flowchart LR
+  subgraph mongo [MongoDB Settings document]
+    DP[dashboardPreferences]
+  end
+  subgraph browser [Browser localStorage]
+    WO[project-goods.dashboard-widget-overrides]
+    ST[project-goods.settings-tab]
+    DR[project-goods.analytics-date-range]
+  end
+  SettingsPanel -->|PUT /api/settings on Save| mongo
+  MarketWeatherDrawer -->|immediate write| WO
+  HeaderCollapse -->|immediate write| WO
+  getEffectiveSettings --> mongo
+  getEffectiveSettings --> WO
+  MarketWeatherWidget --> getEffectiveSettings
+```
 
-Configured in **Settings → Dashboard**:
+### Layer 1 — Settings → Dashboard tab → **MongoDB**
+
+**UI:** `SettingsPanel` → tab **Dashboard** (`DashboardSettingsSection`)
+
+**Storage:** MongoDB collection `settings`, nested field `dashboardPreferences` (Mongoose model `Settings`).
+
+**API:**
+
+- Load: `GET /api/settings`
+- Save: `PUT /api/settings` (button **Save settings** in Settings page)
+
+**Save flow:**
+
+1. User edits fields in **Settings → Dashboard**
+2. Changes live in React state `settingsForm` (memory only)
+3. On **Save settings** → `updateSettings(settingsForm)` → `PUT /api/settings`
+4. Backend persists `dashboardPreferences` in MongoDB
+5. All users/devices receive the same defaults on next settings load
+
+**Fields (`dashboardPreferences`):**
 
 | Field | Description |
 |-------|-------------|
-| `marketWeatherEnabled` | Show/hide the entire widget |
+| `marketWeatherEnabled` | Show/hide the entire widget on home page |
 | `exchangeRatesEnabled` | Default exchange rates visibility |
 | `weatherEnabled` | Default weather visibility |
 | `weatherAnimationEnabled` | Default weather animation |
 | `defaultWeatherLocation` | `chornomorsk` or `odesa` |
 | `weatherProvider` | `open-meteo` or `openweather` |
 | `openWeatherApiKey` | Required when OpenWeatherMap is selected |
-| `currencies` | Enabled currency codes |
+| `currencies` | Enabled currency codes (`USD`, `EUR`, `GBP`, `PLN`) |
 | `rateProviders` | Enabled rate providers (`nbu`, `privat`, `mono`) |
 | `defaultForecastView` | `today`, `tomorrow`, or `fiveDay` |
 
-Backend schema: `backend/src/domain/settings/model.ts`
+**Source files:**
 
-Frontend types: `frontend/src/entities/settings/model/types.ts`
+- UI: `frontend/src/widgets/dashboard/ui/SettingsPanel.tsx`
+- Types: `frontend/src/entities/settings/model/types.ts`
+- Normalization: `frontend/src/entities/settings/model/dashboardPreferences.ts`
+- API client: `frontend/src/entities/settings/api/settingsApi.ts`
+- Save action: `frontend/src/pages/dashboard/model/dashboard-actions.ts` (`saveSettings`)
+- Backend schema: `backend/src/domain/settings/model.ts`
 
-Normalization: `frontend/src/entities/settings/model/dashboardPreferences.ts`
+**Note:** Monobank (`mono`) is available only in **Settings → Dashboard** (`AVAILABLE_RATE_PROVIDERS`). The widget gear drawer lists only providers already saved in `rateProviders` (default: `nbu`, `privat`).
 
 Legacy settings that stored manual latitude/longitude are migrated to the nearest preset (`odesa` when old Odesa coordinates are detected; otherwise `chornomorsk`).
 
-### Per-user overrides (browser `localStorage`)
+### Layer 2 — Widget gear drawer + header collapse → **localStorage**
 
-Configured from the widget gear drawer:
+**UI:** `MarketWeatherWidget` → **Settings** drawer (`MarketWeatherSettingsDrawer`) and header click (collapse)
+
+**Storage key:** `project-goods.dashboard-widget-overrides`
+
+**Persistence:** immediate on each change (no Save button, not synced to MongoDB, per browser only)
 
 | Override | Description |
 |----------|-------------|
-| `contentVisible` | Show/hide all widget content (header-only collapsed mode) |
-| `exchangeRatesEnabled` | Toggle exchange rates panel |
-| `hiddenCurrencies` | Hide specific currencies |
-| `hiddenProviders` | Hide specific rate providers |
-| `weatherEnabled` | Toggle weather panel |
-| `weatherLocation` | `chornomorsk` or `odesa` |
-| `weatherAnimationEnabled` | Toggle animated weather scene |
-| `forecastView` | Today / tomorrow / 5-day view |
+| `collapsed` | Header quick collapse (`false` by default) |
+| `contentVisible` | Show/hide widget body via drawer (**Show rates and weather**) |
+| `exchangeRatesEnabled` | Override exchange rates panel visibility |
+| `hiddenCurrencies` | Hide specific currencies (subset of server `currencies`) |
+| `hiddenProviders` | Hide specific rate providers (subset of server `rateProviders`) |
+| `weatherEnabled` | Override weather panel visibility |
+| `weatherLocation` | `chornomorsk` or `odesa` (overrides `defaultWeatherLocation`) |
+| `weatherAnimationEnabled` | Override animated weather scene |
+| `forecastView` | Today / tomorrow / 5-day view (overrides `defaultForecastView`) |
 
-Storage key: `project-goods.dashboard-widget-overrides`
+**Merge logic:** `getEffectiveDashboardWidgetSettings()` in `frontend/src/widgets/dashboard/model/dashboard-widget-settings.ts` — server defaults from MongoDB + local overrides.
 
-Merge logic: `frontend/src/widgets/dashboard/model/dashboard-widget-settings.ts`
+**Coordinates helper** (preset → lat/lon, no geolocation): `frontend/src/widgets/dashboard/model/useWeatherForecast.ts`
 
-Coordinates helper (preset → lat/lon, no geolocation): `frontend/src/widgets/dashboard/model/useWeatherForecast.ts`
+### Other home-page `localStorage` keys (not Dashboard tab settings)
+
+| Key | Purpose |
+|-----|---------|
+| `project-goods.settings-tab` | Last active tab in Settings page (`company` / `print` / `dashboard` / `backups`) |
+| `project-goods.analytics-date-range` | Custom date filter on business home analytics |
+| `project-goods.dashboard-widget-overrides` | Widget display overrides (see Layer 2) |
+
+### Quick reference
+
+| What you change | Where it is stored | Shared across users? |
+|-----------------|-------------------|----------------------|
+| Settings → Dashboard fields | **MongoDB** (`Settings.dashboardPreferences`) | Yes |
+| Widget drawer toggles | **localStorage** (`dashboard-widget-overrides`) | No (this browser only) |
+| Header collapse click | **localStorage** (`collapsed` in `dashboard-widget-overrides`) | No |
+| Analytics date filter | **localStorage** (`analytics-date-range`) | No |
+| Active Settings tab | **localStorage** (`settings-tab`) | No |
 
 ## API endpoints
 
@@ -279,7 +396,10 @@ Overflow safety:
 ## Related tests
 
 - `frontend/src/widgets/dashboard/model/analytics-date-range.test.ts`
+- `frontend/src/widgets/dashboard/model/dashboard-widget-settings.test.ts`
 - `frontend/src/widgets/dashboard/model/sales-analytics.test.ts`
+- `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.test.tsx`
+- `frontend/src/widgets/dashboard/ui/WeatherAnimatedScene.test.tsx`
 - `backend/src/domain/market/service.test.ts`
 - `backend/src/domain/weather/service.test.ts`
 

@@ -1,94 +1,117 @@
+import type { CSSProperties } from 'react';
+import {
+  resolveSceneParams,
+  type WeatherIntensity,
+} from '../model/weather-scene-params';
+import { WeatherSunGraphic } from './WeatherSunGraphic';
+import { WeatherSceneClouds } from './weather-scene/WeatherSceneClouds';
+import { WeatherSceneFog } from './weather-scene/WeatherSceneFog';
+import { WeatherSceneLightning } from './weather-scene/WeatherSceneLightning';
+import { WeatherSceneRain } from './weather-scene/WeatherSceneRain';
+import { WeatherSceneSky } from './weather-scene/WeatherSceneSky';
+import { WeatherSceneSnow } from './weather-scene/WeatherSceneSnow';
+import { WeatherSceneWindStreaks } from './weather-scene/WeatherSceneWindStreaks';
+
 type WeatherAnimatedSceneProps = {
   condition: string;
   compact?: boolean;
   animated?: boolean;
+  intensity?: WeatherIntensity;
+  windSpeed?: number;
+  windDirection?: number;
 };
 
 export const WeatherAnimatedScene = ({
   condition,
   compact = false,
   animated = true,
+  intensity,
+  windSpeed,
+  windDirection,
 }: WeatherAnimatedSceneProps) => {
+  const params = resolveSceneParams({
+    condition,
+    intensity,
+    windSpeed,
+    windDirection,
+    compact,
+  });
+
+  const showSun = condition === 'clear' || condition === 'partly-cloudy';
+
   return (
     <div
       className={[
         'weather-scene',
         `weather-scene-${condition}`,
+        `weather-scene--intensity-${params.intensity}`,
+        `weather-scene--wind-${params.windTier}`,
         compact ? 'weather-scene-compact' : 'weather-scene-hero',
         animated ? 'weather-scene--animated' : 'weather-scene--static',
       ].join(' ')}
+      style={params.style as CSSProperties}
       aria-hidden="true"
+      {...(import.meta.env.DEV
+        ? {
+            'data-weather-condition': condition,
+            'data-weather-intensity': params.intensity,
+          }
+        : {})}
     >
-      <div className="weather-scene-sky" />
+      <WeatherSceneSky condition={condition} intensity={params.intensity} />
 
-      {condition === 'clear' ? (
+      {showSun ? (
         <>
-          <div className="weather-scene-sun-glow" />
-          <div className="weather-scene-sun" />
-          <div className="weather-scene-sun-rays" />
+          <div
+            className={
+              condition === 'partly-cloudy'
+                ? 'weather-scene-sun-glow weather-scene-sun-glow-small'
+                : 'weather-scene-sun-glow'
+            }
+          />
+          <WeatherSunGraphic
+            variant={condition === 'partly-cloudy' ? 'small' : 'full'}
+            showRays
+            rayOpacity={condition === 'partly-cloudy' ? 0.7 : 1}
+            className={
+              condition === 'partly-cloudy'
+                ? 'weather-scene-sun-graphic-small'
+                : 'weather-scene-sun-graphic-full'
+            }
+          />
         </>
       ) : null}
 
-      {condition === 'partly-cloudy' ? (
-        <>
-          <div className="weather-scene-sun weather-scene-sun-small" />
-          <div className="weather-scene-cloud weather-scene-cloud-a" />
-          <div className="weather-scene-cloud weather-scene-cloud-b" />
-        </>
-      ) : null}
+      {condition === 'partly-cloudy' ? <WeatherSceneClouds count={2} /> : null}
 
       {condition === 'cloudy' || condition === 'fog' ? (
-        <>
-          <div className="weather-scene-cloud weather-scene-cloud-a" />
-          <div className="weather-scene-cloud weather-scene-cloud-b" />
-          <div className="weather-scene-cloud weather-scene-cloud-c" />
-        </>
+        <WeatherSceneClouds count={3} />
       ) : null}
 
       {condition === 'rain' || condition === 'thunder' ? (
         <>
-          <div className="weather-scene-cloud weather-scene-cloud-dark weather-scene-cloud-a" />
-          <div className="weather-scene-cloud weather-scene-cloud-dark weather-scene-cloud-b" />
-          <div className="weather-scene-rain">
-            {Array.from({ length: compact ? 8 : 14 }, (_, index) => (
-              <span
-                key={index}
-                className="weather-scene-rain-drop"
-                style={{ left: `${8 + index * 6}%`, animationDelay: `${index * 0.12}s` }}
-              />
-            ))}
-          </div>
+          <WeatherSceneClouds count={2} variant="dark" />
+          <WeatherSceneRain dropCount={params.rainDropCount} />
         </>
       ) : null}
 
-      {condition === 'thunder' ? <div className="weather-scene-lightning" /> : null}
+      {condition === 'thunder' ? <WeatherSceneLightning /> : null}
 
       {condition === 'snow' ? (
         <>
-          <div className="weather-scene-cloud weather-scene-cloud-a" />
-          <div className="weather-scene-snow">
-            {Array.from({ length: compact ? 10 : 16 }, (_, index) => (
-              <span
-                key={index}
-                className="weather-scene-snowflake"
-                style={{
-                  left: `${6 + index * 5.5}%`,
-                  animationDelay: `${index * 0.18}s`,
-                  animationDuration: `${2.2 + (index % 3) * 0.4}s`,
-                }}
-              />
-            ))}
-          </div>
+          <WeatherSceneClouds count={1} variant="faint" />
+          <WeatherSceneSnow
+            flakeCount={params.snowFlakeCount}
+            intensity={params.intensity}
+          />
         </>
       ) : null}
 
       {condition === 'fog' ? (
-        <div className="weather-scene-fog">
-          <span className="weather-scene-fog-layer weather-scene-fog-layer-a" />
-          <span className="weather-scene-fog-layer weather-scene-fog-layer-b" />
-          <span className="weather-scene-fog-layer weather-scene-fog-layer-c" />
-        </div>
+        <WeatherSceneFog intensity={params.intensity} />
       ) : null}
+
+      {params.showWindStreaks ? <WeatherSceneWindStreaks /> : null}
     </div>
   );
 };
