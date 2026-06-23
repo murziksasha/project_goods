@@ -7,6 +7,7 @@ The business home page is the default dashboard view (`page=home`). It is render
 - Main component: `frontend/src/widgets/dashboard/ui/AnalyticsHeroSection.tsx`
 - Page host: `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
 - Analytics engine: `frontend/src/widgets/dashboard/model/sales-analytics.ts`
+- Market & weather widget: `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.tsx`
 
 ## Header controls
 
@@ -51,6 +52,16 @@ Related files:
 
 A responsive insights block is shown between the executive header and summary KPI cards when enabled in settings.
 
+### Collapsed mode
+
+The widget gear drawer includes **Show rates and weather**. When turned off:
+
+- Only the **Live insights** label and **Settings** button remain visible
+- Refresh, exchange rates, and weather panels are hidden
+- The **Market & weather** title is hidden
+
+This preference is stored per user in `localStorage` (`contentVisible` override).
+
 ### Exchange rates
 
 Data is fetched through backend proxy endpoints to avoid browser CORS limits.
@@ -72,28 +83,67 @@ Visual accents:
 - USD sell → orange
 - EUR → teal
 
+Exchange rates can be toggled off independently in the widget settings drawer (`exchangeRatesEnabled` override).
+
 ### Weather forecast
 
-Weather is resolved from device geolocation when permitted. If permission is denied or times out, the widget falls back to Kyiv coordinates and shows a non-blocking hint.
+Weather does **not** use device geolocation. The widget always loads forecast data for a configured city preset. This keeps weather and animation working on local-network HTTP installs (`http://192.168.x.x`) where browsers block geolocation.
 
-Providers:
+#### Location presets
+
+| Preset ID | City | Coordinates (lat, lon) | Default |
+|-----------|------|------------------------|---------|
+| `chornomorsk` | Chornomorsk | 46.3013, 30.6531 | Yes |
+| `odesa` | Odesa | 46.4825, 30.7233 | No |
+
+Preset definitions: `frontend/src/shared/config/default-weather-location.ts`
+
+The active preset can be chosen in:
+
+- **Settings → Dashboard → Weather location** (server default for all users)
+- **Widget → Settings → Weather location** (per-user override in `localStorage`)
+
+The widget shows a non-blocking hint, for example: `Showing weather for Chornomorsk.` On plain HTTP LAN installs it adds `(local network mode)`.
+
+#### Providers
 
 - **Open-Meteo** (default, no API key)
 - **OpenWeatherMap** (optional, API key in settings)
 
-Views:
+#### Views
 
 - Today (current conditions)
 - Tomorrow
 - 5-day strip
 
-Displayed fields:
+#### Displayed fields
 
 - Temperature
 - Humidity
-- Condition icon (clear, cloudy, rain, thunder, snow, fog)
+- Condition label (clear, partly-cloudy, cloudy, rain, thunder, snow, fog)
 
-Optional CSS weather animation can be enabled/disabled and respects `prefers-reduced-motion`.
+#### Weather animation
+
+When animation is enabled, the hero forecast uses a CSS animated scene (`WeatherAnimatedScene.tsx`) instead of a static SVG icon:
+
+- **Clear** — sun glow pulse + rotating rays
+- **Partly cloudy / cloudy** — drifting clouds
+- **Rain / thunder** — falling rain drops (+ lightning flash for thunder)
+- **Snow** — drifting snowflakes
+- **Fog** — moving fog layers
+
+Animation is independent of location resolution and works with preset cities on LAN. It respects `prefers-reduced-motion`.
+
+The widget settings drawer shows a side-by-side preview:
+
+- **Static icon** — flat SVG (animation off)
+- **Animated scene** — live rain preview (animation on)
+
+Related files:
+
+- `frontend/src/widgets/dashboard/ui/WeatherVisual.tsx`
+- `frontend/src/widgets/dashboard/ui/WeatherAnimatedScene.tsx`
+- `frontend/src/widgets/dashboard/ui/MarketWeatherSettingsDrawer.tsx`
 
 ### Refresh behavior
 
@@ -124,32 +174,47 @@ Settings use a two-layer model:
 
 Configured in **Settings → Dashboard**:
 
-- Widget visibility
-- Exchange rates on/off
-- Weather on/off
-- Weather animation on/off
-- Weather provider + OpenWeather API key
-- Enabled currencies
-- Enabled rate providers
-- Default forecast view
+| Field | Description |
+|-------|-------------|
+| `marketWeatherEnabled` | Show/hide the entire widget |
+| `exchangeRatesEnabled` | Default exchange rates visibility |
+| `weatherEnabled` | Default weather visibility |
+| `weatherAnimationEnabled` | Default weather animation |
+| `defaultWeatherLocation` | `chornomorsk` or `odesa` |
+| `weatherProvider` | `open-meteo` or `openweather` |
+| `openWeatherApiKey` | Required when OpenWeatherMap is selected |
+| `currencies` | Enabled currency codes |
+| `rateProviders` | Enabled rate providers (`nbu`, `privat`, `mono`) |
+| `defaultForecastView` | `today`, `tomorrow`, or `fiveDay` |
 
 Backend schema: `backend/src/domain/settings/model.ts`
 
 Frontend types: `frontend/src/entities/settings/model/types.ts`
 
+Normalization: `frontend/src/entities/settings/model/dashboardPreferences.ts`
+
+Legacy settings that stored manual latitude/longitude are migrated to the nearest preset (`odesa` when old Odesa coordinates are detected; otherwise `chornomorsk`).
+
 ### Per-user overrides (browser `localStorage`)
 
 Configured from the widget gear drawer:
 
-- Hide specific currencies
-- Hide specific rate providers
-- Toggle weather visibility
-- Toggle weather animation
-- Choose forecast view
+| Override | Description |
+|----------|-------------|
+| `contentVisible` | Show/hide all widget content (header-only collapsed mode) |
+| `exchangeRatesEnabled` | Toggle exchange rates panel |
+| `hiddenCurrencies` | Hide specific currencies |
+| `hiddenProviders` | Hide specific rate providers |
+| `weatherEnabled` | Toggle weather panel |
+| `weatherLocation` | `chornomorsk` or `odesa` |
+| `weatherAnimationEnabled` | Toggle animated weather scene |
+| `forecastView` | Today / tomorrow / 5-day view |
 
 Storage key: `project-goods.dashboard-widget-overrides`
 
 Merge logic: `frontend/src/widgets/dashboard/model/dashboard-widget-settings.ts`
+
+Coordinates helper (preset → lat/lon, no geolocation): `frontend/src/widgets/dashboard/model/useWeatherForecast.ts`
 
 ## API endpoints
 
@@ -174,7 +239,9 @@ Response:
 
 ### Weather forecast
 
-`GET /api/weather/forecast?lat=50.45&lon=30.52&provider=open-meteo&apiKey=`
+`GET /api/weather/forecast?lat=46.3013&lon=30.6531&provider=open-meteo&apiKey=`
+
+The frontend passes coordinates from the selected location preset. Backend fallback coordinates (when `lat`/`lon` are invalid): Chornomorsk.
 
 Response includes `current`, optional `tomorrow`, and `daily` (up to 5 days).
 
@@ -184,6 +251,16 @@ Backend implementation:
 - `backend/src/domain/weather/service.ts`
 - `backend/src/routes/market.routes.ts`
 - `backend/src/routes/weather.routes.ts`
+
+## Local network requirements
+
+| Layer | Requirement |
+|-------|-------------|
+| Client → app server | Must reach `/api/market/rates` and `/api/weather/forecast` |
+| Server → internet | Must reach external rate and weather APIs (outbound HTTPS) |
+| Device geolocation | **Not required** — preset city is always used |
+
+If weather or rates show as unavailable, verify backend outbound internet access (firewall, Docker network, proxy).
 
 ## Responsive layout
 
@@ -211,3 +288,4 @@ Overflow safety:
 - Restart backend after deploy so `/api/market/rates` and `/api/weather/forecast` routes are available.
 - External provider failures return partial results when possible; panel-level empty states are shown per provider.
 - Hide the entire widget via **Settings → Dashboard → Show market & weather widget**.
+- Save **Settings → Dashboard** after changing the default weather location so all users receive the new preset on next settings load.

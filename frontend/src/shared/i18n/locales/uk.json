@@ -128,6 +128,12 @@
       "rateProviders": "Джерела курсу",
       "weatherProvider": "API погоди",
       "defaultForecastView": "Стандартний вигляд прогнозу",
+      "defaultWeatherLocation": "Локація погоди",
+      "defaultWeatherHint": "Погода та анімація використовують це місто. Геолокація пристрою не потрібна.",
+      "weatherLocations": {
+        "chornomorsk": "Чорноморськ",
+        "odesa": "Одеса"
+      },
       "openWeatherApiKey": "API-ключ OpenWeatherMap",
       "openWeatherApiKeyPlaceholder": "Потрібен при виборі OpenWeatherMap",
       "providers": {
@@ -2496,7 +2502,13 @@
       "ratesUnavailable": "Курси тимчасово недоступні.",
       "loadingWeather": "Завантаження прогнозу погоди...",
       "weatherUnavailable": "Прогноз погоди тимчасово недоступний.",
-      "usingDefaultLocation": "Використовується стандартна локація (Київ).",
+      "weatherLocation": "Локація погоди",
+      "weatherLocations": {
+        "chornomorsk": "Чорноморськ",
+        "odesa": "Одеса"
+      },
+      "usingDefaultLocation": "Погода для {{location}}.",
+      "usingDefaultLocationLan": "Погода для {{location}} (режим локальної мережі).",
       "perUah": "за UAH",
       "official": "Офіційний",
       "buy": "Купівля",

@@ -42,6 +42,7 @@ const defaultDashboardPreferences = {
   weatherAnimationEnabled: true,
   weatherProvider: 'open-meteo' as const,
   openWeatherApiKey: '',
+  defaultWeatherLocation: 'chornomorsk' as const,
   currencies: ['USD', 'EUR'],
   rateProviders: ['nbu', 'privat'],
   defaultForecastView: 'today' as const,

@@ -1,4 +1,5 @@
-import type { DashboardPreferences } from '../../../entities/settings/model/types';
+import { getWeatherLocationPreset } from '../../../shared/config/default-weather-location';
+import type { DashboardPreferences, WeatherLocationPreset } from '../../../entities/settings/model/types';
 
 export type DashboardWidgetOverrides = Partial<{
   contentVisible: boolean;
@@ -7,6 +8,7 @@ export type DashboardWidgetOverrides = Partial<{
   exchangeRatesEnabled: boolean;
   weatherEnabled: boolean;
   weatherAnimationEnabled: boolean;
+  weatherLocation: WeatherLocationPreset;
   forecastView: DashboardPreferences['defaultForecastView'];
 }>;
 
@@ -41,6 +43,7 @@ export type EffectiveDashboardWidgetSettings = {
   exchangeRatesEnabled: boolean;
   weatherEnabled: boolean;
   weatherAnimationEnabled: boolean;
+  weatherLocation: WeatherLocationPreset;
   weatherProvider: DashboardPreferences['weatherProvider'];
   openWeatherApiKey: string;
   currencies: string[];
@@ -65,6 +68,9 @@ export const getEffectiveDashboardWidgetSettings = (
     weatherEnabled: overrides.weatherEnabled ?? preferences.weatherEnabled,
     weatherAnimationEnabled:
       overrides.weatherAnimationEnabled ?? preferences.weatherAnimationEnabled,
+    weatherLocation: getWeatherLocationPreset(
+      overrides.weatherLocation ?? preferences.defaultWeatherLocation,
+    ),
     weatherProvider: preferences.weatherProvider,
     openWeatherApiKey: preferences.openWeatherApiKey,
     currencies: preferences.currencies.filter(

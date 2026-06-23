@@ -55,6 +55,7 @@ http://localhost:5000/api
 - `PUT /settings` - обновить настройки
 - Settings payload now includes `dashboardPreferences` for business home page widget defaults:
   - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
+  - `defaultWeatherLocation` (`chornomorsk` | `odesa`, default `chornomorsk`)
   - `weatherProvider` (`open-meteo` | `openweather`)
   - `openWeatherApiKey`
   - `currencies` (for example `["USD","EUR"]`)
@@ -73,6 +74,8 @@ http://localhost:5000/api
 - `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather&apiKey=<optional>`
   - Proxies Open-Meteo (default) or OpenWeatherMap (requires API key)
   - Returns current conditions plus up to 5 daily forecast entries
+  - Frontend passes coordinates from the selected weather preset (`chornomorsk` or `odesa`); device geolocation is not used
+  - Invalid/missing coordinates fall back to Chornomorsk (46.3013, 30.6531)
 
 ## Finance
 

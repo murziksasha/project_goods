@@ -217,8 +217,8 @@ export const getWeatherForecast = async ({
   provider?: WeatherProvider;
   openWeatherApiKey?: string;
 }) => {
-  const lat = parseCoordinate(latitude, 50.4501);
-  const lon = parseCoordinate(longitude, 30.5234);
+  const lat = parseCoordinate(latitude, 46.3013);
+  const lon = parseCoordinate(longitude, 30.6531);
 
   if (provider === 'openweather') {
     if (!openWeatherApiKey.trim()) {
