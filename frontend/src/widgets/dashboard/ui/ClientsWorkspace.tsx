@@ -31,10 +31,11 @@ import {
   clientCardTabStorageKey,
   clientsSuppliersSavedFiltersStorageKey,
   clientsFiltersStorageKey,
-  defaultClientStats,
   emptyClientDraft,
   emptyFilters,
   getActiveClientFiltersCount,
+  getClientSaleIncome,
+  getClientStatsMap,
   getClientSubtitle,
   getFilteredClients,
   getStoredClientCardTab,
@@ -47,7 +48,6 @@ import {
   type ClientDraft,
   type ClientFilters,
   type ClientMainForm,
-  type ClientStats,
 } from '../model/clients-workspace';
 import { filterIconOptions } from './orders-workspace-shared';
 import {
@@ -142,31 +142,6 @@ const getLegacyClientAddress = (client: Client) =>
   client.address ||
   getMetaFieldFromNote(client.note, 'Address') ||
   getMetaFieldFromNoteLegacy(client.note, 'Address');
-
-const getClientStatsMap = (sales: Sale[]) => {
-  const map = new Map<string, ClientStats>();
-
-  sales.forEach((sale) => {
-    const current = map.get(sale.client.id) ?? {
-      ...defaultClientStats,
-    };
-    const income = sale.salePrice * sale.quantity;
-    const orderNumbers = sale.recordNumber
-      ? [...current.orderNumbers, sale.recordNumber]
-      : current.orderNumbers;
-
-    map.set(sale.client.id, {
-      visits: current.visits + 1,
-      income: current.income + income,
-      serviceCount:
-        current.serviceCount + (sale.kind === 'repair' ? 1 : 0),
-      salesCount: current.salesCount + (sale.kind === 'sale' ? 1 : 0),
-      orderNumbers,
-    });
-  });
-
-  return map;
-};
 
 export const ClientsWorkspace = ({
   currentEmployee,
@@ -791,6 +766,14 @@ export const ClientsWorkspace = ({
           historyClient={history?.client ?? null}
           isHistoryLoading={isHistoryLoading}
           isSaving={isSaving}
+          clientVisitCount={
+            statsByClient.get(selectedClientId ?? '')?.visits
+            ?? selectedHistorySales.length
+          }
+          clientTotalRevenue={selectedHistorySales.reduce(
+            (sum, sale) => sum + getClientSaleIncome(sale),
+            0,
+          )}
           mainTabForm={mainTabForm}
           mainTabPhoneError={mainTabPhoneError}
           selectedClient={selectedClient}

@@ -1,6 +1,5 @@
 import type { ClientHistory } from '../../../entities/client/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
 import {
   getSaleProductName,
   getSaleProductSerialNumber,
@@ -183,11 +182,4 @@ export const getDeviceHistory = (history: ClientHistory | null) => {
   });
 };
 
-export const getOrderLink = (saleId: string, kind: Sale['kind']) => {
-  const url = new URL(window.location.href);
-  url.searchParams.set('page', 'orders');
-  url.searchParams.set('ordersTab', kind === 'sale' ? 'sales' : 'orders');
-  url.searchParams.delete('createOrder');
-  url.searchParams.set('saleId', saleId);
-  return `${url.pathname}${url.search}${url.hash}`;
-};
+export { getOrderLink } from '../../../pages/dashboard/model/dashboard-navigation';

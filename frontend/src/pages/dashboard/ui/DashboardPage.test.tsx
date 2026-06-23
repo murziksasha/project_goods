@@ -84,7 +84,7 @@ vi.mock('../model/useDashboardPage', () => {
       isSeeding: false,
       error: '',
       successMessage: '',
-      lastSyncAt: '2026-06-18T10:30:45.000Z',
+      lastSyncAt: '2026-06-22T20:05:31.000Z',
     },
     actions: {
       showError: vi.fn(),
@@ -176,6 +176,12 @@ vi.mock('../../../shared/ui/GlobalHorizontalScrollbar', () => ({
   GlobalHorizontalScrollbar: () => null,
 }));
 
+const hardReloadApp = vi.fn();
+
+vi.mock('../../../shared/lib/hardReload', () => ({
+  hardReloadApp: (...args: unknown[]) => hardReloadApp(...args),
+}));
+
 const employee: Employee = {
   id: 'employee-id',
   name: 'Manager',
@@ -195,6 +201,22 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   vi.clearAllMocks();
+});
+
+describe('DashboardPage sync control', () => {
+  it('hard reloads the app when Last sync is clicked', async () => {
+    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    window.localStorage.setItem(authTokenStorageKey, 'valid-token');
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Last sync:/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Last sync:/i }));
+    expect(hardReloadApp).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('DashboardPage auth recovery', () => {
@@ -222,6 +244,36 @@ describe('DashboardPage auth recovery', () => {
     expect(screen.getByTestId('notifications')).toHaveTextContent(
       'Session check failed.',
     );
+  });
+});
+
+describe('DashboardPage browser history', () => {
+  it('pushes history entries for in-app navigation and restores state on popstate', async () => {
+    const pushState = vi.spyOn(window.history, 'pushState');
+    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    window.localStorage.setItem(authTokenStorageKey, 'valid-token');
+    window.history.replaceState(null, '', '/');
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /Orders/i }));
+    expect(pushState).toHaveBeenCalled();
+    expect(window.location.search).toContain('page=orders');
+
+    await waitFor(() => {
+      expect(screen.getByText('Orders workspace')).toBeInTheDocument();
+    });
+
+    window.history.replaceState(null, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+    });
   });
 });
 

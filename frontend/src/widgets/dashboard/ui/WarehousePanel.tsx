@@ -111,6 +111,7 @@ export const WarehousePanel = ({
   currentEmployeeName,
   onSuccess,
   onError,
+  onOpenSaleCard,
 }: WarehousePanelProps) => {
   const { t, i18n } = useTranslation();
   const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
@@ -1807,6 +1808,7 @@ export const WarehousePanel = ({
               })
             }
             onDelete={onProductDelete}
+            onOpenSaleCard={onOpenSaleCard}
             onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
               const matchedOrder = supplierOrders.find(
                 (order) => order.id === supplierOrderId,

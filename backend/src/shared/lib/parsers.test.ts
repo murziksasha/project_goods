@@ -304,6 +304,16 @@ describe('normalizeSupplierPayload', () => {
       isActive: true,
     });
   });
+
+  it('preserves empty status for auto-managed clients', () => {
+    const result = normalizeClientPayload({
+      phone: '+380671112233',
+      name: 'Ivan Petrenko',
+      status: '',
+    });
+
+    expect(result.status).toBe('');
+  });
 });
 
 describe('normalizeSalePayload', () => {

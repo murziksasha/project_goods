@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { randomUUID } from 'crypto';
+import { getEffectiveClientStatus } from '../client/constants';
 import { Client, type ClientDocument } from '../client/model';
 import { Employee, type EmployeeDocument } from '../employee/model';
 import { CatalogProduct, type CatalogProductDocument } from '../catalog-product/model';
@@ -25,6 +26,23 @@ import {
   assertSerialNumbersNotBoundToOtherSales,
   assertSerializedLineItemsAreAtomic,
 } from './validators';
+
+const buildClientSnapshot = (
+  client: Pick<
+    ClientDocument,
+    'name' | 'phone' | 'phones' | 'status' | 'email' | 'address' | 'registrationId' | 'iban'
+  >,
+  visitCount: number,
+) => ({
+  name: client.name,
+  phone: client.phone,
+  phones: getClientPhonesFromRecord(client),
+  status: getEffectiveClientStatus(client.status ?? '', visitCount),
+  email: client.email ?? '',
+  address: client.address ?? '',
+  registrationId: client.registrationId ?? '',
+  iban: client.iban ?? '',
+});
 
 const ensureFreeStock = async (
   productId: mongoose.Types.ObjectId | string,
@@ -416,6 +434,8 @@ export const createSale = async (payloadInput: SalePayload) => {
     const updatedProduct = product
       ? await Product.findById(product._id).lean<ProductDocument | null>()
       : null;
+    const existingVisits = await Sale.countDocuments({ client: client._id });
+    const visitCountAfterSale = existingVisits + 1;
 
     const sale = new Sale({
       saleDate: payload.saleDate,
@@ -444,16 +464,7 @@ export const createSale = async (payloadInput: SalePayload) => {
           (normalizedKind === 'sale' ? 'Sale' : 'Repair'),
         serialNumber: payload.serialNumber || product?.serialNumber || '',
       },
-      clientSnapshot: {
-        name: client.name,
-        phone: client.phone,
-        phones: getClientPhonesFromRecord(client),
-        status: client.status,
-        email: client.email ?? '',
-        address: client.address ?? '',
-        registrationId: client.registrationId ?? '',
-        iban: client.iban ?? '',
-      },
+      clientSnapshot: buildClientSnapshot(client, visitCountAfterSale),
       managerSnapshot: manager
         ? { name: manager.name, role: manager.role }
         : undefined,
@@ -596,6 +607,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
       nextLineItems,
       payload.discount,
     );
+    const clientVisitCount = await Sale.countDocuments({ client: client._id });
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
@@ -634,16 +646,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
             existingSale.productSnapshot?.serialNumber ||
             '',
         },
-        clientSnapshot: {
-          name: client.name,
-          phone: client.phone,
-          phones: getClientPhonesFromRecord(client),
-          status: client.status,
-          email: client.email ?? '',
-          address: client.address ?? '',
-          registrationId: client.registrationId ?? '',
-          iban: client.iban ?? '',
-        },
+        clientSnapshot: buildClientSnapshot(client, clientVisitCount),
         managerSnapshot: manager
           ? { name: manager.name, role: manager.role }
           : undefined,

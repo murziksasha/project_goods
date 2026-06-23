@@ -1598,6 +1598,7 @@
   white-space: nowrap;
 }
 
+.topbar-sync-label:hover,
 .topbar-sync-button:hover,
 .topbar-sync-button:focus {
   color: #4b5d73;

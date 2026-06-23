@@ -9,7 +9,7 @@ export const initialClientForm: ClientFormValues = {
   registrationId: '',
   iban: '',
   note: '',
-  status: 'new',
+  status: '',
 };
 
 export const getClientPhones = (client: Client): string[] => {

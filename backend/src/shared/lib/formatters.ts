@@ -6,6 +6,7 @@ import type { SupplierDocument } from '../../domain/supplier/model';
 import type { ClientDeviceDocument } from '../../domain/client-device/model';
 import type { CatalogProductDocument } from '../../domain/catalog-product/model';
 import { getEffectiveEmployeePermissions } from '../../domain/employee/constants';
+import { getSaleDocumentTotal } from './saleTotals';
 
 export const formatProduct = (product: ProductDocument) => {
   const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
@@ -196,7 +197,7 @@ export const formatClientHistory = (
   sales: sales.map(formatSale),
   stats: {
     totalSales: sales.length,
-    totalRevenue: sales.reduce((sum, sale) => sum + sale.salePrice * sale.quantity, 0),
+    totalRevenue: sales.reduce((sum, sale) => sum + getSaleDocumentTotal(sale), 0),
     totalItemsSold: sales.reduce((sum, sale) => sum + sale.quantity, 0),
   },
 });
