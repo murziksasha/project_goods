@@ -79,6 +79,7 @@ frontend/
 
 - `src/app/` - корневая композиция приложения
 - `src/pages/` - страницы верхнего уровня
+- `src/pages/dashboard/model/dashboard-navigation.ts` - parse/build URL и History API для dashboard (Back/Forward внутри SPA)
 - `src/widgets/` - крупные секции интерфейса
 - `src/features/` - пользовательские сценарии и интерактивные потоки
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
@@ -113,6 +114,22 @@ frontend/
 - размещения бизнес-специфичной логики в `shared`
 - разрастания page-компонентов из-за прямого встраивания всей логики в JSX
 - дублирования HTTP-логики по нескольким frontend-модулям
+
+## Structure Update: Browser Navigation (2026-06-22)
+
+### Frontend
+
+- `frontend/src/pages/dashboard/model/dashboard-navigation.ts` — `DashboardLocation`, `parseDashboardLocation`, `buildDashboardHref`, `navigateDashboard`, `getOrderLink`
+- `frontend/src/pages/dashboard/model/dashboard-navigation.test.ts` — unit tests for URL round-trip and push/replace behavior
+- `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — `navigateTo`, unified `popstate` handler
+
+### Integration points
+
+- `useAccountingPreferences` — accounting tab changes delegate URL updates to `DashboardPage`
+- `WarehouseTables` / `WarehousePanel` — stock `Client order` links call `onOpenSaleCard`
+- `create-order-card-shared.ts` — re-exports `getOrderLink` from `dashboard-navigation`
+
+Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 
 ## Structure Update: Catalog Products (2026-05-09)
 

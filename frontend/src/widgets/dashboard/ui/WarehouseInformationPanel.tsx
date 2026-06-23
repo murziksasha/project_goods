@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as XLSX from 'xlsx';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import { PaginationPanel } from '../../../shared/ui/PaginationPanel';
 import {
@@ -35,14 +36,10 @@ const viewLabelKeys: Record<WarehouseInformationView, string> = {
   suppliers: 'warehouse.information.views.suppliers',
 };
 
-const escapeHtml = (value: string | number | null | undefined) =>
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+const toExcelSheetName = (value: string) =>
+  value.replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || 'Report';
 
-const downloadWordFile = ({
+const downloadExcelFile = ({
   activeFilters,
   filename,
   headers,
@@ -70,47 +67,25 @@ const downloadWordFile = ({
     activeFilters.length > 0
       ? activeFilters.join('; ')
       : templateLabels.noFilters;
-  const tableHead = headers
-    .map((header) => `<th>${escapeHtml(header)}</th>`)
-    .join('');
-  const tableRows =
+  const dataRows =
     rows.length > 0
       ? rows
-          .map(
-            (row) =>
-              `<tr>${row
-                .map((cell) => `<td>${escapeHtml(cell)}</td>`)
-                .join('')}</tr>`,
-          )
-          .join('')
-      : `<tr><td colspan="${headers.length}">${escapeHtml(templateLabels.noRowsFound)}</td></tr>`;
-  const content = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(title)}</title>
-  <style>
-    body { font-family: Arial, sans-serif; color: #1f2937; }
-    h1 { font-size: 22px; margin: 0 0 8px; }
-    p { margin: 0 0 8px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-    th, td { border: 1px solid #cfd8e3; padding: 6px 8px; text-align: left; vertical-align: top; }
-    th { background: #edf2f7; font-weight: 700; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <p><strong>${escapeHtml(templateLabels.view)}</strong> ${escapeHtml(viewLabel)}</p>
-  <p><strong>${escapeHtml(templateLabels.generated)}</strong> ${escapeHtml(generatedAt)}</p>
-  <p><strong>${escapeHtml(templateLabels.filters)}</strong> ${escapeHtml(filterText)}</p>
-  <table>
-    <thead><tr>${tableHead}</tr></thead>
-    <tbody>${tableRows}</tbody>
-  </table>
-</body>
-</html>`;
-  const blob = new Blob([content], {
-    type: 'application/msword;charset=utf-8',
+      : [[templateLabels.noRowsFound, ...Array(Math.max(headers.length - 1, 0)).fill('')]];
+  const sheetData: Array<Array<string | number>> = [
+    [title],
+    [templateLabels.view, viewLabel],
+    [templateLabels.generated, generatedAt],
+    [templateLabels.filters, filterText],
+    [],
+    headers,
+    ...dataRows,
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, toExcelSheetName(viewLabel));
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -344,7 +319,7 @@ export const WarehouseInformationPanel = ({
 
   const exportActiveView = () => {
     if (view === 'products') {
-      downloadWordFile({
+      downloadExcelFile({
         activeFilters: getActiveFilterLabels(),
         filename: t('warehouse.information.export.productsFilename'),
         title: t('warehouse.information.export.title'),
@@ -374,7 +349,7 @@ export const WarehouseInformationPanel = ({
       return;
     }
     if (view === 'locations') {
-      downloadWordFile({
+      downloadExcelFile({
         activeFilters: getActiveFilterLabels(),
         filename: t('warehouse.information.export.locationsFilename'),
         title: t('warehouse.information.export.title'),
@@ -403,7 +378,7 @@ export const WarehouseInformationPanel = ({
       });
       return;
     }
-    downloadWordFile({
+    downloadExcelFile({
       activeFilters: getActiveFilterLabels(),
       filename: t('warehouse.information.export.suppliersFilename'),
       title: t('warehouse.information.export.title'),

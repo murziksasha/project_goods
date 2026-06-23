@@ -6,8 +6,10 @@ import type {
 } from '../../../entities/client/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
+  clientStatusOptions,
   getClientStatusClass,
   getClientStatusColor,
+  getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
 } from '../../../entities/client/model/constants';
 import { formatDateTime } from '../../../shared/lib/format';
@@ -25,11 +27,6 @@ import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 import { hasDuplicatePhones } from '../../../shared/lib/phones';
 import { PhonesField } from '../../../shared/ui/PhonesField';
 
-type ClientStatusOption = {
-  labelKey: string;
-  value: ClientStatus | '';
-};
-
 type ClientCardModalProps = {
   activeHistoryRows: Sale[];
   clientCardTab: ClientCardTab;
@@ -40,7 +37,6 @@ type ClientCardModalProps = {
   mainTabPhoneError: string | null;
   selectedClient: Client | null;
   selectedClientId: string | null;
-  statusOptions: ClientStatusOption[];
   clientVisitCount?: number;
   clientTotalRevenue?: number;
   onClose: () => void;
@@ -68,7 +64,6 @@ export const ClientCardModal = ({
   mainTabPhoneError,
   selectedClient,
   selectedClientId,
-  statusOptions,
   clientVisitCount,
   clientTotalRevenue,
   onClose,
@@ -118,9 +113,8 @@ export const ClientCardModal = ({
                 <span
                   className={`client-status-badge ${getClientStatusClass(effective)}`}
                   style={{ backgroundColor: getClientStatusColor(effective), color: 'white', fontSize: '0.75rem', padding: '1px 6px', marginLeft: 8 }}
-                  title="Effective status (auto if not manually overridden)"
                 >
-                  {effective}
+                  {t(getClientStatusLabelKey(effective))}
                 </span>
               );
             })()}
@@ -159,7 +153,7 @@ export const ClientCardModal = ({
               form={mainTabForm}
               isSaving={isSaving}
               phoneError={mainTabPhoneError}
-              statusOptions={statusOptions}
+              clientVisitCount={clientVisitCount ?? activeHistoryRows.length}
               onChange={updateForm}
               onFormChange={onMainTabFormChange}
               onClearPhoneError={onClearPhoneError}
@@ -225,7 +219,7 @@ const ClientMainFormFields = ({
   form,
   isSaving,
   phoneError,
-  statusOptions,
+  clientVisitCount,
   onChange,
   onFormChange,
   onClearPhoneError,
@@ -235,7 +229,7 @@ const ClientMainFormFields = ({
   form: ClientMainForm;
   isSaving: boolean;
   phoneError: string | null;
-  statusOptions: ClientStatusOption[];
+  clientVisitCount: number;
   onChange: <K extends keyof ClientMainForm>(
     field: K,
     value: ClientMainForm[K],
@@ -246,6 +240,10 @@ const ClientMainFormFields = ({
   onValidatePhone: (phone: string) => boolean;
 }) => {
   const { t } = useTranslation();
+  const effectiveStatus = getEffectiveClientStatusLogic(
+    form.status || '',
+    clientVisitCount,
+  );
 
   return (
     <div className='form-grid compact-form-grid'>
@@ -291,19 +289,17 @@ const ClientMainFormFields = ({
       <label className='field field-wide'>
         <span>{t('clients.card.fields.status')}</span>
         <select
-          value={form.status}
+          value={effectiveStatus}
           onChange={(event) =>
-            onChange('status', event.target.value as ClientStatus | '')
+            onChange('status', event.target.value as ClientStatus)
           }
         >
-          {statusOptions.map((option) => (
+          {clientStatusOptions.map((option) => (
             <option
               key={option.value}
               value={option.value}
               style={{
-                color: option.value
-                  ? getClientStatusColor(option.value as ClientStatus)
-                  : '#6B7280',
+                color: getClientStatusColor(option.value),
               }}
             >
               {t(option.labelKey)}

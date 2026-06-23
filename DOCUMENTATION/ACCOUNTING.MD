@@ -3,6 +3,13 @@
 ## Purpose
 This document defines financial behavior in the `Accounting` workspace (cashboxes, transactions, supplier order payments, etc.) and connected flows in Warehouse and Orders.
 
+## Sub-Tab URL and Browser History (2026-06-22)
+
+- Active accounting sub-tab is reflected in the URL as `accountingTab` when `page=accounting` (values: `cashboxes`, `transactions`, `orders`, `reports`).
+- Switching tabs pushes a new browser history entry so **Back** / **Forward** restore the previous accounting view.
+- Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
+- On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
+
 ## Transactions Tab (`Accounting -> Транзакції`)
 
 ### Notes column behavior

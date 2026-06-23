@@ -19,7 +19,12 @@ import {
   saleMatchesPhoneQuery,
 } from '../../../entities/client/lib/phone-match';
 import type { ClientStatus } from '../../../entities/client/model/types';
-import { getClientStatusLabelKey } from '../../../entities/client/model/constants';
+import {
+  getClientStatusClass,
+  getClientStatusColor,
+  getClientStatusLabelKey,
+  getEffectiveClientStatusLogic,
+} from '../../../entities/client/model/constants';
 import { normalizePhone } from '../../../shared/lib/phoneFormatter';
 import { getCashboxes } from '../../../entities/finance/api/financeApi';
 import {
@@ -53,6 +58,7 @@ import {
   removeLineItemsById,
 } from '../model/line-item-ops';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
+import { getClientStatsMap } from '../model/clients-workspace';
 import {
   activeOrdersFiltersStorageKey,
   availableColumnsByTab,
@@ -63,7 +69,6 @@ import {
   formatReadyDate,
   getColumnLabel,
   getCreatedTime,
-  getClientStatusClass,
   getDefaultLineItems,
   getDiscount,
   getIsoDatePart,
@@ -315,6 +320,7 @@ export const OrdersWorkspace = ({
       ),
     [activeTab, sales],
   );
+  const clientStatsMap = useMemo(() => getClientStatsMap(sales), [sales]);
   const statusOptionsForActiveTab = useMemo(
     () => (activeTab === 'orders' ? repairStatuses : saleStatuses),
     [activeTab],
@@ -1391,7 +1397,13 @@ export const OrdersWorkspace = ({
             {formatCurrency(getPaidAmount(sale))}
           </span>
         );
-      case 'client':
+      case 'client': {
+        const visits =
+          clientStatsMap.get(sale.client.id)?.visits ?? 0;
+        const effectiveStatus = getEffectiveClientStatusLogic(
+          (sale.client.status || '') as ClientStatus | '',
+          visits,
+        );
         return (
           <div className='orders-client-cell'>
             <button
@@ -1405,20 +1417,23 @@ export const OrdersWorkspace = ({
               <span title={sale.client.phone}>
                 <PhoneNumber value={sale.client.phone} />
               </span>
-              <span
-                className={`client-status-badge ${getClientStatusClass(
-                  String(sale.client.status || ''),
-                )}`}
-              >
-                {t(
-                  getClientStatusLabelKey(
-                    (sale.client.status || 'new') as ClientStatus,
-                  ),
-                )}
-              </span>
+              {effectiveStatus ? (
+                <span
+                  className={`client-status-badge ${getClientStatusClass(
+                    effectiveStatus,
+                  )}`}
+                  style={{
+                    backgroundColor: getClientStatusColor(effectiveStatus),
+                    color: 'white',
+                  }}
+                >
+                  {t(getClientStatusLabelKey(effectiveStatus))}
+                </span>
+              ) : null}
             </small>
           </div>
         );
+      }
       case 'term':
         if (activeTab !== 'orders') return null;
         return isUrgentRepairOrder(sale) ? (
