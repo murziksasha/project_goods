@@ -13,6 +13,7 @@ Project Goods - full-stack приложение для учета товаров
 - [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - Back/Forward внутри SPA, History API, URL-параметры dashboard
 
 ### Flow-документы
+- [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - business home page: analytics date filter, market rates, weather widget, settings
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
 - [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж
 - [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая актуальные правила артикула: `A000001+`, без `SO-*` генерации артикула)

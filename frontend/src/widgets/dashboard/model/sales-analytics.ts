@@ -1,6 +1,11 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import i18n from '../../../shared/i18n/config';
+import {
+  formatAnalyticsDateRangeLabel,
+  isSaleInAnalyticsDateRange,
+  type AnalyticsDateRange,
+} from './analytics-date-range';
 
 export type StatsPeriod = 'today' | 'currentMonth' | 'lastMonth' | 'currentYear' | 'lastYear';
 
@@ -224,32 +229,251 @@ export const formatCurrencyMetric = (value: number) =>
     value: currencyFormatter.format(Math.round(value)),
   });
 
-export const buildDashboardAnalytics = (
+type CustomRangeConfig = {
+  unit: 'hour' | 'day' | 'month';
+  detailLabel: string;
+  axisLabels: string[];
+  bucketKeys: string[];
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const parseDateKey = (value: string) => {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toIsoDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getCustomRangeBounds = (range: AnalyticsDateRange, currentDate: Date) => {
+  const from = range.dateFrom
+    ? parseDateKey(range.dateFrom)
+    : parseDateKey(toIsoDateKey(currentDate));
+  const to = range.dateTo
+    ? parseDateKey(range.dateTo)
+    : parseDateKey(toIsoDateKey(currentDate));
+  if (!from || !to) return null;
+  const start = from <= to ? from : to;
+  const end = from <= to ? to : from;
+  return { start, end };
+};
+
+const getCustomRangeConfig = (
+  range: AnalyticsDateRange,
+  currentDate: Date,
+): CustomRangeConfig | null => {
+  const bounds = getCustomRangeBounds(range, currentDate);
+  if (!bounds) return null;
+
+  const dateLocale = getDateLocale();
+  const detailLabel = formatAnalyticsDateRangeLabel(range, dateLocale);
+  const daySpan =
+    Math.floor((bounds.end.getTime() - bounds.start.getTime()) / MS_PER_DAY) + 1;
+
+  if (daySpan <= 1) {
+    const dayKey = toIsoDateKey(bounds.start);
+    return {
+      unit: 'hour',
+      detailLabel,
+      bucketKeys: Array.from({ length: 24 }, (_, hour) => `${dayKey}T${String(hour).padStart(2, '0')}`),
+      axisLabels: Array.from({ length: 24 }, (_, index) =>
+        index % 3 === 0 ? `${String(index).padStart(2, '0')}:00` : '',
+      ),
+    };
+  }
+
+  if (daySpan <= 62) {
+    const bucketKeys: string[] = [];
+    const cursor = new Date(bounds.start);
+    while (cursor <= bounds.end) {
+      bucketKeys.push(toIsoDateKey(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return {
+      unit: 'day',
+      detailLabel,
+      bucketKeys,
+      axisLabels: bucketKeys.map((key, index) => {
+        const date = parseDateKey(key);
+        if (!date) return '';
+        return index % 2 === 0
+          ? date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })
+          : '';
+      }),
+    };
+  }
+
+  const monthKeys: string[] = [];
+  const cursor = new Date(bounds.start.getFullYear(), bounds.start.getMonth(), 1);
+  const endMonth = new Date(bounds.end.getFullYear(), bounds.end.getMonth(), 1);
+  while (cursor <= endMonth) {
+    monthKeys.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return {
+    unit: 'month',
+    detailLabel,
+    bucketKeys: monthKeys,
+    axisLabels: monthKeys.map((key) => {
+      const [year, month] = key.split('-').map(Number);
+      return getMonthFormatter().format(new Date(year, month - 1, 1));
+    }),
+  };
+};
+
+const getCustomBucketIndex = (saleDate: string, config: CustomRangeConfig) => {
+  const date = new Date(saleDate);
+  if (Number.isNaN(date.getTime())) return -1;
+
+  if (config.unit === 'hour') {
+    const dayKey = toIsoDateKey(date);
+    const hour = date.getHours();
+    return config.bucketKeys.findIndex((key) => key === `${dayKey}T${String(hour).padStart(2, '0')}`);
+  }
+
+  if (config.unit === 'day') {
+    return config.bucketKeys.findIndex((key) => key === toIsoDateKey(date));
+  }
+
+  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return config.bucketKeys.findIndex((key) => key === monthKey);
+};
+
+const buildCustomSnapshot = (
+  records: Sale[],
+  config: CustomRangeConfig,
+  color: string,
+  label: string,
+  getValue: (sale: Sale) => number,
+): ChartSnapshot => {
+  const values = Array.from({ length: config.bucketKeys.length }, () => 0);
+
+  records.forEach((record) => {
+    const bucketIndex = getCustomBucketIndex(record.saleDate, config);
+    if (bucketIndex < 0) return;
+    values[bucketIndex] += getValue(record);
+  });
+
+  return {
+    year: new Date().getFullYear(),
+    label,
+    detailLabel: config.detailLabel,
+    values,
+    total: values.reduce((sum, value) => sum + value, 0),
+    color,
+  };
+};
+
+type DashboardAnalytics = ReturnType<typeof buildAnalyticsResult>;
+
+const buildCustomRangeAnalytics = (
   productSales: Sale[],
   repairOrders: Sale[],
-  statsPeriod: StatsPeriod,
-  products: Product[] = [],
-  currentDate = new Date(),
-) => {
-  const config = getPeriodConfig(statsPeriod, currentDate);
-  const revenueSnapshots = comparisonColors.map((color, index) =>
-    buildSnapshot(productSales, config, index, color, getSaleTotal),
+  customRange: AnalyticsDateRange,
+  products: Product[],
+  currentDate: Date,
+): DashboardAnalytics => {
+  const config = getCustomRangeConfig(customRange, currentDate);
+  if (!config) {
+    const todayConfig = getPeriodConfig('today', currentDate);
+    const revenueSnapshots = comparisonColors.map((color, index) =>
+      buildSnapshot(productSales, todayConfig, index, color, getSaleTotal),
+    );
+    const orderSnapshots = comparisonColors.map((color, index) =>
+      buildSnapshot(repairOrders, todayConfig, index, color, () => 1),
+    );
+    const salesCountSnapshots = comparisonColors.map((color, index) =>
+      buildSnapshot(productSales, todayConfig, index, color, () => 1),
+    );
+    const currentRevenue = revenueSnapshots[0];
+    const selectedSales = productSales.filter((sale) =>
+      matchesPeriod(new Date(sale.saleDate), todayConfig, currentRevenue.year),
+    );
+    const selectedOrders = repairOrders.filter((sale) =>
+      matchesPeriod(new Date(sale.saleDate), todayConfig, currentRevenue.year),
+    );
+    return buildAnalyticsResult({
+      productSales,
+      repairOrders,
+      selectedSales,
+      selectedOrders,
+      revenueSnapshots,
+      orderSnapshots,
+      salesCountSnapshots,
+      products,
+      currentDate,
+      detailLabel: todayConfig.detailLabel,
+      axisLabels: todayConfig.axisLabels,
+    });
+  }
+
+  const filteredSales = productSales.filter((sale) =>
+    isSaleInAnalyticsDateRange(sale.saleDate, customRange),
   );
-  const orderSnapshots = comparisonColors.map((color, index) =>
-    buildSnapshot(repairOrders, config, index, color, () => 1),
+  const filteredOrders = repairOrders.filter((sale) =>
+    isSaleInAnalyticsDateRange(sale.saleDate, customRange),
   );
-  const salesCountSnapshots = comparisonColors.map((color, index) =>
-    buildSnapshot(productSales, config, index, color, () => 1),
-  );
+  const revenueSnapshots = [
+    buildCustomSnapshot(filteredSales, config, comparisonColors[0], i18n.t('analytics.customRange.current'), getSaleTotal),
+  ];
+  const orderSnapshots = [
+    buildCustomSnapshot(filteredOrders, config, comparisonColors[0], i18n.t('analytics.customRange.current'), () => 1),
+  ];
+  const salesCountSnapshots = [
+    buildCustomSnapshot(filteredSales, config, comparisonColors[0], i18n.t('analytics.customRange.current'), () => 1),
+  ];
+
+  return buildAnalyticsResult({
+    productSales,
+    repairOrders,
+    selectedSales: filteredSales,
+    selectedOrders: filteredOrders,
+    revenueSnapshots,
+    orderSnapshots,
+    salesCountSnapshots,
+    products,
+    currentDate,
+    detailLabel: config.detailLabel,
+    axisLabels: config.axisLabels,
+  });
+};
+
+type AnalyticsResultInput = {
+  productSales: Sale[];
+  repairOrders: Sale[];
+  selectedSales: Sale[];
+  selectedOrders: Sale[];
+  revenueSnapshots: ChartSnapshot[];
+  orderSnapshots: ChartSnapshot[];
+  salesCountSnapshots: ChartSnapshot[];
+  products: Product[];
+  currentDate: Date;
+  detailLabel: string;
+  axisLabels: string[];
+};
+
+const buildAnalyticsResult = ({
+  productSales,
+  repairOrders,
+  selectedSales,
+  selectedOrders,
+  revenueSnapshots,
+  orderSnapshots,
+  salesCountSnapshots,
+  products,
+  currentDate,
+  detailLabel,
+  axisLabels,
+}: AnalyticsResultInput) => {
   const currentRevenue = revenueSnapshots[0];
   const currentOrders = orderSnapshots[0];
   const currentSalesCount = salesCountSnapshots[0];
-  const selectedSales = productSales.filter((sale) =>
-    matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
-  );
-  const selectedOrders = repairOrders.filter((sale) =>
-    matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
-  );
   const selectedRecords = [...selectedSales, ...selectedOrders];
   const revenue = currentRevenue.total;
   const salesCount = currentSalesCount.total;
@@ -281,8 +505,8 @@ export const buildDashboardAnalytics = (
   const todayOrders = repairOrders.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
 
   return {
-    detailLabel: config.detailLabel,
-    axisLabels: config.axisLabels,
+    detailLabel,
+    axisLabels,
     revenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
@@ -362,23 +586,73 @@ export const buildDashboardAnalytics = (
       {
         labelKey: 'analytics.signalsLabels.unpaidOrders',
         value: formatMetric(unpaidOrders),
-        tone: unpaidOrders > 0 ? 'risk' : 'good',
+        tone: unpaidOrders > 0 ? 'risk' : ('good' as const),
       },
       {
         labelKey: 'analytics.signalsLabels.openWorkflow',
         value: formatMetric(openOrders),
-        tone: openOrders > 0 ? 'watch' : 'good',
+        tone: openOrders > 0 ? 'watch' : ('good' as const),
       },
       {
         labelKey: 'analytics.signalsLabels.lowStockItems',
         value: formatMetric(lowStockProducts + outOfStockProducts),
-        tone: lowStockProducts + outOfStockProducts > 0 ? 'risk' : 'good',
+        tone: lowStockProducts + outOfStockProducts > 0 ? 'risk' : ('good' as const),
       },
       {
         labelKey: 'analytics.signalsLabels.todayActivity',
         value: formatMetric(todaySales.length + todayOrders.length),
-        tone: todaySales.length + todayOrders.length > 0 ? 'good' : 'muted',
+        tone: todaySales.length + todayOrders.length > 0 ? 'good' : ('muted' as const),
       },
     ],
   };
+};
+
+export const buildDashboardAnalytics = (
+  productSales: Sale[],
+  repairOrders: Sale[],
+  statsPeriod: StatsPeriod,
+  products: Product[] = [],
+  currentDate = new Date(),
+  customRange: AnalyticsDateRange | null = null,
+): DashboardAnalytics => {
+  if (customRange?.dateFrom || customRange?.dateTo) {
+    return buildCustomRangeAnalytics(
+      productSales,
+      repairOrders,
+      customRange,
+      products,
+      currentDate,
+    );
+  }
+
+  const config = getPeriodConfig(statsPeriod, currentDate);
+  const revenueSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(productSales, config, index, color, getSaleTotal),
+  );
+  const orderSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(repairOrders, config, index, color, () => 1),
+  );
+  const salesCountSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(productSales, config, index, color, () => 1),
+  );
+  const currentRevenue = revenueSnapshots[0];
+  const selectedSales = productSales.filter((sale) =>
+    matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
+  );
+  const selectedOrders = repairOrders.filter((sale) =>
+    matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
+  );
+  return buildAnalyticsResult({
+    productSales,
+    repairOrders,
+    selectedSales,
+    selectedOrders,
+    revenueSnapshots,
+    orderSnapshots,
+    salesCountSnapshots,
+    products,
+    currentDate,
+    detailLabel: config.detailLabel,
+    axisLabels: config.axisLabels,
+  });
 };

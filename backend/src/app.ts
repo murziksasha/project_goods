@@ -18,6 +18,8 @@ import { clientDeviceRouter } from './routes/client-device.routes';
 import { catalogProductRouter } from './routes/catalog-product.routes';
 import { supplierOrderRouter } from './routes/supplier-order.routes';
 import { warehouseSettingsRouter } from './routes/warehouse-settings.routes';
+import { marketRouter } from './routes/market.routes';
+import { weatherRouter } from './routes/weather.routes';
 import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
 export const app = express();
@@ -47,6 +49,8 @@ app.use('/api', clientDeviceRouter);
 app.use('/api', catalogProductRouter);
 app.use('/api', supplierOrderRouter);
 app.use('/api', warehouseSettingsRouter);
+app.use('/api', marketRouter);
+app.use('/api', weatherRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });

@@ -23,9 +23,7 @@ import type {
   Employee,
   EmployeeFormValues,
 } from '../../../entities/employee/model/types';
-import {
-  exportProducts,
-} from '../../../entities/product/api/productApi';
+
 import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
 import type {
   Product,
@@ -47,6 +45,7 @@ import type {
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
+import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
 import {
   createSupplier,
   mergeSuppliers as mergeSuppliersApi,
@@ -138,7 +137,6 @@ type DashboardActionParams = {
   setIsSaleSaving: Setter<boolean>;
   setIsEmployeeSaving: Setter<boolean>;
   setIsSettingsSaving: Setter<boolean>;
-  setIsExporting: Setter<boolean>;
   setIsSeeding: Setter<boolean>;
   setError: Setter<string>;
   setSuccessMessage: Setter<string>;
@@ -252,7 +250,6 @@ export const createDashboardActions = ({
   setIsSaleSaving,
   setIsEmployeeSaving,
   setIsSettingsSaving,
-  setIsExporting,
   setIsSeeding,
   setError,
   setSuccessMessage,
@@ -922,6 +919,7 @@ export const createDashboardActions = ({
           numbering: updated.numbering,
           financeDefaults: updated.financeDefaults,
           notificationSettings: updated.notificationSettings,
+          dashboardPreferences: normalizeDashboardPreferences(updated.dashboardPreferences),
         });
         setSuccessMessage(i18n.t('dashboard.actions.success.settingsSaved'));
       } catch (requestError) {
@@ -1228,23 +1226,7 @@ export const createDashboardActions = ({
         );
       }
     },
-    exportProducts: async () => {
-      setIsExporting(true);
-      clearNotifications();
-      try {
-        await exportProducts();
-        setSuccessMessage(i18n.t('dashboard.actions.success.productExportPrepared'));
-      } catch (requestError) {
-        setError(
-          getRequestErrorMessage(
-            requestError,
-            i18n.t('dashboard.actions.errors.failedExportProducts'),
-          ),
-        );
-      } finally {
-        setIsExporting(false);
-      }
-    },
+
     importClientsFromFile: async (file: File) => {
       setIsClientImporting(true);
       clearNotifications();

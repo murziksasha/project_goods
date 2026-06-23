@@ -234,6 +234,31 @@ export const settingsSchema = new mongoose.Schema(
       messengerEnabled: { type: Boolean, default: false },
       emailEnabled: { type: Boolean, default: false },
     },
+    dashboardPreferences: {
+      marketWeatherEnabled: { type: Boolean, default: true },
+      exchangeRatesEnabled: { type: Boolean, default: true },
+      weatherEnabled: { type: Boolean, default: true },
+      weatherAnimationEnabled: { type: Boolean, default: true },
+      weatherProvider: {
+        type: String,
+        enum: ['open-meteo', 'openweather'],
+        default: 'open-meteo',
+      },
+      openWeatherApiKey: { type: String, trim: true, default: '' },
+      currencies: {
+        type: [String],
+        default: () => ['USD', 'EUR'],
+      },
+      rateProviders: {
+        type: [String],
+        default: () => ['nbu', 'privat'],
+      },
+      defaultForecastView: {
+        type: String,
+        enum: ['today', 'tomorrow', 'fiveDay'],
+        default: 'today',
+      },
+    },
   },
   {
     timestamps: true,

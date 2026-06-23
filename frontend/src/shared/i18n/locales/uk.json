@@ -116,7 +116,24 @@
     "tabs": {
       "company": "Компанія",
       "print": "Друковані форми",
+      "dashboard": "Головна",
       "backups": "Резервні копії"
+    },
+    "dashboard": {
+      "marketWeatherEnabled": "Показувати блок курсу та погоди",
+      "exchangeRatesEnabled": "Показувати курси валют",
+      "weatherEnabled": "Показувати прогноз погоди",
+      "weatherAnimationEnabled": "Увімкнути анімацію погоди",
+      "currencies": "Валюти",
+      "rateProviders": "Джерела курсу",
+      "weatherProvider": "API погоди",
+      "defaultForecastView": "Стандартний вигляд прогнозу",
+      "openWeatherApiKey": "API-ключ OpenWeatherMap",
+      "openWeatherApiKeyPlaceholder": "Потрібен при виборі OpenWeatherMap",
+      "providers": {
+        "openMeteo": "Open-Meteo (без ключа)",
+        "openWeather": "OpenWeatherMap"
+      }
     },
     "tabsAriaLabel": "Розділи налаштувань",
     "panel": {
@@ -2393,8 +2410,6 @@
     "loading": "Завантаження...",
     "loadingAnalytics": "Завантаження аналітики...",
     "eraseAllData": "Стерти всі дані",
-    "exporting": "Експорт...",
-    "export": "Експорт",
     "workflow": "Процеси",
     "operationalPulse": "Операційний пульс",
     "open": "Відкриті",
@@ -2444,7 +2459,70 @@
       "lowStockItems": "Низький залишок",
       "todayActivity": "Активність сьогодні"
     },
-    "currency": "UAH {{value}}"
+    "currency": "UAH {{value}}",
+    "dateFilter": {
+      "date": "Дата",
+      "dateFrom": "Дата від",
+      "dateTo": "Дата до",
+      "apply": "Застосувати",
+      "clear": "Очистити",
+      "closeAriaLabel": "Закрити панель фільтрів дати"
+    },
+    "customRange": {
+      "current": "Обраний період",
+      "note": "Графіки показують лише обраний календарний період."
+    },
+    "marketWeather": {
+      "sectionLabel": "Актуальні дані",
+      "title": "Курс і погода",
+      "exchangeRates": "Курси валют",
+      "weatherForecast": "Прогноз погоди",
+      "refresh": "Оновити",
+      "refreshing": "Оновлення даних...",
+      "settings": "Налаштування",
+      "settingsTitle": "Налаштування віджета",
+      "closeSettings": "Закрити налаштування віджета",
+      "showWidgetContent": "Показувати курси та погоду",
+      "showExchangeRates": "Показувати курси валют",
+      "currencies": "Валюти",
+      "providers": "Джерела курсу",
+      "showWeather": "Показувати погоду",
+      "weatherAnimation": "Анімація погоди",
+      "animationOff": "Статична іконка",
+      "animationOn": "Анімована сцена",
+      "forecastView": "Вигляд прогнозу",
+      "resetOverrides": "Скинути персональні налаштування",
+      "loadingRates": "Завантаження курсів...",
+      "ratesUnavailable": "Курси тимчасово недоступні.",
+      "loadingWeather": "Завантаження прогнозу погоди...",
+      "weatherUnavailable": "Прогноз погоди тимчасово недоступний.",
+      "usingDefaultLocation": "Використовується стандартна локація (Київ).",
+      "perUah": "за UAH",
+      "official": "Офіційний",
+      "buy": "Купівля",
+      "sell": "Продаж",
+      "noQuotes": "Немає доступних курсів.",
+      "humidity": "Вологість {{value}}%",
+      "providerLabels": {
+        "nbu": "НБУ",
+        "privat": "ПриватБанк",
+        "mono": "Monobank"
+      },
+      "views": {
+        "today": "Сьогодні",
+        "tomorrow": "Завтра",
+        "fiveDay": "5 днів"
+      },
+      "conditions": {
+        "clear": "Ясно",
+        "partly-cloudy": "Мінлива хмарність",
+        "cloudy": "Хмарно",
+        "rain": "Дощ",
+        "thunder": "Гроза",
+        "snow": "Сніг",
+        "fog": "Туман"
+      }
+    }
   },
   "app": {
     "errorBoundary": {

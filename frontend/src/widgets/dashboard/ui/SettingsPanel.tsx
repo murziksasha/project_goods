@@ -11,7 +11,9 @@ import {
 import type { BackupMetadata } from '../../../entities/backup/model/types';
 import type {
   AppSettingsFormValues,
+  DashboardPreferences,
   PrintForm,
+  RateProvider,
 } from '../../../entities/settings/model/types';
 import { normalizePrintFormsForView } from '../../../entities/settings/model/printForms';
 import { createNewPrintForm } from '../model/print-form-builder';
@@ -46,6 +48,169 @@ type CompanySettingsSectionProps = {
   form: AppSettingsFormValues;
   validation: CompanyValidation;
   onChange: SettingsChangeHandler;
+};
+
+const AVAILABLE_CURRENCIES = ['USD', 'EUR', 'GBP', 'PLN'] as const;
+const AVAILABLE_RATE_PROVIDERS: RateProvider[] = ['nbu', 'privat', 'mono'];
+
+type DashboardSettingsSectionProps = {
+  preferences: DashboardPreferences;
+  onChange: (preferences: DashboardPreferences) => void;
+};
+
+const DashboardSettingsSection = ({
+  preferences,
+  onChange,
+}: DashboardSettingsSectionProps) => {
+  const { t } = useTranslation();
+
+  const toggleCurrency = (currency: string) => {
+    const next = preferences.currencies.includes(currency)
+      ? preferences.currencies.filter((item) => item !== currency)
+      : [...preferences.currencies, currency];
+    onChange({ ...preferences, currencies: next.length > 0 ? next : [currency] });
+  };
+
+  const toggleProvider = (provider: RateProvider) => {
+    const next = preferences.rateProviders.includes(provider)
+      ? preferences.rateProviders.filter((item) => item !== provider)
+      : [...preferences.rateProviders, provider];
+    onChange({
+      ...preferences,
+      rateProviders: next.length > 0 ? next : [provider],
+    });
+  };
+
+  return (
+    <section className="settings-section">
+      <div className="form-grid">
+        <label className="field field-wide market-weather-toggle">
+          <input
+            type="checkbox"
+            checked={preferences.marketWeatherEnabled}
+            onChange={(event) =>
+              onChange({ ...preferences, marketWeatherEnabled: event.target.checked })
+            }
+          />
+          <span>{t('settings.dashboard.marketWeatherEnabled')}</span>
+        </label>
+        <label className="field field-wide market-weather-toggle">
+          <input
+            type="checkbox"
+            checked={preferences.exchangeRatesEnabled}
+            onChange={(event) =>
+              onChange({ ...preferences, exchangeRatesEnabled: event.target.checked })
+            }
+          />
+          <span>{t('settings.dashboard.exchangeRatesEnabled')}</span>
+        </label>
+        <label className="field field-wide market-weather-toggle">
+          <input
+            type="checkbox"
+            checked={preferences.weatherEnabled}
+            onChange={(event) =>
+              onChange({ ...preferences, weatherEnabled: event.target.checked })
+            }
+          />
+          <span>{t('settings.dashboard.weatherEnabled')}</span>
+        </label>
+        <label className="field field-wide market-weather-toggle">
+          <input
+            type="checkbox"
+            checked={preferences.weatherAnimationEnabled}
+            onChange={(event) =>
+              onChange({
+                ...preferences,
+                weatherAnimationEnabled: event.target.checked,
+              })
+            }
+          />
+          <span>{t('settings.dashboard.weatherAnimationEnabled')}</span>
+        </label>
+        <div className="field field-wide">
+          <span>{t('settings.dashboard.currencies')}</span>
+          <div className="market-weather-chip-row">
+            {AVAILABLE_CURRENCIES.map((currency) => (
+              <button
+                key={currency}
+                type="button"
+                className={
+                  preferences.currencies.includes(currency)
+                    ? 'market-weather-chip market-weather-chip-active'
+                    : 'market-weather-chip'
+                }
+                onClick={() => toggleCurrency(currency)}
+              >
+                {currency}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field field-wide">
+          <span>{t('settings.dashboard.rateProviders')}</span>
+          <div className="market-weather-chip-row">
+            {AVAILABLE_RATE_PROVIDERS.map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                className={
+                  preferences.rateProviders.includes(provider)
+                    ? 'market-weather-chip market-weather-chip-active'
+                    : 'market-weather-chip'
+                }
+                onClick={() => toggleProvider(provider)}
+              >
+                {t(`analytics.marketWeather.providerLabels.${provider}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="field">
+          <span>{t('settings.dashboard.weatherProvider')}</span>
+          <select
+            value={preferences.weatherProvider}
+            onChange={(event) =>
+              onChange({
+                ...preferences,
+                weatherProvider: event.target.value as DashboardPreferences['weatherProvider'],
+              })
+            }
+          >
+            <option value="open-meteo">{t('settings.dashboard.providers.openMeteo')}</option>
+            <option value="openweather">{t('settings.dashboard.providers.openWeather')}</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('settings.dashboard.defaultForecastView')}</span>
+          <select
+            value={preferences.defaultForecastView}
+            onChange={(event) =>
+              onChange({
+                ...preferences,
+                defaultForecastView:
+                  event.target.value as DashboardPreferences['defaultForecastView'],
+              })
+            }
+          >
+            <option value="today">{t('analytics.marketWeather.views.today')}</option>
+            <option value="tomorrow">{t('analytics.marketWeather.views.tomorrow')}</option>
+            <option value="fiveDay">{t('analytics.marketWeather.views.fiveDay')}</option>
+          </select>
+        </label>
+        <label className="field field-wide">
+          <span>{t('settings.dashboard.openWeatherApiKey')}</span>
+          <input
+            type="password"
+            value={preferences.openWeatherApiKey}
+            onChange={(event) =>
+              onChange({ ...preferences, openWeatherApiKey: event.target.value })
+            }
+            placeholder={t('settings.dashboard.openWeatherApiKeyPlaceholder')}
+          />
+        </label>
+      </div>
+    </section>
+  );
 };
 
 const CompanySettingsSection = ({
@@ -836,6 +1001,13 @@ export const SettingsPanel = ({
           form={form}
           validation={companyValidation}
           onChange={onChange}
+        />
+      ) : null}
+
+      {activeTab === 'dashboard' && canEditSettings ? (
+        <DashboardSettingsSection
+          preferences={form.dashboardPreferences}
+          onChange={(dashboardPreferences) => onChange('dashboardPreferences', dashboardPreferences)}
         />
       ) : null}
 

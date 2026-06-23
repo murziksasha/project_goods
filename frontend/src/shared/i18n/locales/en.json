@@ -116,7 +116,24 @@
     "tabs": {
       "company": "Company",
       "print": "Print forms",
+      "dashboard": "Dashboard",
       "backups": "Backups"
+    },
+    "dashboard": {
+      "marketWeatherEnabled": "Show market & weather widget",
+      "exchangeRatesEnabled": "Show exchange rates",
+      "weatherEnabled": "Show weather forecast",
+      "weatherAnimationEnabled": "Enable weather animation",
+      "currencies": "Currencies",
+      "rateProviders": "Rate providers",
+      "weatherProvider": "Weather API provider",
+      "defaultForecastView": "Default forecast view",
+      "openWeatherApiKey": "OpenWeatherMap API key",
+      "openWeatherApiKeyPlaceholder": "Required when OpenWeatherMap is selected",
+      "providers": {
+        "openMeteo": "Open-Meteo (no key)",
+        "openWeather": "OpenWeatherMap"
+      }
     },
     "tabsAriaLabel": "Settings sections",
     "panel": {
@@ -2393,8 +2410,6 @@
     "loading": "Loading...",
     "loadingAnalytics": "Loading analytics...",
     "eraseAllData": "Erase all data",
-    "exporting": "Exporting...",
-    "export": "Export",
     "workflow": "Workflow",
     "operationalPulse": "Operational pulse",
     "open": "Open",
@@ -2444,7 +2459,70 @@
       "lowStockItems": "Low stock items",
       "todayActivity": "Today activity"
     },
-    "currency": "UAH {{value}}"
+    "currency": "UAH {{value}}",
+    "dateFilter": {
+      "date": "Date",
+      "dateFrom": "Date from",
+      "dateTo": "Date to",
+      "apply": "Apply",
+      "clear": "Clear",
+      "closeAriaLabel": "Close date filters panel"
+    },
+    "customRange": {
+      "current": "Selected period",
+      "note": "Charts show only the selected custom date range."
+    },
+    "marketWeather": {
+      "sectionLabel": "Live insights",
+      "title": "Market & weather",
+      "exchangeRates": "Exchange rates",
+      "weatherForecast": "Weather forecast",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing data...",
+      "settings": "Settings",
+      "settingsTitle": "Widget display settings",
+      "closeSettings": "Close widget settings",
+      "showWidgetContent": "Show rates and weather",
+      "showExchangeRates": "Show exchange rates",
+      "currencies": "Currencies",
+      "providers": "Rate providers",
+      "showWeather": "Show weather",
+      "weatherAnimation": "Weather animation",
+      "animationOff": "Static icon",
+      "animationOn": "Animated scene",
+      "forecastView": "Forecast view",
+      "resetOverrides": "Reset personal overrides",
+      "loadingRates": "Loading exchange rates...",
+      "ratesUnavailable": "Exchange rates are temporarily unavailable.",
+      "loadingWeather": "Loading weather forecast...",
+      "weatherUnavailable": "Weather forecast is temporarily unavailable.",
+      "usingDefaultLocation": "Using default location (Kyiv).",
+      "perUah": "per UAH",
+      "official": "Official",
+      "buy": "Buy",
+      "sell": "Sell",
+      "noQuotes": "No quotes available.",
+      "humidity": "Humidity {{value}}%",
+      "providerLabels": {
+        "nbu": "NBU",
+        "privat": "PrivatBank",
+        "mono": "Monobank"
+      },
+      "views": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "fiveDay": "5 days"
+      },
+      "conditions": {
+        "clear": "Clear sky",
+        "partly-cloudy": "Partly cloudy",
+        "cloudy": "Cloudy",
+        "rain": "Rain",
+        "thunder": "Thunderstorm",
+        "snow": "Snow",
+        "fog": "Fog"
+      }
+    }
   },
   "app": {
     "errorBoundary": {

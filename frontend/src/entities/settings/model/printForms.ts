@@ -1,4 +1,6 @@
 import type {
+  AppSettingsFormValues,
+  RateProvider,
   PrintForm,
   PrintLayoutBlock,
   PrintLayoutField,
@@ -904,7 +906,7 @@ const isRecognizableDefaultPrintForm = (form: PrintForm) => {
 const hasLayoutBlocks = (form: PrintForm) =>
   form.layoutVersion === 1 && Array.isArray(form.layoutBlocks) && form.layoutBlocks.length > 0;
 
-export const createDefaultSettingsForm = () => ({
+export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
   serviceName: 'Service CRM',
   company: 'Service CRM',
   companyAddress: '',
@@ -935,6 +937,17 @@ export const createDefaultSettingsForm = () => ({
     smsEnabled: false,
     messengerEnabled: false,
     emailEnabled: false,
+  },
+  dashboardPreferences: {
+    marketWeatherEnabled: true,
+    exchangeRatesEnabled: true,
+    weatherEnabled: true,
+    weatherAnimationEnabled: true,
+    weatherProvider: 'open-meteo' as const,
+    openWeatherApiKey: '',
+    currencies: ['USD', 'EUR'],
+    rateProviders: ['nbu', 'privat'] as RateProvider[],
+    defaultForecastView: 'today' as const,
   },
 });
 

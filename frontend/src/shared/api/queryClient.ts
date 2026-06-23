@@ -16,6 +16,8 @@ export const queryKeys = {
   financeReport: ['financeReport'] as const,
   financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
   financeSettings: ['financeSettings'] as const,
+  marketRates: ['marketRates'] as const,
+  weatherForecast: ['weatherForecast'] as const,
 };
 
 export const queryClient = new QueryClient({

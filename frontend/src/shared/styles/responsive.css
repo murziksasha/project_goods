@@ -247,6 +247,18 @@
   }
 
   .hero-header,
+  .market-weather-widget-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-weather-loader-skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-weather-animation-preview {
+    grid-template-columns: 1fr;
+  }
+
   .analytics-executive-header,
   .finance-information-header,
   .hero-controls,

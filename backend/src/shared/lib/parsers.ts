@@ -384,6 +384,44 @@ const clampLabelSizeMm = (value: unknown, fallback: number) =>
 const readObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
+const rateProviderIds = new Set(['nbu', 'privat', 'mono']);
+const forecastViewIds = new Set(['today', 'tomorrow', 'fiveDay']);
+
+const normalizeDashboardPreferences = (value: unknown) => {
+  const source = readObject(value);
+  const currencies = Array.isArray(source.currencies)
+    ? source.currencies
+        .map((item) => toNonEmptyString(item).toUpperCase())
+        .filter(Boolean)
+    : ['USD', 'EUR'];
+  const rateProviders = Array.isArray(source.rateProviders)
+    ? source.rateProviders
+        .map((item) => toNonEmptyString(item).toLowerCase())
+        .filter((item): item is 'nbu' | 'privat' | 'mono' => rateProviderIds.has(item))
+    : ['nbu', 'privat'];
+  const weatherProvider =
+    toNonEmptyString(source.weatherProvider) === 'openweather'
+      ? 'openweather'
+      : 'open-meteo';
+  const defaultForecastView = forecastViewIds.has(
+    toNonEmptyString(source.defaultForecastView),
+  )
+    ? (toNonEmptyString(source.defaultForecastView) as 'today' | 'tomorrow' | 'fiveDay')
+    : 'today';
+
+  return {
+    marketWeatherEnabled: toBoolean(source.marketWeatherEnabled, true),
+    exchangeRatesEnabled: toBoolean(source.exchangeRatesEnabled, true),
+    weatherEnabled: toBoolean(source.weatherEnabled, true),
+    weatherAnimationEnabled: toBoolean(source.weatherAnimationEnabled, true),
+    weatherProvider,
+    openWeatherApiKey: toNonEmptyString(source.openWeatherApiKey),
+    currencies: currencies.length > 0 ? currencies : ['USD', 'EUR'],
+    rateProviders: rateProviders.length > 0 ? rateProviders : ['nbu', 'privat'],
+    defaultForecastView,
+  };
+};
+
 export const normalizeSettingsPayload = (payload: SettingsPayload) => {
   const orderDefaults = readObject(payload.orderDefaults);
   const numbering = readObject(payload.numbering);
@@ -502,6 +540,7 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
       messengerEnabled: toBoolean(notificationSettings.messengerEnabled),
       emailEnabled: toBoolean(notificationSettings.emailEnabled),
     },
+    dashboardPreferences: normalizeDashboardPreferences(payload.dashboardPreferences),
   };
 };
 

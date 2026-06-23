@@ -145,6 +145,24 @@ export type NotificationSettings = {
   emailEnabled: boolean;
 };
 
+export type RateProvider = 'nbu' | 'privat' | 'mono';
+
+export type WeatherProvider = 'open-meteo' | 'openweather';
+
+export type ForecastView = 'today' | 'tomorrow' | 'fiveDay';
+
+export type DashboardPreferences = {
+  marketWeatherEnabled: boolean;
+  exchangeRatesEnabled: boolean;
+  weatherEnabled: boolean;
+  weatherAnimationEnabled: boolean;
+  weatherProvider: WeatherProvider;
+  openWeatherApiKey: string;
+  currencies: string[];
+  rateProviders: RateProvider[];
+  defaultForecastView: ForecastView;
+};
+
 export type AppSettings = {
   id: string;
   serviceName: string;
@@ -159,6 +177,7 @@ export type AppSettings = {
   numbering: NumberingSettings;
   financeDefaults: FinanceDefaults;
   notificationSettings: NotificationSettings;
+  dashboardPreferences: DashboardPreferences;
   createdAt: string;
   updatedAt: string;
 };
@@ -176,4 +195,5 @@ export type AppSettingsFormValues = {
   numbering: NumberingSettings;
   financeDefaults: FinanceDefaults;
   notificationSettings: NotificationSettings;
+  dashboardPreferences: DashboardPreferences;
 };
