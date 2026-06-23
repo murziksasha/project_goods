@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '../../../shared/api/http';
 import type { Employee } from '../../../entities/employee/model/types';
 import { authTokenStorageKey, getCurrentEmployee } from '../../../entities/auth/api/authApi';
+import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { DashboardPage } from './DashboardPage';
 
 vi.mock('../../../entities/auth/api/authApi', async () => {
@@ -31,16 +32,7 @@ vi.mock('../model/useDashboardPage', () => {
       services: [],
       allEmployees: [],
       settings: null,
-      settingsForm: {
-        serviceName: 'Service CRM',
-        company: '',
-        companyAddress: '',
-        companyId: '',
-        companyIban: '',
-        companyEmail: '',
-        companySite: '',
-        printForms: [],
-      },
+      settingsForm: createDefaultSettingsForm(),
       statsPeriod: 'today',
       products: [],
       clients: [],
@@ -80,7 +72,9 @@ vi.mock('../model/useDashboardPage', () => {
       isSaleSaving: false,
       isEmployeeSaving: false,
       isSettingsSaving: false,
-      isExporting: false,
+      analyticsDateRange: null,
+      draftAnalyticsDateRange: { dateFrom: '', dateTo: '' },
+      isAnalyticsDateFilterOpen: false,
       isSeeding: false,
       error: '',
       successMessage: '',
@@ -130,8 +124,11 @@ vi.mock('../model/useDashboardPage', () => {
       editEmployee: vi.fn(),
       deleteEmployee: vi.fn(),
       eraseAllData: vi.fn(),
-      exportProducts: vi.fn(),
       setStatsPeriod: vi.fn(),
+      setDraftAnalyticsDateRange: vi.fn(),
+      setIsAnalyticsDateFilterOpen: vi.fn(),
+      applyAnalyticsDateRange: vi.fn(),
+      clearAnalyticsDateRange: vi.fn(),
     },
   })),
   };

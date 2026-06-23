@@ -19,6 +19,7 @@ import type { ServiceCatalogItem } from '../../../entities/service-catalog/model
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
+import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import { queryKeys } from '../../../shared/api/queryClient';
 import i18n from '../../../shared/i18n/config';
@@ -124,6 +125,9 @@ export const useDashboardEffects = ({
             numbering: settingsResult.value.numbering,
             financeDefaults: settingsResult.value.financeDefaults,
             notificationSettings: settingsResult.value.notificationSettings,
+            dashboardPreferences: normalizeDashboardPreferences(
+              settingsResult.value.dashboardPreferences,
+            ),
           });
         } else {
           setSettings(null);

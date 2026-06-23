@@ -8,11 +8,13 @@ import {
 export type SettingsTab =
   | 'company'
   | 'print'
+  | 'dashboard'
   | 'backups';
 
 export const settingsTabs: Array<{ key: SettingsTab; labelKey: string }> = [
   { key: 'company', labelKey: 'settings.tabs.company' },
   { key: 'print', labelKey: 'settings.tabs.print' },
+  { key: 'dashboard', labelKey: 'settings.tabs.dashboard' },
   { key: 'backups', labelKey: 'settings.tabs.backups' },
 ];
 

@@ -93,6 +93,7 @@ export type SettingsPayload = {
   numbering?: unknown;
   financeDefaults?: unknown;
   notificationSettings?: unknown;
+  dashboardPreferences?: unknown;
 };
 
 export type WarehouseSettingsPayload = {
