@@ -6,7 +6,7 @@ import { SavedFiltersPanel } from './SavedFiltersPanel';
 
 type ClientStatusOption = {
   labelKey: string;
-  value: ClientStatus | '' | 'all';
+  value: ClientStatus | 'all';
 };
 
 type ClientsFilterPanelProps = {
@@ -129,7 +129,7 @@ export const ClientsFilterPanel = ({
             onChange={(event) =>
               updateFilter(
                 'status',
-                event.target.value as ClientStatus | '' | 'all',
+                event.target.value as ClientStatus | 'all',
               )
             }
           >

@@ -57,6 +57,16 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Nested examples that must remember their last tab: `Accounting -> Finance settings`, `Clients -> client card`, `Clients -> create client modal`, `Orders -> order detail related block`, and `Create order -> request tabs`.
 - URL-driven navigation still wins when the user opens a specific page/tab via route or link, but ordinary refresh should preserve the last active tab selection.
 
+## Browser Back/Forward Navigation (2026-06-22)
+
+- In-app navigation must stay inside the SPA when the user presses browser **Back** or **Forward**.
+- Implementation uses the native History API (`history.pushState` for user steps, `history.replaceState` only for auth, permission redirects, and one-time URL normalization).
+- React Router is intentionally not used; overhead is one `popstate` listener in `DashboardPage` plus lightweight URL strings.
+- **URL is the source of truth** during `popstate`; `localStorage` tab fallbacks apply on first load / empty URL, not when traversing history.
+- Route-level state lives in query params (`page`, `ordersTab`, `saleId`, `createOrder`, `accountingTab`). Heavy payloads (sales lists, client history, workspace data) must not be stored in `history.state`.
+- Central module: `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
+- Full spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
+
 ## Sidebar UI Persistence Rule (2026-05-19)
 
 - Dashboard main menu collapsed/expanded state must persist across browser reload (`F5`).

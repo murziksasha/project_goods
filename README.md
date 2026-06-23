@@ -10,6 +10,7 @@ Project Goods - full-stack приложение для учета товаров
 - [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
 - [API.md](./DOCUMENTATION/API.md) - backend API и маршруты
 - [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
+- [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - Back/Forward внутри SPA, History API, URL-параметры dashboard
 
 ### Flow-документы
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов

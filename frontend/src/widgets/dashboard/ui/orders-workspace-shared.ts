@@ -1592,20 +1592,3 @@ export const isSystemTimelineMessage = (message: string) => {
     normalized.includes(marker.toLowerCase()),
   );
 };
-
-export const getClientStatusClass = (status: string) => {
-  switch (status) {
-    case 'new':
-      return 'status-new';
-    case 'vip':
-      return 'status-vip';
-    case 'opt':
-      return 'status-opt';
-    case 'blacklist':
-      return 'status-blacklist';
-    case 'ok':
-      return 'status-ok';
-    default:
-      return 'status-gray';
-  }
-};
