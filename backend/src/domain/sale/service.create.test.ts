@@ -25,6 +25,7 @@ const {
     saleCtor: ctor,
     saleModel: Object.assign(ctor, {
       find: vi.fn(),
+      countDocuments: vi.fn(),
     }),
     clientModel: {
       findById: vi.fn(),
@@ -141,6 +142,7 @@ describe('createSale product identity', () => {
     productModel.findById.mockReturnValue(leanResult(null));
     catalogProductModel.findById.mockReturnValue(leanResult(null));
     catalogProductModel.countDocuments.mockResolvedValue(1);
+    saleModel.countDocuments.mockResolvedValue(0);
     getNextRecordNumberMock.mockResolvedValue('r000123');
   });
 

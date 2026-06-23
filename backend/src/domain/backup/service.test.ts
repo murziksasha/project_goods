@@ -272,6 +272,38 @@ describe('backup service', () => {
     await expect(fs.access(path.join(backupDir, `${oldScheduledId}.json`))).rejects.toThrow();
   });
 
+  it('infers scheduled type from id when metadata omits type', async () => {
+    const backupDir = await makeTempDir();
+    const oldScheduledId = 'project-goods-20260501-150000-scheduled';
+    const archiveFile = `${oldScheduledId}.archive.gz`;
+    await fs.writeFile(path.join(backupDir, archiveFile), 'archive');
+    await fs.writeFile(
+      path.join(backupDir, `${oldScheduledId}.json`),
+      JSON.stringify({
+        id: oldScheduledId,
+        createdAt: '2026-05-01T15:00:00.000Z',
+        updatedAt: '2026-05-01T15:00:00.000Z',
+        status: 'completed',
+        archiveFile,
+        sizeBytes: 7,
+        author: 'System',
+        durationMs: 1000,
+        error: '',
+      }),
+    );
+
+    await expect(listBackups({ backupDir })).resolves.toEqual([
+      expect.objectContaining({ id: oldScheduledId, type: 'scheduled' }),
+    ]);
+
+    await expect(
+      deleteOldScheduledBackups(14, {
+        backupDir,
+        now: () => new Date('2026-06-07T15:00:00.000Z'),
+      }),
+    ).resolves.toEqual([oldScheduledId]);
+  });
+
   it('creates a safety backup before restore', async () => {
     const backupDir = await makeTempDir();
     await writeBackupPair(backupDir, 'project-goods-20260607-100000');

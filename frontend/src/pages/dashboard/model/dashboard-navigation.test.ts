@@ -8,6 +8,7 @@ import {
 
 describe('dashboard-navigation', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     window.history.replaceState(null, '', '/');
   });
 
@@ -105,9 +106,12 @@ describe('dashboard-navigation', () => {
   });
 
   it('skips history updates when the href is unchanged', () => {
-    window.history.replaceState(null, '', '/?page=clients');
     const pushState = vi.spyOn(window.history, 'pushState');
     const replaceState = vi.spyOn(window.history, 'replaceState');
+
+    window.history.replaceState(null, '', '/?page=clients');
+    pushState.mockClear();
+    replaceState.mockClear();
 
     navigateDashboard({ page: 'clients' });
 

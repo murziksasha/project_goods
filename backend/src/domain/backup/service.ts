@@ -191,15 +191,22 @@ const readMetadata = async (metadataPath: string) => {
     throw new Error('Invalid backup metadata.');
   }
 
+  const backupId = parsed.id;
+  const inferBackupType = (): BackupType => {
+    if (parsed.type === 'safety' || parsed.type === 'scheduled') {
+      return parsed.type;
+    }
+    if (backupId.endsWith('-scheduled')) return 'scheduled';
+    if (backupId.endsWith('-safety')) return 'safety';
+    return 'manual';
+  };
+
   return {
     id: parsed.id,
     createdAt: parsed.createdAt,
     updatedAt: parsed.updatedAt,
     status: parsed.status,
-    type:
-      parsed.type === 'safety' || parsed.type === 'scheduled'
-        ? parsed.type
-        : 'manual',
+    type: inferBackupType(),
     archiveFile: parsed.archiveFile,
     sizeBytes: Number(parsed.sizeBytes ?? 0),
     author: String(parsed.author ?? ''),

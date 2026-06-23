@@ -279,38 +279,18 @@ describe('DashboardPage browser history', () => {
 
 describe('DashboardPage last sync reload', () => {
   it('clicking Last sync hard reloads the page and preserves login state', async () => {
-    const reloadSpy = vi.fn();
-    const originalLocation = window.location;
     vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
 
-    delete (window as any).location;
-    (window as any).location = {
-      href: 'http://localhost/',
-      pathname: '/',
-      search: '',
-      hash: '',
-      reload: reloadSpy,
-    };
+    render(<DashboardPage />);
 
-    try {
-      render(<DashboardPage />);
+    const syncButton = await screen.findByRole('button', { name: /Last sync/i });
+    expect(syncButton).toHaveClass('topbar-sync-button');
+    expect(syncButton).toHaveAttribute('title', 'Reload data');
 
-      const syncButton = await screen.findByRole('button', { name: /Last sync/i });
-      expect(syncButton).toHaveClass('topbar-sync-button');
-      expect(syncButton).toHaveAttribute('title', 'Reload data');
+    fireEvent.click(syncButton);
 
-      // click
-      fireEvent.click(syncButton);
-
-      expect(reloadSpy).toHaveBeenCalledTimes(1);
-
-      // login state preserved (no localStorage clear triggered by handler)
-      expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
-    } finally {
-      // restore
-      // @ts-expect-error
-      window.location = originalLocation;
-    }
+    expect(hardReloadApp).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
   });
 });
