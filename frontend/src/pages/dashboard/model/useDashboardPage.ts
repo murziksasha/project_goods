@@ -77,6 +77,12 @@ import { createDefaultSettingsForm } from '../../../entities/settings/model/prin
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
+import {
+  getStoredAnalyticsDateRange,
+  normalizeAnalyticsDateRange,
+  storeAnalyticsDateRange,
+  type AnalyticsDateRange,
+} from '../../../widgets/dashboard/model/analytics-date-range';
 
 const productSearchStorageKey = 'project-goods.filter.product-search';
 const serviceSearchStorageKey = 'project-goods.filter.service-search';
@@ -97,6 +103,14 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     createDefaultSettingsForm,
   );
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<AnalyticsDateRange | null>(() =>
+    getStoredAnalyticsDateRange(),
+  );
+  const [draftAnalyticsDateRange, setDraftAnalyticsDateRange] = useState<AnalyticsDateRange>(() => ({
+    dateFrom: getStoredAnalyticsDateRange()?.dateFrom ?? '',
+    dateTo: getStoredAnalyticsDateRange()?.dateTo ?? '',
+  }));
+  const [isAnalyticsDateFilterOpen, setIsAnalyticsDateFilterOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
   const [productForm, setProductForm] = useState<ProductFormValues>(initialProductForm);
@@ -138,7 +152,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [isSaleSaving, setIsSaleSaving] = useState(false);
   const [isEmployeeSaving, setIsEmployeeSaving] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+
   const [isSeeding, setIsSeeding] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -402,7 +416,6 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     setIsSaleSaving,
     setIsEmployeeSaving,
     setIsSettingsSaving,
-    setIsExporting,
     setIsSeeding,
     setError,
     setSuccessMessage,
@@ -532,7 +545,9 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       isSaleSaving,
       isEmployeeSaving,
       isSettingsSaving,
-      isExporting,
+      analyticsDateRange,
+      draftAnalyticsDateRange,
+      isAnalyticsDateFilterOpen,
       isSeeding,
       error,
       successMessage,
@@ -691,7 +706,26 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
           setIsProductSaving(false);
         }
       },
-      setStatsPeriod,
+      setStatsPeriod: (value: StatsPeriod) => {
+        setStatsPeriod(value);
+        setAnalyticsDateRange(null);
+        storeAnalyticsDateRange(null);
+        setDraftAnalyticsDateRange({ dateFrom: '', dateTo: '' });
+      },
+      setDraftAnalyticsDateRange,
+      setIsAnalyticsDateFilterOpen,
+      applyAnalyticsDateRange: () => {
+        const normalized = normalizeAnalyticsDateRange(draftAnalyticsDateRange);
+        setAnalyticsDateRange(normalized);
+        storeAnalyticsDateRange(normalized);
+        setIsAnalyticsDateFilterOpen(false);
+      },
+      clearAnalyticsDateRange: () => {
+        setAnalyticsDateRange(null);
+        setDraftAnalyticsDateRange({ dateFrom: '', dateTo: '' });
+        storeAnalyticsDateRange(null);
+        setIsAnalyticsDateFilterOpen(false);
+      },
       showError: setError,
       showSuccessMessage: setSuccessMessage,
     },

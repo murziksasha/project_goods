@@ -53,6 +53,26 @@ http://localhost:5000/api
 
 - `GET /settings` - получить текущие настройки компании или системы
 - `PUT /settings` - обновить настройки
+- Settings payload now includes `dashboardPreferences` for business home page widget defaults:
+  - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
+  - `weatherProvider` (`open-meteo` | `openweather`)
+  - `openWeatherApiKey`
+  - `currencies` (for example `["USD","EUR"]`)
+  - `rateProviders` (`nbu`, `privat`, `mono`)
+  - `defaultForecastView` (`today` | `tomorrow` | `fiveDay`)
+
+## Market Rates (Business Dashboard)
+
+- `GET /market/rates?providers=nbu,privat,mono&currencies=USD,EUR`
+  - Proxies NBU / PrivatBank / Monobank exchange APIs
+  - Normalizes quotes to `{ currency, provider, official?, buy?, sell?, fetchedAt }`
+  - In-memory cache TTL: 15 minutes
+
+## Weather Forecast (Business Dashboard)
+
+- `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather&apiKey=<optional>`
+  - Proxies Open-Meteo (default) or OpenWeatherMap (requires API key)
+  - Returns current conditions plus up to 5 daily forecast entries
 
 ## Finance
 

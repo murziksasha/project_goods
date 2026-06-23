@@ -1,6 +1,11 @@
 import { useTranslation } from 'react-i18next';
+import type { DashboardPreferences } from '../../../entities/settings/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import {
+  getAnalyticsDateRangeFilterCount,
+  type AnalyticsDateRange,
+} from '../model/analytics-date-range';
 import {
   buildDashboardAnalytics,
   buildLinePath,
@@ -9,6 +14,8 @@ import {
   statsPeriodOptions,
   type StatsPeriod,
 } from '../model/sales-analytics';
+import { AnalyticsDateFilterPanel } from './AnalyticsDateFilterPanel';
+import { MarketWeatherWidget } from './MarketWeatherWidget';
 
 type AnalyticsHeroSectionProps = {
   sales: Sale[];
@@ -17,14 +24,18 @@ type AnalyticsHeroSectionProps = {
   clientCount: number;
   isSalesLoading: boolean;
   isSeeding: boolean;
-  isExporting: boolean;
-  hasProducts: boolean;
   canEraseAllData: boolean;
-  canExportProducts: boolean;
   statsPeriod: StatsPeriod;
+  analyticsDateRange: AnalyticsDateRange | null;
+  draftAnalyticsDateRange: AnalyticsDateRange;
+  isAnalyticsDateFilterOpen: boolean;
+  dashboardPreferences: DashboardPreferences;
   onStatsPeriodChange: (value: StatsPeriod) => void;
+  onDraftAnalyticsDateRangeChange: (value: AnalyticsDateRange) => void;
+  onAnalyticsDateFilterOpenChange: (value: boolean) => void;
+  onApplyAnalyticsDateRange: () => void;
+  onClearAnalyticsDateRange: () => void;
   onSeed: () => void;
-  onExport: () => void;
 };
 
 const chartWidth = 720;
@@ -168,17 +179,29 @@ export const AnalyticsHeroSection = ({
   clientCount,
   isSalesLoading,
   isSeeding,
-  isExporting,
-  hasProducts,
   canEraseAllData,
-  canExportProducts,
   statsPeriod,
+  analyticsDateRange,
+  draftAnalyticsDateRange,
+  isAnalyticsDateFilterOpen,
+  dashboardPreferences,
   onStatsPeriodChange,
+  onDraftAnalyticsDateRangeChange,
+  onAnalyticsDateFilterOpenChange,
+  onApplyAnalyticsDateRange,
+  onClearAnalyticsDateRange,
   onSeed,
-  onExport,
 }: AnalyticsHeroSectionProps) => {
   const { t } = useTranslation();
-  const analytics = buildDashboardAnalytics(sales, orders, statsPeriod, products);
+  const analytics = buildDashboardAnalytics(
+    sales,
+    orders,
+    statsPeriod,
+    products,
+    new Date(),
+    analyticsDateRange,
+  );
+  const dateFilterCount = getAnalyticsDateRangeFilterCount(analyticsDateRange);
 
   return (
     <section className="analytics-dashboard">
@@ -196,7 +219,7 @@ export const AnalyticsHeroSection = ({
               <button
                 key={option.value}
                 className={
-                  option.value === statsPeriod
+                  option.value === statsPeriod && !analyticsDateRange
                     ? 'period-button period-button-active'
                     : 'period-button'
                 }
@@ -207,23 +230,37 @@ export const AnalyticsHeroSection = ({
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className="toolbar-filter-button toolbar-filter-toggle-button"
+            aria-expanded={isAnalyticsDateFilterOpen}
+            onClick={() => onAnalyticsDateFilterOpenChange(!isAnalyticsDateFilterOpen)}
+          >
+            {t('analytics.dateFilter.date')}
+            {dateFilterCount > 0 ? (
+              <span className="toolbar-filter-count">{dateFilterCount}</span>
+            ) : null}
+          </button>
           {canEraseAllData ? (
             <button className="secondary-button" type="button" onClick={onSeed} disabled={isSeeding}>
               {isSeeding ? t('analytics.loading') : t('analytics.eraseAllData')}
             </button>
           ) : null}
-          {canExportProducts ? (
-            <button
-              className="primary-button"
-              type="button"
-              onClick={onExport}
-              disabled={isExporting || !hasProducts}
-            >
-              {isExporting ? t('analytics.exporting') : t('analytics.export')}
-            </button>
-          ) : null}
         </div>
       </div>
+
+      <AnalyticsDateFilterPanel
+        draftRange={draftAnalyticsDateRange}
+        isOpen={isAnalyticsDateFilterOpen}
+        onDraftRangeChange={onDraftAnalyticsDateRangeChange}
+        onApply={onApplyAnalyticsDateRange}
+        onClear={onClearAnalyticsDateRange}
+        onClose={() => onAnalyticsDateFilterOpenChange(false)}
+      />
+
+      {dashboardPreferences.marketWeatherEnabled ? (
+        <MarketWeatherWidget dashboardPreferences={dashboardPreferences} />
+      ) : null}
 
       <div className="analytics-summary-grid analytics-summary-grid-wide">
         {analytics.summaryCards.map((card) => (
@@ -321,7 +358,11 @@ export const AnalyticsHeroSection = ({
               <p className="section-label">{t('analytics.comparativeAnalysis')}</p>
               <h2>{analytics.detailLabel}</h2>
             </div>
-            <p className="hero-chart-note">{t('analytics.comparisonNote')}</p>
+            <p className="hero-chart-note">
+              {analyticsDateRange
+                ? t('analytics.customRange.note')
+                : t('analytics.comparisonNote')}
+            </p>
           </div>
 
           <ChartPanel

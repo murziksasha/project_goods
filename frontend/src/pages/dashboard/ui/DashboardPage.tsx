@@ -1213,14 +1213,18 @@ export const DashboardPage = () => {
               clientCount={state.allClients.length}
               isSalesLoading={state.isSalesLoading}
               isSeeding={state.isSeeding}
-              isExporting={state.isExporting}
-              hasProducts={state.products.length > 0}
               canEraseAllData={canEraseAllData}
-              canExportProducts={canManageInventory}
               statsPeriod={state.statsPeriod}
+              analyticsDateRange={state.analyticsDateRange}
+              draftAnalyticsDateRange={state.draftAnalyticsDateRange}
+              isAnalyticsDateFilterOpen={state.isAnalyticsDateFilterOpen}
+              dashboardPreferences={state.settingsForm.dashboardPreferences}
               onStatsPeriodChange={actions.setStatsPeriod}
+              onDraftAnalyticsDateRangeChange={actions.setDraftAnalyticsDateRange}
+              onAnalyticsDateFilterOpenChange={actions.setIsAnalyticsDateFilterOpen}
+              onApplyAnalyticsDateRange={actions.applyAnalyticsDateRange}
+              onClearAnalyticsDateRange={actions.clearAnalyticsDateRange}
               onSeed={actions.eraseAllData}
-              onExport={actions.exportProducts}
             />
           )}
         </div>

@@ -35,6 +35,18 @@ const defaultNotificationSettings = {
   emailEnabled: false,
 };
 
+const defaultDashboardPreferences = {
+  marketWeatherEnabled: true,
+  exchangeRatesEnabled: true,
+  weatherEnabled: true,
+  weatherAnimationEnabled: true,
+  weatherProvider: 'open-meteo' as const,
+  openWeatherApiKey: '',
+  currencies: ['USD', 'EUR'],
+  rateProviders: ['nbu', 'privat'],
+  defaultForecastView: 'today' as const,
+};
+
 const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
   const rawPrintForms = Array.isArray(forms) ? forms : [];
   if (rawPrintForms.length === 0) return defaultPrintForms;
@@ -114,6 +126,16 @@ const formatSettings = (settings: SettingsDocument) => {
     notificationSettings: {
       ...defaultNotificationSettings,
       ...(settings.notificationSettings ?? {}),
+    },
+    dashboardPreferences: {
+      ...defaultDashboardPreferences,
+      ...(settings.dashboardPreferences ?? {}),
+      rateProviders: Array.isArray(settings.dashboardPreferences?.rateProviders)
+        ? settings.dashboardPreferences.rateProviders.filter(
+            (provider): provider is 'nbu' | 'privat' | 'mono' =>
+              provider === 'nbu' || provider === 'privat' || provider === 'mono',
+          )
+        : defaultDashboardPreferences.rateProviders,
     },
     createdAt: settings.createdAt.toISOString(),
     updatedAt: settings.updatedAt.toISOString(),
