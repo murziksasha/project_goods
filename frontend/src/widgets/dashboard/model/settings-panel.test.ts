@@ -65,10 +65,11 @@ describe('settings panel model', () => {
     expect(Object.values(getSettingsPreviewValues(form)).join(' ')).not.toContain('Р');
   });
 
-  it('exposes company, print form and backup tabs', () => {
+  it('exposes company, print form, dashboard and backup tabs', () => {
     expect(settingsTabs.map((tab) => tab.labelKey)).toEqual([
       'settings.tabs.company',
       'settings.tabs.print',
+      'settings.tabs.dashboard',
       'settings.tabs.backups',
     ]);
   });

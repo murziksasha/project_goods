@@ -49,6 +49,14 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date/starred working set as the supplier-order table.
 - `Orders` and `Sales` each persist their active `favoritesOnly` starred filter with the rest of the order filters.
 
+## Dashboard Settings Storage Rule (2026-06-23)
+
+- **Settings → Dashboard** tab fields (`dashboardPreferences`) are **server state**: persisted in **MongoDB** via `PUT /api/settings` when the user clicks **Save settings**.
+- Until Save, dashboard tab edits exist only in in-memory `settingsForm` and are lost on reload.
+- **Market & weather widget** display overrides (collapse, hidden currencies/providers, per-browser location/view toggles) are **client state** in `localStorage` key `project-goods.dashboard-widget-overrides`; they apply immediately and are not shared across browsers or users.
+- Effective widget behavior = MongoDB defaults merged with local overrides (`getEffectiveDashboardWidgetSettings`).
+- Full field list, API flow, and merge rules: [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md#settings-storage-dashboard-tab-vs-widget-drawer).
+
 ## Tab Persistence Rule (2026-05-29)
 
 - Active dashboard tabs must persist across browser reload (`F5`) so users return to the last working view instead of falling back to `Main`.

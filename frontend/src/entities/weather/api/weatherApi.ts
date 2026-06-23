@@ -3,6 +3,8 @@ import type { WeatherProvider } from '../../settings/model/types';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import { queryKeys } from '../../../shared/api/queryClient';
 
+export type WeatherIntensity = 'light' | 'moderate' | 'heavy';
+
 export type WeatherDayForecast = {
   date: string;
   temperature: number;
@@ -11,6 +13,10 @@ export type WeatherDayForecast = {
   humidity?: number;
   weatherCode: number;
   condition: string;
+  intensity?: WeatherIntensity;
+  windSpeed?: number;
+  windGust?: number;
+  windDirection?: number;
 };
 
 export type WeatherForecast = {

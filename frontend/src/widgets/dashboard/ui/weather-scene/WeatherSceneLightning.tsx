@@ -1,0 +1,1 @@
+export const WeatherSceneLightning = () => <div className="weather-scene-lightning" />;

@@ -2498,6 +2498,19 @@
       "weatherAnimation": "Weather animation",
       "animationOff": "Static icon",
       "animationOn": "Animated scene",
+      "previewCondition": "Preview condition",
+      "previewIntensity": "Intensity",
+      "previewWind": "Wind in preview",
+      "intensity": {
+        "light": "Light",
+        "moderate": "Moderate",
+        "heavy": "Heavy"
+      },
+      "windTiers": {
+        "calm": "Calm",
+        "breezy": "Breezy",
+        "windy": "Windy"
+      },
       "forecastView": "Forecast view",
       "resetOverrides": "Reset personal overrides",
       "loadingRates": "Loading exchange rates...",
@@ -2517,6 +2530,19 @@
       "sell": "Sell",
       "noQuotes": "No quotes available.",
       "humidity": "Humidity {{value}}%",
+      "wind": "Wind {{speed}} km/h",
+      "windWithDirection": "Wind {{speed}} km/h {{direction}}",
+      "windGust": ", gusts {{speed}} km/h",
+      "compass": {
+        "N": "N",
+        "NE": "NE",
+        "E": "E",
+        "SE": "SE",
+        "S": "S",
+        "SW": "SW",
+        "W": "W",
+        "NW": "NW"
+      },
       "providerLabels": {
         "nbu": "NBU",
         "privat": "PrivatBank",
@@ -2535,6 +2561,28 @@
         "thunder": "Thunderstorm",
         "snow": "Snow",
         "fog": "Fog"
+      },
+      "conditionsWithIntensity": {
+        "rain": {
+          "light": "Light rain",
+          "moderate": "Rain",
+          "heavy": "Heavy rain"
+        },
+        "thunder": {
+          "light": "Light thunderstorm",
+          "moderate": "Thunderstorm",
+          "heavy": "Severe thunderstorm"
+        },
+        "snow": {
+          "light": "Light snow",
+          "moderate": "Snow",
+          "heavy": "Heavy snow"
+        },
+        "fog": {
+          "light": "Mist",
+          "moderate": "Fog",
+          "heavy": "Dense fog"
+        }
       }
     }
   },
