@@ -1,3 +1,4 @@
+import { getWeatherLocationPreset } from '../../../shared/config/default-weather-location';
 import { createDefaultSettingsForm } from './printForms';
 import type { DashboardPreferences, RateProvider } from './types';
 
@@ -19,6 +20,17 @@ export const normalizeDashboardPreferences = (
         .filter((provider): provider is RateProvider => rateProviders.has(provider as RateProvider))
     : defaults.rateProviders;
 
+  const legacySource = source as Partial<DashboardPreferences> & {
+    defaultWeatherLatitude?: number;
+    defaultWeatherLongitude?: number;
+    defaultWeatherLabel?: string;
+  };
+  const legacyDefaultWeatherLocation =
+    legacySource.defaultWeatherLatitude === 46.4825 &&
+    legacySource.defaultWeatherLongitude === 30.7233
+      ? 'odesa'
+      : undefined;
+
   return {
     marketWeatherEnabled: source.marketWeatherEnabled ?? defaults.marketWeatherEnabled,
     exchangeRatesEnabled: source.exchangeRatesEnabled ?? defaults.exchangeRatesEnabled,
@@ -28,6 +40,9 @@ export const normalizeDashboardPreferences = (
     weatherProvider:
       source.weatherProvider === 'openweather' ? 'openweather' : 'open-meteo',
     openWeatherApiKey: source.openWeatherApiKey ?? defaults.openWeatherApiKey,
+    defaultWeatherLocation: getWeatherLocationPreset(
+      source.defaultWeatherLocation ?? legacyDefaultWeatherLocation,
+    ),
     currencies: currencies.length > 0 ? currencies : defaults.currencies,
     rateProviders:
       normalizedProviders.length > 0 ? normalizedProviders : defaults.rateProviders,

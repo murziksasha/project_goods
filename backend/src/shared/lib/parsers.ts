@@ -409,6 +409,18 @@ const normalizeDashboardPreferences = (value: unknown) => {
     ? (toNonEmptyString(source.defaultForecastView) as 'today' | 'tomorrow' | 'fiveDay')
     : 'today';
 
+  const weatherLocationIds = new Set(['chornomorsk', 'odesa']);
+  const legacyWeatherLocation =
+    toFiniteNumber(source.defaultWeatherLatitude, 0) === 46.4825 &&
+    toFiniteNumber(source.defaultWeatherLongitude, 0) === 30.7233
+      ? 'odesa'
+      : 'chornomorsk';
+  const defaultWeatherLocation = weatherLocationIds.has(
+    toNonEmptyString(source.defaultWeatherLocation),
+  )
+    ? (toNonEmptyString(source.defaultWeatherLocation) as 'chornomorsk' | 'odesa')
+    : legacyWeatherLocation;
+
   return {
     marketWeatherEnabled: toBoolean(source.marketWeatherEnabled, true),
     exchangeRatesEnabled: toBoolean(source.exchangeRatesEnabled, true),
@@ -416,6 +428,7 @@ const normalizeDashboardPreferences = (value: unknown) => {
     weatherAnimationEnabled: toBoolean(source.weatherAnimationEnabled, true),
     weatherProvider,
     openWeatherApiKey: toNonEmptyString(source.openWeatherApiKey),
+    defaultWeatherLocation,
     currencies: currencies.length > 0 ? currencies : ['USD', 'EUR'],
     rateProviders: rateProviders.length > 0 ? rateProviders : ['nbu', 'privat'],
     defaultForecastView,

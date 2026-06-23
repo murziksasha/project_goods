@@ -165,6 +165,27 @@ const DashboardSettingsSection = ({
             ))}
           </div>
         </div>
+        <label className="field field-wide">
+          <span>{t('settings.dashboard.defaultWeatherLocation')}</span>
+          <select
+            value={preferences.defaultWeatherLocation}
+            onChange={(event) =>
+              onChange({
+                ...preferences,
+                defaultWeatherLocation:
+                  event.target.value as DashboardPreferences['defaultWeatherLocation'],
+              })
+            }
+          >
+            <option value="chornomorsk">
+              {t('settings.dashboard.weatherLocations.chornomorsk')}
+            </option>
+            <option value="odesa">{t('settings.dashboard.weatherLocations.odesa')}</option>
+          </select>
+        </label>
+        <p className="field field-wide settings-hint">
+          {t('settings.dashboard.defaultWeatherHint')}
+        </p>
         <label className="field">
           <span>{t('settings.dashboard.weatherProvider')}</span>
           <select

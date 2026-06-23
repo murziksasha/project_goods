@@ -245,6 +245,11 @@ export const settingsSchema = new mongoose.Schema(
         default: 'open-meteo',
       },
       openWeatherApiKey: { type: String, trim: true, default: '' },
+      defaultWeatherLocation: {
+        type: String,
+        enum: ['chornomorsk', 'odesa'],
+        default: 'chornomorsk',
+      },
       currencies: {
         type: [String],
         default: () => ['USD', 'EUR'],

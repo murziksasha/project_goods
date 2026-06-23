@@ -151,6 +151,8 @@ export type WeatherProvider = 'open-meteo' | 'openweather';
 
 export type ForecastView = 'today' | 'tomorrow' | 'fiveDay';
 
+export type WeatherLocationPreset = 'chornomorsk' | 'odesa';
+
 export type DashboardPreferences = {
   marketWeatherEnabled: boolean;
   exchangeRatesEnabled: boolean;
@@ -158,6 +160,7 @@ export type DashboardPreferences = {
   weatherAnimationEnabled: boolean;
   weatherProvider: WeatherProvider;
   openWeatherApiKey: string;
+  defaultWeatherLocation: WeatherLocationPreset;
   currencies: string[];
   rateProviders: RateProvider[];
   defaultForecastView: ForecastView;

@@ -10,6 +10,7 @@ import {
   getStoredDashboardWidgetOverrides,
   type DashboardWidgetOverrides,
 } from '../model/dashboard-widget-settings';
+import { resolveWeatherLocation } from '../../../shared/config/default-weather-location';
 import { useDeviceCoordinates } from '../model/useWeatherForecast';
 import { MarketWeatherLoader } from './MarketWeatherLoader';
 import { MarketWeatherSettingsDrawer } from './MarketWeatherSettingsDrawer';
@@ -37,7 +38,6 @@ export const MarketWeatherWidget = ({
 }: MarketWeatherWidgetProps) => {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const coordinates = useDeviceCoordinates();
   const [overrides, setOverrides] = useState<DashboardWidgetOverrides>(
     getStoredDashboardWidgetOverrides,
   );
@@ -47,6 +47,12 @@ export const MarketWeatherWidget = ({
     () => getEffectiveDashboardWidgetSettings(dashboardPreferences, overrides),
     [dashboardPreferences, overrides],
   );
+
+  const weatherLocation = useMemo(
+    () => resolveWeatherLocation(settings.weatherLocation),
+    [settings.weatherLocation],
+  );
+  const coordinates = useDeviceCoordinates(weatherLocation);
 
   const ratesQuery = useMarketRatesQuery({
     providers: settings.rateProviders,
@@ -248,7 +254,13 @@ export const MarketWeatherWidget = ({
             <h3>{t('analytics.marketWeather.weatherForecast')}</h3>
             {coordinates.usedFallback ? (
               <p className="market-weather-location-hint">
-                {t('analytics.marketWeather.usingDefaultLocation')}
+                {coordinates.usedLanFallback
+                  ? t('analytics.marketWeather.usingDefaultLocationLan', {
+                      location: coordinates.locationLabel,
+                    })
+                  : t('analytics.marketWeather.usingDefaultLocation', {
+                      location: coordinates.locationLabel,
+                    })}
               </p>
             ) : null}
             {showInitialWeatherLoader ? (
