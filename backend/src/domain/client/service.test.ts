@@ -61,6 +61,7 @@ const setupClientService = async ({
       updateMany: vi.fn(),
       exists: vi.fn(),
       find: vi.fn(),
+      countDocuments: vi.fn().mockResolvedValue(0),
     },
   }));
 
@@ -174,7 +175,12 @@ describe('client service', () => {
 
     vi.doMock('./model', () => ({ Client: FakeClient }));
     vi.doMock('../sale/model', () => ({
-      Sale: { updateMany: vi.fn(), exists: vi.fn(), find: vi.fn() },
+      Sale: {
+        updateMany: vi.fn(),
+        exists: vi.fn(),
+        find: vi.fn(),
+        countDocuments: vi.fn().mockResolvedValue(0),
+      },
     }));
 
     const service = await import('./service');
@@ -286,7 +292,12 @@ describe('client service', () => {
 
     vi.doMock('./model', () => ({ Client: FakeClient }));
     vi.doMock('../sale/model', () => ({
-      Sale: { updateMany: updateManyMock, exists: vi.fn(), find: vi.fn() },
+      Sale: {
+        updateMany: updateManyMock,
+        exists: vi.fn(),
+        find: vi.fn(),
+        countDocuments: vi.fn().mockResolvedValue(0),
+      },
     }));
 
     const service = await import('./service');
