@@ -8,6 +8,7 @@ import { queryKeys } from '../../../shared/api/queryClient';
 import {
   getEffectiveDashboardWidgetSettings,
   getStoredDashboardWidgetOverrides,
+  storeDashboardWidgetOverrides,
   type DashboardWidgetOverrides,
 } from '../model/dashboard-widget-settings';
 import { resolveWeatherLocation } from '../../../shared/config/default-weather-location';
@@ -114,24 +115,58 @@ export const MarketWeatherWidget = ({
   const showRefreshOverlay =
     isRefreshing && !showInitialRatesLoader && !showInitialWeatherLoader;
   const isContentVisible = settings.contentVisible;
+  const isCollapsed = settings.collapsed;
+  const isBodyVisible = isContentVisible && !isCollapsed;
+
+  const updateOverrides = (next: DashboardWidgetOverrides) => {
+    setOverrides(next);
+    storeDashboardWidgetOverrides(next);
+  };
+
+  const toggleCollapsed = () => {
+    updateOverrides({
+      ...overrides,
+      collapsed: !isCollapsed,
+    });
+  };
 
   return (
     <section
-      className={
-        isRefreshing
-          ? 'market-weather-widget market-weather-widget-refreshing'
-          : 'market-weather-widget'
-      }
+      className={[
+        'market-weather-widget',
+        isRefreshing ? 'market-weather-widget-refreshing' : '',
+        isCollapsed ? 'market-weather-widget--collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-live="polite"
       aria-busy={isRefreshing}
     >
       <div className="market-weather-widget-header">
-        <div>
-          <p className="section-label">{t('analytics.marketWeather.sectionLabel')}</p>
-          {isContentVisible ? <h2>{t('analytics.marketWeather.title')}</h2> : null}
-        </div>
+        <button
+          type="button"
+          className="market-weather-widget-toggle"
+          aria-expanded={!isCollapsed}
+          aria-controls="market-weather-widget-body"
+          aria-label={
+            isCollapsed
+              ? t('analytics.marketWeather.expandWidget')
+              : t('analytics.marketWeather.collapseWidget')
+          }
+          onClick={toggleCollapsed}
+        >
+          <div>
+            <p className="section-label" id="market-weather-section-label">
+              {t('analytics.marketWeather.sectionLabel')}
+            </p>
+            <h2 id="market-weather-title">{t('analytics.marketWeather.title')}</h2>
+          </div>
+          <span className="market-weather-collapse-icon" aria-hidden="true">
+            {isCollapsed ? '⌄' : '⌃'}
+          </span>
+        </button>
         <div className="market-weather-widget-actions">
-          {isContentVisible ? (
+          {isBodyVisible ? (
             <button
               type="button"
               className={
@@ -177,8 +212,8 @@ export const MarketWeatherWidget = ({
         onClose={() => setIsSettingsOpen(false)}
       />
 
-      {isContentVisible ? (
-      <div className="market-weather-widget-grid">
+      {isBodyVisible ? (
+      <div id="market-weather-widget-body" className="market-weather-widget-grid">
         {showRefreshOverlay ? (
           <MarketWeatherLoader
             overlay

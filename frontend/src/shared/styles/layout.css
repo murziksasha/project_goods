@@ -1692,6 +1692,10 @@
   gap: 16px;
 }
 
+.analytics-live-insights {
+  min-width: 0;
+}
+
 .analytics-executive-header,
 .finance-information-header {
   border: 1px solid #d6dee8;
@@ -2234,7 +2238,47 @@
   flex-wrap: wrap;
 }
 
+.market-weather-widget--collapsed {
+  padding-bottom: 12px;
+}
+
+.market-weather-widget-toggle {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+
+.market-weather-widget-toggle:hover .market-weather-collapse-icon,
+.market-weather-widget-toggle:focus-visible .market-weather-collapse-icon {
+  color: #2d8ae3;
+}
+
+.market-weather-widget-toggle:focus-visible {
+  outline: 2px solid #2d8ae3;
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.market-weather-collapse-icon {
+  min-width: 18px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .market-weather-widget-header h2,
+.market-weather-widget-toggle h2,
 .market-weather-settings-header h3 {
   margin: 4px 0 0;
   color: #435a72;
