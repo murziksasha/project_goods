@@ -945,6 +945,7 @@ export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
     weatherAnimationEnabled: true,
     weatherProvider: 'open-meteo' as const,
     openWeatherApiKey: '',
+    defaultWeatherLocation: 'chornomorsk' as const,
     currencies: ['USD', 'EUR'],
     rateProviders: ['nbu', 'privat'] as RateProvider[],
     defaultForecastView: 'today' as const,

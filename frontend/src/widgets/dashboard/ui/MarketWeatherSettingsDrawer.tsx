@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { getWeatherLocationPreset } from '../../../shared/config/default-weather-location';
 import type { DashboardPreferences } from '../../../entities/settings/model/types';
 import {
   storeDashboardWidgetOverrides,
@@ -34,6 +35,9 @@ export const MarketWeatherSettingsDrawer = ({
   const contentVisible = overrides.contentVisible ?? true;
   const weatherAnimationEnabled =
     overrides.weatherAnimationEnabled ?? preferences.weatherAnimationEnabled;
+  const weatherLocation = getWeatherLocationPreset(
+    overrides.weatherLocation ?? preferences.defaultWeatherLocation,
+  );
 
   const updateOverrides = (next: DashboardWidgetOverrides) => {
     onOverridesChange(next);
@@ -151,6 +155,26 @@ export const MarketWeatherSettingsDrawer = ({
               }
             />
             <span>{t('analytics.marketWeather.showWeather')}</span>
+          </label>
+
+          <label className="market-weather-field">
+            <span>{t('analytics.marketWeather.weatherLocation')}</span>
+            <select
+              value={weatherLocation}
+              onChange={(event) =>
+                updateOverrides({
+                  ...overrides,
+                  weatherLocation: event.target.value as DashboardPreferences['defaultWeatherLocation'],
+                })
+              }
+            >
+              <option value="chornomorsk">
+                {t('analytics.marketWeather.weatherLocations.chornomorsk')}
+              </option>
+              <option value="odesa">
+                {t('analytics.marketWeather.weatherLocations.odesa')}
+              </option>
+            </select>
           </label>
 
           <div className="market-weather-animation-setting">
