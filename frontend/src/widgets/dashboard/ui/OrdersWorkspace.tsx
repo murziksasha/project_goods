@@ -180,6 +180,8 @@ export const OrdersWorkspace = ({
   printForms,
   printCompanySettings,
   onCreateClientDevice,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
   onUpdateProductModel,
 }: OrdersWorkspaceProps) => {
   const { t } = useTranslation();
@@ -2378,6 +2380,8 @@ export const OrdersWorkspace = ({
             }
             onSupplierOrderCreated={loadSupplierOrders}
             onCreateClientDevice={onCreateClientDevice}
+            onUpdateClientDevice={onUpdateClientDevice}
+            onDeleteClientDevice={onDeleteClientDevice}
             onUpdateProductModel={onUpdateProductModel}
             onError={onError}
             onSuccess={onSuccess}

@@ -3685,6 +3685,18 @@
   color: #7b8da3;
 }
 
+.order-device-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.order-device-unbind {
+  align-self: center;
+  white-space: nowrap;
+}
+
 .order-device-option {
   display: grid;
   gap: 4px;
@@ -6214,6 +6226,10 @@
 .clients-card-body {
   padding: 14px 16px 16px;
   overflow-y: auto;
+}
+
+.clients-card-devices-table .clients-device-unbind {
+  white-space: nowrap;
 }
 
 .clients-card-table th,

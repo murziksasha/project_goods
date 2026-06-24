@@ -1067,6 +1067,8 @@ export const DashboardPage = () => {
                       state.settings?.companySite ?? state.settingsForm.companySite,
                   }}
                   onCreateClientDevice={actions.createClientDeviceCard}
+                  onUpdateClientDevice={actions.updateClientDeviceCard}
+                  onDeleteClientDevice={actions.deleteClientDeviceCard}
                   onUpdateProductModel={actions.updateProductModelCard}
                 />
               )
@@ -1113,6 +1115,9 @@ export const DashboardPage = () => {
               onOpenSaleCard={openSaleFromClientCard}
               openClientCardRequestId={openClientCardRequestId}
               onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}
+              clientDevices={state.clientDevices}
+              onUpdateClientDevice={actions.updateClientDeviceCard}
+              onDeleteClientDevice={actions.deleteClientDeviceCard}
             />
           ) : activePage === 'settings' && canManageSettings ? (
             <SettingsPanel

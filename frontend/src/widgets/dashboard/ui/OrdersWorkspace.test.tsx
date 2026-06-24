@@ -143,6 +143,8 @@ const renderWorkspace = (
         companySite: '',
       }}
       onCreateClientDevice={vi.fn(async () => true)}
+      onUpdateClientDevice={vi.fn(async () => true)}
+      onDeleteClientDevice={vi.fn(async () => true)}
       onUpdateProductModel={vi.fn(async () => true)}
       {...props}
     />,
@@ -443,6 +445,8 @@ describe('OrdersWorkspace', () => {
           companySite: '',
         }}
         onCreateClientDevice={vi.fn(async () => true)}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
         onUpdateProductModel={vi.fn(async () => true)}
       />,
     );

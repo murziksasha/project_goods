@@ -51,6 +51,11 @@ export type OrdersWorkspaceProps = {
   printForms: PrintForm[];
   printCompanySettings: PrintCompanySettings;
   onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
 };
 

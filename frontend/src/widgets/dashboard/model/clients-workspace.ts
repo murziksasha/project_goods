@@ -30,7 +30,7 @@ export type ClientFilters = {
   status: ClientStatus | '' | 'all';
 };
 
-export type ClientCardTab = 'main' | 'services' | 'sales';
+export type ClientCardTab = 'main' | 'services' | 'sales' | 'devices';
 
 export type ClientStats = {
   visits: number;
@@ -177,7 +177,8 @@ export const getStoredClientCardTab = (): ClientCardTab => {
     const storedTab = window.localStorage.getItem(clientCardTabStorageKey);
     return storedTab === 'main' ||
       storedTab === 'services' ||
-      storedTab === 'sales'
+      storedTab === 'sales' ||
+      storedTab === 'devices'
       ? storedTab
       : 'main';
   } catch {
