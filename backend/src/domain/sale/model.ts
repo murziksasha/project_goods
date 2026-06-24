@@ -81,6 +81,11 @@ export const saleSchema = new mongoose.Schema(
       default: false,
       required: true,
     },
+    isRapidSale: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
     note: {
       type: String,
       trim: true,

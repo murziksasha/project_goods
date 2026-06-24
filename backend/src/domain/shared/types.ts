@@ -66,6 +66,7 @@ export type SalePayload = {
   deviceName?: unknown;
   serialNumber?: unknown;
   expectedUpdatedAt?: unknown;
+  isRapidSale?: unknown;
 };
 
 export type EmployeePayload = {

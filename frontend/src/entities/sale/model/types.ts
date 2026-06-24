@@ -18,6 +18,7 @@ export type Sale = {
   status: string;
   paidAmount: number;
   isFavorite?: boolean;
+  isRapidSale?: boolean;
   note: string;
   timeline: Array<{
     id: string;
@@ -103,6 +104,7 @@ export type SaleFormValues = {
   serialNumber?: string;
   discount?: Sale['discount'];
   expectedUpdatedAt?: string;
+  isRapidSale?: boolean;
 };
 
 export type SaleWorkspacePayload = {

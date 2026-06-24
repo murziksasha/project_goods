@@ -122,6 +122,7 @@ export const formatSale = (sale: SaleDocument) => ({
   status: sale.status,
   paidAmount: sale.paidAmount ?? 0,
   isFavorite: sale.isFavorite ?? false,
+  isRapidSale: sale.isRapidSale ?? false,
   note: sale.note,
   timeline: (sale.timeline ?? []).map((entry) => ({
     id: entry.id,

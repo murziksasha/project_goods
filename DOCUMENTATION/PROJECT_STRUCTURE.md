@@ -131,6 +131,35 @@ frontend/
 
 Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 
+## Structure Update: Rapid Sale (2026-06-24)
+
+### Frontend
+
+- `frontend/src/widgets/dashboard/ui/RapidSaleModal.tsx` — compact modal UI (products, services, draft list, issue)
+- `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — stock suggestions, draft validation, line-item builder
+- `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
+- `frontend/src/widgets/dashboard/ui/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
+- `frontend/src/pages/dashboard/model/dashboard-actions.ts` — `saveRapidSale`
+- `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — `handleRapidSaleCreated`, `pendingPaymentSale` payment handoff
+- `frontend/src/widgets/dashboard/ui/OrdersWorkspace.tsx` — list client column override, `pendingPaymentSale` effect
+- Styles: `frontend/src/shared/styles/layout.css` (`.rapid-sale-*`), `responsive.css` (breakpoints)
+
+### Backend
+
+- `backend/src/domain/client/rapid-sale-client.ts` — `getOrCreateRapidSaleClient()`
+- `backend/src/domain/sale/model.ts` — `isRapidSale` schema field
+- `backend/src/domain/sale/service.ts` — `assertRapidSaleLineItems`, rapid branch in `createSale`
+- `backend/src/shared/lib/parsers.ts` / `formatters.ts` — normalize and expose `isRapidSale`
+
+### Tests
+
+- `frontend/src/widgets/dashboard/ui/RapidSaleModal.test.tsx`
+- `frontend/src/widgets/dashboard/model/rapid-sale-line-items.test.ts`
+- `frontend/src/widgets/dashboard/model/sale-client-display.test.ts`
+- `backend/src/domain/sale/service.rapid-sale.test.ts`
+
+Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
+
 ## Structure Update: Catalog Products (2026-05-09)
 
 ### Backend

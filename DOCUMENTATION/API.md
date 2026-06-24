@@ -39,6 +39,12 @@ http://localhost:5000/api
 
 - `GET /sales` - список продаж и заказов
 - `POST /sales` - создать продажу или заказ
+  - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).
+    - Required: `kind: "sale"`, `isRapidSale: true`, non-empty `lineItems[]`, `managerId`.
+    - `clientId` may be empty; backend assigns `getOrCreateRapidSaleClient()` (`note: __rapid_sale_system__`).
+    - Product `lineItems[]` must include `productId` (warehouse stock). Catalog-only / manual product lines are rejected.
+    - Service `lineItems[]` follow normal service line shape (`kind: "service"`, `name`, `price`, `quantity`, optional `serviceId`).
+    - Response sale snapshot includes `isRapidSale: true`; formatted client block reflects the system client.
 - `PUT /sales/:saleId` - обновить продажу или заказ
 - `DELETE /sales/:saleId` - удалить продажу или заказ
 

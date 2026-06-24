@@ -122,13 +122,20 @@
   }
 
   .finance-operation-grid,
-  .sale-item-row {
+  .sale-item-row,
+  .rapid-sale-entry-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sale-item-add-button,
-  .sale-item-stock {
+  .sale-item-stock,
+  .rapid-sale-field-search,
+  .rapid-sale-entry-action {
     grid-column: 1 / -1;
+  }
+
+  .rapid-sale-entry-action > span[aria-hidden='true'] {
+    display: none;
   }
 
   .catalog-toolbar,
@@ -675,6 +682,7 @@
   }
 
   .catalog-edit-body,
+  .rapid-sale-body,
   .warehouse-settings-modal-body,
   .product-model-modal-body,
   .payment-modal-summary,
@@ -684,6 +692,23 @@
   .supplier-order-modal-body {
     min-height: 0;
     overflow-y: auto;
+  }
+
+  .create-order-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .create-order-header h2 {
+    flex: 1 1 220px;
+    min-width: 0;
+    font-size: 1.6rem;
+  }
+
+  .create-order-header-actions {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .catalog-edit-header,
@@ -872,6 +897,7 @@
   .create-prepay-row,
   .create-checks-grid,
   .sale-item-row,
+  .rapid-sale-entry-row,
   .settings-print-options-row,
   .print-builder-field-row,
   .print-builder-custom-row {
@@ -1008,7 +1034,8 @@
   .warehouse-toolbar,
   .finance-toolbar,
   .payment-modal-actions,
-  .catalog-edit-footer {
+  .catalog-edit-footer,
+  .rapid-sale-footer {
     flex-direction: column;
   }
 
@@ -1016,7 +1043,8 @@
   .catalog-toolbar-actions button,
   .warehouse-toolbar button,
   .finance-toolbar button,
-  .catalog-edit-footer button {
+  .catalog-edit-footer button,
+  .rapid-sale-footer button {
     width: 100%;
   }
 
@@ -1026,9 +1054,41 @@
 
   .payment-modal-summary,
   .catalog-edit-body,
+  .rapid-sale-body,
   .clients-modal-body,
   .warehouse-settings-modal-body {
     max-height: none;
+  }
+
+  .create-order-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .create-order-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .create-order-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .create-order-rapid-sale-button {
+    flex: 1 1 auto;
+  }
+
+  .rapid-sale-suggestions {
+    max-height: min(140px, 24vh);
+  }
+
+  .rapid-sale-items-table {
+    font-size: 0.82rem;
+  }
+
+  .rapid-sale-items-table th,
+  .rapid-sale-items-table td {
+    padding: 5px 6px;
   }
 
   .finance-orders-payment-actions {
