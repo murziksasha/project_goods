@@ -70,11 +70,13 @@ const renderPanel = ({
   clientDevices = [],
   suppliers = [],
   searchQuery = '',
+  onServiceCancelEdit = vi.fn<() => void>(),
 }: {
   catalogProducts?: CatalogProduct[];
   clientDevices?: ClientDevice[];
   suppliers?: Supplier[];
   searchQuery?: string;
+  onServiceCancelEdit?: () => void;
 } = {}) =>
   render(
     <ProductCatalogPanel
@@ -122,7 +124,7 @@ const renderPanel = ({
       onServiceSearchChange={vi.fn()}
       onServiceChange={vi.fn()}
       onServiceSubmit={vi.fn()}
-      onServiceCancelEdit={vi.fn()}
+      onServiceCancelEdit={onServiceCancelEdit}
       onServiceEdit={vi.fn()}
       onServiceArchive={vi.fn()}
       onServiceActivate={vi.fn()}
@@ -235,6 +237,32 @@ describe('ProductCatalogPanel client devices search', () => {
         .queryAllByRole('button', { name: /Active coffee/ })
         .some((button) => button.className === 'orders-filter-saved-button'),
     ).toBe(false);
+  });
+
+  it('opens and closes the create service form on the services tab', () => {
+    const onServiceCancelEdit = vi.fn<() => void>();
+
+    renderPanel({ onServiceCancelEdit });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
+
+    expect(screen.getByRole('heading', { name: 'Add service' })).toBeInTheDocument();
+    onServiceCancelEdit.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('heading', { name: 'Add service' })).not.toBeInTheDocument();
+    expect(onServiceCancelEdit).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
+    expect(screen.getByRole('heading', { name: 'Add service' })).toBeInTheDocument();
+    onServiceCancelEdit.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
+
+    expect(screen.queryByRole('heading', { name: 'Add service' })).not.toBeInTheDocument();
+    expect(onServiceCancelEdit).toHaveBeenCalledTimes(1);
   });
 
   it('filters suppliers catalog tab by date and status', () => {

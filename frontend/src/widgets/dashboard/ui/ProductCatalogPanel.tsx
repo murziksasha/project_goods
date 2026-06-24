@@ -472,7 +472,16 @@ export const ProductCatalogPanel = ({
       .map((item, index) => [item.id, index + 1]),
   );
 
+  const closeServiceForm = () => {
+    onServiceCancelEdit();
+    setIsServiceFormOpen(false);
+  };
+
   const openServiceForm = () => {
+    if (isServiceFormOpen) {
+      closeServiceForm();
+      return;
+    }
     onServiceCancelEdit();
     setIsServiceFormOpen(true);
   };
@@ -727,10 +736,7 @@ export const ProductCatalogPanel = ({
             isEditing={isServiceEditing}
             onChange={onServiceChange}
             onSubmit={onServiceSubmit}
-            onCancelEdit={() => {
-              onServiceCancelEdit();
-              setIsServiceFormOpen(false);
-            }}
+            onCancelEdit={closeServiceForm}
           />
         </div>
       ) : null}
