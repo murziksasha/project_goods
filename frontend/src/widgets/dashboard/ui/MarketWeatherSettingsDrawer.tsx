@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { WeatherIntensity } from '../../../entities/weather/api/weatherApi';
 import { getWeatherLocationPreset } from '../../../shared/config/default-weather-location';
 import type { DashboardPreferences } from '../../../entities/settings/model/types';
+import type { WindTier } from '../model/weather-scene-params';
 import {
   storeDashboardWidgetOverrides,
   type DashboardWidgetOverrides,
@@ -19,7 +22,27 @@ type MarketWeatherSettingsDrawerProps = {
 const toggleListItem = <T extends string>(items: T[], value: T) =>
   items.includes(value) ? items.filter((item) => item !== value) : [...items, value];
 
-const PREVIEW_CONDITION = 'rain';
+const PREVIEW_CONDITIONS = [
+  'clear',
+  'partly-cloudy',
+  'cloudy',
+  'fog',
+  'rain',
+  'thunder',
+  'snow',
+] as const;
+
+const PREVIEW_INTENSITIES: WeatherIntensity[] = ['light', 'moderate', 'heavy'];
+
+const PREVIEW_WIND_SPEEDS: Record<WindTier, number> = {
+  calm: 0,
+  breezy: 18,
+  windy: 35,
+};
+
+const PREVIEW_WIND_DIRECTION = 90;
+
+const precipitationConditions = new Set<string>(['rain', 'snow', 'thunder', 'fog']);
 
 export const MarketWeatherSettingsDrawer = ({
   isOpen,
@@ -29,6 +52,11 @@ export const MarketWeatherSettingsDrawer = ({
   onClose,
 }: MarketWeatherSettingsDrawerProps) => {
   const { t } = useTranslation();
+  const [previewCondition, setPreviewCondition] =
+    useState<(typeof PREVIEW_CONDITIONS)[number]>('rain');
+  const [previewIntensity, setPreviewIntensity] =
+    useState<WeatherIntensity>('moderate');
+  const [previewWindTier, setPreviewWindTier] = useState<WindTier>('calm');
 
   const hiddenCurrencies = overrides.hiddenCurrencies ?? [];
   const hiddenProviders = overrides.hiddenProviders ?? [];
@@ -38,6 +66,8 @@ export const MarketWeatherSettingsDrawer = ({
   const weatherLocation = getWeatherLocationPreset(
     overrides.weatherLocation ?? preferences.defaultWeatherLocation,
   );
+  const showIntensityPicker = precipitationConditions.has(previewCondition);
+  const previewWindSpeed = PREVIEW_WIND_SPEEDS[previewWindTier];
 
   const updateOverrides = (next: DashboardWidgetOverrides) => {
     onOverridesChange(next);
@@ -192,11 +222,76 @@ export const MarketWeatherSettingsDrawer = ({
               <span>{t('analytics.marketWeather.weatherAnimation')}</span>
             </label>
 
+            <div className="market-weather-settings-group">
+              <span className="metric-label">{t('analytics.marketWeather.previewCondition')}</span>
+              <div className="market-weather-chip-row">
+                {PREVIEW_CONDITIONS.map((condition) => (
+                  <button
+                    key={condition}
+                    type="button"
+                    className={
+                      previewCondition === condition
+                        ? 'market-weather-chip market-weather-chip-active'
+                        : 'market-weather-chip'
+                    }
+                    onClick={() => setPreviewCondition(condition)}
+                  >
+                    {t(`analytics.marketWeather.conditions.${condition}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {showIntensityPicker ? (
+              <div className="market-weather-settings-group">
+                <span className="metric-label">{t('analytics.marketWeather.previewIntensity')}</span>
+                <div className="market-weather-chip-row">
+                  {PREVIEW_INTENSITIES.map((intensity) => (
+                    <button
+                      key={intensity}
+                      type="button"
+                      className={
+                        previewIntensity === intensity
+                          ? 'market-weather-chip market-weather-chip-active'
+                          : 'market-weather-chip'
+                      }
+                      onClick={() => setPreviewIntensity(intensity)}
+                    >
+                      {t(`analytics.marketWeather.intensity.${intensity}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="market-weather-settings-group">
+              <span className="metric-label">{t('analytics.marketWeather.previewWind')}</span>
+              <div className="market-weather-chip-row">
+                {(['calm', 'breezy', 'windy'] as const).map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    className={
+                      previewWindTier === tier
+                        ? 'market-weather-chip market-weather-chip-active'
+                        : 'market-weather-chip'
+                    }
+                    onClick={() => setPreviewWindTier(tier)}
+                  >
+                    {t(`analytics.marketWeather.windTiers.${tier}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="market-weather-animation-preview">
               <div className="market-weather-animation-preview-static">
                 <span className="metric-label">{t('analytics.marketWeather.animationOff')}</span>
                 <div className="market-weather-animation-preview-box market-weather-animation-preview-box-static">
-                  <WeatherIconStatic condition="clear" />
+                  <WeatherIconStatic
+                    condition={previewCondition}
+                    intensity={showIntensityPicker ? previewIntensity : undefined}
+                  />
                 </div>
               </div>
               <div
@@ -208,7 +303,14 @@ export const MarketWeatherSettingsDrawer = ({
               >
                 <span className="metric-label">{t('analytics.marketWeather.animationOn')}</span>
                 <div className="market-weather-animation-preview-box">
-                  <WeatherAnimatedScene condition={PREVIEW_CONDITION} compact animated />
+                  <WeatherAnimatedScene
+                    condition={previewCondition}
+                    intensity={showIntensityPicker ? previewIntensity : undefined}
+                    windSpeed={previewWindSpeed}
+                    windDirection={previewWindTier === 'calm' ? undefined : PREVIEW_WIND_DIRECTION}
+                    compact
+                    animated
+                  />
                 </div>
               </div>
             </div>

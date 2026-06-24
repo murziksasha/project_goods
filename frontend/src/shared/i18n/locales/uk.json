@@ -2498,6 +2498,19 @@
       "weatherAnimation": "Анімація погоди",
       "animationOff": "Статична іконка",
       "animationOn": "Анімована сцена",
+      "previewCondition": "Умова для превʼю",
+      "previewIntensity": "Інтенсивність",
+      "previewWind": "Вітер у превʼю",
+      "intensity": {
+        "light": "Слабка",
+        "moderate": "Помірна",
+        "heavy": "Сильна"
+      },
+      "windTiers": {
+        "calm": "Штиль",
+        "breezy": "Вітерець",
+        "windy": "Вітряно"
+      },
       "forecastView": "Вигляд прогнозу",
       "resetOverrides": "Скинути персональні налаштування",
       "loadingRates": "Завантаження курсів...",
@@ -2517,6 +2530,19 @@
       "sell": "Продаж",
       "noQuotes": "Немає доступних курсів.",
       "humidity": "Вологість {{value}}%",
+      "wind": "Вітер {{speed}} км/год",
+      "windWithDirection": "Вітер {{speed}} км/год {{direction}}",
+      "windGust": ", пориви {{speed}} км/год",
+      "compass": {
+        "N": "Пн",
+        "NE": "Пн-Сх",
+        "E": "Сх",
+        "SE": "Пд-Сх",
+        "S": "Пд",
+        "SW": "Пд-Зх",
+        "W": "Зх",
+        "NW": "Пн-Зх"
+      },
       "providerLabels": {
         "nbu": "НБУ",
         "privat": "ПриватБанк",
@@ -2535,6 +2561,28 @@
         "thunder": "Гроза",
         "snow": "Сніг",
         "fog": "Туман"
+      },
+      "conditionsWithIntensity": {
+        "rain": {
+          "light": "Невеликий дощ",
+          "moderate": "Дощ",
+          "heavy": "Сильний дощ"
+        },
+        "thunder": {
+          "light": "Невелика гроза",
+          "moderate": "Гроза",
+          "heavy": "Сильна гроза"
+        },
+        "snow": {
+          "light": "Невеликий сніг",
+          "moderate": "Сніг",
+          "heavy": "Сильний сніг"
+        },
+        "fog": {
+          "light": "Туманність",
+          "moderate": "Туман",
+          "heavy": "Густий туман"
+        }
       }
     }
   },

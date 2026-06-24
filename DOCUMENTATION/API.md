@@ -53,7 +53,8 @@ http://localhost:5000/api
 
 - `GET /settings` - получить текущие настройки компании или системы
 - `PUT /settings` - обновить настройки
-- Settings payload now includes `dashboardPreferences` for business home page widget defaults:
+- Настройки хранятся в MongoDB (модель `Settings`, коллекция `settings`). Вкладка **Settings → Dashboard** на фронтенде редактирует вложенный объект `dashboardPreferences`; сохранение — только по кнопке **Save settings** (`PUT /api/settings`). Локальные переопределения виджета Market & weather (сворачивание, скрытие валют и т.д.) в API не попадают — они в `localStorage` (`project-goods.dashboard-widget-overrides`). Подробнее: [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md#settings-storage-dashboard-tab-vs-widget-drawer).
+- Settings payload includes `dashboardPreferences` for business home page widget defaults:
   - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
   - `defaultWeatherLocation` (`chornomorsk` | `odesa`, default `chornomorsk`)
   - `weatherProvider` (`open-meteo` | `openweather`)
@@ -76,6 +77,14 @@ http://localhost:5000/api
   - Returns current conditions plus up to 5 daily forecast entries
   - Frontend passes coordinates from the selected weather preset (`chornomorsk` or `odesa`); device geolocation is not used
   - Invalid/missing coordinates fall back to Chornomorsk (46.3013, 30.6531)
+  - Each forecast day (`current`, `tomorrow`, `daily[]`) includes:
+    - `condition` — normalized scene key: `clear`, `partly-cloudy`, `cloudy`, `fog`, `rain`, `thunder`, `snow`
+    - `intensity` — optional precipitation/fog intensity: `light`, `moderate`, `heavy`
+    - `windSpeed` — km/h (Open-Meteo native; OpenWeather converted from m/s)
+    - `windGust` — km/h gusts when available
+    - `windDirection` — degrees (0 = north, 90 = east)
+    - `weatherCode` — representative WMO code used for mapping (OpenWeather `weather.id` is normalized server-side)
+  - Open-Meteo uses WMO codes via `mapWeatherCodeToScene`; OpenWeather uses `mapOpenWeatherIdToScene` so both providers drive the same frontend animation vocabulary
 
 ## Finance
 

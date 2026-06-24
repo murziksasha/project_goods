@@ -309,6 +309,10 @@ export const MarketWeatherWidget = ({
                     condition={selectedForecast.condition}
                     temperature={selectedForecast.temperature}
                     humidity={selectedForecast.humidity}
+                    intensity={selectedForecast.intensity}
+                    windSpeed={selectedForecast.windSpeed}
+                    windGust={selectedForecast.windGust}
+                    windDirection={selectedForecast.windDirection}
                     label={t(`analytics.marketWeather.views.${settings.forecastView}`)}
                     animated={settings.weatherAnimationEnabled}
                   />
@@ -322,6 +326,10 @@ export const MarketWeatherWidget = ({
                         condition={day.condition}
                         temperature={day.temperature}
                         humidity={day.humidity}
+                        intensity={day.intensity}
+                        windSpeed={day.windSpeed}
+                        windGust={day.windGust}
+                        windDirection={day.windDirection}
                         label={dayFormatter.format(new Date(`${day.date}T12:00:00`))}
                         compact
                         animated={false}
