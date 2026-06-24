@@ -17,6 +17,10 @@ import type {
 import { clientMatchesPhoneQuery } from '../../../entities/client/lib/phone-match';
 import { clientStatusOptions } from '../../../entities/client/model/constants';
 import type { Sale } from '../../../entities/sale/model/types';
+import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../entities/client-device/model/types';
 import {
   isValidUkrainianPhone,
   normalizePhone,
@@ -84,6 +88,12 @@ type ClientsWorkspaceProps = {
   onOpenSaleCard: (sale: Sale) => void;
   openClientCardRequestId?: string | null;
   onOpenClientCardHandled?: () => void;
+  clientDevices: ClientDevice[];
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
 };
 
 const MAX_PHONE_LENGTH = 10;
@@ -154,6 +164,9 @@ export const ClientsWorkspace = ({
   onOpenSaleCard,
   openClientCardRequestId = null,
   onOpenClientCardHandled,
+  clientDevices,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
 }: ClientsWorkspaceProps) => {
   const { t } = useTranslation();
   const filterStatusOptions = useMemo(
@@ -777,6 +790,9 @@ export const ClientsWorkspace = ({
           }}
           onTabChange={setClientCardTab}
           onValidatePhone={validatePhone}
+          clientDevices={clientDevices}
+          onUpdateClientDevice={onUpdateClientDevice}
+          onDeleteClientDevice={onDeleteClientDevice}
         />
       ) : null}
     </section>

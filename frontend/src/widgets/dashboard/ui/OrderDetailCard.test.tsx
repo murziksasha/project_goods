@@ -147,6 +147,8 @@ const renderCard = ({
   onRemoveLineItem = vi.fn(),
   onDiscountChange = vi.fn(),
   onCreateClientDevice = vi.fn(async () => true),
+  onUpdateClientDevice = vi.fn(async () => true),
+  onDeleteClientDevice = vi.fn(async () => true),
   onSaveMainInfo = vi.fn(async () => undefined),
   onError = vi.fn(),
   canAddComment = true,
@@ -189,6 +191,8 @@ const renderCard = ({
     value: number;
   }) => void;
   onCreateClientDevice?: Parameters<typeof OrderDetailCard>[0]['onCreateClientDevice'];
+  onUpdateClientDevice?: Parameters<typeof OrderDetailCard>[0]['onUpdateClientDevice'];
+  onDeleteClientDevice?: Parameters<typeof OrderDetailCard>[0]['onDeleteClientDevice'];
   onSaveMainInfo?: Parameters<typeof OrderDetailCard>[0]['onSaveMainInfo'];
   onError?: (message: string) => void;
   canAddComment?: boolean;
@@ -241,6 +245,8 @@ const renderCard = ({
       onOpenClientCard={vi.fn()}
       onSupplierOrderCreated={vi.fn(async () => undefined)}
       onCreateClientDevice={onCreateClientDevice}
+      onUpdateClientDevice={onUpdateClientDevice}
+      onDeleteClientDevice={onDeleteClientDevice}
       onUpdateProductModel={vi.fn(async () => true)}
       onError={onError}
       onSuccess={vi.fn()}
@@ -348,6 +354,58 @@ describe('OrderDetailCard repair device replacement', () => {
         }),
       );
     });
+  });
+
+  it('unbinds a removable client device without applying it to the order draft', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onDeleteClientDevice = vi.fn(async () => true);
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [clientDevice({ id: 'device-new', name: 'New client laptop' })],
+      onDeleteClientDevice,
+      onSaveMainInfo,
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+
+    await waitFor(() => {
+      expect(onDeleteClientDevice).toHaveBeenCalledWith('device-new');
+    });
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('deactivates a used client device when unbind is confirmed', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onUpdateClientDevice = vi.fn(async () => true);
+    renderCard({
+      saleOverride: repairSale,
+      clientDevices: [
+        clientDevice({
+          id: 'device-used',
+          name: 'Used laptop',
+          canRemove: false,
+          usageCount: 2,
+        }),
+      ],
+      onUpdateClientDevice,
+    });
+
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+
+    await waitFor(() => {
+      expect(onUpdateClientDevice).toHaveBeenCalledWith(
+        'device-used',
+        expect.objectContaining({
+          isActive: false,
+          name: 'Used laptop',
+        }),
+      );
+    });
+    confirmSpy.mockRestore();
   });
 
   it('creates a new client device and applies it to the order draft', async () => {
@@ -890,6 +948,8 @@ describe('OrderDetailCard product entry', () => {
         onOpenClientCard={vi.fn()}
         onSupplierOrderCreated={vi.fn(async () => undefined)}
         onCreateClientDevice={vi.fn(async () => true)}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
         onUpdateProductModel={vi.fn(async () => true)}
         onError={vi.fn()}
         onSuccess={vi.fn()}

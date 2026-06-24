@@ -32,6 +32,10 @@ import type { SupplierOrderFormValues } from '../../../entities/supplier-order/m
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { ClientDevice, ClientDeviceFormValues } from '../../../entities/client-device/model/types';
+import {
+  getUnbindClientDeviceAction,
+  unbindClientDevice,
+} from '../../../entities/client-device/lib/unbind-client-device';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
@@ -150,6 +154,11 @@ type OrderDetailCardProps = {
   onOpenClientCard: () => void;
   onSupplierOrderCreated: () => Promise<void>;
   onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -193,6 +202,8 @@ export const OrderDetailCard = ({
   onOpenClientCard,
   onSupplierOrderCreated,
   onCreateClientDevice,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
   onUpdateProductModel,
   onError,
   onSuccess,
@@ -219,6 +230,9 @@ export const OrderDetailCard = ({
   const [clearSerialOnDeviceApply, setClearSerialOnDeviceApply] =
     useState(false);
   const [isCreatingDevice, setIsCreatingDevice] = useState(false);
+  const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
+    null,
+  );
   const [deviceLookupSuggestions, setDeviceLookupSuggestions] = useState<
     ClientDevice[]
   >([]);
@@ -426,6 +440,31 @@ export const OrderDetailCard = ({
       }
     } finally {
       setIsCreatingDevice(false);
+    }
+  };
+  const handleUnbindDevice = async (device: ClientDevice) => {
+    if (!device.isActive || unbindingDeviceId) return;
+
+    const action = getUnbindClientDeviceAction(device);
+    const confirmMessage =
+      action === 'delete'
+        ? t('orders.detail.deviceModal.confirmDelete', { name: device.name })
+        : t('orders.detail.deviceModal.confirmDeactivate', {
+            name: device.name,
+          });
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setUnbindingDeviceId(device.id);
+    try {
+      await unbindClientDevice(device, {
+        onDelete: onDeleteClientDevice,
+        onUpdate: onUpdateClientDevice,
+      });
+    } finally {
+      setUnbindingDeviceId(null);
     }
   };
   const masterOptions = useMemo(
@@ -1324,15 +1363,41 @@ export const OrderDetailCard = ({
                   <p>{t('orders.detail.deviceModal.noActiveDevices')}</p>
                 ) : (
                   clientDeviceOptions.map((device) => (
-                    <button
+                    <div
                       key={device.id}
-                      type='button'
-                      className='order-device-option'
-                      onClick={() => applyDeviceName(device.name)}
+                      className='order-device-option-row'
                     >
-                      <strong>{device.name}</strong>
-                      {device.note ? <span>{device.note}</span> : null}
-                    </button>
+                      <button
+                        type='button'
+                        className='order-device-option'
+                        onClick={() => applyDeviceName(device.name)}
+                      >
+                        <strong>{device.name}</strong>
+                        {device.note ? <span>{device.note}</span> : null}
+                      </button>
+                      <button
+                        type='button'
+                        className='ghost-button order-device-unbind'
+                        disabled={
+                          !device.isActive || unbindingDeviceId === device.id
+                        }
+                        title={
+                          !device.isActive
+                            ? t(
+                                'orders.detail.deviceModal.cannotUnbindInactive',
+                              )
+                            : undefined
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleUnbindDevice(device);
+                        }}
+                      >
+                        {unbindingDeviceId === device.id
+                          ? t('orders.detail.deviceModal.unbinding')
+                          : t('orders.detail.deviceModal.unbind')}
+                      </button>
+                    </div>
                   ))
                 )}
               </div>

@@ -40,13 +40,22 @@ export const resolveWindTier = (windSpeed?: number): WindTier => {
   return 'calm';
 };
 
-const resolveWindSlant = (windSpeed?: number, windDirection?: number) => {
+const resolveWindVector = (windSpeed?: number, windDirection?: number) => {
   const tier = resolveWindTier(windSpeed);
-  const base =
-    tier === 'windy' ? 24 : tier === 'breezy' ? 14 : 0;
-  if (base === 0 || windDirection === undefined) return 0;
+  const slantBase = tier === 'windy' ? 24 : tier === 'breezy' ? 14 : 0;
+  const driftBase = tier === 'windy' ? 8 : tier === 'breezy' ? 5 : 0;
+  if (
+    (slantBase === 0 && driftBase === 0) ||
+    windDirection === undefined
+  ) {
+    return { slantDeg: 0, driftPx: 0 };
+  }
   const radians = (windDirection * Math.PI) / 180;
-  return Math.round(Math.sin(radians) * base);
+  const factor = Math.sin(radians);
+  return {
+    slantDeg: Math.round(factor * slantBase),
+    driftPx: Math.round(factor * driftBase),
+  };
 };
 
 const rainDropCountByIntensity = (
@@ -88,7 +97,10 @@ export const resolveSceneParams = ({
     intensity ??
     (condition === 'fog' ? 'light' : 'moderate');
   const windTier = resolveWindTier(windSpeed);
-  const windSlantDeg = resolveWindSlant(windSpeed, windDirection);
+  const { slantDeg: windSlantDeg, driftPx: windDriftPx } = resolveWindVector(
+    windSpeed,
+    windDirection,
+  );
   const cloudDriftDurationSec =
     windTier === 'windy' ? 5.5 : windTier === 'breezy' ? 7.5 : 10;
   const rainDurationSec =
@@ -119,6 +131,7 @@ export const resolveSceneParams = ({
     lightningDurationSec,
     style: {
       '--weather-wind-slant': `${windSlantDeg}deg`,
+      '--weather-wind-drift-x': `${windDriftPx}px`,
       '--weather-wind-speed': windSpeed ?? 0,
       '--weather-cloud-drift-duration': `${cloudDriftDurationSec}s`,
       '--weather-rain-duration': `${rainDurationSec}s`,

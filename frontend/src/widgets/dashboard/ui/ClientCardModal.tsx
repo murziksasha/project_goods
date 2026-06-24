@@ -1,5 +1,14 @@
-import { type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
+import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../entities/client-device/model/types';
+import {
+  filterActiveClientDevicesForClient,
+  getUnbindClientDeviceAction,
+  unbindClientDevice,
+} from '../../../entities/client-device/lib/unbind-client-device';
 import type {
   Client,
   ClientStatus,
@@ -46,12 +55,19 @@ type ClientCardModalProps = {
   onTabChange: (tab: ClientCardTab) => void;
   onValidatePhone: (phone: string) => boolean;
   onClearPhoneError: () => void;
+  clientDevices: ClientDevice[];
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
 };
 
 const clientCardTabs: Array<{ key: ClientCardTab; labelKey: string }> = [
   { key: 'main', labelKey: 'clients.tabs.main' },
   { key: 'services', labelKey: 'clients.tabs.services' },
   { key: 'sales', labelKey: 'clients.tabs.sales' },
+  { key: 'devices', labelKey: 'clients.tabs.devices' },
 ];
 
 export const ClientCardModal = ({
@@ -73,8 +89,44 @@ export const ClientCardModal = ({
   onTabChange,
   onValidatePhone,
   onClearPhoneError,
+  clientDevices,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
 }: ClientCardModalProps) => {
   const { t } = useTranslation();
+  const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
+    null,
+  );
+  const clientDeviceRows = useMemo(
+    () =>
+      selectedClientId
+        ? filterActiveClientDevicesForClient(clientDevices, selectedClientId)
+        : [],
+    [clientDevices, selectedClientId],
+  );
+  const handleUnbindDevice = async (device: ClientDevice) => {
+    if (!device.isActive || unbindingDeviceId) return;
+
+    const action = getUnbindClientDeviceAction(device);
+    const confirmMessage =
+      action === 'delete'
+        ? t('clients.card.devices.confirmDelete', { name: device.name })
+        : t('clients.card.devices.confirmDeactivate', { name: device.name });
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setUnbindingDeviceId(device.id);
+    try {
+      await unbindClientDevice(device, {
+        onDelete: onDeleteClientDevice,
+        onUpdate: onUpdateClientDevice,
+      });
+    } finally {
+      setUnbindingDeviceId(null);
+    }
+  };
 
   const updateForm = <K extends keyof ClientMainForm>(
     field: K,
@@ -140,7 +192,9 @@ export const ClientCardModal = ({
         </div>
 
         <div className='clients-card-body'>
-          {isHistoryLoading && clientCardTab !== 'main' ? (
+          {isHistoryLoading &&
+          clientCardTab !== 'main' &&
+          clientCardTab !== 'devices' ? (
             <p className='empty-state'>
               {t('clients.card.loadingHistory')}
             </p>
@@ -148,6 +202,18 @@ export const ClientCardModal = ({
             <p className='empty-state'>
               {t('clients.card.selectClient')}
             </p>
+          ) : clientCardTab === 'devices' ? (
+            clientDeviceRows.length === 0 ? (
+              <p className='empty-state'>{t('clients.card.noDevices')}</p>
+            ) : (
+              <ClientDevicesTable
+                devices={clientDeviceRows}
+                unbindingDeviceId={unbindingDeviceId}
+                onUnbind={(device) => {
+                  void handleUnbindDevice(device);
+                }}
+              />
+            )
           ) : clientCardTab === 'main' ? (
             <ClientMainFormFields
               form={mainTabForm}
@@ -365,6 +431,69 @@ const ClientMainFormFields = ({
             : t('clients.card.saveClient')}
         </button>
       </div>
+    </div>
+  );
+};
+
+const ClientDevicesTable = ({
+  devices,
+  unbindingDeviceId,
+  onUnbind,
+}: {
+  devices: ClientDevice[];
+  unbindingDeviceId: string | null;
+  onUnbind: (device: ClientDevice) => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className='orders-table-wrap'>
+      <table className='orders-table clients-card-table clients-card-devices-table'>
+        <thead>
+          <tr>
+            <th>{t('clients.card.devices.columns.name')}</th>
+            <th>{t('clients.card.devices.columns.note')}</th>
+            <th>{t('clients.card.devices.columns.activity')}</th>
+            <th>{t('clients.card.devices.columns.actions')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {devices.map((device) => (
+            <tr key={device.id}>
+              <td data-label={t('clients.card.devices.columns.name')}>
+                {device.name}
+              </td>
+              <td data-label={t('clients.card.devices.columns.note')}>
+                {device.note || '-'}
+              </td>
+              <td data-label={t('clients.card.devices.columns.activity')}>
+                {device.isActive
+                  ? t('catalog.modals.active')
+                  : t('catalog.modals.inactive')}
+              </td>
+              <td data-label={t('clients.card.devices.columns.actions')}>
+                <button
+                  type='button'
+                  className='ghost-button clients-device-unbind'
+                  disabled={
+                    !device.isActive || unbindingDeviceId === device.id
+                  }
+                  title={
+                    !device.isActive
+                      ? t('clients.card.devices.cannotUnbindInactive')
+                      : undefined
+                  }
+                  onClick={() => onUnbind(device)}
+                >
+                  {unbindingDeviceId === device.id
+                    ? t('clients.card.devices.unbinding')
+                    : t('clients.card.devices.unbind')}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
