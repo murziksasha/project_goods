@@ -3,8 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import { createClient, getClients } from '../../../entities/client/api/clientApi';
-import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
+import { createClient, getClientHistory, getClients } from '../../../entities/client/api/clientApi';
+import type { Client, ClientHistory } from '../../../entities/client/model/types';
+import {
+  deleteClientDevice,
+  getClientDevices,
+  updateClientDevice,
+} from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
@@ -12,12 +17,31 @@ import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 vi.mock('../../../entities/client/api/clientApi', () => ({
   createClient: vi.fn(),
   getClients: vi.fn(async () => []),
-  getClientHistory: vi.fn(async () => ({ sales: [] })),
+  getClientHistory: vi.fn(async () => ({
+    client: {
+      id: 'client-1',
+      name: 'Client',
+      phone: '+380000000000',
+      phones: ['+380000000000'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    sales: [],
+    stats: { totalSales: 0, totalRevenue: 0, totalItemsSold: 0 },
+  })),
 }));
 
 vi.mock('../../../entities/client-device/api/clientDeviceApi', () => ({
   createClientDevice: vi.fn(),
   getClientDevices: vi.fn(async () => []),
+  updateClientDevice: vi.fn(async () => ({})),
+  deleteClientDevice: vi.fn(async () => ({ id: 'device-1' })),
 }));
 
 const product = (patch: Partial<Product>): Product => ({
@@ -60,12 +84,18 @@ const clientDevice = (
   ...patch,
 });
 
+const emptyClientHistory = (client: Client): ClientHistory => ({
+  client,
+  sales: [],
+  stats: { totalSales: 0, totalRevenue: 0, totalItemsSold: 0 },
+});
+
 const lookupClient = (patch: {
   id: string;
   name: string;
   phone: string;
   status?: 'new' | 'vip' | 'opt' | 'blacklist' | 'ok' | '';
-}) => ({
+}): Client => ({
   email: '',
   address: '',
   registrationId: '',
@@ -147,6 +177,34 @@ afterEach(() => {
 });
 
 describe('CreateOrderCard', () => {
+  it('renders registered client devices with unbind in the side panel', () => {
+    const onUnbindDevice = vi.fn();
+    const registeredDevice = clientDevice({
+      id: 'device-side-1',
+      name: 'USB-C Charger',
+      serialNumber: 'S000001',
+    });
+
+    render(
+      <CreateOrderSidePanel
+        hasSelectedClient
+        registeredClientDevices={[registeredDevice]}
+        unbindingDeviceId={null}
+        activeClientRequests={[]}
+        activeClientRequestTab="sales"
+        selectedFlags={[]}
+        onApplyDevice={vi.fn()}
+        onUnbindDevice={onUnbindDevice}
+        onClientRequestTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('USB-C Charger')).toBeInTheDocument();
+    expect(screen.getByText('S000001')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+    expect(onUnbindDevice).toHaveBeenCalledWith(registeredDevice);
+  });
+
   it('renders client request history when an existing sale has no product snapshot', () => {
     const legacySale: Sale = {
       id: 'sale-without-product',
@@ -187,17 +245,83 @@ describe('CreateOrderCard', () => {
 
     render(
       <CreateOrderSidePanel
-        deviceHistory={[legacySale]}
+        hasSelectedClient
+        registeredClientDevices={[]}
+        unbindingDeviceId={null}
         activeClientRequests={[legacySale]}
         activeClientRequestTab="sales"
         selectedFlags={[]}
         onApplyDevice={vi.fn()}
+        onUnbindDevice={vi.fn()}
         onClientRequestTabChange={vi.fn()}
       />,
     );
 
-    expect(screen.getAllByText('USB-C Charger')).toHaveLength(2);
+    expect(screen.getAllByText('USB-C Charger')).toHaveLength(1);
     expect(screen.getByText('S000001')).toBeInTheDocument();
+    expect(
+      document.querySelector('.create-side-requests-list-scrollable'),
+    ).toBeNull();
+  });
+
+  it('renders all client requests with scroll when there are four or more', () => {
+    const clientRequests: Sale[] = Array.from({ length: 6 }, (_, index) => ({
+      id: `sale-${index + 1}`,
+      recordNumber: `R00000${index + 1}`,
+      saleDate: '2026-01-01T00:00:00.000Z',
+      quantity: 1,
+      salePrice: 1200,
+      kind: 'repair',
+      status: 'new',
+      paidAmount: 0,
+      note: '',
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [
+        {
+          id: `line-${index + 1}`,
+          kind: 'product',
+          name: `Device ${index + 1}`,
+          price: 1200,
+          quantity: 1,
+          warrantyPeriod: 12,
+          serialNumbers: [],
+        },
+      ],
+      client: {
+        id: 'client-1',
+        name: 'Client',
+        phone: '+380000000000',
+        status: 'regular',
+      },
+      product: null,
+      manager: null,
+      master: null,
+      issuedBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }));
+
+    const { container } = render(
+      <CreateOrderSidePanel
+        hasSelectedClient
+        registeredClientDevices={[]}
+        unbindingDeviceId={null}
+        activeClientRequests={clientRequests}
+        activeClientRequestTab="orders"
+        selectedFlags={[]}
+        onApplyDevice={vi.fn()}
+        onUnbindDevice={vi.fn()}
+        onClientRequestTabChange={vi.fn()}
+      />,
+    );
+
+    clientRequests.forEach((sale) => {
+      expect(screen.getByText(sale.recordNumber!)).toBeInTheDocument();
+    });
+    expect(
+      container.querySelector('.create-side-requests-list-scrollable'),
+    ).not.toBeNull();
   });
 
   it('binds a warehouse serial product into the sales order payload', async () => {
@@ -547,6 +671,105 @@ describe('CreateOrderCard', () => {
       }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('blacklist')).not.toBeInTheDocument();
+  });
+
+  it('unbinds a removable client device from the create-order side panel', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const existingClient = lookupClient({
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380635567090',
+    });
+    const removableDevice = clientDevice({
+      id: 'device-removable',
+      clientId: existingClient.id,
+      clientName: existingClient.name,
+      clientPhone: existingClient.phone,
+      name: 'Coffee machine',
+      canRemove: true,
+      usageCount: 0,
+    });
+    vi.mocked(getClients).mockResolvedValue([existingClient]);
+    vi.mocked(getClientHistory).mockResolvedValue(
+      emptyClientHistory(existingClient),
+    );
+    vi.mocked(getClientDevices).mockResolvedValue([removableDevice]);
+    vi.mocked(deleteClientDevice).mockResolvedValue({ id: removableDevice.id });
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Existing Client' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Coffee machine')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+
+    await waitFor(() => {
+      expect(deleteClientDevice).toHaveBeenCalledWith('device-removable');
+    });
+    expect(screen.queryByText('Coffee machine')).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it('deactivates a used client device from the create-order side panel', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const existingClient = lookupClient({
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380635567090',
+    });
+    const usedDevice = clientDevice({
+      id: 'device-used',
+      clientId: existingClient.id,
+      clientName: existingClient.name,
+      clientPhone: existingClient.phone,
+      name: 'Used laptop',
+      canRemove: false,
+      usageCount: 2,
+    });
+    vi.mocked(getClients).mockResolvedValue([existingClient]);
+    vi.mocked(getClientHistory).mockResolvedValue(
+      emptyClientHistory(existingClient),
+    );
+    vi.mocked(getClientDevices).mockResolvedValue([usedDevice]);
+    vi.mocked(updateClientDevice).mockResolvedValue({
+      ...usedDevice,
+      isActive: false,
+    });
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Existing Client' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Used laptop')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+
+    await waitFor(() => {
+      expect(updateClientDevice).toHaveBeenCalledWith(
+        'device-used',
+        expect.objectContaining({
+          isActive: false,
+          name: 'Used laptop',
+        }),
+      );
+    });
+    expect(screen.queryByText('Used laptop')).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
   });
 
   it('renders repair device suggestions as a compact selectable list', async () => {

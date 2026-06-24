@@ -240,7 +240,9 @@ describe('useAccountingFinanceData', () => {
     renderWithQueryClient(<Harness />);
 
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
-    expect(screen.getByTestId('cashboxes')).toHaveTextContent('cashbox-2,cashbox-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('cashboxes')).toHaveTextContent('cashbox-2,cashbox-1'),
+    );
     expect(screen.getByTestId('all-cashboxes')).toHaveTextContent('2');
     expect(screen.getByTestId('transactions')).toHaveTextContent('1');
     expect(screen.getByTestId('currencies')).toHaveTextContent('1');

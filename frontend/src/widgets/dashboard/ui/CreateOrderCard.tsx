@@ -11,8 +11,15 @@ import type { Employee } from '../../../entities/employee/model/types';
 import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
   createClientDevice,
+  deleteClientDevice,
   getClientDevices,
+  updateClientDevice,
 } from '../../../entities/client-device/api/clientDeviceApi';
+import {
+  filterActiveClientDevicesForClient,
+  getUnbindClientDeviceAction,
+  unbindClientDevice,
+} from '../../../entities/client-device/lib/unbind-client-device';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { Product } from '../../../entities/product/model/types';
@@ -37,7 +44,6 @@ import {
   extractDeviceKit,
   filterActiveDevicesByQuery,
   formatPhone,
-  getDeviceHistory,
   parseDecimalInput,
   phoneDigitsOnly,
   saleExtraOptionsLeft,
@@ -145,6 +151,12 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [registeredClientDevices, setRegisteredClientDevices] = useState<
+    ClientDevice[]
+  >([]);
+  const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
+    null,
+  );
   const [activeClientRequestTab, setActiveClientRequestTab] = useState<ClientRequestTab>(
     () => (initialTab === 'sale' ? 'sales' : 'orders'),
   );
@@ -180,7 +192,6 @@ export const CreateOrderCard = ({
     .filter(Boolean)
     .join(' ')
     .trim();
-  const deviceHistory = useMemo(() => getDeviceHistory(clientHistory), [clientHistory]);
   const shouldShowClientSuggestions =
     !selectedClientId && (normalizedPhoneDigits.length >= 3 || clientName.trim().length >= 2);
   const visibleClientSuggestions = shouldShowClientSuggestions ? clientSuggestions : [];
@@ -335,15 +346,29 @@ export const CreateOrderCard = ({
   }, [clientSuggestions, clientPhone, selectedClientId, clientName, clients]);
 
   useEffect(() => {
-    if (!selectedClientId) return;
+    if (!selectedClientId) {
+      setClientHistory(null);
+      setRegisteredClientDevices([]);
+      return;
+    }
 
     let isActive = true;
     void (async () => {
       try {
-        const history = await getClientHistory(selectedClientId);
-        if (isActive) setClientHistory(history);
+        const [history, devices] = await Promise.all([
+          getClientHistory(selectedClientId),
+          getClientDevices(''),
+        ]);
+        if (!isActive) return;
+        setClientHistory(history);
+        setRegisteredClientDevices(
+          filterActiveClientDevicesForClient(devices, selectedClientId),
+        );
       } catch {
-        if (isActive) setClientHistory(null);
+        if (isActive) {
+          setClientHistory(null);
+          setRegisteredClientDevices([]);
+        }
       }
     })();
 
@@ -489,6 +514,57 @@ export const CreateOrderCard = ({
     setDeviceSuggestions([]);
   };
 
+  const removeDeviceFromLocalState = (deviceId: string) => {
+    setRegisteredClientDevices((current) =>
+      current.filter((device) => device.id !== deviceId),
+    );
+    setDeviceSuggestions((current) =>
+      current.filter((device) => device.id !== deviceId),
+    );
+    if (selectedDeviceSuggestionId === deviceId) {
+      setSelectedDeviceSuggestionId(null);
+    }
+  };
+
+  const handleUnbindDevice = async (device: ClientDevice) => {
+    if (!device.isActive || unbindingDeviceId) return;
+
+    const action = getUnbindClientDeviceAction(device);
+    const confirmMessage =
+      action === 'delete'
+        ? t('clients.card.devices.confirmDelete', { name: device.name })
+        : t('clients.card.devices.confirmDeactivate', { name: device.name });
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setUnbindingDeviceId(device.id);
+    try {
+      const ok = await unbindClientDevice(device, {
+        onDelete: async (deviceId) => {
+          await deleteClientDevice(deviceId);
+          return true;
+        },
+        onUpdate: async (deviceId, payload) => {
+          await updateClientDevice(deviceId, payload);
+          return true;
+        },
+      });
+      if (ok) {
+        removeDeviceFromLocalState(device.id);
+      }
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('dashboard.actions.errors.failedRemoveClientDevice'),
+      );
+    } finally {
+      setUnbindingDeviceId(null);
+    }
+  };
+
   const updateSaleItem = (itemId: string, patch: Partial<SaleOrderItem>) => {
     setSaleItems((current) =>
       current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
@@ -619,6 +695,14 @@ export const CreateOrderCard = ({
         isActive: newDeviceIsActive,
       });
       applyDevice(created);
+      if (newDeviceIsActive) {
+        setRegisteredClientDevices((current) =>
+          filterActiveClientDevicesForClient(
+            [...current, created],
+            selectedClient.id,
+          ),
+        );
+      }
       setIsCreateDeviceModalOpen(false);
     } finally {
       setIsDeviceCreating(false);
@@ -987,11 +1071,16 @@ export const CreateOrderCard = ({
           </div>
 
           <CreateOrderSidePanel
-            deviceHistory={deviceHistory}
+            hasSelectedClient={Boolean(selectedClientId)}
+            registeredClientDevices={registeredClientDevices}
+            unbindingDeviceId={unbindingDeviceId}
             activeClientRequests={activeClientRequests}
             activeClientRequestTab={activeClientRequestTab}
             selectedFlags={selectedFlags}
             onApplyDevice={applyDevice}
+            onUnbindDevice={(device) => {
+              void handleUnbindDevice(device);
+            }}
             onClientRequestTabChange={setActiveClientRequestTab}
           />
         </div>

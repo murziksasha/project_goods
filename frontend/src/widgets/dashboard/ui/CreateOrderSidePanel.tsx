@@ -2,81 +2,85 @@ import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
-  getSaleProductId,
   getSaleProductName,
-  getSaleProductSerialNumber,
 } from '../../../entities/sale/lib/sale-product';
 import {
   getOrderLink,
   type ClientRequestTab,
 } from './create-order-card-shared';
 
+const CLIENT_REQUESTS_SCROLL_THRESHOLD = 4;
+
 type CreateOrderSidePanelProps = {
-  deviceHistory: Sale[];
+  hasSelectedClient: boolean;
+  registeredClientDevices: ClientDevice[];
+  unbindingDeviceId: string | null;
   activeClientRequests: Sale[];
   activeClientRequestTab: ClientRequestTab;
   selectedFlags: string[];
   onApplyDevice: (device: ClientDevice) => void;
+  onUnbindDevice: (device: ClientDevice) => void;
   onClientRequestTabChange: (tab: ClientRequestTab) => void;
 };
 
 export const CreateOrderSidePanel = ({
-  deviceHistory,
+  hasSelectedClient,
+  registeredClientDevices,
+  unbindingDeviceId,
   activeClientRequests,
   activeClientRequestTab,
   selectedFlags,
   onApplyDevice,
+  onUnbindDevice,
   onClientRequestTabChange,
 }: CreateOrderSidePanelProps) => {
   const { t } = useTranslation();
+  const shouldScrollClientRequests =
+    activeClientRequests.length >= CLIENT_REQUESTS_SCROLL_THRESHOLD;
 
   return (
     <aside className="create-order-right">
       <section className="create-side-box">
         <h4>{t('orders.create.sidePanel.clientDevices')}</h4>
-        {deviceHistory.length ? (
+        {!hasSelectedClient ? (
+          <p>{t('orders.create.sidePanel.selectClientForDevices')}</p>
+        ) : registeredClientDevices.length ? (
           <div className="create-side-list">
-            {deviceHistory.map((sale) => {
-              const deviceItem = sale.lineItems?.find(
-                (item) => item.kind === 'product',
-              );
-              const deviceNameValue =
-                deviceItem?.name?.trim() ||
-                getSaleProductName(sale, t('orders.create.deviceFallback'));
-              const serialValue = getSaleProductSerialNumber(sale);
-              const displaySerial =
-                serialValue && serialValue.toUpperCase() !== 'REPAIR-PLACEHOLDER'
-                  ? serialValue
-                  : '';
-              return (
+            {registeredClientDevices.map((device) => (
+              <div key={device.id} className="create-side-device-row">
                 <button
-                  key={sale.id}
                   type="button"
-                  className="create-side-list-button"
-                  onClick={() =>
-                    onApplyDevice({
-                      id: getSaleProductId(sale) || sale.id,
-                      clientId: sale.client.id,
-                      clientName: sale.client.name,
-                      clientPhone: sale.client.phone,
-                      name: deviceNameValue,
-                      serialNumber: displaySerial,
-                      note: '',
-                      source: 'repairOrder',
-                      isActive: true,
-                      createdAt: sale.createdAt,
-                      updatedAt: sale.updatedAt,
-                    })
-                  }
+                  className="create-side-device-apply"
+                  onClick={() => onApplyDevice(device)}
                 >
-                  <strong>{deviceNameValue}</strong>
-                  <span>{displaySerial || '-'}</span>
+                  <strong>{device.name}</strong>
+                  <span>{device.serialNumber || '-'}</span>
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  className="ghost-button create-side-device-unbind"
+                  disabled={
+                    !device.isActive || unbindingDeviceId === device.id
+                  }
+                  title={
+                    !device.isActive
+                      ? t('clients.card.devices.cannotUnbindInactive')
+                      : undefined
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUnbindDevice(device);
+                  }}
+                >
+                  {unbindingDeviceId === device.id
+                    ? t('clients.card.devices.unbinding')
+                    : t('clients.card.devices.unbind')}
+                </button>
+              </div>
+            ))}
           </div>
         ) : (
-          <p>{t('orders.create.sidePanel.selectClientForDevices')}</p>
+          <p>{t('clients.card.noDevices')}</p>
         )}
       </section>
 
@@ -107,8 +111,14 @@ export const CreateOrderSidePanel = ({
           </button>
         </div>
         {activeClientRequests.length ? (
-          <div className="create-side-list">
-            {activeClientRequests.slice(0, 5).map((sale) => {
+          <div
+            className={
+              shouldScrollClientRequests
+                ? 'create-side-list create-side-requests-list create-side-requests-list-scrollable'
+                : 'create-side-list create-side-requests-list'
+            }
+          >
+            {activeClientRequests.map((sale) => {
               const deviceItem = sale.lineItems?.find(
                 (item) => item.kind === 'product',
               );

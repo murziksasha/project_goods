@@ -6817,6 +6817,53 @@
   cursor: pointer;
 }
 
+.create-side-device-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.create-side-device-apply {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #fff;
+  color: #3f5670;
+  padding: 10px 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.create-side-device-apply:hover {
+  border-color: #91bdea;
+  background: #eef6ff;
+}
+
+.create-side-device-apply strong,
+.create-side-device-apply span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-side-device-apply strong {
+  font-size: 0.96rem;
+}
+
+.create-side-device-apply span {
+  color: #6f8399;
+  font-size: 0.9rem;
+}
+
+.create-side-device-unbind {
+  align-self: center;
+  white-space: nowrap;
+}
+
 .create-suggestion-item strong,
 .create-side-list-item strong,
 .create-side-list-button strong {
@@ -7069,6 +7116,12 @@
 .supplier-order-total-row span {
   color: #4f647b;
   font-weight: 700;
+}
+
+.create-side-requests-list-scrollable {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .create-side-list-item {
