@@ -42,6 +42,7 @@ describe('weather-scene-params', () => {
     expect(windy.windTier).toBe('windy');
     expect(windy.showWindStreaks).toBe(true);
     expect(windy.windSlantDeg).not.toBe(0);
+    expect(windy.style['--weather-wind-drift-x']).toBe('8px');
     expect(windy.style['--weather-rain-duration']).toBe('0.75s');
   });
 });

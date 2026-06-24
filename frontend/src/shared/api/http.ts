@@ -68,6 +68,28 @@ export const createApiRequestError = (error: unknown) => {
   return new ApiRequestError(i18n.t('errors.unexpectedRequestError'));
 };
 
+export const getBlobApiErrorMessage = async (
+  error: unknown,
+  fallback: string,
+) => {
+  if (!axios.isAxiosError(error) || !error.response) {
+    return getApiErrorMessage(error);
+  }
+
+  const { data } = error.response;
+  if (!(data instanceof Blob) || data.size === 0) {
+    return getApiErrorMessage(error);
+  }
+
+  try {
+    const text = await data.text();
+    const parsed = JSON.parse(text) as { message?: string };
+    return parsed.message?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export const getApiErrorMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
     return error.message;

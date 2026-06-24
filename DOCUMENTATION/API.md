@@ -137,6 +137,13 @@ Client status localization rule: keep client status values in original English (
 ## Client Devices (Clients goods) Notes
 
 - Endpoints: `GET /client-devices`, `POST /client-devices`, `PUT /client-devices/:deviceId`, `DELETE /client-devices/:deviceId`.
+- UI entry points for unbind/remove:
+  - `Products & Services -> Clients goods` device modal (`Remove`);
+  - `Order card -> Change device` modal (`Unbind`);
+  - `Clients & suppliers -> Client card -> Client devices` tab (`Unbind`).
+- Unbind semantics in UI:
+  - `DELETE /client-devices/:deviceId` when `canRemove = true` (device not used in orders/sales);
+  - `PUT /client-devices/:deviceId` with `isActive = false` when device is used in orders/sales.
 - In current flow, `serialNumber` for `Clients goods` is deprecated and should be treated as empty.
 - Device serial numbers are maintained in order context/history (`Order card`), not in `Clients goods`.
 - For repair orders, `serialNumber` in order context (`productSnapshot.serialNumber`) is optional: empty value is valid and must not fail `PATCH /sales/:saleId/workspace` / `Save changes`.

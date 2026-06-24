@@ -44,7 +44,16 @@ export const ServiceCatalogForm = ({
           <button className="ghost-button" type="button" onClick={onCancelEdit}>
             {t('common.cancel')}
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            className="create-order-close"
+            onClick={onCancelEdit}
+            aria-label={t('catalog.modals.close')}
+          >
+            &times;
+          </button>
+        )}
       </div>
 
       <div className="form-grid">

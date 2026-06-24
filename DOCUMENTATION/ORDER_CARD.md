@@ -8,6 +8,10 @@
 - `Change` near `Device` opens a modal based on active `Clients goods` (`client-devices`) for current client.
 - Device search in the modal uses the same global active `Clients goods` lookup as `Create order -> Device #1`; empty search may show current-client devices.
 - Modal allows selecting an existing client device or creating a new one, then applying it to the order-card draft.
+- Each listed client device also has an `Unbind` action:
+  - if the device is not used in orders/sales (`canRemove = true`), unbind deletes the `client-devices` record after confirmation;
+  - if the device is used in orders/sales, unbind deactivates it (`isActive = false`) after confirmation;
+  - unbind does not apply the device name to the order-card draft.
 - Existing client-device editing remains in `Clients goods`; the order-card modal does not update existing device records.
 - Applying a device can optionally clear the order-specific `S/N`; preserving `S/N` is the default.
 - `Clients goods` stores unique device names per client (case-insensitive).

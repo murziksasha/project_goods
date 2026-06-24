@@ -57,6 +57,9 @@ const renderWorkspace = (suppliers: Supplier[]) =>
       onCreateSupplier={vi.fn().mockResolvedValue(true)}
       onUpdateSupplier={vi.fn().mockResolvedValue(true)}
       onOpenSaleCard={vi.fn()}
+      clientDevices={[]}
+      onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+      onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
     />,
   );
 

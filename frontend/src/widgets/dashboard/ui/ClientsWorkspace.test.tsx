@@ -7,6 +7,7 @@ import type {
 } from '../../../entities/client/model/types';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import {
   clientsSuppliersSavedFiltersStorageKey,
@@ -108,6 +109,8 @@ const renderWorkspace = ({
   onSelectClient = vi.fn(),
   sales = [],
   selectedClientId = null,
+  clientDevices = [],
+  onDeleteClientDevice = vi.fn().mockResolvedValue(true),
 }: {
   clients?: Client[];
   history?: ClientHistory | null;
@@ -115,6 +118,8 @@ const renderWorkspace = ({
   onSelectClient?: (clientId: string | null) => void;
   sales?: Sale[];
   selectedClientId?: string | null;
+  clientDevices?: ClientDevice[];
+  onDeleteClientDevice?: (deviceId: string) => Promise<boolean>;
 } = {}) =>
   render(
     <ClientsWorkspace
@@ -136,6 +141,9 @@ const renderWorkspace = ({
       onMergeClients={vi.fn().mockResolvedValue(true)}
       onUpdateClient={vi.fn().mockResolvedValue(true)}
       onOpenSaleCard={onOpenSaleCard}
+      clientDevices={clientDevices}
+      onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+      onDeleteClientDevice={onDeleteClientDevice}
     />,
   );
 
@@ -364,6 +372,9 @@ describe('ClientsWorkspace', () => {
         onMergeClients={vi.fn().mockResolvedValue(true)}
         onUpdateClient={vi.fn().mockResolvedValue(true)}
         onOpenSaleCard={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+        onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
       />,
     );
 
@@ -399,6 +410,43 @@ describe('ClientsWorkspace', () => {
 
     expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
     expect(onSelectClient).toHaveBeenLastCalledWith(null);
+  });
+
+  it('shows client devices tab and unbinds a removable device', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const client = createClient({ id: 'client-ivan' });
+    const onDeleteClientDevice = vi.fn().mockResolvedValue(true);
+    const device: ClientDevice = {
+      id: 'device-1',
+      clientId: client.id,
+      clientName: client.name,
+      clientPhone: client.phone,
+      name: 'Coffee machine',
+      serialNumber: '',
+      note: 'Kitchen',
+      source: 'repairOrder',
+      isActive: true,
+      canRemove: true,
+      usageCount: 0,
+      createdAt: '2026-01-01T10:00:00.000Z',
+      updatedAt: '2026-01-02T10:00:00.000Z',
+    };
+
+    renderWorkspace({
+      clients: [client],
+      selectedClientId: client.id,
+      clientDevices: [device],
+      onDeleteClientDevice,
+    });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    fireEvent.click(screen.getByRole('button', { name: 'Client devices' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
+
+    await vi.waitFor(() => {
+      expect(onDeleteClientDevice).toHaveBeenCalledWith('device-1');
+    });
+    confirmSpy.mockRestore();
   });
 });
 

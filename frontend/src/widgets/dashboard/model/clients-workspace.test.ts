@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getClientStatsMap } from './clients-workspace';
+import { getClientStatsMap, getStoredClientCardTab } from './clients-workspace';
 
 const baseSale: Sale = {
   id: 'sale-1',
@@ -46,6 +46,13 @@ const baseSale: Sale = {
   createdAt: '2026-05-12T10:00:00.000Z',
   updatedAt: '2026-05-12T10:00:00.000Z',
 };
+
+describe('getStoredClientCardTab', () => {
+  it('restores devices tab from local storage', () => {
+    window.localStorage.setItem('project-goods.client-card-tab', 'devices');
+    expect(getStoredClientCardTab()).toBe('devices');
+  });
+});
 
 describe('getClientStatsMap', () => {
   it('uses line items and discounts instead of salePrice * quantity', () => {

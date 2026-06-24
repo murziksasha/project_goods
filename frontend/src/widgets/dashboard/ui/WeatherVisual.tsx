@@ -138,17 +138,19 @@ export const WeatherVisual = ({
         .filter(Boolean)
         .join(' ')}
     >
-      {useAnimatedScene ? (
-        <WeatherAnimatedScene
-          condition={condition}
-          intensity={intensity}
-          windSpeed={windSpeed}
-          windDirection={windDirection}
-          animated
-        />
-      ) : (
-        <WeatherIconStatic condition={condition} intensity={intensity} />
-      )}
+      <div className="weather-visual-media">
+        {useAnimatedScene ? (
+          <WeatherAnimatedScene
+            condition={condition}
+            intensity={intensity}
+            windSpeed={windSpeed}
+            windDirection={windDirection}
+            animated
+          />
+        ) : (
+          <WeatherIconStatic condition={condition} intensity={intensity} />
+        )}
+      </div>
 
       <div className="weather-visual-copy">
         <span className="metric-label">{label}</span>

@@ -813,7 +813,12 @@
         "noActiveDevices": "No active client devices found.",
         "newDevice": "New device",
         "deviceName": "Device name",
-        "clearSerial": "Clear S/N for this order"
+        "clearSerial": "Clear S/N for this order",
+        "unbind": "Unbind",
+        "unbinding": "Unbinding...",
+        "confirmDelete": "Remove device \"{{name}}\" from this client?",
+        "confirmDeactivate": "Device \"{{name}}\" is used in orders. Deactivate it for this client?",
+        "cannotUnbindInactive": "Device is already inactive."
       },
       "creating": "Creating...",
       "createAndApply": "Create and apply",
@@ -1160,6 +1165,7 @@
       "main": "Main",
       "services": "Services",
       "sales": "Sales",
+      "devices": "Client devices",
       "clientsAndSuppliers": "Clients and suppliers",
       "clients": "Clients",
       "suppliers": "Suppliers"
@@ -1228,6 +1234,20 @@
       "selectClient": "Select a client from the list.",
       "noServices": "No services found for this client.",
       "noSales": "No sales found for this client.",
+      "noDevices": "No active client devices found for this client.",
+      "devices": {
+        "unbind": "Unbind",
+        "unbinding": "Unbinding...",
+        "confirmDelete": "Remove device \"{{name}}\" from this client?",
+        "confirmDeactivate": "Device \"{{name}}\" is used in orders. Deactivate it for this client?",
+        "cannotUnbindInactive": "Device is already inactive.",
+        "columns": {
+          "name": "Name",
+          "note": "Note",
+          "activity": "Activity",
+          "actions": "Actions"
+        }
+      },
       "fields": {
         "name": "Name",
         "email": "Email",

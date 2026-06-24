@@ -45,6 +45,7 @@ describe('WeatherVisual', () => {
       />,
     );
 
+    expect(container.querySelector('.weather-visual-media')).toBeTruthy();
     expect(container.querySelector('.weather-scene--intensity-heavy')).toBeTruthy();
     expect(screen.getByText(/Wind 24 km\/h E/)).toBeTruthy();
     expect(screen.getByText(/gusts 38 km\/h/)).toBeTruthy();

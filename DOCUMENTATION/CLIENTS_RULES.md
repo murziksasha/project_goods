@@ -26,6 +26,17 @@
 - When viewing a concrete client's history/card, a total Revenue / profit summary must be shown for the visible rows (in addition to per-row amounts).
 - The server-side `/clients/:id/history` returns `stats.totalRevenue` for the full lifetime; the UI may filter by period and recompute for the selection.
 
+## Client Card: Client Devices Tab
+
+- In `Clients & suppliers -> Clients`, opening a client card shows tabs: `Main`, `Services`, `Sales`, `Client devices`.
+- `Client devices` lists active `Clients goods` records for the selected client only.
+- Each row shows device name, note, activity, and an `Unbind` action.
+- `Unbind` follows the same rules as `Clients goods`:
+  - unused device (`canRemove = true`) is deleted after confirmation;
+  - device used in orders/sales is deactivated (`isActive = false`) after confirmation;
+  - inactive devices cannot be unbound again from this tab.
+- Device serial numbers remain order-specific and are not shown or edited in this tab.
+
 ## Blacklist Status Rule
 - `blacklist` is a manual priority client status and must not be replaced by automatic visit-based status logic.
 - Clients list rows with `blacklist` status must be visually marked with a red warning treatment and the `blacklist` badge.

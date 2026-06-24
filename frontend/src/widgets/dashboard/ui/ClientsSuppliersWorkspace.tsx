@@ -19,6 +19,10 @@ import type {
   ClientHistory,
 } from '../../../entities/client/model/types';
 import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../entities/client-device/model/types';
+import type {
   Supplier,
   SupplierFormValues,
 } from '../../../entities/supplier/model/types';
@@ -238,6 +242,12 @@ type Props = {
     supplierId: string,
     payload: SupplierFormValues,
   ) => Promise<boolean>;
+  clientDevices: ClientDevice[];
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
 };
 
 export const ClientsSuppliersWorkspace = ({
@@ -265,6 +275,9 @@ export const ClientsSuppliersWorkspace = ({
   onCreateSupplier,
   onMergeSuppliers,
   onUpdateSupplier,
+  clientDevices,
+  onUpdateClientDevice,
+  onDeleteClientDevice,
 }: Props) => {
   const [activeTab, setActiveTab] = useState<TabKey>(
     getStoredClientsSuppliersTab,
@@ -579,6 +592,9 @@ export const ClientsSuppliersWorkspace = ({
           onOpenSaleCard={onOpenSaleCard}
           openClientCardRequestId={openClientCardRequestId}
           onOpenClientCardHandled={onOpenClientCardHandled}
+          clientDevices={clientDevices}
+          onUpdateClientDevice={onUpdateClientDevice}
+          onDeleteClientDevice={onDeleteClientDevice}
         />
       ) : (
         <SuppliersWorkspace
