@@ -60,6 +60,11 @@ import {
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import { getClientStatsMap } from '../model/clients-workspace';
 import {
+  getSaleClientDisplayName,
+  getSaleClientSearchValues,
+  isRapidSaleClientLinkDisabled,
+} from '../model/sale-client-display';
+import {
   activeOrdersFiltersStorageKey,
   availableColumnsByTab,
   buildOrderNumber,
@@ -183,6 +188,8 @@ export const OrdersWorkspace = ({
   onUpdateClientDevice,
   onDeleteClientDevice,
   onUpdateProductModel,
+  pendingPaymentSale = null,
+  onPendingPaymentSaleHandled,
 }: OrdersWorkspaceProps) => {
   const { t } = useTranslation();
   const currentEmployeeName =
@@ -402,11 +409,12 @@ export const OrdersWorkspace = ({
         (item) => item.kind === 'service' && item.warrantyPeriod > 0,
       );
       const salePhones = getSaleClientPhones(sale);
+      const clientSearchValues = getSaleClientSearchValues(sale, t);
       const searchValues =
         activeTab === 'orders'
-          ? [getPrimaryDeviceName(sale), sale.client.name, ...salePhones]
+          ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
-              sale.client.name,
+              ...clientSearchValues,
               ...salePhones,
               sale.manager?.name ?? '',
               sale.issuedBy?.name ?? '',
@@ -448,7 +456,7 @@ export const OrdersWorkspace = ({
       if (
         clientValue &&
         !(
-          [sale.client.name, String(orderNumber)].some((value) =>
+          [...getSaleClientSearchValues(sale, t), String(orderNumber)].some((value) =>
             value.toLowerCase().includes(clientValue),
           ) ||
           matchesClientPhoneFilter ||
@@ -1400,6 +1408,8 @@ export const OrdersWorkspace = ({
           </span>
         );
       case 'client': {
+        const clientDisplayName = getSaleClientDisplayName(sale, t);
+        const isRapidSale = isRapidSaleClientLinkDisabled(sale);
         const visits =
           clientStatsMap.get(sale.client.id)?.visits ?? 0;
         const effectiveStatus = getEffectiveClientStatusLogic(
@@ -1408,18 +1418,26 @@ export const OrdersWorkspace = ({
         );
         return (
           <div className='orders-client-cell'>
-            <button
-              type='button'
-              className='orders-client-link'
-              onClick={() => onOpenClientCard(sale.client.id)}
-            >
-              <TruncatedTextTooltip text={sale.client.name} />
-            </button>
-            <small>
-              <span title={sale.client.phone}>
-                <PhoneNumber value={sale.client.phone} />
+            {isRapidSale ? (
+              <span className='orders-client-rapid-sale'>
+                <TruncatedTextTooltip text={clientDisplayName} />
               </span>
-              {effectiveStatus ? (
+            ) : (
+              <button
+                type='button'
+                className='orders-client-link'
+                onClick={() => onOpenClientCard(sale.client.id)}
+              >
+                <TruncatedTextTooltip text={clientDisplayName} />
+              </button>
+            )}
+            <small>
+              {!isRapidSale ? (
+                <span title={sale.client.phone}>
+                  <PhoneNumber value={sale.client.phone} />
+                </span>
+              ) : null}
+              {!isRapidSale && effectiveStatus ? (
                 <span
                   className={`client-status-badge ${getClientStatusClass(
                     effectiveStatus,
@@ -1572,6 +1590,15 @@ export const OrdersWorkspace = ({
       setIsPaymentModalLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!pendingPaymentSale) return;
+
+    void (async () => {
+      await openPaymentModal(pendingPaymentSale, 'issued');
+      onPendingPaymentSaleHandled?.();
+    })();
+  }, [pendingPaymentSale]);
 
   const openRefundModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {

@@ -15,7 +15,7 @@ Project Goods - full-stack приложение для учета товаров
 ### Flow-документы
 - [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - business home page: analytics date filter, market rates, weather widget (Chornomorsk/Odesa presets, animation, LAN mode), settings
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
-- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж
+- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж (включая **Rapid sale** — быстрый продаж без клиента)
 - [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая актуальные правила артикула: `A000001+`, без `SO-*` генерации артикула)
 - [ACCOUNTING.MD](./DOCUMENTATION/ACCOUNTING.MD) - flow финансов/касс
 - [Permission_Flow.md](./DOCUMENTATION/Permission_Flow.md) - flow прав доступа сотрудников, ролей, supplier-order permissions и finance permissions

@@ -9,6 +9,91 @@
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client does not exist and valid phone+name are provided, client can be created automatically in the same flow.
 
+## Rapid Sale (2026-06-24)
+
+Compact counter-sale flow for walk-in customers: no client form, stock products + services only, immediate issue path.
+
+### Entry And Visibility
+
+- Entry point: `Create order -> Sales order` tab, header button `Rapid sale` (`orders.rapidSale.openButton`).
+- Button is shown only on the **Sales order** tab when `onRapidSale` handler is wired (dashboard `saveRapidSale`).
+- Button sits in `create-order-header-actions` next to the close control; layout wraps on tablet/phone and must not break the create-order header.
+- Opens `RapidSaleModal` — smaller than the full create-order page, reuses `catalog-edit-modal` shell.
+
+### Modal Layout (Responsive)
+
+- Desktop: modal width `min(640px, 100vw - 28px)`; body scrolls independently; footer stays pinned.
+- Product/service entry rows use a responsive grid (same breakpoint family as `sale-item-row`):
+  - wide: search + price + qty + warranty + add action on one row
+  - `<=1024px`: two columns; search and add action span full width
+  - `<=480px`: single column stack; footer buttons full width
+- Draft items table scrolls horizontally on narrow screens when needed.
+- Suggestion lists keep fixed max height with internal scroll (no layout jump).
+
+### Product Entry (Stock Only)
+
+- Product search starts from 2+ characters (200 ms debounce).
+- Suggestions come from `buildRapidSaleStockSuggestions` — **warehouse stock only** (`source: stock`, selectable rows).
+- Catalog-only rows and manual product text are rejected on save.
+- Selecting a serial-bound stock row adds an atomic product draft immediately (`quantity = 1`, bound serial).
+- Selecting a non-serial stock row pre-fills the entry row; operator confirms with `Add product`.
+- Serialized draft rows lock quantity to `1`.
+
+### Service Entry
+
+- Service search reuses service catalog lookup (`getServiceCatalogItems`, 350 ms debounce).
+- Missing service names may be auto-created on add (same `missingService` helpers as create-order).
+- Operator confirms with `Add service`.
+
+### Draft Items List (Lower Section)
+
+- Added products and services appear in a table below the entry sections: `Name`, `Price`, `Qty`, `Remove`.
+- **Price is editable** in this list via `NumberStepper` (manual override after add). Total line updates immediately.
+- `Qty` is display-only in the draft table (change quantity before add, or remove and re-add).
+- Footer shows running total: `Total: {{amount}} UAH`.
+- `Issued` stays disabled until at least one valid draft line exists.
+
+### Issue And Payment Handoff
+
+- Footer actions: `Cancel` (left) and green `Issued` (right).
+- `Issued` validates draft, calls `saveRapidSale` → `POST /sales` with `isRapidSale: true`, `kind: sale`, `status: new`, mixed `lineItems`, `clientId: ''`.
+- Backend resolves a dedicated system client via `getOrCreateRapidSaleClient()` (`note: __rapid_sale_system__`); operator never sees client fields.
+- On success:
+  1. Create-order view closes (`createOrder` cleared from URL).
+  2. App navigates to `Orders -> Sales` list (`saleId` stays unset — no sale card opens).
+  3. `pendingPaymentSale` opens the existing **Accept payment** modal with `targetStatus: issued`.
+- After payment/issue/refusal, operator remains on the sales list; sale card opens only if chosen manually later.
+
+### Sales List Display And Search
+
+- Client column shows label **`Rapid sale`** (`orders.rapidSale.clientLabel`) instead of the system client name.
+- Client card link is disabled for rapid sales; phone column shows `-`.
+- Top search and client filter match aliases: `Rapid sale`, `rapid sale` (see `getSaleClientSearchValues`).
+- Opened sale card later behaves like a normal sale card (see [SALE_CARD.md](./SALE_CARD.md)); list label override does not apply inside the card.
+
+### Backend Validation (`isRapidSale: true`)
+
+- `kind` must be `sale`.
+- At least one `lineItems[]` entry required.
+- Product lines must have `productId` linked to warehouse stock; `catalogProductId`-only lines are rejected.
+- Manual product lines without `productId` are rejected.
+- `clientId` in request body is ignored; system rapid-sale client is assigned server-side.
+- Formatted API responses include `isRapidSale: boolean` on the sale snapshot.
+
+### Key Implementation Files
+
+| Layer | Path |
+|-------|------|
+| Modal UI | `frontend/src/widgets/dashboard/ui/RapidSaleModal.tsx` |
+| Draft/line-item helpers | `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` |
+| List client label | `frontend/src/widgets/dashboard/model/sale-client-display.ts` |
+| Create + payment handoff | `frontend/src/pages/dashboard/ui/DashboardPage.tsx` (`handleRapidSaleCreated`, `pendingPaymentSale`) |
+| Save action | `frontend/src/pages/dashboard/model/dashboard-actions.ts` (`saveRapidSale`) |
+| System client | `backend/src/domain/client/rapid-sale-client.ts` |
+| Create rules | `backend/src/domain/sale/service.ts` (`assertRapidSaleLineItems`) |
+
+Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.md](./API.md) (`POST /sales` payload), [SALE_CARD.md](./SALE_CARD.md) (opened card rules).
+
 ## Sale Items Input Behavior
 
 - Product entry row is always shown as a single stable line:

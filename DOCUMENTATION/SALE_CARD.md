@@ -1,5 +1,13 @@
 # Sale Card Rules
 
+## Rapid Sale Display
+
+- Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)) and may still be opened later as a normal sale card from the sales list.
+- Creation-time price edits happen in the rapid-sale **draft items table** (editable `Price` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below.
+- In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`.
+- Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
+- Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
+
 ## Sections And Defaults
 
 - Sale card uses two collapsible line-item sections:

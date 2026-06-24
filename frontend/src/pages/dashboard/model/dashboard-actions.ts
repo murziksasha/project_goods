@@ -67,6 +67,11 @@ import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/create-order-products';
+import {
+  buildRapidSaleLineItems,
+  getRapidSaleDraftTotal,
+  type RapidSaleDraftItem,
+} from '../../../widgets/dashboard/model/rapid-sale-line-items';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -1583,6 +1588,74 @@ export const createDashboardActions = ({
         await safeRefresh(
           refreshClientDevices,
           i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+        );
+        setSuccessMessage(i18n.t('dashboard.actions.success.orderSaved'));
+        return createdSaleResult.sale;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedSaveOrder'),
+          ),
+        );
+        return null;
+      } finally {
+        setIsSaleSaving(false);
+      }
+    },
+    saveRapidSale: async (items: RapidSaleDraftItem[]) => {
+      setIsSaleSaving(true);
+      clearNotifications();
+
+      try {
+        if (!currentEmployee?.id) {
+          throw new Error(i18n.t('dashboard.actions.errors.managerRequired'));
+        }
+
+        const lineItems = buildRapidSaleLineItems(items);
+        const salePrice = getRapidSaleDraftTotal(items);
+        const primaryProduct = lineItems.find((item) => item.kind === 'product');
+        const createdAt = new Date().toISOString();
+        const author = currentEmployee.name ?? i18n.t('common.system');
+
+        const createdSaleResult = await mutateCreateSale({
+          saleDate: new Date().toISOString(),
+          clientId: '',
+          productId: '',
+          quantity: String(primaryProduct?.quantity ?? 1),
+          salePrice: String(Math.round(salePrice * 100) / 100),
+          kind: 'sale',
+          status: 'new',
+          paidAmount: 0,
+          note: 'Rapid sale',
+          managerId: currentEmployee.id,
+          masterId: '',
+          isRapidSale: true,
+          timeline: [
+            {
+              id: createRuntimeId(),
+              kind: 'system',
+              author,
+              message: 'Rapid sale created',
+              createdAt,
+            },
+          ],
+          paymentHistory: [],
+          lineItems,
+        });
+
+        if (!isSaleResponse(createdSaleResult.sale)) {
+          throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
+        }
+
+        setSales((current) => [createdSaleResult.sale, ...current]);
+        await safeRefresh(
+          refreshProducts,
+          i18n.t('dashboard.actions.errors.failedRefreshProducts'),
+        );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
         setSuccessMessage(i18n.t('dashboard.actions.success.orderSaved'));
         return createdSaleResult.sale;

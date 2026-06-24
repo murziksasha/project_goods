@@ -492,6 +492,7 @@
       "warehouseStock": "Warehouse stock",
       "catalogSource": "Catalog",
       "catalogProduct": "Catalog product",
+      "rapidSaleOpen": "Rapid sale",
       "extraOptions": {
         "repair": {
           "deviceStaysWithClient": "Device stays with client",
@@ -513,6 +514,26 @@
           "warrantyCardIssued": "Warranty card issued",
           "deliveryRequired": "Delivery required"
         }
+      }
+    },
+    "rapidSale": {
+      "title": "Rapid sale",
+      "clientLabel": "Rapid sale",
+      "openButton": "Rapid sale",
+      "products": "Products",
+      "services": "Services",
+      "serviceSearch": "Service name",
+      "addProduct": "Add product",
+      "addService": "Add service",
+      "issued": "Issued",
+      "total": "Total: {{amount}} UAH",
+      "searchingServices": "Searching services...",
+      "errors": {
+        "noItems": "Add at least one product or service.",
+        "stockOnly": "Rapid sale products must be selected from warehouse stock.",
+        "invalidTotal": "Sale total is invalid.",
+        "serviceName": "Enter a service name with at least 2 characters.",
+        "failedCreateService": "Failed to create service."
       }
     },
     "toolbar": {

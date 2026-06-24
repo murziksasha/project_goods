@@ -11,6 +11,7 @@ import {
 } from '../../../entities/sale/lib/sale-product';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import i18n from '../../../shared/i18n/config';
+import { getSaleClientDisplayName } from '../model/sale-client-display';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
@@ -57,6 +58,8 @@ export type OrdersWorkspaceProps = {
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  pendingPaymentSale?: Sale | null;
+  onPendingPaymentSaleHandled?: () => void;
 };
 
 export type PrintCompanySettings = {
@@ -1175,8 +1178,8 @@ export const getPrintTemplateData = (
     orderNumber,
     date: createdAt.split(',')[0] ?? createdAt,
     status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
-    clientName: sale.client.name,
-    clientPhone: sale.client.phone,
+    clientName: getSaleClientDisplayName(sale, i18n.t.bind(i18n)),
+    clientPhone: sale.isRapidSale ? '' : sale.client.phone,
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
     article: isRepair ? getSaleProductArticle(sale) : '',

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type SetStateAction,
+} from 'react';
 import i18n from '../../../shared/i18n/config';
 import {
   useCashboxesQuery,
@@ -26,7 +32,9 @@ const getLoadErrorMessage = (error: unknown) =>
 export const useAccountingFinanceData = ({
   onError,
 }: UseAccountingFinanceDataOptions) => {
-  const [cashboxes, setCashboxes] = useState<Cashbox[]>([]);
+  const [manualCashboxes, setManualCashboxes] = useState<Cashbox[] | null>(
+    null,
+  );
   const [isCashboxesOrderHydrated, setIsCashboxesOrderHydrated] =
     useState(false);
 
@@ -91,7 +99,7 @@ export const useAccountingFinanceData = ({
     transactionsQuery,
   ]);
 
-  useEffect(() => {
+  const derivedCashboxes = useMemo(() => {
     let orderedCashboxes = activeCashboxes;
     try {
       const storedOrder = JSON.parse(
@@ -104,9 +112,25 @@ export const useAccountingFinanceData = ({
       orderedCashboxes = activeCashboxes;
     }
 
-    setCashboxes(orderedCashboxes);
+    return orderedCashboxes;
+  }, [activeCashboxes]);
+
+  useEffect(() => {
+    setManualCashboxes(null);
     setIsCashboxesOrderHydrated(true);
   }, [activeCashboxes]);
+
+  const cashboxes = manualCashboxes ?? derivedCashboxes;
+
+  const setCashboxes = useCallback(
+    (value: SetStateAction<Cashbox[]>) => {
+      setManualCashboxes((current) => {
+        const base = current ?? derivedCashboxes;
+        return typeof value === 'function' ? value(base) : value;
+      });
+    },
+    [derivedCashboxes],
+  );
 
   useEffect(() => {
     const firstError = [
