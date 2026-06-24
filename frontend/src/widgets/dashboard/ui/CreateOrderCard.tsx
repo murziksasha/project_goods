@@ -54,10 +54,12 @@ import {
   type ClientRequestTab,
   type SaleOrderItem,
 } from './create-order-card-shared';
+import type { RapidSaleDraftItem } from '../model/rapid-sale-line-items';
 import { CreateOrderDeviceModal } from './CreateOrderDeviceModal';
 import { CreateOrderRepairSection } from './CreateOrderRepairSection';
 import { CreateOrderSaleSection } from './CreateOrderSaleSection';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
+import { RapidSaleModal } from './RapidSaleModal';
 
 const getPhoneIdentity = (value: string) => phoneDigitsOnly(toApiPhone(value) || value);
 
@@ -97,6 +99,8 @@ type CreateOrderCardProps = {
   onClose: () => void;
   onSave: (payload: CreateOrderRequestPayload) => Promise<Sale | null>;
   onCreated?: (sale: Sale) => void;
+  onRapidSale?: (items: RapidSaleDraftItem[]) => Promise<Sale | null>;
+  onRapidSaleCreated?: (sale: Sale) => void;
   onError: (message: string) => void;
   onOpenClientCard?: (clientId: string) => void;
 };
@@ -113,6 +117,8 @@ export const CreateOrderCard = ({
   onClose,
   onSave,
   onCreated,
+  onRapidSale,
+  onRapidSaleCreated,
   onError,
   onOpenClientCard,
 }: CreateOrderCardProps) => {
@@ -151,6 +157,7 @@ export const CreateOrderCard = ({
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] = useState(false);
   const [isSaleProductLookupLoading, setIsSaleProductLookupLoading] = useState(false);
   const [isClientEnsuring, setIsClientEnsuring] = useState(false);
+  const [isRapidSaleModalOpen, setIsRapidSaleModalOpen] = useState(false);
   const [registeredClientDevices, setRegisteredClientDevices] = useState<
     ClientDevice[]
   >([]);
@@ -840,9 +847,20 @@ export const CreateOrderCard = ({
     <section className="create-order-page">
       <header className="create-order-header">
         <h2>{t('orders.create.title')}</h2>
-        <button type="button" className="create-order-close" aria-label={t('orders.create.closeForm')} onClick={onClose}>
-          x
-        </button>
+        <div className="create-order-header-actions">
+          {activeTab === 'sale' && onRapidSale ? (
+            <button
+              type="button"
+              className="secondary-button create-order-rapid-sale-button"
+              onClick={() => setIsRapidSaleModalOpen(true)}
+            >
+              {t('orders.rapidSale.openButton')}
+            </button>
+          ) : null}
+          <button type="button" className="create-order-close" aria-label={t('orders.create.closeForm')} onClick={onClose}>
+            x
+          </button>
+        </div>
       </header>
 
       <div className="create-order-body">
@@ -1099,6 +1117,21 @@ export const CreateOrderCard = ({
           onIsActiveChange={setNewDeviceIsActive}
           onClose={() => setIsCreateDeviceModalOpen(false)}
           onSave={() => void createDeviceFromModal()}
+        />
+      ) : null}
+      {isRapidSaleModalOpen && onRapidSale ? (
+        <RapidSaleModal
+          products={products}
+          sales={sales}
+          isSaving={isSaving}
+          onClose={() => setIsRapidSaleModalOpen(false)}
+          onError={onError}
+          onSubmit={async (items) => {
+            const createdSale = await onRapidSale(items);
+            if (!createdSale) return;
+            setIsRapidSaleModalOpen(false);
+            onRapidSaleCreated?.(createdSale);
+          }}
         />
       ) : null}
     </section>

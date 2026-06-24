@@ -5,6 +5,7 @@ import {
   getSaleProductName,
 } from '../lib/sale-product';
 import type { Sale } from '../model/types';
+import { getSaleClientDisplayName } from '../../../widgets/dashboard/model/sale-client-display';
 
 type SalesListProps = {
   sales: Sale[];
@@ -57,11 +58,11 @@ export const SalesList = ({
             </div>
             <div>
               <dt>{t('legacy.salesList.client')}</dt>
-              <dd>{sale.client.name}</dd>
+              <dd>{getSaleClientDisplayName(sale, t)}</dd>
             </div>
             <div>
               <dt>{t('legacy.salesList.phone')}</dt>
-              <dd>{sale.client.phone}</dd>
+              <dd>{sale.isRapidSale ? '-' : sale.client.phone}</dd>
             </div>
           </dl>
 

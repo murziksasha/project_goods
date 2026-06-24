@@ -169,14 +169,13 @@ const renderCreateOrderCard = (
     />,
 );
 
-afterEach(() => {
-  cleanup();
-  window.localStorage.clear();
-  vi.clearAllMocks();
-  vi.useRealTimers();
-});
-
 describe('CreateOrderCard', () => {
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
   it('renders registered client devices with unbind in the side panel', () => {
     const onUnbindDevice = vi.fn();
     const registeredDevice = clientDevice({
@@ -802,5 +801,31 @@ describe('CreateOrderCard', () => {
     expect(screen.getByPlaceholderText('Enter device name')).toHaveValue(
       'Кавомашина Delonghi',
     );
+  });
+
+  it('shows rapid sale button only on sales tab and opens modal', () => {
+    const onRapidSale = vi.fn(async () => null);
+
+    render(
+      <CreateOrderCard
+        isSaving={false}
+        employees={[ownerEmployee]}
+        currentEmployee={ownerEmployee}
+        initialTab="repair"
+        catalogProducts={[]}
+        products={[product({})]}
+        sales={[]}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => null)}
+        onRapidSale={onRapidSale}
+        onError={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Rapid sale' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sales order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rapid sale' }));
+    expect(screen.getByRole('dialog', { name: 'Rapid sale' })).toBeInTheDocument();
   });
 });

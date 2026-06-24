@@ -492,6 +492,7 @@
       "warehouseStock": "Складський залишок",
       "catalogSource": "Каталог",
       "catalogProduct": "Товар каталогу",
+      "rapidSaleOpen": "Швидкий продаж",
       "extraOptions": {
         "repair": {
           "deviceStaysWithClient": "Пристрій залишається у клієнта",
@@ -513,6 +514,26 @@
           "warrantyCardIssued": "Видано гарантійний талон",
           "deliveryRequired": "Потрібна доставка"
         }
+      }
+    },
+    "rapidSale": {
+      "title": "Швидкий продаж",
+      "clientLabel": "Швидкий продаж",
+      "openButton": "Швидкий продаж",
+      "products": "Товари",
+      "services": "Послуги",
+      "serviceSearch": "Назва послуги",
+      "addProduct": "Додати товар",
+      "addService": "Додати послугу",
+      "issued": "Видано",
+      "total": "Разом: {{amount}} грн",
+      "searchingServices": "Пошук послуг...",
+      "errors": {
+        "noItems": "Додайте хоча б один товар або послугу.",
+        "stockOnly": "У швидкому продажі товари можна обирати лише зі складу.",
+        "invalidTotal": "Сума продажу некоректна.",
+        "serviceName": "Введіть назву послуги щонайменше з 2 символів.",
+        "failedCreateService": "Не вдалося створити послугу."
       }
     },
     "toolbar": {

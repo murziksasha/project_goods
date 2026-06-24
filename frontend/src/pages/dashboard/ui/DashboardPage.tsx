@@ -29,6 +29,7 @@ import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalo
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
 import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import type { Sale } from '../../../entities/sale/model/types';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { useTranslation } from 'react-i18next';
@@ -212,6 +213,7 @@ export const DashboardPage = () => {
     () => getSaleIdFromUrl() || null,
   );
   const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
+  const [pendingPaymentSale, setPendingPaymentSale] = useState<Sale | null>(null);
   const [syncedAccountingTab, setSyncedAccountingTab] = useState<AccountingTab | null>(
     () => parseDashboardLocationFromWindow().accountingTab,
   );
@@ -633,6 +635,19 @@ export const DashboardPage = () => {
     setExternalSelectedSaleId(sale.id);
   };
 
+  const handleRapidSaleCreated = (sale: Sale) => {
+    navigateTo({
+      page: 'orders',
+      ordersTab: 'sales',
+      createOrder: null,
+      saleId: null,
+      accountingTab: null,
+    });
+    setIsCreateOrderOpen(false);
+    setExternalSelectedSaleId(null);
+    setPendingPaymentSale(sale);
+  };
+
   const handleSelectedSaleIdChange = useCallback(
     (saleId: string | null) => {
       navigateTo({
@@ -1004,6 +1019,8 @@ export const DashboardPage = () => {
                   clients={state.allClients}
                   onSave={actions.saveOrderRequest}
                   onCreated={openCreatedOrder}
+                  onRapidSale={actions.saveRapidSale}
+                  onRapidSaleCreated={handleRapidSaleCreated}
                   onError={actions.showError}
                   onOpenClientCard={openClientCardFromOrders}
               />
@@ -1070,6 +1087,8 @@ export const DashboardPage = () => {
                   onUpdateClientDevice={actions.updateClientDeviceCard}
                   onDeleteClientDevice={actions.deleteClientDeviceCard}
                   onUpdateProductModel={actions.updateProductModelCard}
+                  pendingPaymentSale={pendingPaymentSale}
+                  onPendingPaymentSaleHandled={() => setPendingPaymentSale(null)}
                 />
               )
             )

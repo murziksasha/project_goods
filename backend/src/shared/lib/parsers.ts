@@ -296,6 +296,9 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   })(),
   deviceName: toNonEmptyString(payload.deviceName),
   serialNumber: toNonEmptyString(payload.serialNumber).toUpperCase(),
+  isRapidSale:
+    payload.isRapidSale === true ||
+    String(payload.isRapidSale ?? '').toLowerCase() === 'true',
 });
 
 export const normalizeEmployeePayload = (payload: EmployeePayload) => {

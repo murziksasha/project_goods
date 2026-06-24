@@ -15,6 +15,7 @@ import { createFinanceTransaction } from '../finance/service';
 import type { SalePayload } from '../shared/types';
 import { assertNotStale } from '../../shared/lib/errors';
 import { upsertCatalogProducts } from '../catalog-product/service';
+import { getOrCreateRapidSaleClient } from '../client/rapid-sale-client';
 import {
   getStockDeltas,
   getStockLines,
@@ -366,10 +367,36 @@ export const updateSaleFavorite = async (
   return formatSale(updatedSale.toObject<SaleDocument>());
 };
 
+const assertRapidSaleLineItems = (lineItems: SaleLineItem[]) => {
+  if (lineItems.length < 1) {
+    throw new Error('Rapid sale must contain at least one line item.');
+  }
+
+  for (const item of lineItems) {
+    if (item.kind !== 'product') continue;
+    if (!item.productId) {
+      throw new Error('Rapid sale product lines must be linked to warehouse stock.');
+    }
+    if (item.catalogProductId) {
+      throw new Error('Rapid sale does not support catalog-only product lines.');
+    }
+  }
+};
+
 export const createSale = async (payloadInput: SalePayload) => {
   const payload = normalizeSalePayload(payloadInput);
+  const isRapidSale = payload.isRapidSale === true;
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
-  isValidObjectIdOrThrow(payload.clientId, 'clientId');
+
+  if (isRapidSale) {
+    if (normalizedKind !== 'sale') {
+      throw new Error('Rapid sale must have kind sale.');
+    }
+    assertRapidSaleLineItems(payload.lineItems);
+  } else {
+    isValidObjectIdOrThrow(payload.clientId, 'clientId');
+  }
+
   const hasProductId = Boolean(payload.productId);
   if (hasProductId) {
     isValidObjectIdOrThrow(payload.productId, 'productId');
@@ -377,7 +404,9 @@ export const createSale = async (payloadInput: SalePayload) => {
   assertSalePayload(payload.quantity, payload.salePrice);
 
   const [client, product, manager, master, issuedBy] = await Promise.all([
-    Client.findById(payload.clientId).lean<ClientDocument | null>(),
+    isRapidSale
+      ? getOrCreateRapidSaleClient()
+      : Client.findById(payload.clientId).lean<ClientDocument | null>(),
     hasProductId ? Product.findById(payload.productId).lean<ProductDocument | null>() : null,
     resolveEmployee(payload.managerId, 'managerId', ['manager', 'owner'], 'orders.manage'),
     resolveEmployee(payload.masterId, 'masterId', ['master', 'owner'], 'repairs.execute'),
@@ -389,9 +418,9 @@ export const createSale = async (payloadInput: SalePayload) => {
       : null;
 
   if (!client) {
-    throw new Error('Client not found.');
+    throw new Error(isRapidSale ? 'Rapid sale client could not be resolved.' : 'Client not found.');
   }
-  if (client.status === 'blacklist') {
+  if (!isRapidSale && client.status === 'blacklist') {
     throw new Error('Sales are blocked for blacklist clients.');
   }
   if (normalizedKind === 'sale' && hasProductId && !product && !catalogProduct) {
@@ -449,6 +478,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       kind: normalizedKind,
       status: payload.status || 'new',
       paidAmount: payload.paidAmount || 0,
+      isRapidSale,
       note: payload.note,
       timeline: payload.timeline ?? [],
       paymentHistory: payload.paymentHistory ?? [],

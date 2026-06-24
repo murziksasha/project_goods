@@ -150,13 +150,12 @@ const renderWorkspace = (
     />,
   );
 
-afterEach(() => {
-  cleanup();
-  window.localStorage.clear();
-  vi.clearAllMocks();
-});
-
 describe('OrdersWorkspace', () => {
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+    vi.clearAllMocks();
+  });
   it('does not load supplier orders when mounting the regular orders tab', async () => {
     renderWorkspace();
 
@@ -941,6 +940,93 @@ describe('OrdersWorkspace', () => {
         ...sale,
         isFavorite: true,
       });
+    });
+  });
+
+  it('shows rapid sale label instead of client name in sales list', () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          isRapidSale: true,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Mouse',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByText('Rapid sale')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rapid sale' })).not.toBeInTheDocument();
+  });
+
+  it('opens payment modal when pendingPaymentSale is provided', async () => {
+    const onPendingPaymentSaleHandled = vi.fn();
+    vi.mocked(getCashboxes).mockResolvedValue([cashbox]);
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          isRapidSale: true,
+          salePrice: 100,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Mouse',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      pendingPaymentSale: {
+        ...sale,
+        kind: 'sale',
+        isRapidSale: true,
+        salePrice: 100,
+        lineItems: [
+          {
+            id: 'li-1',
+            kind: 'product',
+            productId: 'product-1',
+            name: 'Mouse',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ],
+      },
+      onPendingPaymentSaleHandled,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: 'Accept payment' }),
+      ).toBeInTheDocument();
+      expect(onPendingPaymentSaleHandled).toHaveBeenCalledTimes(1);
     });
   });
 });

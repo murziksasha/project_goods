@@ -107,6 +107,12 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 ### Orders / Sales
 
 - Opening a card updates `saleId` in the URL and pushes history; closing the card clears `saleId` and pushes again so Back can reopen the card.
+- **Rapid sale** (`Create order -> Sales order -> Rapid sale -> Issued`):
+  - Before issue: URL may include `createOrder=sale` while the create-order shell is open.
+  - After successful issue, `handleRapidSaleCreated` navigates to `/?page=orders&ordersTab=sales` with `createOrder` and `saleId` both cleared.
+  - Payment modal opens on the sales list via React state `pendingPaymentSale` (not encoded in the URL).
+  - `saleId` stays unset until the operator opens the sale card manually from the list; Back/Forward does not replay the payment modal.
+  - See [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24) for full UX rules.
 - Deep links from client card, warehouse stock table, and in-app cross-links use `getOrderLink()` / `navigateTo()`.
 - Create-order sidebar request numbers still open in a **new browser tab** (`target="_blank"`) by design; see [ORDER_FLOW.md](./ORDER_FLOW.md).
 

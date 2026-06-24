@@ -482,6 +482,136 @@
   box-shadow: 0 24px 70px rgba(25, 36, 50, 0.28);
 }
 
+.rapid-sale-modal {
+  width: min(640px, calc(100vw - 28px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.rapid-sale-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rapid-sale-section {
+  min-width: 0;
+}
+
+.rapid-sale-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #55697f;
+}
+
+.rapid-sale-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.rapid-sale-entry-row .field {
+  min-width: 0;
+}
+
+.rapid-sale-entry-action > span[aria-hidden='true'] {
+  display: block;
+  height: 1.15rem;
+}
+
+.rapid-sale-entry-button {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+.rapid-sale-suggestions {
+  max-height: min(160px, 28vh);
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.rapid-sale-items {
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rapid-sale-items-table {
+  width: 100%;
+  min-width: 300px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.rapid-sale-items-table th,
+.rapid-sale-items-table td {
+  border-bottom: 1px solid #e3e9f0;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.rapid-sale-items-table th:nth-child(2),
+.rapid-sale-items-table td.rapid-sale-draft-price-cell {
+  width: 118px;
+  min-width: 108px;
+}
+
+.rapid-sale-items-table .rapid-sale-draft-price-cell .number-stepper {
+  width: 100%;
+  min-width: 96px;
+}
+
+.rapid-sale-items-table .rapid-sale-draft-price.line-item-inline-input input {
+  cursor: text;
+}
+
+.rapid-sale-total {
+  margin: 8px 0 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.rapid-sale-footer {
+  justify-content: space-between;
+}
+
+.rapid-sale-issued-button {
+  background: #2f9b4a;
+  border-color: #2f9b4a;
+}
+
+.rapid-sale-issued-button:hover:not(:disabled) {
+  background: #26853f;
+  border-color: #26853f;
+}
+
+.orders-client-rapid-sale {
+  font-weight: 600;
+  color: #3f556d;
+}
+
+.create-order-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.create-order-rapid-sale-button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
 .catalog-edit-header {
   display: flex;
   align-items: center;
@@ -6670,16 +6800,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
   padding: 14px 18px;
   border-bottom: 1px solid #d3dbe5;
 }
 
 .create-order-header h2 {
   margin: 0;
-  font-size: 2rem;
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
   font-family: 'Bahnschrift', 'Trebuchet MS', sans-serif;
   font-weight: 400;
   color: #55697f;
+  overflow-wrap: anywhere;
 }
 
 .create-order-close {
