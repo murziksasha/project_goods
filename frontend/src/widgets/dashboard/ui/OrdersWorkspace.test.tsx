@@ -125,6 +125,9 @@ const renderWorkspace = (
       onSearchChange={vi.fn()}
       onCreateOrder={vi.fn()}
       createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+      getCreateOrderHref={(tab) =>
+        `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
+      }
       onSaleUpdate={vi.fn()}
       onError={vi.fn()}
       onSuccess={vi.fn()}
@@ -426,6 +429,9 @@ describe('OrdersWorkspace', () => {
         onSearchChange={vi.fn()}
         onCreateOrder={vi.fn()}
         createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+        getCreateOrderHref={(tab) =>
+          `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
+        }
         onSaleUpdate={onSaleUpdate}
         onError={vi.fn()}
         onSuccess={vi.fn()}

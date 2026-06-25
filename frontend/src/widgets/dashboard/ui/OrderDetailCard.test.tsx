@@ -199,6 +199,8 @@ const renderCard = ({
   onError = vi.fn(),
   canAddComment = true,
   isReadOnly = false,
+  canCreateOrders = true,
+  onCreateOrder = vi.fn(),
   comments = [],
   saleOverride,
   salesOverride,
@@ -243,6 +245,8 @@ const renderCard = ({
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
+  canCreateOrders?: boolean;
+  onCreateOrder?: () => void;
   comments?: Array<{
     id: string;
     kind?: 'manual' | 'system';
@@ -276,6 +280,9 @@ const renderCard = ({
       canAddComment={canAddComment}
       canAcceptPayment={true}
       canRefundPayment={true}
+      canCreateOrders={canCreateOrders}
+      onCreateOrder={onCreateOrder}
+      createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
       onClose={vi.fn()}
       onAddComment={vi.fn()}
       onAddLineItem={onAddLineItem}
@@ -313,6 +320,32 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
   window.localStorage.clear();
+});
+
+describe('OrderDetailCard create order header action', () => {
+  it('shows create order button and calls onCreateOrder when clicked', () => {
+    const onCreateOrder = vi.fn();
+    renderCard({ onCreateOrder });
+
+    const createOrderButton = screen.getByRole('link', { name: 'Create order' });
+    expect(createOrderButton).toBeInTheDocument();
+    expect(createOrderButton).toHaveAttribute(
+      'href',
+      '/?page=orders&ordersTab=orders&createOrder=repair',
+    );
+
+    fireEvent.click(createOrderButton);
+    expect(onCreateOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders disabled create order button when permission is missing', () => {
+    renderCard({ canCreateOrders: false });
+
+    const createOrderButton = screen.getByRole('link', { name: 'Create order' });
+    expect(createOrderButton).toHaveClass('orders-create-button-disabled');
+    expect(createOrderButton).toHaveAttribute('href', '#');
+    expect(createOrderButton).toHaveAttribute('aria-disabled', 'true');
+  });
 });
 
 describe('OrderDetailCard repair device replacement', () => {
@@ -1048,6 +1081,9 @@ describe('OrderDetailCard product entry', () => {
         canAddComment={false}
         canAcceptPayment={true}
         canRefundPayment={true}
+        canCreateOrders={true}
+        onCreateOrder={vi.fn()}
+        createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
         onClose={vi.fn()}
         onAddComment={vi.fn()}
         onAddLineItem={vi.fn()}
