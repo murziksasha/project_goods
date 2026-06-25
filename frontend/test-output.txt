@@ -1,13 +1,3 @@
 
-> frontend@0.0.0 test
-> vitest run ; echo EXIT:$?
-
-
 [1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mc:/Users/murzi/Desktop/project/project_goods/frontend[39m
-
-[31mNo test files found, exiting with code 1
-[39m
-[2mfilter: [22m[33m;[2m, [22mecho[2m, [22mEXIT:$?[39m
-[2minclude: [22m[33msrc/**/*.test.ts[2m, [22msrc/**/*.test.tsx[39m
-[2mexclude:  [22m[33m**/node_modules/**[2m, [22m**/.git/**[39m
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -62,6 +62,8 @@ export const RapidSaleModal = ({
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
   const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const productSearchInputRef = useRef<HTMLInputElement>(null);
+  const serviceSearchInputRef = useRef<HTMLInputElement>(null);
 
   const draftTotal = useMemo(() => getRapidSaleDraftTotal(draftItems), [draftItems]);
   const validationErrorKey = useMemo(() => validateRapidSaleDraft(draftItems), [draftItems]);
@@ -145,6 +147,7 @@ export const RapidSaleModal = ({
   const addProductDraft = (item: Extract<RapidSaleDraftItem, { kind: 'product' }>) => {
     setDraftItems((current) => [...current, item]);
     resetProductEntry();
+    productSearchInputRef.current?.focus();
   };
 
   const applyProductSuggestion = (suggestion: CreateOrderProductSuggestion) => {
@@ -160,27 +163,13 @@ export const RapidSaleModal = ({
     const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
     const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '0';
 
-    if (serialNumber) {
-      addProductDraft({
-        id: createRuntimeId(),
-        kind: 'product',
-        productId: suggestion.productId,
-        name: suggestion.name,
-        price: unitPrice,
-        quantity: '1',
-        warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
-        serialNumbers: [serialNumber],
-      });
-      return;
-    }
-
     setProductQuery(suggestion.name);
     setSelectedProductId(suggestion.productId);
     setSelectedProductName(suggestion.name);
     setProductPrice(unitPrice);
     setProductQuantity('1');
     setProductWarranty(String(suggestion.warrantyPeriod ?? 0));
-    setSelectedSerialNumbers([]);
+    setSelectedSerialNumbers(serialNumber ? [serialNumber] : []);
     setProductSuggestions([]);
   };
 
@@ -253,6 +242,7 @@ export const RapidSaleModal = ({
       },
     ]);
     resetServiceEntry();
+    serviceSearchInputRef.current?.focus();
   };
 
   const updateDraftItemPrice = (itemId: string, price: string) => {
@@ -300,11 +290,13 @@ export const RapidSaleModal = ({
               <label className="field rapid-sale-field-search">
                 <span>{t('orders.create.productSearchPlaceholder')}</span>
                 <input
+                  ref={productSearchInputRef}
                   value={productQuery}
                   onChange={(event) => {
                     setProductQuery(event.target.value);
                     setSelectedProductId('');
                     setSelectedProductName('');
+                    setSelectedSerialNumbers([]);
                   }}
                   placeholder={t('orders.create.productSearchPlaceholder')}
                 />
@@ -318,6 +310,7 @@ export const RapidSaleModal = ({
                   value={productPrice}
                   onChange={setProductPrice}
                   placeholder="0"
+                  ariaLabel={t('orders.rapidSale.productPrice')}
                 />
               </label>
               <label className="field">
@@ -327,6 +320,7 @@ export const RapidSaleModal = ({
                   value={productQuantity}
                   onChange={setProductQuantity}
                   disabled={selectedSerialNumbers.length > 0}
+                  ariaLabel={t('orders.rapidSale.productQuantity')}
                 />
               </label>
               <label className="field">
@@ -386,6 +380,7 @@ export const RapidSaleModal = ({
               <label className="field rapid-sale-field-search">
                 <span>{t('orders.rapidSale.serviceSearch')}</span>
                 <input
+                  ref={serviceSearchInputRef}
                   value={serviceQuery}
                   onChange={(event) => {
                     setServiceQuery(event.target.value);

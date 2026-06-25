@@ -524,6 +524,8 @@
       "services": "Services",
       "serviceSearch": "Service name",
       "addProduct": "Add product",
+      "productPrice": "Product price",
+      "productQuantity": "Product quantity",
       "addService": "Add service",
       "issued": "Issued",
       "total": "Total: {{amount}} UAH",

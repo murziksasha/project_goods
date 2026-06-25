@@ -20,6 +20,7 @@ const coverageInclude = [
 export default defineConfig({
   plugins: [react()],
   test: {
+    pool: 'vmForks',
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     testTimeout: 15000,
