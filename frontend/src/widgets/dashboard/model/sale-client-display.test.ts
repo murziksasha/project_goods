@@ -27,7 +27,7 @@ const sale = (patch: Partial<Sale> = {}): Sale => ({
     id: 'client-1',
     name: 'Ivan',
     phone: '+380000000000',
-    status: 'regular',
+    status: 'ok',
   },
   product: null,
   manager: null,
