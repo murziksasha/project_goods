@@ -32,6 +32,10 @@ Compact counter-sale flow for walk-in customers: no client form, stock products 
 
 ### Product Entry (Stock Only)
 
+- Product section includes a **Warehouse** dropdown (active warehouses from `warehouse-settings`).
+- Default selection is the first created active warehouse (first item in settings list).
+- Product search and stock suggestions are scoped to the selected warehouse (`product.warehouseId`, with `purchasePlace` name fallback for legacy rows).
+- Changing warehouse clears the in-progress product entry row.
 - Product search starts from 2+ characters (200 ms debounce).
 - Suggestions come from `buildRapidSaleStockSuggestions` — **warehouse stock only** (`source: stock`, selectable rows).
 - Catalog-only rows and manual product text are rejected on save.

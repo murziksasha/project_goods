@@ -1,6 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { RapidSaleModal } from './RapidSaleModal';
 
 const { getServiceCatalogItemsMock, createServiceCatalogItemMock } = vi.hoisted(() => ({
@@ -12,6 +15,41 @@ vi.mock('../../../entities/service-catalog/api/serviceCatalogApi', () => ({
   getServiceCatalogItems: getServiceCatalogItemsMock,
   createServiceCatalogItem: createServiceCatalogItemMock,
 }));
+
+const { getWarehouseSettingsMock } = vi.hoisted(() => ({
+  getWarehouseSettingsMock: vi.fn(async () => ({
+    warehouses: [
+      {
+        id: 'wh-main',
+        name: 'Main warehouse',
+        isActive: true,
+        serviceCenterId: 'sc-1',
+        receiptAddress: '',
+        receiptPhone: '',
+        locations: [{ id: 'loc-1', name: 'Shelf A' }],
+      },
+      {
+        id: 'wh-second',
+        name: 'Second warehouse',
+        isActive: true,
+        serviceCenterId: 'sc-1',
+        receiptAddress: '',
+        receiptPhone: '',
+        locations: [{ id: 'loc-2', name: 'Shelf B' }],
+      },
+    ],
+  })),
+}));
+
+vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../entities/warehouse-settings/api/warehouseSettingsApi')
+  >();
+  return {
+    ...actual,
+    getWarehouseSettings: getWarehouseSettingsMock,
+  };
+});
 
 const product = (patch: Partial<Product> = {}): Product => ({
   id: 'p1',
@@ -26,7 +64,7 @@ const product = (patch: Partial<Product> = {}): Product => ({
   freeQuantity: 2,
   isInStock: true,
   purchasePlace: '',
-  warehouseId: '',
+  warehouseId: 'wh-main',
   locationId: '',
   purchaseDate: null,
   warrantyPeriod: 0,
@@ -36,6 +74,38 @@ const product = (patch: Partial<Product> = {}): Product => ({
   ...patch,
 });
 
+const warehouseSettingsFixture = {
+  warehouses: [
+    {
+      id: 'wh-main',
+      name: 'Main warehouse',
+      isActive: true,
+      serviceCenterId: 'sc-1',
+      receiptAddress: '',
+      receiptPhone: '',
+      locations: [{ id: 'loc-1', name: 'Shelf A' }],
+    },
+    {
+      id: 'wh-second',
+      name: 'Second warehouse',
+      isActive: true,
+      serviceCenterId: 'sc-1',
+      receiptAddress: '',
+      receiptPhone: '',
+      locations: [{ id: 'loc-2', name: 'Shelf B' }],
+    },
+  ],
+};
+
+const renderModal = (ui: ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(queryKeys.warehouseSettings, warehouseSettingsFixture);
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 describe('RapidSaleModal', () => {
   afterEach(() => {
     cleanup();
@@ -43,7 +113,7 @@ describe('RapidSaleModal', () => {
     vi.useRealTimers();
   });
   it('renders product and service sections', () => {
-    render(
+    renderModal(
       <RapidSaleModal
         products={[product()]}
         sales={[]}
@@ -62,7 +132,7 @@ describe('RapidSaleModal', () => {
 
   it('calls onClose when cancel is clicked', () => {
     const onClose = vi.fn();
-    render(
+    renderModal(
       <RapidSaleModal
         products={[product()]}
         sales={[]}
@@ -80,7 +150,7 @@ describe('RapidSaleModal', () => {
   it('submits draft items on issued', async () => {
     vi.useFakeTimers();
     const onSubmit = vi.fn(async () => undefined);
-    render(
+    renderModal(
       <RapidSaleModal
         products={[product()]}
         sales={[]}
@@ -122,7 +192,7 @@ describe('RapidSaleModal', () => {
 
   it('keeps serialized product in entry row until add is confirmed', async () => {
     vi.useFakeTimers();
-    render(
+    renderModal(
       <RapidSaleModal
         products={[
           product({
@@ -163,7 +233,7 @@ describe('RapidSaleModal', () => {
   it('adds serialized product with serial numbers on confirm', async () => {
     vi.useFakeTimers();
     const onSubmit = vi.fn(async () => undefined);
-    render(
+    renderModal(
       <RapidSaleModal
         products={[
           product({
@@ -216,7 +286,7 @@ describe('RapidSaleModal', () => {
   it('allows editing entry-row price for serialized product before add', async () => {
     vi.useFakeTimers();
     const onSubmit = vi.fn(async () => undefined);
-    render(
+    renderModal(
       <RapidSaleModal
         products={[
           product({
@@ -269,7 +339,7 @@ describe('RapidSaleModal', () => {
 
   it('clears serial binding when product search text changes', async () => {
     vi.useFakeTimers();
-    render(
+    renderModal(
       <RapidSaleModal
         products={[
           product({
@@ -304,10 +374,75 @@ describe('RapidSaleModal', () => {
     vi.useRealTimers();
   });
 
+  it('filters product suggestions by selected warehouse', async () => {
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            id: 'p-main',
+            name: 'Router',
+            warehouseId: 'wh-main',
+            serialNumber: 'S000001',
+            salePriceOptions: [100],
+          }),
+          product({
+            id: 'p-second',
+            name: 'Router',
+            warehouseId: 'wh-second',
+            serialNumber: 'S000002',
+            salePriceOptions: [100],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText('Warehouse')).toHaveValue('wh-main');
+    });
+
+    vi.useFakeTimers();
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Router' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(within(dialog).getByRole('button', { name: 'Router' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/S000001/),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/S000002/)).not.toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText('Warehouse'), {
+      target: { value: 'wh-second' },
+    });
+
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Router' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(within(dialog).getByText(/S000002/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/S000001/)).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
   it('allows editing draft item price before issuing', async () => {
     vi.useFakeTimers();
     const onSubmit = vi.fn(async () => undefined);
-    render(
+    renderModal(
       <RapidSaleModal
         products={[product()]}
         sales={[]}

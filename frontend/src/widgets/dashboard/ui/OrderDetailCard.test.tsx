@@ -1,12 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
-import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getProducts } from '../../../entities/product/api/productApi';
-import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { OrderDetailCard } from './OrderDetailCard';
 import {
   orderDetailSectionsStorageKey,
@@ -14,13 +12,64 @@ import {
   type OrderStatus,
 } from './orders-workspace-shared';
 
-vi.mock('../../../entities/product/api/productApi', () => ({
-  getProducts: vi.fn(async () => []),
+type OrderDetailCardProps = ComponentProps<typeof OrderDetailCard>;
+
+const { getProductsMock, getClientDevicesMock, getWarehouseSettingsMock } = vi.hoisted(() => ({
+  getProductsMock: vi.fn(async (_query = ''): Promise<Product[]> => []),
+  getClientDevicesMock: vi.fn(async (_query = ''): Promise<ClientDevice[]> => []),
+  getWarehouseSettingsMock: vi.fn(async () => ({
+    warehouses: [
+      {
+        id: 'wh-main',
+        name: 'Main warehouse',
+        isActive: true,
+        serviceCenterId: 'sc-1',
+        receiptAddress: '',
+        receiptPhone: '',
+        locations: [{ id: 'loc-1', name: 'Shelf A' }],
+      },
+      {
+        id: 'wh-second',
+        name: 'Second warehouse',
+        isActive: true,
+        serviceCenterId: 'sc-1',
+        receiptAddress: '',
+        receiptPhone: '',
+        locations: [{ id: 'loc-2', name: 'Shelf B' }],
+      },
+    ],
+  })),
 }));
 
-vi.mock('../../../entities/client-device/api/clientDeviceApi', () => ({
-  getClientDevices: vi.fn(async () => []),
-}));
+vi.mock('../../../entities/product/api/productApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../entities/product/api/productApi')
+  >();
+  return {
+    ...actual,
+    getProducts: getProductsMock,
+  };
+});
+
+vi.mock('../../../entities/client-device/api/clientDeviceApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../entities/client-device/api/clientDeviceApi')
+  >();
+  return {
+    ...actual,
+    getClientDevices: getClientDevicesMock,
+  };
+});
+
+vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../entities/warehouse-settings/api/warehouseSettingsApi')
+  >();
+  return {
+    ...actual,
+    getWarehouseSettings: getWarehouseSettingsMock,
+  };
+});
 
 vi.mock('../../../entities/service-catalog/api/serviceCatalogApi', () => ({
   createServiceCatalogItem: vi.fn(),
@@ -32,10 +81,6 @@ vi.mock('../../../entities/supplier-order/api/supplierOrderApi', () => ({
   createSupplierOrder: vi.fn(),
   takeOnChargeSupplierOrder: vi.fn(),
   updateSupplierOrder: vi.fn(),
-}));
-
-vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', () => ({
-  getWarehouseSettings: vi.fn(async () => ({ warehouses: [] })),
 }));
 
 vi.mock('../../../entities/supplier/api/supplierApi', () => ({
@@ -58,6 +103,7 @@ const product = (patch: Partial<Product> = {}): Product => ({
   freeQuantity: 1,
   isInStock: true,
   purchasePlace: '',
+  warehouseId: 'wh-main',
   purchaseDate: now,
   warrantyPeriod: 6,
   isActive: true,
@@ -117,7 +163,7 @@ const sale = (patch: Partial<Sale> = {}): Sale => ({
     id: 'client-1',
     name: 'Client',
     phone: '+380000000000',
-    status: 'regular',
+    status: 'ok',
   },
   product: {
     id: '',
@@ -190,10 +236,10 @@ const renderCard = ({
     mode: 'percent' | 'amount';
     value: number;
   }) => void;
-  onCreateClientDevice?: Parameters<typeof OrderDetailCard>[0]['onCreateClientDevice'];
-  onUpdateClientDevice?: Parameters<typeof OrderDetailCard>[0]['onUpdateClientDevice'];
-  onDeleteClientDevice?: Parameters<typeof OrderDetailCard>[0]['onDeleteClientDevice'];
-  onSaveMainInfo?: Parameters<typeof OrderDetailCard>[0]['onSaveMainInfo'];
+  onCreateClientDevice?: OrderDetailCardProps['onCreateClientDevice'];
+  onUpdateClientDevice?: OrderDetailCardProps['onUpdateClientDevice'];
+  onDeleteClientDevice?: OrderDetailCardProps['onDeleteClientDevice'];
+  onSaveMainInfo?: OrderDetailCardProps['onSaveMainInfo'];
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
@@ -256,10 +302,16 @@ const renderCard = ({
   return { ...result, onCreateClientDevice, onOpenRelatedSale, onSaveMainInfo };
 };
 
+beforeEach(() => {
+  vi.useRealTimers();
+  getClientDevicesMock.mockResolvedValue([]);
+  getProductsMock.mockResolvedValue([]);
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  vi.mocked(getClientDevices).mockResolvedValue([]);
+  vi.useRealTimers();
   window.localStorage.clear();
 });
 
@@ -309,7 +361,7 @@ describe('OrderDetailCard repair device replacement', () => {
       clientId: 'another-client',
       name: 'Lookup RZTK coffee machine',
     });
-    vi.mocked(getClientDevices).mockImplementation(async (query = '') =>
+    getClientDevicesMock.mockImplementation(async (query = '') =>
       query.trim().length >= 2 ? [lookupDevice] : [],
     );
     renderCard({
@@ -322,16 +374,14 @@ describe('OrderDetailCard repair device replacement', () => {
       target: { value: 'Lookup RZTK coffee machine' },
     });
 
-    await waitFor(() => {
-      expect(getClientDevices).toHaveBeenCalledWith(
-        'Lookup RZTK coffee machine',
-      );
-    });
     expect(
       await screen.findByRole('button', {
         name: /Lookup RZTK coffee machine/,
       }, { timeout: 3000 }),
     ).toBeInTheDocument();
+    expect(getClientDevicesMock).toHaveBeenCalledWith(
+      'Lookup RZTK coffee machine',
+    );
   });
 
   it('selects an existing client device and saves it as order main info', async () => {
@@ -545,13 +595,66 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
+  it('filters serial bind modal list by selected warehouse', async () => {
+    const stockProducts = [
+      product({
+        id: 'product-1',
+        serialNumber: 'S000003',
+        warehouseId: 'wh-main',
+      }),
+      product({
+        id: 'product-2',
+        serialNumber: 'S000004',
+        warehouseId: 'wh-second',
+      }),
+    ];
+    getProductsMock.mockResolvedValue(stockProducts);
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Warehouse')).toHaveValue('wh-main');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\[ \] S000004/i })).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Warehouse'), {
+      target: { value: 'wh-second' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\[ \] S000003/i })).not.toBeInTheDocument();
+    });
+  });
+
   it('binds selected serials without showing the manual serial textarea', async () => {
     const onReplaceLineItem = vi.fn();
     const stockProducts = [
       product({ id: 'product-1', serialNumber: 'S000003' }),
       product({ id: 'product-2', serialNumber: 'S000004' }),
     ];
-    vi.mocked(getProducts).mockResolvedValue(stockProducts);
+    getProductsMock.mockResolvedValue(stockProducts);
 
     const { container } = renderCard({
       products: stockProducts,
@@ -573,13 +676,21 @@ describe('OrderDetailCard product entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
 
-    expect(await screen.findByText('[ ] S000003')).toBeInTheDocument();
-    expect(screen.getByText('[ ] S000004')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Warehouse')).toHaveValue('wh-main');
+      expect(screen.getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+    });
     expect(container.querySelector('.serial-bind-modal textarea')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /\[ \] S000003/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Selected: 1')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
-    expect(screen.getByText('Selected: 2')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Selected: 2')).toBeInTheDocument();
+    });
 
     const selectedRemoveButton = container.querySelector<HTMLButtonElement>(
       '.serial-bind-selected-item .line-item-remove-button',
@@ -589,8 +700,13 @@ describe('OrderDetailCard product entry', () => {
     expect(screen.getByText('Selected: 1')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear selected' }));
-    expect(screen.queryByText('Selected: 1')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument();
+    });
 
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -729,7 +845,6 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: 'Print serial number' }),
     ).toBeInTheDocument();
-    expect(getWarehouseSettings).toHaveBeenCalled();
   });
 
   it('opens the product model modal without serial print mode from a product name click', async () => {
