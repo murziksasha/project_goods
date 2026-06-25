@@ -507,6 +507,44 @@
   color: #55697f;
 }
 
+.rapid-sale-warehouse-field {
+  margin-bottom: 8px;
+}
+
+.warehouse-serial-picker-field {
+  margin-bottom: 12px;
+}
+
+.warehouse-serial-picker-select-wrap {
+  position: relative;
+}
+
+.warehouse-serial-picker-select {
+  width: 100%;
+  appearance: none;
+  border: 1px solid #c9d5e3;
+  border-radius: 8px;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2355697f' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  color: #2f4358;
+  font: inherit;
+  padding: 10px 36px 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.warehouse-serial-picker-select:focus {
+  border-color: #2d8ae3;
+  box-shadow: 0 0 0 3px rgba(45, 138, 227, 0.15);
+  outline: none;
+}
+
+.warehouse-serial-picker-select:disabled {
+  background-color: #f3f6fa;
+  color: #8aa0b8;
+  cursor: not-allowed;
+}
+
 .rapid-sale-entry-row {
   display: grid;
   grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));

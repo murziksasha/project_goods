@@ -54,6 +54,7 @@
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
+- **Serial bind modal** (Products action column → `Serials`): includes a warehouse dropdown; available serial numbers are filtered to the selected warehouse (default: first created active warehouse). Applies to opened repair orders and sales.
 
 ## Payment And Discount
 

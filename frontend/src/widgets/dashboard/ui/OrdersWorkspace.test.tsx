@@ -66,7 +66,7 @@ const sale: Sale = {
     id: 'client-1',
     name: 'Client',
     phone: '+380000000000',
-    status: 'regular',
+    status: 'ok',
   },
   product: {
     id: 'product-1',

@@ -136,6 +136,9 @@ Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 ### Frontend
 
 - `frontend/src/widgets/dashboard/ui/RapidSaleModal.tsx` — compact modal UI (products, services, draft list, issue)
+- `frontend/src/widgets/dashboard/ui/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items
+- `frontend/src/widgets/dashboard/ui/WarehouseSelectField.tsx` — shared warehouse dropdown (rapid sale + serial bind)
+- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default + product filter helpers
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — stock suggestions, draft validation, line-item builder
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
 - `frontend/src/widgets/dashboard/ui/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
@@ -154,6 +157,8 @@ Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 ### Tests
 
 - `frontend/src/widgets/dashboard/ui/RapidSaleModal.test.tsx`
+- `frontend/src/widgets/dashboard/ui/SerialBindModal.test.tsx`
+- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.test.ts`
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.test.ts`
 - `frontend/src/widgets/dashboard/model/sale-client-display.test.ts`
 - `backend/src/domain/sale/service.rapid-sale.test.ts`

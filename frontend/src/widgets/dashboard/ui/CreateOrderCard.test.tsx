@@ -1,5 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { queryKeys } from '../../../shared/api/queryClient';
 import type { Employee } from '../../../entities/employee/model/types';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -232,7 +235,7 @@ describe('CreateOrderCard', () => {
         id: 'client-1',
         name: 'Client',
         phone: '+380000000000',
-        status: 'regular',
+        status: 'ok',
       },
       product: null,
       manager: null,
@@ -291,7 +294,7 @@ describe('CreateOrderCard', () => {
         id: 'client-1',
         name: 'Client',
         phone: '+380000000000',
-        status: 'regular',
+        status: 'ok',
       },
       product: null,
       manager: null,
@@ -803,10 +806,31 @@ describe('CreateOrderCard', () => {
     );
   });
 
+  const renderWithQueryClient = (ui: ReactElement) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(queryKeys.warehouseSettings, {
+      warehouses: [
+        {
+          id: 'wh-main',
+          name: 'Main warehouse',
+          isActive: true,
+          serviceCenterId: 'sc-1',
+          receiptAddress: '',
+          receiptPhone: '',
+          locations: [{ id: 'loc-1', name: 'Shelf A' }],
+        },
+      ],
+    });
+
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  };
+
   it('shows rapid sale button only on sales tab and opens modal', () => {
     const onRapidSale = vi.fn(async () => null);
 
-    render(
+    renderWithQueryClient(
       <CreateOrderCard
         isSaving={false}
         employees={[ownerEmployee]}

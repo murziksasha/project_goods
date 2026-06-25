@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
@@ -7,6 +7,7 @@ import {
   getServiceCatalogItems,
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
+import { useWarehouseSettingsQuery } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import {
@@ -23,6 +24,11 @@ import type { CreateOrderProductSuggestion } from '../model/create-order-product
 import { normalizeSerialNumber } from '../model/order-line-serials';
 import { parseDecimalInput } from './create-order-card-shared';
 import { getWarrantyOptions } from './orders-workspace-shared';
+import {
+  filterProductsByWarehouse,
+  getDefaultWarehouseId,
+} from '../model/warehouse-serial-filter';
+import { WarehouseSelectField } from './WarehouseSelectField';
 
 type RapidSaleModalProps = {
   products: Product[];
@@ -62,6 +68,22 @@ export const RapidSaleModal = ({
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
   const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const productSearchInputRef = useRef<HTMLInputElement>(null);
+  const serviceSearchInputRef = useRef<HTMLInputElement>(null);
+  const warehouseSettingsQuery = useWarehouseSettingsQuery();
+  const warehouses = warehouseSettingsQuery.data?.warehouses ?? [];
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
+
+  useEffect(() => {
+    if (!selectedWarehouseId && warehouses.length > 0) {
+      setSelectedWarehouseId(getDefaultWarehouseId(warehouses));
+    }
+  }, [selectedWarehouseId, warehouses]);
+
+  const warehouseFilteredProducts = useMemo(
+    () => filterProductsByWarehouse(products, selectedWarehouseId, warehouses),
+    [products, selectedWarehouseId, warehouses],
+  );
 
   const draftTotal = useMemo(() => getRapidSaleDraftTotal(draftItems), [draftItems]);
   const validationErrorKey = useMemo(() => validateRapidSaleDraft(draftItems), [draftItems]);
@@ -81,7 +103,7 @@ export const RapidSaleModal = ({
       setIsProductLookupLoading(true);
       try {
         const suggestions = buildRapidSaleStockSuggestions({
-          products,
+          products: warehouseFilteredProducts,
           sales,
           query: productQuery,
         });
@@ -95,7 +117,19 @@ export const RapidSaleModal = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [productQuery, products, sales, selectedProductId]);
+  }, [productQuery, warehouseFilteredProducts, sales, selectedProductId]);
+
+  const handleWarehouseChange = (warehouseId: string) => {
+    setSelectedWarehouseId(warehouseId);
+    setProductQuery('');
+    setProductPrice('');
+    setProductQuantity('1');
+    setProductWarranty('0');
+    setSelectedProductId('');
+    setSelectedProductName('');
+    setSelectedSerialNumbers([]);
+    setProductSuggestions([]);
+  };
 
   useEffect(() => {
     if (serviceQuery.trim().length < 2 || selectedServiceId) {
@@ -145,6 +179,7 @@ export const RapidSaleModal = ({
   const addProductDraft = (item: Extract<RapidSaleDraftItem, { kind: 'product' }>) => {
     setDraftItems((current) => [...current, item]);
     resetProductEntry();
+    productSearchInputRef.current?.focus();
   };
 
   const applyProductSuggestion = (suggestion: CreateOrderProductSuggestion) => {
@@ -160,27 +195,13 @@ export const RapidSaleModal = ({
     const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
     const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '0';
 
-    if (serialNumber) {
-      addProductDraft({
-        id: createRuntimeId(),
-        kind: 'product',
-        productId: suggestion.productId,
-        name: suggestion.name,
-        price: unitPrice,
-        quantity: '1',
-        warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
-        serialNumbers: [serialNumber],
-      });
-      return;
-    }
-
     setProductQuery(suggestion.name);
     setSelectedProductId(suggestion.productId);
     setSelectedProductName(suggestion.name);
     setProductPrice(unitPrice);
     setProductQuantity('1');
     setProductWarranty(String(suggestion.warrantyPeriod ?? 0));
-    setSelectedSerialNumbers([]);
+    setSelectedSerialNumbers(serialNumber ? [serialNumber] : []);
     setProductSuggestions([]);
   };
 
@@ -253,6 +274,7 @@ export const RapidSaleModal = ({
       },
     ]);
     resetServiceEntry();
+    serviceSearchInputRef.current?.focus();
   };
 
   const updateDraftItemPrice = (itemId: string, price: string) => {
@@ -296,15 +318,24 @@ export const RapidSaleModal = ({
         <div className="rapid-sale-body catalog-edit-body">
           <section className="rapid-sale-section">
             <h3>{t('orders.rapidSale.products')}</h3>
+            <WarehouseSelectField
+              warehouses={warehouses}
+              value={selectedWarehouseId}
+              onChange={handleWarehouseChange}
+              disabled={isSaving || warehouseSettingsQuery.isLoading}
+              className="rapid-sale-warehouse-field"
+            />
             <div className="rapid-sale-entry-row">
               <label className="field rapid-sale-field-search">
                 <span>{t('orders.create.productSearchPlaceholder')}</span>
                 <input
+                  ref={productSearchInputRef}
                   value={productQuery}
                   onChange={(event) => {
                     setProductQuery(event.target.value);
                     setSelectedProductId('');
                     setSelectedProductName('');
+                    setSelectedSerialNumbers([]);
                   }}
                   placeholder={t('orders.create.productSearchPlaceholder')}
                 />
@@ -318,6 +349,7 @@ export const RapidSaleModal = ({
                   value={productPrice}
                   onChange={setProductPrice}
                   placeholder="0"
+                  ariaLabel={t('orders.rapidSale.productPrice')}
                 />
               </label>
               <label className="field">
@@ -327,6 +359,7 @@ export const RapidSaleModal = ({
                   value={productQuantity}
                   onChange={setProductQuantity}
                   disabled={selectedSerialNumbers.length > 0}
+                  ariaLabel={t('orders.rapidSale.productQuantity')}
                 />
               </label>
               <label className="field">
@@ -386,6 +419,7 @@ export const RapidSaleModal = ({
               <label className="field rapid-sale-field-search">
                 <span>{t('orders.rapidSale.serviceSearch')}</span>
                 <input
+                  ref={serviceSearchInputRef}
                   value={serviceQuery}
                   onChange={(event) => {
                     setServiceQuery(event.target.value);

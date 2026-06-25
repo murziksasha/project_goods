@@ -40,6 +40,7 @@ import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
 import { ProductModelModal } from './ProductModelModal';
+import { SerialBindModal } from './SerialBindModal';
 import {
   filterActiveDevicesByQuery,
   getOrderLink,
@@ -1717,7 +1718,9 @@ const LineItemsPanel = ({
     useState(false);
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
-  const [serialsInput, setSerialsInput] = useState('');
+  const [serialBindWarehouses, setSerialBindWarehouses] = useState<WarehouseItem[]>(
+    [],
+  );
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
@@ -1750,17 +1753,6 @@ const LineItemsPanel = ({
     !isServiceLookupLoading &&
     serviceSuggestions.length === 0 &&
     !hasExactServiceSuggestion;
-  const selectedSerials = useMemo(() => {
-    if (!isProductKind) return [];
-    return Array.from(
-      new Set(
-        serialsInput
-          .split('\n')
-          .map(normalizeSerialNumber)
-          .filter(Boolean),
-      ),
-    );
-  }, [isProductKind, serialsInput]);
   const serialUsage = useMemo((): SerialUsage => {
     if (!isProductKind) return { current: new Set(), other: new Set() };
     return getSaleSerialUsage(sales, currentSaleId);
@@ -1891,6 +1883,102 @@ const LineItemsPanel = ({
     }
   };
 
+  const handleSerialBindSave = (uniqueSerials: string[]) => {
+    if (!serialsEditingItem) return;
+
+    if (uniqueSerials.length > serialsEditingItem.quantity) {
+      onError(t('orders.messages.errors.serialCountExceedsQty'));
+      return;
+    }
+
+    const conflictingSerials = uniqueSerials.filter((serial) =>
+      occupiedSerials.has(serial),
+    );
+    if (conflictingSerials.length > 0) {
+      onError(
+        t('orders.messages.errors.serialAlreadyLinked', {
+          serials: conflictingSerials.join(', '),
+        }),
+      );
+      return;
+    }
+
+    const serialProducts = uniqueSerials.map((serial) => {
+      const matchedProduct = products.find(
+        (candidate) =>
+          normalizeSerialNumber(candidate.serialNumber) === serial,
+      );
+      return { serial, product: matchedProduct };
+    });
+    const missingSerials = serialProducts
+      .filter(({ product }) => !product)
+      .map(({ serial }) => serial);
+    if (missingSerials.length > 0) {
+      onError(
+        t('orders.messages.errors.serialNotInStock', {
+          serials: missingSerials.join(', '),
+        }),
+      );
+      return;
+    }
+
+    const unavailableSerials = serialProducts
+      .filter(({ product }) => {
+        if (!product) return false;
+        if (product.id === (serialsEditingItem.productId ?? '').trim()) {
+          return false;
+        }
+        return !isProductAvailableForOrder(product);
+      })
+      .map(({ serial }) => serial);
+    if (unavailableSerials.length > 0) {
+      onError(
+        t('orders.messages.errors.serialNoFreeStock', {
+          serials: unavailableSerials.join(', '),
+        }),
+      );
+      return;
+    }
+
+    const shouldSplitSerializedLine =
+      serialsEditingItem.quantity > 1 || uniqueSerials.length > 1;
+    if (shouldSplitSerializedLine) {
+      onReplaceItem(
+        serialsEditingItem.id,
+        undefined,
+        serialProducts.map(({ serial, product }) => ({
+          ...(product
+            ? buildSerializedProductLineItem({
+                product,
+                price: serialsEditingItem.price,
+                warrantyPeriod: serialsEditingItem.warrantyPeriod,
+              })
+            : {
+                kind: 'product' as const,
+                productId: undefined,
+                name: serialsEditingItem.name,
+                price: serialsEditingItem.price,
+                quantity: 1,
+                warrantyPeriod: serialsEditingItem.warrantyPeriod,
+                serialNumbers: [serial],
+              }),
+        })),
+      );
+      onSuccess(t('orders.messages.success.serialsUpdated'));
+      setSerialsEditingItem(null);
+      return;
+    }
+
+    onUpdateItem(serialsEditingItem.id, undefined, {
+      productId: serialProducts[0]?.product?.id ?? serialsEditingItem.productId,
+      name: serialProducts[0]?.product?.name ?? serialsEditingItem.name,
+      quantity: 1,
+      serialNumbers: uniqueSerials,
+    });
+    onSuccess(t('orders.messages.success.serialsUpdated'));
+    setSerialsEditingItem(null);
+  };
+
   const handleCreateSupplier = async (
     payload: SupplierFormValues,
   ) => {
@@ -1931,6 +2019,26 @@ const LineItemsPanel = ({
     await onSupplierOrderCreated();
     onSuccess(t('orders.messages.success.supplierOrderCreated'));
   };
+
+  useEffect(() => {
+    if (!serialsEditingItem) {
+      setSerialBindWarehouses([]);
+      return;
+    }
+
+    let isActive = true;
+    void getWarehouseSettings()
+      .then((settings) => {
+        if (isActive) setSerialBindWarehouses(settings.warehouses);
+      })
+      .catch(() => {
+        if (isActive) setSerialBindWarehouses([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [serialsEditingItem]);
 
   useEffect(() => {
     if (!isProductKind || !serialsEditingItem) {
@@ -2624,9 +2732,6 @@ const LineItemsPanel = ({
                     className='line-item-serials-button'
                     onClick={() => {
                       setSerialsEditingItem(item);
-                      setSerialsInput(
-                        (item.serialNumbers ?? []).join('\n'),
-                      );
                     }}
                     disabled={!canOpenSerials}
                     title={
@@ -2856,270 +2961,25 @@ const LineItemsPanel = ({
         />
       ) : null}
       {isProductKind && serialsEditingItem ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setSerialsEditingItem(null);
-            }
+        <SerialBindModal
+          lineItem={{
+            id: serialsEditingItem.id,
+            name: serialsEditingItem.name,
+            quantity: serialsEditingItem.quantity,
+            price: serialsEditingItem.price,
+            warrantyPeriod: serialsEditingItem.warrantyPeriod,
+            productId: serialsEditingItem.productId,
+            serialNumbers: serialsEditingItem.serialNumbers,
           }}
-        >
-          <section className='payment-modal payment-modal-message serial-bind-modal'>
-            <div className='serial-bind-modal-scroll'>
-              <h3>{t('orders.detail.lineItems.bindSerialNumbers')}</h3>
-              <p>
-                {t('orders.detail.lineItems.selectSerialsUpTo', {
-                  count: serialsEditingItem.quantity,
-                })}
-              </p>
-              <div className='modal-actions'>
-                <button
-                  type='button'
-                  className='secondary-button'
-                  onClick={() => {
-                    const oldestSerials = availableSerialProducts
-                      .map((product) =>
-                        normalizeSerialNumber(product.serialNumber),
-                      )
-                      .filter(Boolean)
-                      .slice(0, serialsEditingItem.quantity);
-                    setSerialsInput(oldestSerials.join('\n'));
-                  }}
-                  disabled={
-                    isSerialLookupLoading ||
-                    availableSerialProducts.length === 0
-                  }
-                >
-                  {t('orders.detail.lineItems.autoSelectOldest')}
-                </button>
-              </div>
-              <div className='create-suggestions line-item-suggestions'>
-                {isSerialLookupLoading ? (
-                  <p>{t('orders.detail.lineItems.loadingAvailableSerials')}</p>
-                ) : null}
-                {!isSerialLookupLoading &&
-                availableSerialProducts.length === 0 ? (
-                  <p>{t('orders.detail.lineItems.noAvailableSerials')}</p>
-                ) : null}
-                {availableSerialProducts.map((product) => {
-                  const serial = normalizeSerialNumber(product.serialNumber);
-                  const isSelected = selectedSerials.includes(serial);
-                  return (
-                    <button
-                      key={product.id}
-                      type='button'
-                      className='create-suggestion-item'
-                      onClick={() => {
-                        const nextSet = new Set(selectedSerials);
-                        if (nextSet.has(serial)) {
-                          nextSet.delete(serial);
-                        } else if (
-                          nextSet.size < serialsEditingItem.quantity
-                        ) {
-                          nextSet.add(serial);
-                        } else {
-                          onError(
-                            t('orders.messages.errors.serialCountExceedsQty'),
-                          );
-                          return;
-                        }
-                        setSerialsInput(Array.from(nextSet).join('\n'));
-                      }}
-                    >
-                      <strong>
-                        {isSelected ? '[x] ' : '[ ] '}
-                        {serial}
-                      </strong>
-                      <span>
-                        {t('orders.detail.lineItems.dateLabel', {
-                          date: formatDateTime(
-                            product.purchaseDate ?? product.createdAt,
-                          ),
-                        })}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {selectedSerials.length > 0 ? (
-                <div className='modal-actions'>
-                  <span>
-                    {t('orders.detail.lineItems.selectedCount', {
-                      count: selectedSerials.length,
-                    })}
-                  </span>
-                  <button
-                    type='button'
-                    className='secondary-button'
-                    onClick={() => setSerialsInput('')}
-                  >
-                    {t('orders.detail.lineItems.clearSelected')}
-                  </button>
-                </div>
-              ) : null}
-              {selectedSerials.length > 0 ? (
-                <div className='serial-bind-selected-list'>
-                  {selectedSerials.map((serial) => (
-                    <div
-                      key={`selected-${serial}`}
-                      className='serial-bind-selected-item'
-                    >
-                      <strong>{serial}</strong>
-                      <button
-                        type='button'
-                        className='line-item-remove-button'
-                        onClick={() =>
-                          setSerialsInput(
-                            selectedSerials
-                              .filter((candidate) => candidate !== serial)
-                              .join('\n'),
-                          )
-                        }
-                      >
-                        {t('orders.detail.lineItems.remove')}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className='modal-actions serial-bind-modal-footer'>
-              <button
-                type='button'
-                className='primary-button'
-                onClick={() => void openSupplierOrderModalForSerialItem()}
-                disabled={isSuppliersLoading}
-              >
-                {isSuppliersLoading
-                  ? t('orders.detail.lineItems.loading')
-                  : t('orders.detail.lineItems.order')}
-              </button>
-              <button
-                type='button'
-                className='secondary-button'
-                onClick={() => setSerialsEditingItem(null)}
-              >
-                {t('orders.detail.cancel')}
-              </button>
-              <button
-                type='button'
-                className='primary-button'
-                onClick={() => {
-                  const uniqueSerials = selectedSerials;
-                  if (
-                    uniqueSerials.length >
-                    serialsEditingItem.quantity
-                  ) {
-                    onError(
-                      t('orders.messages.errors.serialCountExceedsQty'),
-                    );
-                    return;
-                  }
-                  const conflictingSerials = uniqueSerials.filter(
-                    (serial) => occupiedSerials.has(serial),
-                  );
-                  if (conflictingSerials.length > 0) {
-                    onError(
-                      t('orders.messages.errors.serialAlreadyLinked', {
-                        serials: conflictingSerials.join(', '),
-                      }),
-                    );
-                    return;
-                  }
-                  const serialProducts = uniqueSerials.map((serial) => {
-                    const product = products.find(
-                      (candidate) =>
-                        normalizeSerialNumber(candidate.serialNumber) ===
-                        serial,
-                    );
-                    return { serial, product };
-                  });
-                  const missingSerials = serialProducts
-                    .filter(({ product }) => !product)
-                    .map(({ serial }) => serial);
-                  if (missingSerials.length > 0) {
-                    onError(
-                      t('orders.messages.errors.serialNotInStock', {
-                        serials: missingSerials.join(', '),
-                      }),
-                    );
-                    return;
-                  }
-                  const unavailableSerials = serialProducts
-                    .filter(({ product }) => {
-                      if (!product) return false;
-                      if (
-                        product.id ===
-                        (serialsEditingItem.productId ?? '').trim()
-                      ) {
-                        return false;
-                      }
-                      return !isProductAvailableForOrder(product);
-                    })
-                    .map(({ serial }) => serial);
-                  if (unavailableSerials.length > 0) {
-                    onError(
-                      t('orders.messages.errors.serialNoFreeStock', {
-                        serials: unavailableSerials.join(', '),
-                      }),
-                    );
-                    return;
-                  }
-                  const shouldSplitSerializedLine =
-                    serialsEditingItem.quantity > 1 ||
-                    uniqueSerials.length > 1;
-                  if (shouldSplitSerializedLine) {
-                    onReplaceItem(
-                      serialsEditingItem.id,
-                      undefined,
-                      serialProducts.map(({ serial, product }) => ({
-                        ...(product
-                          ? buildSerializedProductLineItem({
-                              product,
-                              price: serialsEditingItem.price,
-                              warrantyPeriod:
-                                serialsEditingItem.warrantyPeriod,
-                            })
-                          : {
-                              kind: 'product' as const,
-                              productId: undefined,
-                              name: serialsEditingItem.name,
-                              price: serialsEditingItem.price,
-                              quantity: 1,
-                              warrantyPeriod:
-                                serialsEditingItem.warrantyPeriod,
-                              serialNumbers: [serial],
-                            }),
-                      })),
-                    );
-                    onSuccess(t('orders.messages.success.serialsUpdated'));
-                    setSerialsEditingItem(null);
-                    return;
-                  }
-                  onUpdateItem(
-                    serialsEditingItem.id,
-                    undefined,
-                    {
-                      productId:
-                        serialProducts[0]?.product?.id ??
-                        serialsEditingItem.productId,
-                      name:
-                        serialProducts[0]?.product?.name ??
-                        serialsEditingItem.name,
-                      quantity: 1,
-                      serialNumbers: uniqueSerials,
-                    },
-                  );
-                  onSuccess(t('orders.messages.success.serialsUpdated'));
-                  setSerialsEditingItem(null);
-                }}
-              >
-                {t('orders.detail.lineItems.save')}
-              </button>
-            </div>
-          </section>
-        </div>
+          warehouses={serialBindWarehouses}
+          availableProducts={availableSerialProducts}
+          isLoading={isSerialLookupLoading}
+          isSuppliersLoading={isSuppliersLoading}
+          onClose={() => setSerialsEditingItem(null)}
+          onOrder={() => void openSupplierOrderModalForSerialItem()}
+          onSave={handleSerialBindSave}
+          onError={onError}
+        />
       ) : null}
       {isProductKind ? (
         <SupplierOrderModal
