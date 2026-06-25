@@ -172,6 +172,7 @@ export const OrdersWorkspace = ({
   onSearchChange,
   onCreateOrder,
   createOrderHref,
+  getCreateOrderHref,
   onSaleUpdate,
   onError,
   onSuccess,
@@ -2362,6 +2363,15 @@ export const OrdersWorkspace = ({
             canAddComment={canChatInOrders}
             canAcceptPayment={canAcceptFinanceDeposit}
             canRefundPayment={canCreateFinanceWithdraw}
+            canCreateOrders={canCreateOrders}
+            onCreateOrder={() =>
+              onCreateOrder(
+                isRepairOrder(selectedSale) ? 'orders' : 'sales',
+              )
+            }
+            createOrderHref={getCreateOrderHref(
+              isRepairOrder(selectedSale) ? 'orders' : 'sales',
+            )}
             onClose={closeSelectedSaleCard}
             onAddComment={(comment) =>
               addComment(selectedSale, comment)

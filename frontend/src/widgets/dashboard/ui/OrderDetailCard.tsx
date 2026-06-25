@@ -96,6 +96,7 @@ import {
   type OrdersTab,
   type RepairStatus,
   type TimelineEntry,
+  isPlainLeftClick,
 } from './orders-workspace-shared';
 import { PrinterIcon } from './PrinterIcon';
 type OrderDetailCardProps = {
@@ -115,6 +116,9 @@ type OrderDetailCardProps = {
   canAddComment: boolean;
   canAcceptPayment: boolean;
   canRefundPayment: boolean;
+  canCreateOrders: boolean;
+  onCreateOrder: () => void;
+  createOrderHref: string;
   onClose: () => void;
   onAddComment: (comment: string) => void;
   onAddLineItem: (item: Omit<OrderLineItem, 'id'>) => void;
@@ -188,6 +192,9 @@ export const OrderDetailCard = ({
   canAddComment,
   canAcceptPayment,
   canRefundPayment: canRefundPaymentPermission,
+  canCreateOrders,
+  onCreateOrder,
+  createOrderHref,
   onClose,
   onAddComment,
   onAddLineItem,
@@ -782,6 +789,7 @@ export const OrderDetailCard = ({
         </div>
         <div className='order-detail-actions'>
           <select
+            className='order-detail-status-select'
             value={statusDraft}
             onChange={(event) => {
               setStatusDraft(event.target.value as OrderStatus);
@@ -809,14 +817,43 @@ export const OrderDetailCard = ({
               );
             })}
           </select>
-          <button
-            type='button'
-            className='create-order-close'
-            onClick={onClose}
-            aria-label={t('orders.detail.closeOrderCard')}
-          >
-            &times;
-          </button>
+          <div className='order-detail-header-actions'>
+            <a
+              className={
+                canCreateOrders
+                  ? 'orders-create-button order-detail-create-button'
+                  : 'orders-create-button order-detail-create-button orders-create-button-disabled'
+              }
+              href={canCreateOrders ? createOrderHref : '#'}
+              aria-disabled={!canCreateOrders}
+              tabIndex={canCreateOrders ? undefined : -1}
+              onClick={(event) => {
+                if (!canCreateOrders) {
+                  event.preventDefault();
+                  return;
+                }
+
+                if (!isPlainLeftClick(event)) return;
+                event.preventDefault();
+                onCreateOrder();
+              }}
+              title={
+                canCreateOrders
+                  ? t('orders.toolbar.createOrder')
+                  : t('orders.toolbar.createOrderDenied')
+              }
+            >
+              {t('orders.toolbar.createOrder')}
+            </a>
+            <button
+              type='button'
+              className='create-order-close'
+              onClick={onClose}
+              aria-label={t('orders.detail.closeOrderCard')}
+            >
+              &times;
+            </button>
+          </div>
         </div>
       </header>
 

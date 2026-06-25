@@ -3624,18 +3624,47 @@
 .order-detail-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
-.order-detail-actions select {
+.order-detail-status-select {
   border: 1px solid #c8d2de;
   border-radius: 6px;
   min-width: 220px;
+  max-width: 100%;
   background: #fff;
   color: #53677e;
   padding: 9px 12px;
   font: inherit;
   font-weight: 700;
+  flex: 1 1 220px;
+}
+
+.order-detail-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.order-detail-create-button {
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px 12px;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.order-detail-header-actions .create-order-close {
+  flex: 0 0 32px;
 }
 
 .order-detail-grid {

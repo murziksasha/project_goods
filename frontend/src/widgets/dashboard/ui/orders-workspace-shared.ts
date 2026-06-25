@@ -39,6 +39,7 @@ export type OrdersWorkspaceProps = {
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
   createOrderHref: string;
+  getCreateOrderHref: (tab: OrdersTab) => string;
   onSaleUpdate: (sale: Sale) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
