@@ -3,6 +3,7 @@
 ## Create Order Modal (Sale Tab)
 
 - Tab `Sales order` is used to create sale requests.
+- Sale detail card header also exposes `Create order` (same permission and navigation rules as the toolbar button; responsive layout is documented in `ORDER_CARD.md` -> `Header`).
 - Client lookup is performed by `Client phone` + `Client name`.
 - If the entered phone or exact client name matches a client with status `blacklist`, the sales order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.

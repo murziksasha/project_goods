@@ -1,5 +1,23 @@
 # Order Card Rules
 
+## Header
+
+- Repair order cards and sale cards share the same header shell (`order-detail-header`).
+- Header actions order: `Status` dropdown, `Create order`, close (`x`).
+- `Create order` reuses the toolbar entry flow:
+  - repair card opens `Create order -> Repair order`;
+  - sale card opens `Create order -> Sales order`;
+  - requires `orders.manage`; without permission the control stays visible but disabled with the denial tooltip.
+- Clicking `Create order` closes the current detail card and opens the create-order page (`createOrder` query param, `saleId` cleared).
+
+### Header Layout (Responsive)
+
+- Desktop: title block on the left; actions stay on one row (`Status` + `Create order` + close).
+- `<=1024px`: header wraps; actions row spans available width; status select and button group shrink before overflowing.
+- `<=720px`: header stacks vertically; status select becomes full width; `Create order` and close share one row (`Create order` grows, close stays fixed `32px`).
+- `<=480px`: same stack as `720px` with tighter title/action spacing; long `Create order` labels may wrap inside the button.
+- Breakpoint family matches `create-order-header-actions` / `SALE_FLOW.md` rapid-sale header rules so order and sale surfaces behave consistently on tablet and phone.
+
 ## Main Information
 
 - Accepted device is stored and displayed only in `Main information` (`Device` + `S/N`).

@@ -3,6 +3,9 @@
 ## Create Order Modal
 
 - Clicking `Create order` opens the modal.
+- Entry points:
+  - Orders/Sales toolbar `Create order`;
+  - Order/sale detail card header `Create order` (after status dropdown, before close).
 - `Client phone` + `Client name` perform lookup in clients.
 - If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the repair order.

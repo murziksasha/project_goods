@@ -1058,6 +1058,12 @@ export const DashboardPage = () => {
                     ordersTab: effectiveOrdersTab,
                     createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
                   })}
+                  getCreateOrderHref={(tab) =>
+                    getDashboardHref('orders', {
+                      ordersTab: tab,
+                      createOrder: getCreateOrderForOrdersTab(tab),
+                    })
+                  }
                   currentEmployee={currentEmployee}
                   canCreateOrders={canCreateOrders}
                   onSaleUpdate={actions.replaceSaleInState}
