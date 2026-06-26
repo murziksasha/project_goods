@@ -27,6 +27,132 @@ const toNameKey = (value: string) =>
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const normalizeDeviceName = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+const buildSnapshotNamePattern = (name: string) =>
+  `^${escapeRegExp(normalizeDeviceName(name)).replace(/\s+/g, '\\s+')}$`;
+
+const buildLineItemNamePattern = (name: string) =>
+  `^${escapeRegExp(normalizeDeviceName(name)).replace(/\s+/g, '\\s+')}(?:\\s*\\(.*\\))?$`;
+
+const matchesSnapshotDeviceName = (snapshotName: string, previousName: string) =>
+  new RegExp(buildSnapshotNamePattern(previousName), 'i').test(
+    normalizeDeviceName(snapshotName),
+  );
+
+const matchesLineItemDeviceName = (lineItemName: string, previousName: string) =>
+  new RegExp(buildLineItemNamePattern(previousName), 'i').test(lineItemName);
+
+const buildLinkedRepairSalesQuery = (
+  clientId: ClientDeviceDocument['client'],
+  previousName: string,
+  previousSerial: string,
+  options: { includeName: boolean; includeSerial: boolean },
+) => {
+  const orConditions: Array<Record<string, unknown>> = [];
+
+  if (options.includeName && previousName) {
+    orConditions.push({
+      'productSnapshot.name': {
+        $regex: buildSnapshotNamePattern(previousName),
+        $options: 'i',
+      },
+    });
+    orConditions.push({
+      'lineItems.name': {
+        $regex: buildLineItemNamePattern(previousName),
+        $options: 'i',
+      },
+    });
+  }
+  if (options.includeSerial && previousSerial) {
+    orConditions.push({ 'productSnapshot.serialNumber': previousSerial });
+  }
+
+  if (orConditions.length === 0) {
+    return null;
+  }
+
+  return {
+    client: clientId,
+    kind: 'repair',
+    $or: orConditions,
+  };
+};
+
+const propagateDeviceChangesToRepairSales = async (
+  existingDevice: ClientDeviceDocument,
+  updatedDevice: ClientDeviceDocument,
+) => {
+  const previousName = normalizeDeviceName(existingDevice.name);
+  const nextName = normalizeDeviceName(updatedDevice.name);
+  const previousSerial = existingDevice.serialNumber.trim();
+  const nextSerial = updatedDevice.serialNumber.trim();
+  const nameChanged = previousName !== nextName;
+  const serialChanged = previousSerial !== nextSerial;
+
+  if (!nameChanged && !serialChanged) {
+    return;
+  }
+
+  const clientId = updatedDevice.client ?? existingDevice.client;
+  if (!clientId) {
+    return;
+  }
+
+  const salesQuery = buildLinkedRepairSalesQuery(clientId, previousName, previousSerial, {
+    includeName: nameChanged,
+    includeSerial: serialChanged,
+  });
+  if (!salesQuery) {
+    return;
+  }
+
+  const linkedSales = await Sale.find(salesQuery).lean();
+
+  await Promise.all(
+    linkedSales.map(async (sale) => {
+      const snapshotName = sale.productSnapshot?.name ?? '';
+      const snapshotSerial = sale.productSnapshot?.serialNumber ?? '';
+      const nextSnapshotName =
+        nameChanged &&
+        previousName &&
+        matchesSnapshotDeviceName(snapshotName, previousName)
+          ? nextName
+          : snapshotName;
+      const nextSnapshotSerial =
+        serialChanged && previousSerial && snapshotSerial === previousSerial
+          ? nextSerial
+          : snapshotSerial;
+      const nextLineItems = (sale.lineItems ?? []).map((item) => {
+        if (item.kind !== 'product') {
+          return item;
+        }
+        if (
+          !nameChanged ||
+          !previousName ||
+          !matchesLineItemDeviceName(item.name, previousName)
+        ) {
+          return item;
+        }
+        return {
+          ...item,
+          name: nextName,
+        };
+      });
+
+      await Sale.findByIdAndUpdate(sale._id, {
+        productSnapshot: {
+          article: sale.productSnapshot?.article ?? '',
+          name: nextSnapshotName,
+          serialNumber: nextSnapshotSerial,
+        },
+        lineItems: nextLineItems,
+      });
+    }),
+  );
+};
+
 const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
   const normalizedName = device.name.trim().replace(/\s+/g, ' ');
   const normalizedSerial = device.serialNumber.trim();
@@ -151,6 +277,7 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
   ).lean<ClientDeviceDocument | null>();
 
   if (!device) throw new Error('Client device not found.');
+  await propagateDeviceChangesToRepairSales(existingDevice, device);
   const usageCount = await getDeviceUsageCount(device);
   return formatClientDevice(device, usageCount);
 };

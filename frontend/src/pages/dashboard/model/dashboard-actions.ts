@@ -1323,6 +1323,10 @@ export const createDashboardActions = ({
           refreshClientDevices,
           i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
         );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
         setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceUpdated'));
         return true;
       } catch (requestError) {
