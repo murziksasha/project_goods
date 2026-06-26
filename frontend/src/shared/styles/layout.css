@@ -5589,18 +5589,43 @@
 }
 
 .supplier-orders-table {
-  min-width: 1240px;
+  min-width: 1308px;
 }
 
 .orders-table .supplier-orders-col-number {
-  width: 122px;
+  width: 190px;
+  min-width: 190px;
+}
+
+.supplier-orders-number-cell {
+  overflow: visible;
 }
 
 .supplier-order-number-cell {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
+  min-width: max-content;
+}
+
+.supplier-order-number-button {
+  border: 0;
+  background: transparent;
+  color: #123b64;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: visible;
+  font-variant-numeric: tabular-nums;
+}
+
+.supplier-order-number-button:hover {
+  color: #0f6fc6;
+  text-decoration: underline;
 }
 
 .supplier-order-row-star {

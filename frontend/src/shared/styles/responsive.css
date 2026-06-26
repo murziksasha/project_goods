@@ -602,6 +602,14 @@
     overflow-wrap: anywhere;
   }
 
+  .supplier-order-number-cell,
+  .supplier-order-number-button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .catalog-row-actions,
   .orders-workspace-table .catalog-row-actions {
     flex-wrap: wrap;
