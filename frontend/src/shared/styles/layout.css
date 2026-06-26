@@ -7311,14 +7311,19 @@
 .supplier-order-total-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: 40px minmax(0, 1fr) 140px 120px 140px 44px;
   gap: 12px;
   align-items: end;
 }
 
 .supplier-order-total-row span {
+  grid-column: 2;
   color: #4f647b;
   font-weight: 700;
+}
+
+.supplier-order-total-row input {
+  grid-column: 5;
 }
 
 .create-side-requests-list-scrollable {
