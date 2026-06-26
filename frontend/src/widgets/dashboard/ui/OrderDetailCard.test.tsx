@@ -183,7 +183,7 @@ const sale = (patch: Partial<Sale> = {}): Sale => ({
   ...patch,
 });
 
-const renderCard = ({
+const buildCardElement = ({
   products = [product()],
   catalogProducts = [catalogProduct()],
   clientDevices = [],
@@ -262,7 +262,7 @@ const renderCard = ({
 } = {}) => {
   const cardSale = sale(saleOverride);
   const cardStatus = status ?? (cardSale.status as OrderStatus);
-  const result = render(
+  return (
     <OrderDetailCard
       sale={cardSale}
       sales={salesOverride ?? [cardSale]}
@@ -304,8 +304,17 @@ const renderCard = ({
       onError={onError}
       onSuccess={vi.fn()}
       onSaveMainInfo={onSaveMainInfo}
-    />,
+    />
   );
+};
+
+const renderCard = (options: Parameters<typeof buildCardElement>[0] = {}) => {
+  const {
+    onCreateClientDevice = vi.fn(async () => true),
+    onOpenRelatedSale = vi.fn(),
+    onSaveMainInfo = vi.fn(async () => undefined),
+  } = options;
+  const result = render(buildCardElement(options));
   return { ...result, onCreateClientDevice, onOpenRelatedSale, onSaveMainInfo };
 };
 
@@ -359,6 +368,28 @@ describe('OrderDetailCard repair device replacement', () => {
       serialNumber: 'SN-OLD',
     },
   };
+
+  it('syncs the displayed device name when the sale snapshot is refreshed', () => {
+    const { rerender } = renderCard({ saleOverride: repairSale });
+
+    expect(screen.getByLabelText('Change device')).toHaveTextContent('Old device');
+
+    rerender(
+      buildCardElement({
+        saleOverride: {
+          ...repairSale,
+          product: {
+            id: 'device-snapshot',
+            article: '',
+            name: 'Correct device',
+            serialNumber: 'SN-OLD',
+          },
+        },
+      }),
+    );
+
+    expect(screen.getByLabelText('Change device')).toHaveTextContent('Correct device');
+  });
 
   it('shows the device change action only for repair orders', () => {
     renderCard({ saleOverride: repairSale });

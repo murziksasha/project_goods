@@ -327,9 +327,13 @@ export const SupplierOrderModal = ({
     )
       .size !== submitItems.length;
 
-  const totalAmount = submitItems.reduce(
-    (sum, item) => sum + (parseDecimal(item.price) || 0) * item.quantity,
-    0,
+  const totalAmount = roundMoney(
+    submitItems.reduce(
+      (sum, item) =>
+        sum +
+        roundMoney((parseDecimal(item.price) || 0) * item.quantity),
+      0,
+    ),
   );
   const totalUnits = submitItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),

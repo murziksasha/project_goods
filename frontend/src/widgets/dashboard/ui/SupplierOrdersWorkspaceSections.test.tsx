@@ -187,4 +187,35 @@ describe('SupplierOrdersTable', () => {
     expect(onEdit).not.toHaveBeenCalled();
     expect(onErr).toHaveBeenCalled();
   });
+
+  it('renders full long supplier order numbers for multi-item orders', () => {
+    const longNumber = 'SO-1779142808517';
+    const order = makeOrder({
+      number: longNumber,
+      orderBaseId: longNumber,
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          catalogProductId: 'cat-1',
+          productName: 'Type C cable',
+          quantity: 5,
+          price: 100,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          catalogProductId: 'cat-2',
+          productName: 'Router TP-Link',
+          quantity: 2,
+          price: 900,
+        },
+      ],
+    });
+
+    renderTable({ order });
+
+    expect(screen.getByText(`${longNumber}-1`)).toBeInTheDocument();
+    expect(screen.getByText(`${longNumber}-2`)).toBeInTheDocument();
+  });
 });

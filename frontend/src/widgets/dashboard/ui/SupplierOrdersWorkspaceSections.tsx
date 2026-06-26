@@ -761,7 +761,10 @@ export const SupplierOrdersTable = ({
             buildGroupedSupplierOrderView(order).map(({ id, item }) => (
               <tr key={id}>
                 {visibleColumns.includes('number') ? (
-                  <td data-label={t('orders.supplier.columns.number')}>
+                  <td
+                    className='supplier-orders-number-cell'
+                    data-label={t('orders.supplier.columns.number')}
+                  >
                     <div className='supplier-order-number-cell'>
                       <button
                         type='button'
@@ -786,7 +789,7 @@ export const SupplierOrdersTable = ({
                       </button>
                       <button
                         type='button'
-                        className='catalog-name-button'
+                        className='supplier-order-number-button'
                         onClick={() => {
                           if (!canViewSupplierOrders) {
                             onError(t('orders.supplier.messages.errors.noViewPermission'));
