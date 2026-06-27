@@ -157,6 +157,12 @@ const printFormSchema = new mongoose.Schema(
       enum: ['portrait', 'landscape'],
       default: 'portrait',
     },
+    contentMargins: {
+      topMm: { type: Number, min: 0, max: 60, default: 0 },
+      rightMm: { type: Number, min: 0, max: 60, default: 0 },
+      bottomMm: { type: Number, min: 0, max: 60, default: 0 },
+      leftMm: { type: Number, min: 0, max: 60, default: 0 },
+    },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },

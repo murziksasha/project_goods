@@ -296,6 +296,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
 
   useDashboardEffects({
     enabled,
+    employeeId: currentEmployee?.id ?? null,
     selectedClientId,
     setAllProducts,
     setClientDevices,

@@ -58,7 +58,6 @@ export const SerialBindModal = ({
   );
 
   useEffect(() => {
-    setSelectedWarehouseId(getDefaultWarehouseId(warehouses));
     setSelectedSerials(
       Array.from(
         new Set(
@@ -68,7 +67,11 @@ export const SerialBindModal = ({
         ),
       ),
     );
-  }, [lineItem.id, lineItem.serialNumbers, warehouses]);
+  }, [lineItem.id, lineItem.serialNumbers]);
+
+  useEffect(() => {
+    setSelectedWarehouseId(getDefaultWarehouseId(warehouses));
+  }, [warehouses]);
 
   const warehouseFilteredProducts = useMemo(() => {
     if (warehouses.length === 0) {
