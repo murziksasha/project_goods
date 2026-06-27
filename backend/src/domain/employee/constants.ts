@@ -29,6 +29,7 @@ export const employeePermissions = [
   'finance.supplierOrders.pay',
   'finance.supplierOrders.issueWithoutPayment',
   'employees.manage',
+  'printForms.manage',
   'system.backups.manage',
 ] as const;
 

@@ -55,7 +55,7 @@ const permissionGroups: Array<{
   },
   {
     titleKey: 'employees.permissionGroups.system',
-    permissions: ['system.backups.manage'],
+    permissions: ['printForms.manage', 'system.backups.manage'],
   },
 ];
 

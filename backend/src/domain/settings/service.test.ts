@@ -286,4 +286,62 @@ describe('settings service', () => {
       }),
     ]);
   });
+
+  it('updates only print forms without replacing other settings fields', async () => {
+    const existingSettings = makeSettingsDocument({
+      serviceName: 'Repair CRM',
+      company: 'Repair Company',
+      printForms: defaultPrintForms,
+    });
+    const updatedPrintForms = [
+      {
+        id: 'custom-form',
+        title: 'Custom form',
+        type: 'custom',
+        content: 'Order {{orderNumber}}',
+        isActive: true,
+        sortOrder: 10,
+      },
+    ];
+    const { service, findOneAndUpdateMock } = await setupSettingsService({
+      findOneResult: existingSettings,
+      updateResult: makeSettingsDocument({
+        ...existingSettings,
+        printForms: updatedPrintForms,
+      }),
+    });
+
+    const settings = await service.updatePrintForms(updatedPrintForms);
+
+    expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+      {},
+      {
+        $set: {
+          printForms: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'custom-form',
+              title: 'Custom form',
+            }),
+            expect.objectContaining({
+              id: 'receipt',
+            }),
+          ]),
+        },
+      },
+      expect.objectContaining({
+        returnDocument: 'after',
+        runValidators: true,
+      }),
+    );
+    expect(settings.serviceName).toBe('Repair CRM');
+    expect(settings.company).toBe('Repair Company');
+    expect(settings.printForms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'custom-form',
+          title: 'Custom form',
+        }),
+      ]),
+    );
+  });
 });
