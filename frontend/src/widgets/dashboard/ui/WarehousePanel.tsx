@@ -62,6 +62,7 @@ import {
   initialWarehouses,
   lockedWarehouseColumns,
   normalizeProductName,
+  receiptStatusFilterOptions,
   savedWarehouseFiltersStorageKey,
   tabs,
   toServiceCenterForm,
@@ -134,6 +135,11 @@ export const WarehousePanel = ({
   ): WarehouseFilters => ({
     ...initialWarehouseFilters,
     ...(filters ?? {}),
+    status:
+      filters?.status &&
+      receiptStatusFilterOptions.includes(filters.status)
+        ? filters.status
+        : '',
     favoritesOnly: filters?.favoritesOnly === true,
   });
   const [selectedProductModelContext, setSelectedProductModelContext] =
@@ -1558,6 +1564,27 @@ export const WarehousePanel = ({
                   {availableLocationOptions.map((location) => (
                     <option key={location.id} value={location.name}>
                       {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {activeTab === 'receipts' ? (
+              <label className='orders-filter-field'>
+                <span>{t('warehouse.filters.status')}</span>
+                <select
+                  value={draftFilters.status}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      status: event.target.value as WarehouseFilters['status'],
+                    }))
+                  }
+                >
+                  <option value=''>{t('orders.filters.all')}</option>
+                  {receiptStatusFilterOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {t(`warehouse.tables.receipts.status.${status}`)}
                     </option>
                   ))}
                 </select>

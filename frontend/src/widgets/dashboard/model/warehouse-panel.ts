@@ -66,6 +66,13 @@ export type WarehouseSearchMode =
   | 'article'
   | 'warehouse'
   | 'supplier';
+export type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
+export const receiptStatusFilterOptions: ReceiptStatus[] = [
+  'new',
+  'approved',
+  'received',
+  'cancelled',
+];
 export type WarehouseFilters = {
   name: string;
   serial: string;
@@ -74,6 +81,7 @@ export type WarehouseFilters = {
   supplier: string;
   buyer: string;
   location: string;
+  status: ReceiptStatus | '';
   favoritesOnly: boolean;
 };
 export type SavedWarehouseFilter = {
@@ -98,7 +106,6 @@ export type ServiceCenter = {
   phone: string;
 };
 export type WarehouseLocation = { id: string; name: string };
-export type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
 export type ReceiptRow = {
   id: string;
   number: string;
@@ -271,6 +278,7 @@ export const initialWarehouseFilters: WarehouseFilters = {
   supplier: '',
   buyer: '',
   location: '',
+  status: '',
   favoritesOnly: false,
 };
 export const warehouseFilterIconOptions = [
@@ -447,6 +455,10 @@ export const filterReceiptRows = ({
       filters.buyer.trim() &&
       receipt.acceptedBy.toLowerCase() !== filters.buyer.trim().toLowerCase()
     ) {
+      return false;
+    }
+
+    if (filters.status && receipt.status !== filters.status) {
       return false;
     }
 
