@@ -44,7 +44,11 @@ import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
-import { updateSettings } from '../../../entities/settings/api/settingsApi';
+import {
+  updatePrintForms,
+  updateSettings,
+} from '../../../entities/settings/api/settingsApi';
+import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
 import {
   applyPrintFormLocalOverrides,
   persistPrintFormLayoutOverrides,
@@ -917,27 +921,42 @@ export const createDashboardActions = ({
           currentEmployee?.id,
           settingsForm.printForms,
         );
-        const updated = await updateSettings(settingsForm);
+        const canEditAllSettings = currentEmployee?.role === 'owner';
+        const canEditPrintFormsOnly =
+          !canEditAllSettings &&
+          hasEmployeePermission(currentEmployee, 'printForms.manage');
+        const updated = canEditPrintFormsOnly
+          ? await updatePrintForms(settingsForm.printForms)
+          : await updateSettings(settingsForm);
         const printFormsWithLocalOverrides = applyPrintFormLocalOverrides(
           updated.printForms,
           currentEmployee?.id,
         );
         setSettings(updated);
-        setSettingsForm({
-          serviceName: updated.serviceName,
-          company: updated.company,
-          companyAddress: updated.companyAddress,
-          companyId: updated.companyId,
-          companyIban: updated.companyIban,
-          companyEmail: updated.companyEmail,
-          companySite: updated.companySite,
-          printForms: printFormsWithLocalOverrides,
-          orderDefaults: updated.orderDefaults,
-          numbering: updated.numbering,
-          financeDefaults: updated.financeDefaults,
-          notificationSettings: updated.notificationSettings,
-          dashboardPreferences: normalizeDashboardPreferences(updated.dashboardPreferences),
-        });
+        setSettingsForm((current) => ({
+          ...current,
+          ...(canEditAllSettings
+            ? {
+                serviceName: updated.serviceName,
+                company: updated.company,
+                companyAddress: updated.companyAddress,
+                companyId: updated.companyId,
+                companyIban: updated.companyIban,
+                companyEmail: updated.companyEmail,
+                companySite: updated.companySite,
+                printForms: printFormsWithLocalOverrides,
+                orderDefaults: updated.orderDefaults,
+                numbering: updated.numbering,
+                financeDefaults: updated.financeDefaults,
+                notificationSettings: updated.notificationSettings,
+                dashboardPreferences: normalizeDashboardPreferences(
+                  updated.dashboardPreferences,
+                ),
+              }
+            : {
+                printForms: printFormsWithLocalOverrides,
+              }),
+        }));
         setSuccessMessage(i18n.t('dashboard.actions.success.settingsSaved'));
       } catch (requestError) {
         setError(

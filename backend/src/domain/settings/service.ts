@@ -250,3 +250,25 @@ export const updateSettings = async (payload: SettingsPayload) => {
 
   return formatSettings(settings);
 };
+
+export const updatePrintForms = async (printForms: SettingsPayload['printForms']) => {
+  await getSettings();
+  const normalizedPayload = normalizeSettingsPayload({ printForms } as SettingsPayload);
+  const normalizedPrintForms = normalizePrintForms(
+    normalizedPayload.printForms as SettingsDocument['printForms'],
+  );
+  const settings = await Settings.findOneAndUpdate(
+    {},
+    { $set: { printForms: normalizedPrintForms } },
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    },
+  ).lean<SettingsDocument | null>();
+
+  if (!settings) {
+    throw new Error('Settings not found.');
+  }
+
+  return formatSettings(settings);
+};

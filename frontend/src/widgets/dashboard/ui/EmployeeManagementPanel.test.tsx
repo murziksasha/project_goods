@@ -102,6 +102,21 @@ describe('EmployeeManagementPanel', () => {
     expect(screen.getByLabelText('orders.chat')).toBeInTheDocument();
   });
 
+  it('renders print form permission checkbox for non-owner roles', () => {
+    render(<PanelHarness />);
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'manager' },
+    });
+
+    const printFormsPermission = screen.getByLabelText('printForms.manage');
+    expect(printFormsPermission).toBeInTheDocument();
+    expect(printFormsPermission).not.toBeChecked();
+
+    fireEvent.click(printFormsPermission);
+    expect(printFormsPermission).toBeChecked();
+  });
+
   it('keeps employees.manage checked and locked for owner role', () => {
     render(<PanelHarness />);
 

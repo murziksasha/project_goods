@@ -64,6 +64,7 @@ const SettingsPanelHarness = () => {
       form={form}
       isSaving={false}
       canEditSettings={true}
+      canEditPrintForms={true}
       canManageBackups={true}
       onChange={(field, value) =>
         setForm((current) => ({ ...current, [field]: value }))
@@ -88,7 +89,28 @@ const BackupOnlySettingsPanelHarness = () => {
       form={form}
       isSaving={false}
       canEditSettings={false}
+      canEditPrintForms={false}
       canManageBackups={true}
+      onChange={(field, value) =>
+        setForm((current) => ({ ...current, [field]: value }))
+      }
+      onSubmit={() => undefined}
+    />
+  );
+};
+
+const PrintOnlySettingsPanelHarness = () => {
+  const [form, setForm] = useState<AppSettingsFormValues>(
+    createDefaultSettingsForm,
+  );
+
+  return (
+    <SettingsPanel
+      form={form}
+      isSaving={false}
+      canEditSettings={false}
+      canEditPrintForms={true}
+      canManageBackups={false}
       onChange={(field, value) =>
         setForm((current) => ({ ...current, [field]: value }))
       }
@@ -259,6 +281,15 @@ describe('SettingsPanel', () => {
     expect(screen.getByRole('button', { name: 'Backups' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
     expect(await screen.findByText('project-goods-20260607-100000')).toBeInTheDocument();
+  });
+
+  it('shows only print forms to a print-only employee', () => {
+    render(<PrintOnlySettingsPanelHarness />);
+
+    expect(screen.queryByRole('button', { name: 'Company' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Backups' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeInTheDocument();
   });
 
   it('shows backup restore, restore from file, and delete actions', async () => {
