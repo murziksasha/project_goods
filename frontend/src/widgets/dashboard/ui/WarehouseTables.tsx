@@ -4,6 +4,7 @@ import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { getOrderLink } from '../../../pages/dashboard/model/dashboard-navigation';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
+import { SelectableActionLink } from '../../../shared/ui/SelectableActionLink';
 import { getStockSupplierLabel } from '../model/stock-balance';
 import {
   getReceiptPaymentStatusClass,
@@ -318,29 +319,26 @@ export const StockTable = ({
                             onChange={() => onToggleProductSelection(product.id)}
                           />
                         ) : columnKey === 'name' ? (
-                          <button
-                            type='button'
+                          <SelectableActionLink
                             className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
+                            onAction={() => onOpenModel(product)}
                           >
                             {product.name}
-                          </button>
+                          </SelectableActionLink>
                         ) : columnKey === 'serial' ? (
-                          <button
-                            type='button'
+                          <SelectableActionLink
                             className='settings-link-button'
-                            onClick={() => onOpenSerial(product)}
+                            onAction={() => onOpenSerial(product)}
                           >
                             {product.serialNumber}
-                          </button>
+                          </SelectableActionLink>
                         ) : columnKey === 'article' ? (
-                          <button
-                            type='button'
+                          <SelectableActionLink
                             className='settings-link-button'
-                            onClick={() => onOpenModel(product)}
+                            onAction={() => onOpenModel(product)}
                           >
                             {product.article}
-                          </button>
+                          </SelectableActionLink>
                         ) : columnKey === 'date' ? (
                           formatDate(product.purchaseDate)
                         ) : columnKey === 'purchase' ? (

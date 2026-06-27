@@ -67,17 +67,19 @@ export const buildCreateOrderProductSuggestions = ({
   sales,
   query,
   limit = 8,
+  currentSaleId = '',
 }: {
   products: Product[];
   catalogProducts: CatalogProduct[];
   sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
   query: string;
   limit?: number;
+  currentSaleId?: string;
 }): CreateOrderProductSuggestion[] => {
   const normalizedQuery = normalizeCreateOrderProductLookup(query);
   if (normalizedQuery.length < 2) return [];
 
-  const serialUsage = getSaleSerialUsage(sales, '');
+  const serialUsage = getSaleSerialUsage(sales, currentSaleId);
   const matchedStockSuggestions = products
     .filter((product) => {
       const fields = [

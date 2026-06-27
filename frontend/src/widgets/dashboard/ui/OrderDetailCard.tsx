@@ -47,6 +47,7 @@ import {
   toNameKey,
 } from './create-order-card-shared';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
+import { buildCreateOrderProductSuggestions } from '../model/create-order-products';
 import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../model/missingService';
 import { buildSupplierOrderItemNumber, mergeSupplierOrderItemUpdate } from '../model/supplier-order-utils';
 import { canRemoveLineItemAfterPayment } from '../model/line-item-ops';
@@ -2182,53 +2183,52 @@ const LineItemsPanel = ({
 
     const timeoutId = window.setTimeout(() => {
       setIsProductLookupLoading(true);
-      const normalizedQuery = normalizeProductLookupValue(name);
-      const catalogMatches = catalogProducts
-        .filter((catalogProduct) => {
-          if (!catalogProduct.isActive) return false;
-          return [catalogProduct.name, catalogProduct.note].some((field) =>
-            normalizeProductLookupValue(field ?? '').includes(normalizedQuery),
+      const suggestions = buildCreateOrderProductSuggestions({
+        products,
+        catalogProducts,
+        sales,
+        query: name,
+        limit: 8,
+        currentSaleId,
+      });
+      const mappedSuggestions: ProductEntrySuggestion[] = [];
+      suggestions.forEach((suggestion) => {
+        if (suggestion.source === 'stock') {
+          const stockProduct = products.find(
+            (product) => product.id === suggestion.productId,
           );
-        })
-        .sort((first, second) => {
-          const firstName = normalizeProductLookupValue(first.name);
-          const secondName = normalizeProductLookupValue(second.name);
-          const firstExact = firstName === normalizedQuery ? 0 : 1;
-          const secondExact = secondName === normalizedQuery ? 0 : 1;
-          if (firstExact !== secondExact) return firstExact - secondExact;
-          return first.name.localeCompare(second.name);
-        })
-        .slice(0, 6)
-        .map((catalogProduct): ProductEntrySuggestion => ({
-          type: 'catalog',
-          catalogProduct,
-          ...getCatalogDefaults(catalogProduct),
-        }));
-      const stockSerialMatches = products
-        .filter((product) => {
-          if (!getProductSuggestionState(product).selectable) return false;
-          return (
-            normalizeProductLookupValue(product.serialNumber) ===
-            normalizedQuery
-          );
-        })
-        .slice(0, 2)
-        .map((product): ProductEntrySuggestion => ({ type: 'stock', product }));
-      setProductSuggestions([...catalogMatches, ...stockSerialMatches]);
+          if (stockProduct) {
+            mappedSuggestions.push({ type: 'stock', product: stockProduct });
+          }
+          return;
+        }
+
+        const catalogProduct = catalogProducts.find(
+          (product) => product.id === suggestion.catalogProductId,
+        );
+        if (catalogProduct) {
+          mappedSuggestions.push({
+            type: 'catalog',
+            catalogProduct,
+            ...getCatalogDefaults(catalogProduct),
+          });
+        }
+      });
+      setProductSuggestions(mappedSuggestions);
       setIsProductLookupLoading(false);
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
   }, [
     catalogProducts,
+    currentSaleId,
     getCatalogDefaults,
-    getProductSuggestionState,
     kind,
     name,
     products,
+    sales,
     selectedCatalogProductId,
     selectedProductId,
-    serialUsage,
   ]);
 
   useEffect(() => {
