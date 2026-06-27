@@ -467,6 +467,42 @@ describe('normalizeSettingsPayload', () => {
     });
   });
 
+  it('normalizes print form content margins', () => {
+    const result = normalizeSettingsPayload({
+      printForms: [
+        {
+          title: 'Barcode',
+          content: '{{barcode}}',
+          pageSize: 'label',
+          contentMargins: {
+            topMm: '1.5',
+            rightMm: '80',
+            bottomMm: '-2',
+            leftMm: 'bad',
+          },
+        },
+        {
+          title: 'Receipt',
+          content: '{{orderNumber}}',
+          pageSize: 'A4',
+        },
+      ],
+    });
+
+    expect(result.printForms[0].contentMargins).toEqual({
+      topMm: 1.5,
+      rightMm: 60,
+      bottomMm: 0,
+      leftMm: 1.25,
+    });
+    expect(result.printForms[1].contentMargins).toEqual({
+      topMm: 0,
+      rightMm: 0,
+      bottomMm: 0,
+      leftMm: 0,
+    });
+  });
+
   it('normalizes label sizes for label print forms', () => {
     const result = normalizeSettingsPayload({
       printForms: [

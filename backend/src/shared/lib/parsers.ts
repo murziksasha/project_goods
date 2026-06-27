@@ -387,6 +387,41 @@ const clampLabelSizeMm = (value: unknown, fallback: number) =>
 const readObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
+const defaultLabelContentMargins = {
+  topMm: 0.45,
+  rightMm: 1.25,
+  bottomMm: 0.45,
+  leftMm: 1.25,
+};
+
+const defaultDocumentContentMargins = {
+  topMm: 0,
+  rightMm: 0,
+  bottomMm: 0,
+  leftMm: 0,
+};
+
+const clampContentMarginMm = (value: unknown, fallback: number) =>
+  Math.min(Math.max(toFiniteNumber(value, fallback), 0), 60);
+
+const normalizeContentMargins = (
+  value: unknown,
+  pageSize: 'A4' | 'label',
+) => {
+  const defaults =
+    pageSize === 'label'
+      ? defaultLabelContentMargins
+      : defaultDocumentContentMargins;
+  const source = readObject(value);
+
+  return {
+    topMm: clampContentMarginMm(source.topMm, defaults.topMm),
+    rightMm: clampContentMarginMm(source.rightMm, defaults.rightMm),
+    bottomMm: clampContentMarginMm(source.bottomMm, defaults.bottomMm),
+    leftMm: clampContentMarginMm(source.leftMm, defaults.leftMm),
+  };
+};
+
 const rateProviderIds = new Set(['nbu', 'privat', 'mono']);
 const forecastViewIds = new Set(['today', 'tomorrow', 'fiveDay']);
 
@@ -511,6 +546,10 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
                 toNonEmptyString(source.orientation) === 'landscape'
                   ? 'landscape'
                   : 'portrait',
+              contentMargins: normalizeContentMargins(
+                source.contentMargins,
+                pageSize,
+              ),
               isActive: toBoolean(source.isActive, true),
               sortOrder: clampInteger(source.sortOrder, (index + 1) * 10, 0),
             };

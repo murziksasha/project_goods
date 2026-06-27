@@ -19,6 +19,8 @@ import type { ClientDevice, ClientDeviceFormValues } from '../../../entities/cli
 import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   getOrientedLabelSize,
+  getPrintContentMarginVars,
+  normalizeContentMargins,
   normalizeLabelSize,
   printDocumentStyles,
   printLabelDocumentStyles,
@@ -1292,10 +1294,15 @@ export const buildOrderPrintBody = (
             : normalizeLabelSize(form.labelSize),
           pageSize === 'label' ? orientation : form.orientation,
         );
+        const contentMargins = normalizeContentMargins(
+          form.contentMargins,
+          form.pageSize ?? pageSize,
+        );
+        const marginVars = getPrintContentMarginVars(contentMargins);
         const labelStyle =
           isLabel
-            ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm;"`
-            : '';
+            ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm; ${marginVars};"`
+            : ` style="${marginVars};"`;
 
         return `
         <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>

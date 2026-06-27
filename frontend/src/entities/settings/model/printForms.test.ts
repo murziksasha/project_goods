@@ -3,7 +3,10 @@ import type { PrintLayoutBlock } from './types';
 import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
+  defaultDocumentContentMargins,
+  defaultLabelContentMargins,
   defaultPrintForms,
+  normalizeContentMargins,
   normalizePrintFormsForView,
   normalizePrintLayoutBlocks,
   renderPrintLayout,
@@ -229,6 +232,25 @@ describe('normalizePrintLayoutBlocks', () => {
   });
 });
 
+describe('normalizeContentMargins', () => {
+  it('clamps custom margins and keeps label defaults when missing', () => {
+    expect(normalizeContentMargins(undefined, 'label')).toEqual(
+      defaultLabelContentMargins,
+    );
+    expect(
+      normalizeContentMargins(
+        { topMm: 2, rightMm: 99, bottomMm: -1, leftMm: 3.2 },
+        'label',
+      ),
+    ).toEqual({
+      topMm: 2,
+      rightMm: 60,
+      bottomMm: 0,
+      leftMm: 3.2,
+    });
+  });
+});
+
 describe('normalizePrintFormsForView', () => {
   it('normalizes legacy paragraph levels when loading layout forms', () => {
     const normalized = normalizePrintFormsForView([
@@ -289,6 +311,46 @@ describe('normalizePrintFormsForView', () => {
 
     expect(normalized.find((form) => form.id === 'legacy-custom')?.content).toBe('<div>{{orderNumber}}</div>');
     expect(normalized.find((form) => form.id === 'legacy-custom')?.layoutBlocks).toBeUndefined();
+  });
+
+  it('applies legacy label content margins by default', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'barcode-custom',
+        title: 'Barcode custom',
+        type: 'barcode',
+        content: '{{barcode}}',
+        contentFormat: 'html',
+        pageSize: 'label',
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 10,
+      },
+    ]);
+
+    expect(
+      normalized.find((form) => form.id === 'barcode-custom')?.contentMargins,
+    ).toEqual(defaultLabelContentMargins);
+  });
+
+  it('applies zero document content margins by default', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'receipt-custom',
+        title: 'Receipt custom',
+        type: 'receipt',
+        content: '{{orderNumber}}',
+        contentFormat: 'html',
+        pageSize: 'A4',
+        orientation: 'portrait',
+        isActive: true,
+        sortOrder: 10,
+      },
+    ]);
+
+    expect(
+      normalized.find((form) => form.id === 'receipt-custom')?.contentMargins,
+    ).toEqual(defaultDocumentContentMargins);
   });
 
   it('adds the default label size to label forms', () => {
