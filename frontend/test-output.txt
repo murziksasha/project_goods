@@ -1,3 +1,0 @@
-
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mc:/Users/murzi/Desktop/project/project_goods/frontend[39m
-

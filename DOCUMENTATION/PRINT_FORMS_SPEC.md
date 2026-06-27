@@ -48,6 +48,33 @@ to scan and read at the counter.
   - `labelTitle`: product name.
   - `labelContact`: empty.
 
+### Content Margins And Per-User Layout Storage
+
+Print layout preferences are stored in two layers:
+
+1. **Server (MongoDB, global)** — template content, blocks, titles, and other
+   shared company settings saved through `PUT /api/settings`.
+2. **Browser localStorage (per employee, per browser)** — personal layout tuning:
+   - `contentMargins` (`topMm`, `rightMm`, `bottomMm`, `leftMm`)
+   - `pageSize`
+   - `labelSize`
+   - `orientation`
+
+Local storage key: `project-goods.print-form-overrides.{employeeId}`. Value:
+`Record<formId, layoutOverride>`.
+
+Layout overrides are **not** written while the user edits fields. They persist
+only when the user clicks **Save settings** in the Settings panel. Until then,
+preview changes stay in the in-memory settings form and are discarded on page
+reload.
+
+On load, the frontend merges stored overrides onto server `printForms` for the
+logged-in employee. Order printing uses the merged forms from localStorage, not
+unsaved editor drafts.
+
+Default label content margins when no override exists: `0.45 / 1.25 / 0.45 /
+1.25` mm (top / right / bottom / left). A4 document defaults are `0` mm.
+
 ### Builder Requirements
 
 - Barcode blocks may define a custom value template.
@@ -147,6 +174,14 @@ Regression tests:
   - default size remains `40 x 25 mm`;
   - default orientation remains `landscape`;
   - generated layout renders inside `.print-label`.
+- Unit test `print-form-local-overrides`:
+  - `persistPrintFormLayoutOverrides` writes only layout fields per `formId`;
+  - overrides are scoped per `employeeId` storage key;
+  - `applyPrintFormLocalOverrides` merges stored values onto server forms.
+- UI test `SettingsPanel`:
+  - editing layout fields updates in-memory preview immediately;
+  - `localStorage` is not updated until **Save settings** is clicked;
+  - after Save, stored overrides survive reload for the same employee.
 - Manual QA with the target printer:
   - print built-in Barcode form for order `r000050`;
   - compare standalone preview, Chrome print preview, and physical label;

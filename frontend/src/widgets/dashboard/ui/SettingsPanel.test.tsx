@@ -1,48 +1,54 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import type { AppSettingsFormValues } from '../../../entities/settings/model/types';
+import * as backupApi from '../../../entities/backup/api/backupApi';
+import { persistPrintFormLayoutOverrides } from '../model/print-form-local-overrides';
 import { SettingsPanel } from './SettingsPanel';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { cleanup } from '@testing-library/react';
-import {
-  deleteBackup,
-  listBackups,
-  restoreBackupFromFile,
-} from '../../../entities/backup/api/backupApi';
 
-vi.mock('../../../entities/backup/api/backupApi', () => ({
-  listBackups: vi.fn(async () => [
-    {
-      id: 'project-goods-20260607-100000',
-      createdAt: '2026-06-07T10:00:00.000Z',
-      updatedAt: '2026-06-07T10:00:01.000Z',
-      status: 'completed',
-      type: 'manual',
-      archiveFile: 'project-goods-20260607-100000.archive.gz',
-      sizeBytes: 7,
-      author: 'Owner',
-      durationMs: 1000,
-      error: '',
-    },
-  ]),
-  createBackup: vi.fn(),
-  deleteBackup: vi.fn(async () => ({
+const defaultBackups = [
+  {
+    id: 'project-goods-20260607-100000',
+    createdAt: '2026-06-07T10:00:00.000Z',
+    updatedAt: '2026-06-07T10:00:01.000Z',
+    status: 'completed' as const,
+    type: 'manual' as const,
+    archiveFile: 'project-goods-20260607-100000.archive.gz',
+    sizeBytes: 7,
+    author: 'Owner',
+    durationMs: 1000,
+    error: '',
+  },
+];
+
+beforeEach(() => {
+  vi.spyOn(backupApi, 'listBackups').mockResolvedValue(defaultBackups);
+  vi.spyOn(backupApi, 'createBackup').mockResolvedValue(defaultBackups[0]);
+  vi.spyOn(backupApi, 'deleteBackup').mockResolvedValue({
     id: 'project-goods-20260607-100000',
     deleted: true,
-  })),
-  downloadBackup: vi.fn(),
-  restoreBackup: vi.fn(),
-  restoreBackupFromFile: vi.fn(async () => ({
+  });
+  vi.spyOn(backupApi, 'downloadBackup').mockResolvedValue({
+    blob: new Blob(),
+    filename: 'project-goods-20260607-100000.archive.gz',
+  });
+  vi.spyOn(backupApi, 'restoreBackup').mockResolvedValue({
+    restoredBackupId: 'project-goods-20260607-100000',
+    safetyBackupId: 'project-goods-20260607-100100-safety',
+    success: true,
+  });
+  vi.spyOn(backupApi, 'restoreBackupFromFile').mockResolvedValue({
     restoredArchiveFile: 'project-goods-20260607-100000.archive.gz',
     safetyBackupId: 'project-goods-20260607-100100-safety',
     success: true,
-  })),
-}));
+  });
+});
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
   window.localStorage.clear();
 });
 
@@ -50,6 +56,8 @@ const SettingsPanelHarness = () => {
   const [form, setForm] = useState<AppSettingsFormValues>(
     createDefaultSettingsForm,
   );
+  const latestFormRef = useRef(form);
+  latestFormRef.current = form;
 
   return (
     <SettingsPanel
@@ -60,7 +68,12 @@ const SettingsPanelHarness = () => {
       onChange={(field, value) =>
         setForm((current) => ({ ...current, [field]: value }))
       }
-      onSubmit={() => undefined}
+      onSubmit={() => {
+        persistPrintFormLayoutOverrides(
+          'employee-test',
+          latestFormRef.current.printForms,
+        );
+      }}
     />
   );
 };
@@ -173,6 +186,34 @@ describe('SettingsPanel', () => {
     expect(screen.getByText('New template')).toBeInTheDocument();
   }, 20000);
 
+  it('persists print layout overrides only after Save settings', async () => {
+    render(<SettingsPanelHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
+    fireEvent.change(screen.getByLabelText('Document template'), {
+      target: { value: 'barcode' },
+    });
+
+    const topMarginInput = screen.getByLabelText('Top, mm');
+    fireEvent.change(topMarginInput, { target: { value: '2.5' } });
+
+    expect(
+      window.localStorage.getItem(
+        'project-goods.print-form-overrides.employee-test',
+      ),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(
+        'project-goods.print-form-overrides.employee-test',
+      ) ?? '{}',
+    );
+
+    expect(stored.barcode?.contentMargins?.topMm).toBe(2.5);
+  });
+
   it('switches between built-in print templates in the builder', async () => {
     render(<SettingsPanelHarness />);
 
@@ -244,7 +285,7 @@ describe('SettingsPanel', () => {
     const longError =
       'mongodump was not found. Install MongoDB Database Tools on the backend host or configure BACKUP_CREATE_COMMAND/BACKUP_RESTORE_COMMAND.';
 
-    vi.mocked(listBackups).mockResolvedValueOnce([
+    vi.mocked(backupApi.listBackups).mockResolvedValueOnce([
       {
         id: 'project-goods-20260607-123001',
         createdAt: '2026-06-07T12:30:01.000Z',
@@ -271,11 +312,11 @@ describe('SettingsPanel', () => {
     render(<BackupOnlySettingsPanelHarness />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-    expect(deleteBackup).not.toHaveBeenCalled();
+    expect(backupApi.deleteBackup).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!);
 
-    expect(deleteBackup).toHaveBeenCalledWith('project-goods-20260607-100000');
+    expect(backupApi.deleteBackup).toHaveBeenCalledWith('project-goods-20260607-100000');
     expect(await screen.findByText('Backup deleted.')).toBeInTheDocument();
   });
 
@@ -318,7 +359,7 @@ describe('SettingsPanel', () => {
 
     fireEvent.click(confirmButton);
 
-    expect(restoreBackupFromFile).toHaveBeenCalledWith(file, 'RESTORE');
+    expect(backupApi.restoreBackupFromFile).toHaveBeenCalledWith(file, 'RESTORE');
     expect(await screen.findByText('Backup file restored. Safety backup: project-goods-20260607-100100-safety.')).toBeInTheDocument();
   });
 });

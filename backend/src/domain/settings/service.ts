@@ -48,6 +48,50 @@ const defaultDashboardPreferences = {
   defaultForecastView: 'today' as const,
 };
 
+const defaultLabelContentMargins = {
+  topMm: 0.45,
+  rightMm: 1.25,
+  bottomMm: 0.45,
+  leftMm: 1.25,
+};
+
+const defaultDocumentContentMargins = {
+  topMm: 0,
+  rightMm: 0,
+  bottomMm: 0,
+  leftMm: 0,
+};
+
+const clampContentMarginMm = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 0), 60);
+};
+
+const normalizeFormContentMargins = (
+  margins:
+    | {
+        topMm?: unknown;
+        rightMm?: unknown;
+        bottomMm?: unknown;
+        leftMm?: unknown;
+      }
+    | undefined,
+  pageSize: 'A4' | 'label',
+) => {
+  const defaults =
+    pageSize === 'label'
+      ? defaultLabelContentMargins
+      : defaultDocumentContentMargins;
+
+  return {
+    topMm: clampContentMarginMm(margins?.topMm, defaults.topMm),
+    rightMm: clampContentMarginMm(margins?.rightMm, defaults.rightMm),
+    bottomMm: clampContentMarginMm(margins?.bottomMm, defaults.bottomMm),
+    leftMm: clampContentMarginMm(margins?.leftMm, defaults.leftMm),
+  };
+};
+
 const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
   const rawPrintForms = Array.isArray(forms) ? forms : [];
   if (rawPrintForms.length === 0) return defaultPrintForms;
@@ -82,9 +126,22 @@ const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
         ? defaultForm ?? form
         : form;
 
-      const pageSize =
-        normalizedForm.pageSize ||
-        (String(normalizedForm.type) === 'barcode' ? 'label' : 'A4');
+      const pageSize: 'A4' | 'label' =
+        normalizedForm.pageSize === 'label'
+          ? 'label'
+          : normalizedForm.pageSize === 'A4'
+            ? 'A4'
+            : String(normalizedForm.type) === 'barcode'
+              ? 'label'
+              : 'A4';
+      const formWithMargins = normalizedForm as typeof normalizedForm & {
+        contentMargins?: {
+          topMm?: unknown;
+          rightMm?: unknown;
+          bottomMm?: unknown;
+          leftMm?: unknown;
+        };
+      };
 
       return {
         ...normalizedForm,
@@ -94,6 +151,10 @@ const normalizePrintForms = (forms: SettingsDocument['printForms']) => {
           pageSize === 'label'
             ? { ...defaultLabelSize, ...(normalizedForm.labelSize ?? {}) }
             : normalizedForm.labelSize,
+        contentMargins: normalizeFormContentMargins(
+          formWithMargins.contentMargins,
+          pageSize,
+        ),
         orientation: normalizedForm.orientation ?? 'portrait',
       };
     }),

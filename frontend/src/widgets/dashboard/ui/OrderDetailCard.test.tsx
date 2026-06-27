@@ -1,10 +1,14 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
+import * as clientDeviceApi from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
+import * as productApi from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import * as warehouseSettingsApi from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import type { WarehouseSettings } from '../../../entities/warehouse-settings/model/types';
 import { OrderDetailCard } from './OrderDetailCard';
 import {
   orderDetailSectionsStorageKey,
@@ -17,28 +21,7 @@ type OrderDetailCardProps = ComponentProps<typeof OrderDetailCard>;
 const { getProductsMock, getClientDevicesMock, getWarehouseSettingsMock } = vi.hoisted(() => ({
   getProductsMock: vi.fn(async (_query = ''): Promise<Product[]> => []),
   getClientDevicesMock: vi.fn(async (_query = ''): Promise<ClientDevice[]> => []),
-  getWarehouseSettingsMock: vi.fn(async () => ({
-    warehouses: [
-      {
-        id: 'wh-main',
-        name: 'Main warehouse',
-        isActive: true,
-        serviceCenterId: 'sc-1',
-        receiptAddress: '',
-        receiptPhone: '',
-        locations: [{ id: 'loc-1', name: 'Shelf A' }],
-      },
-      {
-        id: 'wh-second',
-        name: 'Second warehouse',
-        isActive: true,
-        serviceCenterId: 'sc-1',
-        receiptAddress: '',
-        receiptPhone: '',
-        locations: [{ id: 'loc-2', name: 'Shelf B' }],
-      },
-    ],
-  })),
+  getWarehouseSettingsMock: vi.fn(),
 }));
 
 vi.mock('../../../entities/product/api/productApi', async (importOriginal) => {
@@ -61,15 +44,9 @@ vi.mock('../../../entities/client-device/api/clientDeviceApi', async (importOrig
   };
 });
 
-vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../entities/warehouse-settings/api/warehouseSettingsApi')
-  >();
-  return {
-    ...actual,
-    getWarehouseSettings: getWarehouseSettingsMock,
-  };
-});
+vi.mock('../../../entities/warehouse-settings/api/warehouseSettingsApi', () => ({
+  getWarehouseSettings: getWarehouseSettingsMock,
+}));
 
 vi.mock('../../../entities/service-catalog/api/serviceCatalogApi', () => ({
   createServiceCatalogItem: vi.fn(),
@@ -319,18 +296,81 @@ const renderCard = (options: Parameters<typeof buildCardElement>[0] = {}) => {
   return { ...result, onCreateClientDevice, onOpenRelatedSale, onSaveMainInfo };
 };
 
+const warehouseSettingsFixture: WarehouseSettings = {
+  id: 'warehouse-settings-test',
+  serviceCenters: [
+    {
+      id: 'sc-1',
+      name: 'Main service center',
+      color: '#336699',
+      address: '',
+      phone: '',
+    },
+  ],
+  warehouses: [
+    {
+      id: 'wh-main',
+      name: 'Main warehouse',
+      isActive: true,
+      serviceCenterId: 'sc-1',
+      receiptAddress: '',
+      receiptPhone: '',
+      locations: [{ id: 'loc-1', name: 'Shelf A' }],
+    },
+    {
+      id: 'wh-second',
+      name: 'Second warehouse',
+      isActive: true,
+      serviceCenterId: 'sc-1',
+      receiptAddress: '',
+      receiptPhone: '',
+      locations: [{ id: 'loc-2', name: 'Shelf B' }],
+    },
+  ],
+  administrators: [],
+  createdAt: '2026-06-09T00:00:00.000Z',
+  updatedAt: '2026-06-09T00:00:00.000Z',
+};
+
+const restoreApiMocks = () => {
+  getClientDevicesMock.mockImplementation(async () => []);
+  getProductsMock.mockImplementation(async () => []);
+  getWarehouseSettingsMock.mockImplementation(async () => warehouseSettingsFixture);
+  vi.spyOn(productApi, 'getProducts').mockImplementation((query = '') =>
+    getProductsMock(query),
+  );
+  vi.spyOn(clientDeviceApi, 'getClientDevices').mockImplementation((query = '') =>
+    getClientDevicesMock(query),
+  );
+  vi.spyOn(warehouseSettingsApi, 'getWarehouseSettings').mockImplementation(
+    async () => warehouseSettingsFixture,
+  );
+};
+
 beforeEach(() => {
   vi.useRealTimers();
-  getClientDevicesMock.mockResolvedValue([]);
-  getProductsMock.mockResolvedValue([]);
+  restoreApiMocks();
 });
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  getProductsMock.mockClear();
+  getClientDevicesMock.mockClear();
+  getWarehouseSettingsMock.mockClear();
+  vi.mocked(warehouseSettingsApi.getWarehouseSettings).mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
 });
+
+const waitForSerialBindModal = async () => {
+  const modal = await screen.findByRole('dialog', {
+    name: /bind serial numbers/i,
+  });
+  await waitFor(() => {
+    expect(within(modal).getByLabelText('Warehouse')).toHaveValue('wh-main');
+  });
+  return modal;
+};
 
 describe('OrderDetailCard create order header action', () => {
   it('shows create order button and calls onCreateOrder when clicked', () => {
@@ -736,7 +776,7 @@ describe('OrderDetailCard product entry', () => {
         warehouseId: 'wh-second',
       }),
     ];
-    getProductsMock.mockResolvedValue(stockProducts);
+    getProductsMock.mockImplementation(async () => stockProducts);
 
     renderCard({
       products: stockProducts,
@@ -757,22 +797,20 @@ describe('OrderDetailCard product entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Warehouse')).toHaveValue('wh-main');
-    });
+    const modal = await waitForSerialBindModal();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /\[ \] S000004/i })).not.toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
+      expect(within(modal).queryByRole('button', { name: /\[ \] S000004/i })).not.toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText('Warehouse'), {
+    fireEvent.change(within(modal).getByLabelText('Warehouse'), {
       target: { value: 'wh-second' },
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /\[ \] S000003/i })).not.toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+      expect(within(modal).queryByRole('button', { name: /\[ \] S000003/i })).not.toBeInTheDocument();
     });
   });
 
@@ -782,9 +820,9 @@ describe('OrderDetailCard product entry', () => {
       product({ id: 'product-1', serialNumber: 'S000003' }),
       product({ id: 'product-2', serialNumber: 'S000004' }),
     ];
-    getProductsMock.mockResolvedValue(stockProducts);
+    getProductsMock.mockImplementation(async () => stockProducts);
 
-    const { container } = renderCard({
+    renderCard({
       products: stockProducts,
       catalogProducts: [],
       onReplaceLineItem,
@@ -804,39 +842,48 @@ describe('OrderDetailCard product entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Warehouse')).toHaveValue('wh-main');
-      expect(screen.getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
-    });
-    expect(container.querySelector('.serial-bind-modal textarea')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000003/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Selected: 1')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Selected: 2')).toBeInTheDocument();
-    });
-
-    const selectedRemoveButton = container.querySelector<HTMLButtonElement>(
-      '.serial-bind-selected-item .line-item-remove-button',
-    );
-    expect(selectedRemoveButton).not.toBeNull();
-    fireEvent.click(selectedRemoveButton!);
-    expect(screen.getByText('Selected: 1')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear selected' }));
-    await waitFor(() => {
-      expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument();
-    });
+    const modal = await waitForSerialBindModal();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: /\[ \] S000004/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(within(modal).queryByRole('textbox')).toBeNull();
+
+    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000003/i }));
+    await waitFor(() => {
+      expect(within(modal).getByRole('button', { name: /\[x\] S000003/i })).toBeInTheDocument();
+      expect(within(modal).getByText('S000003', { selector: '.serial-bind-selected-item strong' }))
+        .toBeInTheDocument();
+    });
+    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000004/i }));
+    await waitFor(() => {
+      expect(within(modal).getByRole('button', { name: /\[x\] S000004/i })).toBeInTheDocument();
+      expect(within(modal).getAllByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }))
+        .toHaveLength(2);
+    });
+
+    const selectedRemoveButton = within(modal).getAllByRole('button', {
+      name: 'Remove',
+    })[0];
+    fireEvent.click(selectedRemoveButton);
+    await waitFor(() => {
+      expect(
+        within(modal).getAllByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }),
+      ).toHaveLength(1);
+    });
+
+    fireEvent.click(within(modal).getByRole('button', { name: 'Clear selected' }));
+    await waitFor(() => {
+      expect(within(modal).queryByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }))
+        .not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+    });
+    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000004/i }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Save' }));
 
     expect(onReplaceLineItem).toHaveBeenCalledWith(
       'line-item-1',

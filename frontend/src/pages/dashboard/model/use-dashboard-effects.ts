@@ -19,6 +19,7 @@ import type { ServiceCatalogItem } from '../../../entities/service-catalog/model
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
+import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import { queryKeys } from '../../../shared/api/queryClient';
@@ -28,6 +29,7 @@ type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
 type DashboardEffectsParams = {
   enabled: boolean;
+  employeeId: string | null;
   selectedClientId: string | null;
   setAllProducts: Setter<Product[]>;
   setClientDevices: Setter<ClientDevice[]>;
@@ -54,6 +56,7 @@ type DashboardEffectsParams = {
 
 export const useDashboardEffects = ({
   enabled,
+  employeeId,
   selectedClientId,
   setAllProducts,
   setClientDevices,
@@ -120,7 +123,10 @@ export const useDashboardEffects = ({
             companyIban: settingsResult.value.companyIban,
             companyEmail: settingsResult.value.companyEmail,
             companySite: settingsResult.value.companySite,
-            printForms: settingsResult.value.printForms,
+            printForms: applyPrintFormLocalOverrides(
+              settingsResult.value.printForms,
+              employeeId,
+            ),
             orderDefaults: settingsResult.value.orderDefaults,
             numbering: settingsResult.value.numbering,
             financeDefaults: settingsResult.value.financeDefaults,
@@ -148,6 +154,7 @@ export const useDashboardEffects = ({
       isActive = false;
     };
   }, [
+    employeeId,
     enabled,
     setAllClients,
     setAllEmployees,
