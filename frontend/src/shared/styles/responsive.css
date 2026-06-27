@@ -659,15 +659,13 @@
   }
 
   .finance-orders-payment-actions {
-    grid-template-columns: minmax(118px, 1fr) 58px minmax(118px, 1fr);
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .finance-orders-payment-actions .primary-button {
-    width: 58px;
-    min-width: 58px;
-  }
-
+  .finance-orders-payment-actions .primary-button,
   .finance-orders-payment-actions .secondary-button {
+    width: 100%;
     min-width: 0;
   }
 

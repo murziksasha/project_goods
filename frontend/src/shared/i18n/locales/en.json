@@ -1852,6 +1852,7 @@
       "byArticle": "By article",
       "buyer": "Buyer",
       "location": "Location",
+      "status": "Status",
       "starredOnly": "Starred only",
       "productNamePlaceholder": "Product name",
       "serialPlaceholder": "Serial number",

@@ -54,4 +54,60 @@ describe('warehouse-panel receipts filtering', () => {
       }).map((receipt) => receipt.id),
     ).toEqual(['receipt-2']);
   });
+
+  it('filters receipts by status', () => {
+    const receipts = [
+      makeReceipt({ id: 'receipt-new', status: 'new' }),
+      makeReceipt({ id: 'receipt-received', status: 'received' }),
+      makeReceipt({ id: 'receipt-cancelled', status: 'cancelled' }),
+    ];
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: { ...initialWarehouseFilters, status: 'received' },
+      }).map((receipt) => receipt.id),
+    ).toEqual(['receipt-received']);
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: initialWarehouseFilters,
+      }).map((receipt) => receipt.id),
+    ).toEqual(['receipt-new', 'receipt-received', 'receipt-cancelled']);
+  });
+
+  it('combines status and favorites filters', () => {
+    const receipts = [
+      makeReceipt({
+        id: 'receipt-starred-received',
+        status: 'received',
+        supplierOrderIsFavorite: true,
+      }),
+      makeReceipt({
+        id: 'receipt-starred-new',
+        status: 'new',
+        supplierOrderIsFavorite: true,
+      }),
+      makeReceipt({
+        id: 'receipt-received',
+        status: 'received',
+        supplierOrderIsFavorite: false,
+      }),
+    ];
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: {
+          ...initialWarehouseFilters,
+          status: 'received',
+          favoritesOnly: true,
+        },
+      }).map((receipt) => receipt.id),
+    ).toEqual(['receipt-starred-received']);
+  });
 });
