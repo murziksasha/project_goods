@@ -6,6 +6,7 @@ import * as clientDeviceApi from '../../../entities/client-device/api/clientDevi
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import * as productApi from '../../../entities/product/api/productApi';
 import type { Product } from '../../../entities/product/model/types';
+import { defaultPrintForms } from '../../../entities/settings/model/printForms';
 import type { Sale } from '../../../entities/sale/model/types';
 import * as warehouseSettingsApi from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseSettings } from '../../../entities/warehouse-settings/model/types';
@@ -251,6 +252,7 @@ const buildCardElement = ({
       comments={comments}
       lineItems={lineItems}
       products={products}
+      printForms={defaultPrintForms}
       clientDevices={clientDevices}
       catalogProducts={catalogProducts}
       paidAmount={0}
@@ -1216,6 +1218,7 @@ describe('OrderDetailCard product entry', () => {
         comments={[]}
         lineItems={[]}
         products={[product()]}
+        printForms={defaultPrintForms}
         clientDevices={[]}
         catalogProducts={[catalogProduct()]}
         paidAmount={0}

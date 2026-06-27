@@ -5,7 +5,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ## Navigation
 - Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Settings`
-- Related flow docs: [ORDER_FLOW.md](./ORDER_FLOW.md), [SALE_FLOW.md](./SALE_FLOW.md), [ACCOUNTING.MD](./ACCOUNTING.MD), [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md)
+- Related flow docs: [ORDER_FLOW.md](./ORDER_FLOW.md), [SALE_FLOW.md](./SALE_FLOW.md), [ACCOUNTING.MD](./ACCOUNTING.MD), [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md), [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md)
 
 ### Client order links (Stock balances)
 - Column `Client order` renders linked sale/order numbers with a shareable `href` built via `getOrderLink(saleId, kind)`.
@@ -144,6 +144,76 @@ This document defines current warehouse requirements for stock balances, receipt
 - Saving the modal updates all and only matching `Product` stock rows.
 - Saving does not update `CatalogProduct` and does not create stock rows.
 - If no matching stock rows exist, balances are shown as zero and stock-backed fields cannot be saved.
+
+### 4.5) Serial Label Printing (Stock Balances)
+
+Warehouse serial labels use the dedicated print form **`Product barcode`** (`formId: warehouse-barcode`). It is separate from the order label form **`Barcode`** (`formId: barcode`). Template rules: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#product-barcode-warehouse-stock-label).
+
+#### Entry Points
+
+1. **Bulk print from toolbar** — `Stock balances` tab, printer icon in the warehouse toolbar.
+2. **Single print from product model modal** — click `Serial #` in the stock table to open the modal with a print action for that exact stock row.
+3. **Optional print after take-on-charge** — `SupplierOrderModal` checkbox `Print serial numbers after receipt` (uses the same print pipeline).
+
+#### Selection Rules (Bulk Print)
+
+1. Operator selects stock rows with the `Select` checkbox. Selection persists across pagination and filters until cleared.
+2. Only rows with a non-empty trimmed `serialNumber` are printable.
+3. Toolbar printer button is enabled only when `selectedSerialCount > 0`.
+4. Toolbar tooltip shows the printable count, for example `Print selected: 30`.
+5. Rows without a serial number may stay selected for other actions, but are excluded from the print payload.
+
+#### Data Mapping
+
+Each printed label is built from one stock `Product` row:
+
+| Template variable | Source |
+|---|---|
+| `{{barcode}}` / `{{labelCode}}` | `product.serialNumber` (CODE128 value and visible code line) |
+| `{{labelTitle}}` | `product.name` |
+| `{{labelContact}}` | `product.article` (empty string when absent) |
+
+#### Print Form And Settings Source
+
+1. `WarehousePanel` receives merged `printForms` from dashboard settings (`applyPrintFormLocalOverrides` per employee).
+2. Warehouse printing resolves the active form by `warehouse-barcode`.
+3. On first load after rollout, if `warehouse-barcode` is missing in stored settings, the frontend creates it by copying layout settings from the current `barcode` form (margins, label size, orientation, layout blocks, active flag).
+4. Operators tune warehouse labels in `Settings -> Print -> Product barcode` without changing order labels.
+
+#### Single vs Multi Print Behavior
+
+| Scenario | Items | Print mode | Result |
+|---|---|---|---|
+| Product model modal | 1 | single-label | one physical label page |
+| Toolbar bulk print | 1 | single-label | one physical label page |
+| Toolbar bulk print | 2+ | **batch-label** | one physical label page per selected serial |
+
+Multi-print rules:
+
+1. Frontend generates one `<section class="print-form print-form-label">` per printable item.
+2. When `items.length > 1`, print HTML uses batch classes `print-html-label-batch` / `print-body-label-batch`.
+3. In batch mode, `html/body` are allowed to grow vertically; each label section keeps the configured physical size and receives `page-break-after: always`.
+4. Single-label mode keeps the existing one-label container (`overflow: hidden` on `html/body`) for order-like preview behavior.
+5. `@page` size for every label page comes from the oriented `warehouse-barcode` label preset (default `40 x 25 mm`, landscape).
+
+Implementation references:
+
+- selection and toolbar action: `src/widgets/dashboard/ui/WarehousePanel.tsx`, `WarehouseToolbar.tsx`
+- print pipeline: `src/widgets/dashboard/ui/orders-workspace-shared.ts` (`printWarehouseSerialLabels`)
+- batch CSS: `src/entities/settings/model/printForms.ts` (`printLabelDocumentStyles`)
+
+#### Operator Expectations
+
+1. Selecting 30 rows with serial numbers must produce 30 label pages in the browser print preview.
+2. Each page must scan the correct serial; barcode value equals the stock row serial, not article or product id.
+3. Changing `Product barcode` size/orientation/margins in Settings must affect the next warehouse print without redeploy.
+4. Order-card product model printing uses the same `warehouse-barcode` form when `printForms` are passed from `OrdersWorkspace`; otherwise it falls back to built-in defaults.
+
+#### Regression Tests
+
+- `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
+- `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
+- `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row.
 
 ## Receipts Requirements
 

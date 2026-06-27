@@ -91,6 +91,7 @@ import {
   type WarehouseTab,
 } from '../model/warehouse-panel';
 export const WarehousePanel = ({
+  printForms,
   products,
   sales,
   catalogProducts,
@@ -747,9 +748,10 @@ export const WarehousePanel = ({
         article: product.article,
         serialNumber: product.serialNumber,
       })),
+      printForms,
       i18n.t('warehouse.print.serialNumbersTitle'),
     );
-  }, [i18n, selectedStockProductsWithSerials]);
+  }, [i18n, printForms, selectedStockProductsWithSerials]);
 
   useEffect(() => {
     setSelectedStockProductIds((current) => {
@@ -1874,6 +1876,7 @@ export const WarehousePanel = ({
               name={selectedProductModelContext.name}
               products={products}
               warehouses={warehouses}
+              printForms={printForms}
               printProduct={selectedProductModelContext.printProduct}
               isSaving={isProductSaving}
               onClose={() => setSelectedProductModelContext(null)}
@@ -2101,6 +2104,7 @@ export const WarehousePanel = ({
 
       <SupplierOrderModal
         isOpen={isSupplierOrderModalOpen}
+        printForms={printForms}
         suppliers={suppliers}
         editingOrder={editingSupplierOrder}
         forceReadOnly={!canManageSupplierOrders}

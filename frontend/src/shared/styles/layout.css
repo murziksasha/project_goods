@@ -8137,6 +8137,42 @@
   line-height: 1;
 }
 
+.settings-print-preview-page .print-block-weight-light {
+  font-weight: 300;
+}
+
+.settings-print-preview-page .print-block-weight-normal {
+  font-weight: 400;
+}
+
+.settings-print-preview-page .print-block-weight-bold {
+  font-weight: 700;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-block-weight-light {
+  font-weight: 300;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-block-weight-normal {
+  font-weight: 400;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-block-weight-bold {
+  font-weight: 700;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph.print-block-weight-light {
+  font-weight: 300;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph.print-block-weight-normal {
+  font-weight: 400;
+}
+
+.settings-print-preview-page .print-label .print-block-paragraph.print-block-weight-bold {
+  font-weight: 700;
+}
+
 .settings-print-preview-page .print-document .print-block-paragraph-level-1 {
   font-size: 22px;
 }

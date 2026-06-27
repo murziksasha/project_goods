@@ -17,6 +17,7 @@ import type {
 } from '../../../entities/supplier/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import type { PrintForm } from '../../../entities/settings/model/types';
 import type {
   StockSupplierOrderLink,
   StockWarehouseMeta,
@@ -183,6 +184,7 @@ export type TransferHistoryRow = {
 };
 
 export type WarehousePanelProps = {
+  printForms: PrintForm[];
   products: Product[];
   sales: Sale[];
   catalogProducts: CatalogProduct[];

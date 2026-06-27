@@ -16,7 +16,7 @@ Project Goods - full-stack приложение для учета товаров
 - [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - business home page: analytics date filter, market rates, weather widget (Chornomorsk/Odesa presets, animation, LAN mode), settings
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
 - [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж (включая **Rapid sale** — быстрый продаж без клиента)
-- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (включая актуальные правила артикула: `A000001+`, без `SO-*` генерации артикула)
+- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (артикул `A000001+`, мультипечать серийных этикеток из `Stock balances`)
 - [ACCOUNTING.MD](./DOCUMENTATION/ACCOUNTING.MD) - flow финансов/касс
 - [Permission_Flow.md](./DOCUMENTATION/Permission_Flow.md) - flow прав доступа сотрудников, ролей, supplier-order permissions и finance permissions
 
@@ -26,6 +26,7 @@ Project Goods - full-stack приложение для учета товаров
 - [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - правила по клиентам и статусам
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
+- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы (конструктор блоков, жирность текста Light/Normal/Bold, `Product barcode`, batch-печать со склада)
 - [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
 
 ### Служебная и проектная документация
