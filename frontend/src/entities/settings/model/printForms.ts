@@ -1,5 +1,6 @@
 import type {
   AppSettingsFormValues,
+  PrintContentMargins,
   RateProvider,
   PrintForm,
   PrintLayoutBlock,
@@ -82,6 +83,53 @@ export const getOrientedLabelSize = (
         heightMm: labelSize.widthMm,
       }
     : labelSize;
+
+export const defaultLabelContentMargins: PrintContentMargins = {
+  topMm: 0.45,
+  rightMm: 1.25,
+  bottomMm: 0.45,
+  leftMm: 1.25,
+};
+
+export const defaultDocumentContentMargins: PrintContentMargins = {
+  topMm: 0,
+  rightMm: 0,
+  bottomMm: 0,
+  leftMm: 0,
+};
+
+export const maxContentMarginMm = 60;
+
+const clampContentMarginMm = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 0), maxContentMarginMm);
+};
+
+export const normalizeContentMargins = (
+  margins: PrintContentMargins | undefined,
+  pageSize: PrintForm['pageSize'],
+): PrintContentMargins => {
+  const defaults =
+    pageSize === 'label'
+      ? defaultLabelContentMargins
+      : defaultDocumentContentMargins;
+
+  return {
+    topMm: clampContentMarginMm(margins?.topMm, defaults.topMm),
+    rightMm: clampContentMarginMm(margins?.rightMm, defaults.rightMm),
+    bottomMm: clampContentMarginMm(margins?.bottomMm, defaults.bottomMm),
+    leftMm: clampContentMarginMm(margins?.leftMm, defaults.leftMm),
+  };
+};
+
+export const getPrintContentMarginVars = (margins: PrintContentMargins) =>
+  [
+    `--content-margin-top: ${margins.topMm}mm`,
+    `--content-margin-right: ${margins.rightMm}mm`,
+    `--content-margin-bottom: ${margins.bottomMm}mm`,
+    `--content-margin-left: ${margins.leftMm}mm`,
+  ].join('; ');
 
 export type PrintFormVariable =
   | 'id'
@@ -982,6 +1030,10 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
           pageSize === 'label'
             ? normalizeLabelSize(normalizedForm.labelSize)
             : normalizedForm.labelSize,
+        contentMargins: normalizeContentMargins(
+          normalizedForm.contentMargins,
+          pageSize,
+        ),
         orientation: normalizedForm.orientation ?? 'portrait',
         sortOrder: Number.isFinite(normalizedForm.sortOrder)
           ? normalizedForm.sortOrder
@@ -1120,6 +1172,10 @@ export const printDocumentStyles = `
   .invoice-signature { display: grid; grid-template-columns: 120px 1fr 220px; align-items: end; gap: 16px; margin-top: 24px; font-size: 12px; }
   .invoice-signature span { border-bottom: 1px solid #333; height: 18px; }
   .invoice-note { margin-top: 44px; font-size: 11px; }
+  .print-form .print-document {
+    box-sizing: border-box;
+    padding: var(--content-margin-top, 0mm) var(--content-margin-right, 0mm) var(--content-margin-bottom, 0mm) var(--content-margin-left, 0mm);
+  }
   @media print {
     body { margin: 0; }
     .print-form { border: 0 !important; margin: 0 !important; padding: 0 !important; }
@@ -1134,9 +1190,9 @@ export const printLabelDocumentStyles = `
   .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }
   .print-form-label .print-label { width: 100%; height: 100%; box-sizing: border-box; }
   body.print-screen-preview .print-form-label { margin: 0 auto 18px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.32); page-break-after: auto; zoom: 3.6; }
-  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2mm; overflow: hidden; padding: 0.45mm 1.25mm 0.45mm; text-align: center; font-size: 8px; line-height: 1.1; }
+  .print-label { box-sizing: border-box; width: var(--label-width, 25mm); height: var(--label-height, 40mm); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2mm; overflow: hidden; padding: var(--content-margin-top, 0.45mm) var(--content-margin-right, 1.25mm) var(--content-margin-bottom, 0.45mm) var(--content-margin-left, 1.25mm); text-align: center; font-size: 8px; line-height: 1.1; }
   .print-label-code { width: 100%; display: flex; justify-content: center; }
-  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - 2.5mm); max-width: 100%; height: 11.6mm; }
+  .print-label-code .print-barcode { width: calc(var(--label-width, 25mm) - var(--content-margin-left, 1.25mm) - var(--content-margin-right, 1.25mm)); max-width: 100%; height: 11.6mm; }
   .print-label .print-code-row { width: 100%; margin: 0; justify-content: center; }
   .print-label .print-code-row-compact .print-barcode { height: 9mm; }
   .print-label .print-code-row-standard .print-barcode { height: 10.4mm; }

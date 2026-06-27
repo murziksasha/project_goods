@@ -99,6 +99,13 @@ export type PrintLayoutBlock =
       }>;
     };
 
+export type PrintContentMargins = {
+  topMm: number;
+  rightMm: number;
+  bottomMm: number;
+  leftMm: number;
+};
+
 export type PrintForm = {
   id: string;
   title: string;
@@ -113,6 +120,7 @@ export type PrintForm = {
     widthMm: number;
     heightMm: number;
   };
+  contentMargins?: PrintContentMargins;
   orientation: 'portrait' | 'landscape';
   isActive: boolean;
   sortOrder: number;
