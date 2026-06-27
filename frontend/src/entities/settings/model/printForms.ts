@@ -292,15 +292,37 @@ const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
 const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
   align && align !== 'left' ? ` print-align-${align}` : '';
 
+const weightClass = (weight: 'light' | 'normal' | 'bold' | undefined) =>
+  weight ? ` print-block-weight-${weight}` : '';
+
 export const clampTextLevel = (level: unknown): 1 | 2 | 3 =>
   level === 1 || level === 2 || level === 3 ? level : 3;
 
+export const clampTextWeight = (
+  weight: unknown,
+): 'light' | 'normal' | 'bold' | undefined =>
+  weight === 'light' || weight === 'normal' || weight === 'bold' ? weight : undefined;
+
 export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
   switch (block.type) {
-    case 'heading':
-      return { ...block, level: clampTextLevel(block.level) };
-    case 'paragraph':
-      return { ...block, level: clampTextLevel(block.level) };
+    case 'heading': {
+      const { weight: rawWeight, ...rest } = block;
+      const weight = clampTextWeight(rawWeight);
+      return {
+        ...rest,
+        level: clampTextLevel(block.level),
+        ...(weight ? { weight } : {}),
+      };
+    }
+    case 'paragraph': {
+      const { weight: rawWeight, ...rest } = block;
+      const weight = clampTextWeight(rawWeight);
+      return {
+        ...rest,
+        level: clampTextLevel(block.level),
+        ...(weight ? { weight } : {}),
+      };
+    }
     case 'columns':
       return {
         ...block,
@@ -395,11 +417,13 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
       switch (block.type) {
         case 'heading': {
           const level = clampTextLevel(block.level);
-          return `<h${level} class="print-block-heading${alignClass(block.align)}">${renderInlineTemplate(block.text)}</h${level}>`;
+          const weight = clampTextWeight(block.weight);
+          return `<h${level} class="print-block-heading${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</h${level}>`;
         }
         case 'paragraph': {
           const level = clampTextLevel(block.level);
-          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}">${renderInlineTemplate(block.text)}</p>`;
+          const weight = clampTextWeight(block.weight);
+          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</p>`;
         }
         case 'fieldRow':
           return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, 2)}</tbody></table>`;
@@ -688,9 +712,9 @@ export const createPrintLayoutBlock = (
   const id = makeBlockId(type, index);
   switch (type) {
     case 'heading':
-      return { id, type, level: 1, text: 'New heading', align: 'left' };
+      return { id, type, level: 1, text: 'New heading', align: 'left', weight: 'normal' };
     case 'paragraph':
-      return { id, type, level: 3, text: 'New text {{orderNumber}}', align: 'left' };
+      return { id, type, level: 3, text: 'New text {{orderNumber}}', align: 'left', weight: 'normal' };
     case 'fieldRow':
       return {
         id,
@@ -761,7 +785,7 @@ export const createPrintLayoutBlock = (
         ],
       };
     default:
-      return { id, type: 'paragraph', level: 3, text: 'New text', align: 'left' };
+      return { id, type: 'paragraph', level: 3, text: 'New text', align: 'left', weight: 'normal' };
   }
 };
 
@@ -1244,6 +1268,9 @@ export const printDocumentStyles = `
   .print-align-center { text-align: center; }
   .print-align-right { text-align: right; }
   .print-block-paragraph { white-space: normal; }
+  .print-block-weight-light { font-weight: 300; }
+  .print-block-weight-normal { font-weight: 400; }
+  .print-block-weight-bold { font-weight: 700; }
   .print-document .print-block-paragraph-level-1 { font-size: 22px; }
   .print-document .print-block-paragraph-level-2 { font-size: 18px; }
   .print-document .print-block-paragraph-level-3 { font-size: 13px; }
@@ -1300,7 +1327,13 @@ export const printLabelDocumentStyles = `
   .print-label .print-code-value { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
   .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
   .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label .print-block-heading.print-block-weight-light { font-weight: 300; }
+  .print-label .print-block-heading.print-block-weight-normal { font-weight: 400; }
+  .print-label .print-block-heading.print-block-weight-bold { font-weight: 700; }
   .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
+  .print-label .print-block-paragraph.print-block-weight-light { font-weight: 300; }
+  .print-label .print-block-paragraph.print-block-weight-normal { font-weight: 400; }
+  .print-label .print-block-paragraph.print-block-weight-bold { font-weight: 700; }
   .print-label .print-block-paragraph-level-1 { font-size: 12px; }
   .print-label .print-block-paragraph-level-2 { font-size: 10px; }
   .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }

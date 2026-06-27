@@ -4,6 +4,66 @@ This document is the living specification for built-in and corrected print templ
 When a print template is changed, add the intended behavior here before or together
 with implementation updates.
 
+## Layout Builder (Block-Based Templates)
+
+Templates with `layoutVersion: 1` are edited in **Settings → Print forms** via the
+block layout builder (`PrintFormBuilder`). Block definitions are stored in
+`printForms[].layoutBlocks` on the server (MongoDB). The builder regenerates
+`content` as HTML on each edit.
+
+### Text Blocks
+
+Two block types expose free-form text with shared typography controls:
+
+| Builder label | Block type | HTML output |
+|---|---|---|
+| Heading | `heading` | `<h1>`–`<h3>` with class `print-block-heading` |
+| Text | `paragraph` | `<p>` with classes `print-block-paragraph` and `print-block-paragraph-level-{1\|2\|3}` |
+
+Editable fields for both types:
+
+| Field | Property | Values | Default (new block) | Notes |
+|---|---|---|---|---|
+| Text | `text` | string | placeholder with `{{orderNumber}}` for paragraph | supports `{{variable}}` tokens |
+| Level | `level` | `1`, `2`, `3` | `1` for heading, `3` for paragraph | controls font **size** (H1/H2/H3 or paragraph size tier) |
+| Weight | `weight` | `light`, `normal`, `bold` | `normal` | controls font **weight**; see below |
+| Align | `align` | `left`, `center`, `right` | `left` | omitted in HTML when `left` |
+
+#### Font weight (`weight`)
+
+- **Purpose:** let authors set text heaviness independently from Level (size).
+- **UI labels:** Light / Normal / Bold (localized in `settings.printBuilder.weight*`).
+- **CSS mapping:**
+
+| `weight` | CSS class | `font-weight` |
+|---|---|---|
+| `light` | `print-block-weight-light` | 300 |
+| `normal` | `print-block-weight-normal` | 400 |
+| `bold` | `print-block-weight-bold` | 700 |
+
+- **Rendering:** when `weight` is set, the class is appended to the heading or
+  paragraph element. Label templates (`.print-label`) use higher-specificity rules
+  so an explicit weight overrides built-in label defaults (e.g. heading `800`).
+- **Backward compatibility:** blocks saved before this feature have no `weight`
+  field. Normalization leaves `weight` unset; no weight class is emitted and
+  existing print output is unchanged. The builder shows **Normal** in the dropdown
+  for such blocks; choosing a value persists `weight` on save.
+- **Implementation:** `PrintLayoutTextWeight` in `types.ts`; `clampTextWeight`,
+  `normalizePrintLayoutBlock`, and `renderPrintLayoutBlocks` in `printForms.ts`;
+  `WeightInput` in `PrintFormBuilder.tsx`; styles in `printDocumentStyles`,
+  `printLabelDocumentStyles`, and `.settings-print-preview-page` preview CSS.
+
+#### Regression tests
+
+- `printForms.test.ts`: renders weight classes; legacy blocks without `weight`
+  omit them; normalization keeps valid weights and drops invalid values.
+
+### Other Block Types
+
+Non-text blocks (field grid, tables, barcode, signatures, divider, spacer,
+columns, etc.) are unchanged. Nested paragraphs inside **Columns** preserve
+`level`, `align`, and `weight` when column text is edited.
+
 ## Product Barcode (Warehouse Stock Label)
 
 ### Purpose
@@ -153,7 +213,9 @@ Default label content margins when no override exists: `0.45 / 1.25 / 0.45 /
 - Barcode blocks may define a custom value template.
 - Barcode blocks may switch visual size between `compact`, `standard`, and `large`.
 - Barcode blocks may show or hide the human-readable value below the barcode.
-- Text blocks should support left, center, and right alignment.
+- Text blocks (`heading`, `paragraph`) should support Level (size), Weight
+  (`light` / `normal` / `bold`, default `normal`), and Align (`left` / `center` /
+  `right`).
 - Switching built-in templates in the print form builder must refresh the
   builder state and preview to the selected template.
 - Existing custom print forms must not be overwritten by built-in migrations.

@@ -197,6 +197,27 @@ describe('renderPrintLayout', () => {
 
     expect(rendered).toContain('print-block-paragraph-level-3');
   });
+
+  it('renders text weight classes for heading and paragraph blocks', () => {
+    const rendered = renderPrintLayout([
+      { id: 'heading', type: 'heading', level: 1, text: 'Bold heading', weight: 'bold' },
+      { id: 'paragraph', type: 'paragraph', level: 3, text: 'Light text', weight: 'light' },
+    ]);
+
+    expect(rendered).toContain('print-block-heading print-block-weight-bold');
+    expect(rendered).toContain('print-block-paragraph print-block-paragraph-level-3 print-block-weight-light');
+  });
+
+  it('does not add weight class for legacy text blocks without weight', () => {
+    const rendered = renderPrintLayout([
+      { id: 'heading', type: 'heading', level: 1, text: 'Legacy heading' },
+      { id: 'paragraph', type: 'paragraph', level: 3, text: 'Legacy text' },
+    ]);
+
+    expect(rendered).toContain('<h1 class="print-block-heading">Legacy heading</h1>');
+    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Legacy text</p>');
+    expect(rendered).not.toContain('print-block-weight-');
+  });
 });
 
 describe('normalizePrintLayoutBlocks', () => {
@@ -210,6 +231,16 @@ describe('normalizePrintLayoutBlocks', () => {
     const normalized = normalizePrintLayoutBlocks([legacyParagraph]);
 
     expect(normalized[0]).toMatchObject({ type: 'paragraph', level: 3 });
+  });
+
+  it('preserves valid text weight and drops invalid values', () => {
+    const normalized = normalizePrintLayoutBlocks([
+      { id: 'bold', type: 'paragraph', level: 3, text: 'Bold', weight: 'bold' } as PrintLayoutBlock,
+      { id: 'invalid', type: 'heading', level: 1, text: 'Heading', weight: 'heavy' } as unknown as PrintLayoutBlock,
+    ]);
+
+    expect(normalized[0]).toMatchObject({ weight: 'bold' });
+    expect(normalized[1]).not.toHaveProperty('weight');
   });
 
   it('normalizes nested column paragraph blocks', () => {

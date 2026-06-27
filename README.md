@@ -26,7 +26,7 @@ Project Goods - full-stack приложение для учета товаров
 - [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - правила по клиентам и статусам
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
-- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы (включая `Product barcode` и batch-печать со склада)
+- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы (конструктор блоков, жирность текста Light/Normal/Bold, `Product barcode`, batch-печать со склада)
 - [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
 
 ### Служебная и проектная документация
