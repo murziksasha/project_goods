@@ -1,13 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
-import { printSerialNumbers } from '../../../shared/lib/serialPrint';
+import { defaultPrintForms } from '../../../entities/settings/model/printForms';
+import * as ordersWorkspaceShared from './orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
-
-vi.mock('../../../shared/lib/serialPrint', () => ({
-  printSerialNumbers: vi.fn(),
-}));
-
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
   name: 'БЖ Meanwell 9V 1.66A',
@@ -36,6 +32,10 @@ afterEach(() => {
 
 describe('ProductModelModal serial printing', () => {
   it('prints only the clicked serial product', () => {
+    const printSpy = vi
+      .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
+      .mockResolvedValue();
+
     const clickedProduct = createProduct({
       id: 'clicked-product',
       serialNumber: 'R0035759',
@@ -51,6 +51,7 @@ describe('ProductModelModal serial printing', () => {
         name='БЖ Meanwell 9V 1.66A'
         products={[clickedProduct, otherProduct]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         printProduct={clickedProduct}
         onClose={vi.fn()}
         onSave={vi.fn(async () => true)}
@@ -59,7 +60,7 @@ describe('ProductModelModal serial printing', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Print serial number' }));
 
-    expect(printSerialNumbers).toHaveBeenCalledWith(
+    expect(printSpy).toHaveBeenCalledWith(
       [
         {
           name: clickedProduct.name,
@@ -67,8 +68,11 @@ describe('ProductModelModal serial printing', () => {
           serialNumber: clickedProduct.serialNumber,
         },
       ],
+      defaultPrintForms,
       'Warehouse serial number',
     );
+
+    printSpy.mockRestore();
   });
 
   it('hides the serial print action without a clicked product', () => {
@@ -77,6 +81,7 @@ describe('ProductModelModal serial printing', () => {
         name='БЖ Meanwell 9V 1.66A'
         products={[createProduct({})]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         onClose={vi.fn()}
         onSave={vi.fn(async () => true)}
       />,

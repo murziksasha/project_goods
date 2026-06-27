@@ -4,12 +4,145 @@ This document is the living specification for built-in and corrected print templ
 When a print template is changed, add the intended behavior here before or together
 with implementation updates.
 
-## Barcode Label
+## Layout Builder (Block-Based Templates)
+
+Templates with `layoutVersion: 1` are edited in **Settings → Print forms** via the
+block layout builder (`PrintFormBuilder`). Block definitions are stored in
+`printForms[].layoutBlocks` on the server (MongoDB). The builder regenerates
+`content` as HTML on each edit.
+
+### Text Blocks
+
+Two block types expose free-form text with shared typography controls:
+
+| Builder label | Block type | HTML output |
+|---|---|---|
+| Heading | `heading` | `<h1>`–`<h3>` with class `print-block-heading` |
+| Text | `paragraph` | `<p>` with classes `print-block-paragraph` and `print-block-paragraph-level-{1\|2\|3}` |
+
+Editable fields for both types:
+
+| Field | Property | Values | Default (new block) | Notes |
+|---|---|---|---|---|
+| Text | `text` | string | placeholder with `{{orderNumber}}` for paragraph | supports `{{variable}}` tokens |
+| Level | `level` | `1`, `2`, `3` | `1` for heading, `3` for paragraph | controls font **size** (H1/H2/H3 or paragraph size tier) |
+| Weight | `weight` | `light`, `normal`, `bold` | `normal` | controls font **weight**; see below |
+| Align | `align` | `left`, `center`, `right` | `left` | omitted in HTML when `left` |
+
+#### Font weight (`weight`)
+
+- **Purpose:** let authors set text heaviness independently from Level (size).
+- **UI labels:** Light / Normal / Bold (localized in `settings.printBuilder.weight*`).
+- **CSS mapping:**
+
+| `weight` | CSS class | `font-weight` |
+|---|---|---|
+| `light` | `print-block-weight-light` | 300 |
+| `normal` | `print-block-weight-normal` | 400 |
+| `bold` | `print-block-weight-bold` | 700 |
+
+- **Rendering:** when `weight` is set, the class is appended to the heading or
+  paragraph element. Label templates (`.print-label`) use higher-specificity rules
+  so an explicit weight overrides built-in label defaults (e.g. heading `800`).
+- **Backward compatibility:** blocks saved before this feature have no `weight`
+  field. Normalization leaves `weight` unset; no weight class is emitted and
+  existing print output is unchanged. The builder shows **Normal** in the dropdown
+  for such blocks; choosing a value persists `weight` on save.
+- **Implementation:** `PrintLayoutTextWeight` in `types.ts`; `clampTextWeight`,
+  `normalizePrintLayoutBlock`, and `renderPrintLayoutBlocks` in `printForms.ts`;
+  `WeightInput` in `PrintFormBuilder.tsx`; styles in `printDocumentStyles`,
+  `printLabelDocumentStyles`, and `.settings-print-preview-page` preview CSS.
+
+#### Regression tests
+
+- `printForms.test.ts`: renders weight classes; legacy blocks without `weight`
+  omit them; normalization keeps valid weights and drops invalid values.
+
+### Other Block Types
+
+Non-text blocks (field grid, tables, barcode, signatures, divider, spacer,
+columns, etc.) are unchanged. Nested paragraphs inside **Columns** preserve
+`level`, `align`, and `weight` when column text is edited.
+
+## Product Barcode (Warehouse Stock Label)
+
+### Purpose
+
+The `Product barcode` form (`formId: warehouse-barcode`) prints identification
+labels for **warehouse stock units** by serial number. It is used from:
+
+- `Warehouse -> Stock balances` toolbar bulk print
+- product model modal print action (opened from `Serial #`)
+- optional print after supplier-order take-on-charge
+
+Warehouse flow rules: [WAREHOUSE_FLOW.MD](./WAREHOUSE_FLOW.MD#45-serial-label-printing-stock-balances).
+
+### Relationship To `Barcode`
+
+1. `warehouse-barcode` is a separate built-in form from order `barcode`.
+2. On first normalization after rollout, missing `warehouse-barcode` is created by
+   copying layout settings from the stored `barcode` form:
+   - `contentMargins`
+   - `labelSize`
+   - `orientation`
+   - `pageSize`
+   - `layoutBlocks`
+   - `isActive`
+3. After migration, the two forms evolve independently in Settings.
+
+### Page Setup
+
+- Same defaults as order `Barcode` unless overridden:
+  - page size: `label`
+  - default preset: `40 x 25 mm`
+  - default orientation: `landscape`
+- Each printed label uses oriented CSS variables on its own
+  `.print-form-label` section.
+
+### Data Rules
+
+- `barcode` and `labelCode`: stock `Product.serialNumber`
+- `labelTitle`: stock `Product.name`
+- `labelContact`: stock `Product.article` (may be empty)
+
+### Single vs Batch Print
+
+| Count | Mode | HTML classes | Container behavior |
+|---|---|---|---|
+| 1 | single-label | `print-html-label`, `print-body-label` | `html/body` fixed to one label size, `overflow: hidden` |
+| 2+ | batch-label | adds `print-html-label-batch`, `print-body-label-batch` | `html/body` auto height, `overflow: visible`; each `.print-form-label` breaks to a new physical page |
+
+Batch mode is enabled automatically by `printWarehouseSerialLabels` when
+`printableItems.length > 1`.
+
+Implementation:
+
+- `printWarehouseSerialLabels` in `orders-workspace-shared.ts`
+- batch flag plumbed through `openOrderPrintWindow` / `buildOrderPrintHtml`
+- batch CSS in `printLabelDocumentStyles`
+
+### Builder Requirements
+
+- Same block capabilities as order `Barcode` (barcode block sizes, margins,
+  alignment, label preset/orientation).
+- Edited in Settings under template name `Product barcode`.
+
+### Acceptance Criteria
+
+1. Bulk warehouse print of N serials produces N physical label pages.
+2. Preview/print HTML contains N `print-form-label` sections and batch classes
+   when `N > 1`.
+3. Single warehouse print still uses one-page single-label container behavior.
+4. Settings changes to `Product barcode` apply to warehouse prints on next run.
+
+## Barcode Label (Order)
 
 ### Purpose
 
 The `Barcode` form prints a small product/order identification label that is easy
-to scan and read at the counter.
+to scan and read at the counter. It is used by **order print** flows
+(`OrderPrintDialog`, payment modal `Print`). Distinct from warehouse
+`Product barcode` above.
 
 ### Page Setup
 
@@ -80,7 +213,9 @@ Default label content margins when no override exists: `0.45 / 1.25 / 0.45 /
 - Barcode blocks may define a custom value template.
 - Barcode blocks may switch visual size between `compact`, `standard`, and `large`.
 - Barcode blocks may show or hide the human-readable value below the barcode.
-- Text blocks should support left, center, and right alignment.
+- Text blocks (`heading`, `paragraph`) should support Level (size), Weight
+  (`light` / `normal` / `bold`, default `normal`), and Align (`left` / `center` /
+  `right`).
 - Switching built-in templates in the print form builder must refresh the
   builder state and preview to the selected template.
 - Existing custom print forms must not be overwritten by built-in migrations.

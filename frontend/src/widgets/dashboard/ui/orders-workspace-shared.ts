@@ -20,6 +20,8 @@ import type { PrintForm } from '../../../entities/settings/model/types';
 import {
   getOrientedLabelSize,
   getPrintContentMarginVars,
+  getWarehouseBarcodePrintForm,
+  getWarehouseLabelTemplateData,
   normalizeContentMargins,
   normalizeLabelSize,
   printDocumentStyles,
@@ -1250,6 +1252,50 @@ export const getWarehouseLabel = (sale: Sale) => {
   return i18n.t('orders.columns.serviceCenter');
 };
 
+export type WarehouseSerialPrintItem = {
+  name: string;
+  article?: string;
+  serialNumber: string;
+};
+
+export const printWarehouseSerialLabels = async (
+  items: WarehouseSerialPrintItem[],
+  printForms: PrintForm[],
+  title: string,
+) => {
+  const printableItems = items.filter((item) => item.serialNumber.trim());
+  if (printableItems.length === 0) return;
+
+  const barcodeForm = getWarehouseBarcodePrintForm(printForms);
+  const pageSize = barcodeForm.pageSize ?? 'label';
+  const labelSize = normalizeLabelSize(barcodeForm.labelSize);
+  const orientation = barcodeForm.orientation ?? 'landscape';
+  const body = printableItems
+    .map((item) =>
+      buildOrderPrintBody(
+        [barcodeForm],
+        getWarehouseLabelTemplateData(item),
+        1,
+        pageSize,
+        labelSize,
+        orientation,
+      ),
+    )
+    .join('');
+
+  await openOrderPrintWindow({
+    title,
+    body,
+    pageSize,
+    labelSize,
+    orientation,
+    orderNumber: printableItems[0]?.serialNumber ?? '',
+    shouldPrint: true,
+    autoClose: true,
+    batchLabels: printableItems.length > 1,
+  });
+};
+
 export const renderOrderPrintCodes = async (
   root: HTMLElement | Document,
   fallbackValue: string,
@@ -1320,6 +1366,7 @@ export const buildOrderPrintHtml = ({
   labelSize,
   orientation,
   screenPreview = false,
+  batchLabels = false,
 }: {
   title: string;
   body: string;
@@ -1327,6 +1374,7 @@ export const buildOrderPrintHtml = ({
   labelSize: NonNullable<PrintForm['labelSize']>;
   orientation: PrintForm['orientation'];
   screenPreview?: boolean;
+  batchLabels?: boolean;
 }) => {
   const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
   const isLabel = pageSize === 'label';
@@ -1338,10 +1386,12 @@ export const buildOrderPrintHtml = ({
     : '';
   const htmlClasses = [
     isLabel ? 'print-html-label' : '',
+    isLabel && batchLabels ? 'print-html-label-batch' : '',
     screenPreview ? 'print-screen-preview' : '',
   ].filter(Boolean);
   const bodyClasses = [
     isLabel ? 'print-body-label' : '',
+    isLabel && batchLabels ? 'print-body-label-batch' : '',
     screenPreview ? 'print-screen-preview' : '',
   ].filter(Boolean);
   const htmlClass = htmlClasses.length ? ` class="${htmlClasses.join(' ')}"` : '';
@@ -1372,6 +1422,7 @@ export const openOrderPrintWindow = async ({
   orderNumber,
   shouldPrint,
   autoClose,
+  batchLabels = false,
 }: {
   title: string;
   body: string;
@@ -1381,6 +1432,7 @@ export const openOrderPrintWindow = async ({
   orderNumber: string;
   shouldPrint: boolean;
   autoClose: boolean;
+  batchLabels?: boolean;
 }) => {
   const printWindow = window.open('', '_blank', 'width=980,height=760');
   if (!printWindow) return;
@@ -1393,6 +1445,7 @@ export const openOrderPrintWindow = async ({
       labelSize,
       orientation,
       screenPreview: !shouldPrint,
+      batchLabels,
     }),
   );
   printWindow.document.close();

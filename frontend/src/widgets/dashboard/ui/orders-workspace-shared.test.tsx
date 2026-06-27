@@ -1,13 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../entities/sale/model/types';
+import { defaultPrintForms } from '../../../entities/settings/model/printForms';
 import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   getPrintTemplateData,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
+  printWarehouseSerialLabels,
   type OrderLineItem,
 } from './orders-workspace-shared';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const repairProductLineItems: OrderLineItem[] = [
   {
@@ -306,6 +312,57 @@ describe('order print labels', () => {
     expect(body).toContain('--content-margin-right: 2mm');
     expect(body).toContain('--content-margin-bottom: 0.5mm');
     expect(body).toContain('--content-margin-left: 3mm');
+  });
+
+  it('batch label print HTML adds batch classes for multi-label warehouse sheets', () => {
+    const html = buildOrderPrintHtml({
+      title: 'Warehouse serial numbers',
+      body: '<section class="print-form print-form-label">A</section><section class="print-form print-form-label">B</section>',
+      pageSize: 'label',
+      labelSize: { presetId: '40x25', widthMm: 40, heightMm: 25 },
+      orientation: 'landscape',
+      batchLabels: true,
+    });
+
+    expect(html).toContain('class="print-html-label print-html-label-batch"');
+    expect(html).toContain('class="print-body-label print-body-label-batch"');
+    expect(html).not.toContain('class="print-html-label print-html-label-batch print-screen-preview"');
+  });
+
+  it('printWarehouseSerialLabels writes one label section per selected product', async () => {
+    let writtenHtml = '';
+    const printWindow = {
+      document: {
+        write: (html: string) => {
+          writtenHtml = html;
+        },
+        close: vi.fn(),
+        querySelectorAll: () => [],
+      },
+      focus: vi.fn(),
+      print: vi.fn(),
+      addEventListener: vi.fn(),
+      close: vi.fn(),
+    };
+
+    vi.stubGlobal('open', vi.fn(() => printWindow));
+
+    await printWarehouseSerialLabels(
+      [
+        { name: 'Item A', article: 'ART-A', serialNumber: 'SN-A' },
+        { name: 'Item B', article: 'ART-B', serialNumber: 'SN-B' },
+        { name: 'Item C', article: 'ART-C', serialNumber: 'SN-C' },
+      ],
+      defaultPrintForms,
+      'Warehouse serial numbers',
+    );
+
+    expect((writtenHtml.match(/<section class="print-form print-form-label"/g) ?? []).length).toBe(3);
+    expect(writtenHtml).toContain('data-barcode-value="SN-A"');
+    expect(writtenHtml).toContain('data-barcode-value="SN-B"');
+    expect(writtenHtml).toContain('data-barcode-value="SN-C"');
+    expect(writtenHtml).toContain('print-html-label-batch');
+    expect(writtenHtml).toContain('print-body-label-batch');
   });
 
   it('A4 print HTML contains A4 @page with 12mm margin, no label-only classes', () => {

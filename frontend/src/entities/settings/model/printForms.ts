@@ -292,15 +292,37 @@ const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
 const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
   align && align !== 'left' ? ` print-align-${align}` : '';
 
+const weightClass = (weight: 'light' | 'normal' | 'bold' | undefined) =>
+  weight ? ` print-block-weight-${weight}` : '';
+
 export const clampTextLevel = (level: unknown): 1 | 2 | 3 =>
   level === 1 || level === 2 || level === 3 ? level : 3;
 
+export const clampTextWeight = (
+  weight: unknown,
+): 'light' | 'normal' | 'bold' | undefined =>
+  weight === 'light' || weight === 'normal' || weight === 'bold' ? weight : undefined;
+
 export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
   switch (block.type) {
-    case 'heading':
-      return { ...block, level: clampTextLevel(block.level) };
-    case 'paragraph':
-      return { ...block, level: clampTextLevel(block.level) };
+    case 'heading': {
+      const { weight: rawWeight, ...rest } = block;
+      const weight = clampTextWeight(rawWeight);
+      return {
+        ...rest,
+        level: clampTextLevel(block.level),
+        ...(weight ? { weight } : {}),
+      };
+    }
+    case 'paragraph': {
+      const { weight: rawWeight, ...rest } = block;
+      const weight = clampTextWeight(rawWeight);
+      return {
+        ...rest,
+        level: clampTextLevel(block.level),
+        ...(weight ? { weight } : {}),
+      };
+    }
     case 'columns':
       return {
         ...block,
@@ -395,11 +417,13 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
       switch (block.type) {
         case 'heading': {
           const level = clampTextLevel(block.level);
-          return `<h${level} class="print-block-heading${alignClass(block.align)}">${renderInlineTemplate(block.text)}</h${level}>`;
+          const weight = clampTextWeight(block.weight);
+          return `<h${level} class="print-block-heading${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</h${level}>`;
         }
         case 'paragraph': {
           const level = clampTextLevel(block.level);
-          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}">${renderInlineTemplate(block.text)}</p>`;
+          const weight = clampTextWeight(block.weight);
+          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</p>`;
         }
         case 'fieldRow':
           return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, 2)}</tbody></table>`;
@@ -634,7 +658,28 @@ export const defaultPrintForms: PrintForm[] = [
     isActive: true,
     sortOrder: 60,
   },
+  {
+    id: 'warehouse-barcode',
+    title: 'Product barcode',
+    type: 'barcode',
+    content: `
+      <div class="print-label">
+        <div class="print-label-code">{{barcode}}</div>
+        <strong>{{labelCode}}</strong>
+        <span>{{labelTitle}}</span>
+        <span>{{labelContact}}</span>
+      </div>
+    `,
+    contentFormat: 'html',
+    pageSize: 'label',
+    labelSize: defaultBarcodeLabelSize,
+    orientation: 'landscape',
+    isActive: true,
+    sortOrder: 65,
+  },
 ];
+
+export const warehouseBarcodePrintFormId = 'warehouse-barcode';
 
 export const legacyDefaultPrintFormIds = new Set([
   'receipt',
@@ -643,6 +688,7 @@ export const legacyDefaultPrintFormIds = new Set([
   'completion-act',
   'invoice',
   'barcode',
+  warehouseBarcodePrintFormId,
 ]);
 
 const legacyDefaultPrintFormTitles: Record<string, string[]> = {
@@ -652,6 +698,11 @@ const legacyDefaultPrintFormTitles: Record<string, string[]> = {
   'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
   invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
   barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
+  'warehouse-barcode': [
+    'Штрих-код товару',
+    'Product barcode',
+    'РЁС‚СЂРёС…-РєРѕРґ С‚РѕРІР°СЂСѓ',
+  ],
 };
 
 export const createPrintLayoutBlock = (
@@ -661,9 +712,9 @@ export const createPrintLayoutBlock = (
   const id = makeBlockId(type, index);
   switch (type) {
     case 'heading':
-      return { id, type, level: 1, text: 'New heading', align: 'left' };
+      return { id, type, level: 1, text: 'New heading', align: 'left', weight: 'normal' };
     case 'paragraph':
-      return { id, type, level: 3, text: 'New text {{orderNumber}}', align: 'left' };
+      return { id, type, level: 3, text: 'New text {{orderNumber}}', align: 'left', weight: 'normal' };
     case 'fieldRow':
       return {
         id,
@@ -734,7 +785,7 @@ export const createPrintLayoutBlock = (
         ],
       };
     default:
-      return { id, type: 'paragraph', level: 3, text: 'New text', align: 'left' };
+      return { id, type: 'paragraph', level: 3, text: 'New text', align: 'left', weight: 'normal' };
   }
 };
 
@@ -868,6 +919,11 @@ const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-contact', type: 'paragraph', level: 3, text: '{{labelContact}}', align: 'center' },
 ];
 
+const warehouseBarcodeLayoutBlocks: PrintLayoutBlock[] = barcodeLayoutBlocks.map((block) => ({
+  ...block,
+  id: block.id.replace(/^barcode-/, 'warehouse-barcode-'),
+}));
+
 export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   receipt: receiptLayoutBlocks,
   check: checkLayoutBlocks,
@@ -875,6 +931,7 @@ export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   'completion-act': completionActLayoutBlocks,
   invoice: invoiceLayoutBlocks,
   barcode: barcodeLayoutBlocks,
+  'warehouse-barcode': warehouseBarcodeLayoutBlocks,
 };
 
 export const getDefaultPrintLayoutBlocks = (formType: string) =>
@@ -891,12 +948,16 @@ export const createLayoutPrintForm = (form: PrintForm): PrintForm =>
     layoutBlocks: normalizePrintLayoutBlocks(
       form.layoutBlocks?.length
         ? form.layoutBlocks
-        : getDefaultPrintLayoutBlocks(form.type || form.id),
+        : getDefaultPrintLayoutBlocks(
+            defaultPrintLayouts[form.id] ? form.id : (form.type || form.id),
+          ),
     ),
   });
 
 const isBarcodeForm = (form: PrintForm) =>
-  form.type === 'barcode' || form.id === 'barcode';
+  form.type === 'barcode' ||
+  form.id === 'barcode' ||
+  form.id === warehouseBarcodePrintFormId;
 
 const withGeneratedContent = (form: PrintForm): PrintForm =>
   form.layoutBlocks && form.layoutBlocks.length > 0
@@ -939,16 +1000,68 @@ const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   if (!defaultForm || !hasBuiltInDefaultTitle(form)) return false;
-  if (form.id === 'invoice' || form.id === 'barcode') return false;
+  if (
+    form.id === 'invoice' ||
+    form.id === 'barcode' ||
+    form.id === warehouseBarcodePrintFormId
+  ) {
+    return false;
+  }
   if (form.id === 'completion-act' && form.content.includes('{{deviceName}}')) return true;
   return !form.content.includes('{{products_table}}') ||
     !form.content.includes('{{services_table}}');
 };
 
 const isRecognizableDefaultPrintForm = (form: PrintForm) => {
-  if (form.id === 'barcode') return false;
+  if (form.id === 'barcode' || form.id === warehouseBarcodePrintFormId) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
+};
+
+const cloneBarcodeFormLayoutSettings = (
+  source: PrintForm,
+  target: PrintForm,
+): PrintForm => ({
+  ...target,
+  layoutBlocks: source.layoutBlocks?.length
+    ? normalizePrintLayoutBlocks(
+        source.layoutBlocks.map((block) => ({
+          ...block,
+          id: block.id.startsWith('barcode-')
+            ? block.id.replace(/^barcode-/, 'warehouse-barcode-')
+            : block.id,
+        })),
+      )
+    : target.layoutBlocks,
+  contentMargins: source.contentMargins,
+  labelSize: source.labelSize,
+  orientation: source.orientation,
+  pageSize: source.pageSize,
+  isActive: source.isActive,
+});
+
+export const getWarehouseLabelTemplateData = (item: {
+  name: string;
+  article?: string;
+  serialNumber: string;
+}): PrintTemplateData => ({
+  barcode: item.serialNumber,
+  labelCode: item.serialNumber,
+  labelTitle: item.name,
+  labelContact: item.article ?? '',
+});
+
+export const getWarehouseBarcodePrintForm = (printForms: PrintForm[]) => {
+  const normalized = normalizePrintFormsForView(printForms);
+  return (
+    normalized.find(
+      (form) =>
+        form.isActive && form.id === warehouseBarcodePrintFormId,
+    ) ??
+    defaultPrintForms
+      .map(createLayoutPrintForm)
+      .find((form) => form.id === warehouseBarcodePrintFormId)!
+  );
 };
 
 const hasLayoutBlocks = (form: PrintForm) =>
@@ -1001,7 +1114,9 @@ export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
 });
 
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
-  const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
+  const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
+  const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
+  const normalized = sourceForms.map(
     (form, index) => {
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
@@ -1047,7 +1162,14 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
     ...normalized,
     ...defaultPrintForms
       .filter((form) => !existingIds.has(form.id))
-      .map(createLayoutPrintForm),
+      .map((defaultForm) => {
+        if (defaultForm.id === warehouseBarcodePrintFormId && sourceBarcodeForm) {
+          return createLayoutPrintForm(
+            cloneBarcodeFormLayoutSettings(sourceBarcodeForm, defaultForm),
+          );
+        }
+        return createLayoutPrintForm(defaultForm);
+      }),
   ];
 
   return withMissingDefaults.sort((first, second) => first.sortOrder - second.sortOrder);
@@ -1146,6 +1268,9 @@ export const printDocumentStyles = `
   .print-align-center { text-align: center; }
   .print-align-right { text-align: right; }
   .print-block-paragraph { white-space: normal; }
+  .print-block-weight-light { font-weight: 300; }
+  .print-block-weight-normal { font-weight: 400; }
+  .print-block-weight-bold { font-weight: 700; }
   .print-document .print-block-paragraph-level-1 { font-size: 22px; }
   .print-document .print-block-paragraph-level-2 { font-size: 18px; }
   .print-document .print-block-paragraph-level-3 { font-size: 13px; }
@@ -1183,8 +1308,10 @@ export const printDocumentStyles = `
 `;
 
 export const printLabelDocumentStyles = `
-  html.print-html-label:not(.print-screen-preview), html.print-html-label:not(.print-screen-preview) body { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
-  .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-html-label:not(.print-screen-preview):not(.print-html-label-batch), html.print-html-label:not(.print-screen-preview):not(.print-html-label-batch) body:not(.print-body-label-batch) { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  .print-body-label:not(.print-body-label-batch) { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-html-label-batch:not(.print-screen-preview), html.print-html-label-batch:not(.print-screen-preview) body.print-body-label-batch { width: auto; height: auto; min-height: 0; overflow: visible; }
+  .print-body-label-batch .print-form-label { page-break-after: always; break-after: page; }
   html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
   body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
   .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }
@@ -1200,7 +1327,13 @@ export const printLabelDocumentStyles = `
   .print-label .print-code-value { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
   .print-label .print-order-number { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
   .print-label .print-block-heading { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1; }
+  .print-label .print-block-heading.print-block-weight-light { font-weight: 300; }
+  .print-label .print-block-heading.print-block-weight-normal { font-weight: 400; }
+  .print-label .print-block-heading.print-block-weight-bold { font-weight: 700; }
   .print-label .print-block-paragraph { width: 100%; margin: 0; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.2px; line-height: 1; }
+  .print-label .print-block-paragraph.print-block-weight-light { font-weight: 300; }
+  .print-label .print-block-paragraph.print-block-weight-normal { font-weight: 400; }
+  .print-label .print-block-paragraph.print-block-weight-bold { font-weight: 700; }
   .print-label .print-block-paragraph-level-1 { font-size: 12px; }
   .print-label .print-block-paragraph-level-2 { font-size: 10px; }
   .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }

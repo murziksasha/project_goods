@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product, ProductModelUpdatePayload } from '../../../entities/product/model/types';
+import type { PrintForm } from '../../../entities/settings/model/types';
+import { defaultPrintForms } from '../../../entities/settings/model/printForms';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
 import { formatCurrency } from '../../../shared/lib/format';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
-import { printSerialNumbers } from '../../../shared/lib/serialPrint';
+import { printWarehouseSerialLabels } from './orders-workspace-shared';
 import { PrinterIcon } from './PrinterIcon';
 import {
   aggregateProductModelStock,
@@ -19,6 +21,7 @@ type ProductModelModalProps = {
   name: string;
   products: Product[];
   warehouses: WarehouseItem[];
+  printForms?: PrintForm[];
   printProduct?: Product | null;
   isSaving?: boolean;
   onClose: () => void;
@@ -29,6 +32,7 @@ export const ProductModelModal = ({
   name,
   products,
   warehouses,
+  printForms = defaultPrintForms,
   printProduct = null,
   isSaving = false,
   onClose,
@@ -113,7 +117,7 @@ export const ProductModelModal = ({
   const printSelectedSerialNumber = () => {
     if (!printProduct?.serialNumber.trim()) return;
 
-    printSerialNumbers(
+    void printWarehouseSerialLabels(
       [
         {
           name: printProduct.name,
@@ -121,6 +125,7 @@ export const ProductModelModal = ({
           serialNumber: printProduct.serialNumber,
         },
       ],
+      printForms,
       t('catalog.productModel.printSerialTitle'),
     );
   };

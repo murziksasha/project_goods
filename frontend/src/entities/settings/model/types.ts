@@ -9,6 +9,8 @@ export type PrintFormType =
 
 export type PrintLayoutTextAlign = 'left' | 'center' | 'right';
 
+export type PrintLayoutTextWeight = 'light' | 'normal' | 'bold';
+
 export type PrintLayoutField = {
   label: string;
   value: string;
@@ -31,6 +33,7 @@ export type PrintLayoutBlock =
       text: string;
       level: 1 | 2 | 3;
       align?: PrintLayoutTextAlign;
+      weight?: PrintLayoutTextWeight;
     }
   | {
       id: string;
@@ -38,6 +41,7 @@ export type PrintLayoutBlock =
       text: string;
       level: 1 | 2 | 3;
       align?: PrintLayoutTextAlign;
+      weight?: PrintLayoutTextWeight;
     }
   | {
       id: string;

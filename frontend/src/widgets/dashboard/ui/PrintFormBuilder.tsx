@@ -69,6 +69,7 @@ const blockInsertOptions: PrintLayoutBlock['type'][] = [
 ];
 
 const alignOptions = ['left', 'center', 'right'] as const;
+const textWeightOptions = ['light', 'normal', 'bold'] as const;
 const barcodeSizeOptions = ['compact', 'standard', 'large'] as const;
 
 const renderCodes = (root: HTMLElement | Document) => {
@@ -271,6 +272,39 @@ const LevelInput = ({
   );
 };
 
+const WeightInput = ({
+  value,
+  onChange,
+}: {
+  value: 'light' | 'normal' | 'bold' | undefined;
+  onChange: (value: 'light' | 'normal' | 'bold') => void;
+}) => {
+  const { t } = useTranslation();
+  const weightLabelKeys = {
+    light: 'settings.printBuilder.weightLight',
+    normal: 'settings.printBuilder.weightNormal',
+    bold: 'settings.printBuilder.weightBold',
+  } as const;
+
+  return (
+    <label className="field">
+      <span>{t('settings.printBuilder.weight')}</span>
+      <select
+        value={value ?? 'normal'}
+        onChange={(event) =>
+          onChange(event.target.value as 'light' | 'normal' | 'bold')
+        }
+      >
+        {textWeightOptions.map((weight) => (
+          <option key={weight} value={weight}>
+            {t(weightLabelKeys[weight])}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
+
 const updateField = (
   fields: PrintLayoutField[],
   index: number,
@@ -323,6 +357,10 @@ const BlockEditor = ({
             onChange={(text) => onChange({ ...block, text })}
           />
           <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
+          <WeightInput
+            value={block.weight}
+            onChange={(weight) => onChange({ ...block, weight })}
+          />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
@@ -336,6 +374,10 @@ const BlockEditor = ({
             onChange={(text) => onChange({ ...block, text })}
           />
           <LevelInput value={block.level} onChange={(level) => onChange({ ...block, level })} />
+          <WeightInput
+            value={block.weight}
+            onChange={(weight) => onChange({ ...block, weight })}
+          />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
@@ -639,6 +681,8 @@ const BlockEditor = ({
                           id: `${column.id}-text`,
                           type: 'paragraph' as const,
                           level: existingParagraph?.type === 'paragraph' ? existingParagraph.level : 3,
+                          align: existingParagraph?.type === 'paragraph' ? existingParagraph.align : undefined,
+                          weight: existingParagraph?.type === 'paragraph' ? existingParagraph.weight : undefined,
                           text,
                         },
                       ],
