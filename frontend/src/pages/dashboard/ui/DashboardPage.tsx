@@ -271,8 +271,10 @@ export const DashboardPage = () => {
   const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
   const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
   const canEditSettings = currentEmployee?.role === 'owner';
+  const canEditPrintForms =
+    canEditSettings || hasEmployeePermission(currentEmployee, 'printForms.manage');
   const canManageBackups = hasEmployeePermission(currentEmployee, 'system.backups.manage');
-  const canManageSettings = canEditSettings || canManageBackups;
+  const canManageSettings = canEditSettings || canManageBackups || canEditPrintForms;
   const canEraseAllData = isTemporaryAdmin(currentEmployee);
   const canAccessPage = useCallback((page: PageKey | 'other') => {
     if (page === 'other') return false;
@@ -1169,6 +1171,7 @@ export const DashboardPage = () => {
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
               canEditSettings={canEditSettings}
+              canEditPrintForms={canEditPrintForms}
               canManageBackups={canManageBackups}
               onChange={actions.onSettingsChange}
               onSubmit={actions.saveSettings}

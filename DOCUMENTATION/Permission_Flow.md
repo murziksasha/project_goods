@@ -61,6 +61,12 @@ Defaults are applied by backend when an employee is created or updated with an e
 | --- | --- |
 | `employees.manage` | Create, edit, and delete non-owner employees. |
 
+### System
+| Permission | Allows |
+| --- | --- |
+| `printForms.manage` | Edit print form templates in Settings (`Друковані форми` tab). Does not grant company, dashboard, or backup settings. |
+| `system.backups.manage` | Manage backups in Settings (`Резервні копії` tab). Only owners can grant this permission. |
+
 ## Employee Management Rules
 - `owner` can create, edit, and delete employees except deleting their own account.
 - `owner` can create/edit `owner` accounts.
@@ -130,6 +136,13 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `PATCH /sales/:saleId/favorite` for repair orders | `orders.manage`. |
 | `PATCH /sales/:saleId/favorite` for product sales | `sales.manage`. |
 
+### Settings
+| Endpoint | Required access |
+| --- | --- |
+| `GET /settings` | Authenticated session (read-only for all active employees). |
+| `PUT /settings` | `owner` only. |
+| `PUT /settings/print-forms` | `owner` or `printForms.manage`. |
+
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
@@ -137,7 +150,10 @@ Defaults are applied by backend when an employee is created or updated with an e
 - Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`, `supplierOrders.view`, `supplierOrders.manage`.
 - Sidebar shows `Clients & suppliers` when employee is `owner` or has `clients.manage`.
 - Sidebar shows `Warehouse` and `Products & Services` when employee is `owner` or has `inventory.manage`.
-- Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage`.
+- Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage` or `printForms.manage`.
+- Settings `Company` and `Dashboard` tabs require `owner`.
+- Settings `Print forms` tab requires `owner` or `printForms.manage`.
+- Settings `Backups` tab requires `system.backups.manage`.
 - Main `Erase all data` is visible only to Temporary Admin.
 - Main product export is visible only to `owner` or employees with `inventory.manage`.
 - Accounting cashbox settings gear, create cashbox, edit cashbox, and archive/reactivate controls require `finance.cashboxes.manage`.

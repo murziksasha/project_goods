@@ -33,6 +33,7 @@ type SettingsPanelProps = {
   form: AppSettingsFormValues;
   isSaving: boolean;
   canEditSettings: boolean;
+  canEditPrintForms: boolean;
   canManageBackups: boolean;
   onChange: <K extends keyof AppSettingsFormValues>(
     field: K,
@@ -878,6 +879,7 @@ export const SettingsPanel = ({
   form,
   isSaving,
   canEditSettings,
+  canEditPrintForms,
   canManageBackups,
   onChange,
   onSubmit,
@@ -886,10 +888,12 @@ export const SettingsPanel = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>(getStoredSettingsTab);
   const visibleSettingsTabs = useMemo(
     () =>
-      settingsTabs.filter((tab) =>
-        tab.key === 'backups' ? canManageBackups : canEditSettings,
-      ),
-    [canEditSettings, canManageBackups],
+      settingsTabs.filter((tab) => {
+        if (tab.key === 'backups') return canManageBackups;
+        if (tab.key === 'print') return canEditPrintForms;
+        return canEditSettings;
+      }),
+    [canEditPrintForms, canEditSettings, canManageBackups],
   );
   const printForms = useMemo(
     () => normalizePrintFormsForView(form.printForms),
@@ -912,12 +916,19 @@ export const SettingsPanel = ({
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
+  const canSaveActiveTab =
+    activeTab === 'print'
+      ? canEditPrintForms
+      : activeTab === 'backups'
+        ? false
+        : canEditSettings;
   const isSaveDisabled =
-    !canEditSettings ||
+    !canSaveActiveTab ||
     isSaving ||
-    form.serviceName.trim().length < 2 ||
     hasInvalidPrintForms ||
-    companyValidation.hasInvalidCompanyFields;
+    (canEditSettings &&
+      (form.serviceName.trim().length < 2 ||
+        companyValidation.hasInvalidCompanyFields));
 
   const updatePrintForms = (nextForms: PrintForm[]) => {
     onChange('printForms', normalizePrintFormsForView(nextForms));
@@ -985,7 +996,7 @@ export const SettingsPanel = ({
           <h2>{t('settings.panel.title')}</h2>
           <p className="panel-subtitle">{t('settings.panel.subtitle')}</p>
         </div>
-        {canEditSettings && activeTab !== 'backups' ? (
+        {canSaveActiveTab ? (
           <button
             className="primary-button"
             type="button"
@@ -1033,7 +1044,7 @@ export const SettingsPanel = ({
         />
       ) : null}
 
-      {activeTab === 'print' && canEditSettings ? (
+      {activeTab === 'print' && canEditPrintForms ? (
         <PrintFormsSection
           printForms={printForms}
           selectedForm={selectedForm}
