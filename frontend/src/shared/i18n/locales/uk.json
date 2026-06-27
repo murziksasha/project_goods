@@ -863,7 +863,7 @@
         "serials": "Серійні ",
         "addProduct": "Додати товар",
         "addService": "Додати послугу",
-        "addProductPlaceholder": "Додати товар",
+        "addProductPlaceholder": "Назва, серійний номер або артикул",
         "addServicePlaceholder": "Додати послугу",
         "searchingProducts": "Пошук товарів...",
         "searchingServices": "Пошук послуг...",

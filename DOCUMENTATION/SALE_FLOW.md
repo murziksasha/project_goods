@@ -124,6 +124,11 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 - Product search starts from 2+ characters.
 - Suggestions are loaded from product catalog lookup and available stock lookup.
 - Lookup must match by normalized product `name`, stock `serialNumber`, stock `article`, and relevant notes.
+- The same suggestion builder (`buildCreateOrderProductSuggestions`) is reused in:
+  - `Create order -> Sales order`
+  - `Rapid sale`
+  - Opened sale card `Products` add-row input
+  - Opened repair order card `Products` add-row input
 - Clicking a suggestion fills:
   - product name into search input
   - suggested price from product sale price (fallback to base price)
