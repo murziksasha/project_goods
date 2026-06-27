@@ -1232,6 +1232,7 @@ export const DashboardPage = () => {
             />
           ) : activePage === 'warehouse' && canManageInventory ? (
             <WarehousePanel
+              printForms={effectivePrintForms}
               products={state.allProducts}
               sales={state.sales}
               catalogProducts={state.catalogProducts}

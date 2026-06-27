@@ -6,6 +6,7 @@ import {
   defaultDocumentContentMargins,
   defaultLabelContentMargins,
   defaultPrintForms,
+  getWarehouseLabelTemplateData,
   normalizeContentMargins,
   normalizePrintFormsForView,
   normalizePrintLayoutBlocks,
@@ -394,6 +395,81 @@ describe('normalizePrintFormsForView', () => {
     expect(barcode?.content).toContain('{{labelContact}}');
   });
 
+  it('adds warehouse-barcode form by copying layout settings from the current barcode form', () => {
+    const normalized = normalizePrintFormsForView([
+      {
+        id: 'barcode',
+        title: 'Штрих-код',
+        type: 'barcode',
+        content: '<div class="print-label">{{barcode}}</div>',
+        contentFormat: 'html',
+        layoutVersion: 1,
+        layoutBlocks: [
+          {
+            id: 'barcode-code',
+            type: 'barcode',
+            value: '{{barcode}}',
+            showValue: false,
+            size: 'large',
+          },
+          {
+            id: 'barcode-number',
+            type: 'heading',
+            level: 3,
+            text: '{{labelCode}}',
+            align: 'center',
+          },
+        ],
+        pageSize: 'label',
+        labelSize: { presetId: '58x40', widthMm: 58, heightMm: 40 },
+        orientation: 'portrait',
+        contentMargins: {
+          topMm: 2.5,
+          rightMm: 1.5,
+          bottomMm: 2.5,
+          leftMm: 1.5,
+        },
+        isActive: true,
+        sortOrder: 60,
+      },
+    ]);
+
+    const warehouseBarcode = normalized.find(
+      (form) => form.id === 'warehouse-barcode',
+    );
+
+    expect(warehouseBarcode).toBeDefined();
+    expect(warehouseBarcode?.labelSize).toEqual({
+      presetId: '58x40',
+      widthMm: 58,
+      heightMm: 40,
+    });
+    expect(warehouseBarcode?.orientation).toBe('portrait');
+    expect(warehouseBarcode?.contentMargins).toEqual({
+      topMm: 2.5,
+      rightMm: 1.5,
+      bottomMm: 2.5,
+      leftMm: 1.5,
+    });
+    expect(warehouseBarcode?.layoutBlocks?.[0]?.id).toBe('warehouse-barcode-code');
+    expect(warehouseBarcode?.content).toContain('class="print-label"');
+  });
+
+  it('maps warehouse label template data from product serial fields', () => {
+    expect(
+      getWarehouseLabelTemplateData({
+        name: 'Display module',
+        article: 'ART-42',
+        serialNumber: 'SN-12345',
+      }),
+    ).toEqual({
+      barcode: 'SN-12345',
+      labelCode: 'SN-12345',
+      labelTitle: 'Display module',
+      labelContact: 'ART-42',
+    });
+  });
+
   it('default Barcode form: page size label, 40x25mm, landscape, renders inside .print-label', () => {
     const forms = normalizePrintFormsForView(defaultPrintForms);
     const barcode = forms.find((f) => f.id === 'barcode');
@@ -481,6 +557,7 @@ describe('normalizePrintFormsForView', () => {
       'Completion act',
       'Invoice',
       'Barcode',
+      'Product barcode',
     ]);
     expect(defaultPrintForms.map((form) => form.content).join(' ')).not.toContain('Р');
   });

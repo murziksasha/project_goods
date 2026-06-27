@@ -39,6 +39,7 @@ import {
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { normalizeDecimalInput, parseDecimal } from '../../../shared/lib/decimal';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from './SupplierOrderModal';
+import type { PrintForm } from '../../../entities/settings/model/types';
 import { ProductModelModal } from './ProductModelModal';
 import { SerialBindModal } from './SerialBindModal';
 import {
@@ -110,6 +111,7 @@ type OrderDetailCardProps = {
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   products: Product[];
+  printForms: PrintForm[];
   clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
   paidAmount: number;
@@ -186,6 +188,7 @@ export const OrderDetailCard = ({
   comments,
   lineItems,
   products,
+  printForms,
   clientDevices,
   catalogProducts,
   paidAmount,
@@ -1061,6 +1064,7 @@ export const OrderDetailCard = ({
               items={productItems}
               allItems={lineItems}
               products={products}
+              printForms={printForms}
               catalogProducts={catalogProducts}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -1103,6 +1107,7 @@ export const OrderDetailCard = ({
               items={serviceItems}
               allItems={lineItems}
               products={products}
+              printForms={printForms}
               catalogProducts={catalogProducts}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -1647,6 +1652,7 @@ type LineItemsPanelProps = {
   items: OrderLineItem[];
   allItems: OrderLineItem[];
   products: Product[];
+  printForms: PrintForm[];
   catalogProducts: CatalogProduct[];
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
@@ -1695,6 +1701,7 @@ const LineItemsPanel = ({
   items,
   allItems,
   products,
+  printForms,
   catalogProducts,
   onAddItem,
   onReplaceItem,
@@ -2967,6 +2974,7 @@ const LineItemsPanel = ({
           name={productModelContext.name}
           products={products}
           warehouses={productModelWarehouses}
+          printForms={printForms}
           printProduct={productModelContext.printProduct}
           isSaving={isCatalogSaving}
           onClose={() => setProductModelContext(null)}

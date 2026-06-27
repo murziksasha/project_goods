@@ -2350,6 +2350,7 @@ export const OrdersWorkspace = ({
             comments={selectedSale.timeline ?? []}
             lineItems={getLineItems(selectedSale)}
             products={products}
+            printForms={printForms}
             clientDevices={clientDevices}
             catalogProducts={catalogProducts}
             paidAmount={getPaidAmount(selectedSale)}

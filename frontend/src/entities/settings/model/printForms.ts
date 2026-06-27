@@ -634,7 +634,28 @@ export const defaultPrintForms: PrintForm[] = [
     isActive: true,
     sortOrder: 60,
   },
+  {
+    id: 'warehouse-barcode',
+    title: 'Product barcode',
+    type: 'barcode',
+    content: `
+      <div class="print-label">
+        <div class="print-label-code">{{barcode}}</div>
+        <strong>{{labelCode}}</strong>
+        <span>{{labelTitle}}</span>
+        <span>{{labelContact}}</span>
+      </div>
+    `,
+    contentFormat: 'html',
+    pageSize: 'label',
+    labelSize: defaultBarcodeLabelSize,
+    orientation: 'landscape',
+    isActive: true,
+    sortOrder: 65,
+  },
 ];
+
+export const warehouseBarcodePrintFormId = 'warehouse-barcode';
 
 export const legacyDefaultPrintFormIds = new Set([
   'receipt',
@@ -643,6 +664,7 @@ export const legacyDefaultPrintFormIds = new Set([
   'completion-act',
   'invoice',
   'barcode',
+  warehouseBarcodePrintFormId,
 ]);
 
 const legacyDefaultPrintFormTitles: Record<string, string[]> = {
@@ -652,6 +674,11 @@ const legacyDefaultPrintFormTitles: Record<string, string[]> = {
   'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
   invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
   barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
+  'warehouse-barcode': [
+    'Штрих-код товару',
+    'Product barcode',
+    'РЁС‚СЂРёС…-РєРѕРґ С‚РѕРІР°СЂСѓ',
+  ],
 };
 
 export const createPrintLayoutBlock = (
@@ -868,6 +895,11 @@ const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-contact', type: 'paragraph', level: 3, text: '{{labelContact}}', align: 'center' },
 ];
 
+const warehouseBarcodeLayoutBlocks: PrintLayoutBlock[] = barcodeLayoutBlocks.map((block) => ({
+  ...block,
+  id: block.id.replace(/^barcode-/, 'warehouse-barcode-'),
+}));
+
 export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   receipt: receiptLayoutBlocks,
   check: checkLayoutBlocks,
@@ -875,6 +907,7 @@ export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   'completion-act': completionActLayoutBlocks,
   invoice: invoiceLayoutBlocks,
   barcode: barcodeLayoutBlocks,
+  'warehouse-barcode': warehouseBarcodeLayoutBlocks,
 };
 
 export const getDefaultPrintLayoutBlocks = (formType: string) =>
@@ -891,12 +924,16 @@ export const createLayoutPrintForm = (form: PrintForm): PrintForm =>
     layoutBlocks: normalizePrintLayoutBlocks(
       form.layoutBlocks?.length
         ? form.layoutBlocks
-        : getDefaultPrintLayoutBlocks(form.type || form.id),
+        : getDefaultPrintLayoutBlocks(
+            defaultPrintLayouts[form.id] ? form.id : (form.type || form.id),
+          ),
     ),
   });
 
 const isBarcodeForm = (form: PrintForm) =>
-  form.type === 'barcode' || form.id === 'barcode';
+  form.type === 'barcode' ||
+  form.id === 'barcode' ||
+  form.id === warehouseBarcodePrintFormId;
 
 const withGeneratedContent = (form: PrintForm): PrintForm =>
   form.layoutBlocks && form.layoutBlocks.length > 0
@@ -939,16 +976,68 @@ const isLegacyStandardPrintForm = (form: PrintForm) => {
   if (!legacyDefaultPrintFormIds.has(form.id)) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   if (!defaultForm || !hasBuiltInDefaultTitle(form)) return false;
-  if (form.id === 'invoice' || form.id === 'barcode') return false;
+  if (
+    form.id === 'invoice' ||
+    form.id === 'barcode' ||
+    form.id === warehouseBarcodePrintFormId
+  ) {
+    return false;
+  }
   if (form.id === 'completion-act' && form.content.includes('{{deviceName}}')) return true;
   return !form.content.includes('{{products_table}}') ||
     !form.content.includes('{{services_table}}');
 };
 
 const isRecognizableDefaultPrintForm = (form: PrintForm) => {
-  if (form.id === 'barcode') return false;
+  if (form.id === 'barcode' || form.id === warehouseBarcodePrintFormId) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
+};
+
+const cloneBarcodeFormLayoutSettings = (
+  source: PrintForm,
+  target: PrintForm,
+): PrintForm => ({
+  ...target,
+  layoutBlocks: source.layoutBlocks?.length
+    ? normalizePrintLayoutBlocks(
+        source.layoutBlocks.map((block) => ({
+          ...block,
+          id: block.id.startsWith('barcode-')
+            ? block.id.replace(/^barcode-/, 'warehouse-barcode-')
+            : block.id,
+        })),
+      )
+    : target.layoutBlocks,
+  contentMargins: source.contentMargins,
+  labelSize: source.labelSize,
+  orientation: source.orientation,
+  pageSize: source.pageSize,
+  isActive: source.isActive,
+});
+
+export const getWarehouseLabelTemplateData = (item: {
+  name: string;
+  article?: string;
+  serialNumber: string;
+}): PrintTemplateData => ({
+  barcode: item.serialNumber,
+  labelCode: item.serialNumber,
+  labelTitle: item.name,
+  labelContact: item.article ?? '',
+});
+
+export const getWarehouseBarcodePrintForm = (printForms: PrintForm[]) => {
+  const normalized = normalizePrintFormsForView(printForms);
+  return (
+    normalized.find(
+      (form) =>
+        form.isActive && form.id === warehouseBarcodePrintFormId,
+    ) ??
+    defaultPrintForms
+      .map(createLayoutPrintForm)
+      .find((form) => form.id === warehouseBarcodePrintFormId)!
+  );
 };
 
 const hasLayoutBlocks = (form: PrintForm) =>
@@ -1001,7 +1090,9 @@ export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
 });
 
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
-  const normalized = (forms.length > 0 ? forms : defaultPrintForms).map(
+  const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
+  const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
+  const normalized = sourceForms.map(
     (form, index) => {
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
@@ -1047,7 +1138,14 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
     ...normalized,
     ...defaultPrintForms
       .filter((form) => !existingIds.has(form.id))
-      .map(createLayoutPrintForm),
+      .map((defaultForm) => {
+        if (defaultForm.id === warehouseBarcodePrintFormId && sourceBarcodeForm) {
+          return createLayoutPrintForm(
+            cloneBarcodeFormLayoutSettings(sourceBarcodeForm, defaultForm),
+          );
+        }
+        return createLayoutPrintForm(defaultForm);
+      }),
   ];
 
   return withMissingDefaults.sort((first, second) => first.sortOrder - second.sortOrder);
@@ -1183,8 +1281,10 @@ export const printDocumentStyles = `
 `;
 
 export const printLabelDocumentStyles = `
-  html.print-html-label:not(.print-screen-preview), html.print-html-label:not(.print-screen-preview) body { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
-  .print-body-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-html-label:not(.print-screen-preview):not(.print-html-label-batch), html.print-html-label:not(.print-screen-preview):not(.print-html-label-batch) body:not(.print-body-label-batch) { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  .print-body-label:not(.print-body-label-batch) { width: var(--label-width, 25mm); height: var(--label-height, 40mm); margin: 0; overflow: hidden; }
+  html.print-html-label-batch:not(.print-screen-preview), html.print-html-label-batch:not(.print-screen-preview) body.print-body-label-batch { width: auto; height: auto; min-height: 0; overflow: visible; }
+  .print-body-label-batch .print-form-label { page-break-after: always; break-after: page; }
   html.print-screen-preview, html.print-screen-preview body.print-screen-preview { width: auto; height: auto; min-width: 100%; min-height: 100%; overflow: auto; }
   body.print-screen-preview { box-sizing: border-box; margin: 0; padding: 18px; background: #9aa0a6; }
   .print-form-label { width: var(--label-width, 25mm); height: var(--label-height, 40mm); padding: 0; margin: 0; overflow: hidden; box-sizing: border-box; }

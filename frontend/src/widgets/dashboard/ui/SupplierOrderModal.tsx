@@ -9,6 +9,8 @@ import type {
   TakeOnChargeResult,
 } from '../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import type { PrintForm } from '../../../entities/settings/model/types';
+import { defaultPrintForms } from '../../../entities/settings/model/printForms';
 import { printSerialNumbers } from '../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../shared/lib/decimal';
 import {
@@ -27,6 +29,7 @@ export type SupplierOrderModalSubmitPayload = {
 
 type SupplierOrderModalProps = {
   isOpen: boolean;
+  printForms?: PrintForm[];
   suppliers: Supplier[];
   initialProductName?: string;
   initialQuantity?: number;
@@ -70,6 +73,7 @@ const normalizeProductName = (value: string) =>
 
 export const SupplierOrderModal = ({
   isOpen,
+  printForms = defaultPrintForms,
   suppliers,
   initialProductName = '',
   initialQuantity = 1,
@@ -967,6 +971,7 @@ export const SupplierOrderModal = ({
                           article: product.article,
                           serialNumber: product.serialNumber,
                         })),
+                        printForms,
                         t('orders.supplier.modal.receivedSerialNumbers'),
                       );
                     }
