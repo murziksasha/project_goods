@@ -13,12 +13,15 @@ import {
   createPrintLayoutBlock,
   customLabelSizePresetId,
   getOrientedLabelSize,
+  getPrintContentMarginVars,
   labelSizePresets,
+  normalizeContentMargins,
   normalizeLabelSize,
   printFormVariableGroups,
   renderPrintLayout,
   renderPrintTemplate,
 } from '../../../entities/settings/model/printForms';
+import type { PrintContentMargins } from '../../../entities/settings/model/types';
 
 type PrintFormBuilderProps = {
   forms: PrintForm[];
@@ -88,17 +91,35 @@ const renderCodes = (root: HTMLElement | Document) => {
   });
 };
 
-const getLabelPreviewStyle = (form: PrintForm): CSSProperties => {
-  if (form.pageSize !== 'label') return {};
+const getPreviewStyle = (form: PrintForm): CSSProperties => {
+  const contentMargins = normalizeContentMargins(form.contentMargins, form.pageSize);
+  const marginStyle = getPrintContentMarginVars(contentMargins);
+
+  if (form.pageSize !== 'label') {
+    return Object.fromEntries(
+      marginStyle.split('; ').map((entry) => {
+        const [key, value] = entry.split(': ');
+        return [key, value];
+      }),
+    ) as CSSProperties;
+  }
+
   const labelSize = getOrientedLabelSize(
     normalizeLabelSize(form.labelSize),
     form.orientation,
   );
+
   return {
     '--label-width': `${labelSize.widthMm}mm`,
     '--label-height': `${labelSize.heightMm}mm`,
     width: `${labelSize.widthMm}mm`,
     minHeight: `${labelSize.heightMm}mm`,
+    ...Object.fromEntries(
+      marginStyle.split('; ').map((entry) => {
+        const [key, value] = entry.split(': ');
+        return [key, value];
+      }),
+    ),
   } as CSSProperties;
 };
 
@@ -117,7 +138,7 @@ const PrintPreview = ({ html, form }: { html: string; form: PrintForm }) => {
           ? 'settings-print-preview-page settings-print-preview-page-label'
           : 'settings-print-preview-page'
       }
-      style={getLabelPreviewStyle(form)}
+      style={getPreviewStyle(form)}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -649,6 +670,10 @@ export const PrintFormBuilder = ({
     () => selectedForm.layoutBlocks?.[0]?.id ?? '',
   );
   const labelSize = normalizeLabelSize(selectedForm.labelSize);
+  const contentMargins = normalizeContentMargins(
+    selectedForm.contentMargins,
+    selectedForm.pageSize,
+  );
   const isLegacy = !selectedForm.layoutBlocks?.length;
   const blocks = selectedForm.layoutBlocks ?? [];
   const firstBlockId = selectedForm.layoutBlocks?.[0]?.id ?? '';
@@ -714,6 +739,19 @@ export const PrintFormBuilder = ({
         pageSize === 'label'
           ? normalizeLabelSize(selectedForm.labelSize)
           : selectedForm.labelSize,
+      contentMargins: normalizeContentMargins(selectedForm.contentMargins, pageSize),
+    });
+  };
+
+  const updateContentMargin = (
+    field: keyof PrintContentMargins,
+    value: number,
+  ) => {
+    onUpdateForm(selectedForm.id, {
+      contentMargins: {
+        ...contentMargins,
+        [field]: Number.isFinite(value) ? value : contentMargins[field],
+      },
     });
   };
 
@@ -804,6 +842,59 @@ export const PrintFormBuilder = ({
             />
           </div>
         ) : null}
+        <div className="settings-print-options-row settings-content-margins-row">
+          <p className="field field-wide section-label">
+            {t('settings.printBuilder.contentMargins')}
+          </p>
+          <label className="field">
+            <span>{t('settings.printBuilder.marginTopMm')}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={contentMargins.topMm}
+              onChange={(event) =>
+                updateContentMargin('topMm', Number(event.target.value))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>{t('settings.printBuilder.marginRightMm')}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={contentMargins.rightMm}
+              onChange={(event) =>
+                updateContentMargin('rightMm', Number(event.target.value))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>{t('settings.printBuilder.marginBottomMm')}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={contentMargins.bottomMm}
+              onChange={(event) =>
+                updateContentMargin('bottomMm', Number(event.target.value))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>{t('settings.printBuilder.marginLeftMm')}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={contentMargins.leftMm}
+              onChange={(event) =>
+                updateContentMargin('leftMm', Number(event.target.value))
+              }
+            />
+          </label>
+        </div>
 
         {isLegacy ? (
           <div className="settings-legacy-editor">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
+  buildOrderPrintBody,
   buildOrderPrintHtml,
   getPrintTemplateData,
   isIssueWithoutPaymentBlockedForSale,
@@ -270,6 +271,41 @@ describe('order print labels', () => {
     expect(html).toContain('--label-width: 40mm; --label-height: 25mm;');
     expect(html).toContain('print-form-label');
     expect(html).toContain('class="print-label"');
+  });
+
+  it('buildOrderPrintBody includes per-form content margin vars', () => {
+    const body = buildOrderPrintBody(
+      [
+        {
+          id: 'barcode',
+          title: 'Barcode',
+          type: 'barcode',
+          content: '<div class="print-label">X</div>',
+          contentFormat: 'html',
+          pageSize: 'label',
+          labelSize: { presetId: '40x25', widthMm: 40, heightMm: 25 },
+          contentMargins: {
+            topMm: 1,
+            rightMm: 2,
+            bottomMm: 0.5,
+            leftMm: 3,
+          },
+          orientation: 'landscape',
+          isActive: true,
+          sortOrder: 10,
+        },
+      ],
+      { orderNumber: 'r000124' },
+      1,
+      'label',
+      { presetId: '40x25', widthMm: 40, heightMm: 25 },
+      'landscape',
+    );
+
+    expect(body).toContain('--content-margin-top: 1mm');
+    expect(body).toContain('--content-margin-right: 2mm');
+    expect(body).toContain('--content-margin-bottom: 0.5mm');
+    expect(body).toContain('--content-margin-left: 3mm');
   });
 
   it('A4 print HTML contains A4 @page with 12mm margin, no label-only classes', () => {
