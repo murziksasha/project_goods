@@ -5538,12 +5538,12 @@
 }
 
 .orders-table td.finance-orders-payment-cell {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .finance-orders-payment-actions {
   display: grid;
-  grid-template-columns: minmax(142px, 1fr) 62px minmax(140px, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 8px;
   min-width: 0;
@@ -5573,16 +5573,10 @@
   padding: 8px 10px;
 }
 
-.finance-orders-payment-actions .primary-button {
-  width: 62px;
-  min-width: 62px;
-}
-
+.finance-orders-payment-actions .primary-button,
 .finance-orders-payment-actions .secondary-button {
   min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .finance-orders-empty {
