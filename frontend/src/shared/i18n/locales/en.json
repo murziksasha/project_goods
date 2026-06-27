@@ -863,7 +863,7 @@
         "serials": "Serials ",
         "addProduct": "Add product",
         "addService": "Add service",
-        "addProductPlaceholder": "Add product",
+        "addProductPlaceholder": "Name, serial or article",
         "addServicePlaceholder": "Add service",
         "searchingProducts": "Searching products...",
         "searchingServices": "Searching services...",

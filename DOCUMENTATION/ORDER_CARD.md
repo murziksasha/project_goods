@@ -65,6 +65,12 @@
 
 - `Products` section contains only attached products/parts/services used for the order work.
 - `Products` is collapsed by default in order card; saved expanded/collapsed state may override that default on later opens.
+- Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
+- Product search in the add-row input uses the shared `buildCreateOrderProductSuggestions` helper (same ranking and availability rules as `Create order -> Sales order` and `Rapid sale`).
+- Lookup matches warehouse stock by `name`, `article`, `serialNumber`, and `note`; catalog fallback matches `catalog-products` by `name` and `note`.
+- Stock suggestion rows show `price / article / serial / availability`; catalog rows show `price / Product List`.
+- Selecting a stock suggestion by serial query auto-adds one atomic row (`quantity = 1`, bound `serialNumbers[]`).
+- Selecting a stock suggestion by article or name pre-fills name, price, and `productId`; operator confirms with `Add product`.
 - Accepted repair device is not a product line item.
 - Clearing a product row `Price` input while editing must not remove the product line item; explicit `Remove` remains the only row-removal action.
 - Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.

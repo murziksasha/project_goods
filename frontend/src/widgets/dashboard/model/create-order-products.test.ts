@@ -81,6 +81,34 @@ describe('create order product helpers', () => {
     expect(suggestions[0].article).toBe('HUB-USB');
   });
 
+  it('treats serials from the opened sale as current when currentSaleId is provided', () => {
+    const openedSale = {
+      id: 'sale-open',
+      product: { id: '', article: '', name: '', serialNumber: '' },
+      lineItems: [
+        {
+          id: 'li-open',
+          kind: 'product',
+          name: 'iPhone 14',
+          price: 1200,
+          quantity: 1,
+          warrantyPeriod: 12,
+          serialNumbers: ['S000003'],
+        },
+      ],
+    } as Pick<Sale, 'id' | 'product' | 'lineItems'>;
+
+    const suggestions = buildCreateOrderProductSuggestions({
+      products: [product({ id: 'current', serialNumber: 'S000003', article: 'IPH-14' })],
+      catalogProducts: [],
+      sales: [openedSale],
+      query: 'IPH-14',
+      currentSaleId: 'sale-open',
+    });
+
+    expect(suggestions).toEqual([]);
+  });
+
   it('excludes occupied and unavailable stock suggestions', () => {
     const currentSale = {
       id: '',

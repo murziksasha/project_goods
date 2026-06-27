@@ -131,6 +131,13 @@ frontend/
 
 Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 
+## Structure Update: Order/Sale Card Product Lookup (2026-06-26)
+
+### Frontend
+
+- `frontend/src/widgets/dashboard/model/create-order-products.ts` — shared product suggestion builder (`buildCreateOrderProductSuggestions`) for create-order, rapid sale, and opened order/sale card `Products` add-row inputs
+- `frontend/src/widgets/dashboard/ui/OrderDetailCard.tsx` — `LineItemsPanel` product lookup delegates to the shared builder (article/name/serial search in repair order and sale cards)
+
 ## Structure Update: Rapid Sale (2026-06-24)
 
 ### Frontend

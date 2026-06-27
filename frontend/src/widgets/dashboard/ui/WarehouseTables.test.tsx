@@ -1,11 +1,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ReceiptRow } from '../model/warehouse-panel';
-import { ReceiptsTable } from './WarehouseTables';
+import type { Product } from '../../../entities/product/model/types';
+import type { ReceiptRow, StockColumnKey } from '../model/warehouse-panel';
+import { ReceiptsTable, StockTable } from './WarehouseTables';
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 const receipt: ReceiptRow = {
@@ -28,6 +30,45 @@ const receipt: ReceiptRow = {
   paymentStatus: 'pending',
   supplierOrderIsFavorite: false,
   note: '',
+};
+
+const product: Product = {
+  id: 'product-1',
+  name: 'iPhone 15',
+  article: 'ART-001',
+  serialNumber: 'SN-12345',
+  price: 500,
+  salePriceOptions: [],
+  note: '',
+  quantity: 1,
+  reservedQuantity: 0,
+  freeQuantity: 1,
+  isInStock: true,
+  purchasePlace: 'Supplier',
+  purchaseDate: '2026-06-01T09:00:00.000Z',
+  warrantyPeriod: 12,
+  isActive: true,
+  createdAt: '2026-06-01T09:00:00.000Z',
+  updatedAt: '2026-06-01T09:00:00.000Z',
+};
+
+const stockTableProps = {
+  products: [product],
+  isLoading: false,
+  visibleColumns: ['name', 'serial', 'article'] as StockColumnKey[],
+  selectedProductIds: [],
+  warehouses: [],
+  serviceCenters: [],
+  salesByProductId: {},
+  supplierOrdersByProductId: {},
+  productWarehouseMetaById: {},
+  onToggleProductSelection: vi.fn(),
+  onTogglePageSelection: vi.fn(),
+  onEdit: vi.fn(),
+  onOpenModel: vi.fn(),
+  onOpenSerial: vi.fn(),
+  onDelete: vi.fn(),
+  onOpenSupplierOrder: vi.fn(),
 };
 
 describe('ReceiptsTable favorites', () => {
@@ -72,5 +113,61 @@ describe('ReceiptsTable favorites', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Star R-1' })).not.toBeInTheDocument();
+  });
+});
+
+describe('StockTable selectable links', () => {
+  it('renders name, serial, and article as selectable action links', () => {
+    const { container } = render(<StockTable {...stockTableProps} />);
+
+    expect(screen.getByText('iPhone 15')).toBeInTheDocument();
+    expect(screen.getByText('SN-12345')).toBeInTheDocument();
+    expect(screen.getByText('ART-001')).toBeInTheDocument();
+    expect(container.querySelectorAll('button.settings-link-button')).toHaveLength(0);
+    expect(container.querySelectorAll('span.settings-link-button[role="button"]')).toHaveLength(3);
+  });
+
+  it('opens model and serial cards on click without text selection', () => {
+    const onOpenModel = vi.fn();
+    const onOpenSerial = vi.fn();
+    render(
+      <StockTable
+        {...stockTableProps}
+        onOpenModel={onOpenModel}
+        onOpenSerial={onOpenSerial}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('iPhone 15'));
+    fireEvent.click(screen.getByText('SN-12345'));
+    fireEvent.click(screen.getByText('ART-001'));
+
+    expect(onOpenModel).toHaveBeenCalledTimes(2);
+    expect(onOpenModel).toHaveBeenCalledWith(product);
+    expect(onOpenSerial).toHaveBeenCalledTimes(1);
+    expect(onOpenSerial).toHaveBeenCalledWith(product);
+  });
+
+  it('does not trigger actions when text is selected', () => {
+    const onOpenModel = vi.fn();
+    const onOpenSerial = vi.fn();
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'SN-12345',
+    } as Selection);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        onOpenModel={onOpenModel}
+        onOpenSerial={onOpenSerial}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('iPhone 15'));
+    fireEvent.click(screen.getByText('SN-12345'));
+    fireEvent.click(screen.getByText('ART-001'));
+
+    expect(onOpenModel).not.toHaveBeenCalled();
+    expect(onOpenSerial).not.toHaveBeenCalled();
   });
 });

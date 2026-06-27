@@ -10,11 +10,20 @@ When a user selects an entity from suggestions:
 3. Suggestions may appear again only after user starts a new manual edit in the related input.
 
 ## Product Lookup Rule
-For product suggestion fields in sales flows:
-1. Lookup must match by `name`, `article`, and `serialNumber`.
-2. This applies to both:
-3. `Create order` -> `Sales order` product field.
-4. Product search in existing sales card line-item editor.
+For product suggestion fields in sales/order flows:
+1. Lookup must match by normalized `name`, `article`, `serialNumber`, and relevant stock `note`.
+2. Minimum query length is 2 characters; suggestions are debounced per field.
+3. Stock matches are ranked: exact serial, exact article, partial serial, partial article, partial name.
+4. Selectable warehouse stock rows appear before catalog fallback rows with the same model name.
+5. Unavailable stock models suppress duplicate catalog fallback suggestions.
+6. This rule applies to all of the following surfaces:
+   - `Create order` -> `Sales order` product field
+   - `Rapid sale` product field
+   - Opened **sale card** -> `Products` section add-row input
+   - Opened **repair order card** -> `Products` section add-row input
+7. All four surfaces share one frontend helper: `buildCreateOrderProductSuggestions` in `frontend/src/widgets/dashboard/model/create-order-products.ts`.
+8. Opened order/sale card input placeholder: `orders.detail.lineItems.addProductPlaceholder` (`Name, serial or article` / `Назва, серійний номер або артикул`).
+9. In opened order/sale cards, selecting a stock suggestion by serial query auto-adds one atomic serialized row; selecting by article or name pre-fills the entry row and requires `Add product`.
 
 ## Modal Layout Rule
 In modal forms with lookup fields (supplier/client/product/service/device):

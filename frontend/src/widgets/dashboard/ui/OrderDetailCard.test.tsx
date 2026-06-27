@@ -89,6 +89,7 @@ vi.mock('../../../entities/supplier/api/supplierApi', () => ({
 }));
 
 const now = '2026-06-09T09:00:00.000Z';
+const PRODUCT_SEARCH_PLACEHOLDER = 'Name, serial or article';
 
 const product = (patch: Partial<Product> = {}): Product => ({
   id: 'product-1',
@@ -605,13 +606,21 @@ describe('OrderDetailCard product entry', () => {
     const onError = vi.fn();
     renderCard({ onAddLineItem, onError });
 
-    fireEvent.change(screen.getByPlaceholderText('Add product'), {
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
       target: { value: 'TerraE' },
     });
     await waitFor(() => {
       expect(screen.getByText(/Product List/)).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
+    const catalogSuggestion = screen
+      .getAllByRole('button')
+      .find(
+        (button) =>
+          button.classList.contains('create-suggestion-item') &&
+          button.textContent?.includes('Product List'),
+      );
+    expect(catalogSuggestion).toBeTruthy();
+    fireEvent.click(catalogSuggestion!);
     fireEvent.change(screen.getByPlaceholderText('Qty'), {
       target: { value: '4' },
     });
@@ -638,7 +647,7 @@ describe('OrderDetailCard product entry', () => {
     const onAddLineItem = vi.fn();
     renderCard({ catalogProducts: [], onAddLineItem });
 
-    fireEvent.change(screen.getByPlaceholderText('Add product'), {
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
       target: { value: 'S000003' },
     });
     await waitFor(() => {
@@ -654,6 +663,61 @@ describe('OrderDetailCard product entry', () => {
         price: 88,
         quantity: 1,
         warrantyPeriod: 0,
+        serialNumbers: ['S000003'],
+      }),
+    );
+  });
+
+  it('shows stock suggestions when searching by article', async () => {
+    renderCard({ catalogProducts: [] });
+
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
+      target: { value: 'A000001' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/A000001/)).toBeInTheDocument();
+  });
+
+  it('shows stock suggestions when searching by product name', async () => {
+    renderCard({ catalogProducts: [] });
+
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
+      target: { value: 'TerraE' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/A000001/)).toBeInTheDocument();
+  });
+
+  it('prefills product fields when selecting a stock match by article', async () => {
+    const onAddLineItem = vi.fn();
+    renderCard({ catalogProducts: [], onAddLineItem });
+
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
+      target: { value: 'A000001' },
+    });
+    await waitFor(() => {
+      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
+
+    expect(onAddLineItem).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toHaveValue(
+      'TerraE 30E INR18650 2900mAh',
+    );
+    fireEvent.click(screen.getByText('Add product'));
+
+    expect(onAddLineItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'product',
+        productId: 'product-1',
+        name: 'TerraE 30E INR18650 2900mAh',
+        quantity: 1,
         serialNumbers: ['S000003'],
       }),
     );
@@ -993,7 +1057,7 @@ describe('OrderDetailCard product entry', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Products/i }));
-    expect(screen.getByPlaceholderText('Add product')).not.toBeDisabled();
+    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).not.toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add product' })).not.toBeDisabled();
   });
 
@@ -1016,7 +1080,7 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByPlaceholderText('Add product')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).not.toBeInTheDocument();
   });
 
   it('keeps sale card products open by default', () => {
@@ -1025,7 +1089,7 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByPlaceholderText('Add product')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toBeInTheDocument();
   });
 
   it('restores saved section state from localStorage', () => {
@@ -1047,7 +1111,7 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByPlaceholderText('Add product')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toBeInTheDocument();
   });
 
   it('disables live feed composer without orders.chat permission', () => {
