@@ -258,8 +258,11 @@ describe('DashboardPage browser history', () => {
     });
 
     fireEvent.click(screen.getByRole('link', { name: /Orders/i }));
-    expect(pushState).toHaveBeenCalled();
-    expect(window.location.search).toContain('page=orders');
+    expect(pushState).toHaveBeenCalledWith(
+      null,
+      '',
+      expect.stringContaining('page=orders'),
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Orders workspace')).toBeInTheDocument();
@@ -271,6 +274,8 @@ describe('DashboardPage browser history', () => {
     await waitFor(() => {
       expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
+
+    pushState.mockRestore();
   });
 });
 

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import {
   acceptInvitation,
   getCurrentEmployee,
@@ -24,6 +31,7 @@ import { OrdersWorkspace } from '../../../widgets/dashboard/ui/OrdersWorkspace';
 import { CreateOrderCard } from '../../../widgets/dashboard/ui/CreateOrderCard';
 import { EmployeeManagementPanel } from '../../../widgets/dashboard/ui/EmployeeManagementPanel';
 import { SettingsPanel } from '../../../widgets/dashboard/ui/SettingsPanel';
+import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/AccountingPanel';
 import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/ProductCatalogPanel';
 import { WarehousePanel } from '../../../widgets/dashboard/ui/WarehousePanel';
@@ -200,6 +208,18 @@ export const DashboardPage = () => {
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
+  const effectivePrintForms = useMemo(
+    () =>
+      applyPrintFormLocalOverrides(
+        state.settings?.printForms ?? state.settingsForm.printForms,
+        currentEmployee?.id,
+      ),
+    [
+      currentEmployee?.id,
+      state.settings?.printForms,
+      state.settingsForm.printForms,
+    ],
+  );
   const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrl() ?? getStoredActivePage());
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
@@ -1075,7 +1095,7 @@ export const DashboardPage = () => {
                   onOpenClientCard={openClientCardFromOrders}
                   clientDevices={state.clientDevices}
                   catalogProducts={state.catalogProducts}
-                  printForms={state.settings?.printForms ?? state.settingsForm.printForms}
+                  printForms={effectivePrintForms}
                   printCompanySettings={{
                     serviceName:
                       state.settings?.serviceName ?? state.settingsForm.serviceName,

@@ -56,6 +56,11 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - **Market & weather widget** display overrides (collapse, hidden currencies/providers, per-browser location/view toggles) are **client state** in `localStorage` key `project-goods.dashboard-widget-overrides`; they apply immediately and are not shared across browsers or users.
 - Effective widget behavior = MongoDB defaults merged with local overrides (`getEffectiveDashboardWidgetSettings`).
 - Full field list, API flow, and merge rules: [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md#settings-storage-dashboard-tab-vs-widget-drawer).
+- **Print form layout** (content margins, page/label size, orientation) uses a two-layer model like dashboard widgets:
+  - **Server (MongoDB)** — template content, blocks, titles, and other shared print-form fields saved through `PUT /api/settings` on **Save settings**.
+  - **Browser localStorage (per employee)** — personal layout tuning in `project-goods.print-form-overrides.{employeeId}`; written only on **Save settings**, not while editing fields. Until Save, layout edits live in in-memory `settingsForm` and are lost on reload.
+  - On load and for order printing, the frontend merges stored overrides onto server `printForms` for the logged-in employee (`applyPrintFormLocalOverrides`).
+  - Full rules: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#content-margins-and-per-user-layout-storage).
 
 ## Tab Persistence Rule (2026-05-29)
 

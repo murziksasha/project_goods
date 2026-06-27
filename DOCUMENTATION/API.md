@@ -60,6 +60,7 @@ http://localhost:5000/api
 - `GET /settings` - получить текущие настройки компании или системы
 - `PUT /settings` - обновить настройки
 - Настройки хранятся в MongoDB (модель `Settings`, коллекция `settings`). Вкладка **Settings → Dashboard** на фронтенде редактирует вложенный объект `dashboardPreferences`; сохранение — только по кнопке **Save settings** (`PUT /api/settings`). Локальные переопределения виджета Market & weather (сворачивание, скрытие валют и т.д.) в API не попадают — они в `localStorage` (`project-goods.dashboard-widget-overrides`). Подробнее: [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md#settings-storage-dashboard-tab-vs-widget-drawer).
+- Персональные layout-настройки печатных форм (отступы, размер страницы/этикетки, ориентация) тоже сохраняются по кнопке **Save settings**, но пишутся в `localStorage` (`project-goods.print-form-overrides.{employeeId}`), а не в MongoDB. Подробнее: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#content-margins-and-per-user-layout-storage).
 - Settings payload includes `dashboardPreferences` for business home page widget defaults:
   - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
   - `defaultWeatherLocation` (`chornomorsk` | `odesa`, default `chornomorsk`)

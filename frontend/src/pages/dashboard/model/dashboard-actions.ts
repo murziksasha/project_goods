@@ -45,6 +45,10 @@ import type {
   ServiceCatalogItem,
 } from '../../../entities/service-catalog/model/types';
 import { updateSettings } from '../../../entities/settings/api/settingsApi';
+import {
+  applyPrintFormLocalOverrides,
+  persistPrintFormLayoutOverrides,
+} from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
 import {
   createSupplier,
@@ -909,7 +913,15 @@ export const createDashboardActions = ({
       setIsSettingsSaving(true);
       clearNotifications();
       try {
+        persistPrintFormLayoutOverrides(
+          currentEmployee?.id,
+          settingsForm.printForms,
+        );
         const updated = await updateSettings(settingsForm);
+        const printFormsWithLocalOverrides = applyPrintFormLocalOverrides(
+          updated.printForms,
+          currentEmployee?.id,
+        );
         setSettings(updated);
         setSettingsForm({
           serviceName: updated.serviceName,
@@ -919,7 +931,7 @@ export const createDashboardActions = ({
           companyIban: updated.companyIban,
           companyEmail: updated.companyEmail,
           companySite: updated.companySite,
-          printForms: updated.printForms,
+          printForms: printFormsWithLocalOverrides,
           orderDefaults: updated.orderDefaults,
           numbering: updated.numbering,
           financeDefaults: updated.financeDefaults,
