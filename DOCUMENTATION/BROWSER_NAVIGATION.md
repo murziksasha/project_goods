@@ -145,7 +145,7 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 
 - `frontend/src/pages/dashboard/model/dashboard-navigation.test.ts` — parse/build/navigate helpers
 - `frontend/src/pages/dashboard/ui/DashboardPage.test.tsx` — push + popstate integration
-- `frontend/src/widgets/dashboard/ui/useAccountingPreferences.test.tsx` — accounting tab navigation callbacks
+- `frontend/src/widgets/dashboard/ui/accounting/useAccountingPreferences.test.tsx` — accounting tab navigation callbacks
 
 ## Related docs
 

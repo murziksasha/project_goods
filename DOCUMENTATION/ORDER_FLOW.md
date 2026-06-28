@@ -190,6 +190,7 @@
 ## Sales Card: Serials Modal -> Supplier Order (2026-05-20)
 
 - In sale card product line, `Serials x/y` action opens serial binding modal.
+- In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter and pick the oldest dated stock inside it only.
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
 - Product name is prefilled from current product line item.
 - On submit, system creates supplier order with:

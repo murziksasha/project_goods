@@ -122,7 +122,7 @@ a later feature explicitly adds phone selection per order.
 3. When opening a client card, hydrate the form as:
    - `phones = client.phones?.length ? client.phones : [client.phone]`;
    - `phone = phones[0]`.
-4. In `frontend/src/widgets/dashboard/ui/ClientCardModal.tsx`, replace the
+4. In `frontend/src/widgets/dashboard/ui/clients/ClientCardModal.tsx`, replace the
    single Phone label with a compact phone-list component:
    - primary input;
    - repeated additional inputs;

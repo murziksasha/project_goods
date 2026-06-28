@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiClient } from '../../../shared/api/http';
 import type { Sale, SaleFormValues, SaleWorkspacePayload } from '../model/types';
 import { createSale, updateSaleWorkspace } from './saleApi';
+
+const { postMock, patchMock } = vi.hoisted(() => ({
+  postMock: vi.fn(),
+  patchMock: vi.fn(),
+}));
 
 vi.mock('../../../shared/api/http', () => ({
   ApiRequestError: class ApiRequestError extends Error {
@@ -14,8 +18,8 @@ vi.mock('../../../shared/api/http', () => ({
     }
   },
   apiClient: {
-    post: vi.fn(),
-    patch: vi.fn(),
+    post: postMock,
+    patch: patchMock,
   },
   getApiErrorMessage: (error: unknown) =>
     error instanceof Error ? error.message : 'Unexpected request error.',
@@ -67,7 +71,7 @@ beforeEach(() => {
 
 describe('saleApi response validation', () => {
   it('accepts a create sale response with sale and product', async () => {
-    vi.mocked(apiClient.post).mockResolvedValueOnce({
+    postMock.mockResolvedValueOnce({
       data: { sale, product: null },
     });
 
@@ -78,7 +82,7 @@ describe('saleApi response validation', () => {
   });
 
   it('rejects a create sale response without a valid sale', async () => {
-    vi.mocked(apiClient.post).mockResolvedValueOnce({
+    postMock.mockResolvedValueOnce({
       data: { product: null },
     });
 
@@ -88,13 +92,13 @@ describe('saleApi response validation', () => {
   });
 
   it('accepts a direct sale workspace update response', async () => {
-    vi.mocked(apiClient.patch).mockResolvedValueOnce({ data: sale });
+    patchMock.mockResolvedValueOnce({ data: sale });
 
     await expect(updateSaleWorkspace('sale-1', workspacePayload)).resolves.toBe(sale);
   });
 
   it('rejects invalid sale workspace update responses', async () => {
-    vi.mocked(apiClient.patch).mockResolvedValueOnce({
+    patchMock.mockResolvedValueOnce({
       data: '<!doctype html><html></html>',
     });
 
@@ -104,7 +108,7 @@ describe('saleApi response validation', () => {
   });
 
   it('rejects wrapped sale workspace update responses', async () => {
-    vi.mocked(apiClient.patch).mockResolvedValueOnce({
+    patchMock.mockResolvedValueOnce({
       data: { sale },
     });
 

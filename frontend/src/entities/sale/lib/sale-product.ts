@@ -28,7 +28,7 @@ export const getSaleProductName = (sale: Sale, fallback = '') => {
   return lineItemName || productName || fallback;
 };
 
-export const getSaleProductSerialNumber = (sale: Sale) => {
+export const getSaleProductSerialNumber = (sale: Pick<Sale, 'product'>) => {
   const serial = sale.product?.serialNumber?.trim() ?? '';
   if (!serial || repairPlaceholderSerials.has(serial.toUpperCase())) return '';
   return serial;

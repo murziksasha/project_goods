@@ -4,10 +4,10 @@ The business home page is the default dashboard view (`page=home`). It is render
 
 ## UI entry points
 
-- Main component: `frontend/src/widgets/dashboard/ui/AnalyticsHeroSection.tsx`
+- Main component: `frontend/src/widgets/dashboard/ui/analytics/AnalyticsHeroSection.tsx`
 - Page host: `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
 - Analytics engine: `frontend/src/widgets/dashboard/model/sales-analytics.ts`
-- Market & weather widget: `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.tsx`
+- Market & weather widget: `frontend/src/widgets/dashboard/ui/weather/MarketWeatherWidget.tsx`
 
 ## Header controls
 
@@ -45,7 +45,7 @@ When a custom date range is applied:
 
 Related files:
 
-- `frontend/src/widgets/dashboard/ui/AnalyticsDateFilterPanel.tsx`
+- `frontend/src/widgets/dashboard/ui/analytics/AnalyticsDateFilterPanel.tsx`
 - `frontend/src/widgets/dashboard/model/analytics-date-range.ts`
 
 ## Market & Weather widget
@@ -62,7 +62,7 @@ Clicking the **Live insights / Market & weather** header toggles the widget body
 
 This is separate from the settings-drawer switch **Show rates and weather** (`contentVisible`).
 
-Related: `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.tsx`
+Related: `frontend/src/widgets/dashboard/ui/weather/MarketWeatherWidget.tsx`
 
 ### Settings-drawer collapsed mode
 
@@ -187,11 +187,11 @@ The widget settings drawer shows a side-by-side preview with selectable **condit
 
 Related files:
 
-- `frontend/src/widgets/dashboard/ui/WeatherVisual.tsx`
-- `frontend/src/widgets/dashboard/ui/WeatherAnimatedScene.tsx`
-- `frontend/src/widgets/dashboard/ui/WeatherSunGraphic.tsx`
-- `frontend/src/widgets/dashboard/ui/WeatherSceneSkyFallback.tsx`
-- `frontend/src/widgets/dashboard/ui/MarketWeatherSettingsDrawer.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/WeatherVisual.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/WeatherAnimatedScene.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/WeatherSunGraphic.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/WeatherSceneSkyFallback.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/MarketWeatherSettingsDrawer.tsx`
 
 **LAN troubleshooting (animation looks wrong):**
 
@@ -218,7 +218,7 @@ During refresh:
 
 Loader component:
 
-- `frontend/src/widgets/dashboard/ui/MarketWeatherLoader.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/MarketWeatherLoader.tsx`
 
 Query cache TTL on frontend and backend proxy cache: **15 minutes**.
 
@@ -280,7 +280,7 @@ flowchart LR
 
 **Source files:**
 
-- UI: `frontend/src/widgets/dashboard/ui/SettingsPanel.tsx`
+- UI: `frontend/src/widgets/dashboard/ui/settings/SettingsPanel.tsx`
 - Types: `frontend/src/entities/settings/model/types.ts`
 - Normalization: `frontend/src/entities/settings/model/dashboardPreferences.ts`
 - API client: `frontend/src/entities/settings/api/settingsApi.ts`
@@ -398,8 +398,8 @@ Overflow safety:
 - `frontend/src/widgets/dashboard/model/analytics-date-range.test.ts`
 - `frontend/src/widgets/dashboard/model/dashboard-widget-settings.test.ts`
 - `frontend/src/widgets/dashboard/model/sales-analytics.test.ts`
-- `frontend/src/widgets/dashboard/ui/MarketWeatherWidget.test.tsx`
-- `frontend/src/widgets/dashboard/ui/WeatherAnimatedScene.test.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/MarketWeatherWidget.test.tsx`
+- `frontend/src/widgets/dashboard/ui/weather/WeatherAnimatedScene.test.tsx`
 - `backend/src/domain/market/service.test.ts`
 - `backend/src/domain/weather/service.test.ts`
 

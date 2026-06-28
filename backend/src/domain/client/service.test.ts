@@ -2,30 +2,44 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const duplicatePhoneMessage = 'Client phone already exists.';
 
-const setupClientService = async ({
-  existingClientId,
-}: {
-  existingClientId?: string | null;
-} = {}) => {
-  const findOneLeanMock = vi.fn().mockResolvedValue(
-    existingClientId
-      ? { _id: { toString: () => existingClientId }, phone: '+380635567090', phones: ['+380635567090'] }
-      : null,
-  );
-  const findOneMock = vi.fn((q: any) => ({ lean: findOneLeanMock }));
-  const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(null);
+const {
+  findOneLeanMock,
+  findOneMock,
+  findByIdLeanMock,
+  findByIdMock,
+  findByIdAndUpdateLeanMock,
+  findByIdAndUpdateMock,
+  findByIdAndDeleteLeanMock,
+  findByIdAndDeleteMock,
+  validateMock,
+  saveMock,
+  updateManyMock,
+  countDocumentsMock,
+  FakeClient,
+} = vi.hoisted(() => {
+  const findOneLeanMock = vi.fn();
+  const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
+  const findByIdLeanMock = vi.fn();
+  const findByIdMock = vi.fn(() => ({ lean: findByIdLeanMock }));
+  const findByIdAndUpdateLeanMock = vi.fn();
   const findByIdAndUpdateMock = vi.fn(() => ({
     lean: findByIdAndUpdateLeanMock,
   }));
-  const validateMock = vi.fn().mockResolvedValue(undefined);
-  const saveMock = vi.fn().mockResolvedValue(undefined);
+  const findByIdAndDeleteLeanMock = vi.fn();
+  const findByIdAndDeleteMock = vi.fn(() => ({
+    lean: findByIdAndDeleteLeanMock,
+  }));
+  const validateMock = vi.fn();
+  const saveMock = vi.fn();
+  const updateManyMock = vi.fn();
+  const countDocumentsMock = vi.fn();
 
   class FakeClient {
     static findOne = findOneMock;
+    static findById = findByIdMock;
     static findByIdAndUpdate = findByIdAndUpdateMock;
+    static findByIdAndDelete = findByIdAndDeleteMock;
     static find = vi.fn();
-    static findById = vi.fn();
-    static findByIdAndDelete = vi.fn();
     static exists = vi.fn();
 
     validate = validateMock;
@@ -53,39 +67,57 @@ const setupClientService = async ({
     }
   }
 
-  vi.doMock('./model', () => ({
-    Client: FakeClient,
-  }));
-  vi.doMock('../sale/model', () => ({
-    Sale: {
-      updateMany: vi.fn(),
-      exists: vi.fn(),
-      find: vi.fn(),
-      countDocuments: vi.fn().mockResolvedValue(0),
-    },
-  }));
-
-  const service = await import('./service');
   return {
-    service,
+    findOneLeanMock,
     findOneMock,
+    findByIdLeanMock,
+    findByIdMock,
+    findByIdAndUpdateLeanMock,
     findByIdAndUpdateMock,
+    findByIdAndDeleteLeanMock,
+    findByIdAndDeleteMock,
     validateMock,
     saveMock,
+    updateManyMock,
+    countDocumentsMock,
+    FakeClient,
   };
-};
+});
+
+vi.mock('./model', () => ({
+  Client: FakeClient,
+}));
+
+vi.mock('../sale/model', () => ({
+  Sale: {
+    updateMany: updateManyMock,
+    exists: vi.fn(),
+    find: vi.fn(),
+    countDocuments: countDocumentsMock,
+  },
+}));
+
+import * as service from './service';
 
 beforeEach(() => {
-  vi.resetModules();
   vi.clearAllMocks();
+  findOneLeanMock.mockResolvedValue(null);
+  findByIdLeanMock.mockResolvedValue(null);
+  findByIdAndUpdateLeanMock.mockResolvedValue(null);
+  findByIdAndDeleteLeanMock.mockResolvedValue(null);
+  validateMock.mockResolvedValue(undefined);
+  saveMock.mockResolvedValue(undefined);
+  updateManyMock.mockResolvedValue({ modifiedCount: 0 });
+  countDocumentsMock.mockResolvedValue(0);
 });
 
 describe('client service', () => {
   it('rejects creating a client when normalized phone already exists', async () => {
-    const { service, findOneMock, validateMock, saveMock } =
-      await setupClientService({
-        existingClientId: '507f1f77bcf86cd799439012',
-      });
+    findOneLeanMock.mockResolvedValue({
+      _id: { toString: () => '507f1f77bcf86cd799439012' },
+      phone: '+380635567090',
+      phones: ['+380635567090'],
+    });
 
     await expect(
       service.createClient({
@@ -100,7 +132,6 @@ describe('client service', () => {
       }),
     ).rejects.toThrow(duplicatePhoneMessage);
 
-    // our impl queries $or for phones/identities, check it was invoked
     expect(findOneMock).toHaveBeenCalled();
     const callArg = findOneMock.mock.calls[0]?.[0];
     expect(callArg && (callArg.$or || callArg.phone || callArg.phoneIdentities)).toBeTruthy();
@@ -109,10 +140,11 @@ describe('client service', () => {
   });
 
   it('rejects updating a client to another client normalized phone', async () => {
-    const { service, findOneMock, findByIdAndUpdateMock } =
-      await setupClientService({
-        existingClientId: '507f1f77bcf86cd799439012',
-      });
+    findOneLeanMock.mockResolvedValue({
+      _id: { toString: () => '507f1f77bcf86cd799439012' },
+      phone: '+380635567090',
+      phones: ['+380635567090'],
+    });
 
     await expect(
       service.updateClient('507f1f77bcf86cd799439011', {
@@ -132,7 +164,12 @@ describe('client service', () => {
   });
 
   it('blocks create when any of the additional phones is already used', async () => {
-    const { service } = await setupClientService({ existingClientId: 'other-id' });
+    findOneLeanMock.mockResolvedValue({
+      _id: { toString: () => 'other-id' },
+      phone: '+380635567090',
+      phones: ['+380635567090'],
+    });
+
     await expect(
       service.createClient({
         phone: '+380991112233',
@@ -143,8 +180,7 @@ describe('client service', () => {
   });
 
   it('allows updating a client own phones without duplicate errors', async () => {
-    const findOneLeanMock = vi.fn().mockResolvedValue(null);
-    const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
+    findOneLeanMock.mockResolvedValue(null);
     const updatedClient = {
       _id: { toString: () => '507f1f77bcf86cd799439011' },
       phone: '+380635567090',
@@ -159,31 +195,8 @@ describe('client service', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     };
-    const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(updatedClient);
-    const findByIdAndUpdateMock = vi.fn(() => ({
-      lean: findByIdAndUpdateLeanMock,
-    }));
+    findByIdAndUpdateLeanMock.mockResolvedValue(updatedClient);
 
-    class FakeClient {
-      static findOne = findOneMock;
-      static findByIdAndUpdate = findByIdAndUpdateMock;
-      static find = vi.fn();
-      static findById = vi.fn();
-      static findByIdAndDelete = vi.fn();
-      static exists = vi.fn();
-    }
-
-    vi.doMock('./model', () => ({ Client: FakeClient }));
-    vi.doMock('../sale/model', () => ({
-      Sale: {
-        updateMany: vi.fn(),
-        exists: vi.fn(),
-        find: vi.fn(),
-        countDocuments: vi.fn().mockResolvedValue(0),
-      },
-    }));
-
-    const service = await import('./service');
     const result = await service.updateClient('507f1f77bcf86cd799439011', {
       phone: '+380635567090',
       phones: ['+380635567090', '+380501112233'],
@@ -201,8 +214,10 @@ describe('client service', () => {
   });
 
   it('rejects updating a client to another clients additional phone', async () => {
-    const { service, findByIdAndUpdateMock } = await setupClientService({
-      existingClientId: '507f1f77bcf86cd799439012',
+    findOneLeanMock.mockResolvedValue({
+      _id: { toString: () => '507f1f77bcf86cd799439012' },
+      phone: '+380635567090',
+      phones: ['+380635567090'],
     });
 
     await expect(
@@ -225,10 +240,9 @@ describe('client service', () => {
   it('merges two clients without treating source phone as duplicate', async () => {
     const targetId = '507f1f77bcf86cd799439011';
     const sourceId = '507f1f77bcf86cd799439012';
-    const findOneLeanMock = vi.fn().mockResolvedValue(null);
-    const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
-    const findByIdLeanMock = vi
-      .fn()
+
+    findOneLeanMock.mockResolvedValue(null);
+    findByIdLeanMock
       .mockResolvedValueOnce({
         _id: { toString: () => targetId },
         phone: '+380635567090',
@@ -253,14 +267,10 @@ describe('client service', () => {
         note: '',
         status: 'new',
       });
-    const findByIdMock = vi.fn(() => ({ lean: findByIdLeanMock }));
-    const findByIdAndDeleteLeanMock = vi.fn().mockResolvedValue({
+    findByIdAndDeleteLeanMock.mockResolvedValue({
       _id: { toString: () => sourceId },
       phone: '+380978128020',
     });
-    const findByIdAndDeleteMock = vi.fn(() => ({
-      lean: findByIdAndDeleteLeanMock,
-    }));
     const updatedTarget = {
       _id: { toString: () => targetId },
       phone: '+380635567090',
@@ -275,32 +285,9 @@ describe('client service', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     };
-    const findByIdAndUpdateLeanMock = vi.fn().mockResolvedValue(updatedTarget);
-    const findByIdAndUpdateMock = vi.fn(() => ({
-      lean: findByIdAndUpdateLeanMock,
-    }));
-    const updateManyMock = vi.fn().mockResolvedValue({ modifiedCount: 2 });
+    findByIdAndUpdateLeanMock.mockResolvedValue(updatedTarget);
+    updateManyMock.mockResolvedValue({ modifiedCount: 2 });
 
-    class FakeClient {
-      static findOne = findOneMock;
-      static findById = findByIdMock;
-      static findByIdAndUpdate = findByIdAndUpdateMock;
-      static findByIdAndDelete = findByIdAndDeleteMock;
-      static find = vi.fn();
-      static exists = vi.fn();
-    }
-
-    vi.doMock('./model', () => ({ Client: FakeClient }));
-    vi.doMock('../sale/model', () => ({
-      Sale: {
-        updateMany: updateManyMock,
-        exists: vi.fn(),
-        find: vi.fn(),
-        countDocuments: vi.fn().mockResolvedValue(0),
-      },
-    }));
-
-    const service = await import('./service');
     const result = await service.mergeClients(targetId, sourceId);
 
     expect(findOneMock).toHaveBeenCalledWith(

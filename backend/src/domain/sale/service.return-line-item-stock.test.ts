@@ -80,8 +80,8 @@ const lineItem = {
 };
 
 const buildSale = (kind: 'repair' | 'sale') => ({
-  _id: 'sale-1',
-  id: 'sale-1',
+  _id: '507f1f77bcf86cd799439012',
+  id: '507f1f77bcf86cd799439012',
   kind,
   status: 'issued',
   paidAmount: 0,

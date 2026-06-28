@@ -1,0 +1,12 @@
+export { AccountingPanel } from './accounting/AccountingPanel';
+export { AnalyticsHeroSection } from './analytics/AnalyticsHeroSection';
+export { ClientsSuppliersWorkspace } from './clients/ClientsSuppliersWorkspace';
+export { CreateOrderCard } from './orders/create-order/CreateOrderCard';
+export { OrderDetailCard, type OrderDetailCardProps } from './orders/order-detail/OrderDetailCard';
+export { OrdersWorkspace } from './orders/workspace/OrdersWorkspace';
+export { ProductCatalogPanel } from './product-catalog/ProductCatalogPanel';
+export { Notifications } from './shared/Notifications';
+export { EmployeeManagementPanel } from './settings/EmployeeManagementPanel';
+export { SettingsPanel } from './settings/SettingsPanel';
+export { SupplierOrdersWorkspace } from './supplier-orders/SupplierOrdersWorkspace';
+export { WarehousePanel } from './warehouse/WarehousePanel';

@@ -89,7 +89,7 @@ Compact counter-sale flow for walk-in customers: no client form, stock products 
 
 | Layer | Path |
 |-------|------|
-| Modal UI | `frontend/src/widgets/dashboard/ui/RapidSaleModal.tsx` |
+| Modal UI | `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` |
 | Draft/line-item helpers | `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` |
 | List client label | `frontend/src/widgets/dashboard/model/sale-client-display.ts` |
 | Create + payment handoff | `frontend/src/pages/dashboard/ui/DashboardPage.tsx` (`handleRapidSaleCreated`, `pendingPaymentSale`) |

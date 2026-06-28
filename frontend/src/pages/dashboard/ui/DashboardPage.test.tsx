@@ -2,9 +2,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '../../../shared/api/http';
 import type { Employee } from '../../../entities/employee/model/types';
-import { authTokenStorageKey, getCurrentEmployee } from '../../../entities/auth/api/authApi';
+import { authTokenStorageKey } from '../../../entities/auth/api/authApi';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { DashboardPage } from './DashboardPage';
+
+const { getCurrentEmployeeMock } = vi.hoisted(() => ({
+  getCurrentEmployeeMock: vi.fn(),
+}));
 
 vi.mock('../../../entities/auth/api/authApi', async () => {
   const actual = await vi.importActual<typeof import('../../../entities/auth/api/authApi')>(
@@ -12,7 +16,7 @@ vi.mock('../../../entities/auth/api/authApi', async () => {
   );
   return {
     ...actual,
-    getCurrentEmployee: vi.fn(),
+    getCurrentEmployee: getCurrentEmployeeMock,
     getInvitationDetails: vi.fn(),
     login: vi.fn(),
     logout: vi.fn(),
@@ -134,39 +138,39 @@ vi.mock('../model/useDashboardPage', () => {
   };
 });
 
-vi.mock('../../../widgets/dashboard/ui/Notifications', () => ({
+vi.mock('../../../widgets/dashboard/ui/shared/Notifications', () => ({
   Notifications: ({ error }: { error: string }) => (
     <div data-testid="notifications">{error}</div>
   ),
 }));
-vi.mock('../../../widgets/dashboard/ui/AnalyticsHeroSection', () => ({
+vi.mock('../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection', () => ({
   AnalyticsHeroSection: () => <section>Dashboard home</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/OrdersWorkspace', () => ({
+vi.mock('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace', () => ({
   OrdersWorkspace: () => <section>Orders workspace</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/CreateOrderCard', () => ({
+vi.mock('../../../widgets/dashboard/ui/orders/create-order/CreateOrderCard', () => ({
   CreateOrderCard: () => <section>Create order</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/EmployeeManagementPanel', () => ({
+vi.mock('../../../widgets/dashboard/ui/settings/EmployeeManagementPanel', () => ({
   EmployeeManagementPanel: () => <section>Employees</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/SettingsPanel', () => ({
+vi.mock('../../../widgets/dashboard/ui/settings/SettingsPanel', () => ({
   SettingsPanel: () => <section>Settings</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/AccountingPanel', () => ({
+vi.mock('../../../widgets/dashboard/ui/accounting/AccountingPanel', () => ({
   AccountingPanel: () => <section>Accounting</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/ProductCatalogPanel', () => ({
+vi.mock('../../../widgets/dashboard/ui/product-catalog/ProductCatalogPanel', () => ({
   ProductCatalogPanel: () => <section>Catalog</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/WarehousePanel', () => ({
+vi.mock('../../../widgets/dashboard/ui/warehouse/WarehousePanel', () => ({
   WarehousePanel: () => <section>Warehouse</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/ClientsSuppliersWorkspace', () => ({
+vi.mock('../../../widgets/dashboard/ui/clients/ClientsSuppliersWorkspace', () => ({
   ClientsSuppliersWorkspace: () => <section>Clients</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/SupplierOrdersWorkspace', () => ({
+vi.mock('../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace', () => ({
   SupplierOrdersWorkspace: () => <section>Supplier orders</section>,
 }));
 vi.mock('../../../shared/ui/GlobalHorizontalScrollbar', () => ({
@@ -202,7 +206,7 @@ afterEach(() => {
 
 describe('DashboardPage sync control', () => {
   it('hard reloads the app when Last sync is clicked', async () => {
-    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'valid-token');
 
     render(<DashboardPage />);
@@ -218,7 +222,7 @@ describe('DashboardPage sync control', () => {
 
 describe('DashboardPage auth recovery', () => {
   it('keeps the workspace open when session check returns 401 and a snapshot exists', async () => {
-    vi.mocked(getCurrentEmployee).mockRejectedValue(
+    getCurrentEmployeeMock.mockRejectedValue(
       new ApiRequestError('Session not found.', {
         hasResponse: true,
         status: 401,
@@ -247,7 +251,7 @@ describe('DashboardPage auth recovery', () => {
 describe('DashboardPage browser history', () => {
   it('pushes history entries for in-app navigation and restores state on popstate', async () => {
     const pushState = vi.spyOn(window.history, 'pushState');
-    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'valid-token');
     window.history.replaceState(null, '', '/');
 
@@ -281,7 +285,7 @@ describe('DashboardPage browser history', () => {
 
 describe('DashboardPage last sync reload', () => {
   it('clicking Last sync hard reloads the page and preserves login state', async () => {
-    vi.mocked(getCurrentEmployee).mockResolvedValue(employee);
+    getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
 
     render(<DashboardPage />);
