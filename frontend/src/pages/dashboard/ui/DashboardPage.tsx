@@ -490,8 +490,19 @@ export const DashboardPage = () => {
     }
 
     hasNormalizedInitialUrlRef.current = true;
-    navigateTo(buildLocationFromState(), { replace: true });
-  }, [buildLocationFromState, currentEmployee, navigateTo]);
+    const parsed = parseDashboardLocationFromWindow();
+    const page = getPageFromUrl() ?? getStoredActivePage();
+    const initialLocation: DashboardLocation = {
+      page,
+      ordersTab: parsed.ordersTab ?? getStoredOrdersTab(),
+      createOrder: parsed.createOrder,
+      saleId: parsed.saleId,
+      accountingTab: page === 'accounting' ? parsed.accountingTab : null,
+    };
+
+    applyLocationToState(initialLocation);
+    navigateDashboard(initialLocation, { replace: true });
+  }, [applyLocationToState, currentEmployee]);
 
   useEffect(() => {
     const syncFromHistory = () => {

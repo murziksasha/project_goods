@@ -274,9 +274,16 @@ export const isSupplierOrderLinkedToSale = (
   return linkedSaleRef === saleRecordNumber;
 };
 
+export type StoredOrderDetailSectionState = {
+  productsOpen?: boolean;
+  servicesOpen?: boolean;
+  liveFeedOpen?: boolean;
+  mainInfoOpen?: boolean;
+};
+
 export type StoredOrderDetailSections = Record<
   string,
-  { productsOpen: boolean; servicesOpen: boolean }
+  StoredOrderDetailSectionState
 >;
 
 export const readOrderDetailSectionsState = (): StoredOrderDetailSections => {
@@ -298,6 +305,20 @@ export const writeOrderDetailSectionsState = (
     orderDetailSectionsStorageKey,
     JSON.stringify(value),
   );
+};
+
+export const patchOrderDetailSectionState = (
+  saleId: string,
+  patch: StoredOrderDetailSectionState,
+) => {
+  const current = readOrderDetailSectionsState();
+  writeOrderDetailSectionsState({
+    ...current,
+    [saleId]: {
+      ...current[saleId],
+      ...patch,
+    },
+  });
 };
 
 export const getStoredOrderDetailRelatedTab = (): OrdersTab => {

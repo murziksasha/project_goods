@@ -98,6 +98,10 @@
 - `Discount` supports toggle modes:
   - `%` for percentage discount from total sale amount
   - `₴` for fixed discount amount
+- Discount mode can be switched from two places in the sale card `Payment` panel:
+  - round badge next to the `Discount` label
+  - mode button inside the discount input field (right side)
+- Both controls use the same toggle behavior and current discount value.
 - In `Accept payment` modal, `Discount` is read-only and shown for reference.
 - Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
 - Discount value is stored in workspace state and reused across card and payment modal.
