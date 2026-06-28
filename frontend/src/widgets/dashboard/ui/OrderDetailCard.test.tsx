@@ -1206,6 +1206,35 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
+  it('renders date separators and groups messages by calendar day', () => {
+    const day1 = '2026-06-09T10:00:00.000Z';
+    const day2 = '2026-06-08T11:00:00.000Z';
+    renderCard({
+      saleOverride: { createdAt: day1 },
+      comments: [
+        {
+          id: 'c1',
+          author: 'M',
+          message: 'today 1',
+          createdAt: day1,
+        },
+        {
+          id: 'c2',
+          author: 'M',
+          message: 'yesterday',
+          createdAt: day2,
+        },
+      ],
+    });
+
+    const seps = screen.getAllByText(/-------------- .*-------/);
+    expect(seps.length).toBe(2);
+    expect(screen.getByText('-------------- 09/06/2026-------')).toBeInTheDocument();
+    expect(screen.getByText('-------------- 08/06/2026-------')).toBeInTheDocument();
+    expect(screen.getByText('today 1')).toBeInTheDocument();
+    expect(screen.getByText('yesterday')).toBeInTheDocument();
+  });
+
   it('keeps repair card editable while still blocking comment add without orders.chat', () => {
     render(
       <OrderDetailCard

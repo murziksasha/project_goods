@@ -60,6 +60,7 @@
 - System-generated messages use gray text.
 - Manually entered comments use green text and are allowed only for employees with `orders.chat`.
 - New timeline entries store explicit source: `manual` for composer comments and `system` for generated actions. Legacy entries without source keep the existing message-text fallback.
+- Messages are grouped by date with separator lines in the format `-------------- DD/MM/YYYY-------` (e.g. `-------------- 28/06/2026-------`) shown above each day's entries in the live feed.
 
 ## Products Section
 

@@ -695,6 +695,40 @@ export const OrderDetailCard = ({
   );
   const isCommentComposerDisabled = isReadOnly || !canAddComment;
 
+  const getDateKey = (value: string) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  };
+
+  const formatDateSeparator = (value: string) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(d);
+  };
+
+  const timelineDisplay = useMemo(() => {
+    const out: Array<
+      | { kind: 'sep'; key: string; label: string }
+      | { kind: 'msg'; item: TimelineEntry; idx: number }
+    > = [];
+    let lastKey = '';
+    timelineItems.forEach((item, idx) => {
+      const key = getDateKey(item.createdAt);
+      const label = formatDateSeparator(item.createdAt) || '—';
+      if (key && key !== lastKey) {
+        out.push({ kind: 'sep', key: `sep-${key}`, label });
+        lastKey = key;
+      }
+      out.push({ kind: 'msg', item, idx });
+    });
+    return out;
+  }, [timelineItems]);
+
   const submitComment = () => {
     onAddComment(comment);
     setComment('');
@@ -999,25 +1033,31 @@ export const OrderDetailCard = ({
           <h3>{t('orders.detail.liveFeed')}</h3>
           <div className='order-timeline'>
             <div className='order-timeline-list'>
-            {timelineItems.map((item, index) => (
-              <div
-                key={`${item.id}-${index}`}
-                className='order-timeline-item'
-              >
-                <span>
-                  {new Date(item.createdAt).toLocaleTimeString(
-                    'uk-UA',
-                    { hour: '2-digit', minute: '2-digit' },
-                  )}
-                </span>
-                <p>
-                  <strong>{item.author}</strong>
-                  <small className={getTimelineMessageClassName(item)}>
-                    {item.message}
-                  </small>
-                </p>
-              </div>
-            ))}
+            {timelineDisplay.map((entry) =>
+              entry.kind === 'sep' ? (
+                <div key={entry.key} className="order-timeline-date-separator">
+                  ---   {entry.label}  ---
+                </div>
+              ) : (
+                <div
+                  key={`${entry.item.id}-${entry.idx}`}
+                  className="order-timeline-item"
+                >
+                  <span>
+                    {new Date(entry.item.createdAt).toLocaleTimeString(
+                      'uk-UA',
+                      { hour: '2-digit', minute: '2-digit' },
+                    )}
+                  </span>
+                  <p>
+                    <strong>{entry.item.author}</strong>
+                    <small className={getTimelineMessageClassName(entry.item)}>
+                      {entry.item.message}
+                    </small>
+                  </p>
+                </div>
+              )
+            )}
             </div>
             <div className='order-timeline-composer'>
             <textarea
