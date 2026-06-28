@@ -80,6 +80,7 @@
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
 - **Serial bind modal** (Products action column → `Serials`): includes a warehouse dropdown; available serial numbers are filtered to the selected warehouse (default: first created active warehouse). Applies to opened repair orders and sales.
+- `Auto-select oldest` in the serial bind modal must select only serials from the currently selected warehouse, ordered by oldest stock date (`purchaseDate`, fallback `createdAt`) within that warehouse, up to the line-item quantity. Changing the warehouse dropdown clears selections that are not visible in the new warehouse.
 
 ## Payment And Discount
 

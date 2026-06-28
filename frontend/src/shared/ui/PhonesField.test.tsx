@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../i18n/config';
 import { PhonesField } from './PhonesField';
 
 afterEach(() => {
@@ -40,7 +41,9 @@ describe('PhonesField', () => {
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Set as primary phone' }),
+      screen.getByRole('button', {
+        name: i18n.t('clients.card.setPrimaryPhoneAriaLabel'),
+      }),
     );
 
     expect(onPhonesUpdate).toHaveBeenCalledWith({
@@ -60,9 +63,10 @@ describe('PhonesField', () => {
       />,
     );
 
-    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
+    const phonesField = screen.getByText(i18n.t('clients.card.fields.phones'))
+      .parentElement as HTMLElement;
     const removeButtons = within(phonesField).getAllByRole('button', {
-      name: 'Remove phone',
+      name: i18n.t('clients.card.removePhoneAriaLabel'),
     });
     fireEvent.click(removeButtons[1]);
 

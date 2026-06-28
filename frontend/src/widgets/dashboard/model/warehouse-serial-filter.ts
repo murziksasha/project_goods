@@ -31,8 +31,9 @@ export const productMatchesWarehouse = (
 ): boolean => {
   if (!warehouseId) return true;
 
-  if (product.warehouseId?.trim() === warehouseId) {
-    return true;
+  const productWarehouseId = product.warehouseId?.trim();
+  if (productWarehouseId) {
+    return productWarehouseId === warehouseId;
   }
 
   const warehouse = warehouses.find((item) => item.id === warehouseId);
@@ -53,4 +54,47 @@ export const filterProductsByWarehouse = (
   return products.filter((product) =>
     productMatchesWarehouse(product, warehouseId, warehouses),
   );
+};
+
+const getProductStockTimestamp = (product: Product): number => {
+  const timestamp = new Date(
+    product.purchaseDate ?? product.createdAt,
+  ).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+};
+
+export const sortProductsOldestFirst = (products: Product[]): Product[] =>
+  [...products].sort(
+    (first, second) =>
+      getProductStockTimestamp(first) - getProductStockTimestamp(second),
+  );
+
+export const getWarehouseFilteredProductsOldestFirst = (
+  products: Product[],
+  warehouseId: string,
+  warehouses: WarehouseItem[],
+): Product[] =>
+  sortProductsOldestFirst(
+    filterProductsByWarehouse(products, warehouseId, warehouses),
+  );
+
+export const selectOldestSerialsForWarehouse = (
+  products: Product[],
+  warehouseId: string,
+  warehouses: WarehouseItem[],
+  limit: number,
+  normalizeSerial: (value: string | null | undefined) => string,
+): string[] => {
+  if (!warehouseId || limit <= 0 || warehouses.length === 0) {
+    return [];
+  }
+
+  return getWarehouseFilteredProductsOldestFirst(
+    products,
+    warehouseId,
+    warehouses,
+  )
+    .map((product) => normalizeSerial(product.serialNumber))
+    .filter(Boolean)
+    .slice(0, limit);
 };

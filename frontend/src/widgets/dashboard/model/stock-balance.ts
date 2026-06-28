@@ -1,9 +1,6 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
-import {
-  getSaleProductId,
-  getSaleProductSerialNumber,
-} from '../../../entities/sale/lib/sale-product';
+import { getSaleProductSerialNumber } from '../../../entities/sale/lib/sale-product';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { buildSupplierOrderItemNumber } from './supplier-order-utils';
 
@@ -66,11 +63,37 @@ export const isIssuedSaleStatus = (value: string | null | undefined) => {
   );
 };
 
-export const getIssuedSaleProductIds = (
-  products: Product[],
-  sales: Sale[],
-) => {
-  const issuedProductIds = new Set<string>();
+type SaleLineItemLink = Pick<
+  Sale['lineItems'][number],
+  'kind' | 'productId' | 'serialNumbers'
+>;
+
+type StockProductLink = Pick<Product, 'id' | 'serialNumber'>;
+
+export const isSaleLineItemLinkedToStockProduct = (
+  item: SaleLineItemLink,
+  product: StockProductLink,
+): boolean => {
+  if (item.kind !== 'product') return false;
+
+  const productSerial = normalizeText(product.serialNumber);
+  const itemSerials = (item.serialNumbers ?? [])
+    .map(normalizeText)
+    .filter(Boolean);
+
+  if (productSerial && itemSerials.includes(productSerial)) {
+    return true;
+  }
+
+  if (item.productId === product.id) {
+    if (!productSerial) return true;
+    return itemSerials.includes(productSerial);
+  }
+
+  return false;
+};
+
+const buildProductIdsBySerial = (products: Product[]) => {
   const productIdsBySerial = new Map<string, string[]>();
 
   products.forEach((product) => {
@@ -82,34 +105,77 @@ export const getIssuedSaleProductIds = (
     ]);
   });
 
+  return productIdsBySerial;
+};
+
+export const getStockProductIdsLinkedToSale = (
+  sale: Pick<Sale, 'product' | 'lineItems'>,
+  products: Product[],
+): string[] => {
+  const linkedProductIds = new Set<string>();
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const productIdsBySerial = buildProductIdsBySerial(products);
+
+  const saleProductId = sale.product?.id?.trim();
+  if (saleProductId) {
+    linkedProductIds.add(saleProductId);
+  }
+
+  const saleSerial = normalizeText(getSaleProductSerialNumber(sale));
+  (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
+    (productId) => linkedProductIds.add(productId),
+  );
+
+  (sale.lineItems ?? []).forEach((item) => {
+    if (item.kind !== 'product') return;
+
+    const itemSerials = (item.serialNumbers ?? [])
+      .map(normalizeText)
+      .filter(Boolean);
+
+    itemSerials.forEach((serial) =>
+      (productIdsBySerial.get(serial) ?? []).forEach((productId) =>
+        linkedProductIds.add(productId),
+      ),
+    );
+
+    const productId = item.productId?.trim();
+    if (!productId) return;
+
+    const product = productsById.get(productId);
+    if (!product) return;
+
+    if (isSaleLineItemLinkedToStockProduct(item, product)) {
+      linkedProductIds.add(productId);
+    }
+  });
+
+  return Array.from(linkedProductIds);
+};
+
+export const buildSalesByProductId = (
+  products: Product[],
+  sales: Sale[],
+): Record<string, Sale[]> =>
+  sales.reduce<Record<string, Sale[]>>((acc, sale) => {
+    getStockProductIdsLinkedToSale(sale, products).forEach((productId) => {
+      acc[productId] = [...(acc[productId] ?? []), sale];
+    });
+    return acc;
+  }, {});
+
+export const getIssuedSaleProductIds = (
+  products: Product[],
+  sales: Sale[],
+) => {
+  const issuedProductIds = new Set<string>();
+
   sales.forEach((sale) => {
     if (!isIssuedSaleStatus(sale.status)) return;
 
-    const saleProductId = getSaleProductId(sale);
-    if (saleProductId) {
-      issuedProductIds.add(saleProductId);
-    }
-
-    const saleSerial = normalizeText(getSaleProductSerialNumber(sale));
-    (saleSerial ? productIdsBySerial.get(saleSerial) ?? [] : []).forEach(
-      (productId) => issuedProductIds.add(productId),
+    getStockProductIdsLinkedToSale(sale, products).forEach((productId) =>
+      issuedProductIds.add(productId),
     );
-
-    (sale.lineItems ?? []).forEach((item) => {
-      if (item.kind !== 'product') return;
-      if (item.productId) {
-        issuedProductIds.add(item.productId);
-      }
-
-      (item.serialNumbers ?? [])
-        .map(normalizeText)
-        .filter(Boolean)
-        .forEach((serial) =>
-          (productIdsBySerial.get(serial) ?? []).forEach((productId) =>
-            issuedProductIds.add(productId),
-          ),
-        );
-    });
   });
 
   return issuedProductIds;

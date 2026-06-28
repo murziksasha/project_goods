@@ -74,6 +74,8 @@ vi.mock('../catalog-product/service', () => ({
 
 import { acceptSalePayment, refundSalePayment } from './service';
 
+const saleId = '507f1f77bcf86cd799439012';
+
 const lineItem = {
   id: 'li-1',
   kind: 'product',
@@ -86,7 +88,7 @@ const lineItem = {
 };
 
 const buildSale = () => ({
-  _id: 'sale-1',
+  _id: saleId,
   recordNumber: 'r000008',
   kind: 'sale',
   status: 'reserved',
@@ -133,7 +135,7 @@ describe('sale payment/refund finance coupling', () => {
     const sale = buildSale();
     setupPaymentMocks(sale);
 
-    const updatedSale = await acceptSalePayment('sale-1', {
+    const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '290',
       paymentMethod: 'cash',
@@ -164,7 +166,7 @@ describe('sale payment/refund finance coupling', () => {
     setupPaymentMocks(sale);
 
     await expect(
-      acceptSalePayment('sale-1', {
+      acceptSalePayment(saleId, {
         cashboxId: 'cashbox-1',
         amount: '100',
         paymentMethod: 'cash',
@@ -186,7 +188,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(sale);
 
-    const updatedSale = await refundSalePayment('sale-1', {
+    const updatedSale = await refundSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '100',
       author: 'Manager',
@@ -216,7 +218,7 @@ describe('sale payment/refund finance coupling', () => {
     setupPaymentMocks(sale);
 
     await expect(
-      refundSalePayment('sale-1', {
+      refundSalePayment(saleId, {
         cashboxId: 'cashbox-1',
         amount: '100',
         author: 'Manager',
@@ -236,7 +238,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(sale);
 
-    const updatedSale = await acceptSalePayment('sale-1', {
+    const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '100',
       paymentMethod: 'cash',
@@ -270,7 +272,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(sale);
 
-    const updatedSale = await acceptSalePayment('sale-1', {
+    const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '290',
       paymentMethod: 'non-cash',
@@ -299,7 +301,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(repair);
 
-    const updated = await acceptSalePayment('sale-1', {
+    const updated = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-2',
       amount: '100',
       paymentMethod: 'cash',
@@ -325,7 +327,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(repairWithProduct);
 
-    const updatedWith = await acceptSalePayment('sale-1', {
+    const updatedWith = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '290',
       paymentMethod: 'cash',
@@ -355,7 +357,7 @@ describe('sale payment/refund finance coupling', () => {
     };
     setupPaymentMocks(repairServiceOnly);
 
-    const updatedSvc = await acceptSalePayment('sale-1', {
+    const updatedSvc = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '90',
       paymentMethod: 'non-cash',
@@ -387,7 +389,7 @@ describe('sale payment/refund finance coupling', () => {
     setupPaymentMocks(repair);
 
     await expect(
-      acceptSalePayment('sale-1', {
+      acceptSalePayment(saleId, {
         cashboxId: 'cashbox-1',
         amount: '100',
         paymentMethod: 'cash',

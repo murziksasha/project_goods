@@ -5,7 +5,9 @@ import {
   filterProductsByWarehouse,
   getActiveWarehouseOptions,
   getDefaultWarehouseId,
+  getWarehouseFilteredProductsOldestFirst,
   productMatchesWarehouse,
+  selectOldestSerialsForWarehouse,
 } from './warehouse-serial-filter';
 
 const warehouse = (patch: Partial<WarehouseItem> = {}): WarehouseItem => ({
@@ -87,6 +89,35 @@ describe('warehouse-serial-filter', () => {
     ).toBe(false);
   });
 
+  it('does not match transferred stock by stale purchasePlace', () => {
+    const transferredProduct = product({
+      warehouseId: 'wh-second',
+      purchasePlace: 'Main warehouse',
+      serialNumber: 'S-TRANSFERRED',
+    });
+
+    expect(
+      productMatchesWarehouse(transferredProduct, 'wh-second', warehouses),
+    ).toBe(true);
+    expect(
+      productMatchesWarehouse(transferredProduct, 'wh-main', warehouses),
+    ).toBe(false);
+    expect(
+      filterProductsByWarehouse(
+        [transferredProduct],
+        'wh-main',
+        warehouses,
+      ),
+    ).toEqual([]);
+    expect(
+      filterProductsByWarehouse(
+        [transferredProduct],
+        'wh-second',
+        warehouses,
+      ),
+    ).toEqual([transferredProduct]);
+  });
+
   it('filters products by selected warehouse', () => {
     const products = [
       product({ id: 'p-main', warehouseId: 'wh-main', serialNumber: 'S1' }),
@@ -97,5 +128,67 @@ describe('warehouse-serial-filter', () => {
       products[0],
     ]);
     expect(filterProductsByWarehouse(products, '', warehouses)).toEqual(products);
+  });
+
+  it('sorts warehouse-filtered products oldest-first', () => {
+    const products = [
+      product({
+        id: 'p-new-main',
+        warehouseId: 'wh-main',
+        serialNumber: 'S-NEW',
+        purchaseDate: '2026-03-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'p-old-second',
+        warehouseId: 'wh-second',
+        serialNumber: 'S-OLD-SECOND',
+        purchaseDate: '2026-01-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'p-mid-second',
+        warehouseId: 'wh-second',
+        serialNumber: 'S-MID-SECOND',
+        purchaseDate: '2026-02-01T00:00:00.000Z',
+      }),
+    ];
+
+    expect(
+      getWarehouseFilteredProductsOldestFirst(products, 'wh-second', warehouses).map(
+        (item) => item.serialNumber,
+      ),
+    ).toEqual(['S-OLD-SECOND', 'S-MID-SECOND']);
+  });
+
+  it('selects oldest serials only from the requested warehouse', () => {
+    const products = [
+      product({
+        id: 'p-old-main',
+        warehouseId: 'wh-main',
+        serialNumber: 'S-MAIN-OLD',
+        purchaseDate: '2026-01-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'p-new-second',
+        warehouseId: 'wh-second',
+        serialNumber: 'S-SECOND-NEW',
+        purchaseDate: '2026-03-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'p-old-second',
+        warehouseId: 'wh-second',
+        serialNumber: 'S-SECOND-OLD',
+        purchaseDate: '2026-02-01T00:00:00.000Z',
+      }),
+    ];
+
+    expect(
+      selectOldestSerialsForWarehouse(
+        products,
+        'wh-second',
+        warehouses,
+        2,
+        (value) => String(value ?? '').trim().toUpperCase(),
+      ),
+    ).toEqual(['S-SECOND-OLD', 'S-SECOND-NEW']);
   });
 });

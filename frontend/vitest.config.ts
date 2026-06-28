@@ -10,11 +10,11 @@ const coverageInclude = [
   'src/shared/lib/phoneFormatter.ts',
   'src/widgets/dashboard/model/order-request.ts',
   'src/widgets/dashboard/model/print-form-builder.ts',
-  'src/widgets/dashboard/ui/AccountingPanel.tsx',
-  'src/widgets/dashboard/ui/AccountingCashboxesView.tsx',
-  'src/widgets/dashboard/ui/PrinterIcon.tsx',
-  'src/widgets/dashboard/ui/useAccountingFinanceData.ts',
-  'src/widgets/dashboard/ui/useAccountingPreferences.ts',
+  'src/widgets/dashboard/ui/accounting/AccountingPanel.tsx',
+  'src/widgets/dashboard/ui/accounting/AccountingCashboxesView.tsx',
+  'src/widgets/dashboard/ui/orders/modals/PrinterIcon.tsx',
+  'src/widgets/dashboard/ui/accounting/useAccountingFinanceData.ts',
+  'src/widgets/dashboard/ui/accounting/useAccountingPreferences.ts',
 ];
 
 export default defineConfig({

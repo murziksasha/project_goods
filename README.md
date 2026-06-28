@@ -6,7 +6,7 @@ Project Goods - full-stack приложение для учета товаров
 
 ### Базовая документация
 - [DEVELOPMENT.md](./DOCUMENTATION/DEVELOPMENT.md) - локальный запуск, окружение, команды
-- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория
+- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория (включая карту `widgets/dashboard/ui/` по тематическим папкам)
 - [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
 - [API.md](./DOCUMENTATION/API.md) - backend API и маршруты
 - [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap

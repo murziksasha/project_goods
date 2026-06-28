@@ -12,6 +12,8 @@ const coverageInclude = [
 
 export default defineConfig({
   test: {
+    pool: 'vmForks',
+    testTimeout: 15000,
     environment: 'node',
     include: ['src/**/*.test.ts'],
     coverage: {
