@@ -101,6 +101,12 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
+- The serial bind modal warehouse dropdown filters both the visible serial list and `Auto-select oldest`; the auto-select action must never pick serials from another warehouse.
+- Warehouse filter for serial pickers (`SerialBindModal`, `RapidSaleModal`) is resolved by `src/widgets/dashboard/model/warehouse-serial-filter.ts` with the same priority as stock mapping:
+1. if `product.warehouseId` is set, match only by strict `product.warehouseId === selectedWarehouseId`
+2. if `product.warehouseId` is missing (legacy row), allow fallback by normalized `purchasePlace === warehouse.name`
+- After `Transfer`, `product.warehouseId` becomes the only warehouse source for that stock unit; stale `purchasePlace` from the original receipt must not make the serial appear in the old warehouse dropdown.
+- `Auto-select oldest` chooses the oldest in-stock serials by `purchaseDate` (fallback `createdAt`) inside the currently selected warehouse only, up to the line-item quantity.
 - Source of truth for candidate list:
 1. `lineItem.productId` strict equality with `product.id`
 2. if `lineItem.productId` is missing (legacy data), allow only exact normalized product name equality (no partial match)
@@ -198,8 +204,8 @@ Multi-print rules:
 
 Implementation references:
 
-- selection and toolbar action: `src/widgets/dashboard/ui/WarehousePanel.tsx`, `WarehouseToolbar.tsx`
-- print pipeline: `src/widgets/dashboard/ui/orders-workspace-shared.ts` (`printWarehouseSerialLabels`)
+- selection and toolbar action: `src/widgets/dashboard/ui/warehouse/WarehousePanel.tsx`, `WarehouseToolbar.tsx`
+- print pipeline: `src/widgets/dashboard/ui/orders/workspace/orders-workspace-shared.ts` (`printWarehouseSerialLabels`)
 - batch CSS: `src/entities/settings/model/printForms.ts` (`printLabelDocumentStyles`)
 
 #### Operator Expectations
@@ -250,7 +256,7 @@ Implementation references:
 2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
 
 ### 6.3) Supplier Order Modal Item List Editing
-- In `SupplierOrderModal` (`src/widgets/dashboard/ui/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
+- In `SupplierOrderModal` (`src/widgets/dashboard/ui/orders/modals/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
 - Each already added item row must have remove action button `-` at row end.
 - Remove action uses the same square toolbar visual style as add button `+`.
 - Remove action deletes only selected row from current order item list.
@@ -334,6 +340,11 @@ Implementation references:
 - Transfer saves to product warehouse metadata:
 1. `product.warehouseId = target warehouse id`
 2. `product.locationId = target location id`
+- Transfer does not rewrite `purchasePlace`; it remains the original receipt/supplier context.
+- Because `warehouseId` is set after transfer, all warehouse-scoped serial filters and stock-location display must treat `warehouseId` as authoritative and ignore `purchasePlace` for that product.
+- Expected post-transfer behavior in order serial pickers:
+1. serial is visible only in the target warehouse dropdown
+2. serial must not remain visible in the source warehouse dropdown because of stale `purchasePlace`
 - If operator enters a transfer note, it is appended to product note as transfer context.
 - After successful transfer, product data must be refreshed from API/query cache.
 - Successful transfer is recorded in the local session transfer history table with:

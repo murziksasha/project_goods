@@ -3,7 +3,7 @@ import type { PrintForm } from '../../entities/settings/model/types';
 import {
   printWarehouseSerialLabels,
   type WarehouseSerialPrintItem,
-} from '../../widgets/dashboard/ui/orders-workspace-shared';
+} from '../../widgets/dashboard/ui/orders/workspace/orders-workspace-shared';
 
 export type SerialPrintItem = WarehouseSerialPrintItem;
 

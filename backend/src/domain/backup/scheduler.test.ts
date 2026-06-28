@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BackupMetadata } from './service';
-
-vi.mock('./service', () => ({
-  createScheduledBackup: vi.fn(),
-  deleteOldScheduledBackups: vi.fn(),
-}));
-
-import { createScheduledBackup, deleteOldScheduledBackups } from './service';
+import * as backupService from './service';
 import {
   getUtcDateKey,
   isScheduledBackupDue,
@@ -32,8 +26,8 @@ const makeBackup = (
 
 describe('backup scheduler', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(deleteOldScheduledBackups).mockResolvedValue([]);
+    vi.restoreAllMocks();
+    vi.spyOn(backupService, 'deleteOldScheduledBackups').mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -57,31 +51,33 @@ describe('backup scheduler', () => {
 
   describe('runDailyBackupCycle', () => {
     it('runs retention when scheduled backup fails', async () => {
-      vi.mocked(createScheduledBackup).mockResolvedValue(
+      vi.spyOn(backupService, 'createScheduledBackup').mockResolvedValue(
         makeBackup('failed', 'mongodump was not found.'),
       );
 
       await runDailyBackupCycle();
 
-      expect(deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
     });
 
     it('runs retention when scheduled backup throws', async () => {
-      vi.mocked(createScheduledBackup).mockRejectedValue(
+      vi.spyOn(backupService, 'createScheduledBackup').mockRejectedValue(
         new Error('Backup create operation is already running.'),
       );
 
       await runDailyBackupCycle();
 
-      expect(deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
     });
 
     it('runs retention when scheduled backup succeeds', async () => {
-      vi.mocked(createScheduledBackup).mockResolvedValue(makeBackup('completed'));
+      vi.spyOn(backupService, 'createScheduledBackup').mockResolvedValue(
+        makeBackup('completed'),
+      );
 
       await runDailyBackupCycle();
 
-      expect(deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
     });
   });
 
@@ -90,7 +86,7 @@ describe('backup scheduler', () => {
       const timer = startBackupScheduler();
 
       await vi.waitFor(() => {
-        expect(deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+        expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
       });
 
       clearInterval(timer);

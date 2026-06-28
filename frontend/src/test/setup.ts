@@ -53,4 +53,4 @@ if (typeof window !== 'undefined') {
 }
 
 // Initialize i18n for tests (stable English strings in assertions)
-i18n.changeLanguage('en');
+await i18n.changeLanguage('en');

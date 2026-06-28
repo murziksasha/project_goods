@@ -70,6 +70,25 @@ frontend/
 |  |- app/
 |  |- pages/
 |  |- widgets/
+|  |  `- dashboard/
+|  |     |- model/
+|  |     `- ui/
+|  |        |- accounting/
+|  |        |- analytics/
+|  |        |- clients/
+|  |        |- orders/
+|  |        |  |- workspace/
+|  |        |  |- create-order/
+|  |        |  |- order-detail/
+|  |        |  `- modals/
+|  |        |- product-catalog/
+|  |        |- settings/
+|  |        |- supplier-orders/
+|  |        |- warehouse/
+|  |        |- weather/
+|  |        |  `- scene/
+|  |        |- shared/
+|  |        `- index.ts
 |  |- features/
 |  |- entities/
 |  `- shared/
@@ -81,6 +100,9 @@ frontend/
 - `src/pages/` - страницы верхнего уровня
 - `src/pages/dashboard/model/dashboard-navigation.ts` - parse/build URL и History API для dashboard (Back/Forward внутри SPA)
 - `src/widgets/` - крупные секции интерфейса
+- `src/widgets/dashboard/model/` - бизнес-логика dashboard: аналитика, заказы, склад, клиенты, печать
+- `src/widgets/dashboard/ui/` - UI dashboard, разбитый по тематическим подпапкам (см. раздел ниже)
+- `src/widgets/dashboard/ui/index.ts` - barrel-экспорт верхнеуровневых панелей для `DashboardPage`
 - `src/features/` - пользовательские сценарии и интерактивные потоки
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
 - `src/shared/` - переиспользуемая инфраструктура: стили, утилиты, HTTP-слой
@@ -127,31 +149,123 @@ frontend/
 
 - `useAccountingPreferences` — accounting tab changes delegate URL updates to `DashboardPage`
 - `WarehouseTables` / `WarehousePanel` — stock `Client order` links call `onOpenSaleCard`
-- `create-order-card-shared.ts` — re-exports `getOrderLink` from `dashboard-navigation`
+- `frontend/src/widgets/dashboard/ui/orders/create-order/create-order-card-shared.ts` — re-exports `getOrderLink` from `dashboard-navigation`
 
 Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
+
+## Structure Update: Dashboard UI Decomposition (2026-06-28)
+
+Ранее все ~105 файлов лежали в плоской папке `widgets/dashboard/ui/`. Теперь UI разбит по доменным зонам dashboard.
+
+### Карта папок `widgets/dashboard/ui/`
+
+```text
+ui/
+|- index.ts                    # barrel: AccountingPanel, OrdersWorkspace, CreateOrderCard, …
+|- accounting/                 # финансы, кассы, транзакции, отчёты
+|  |- AccountingPanel.tsx
+|  |- AccountingCashboxesView.tsx
+|  |- AccountingTransactionsView.tsx
+|  |- useAccountingFinanceData.ts
+|  |- useAccountingPreferences.ts
+|  `- useTransactionForm.ts
+|- analytics/                  # главная аналитика dashboard
+|  |- AnalyticsHeroSection.tsx
+|  |- AnalyticsDateFilterPanel.tsx
+|  `- SalesPanel.tsx
+|- clients/                    # клиенты и поставщики
+|  |- ClientsSuppliersWorkspace.tsx
+|  |- ClientsWorkspace.tsx
+|  |- ClientCardModal.tsx
+|  `- ClientsTable.tsx
+|- orders/
+|  |- workspace/               # список заказов/продаж, фильтры, shared-утилиты
+|  |  |- OrdersWorkspace.tsx
+|  |  |- orders-workspace-shared.ts
+|  |  `- SavedFiltersPanel.tsx
+|  |- create-order/            # создание заказа/продажи, rapid sale
+|  |  |- CreateOrderCard.tsx
+|  |  |- create-order-card-shared.ts
+|  |  `- RapidSaleModal.tsx
+|  |- order-detail/            # карточка открытого заказа/продажи
+|  |  |- OrderDetailCard.tsx
+|  |  |- OrderDetailLineItemsPanel.tsx
+|  |  |- OrderDetailDeviceModal.tsx
+|  |  |- order-detail-card-types.ts
+|  |  `- order-detail-shared.ts
+|  `- modals/                  # модалки, общие для заказов
+|     |- SupplierOrderModal.tsx
+|     |- SerialBindModal.tsx
+|     |- ProductModelModal.tsx
+|     |- OrderPrintDialog.tsx
+|     `- PrinterIcon.tsx
+|- product-catalog/            # каталог товаров (Product List)
+|  |- ProductCatalogPanel.tsx
+|  |- ProductCatalogTables.tsx
+|  `- product-catalog-shared.tsx
+|- settings/                   # настройки, сотрудники, конструктор печати
+|  |- SettingsPanel.tsx
+|  |- PrintFormBuilder.tsx
+|  `- EmployeeManagementPanel.tsx
+|- supplier-orders/            # заказы поставщикам
+|  |- SupplierOrdersWorkspace.tsx
+|  `- SupplierOrdersWorkspaceSections.tsx
+|- warehouse/                  # склад, приёмка, перемещения
+|  |- WarehousePanel.tsx
+|  |- WarehouseTables.tsx
+|  |- WarehouseToolbar.tsx
+|  `- WarehouseSelectField.tsx
+|- weather/                    # виджет погоды/рынка на главной
+|  |- MarketWeatherWidget.tsx
+|  |- WeatherVisual.tsx
+|  |- WeatherAnimatedScene.tsx
+|  `- scene/                   # слои анимированной сцены
+|     `- WeatherScene*.tsx
+`- shared/                     # мелкие общие UI-куски dashboard
+   |- Notifications.tsx
+   `- PhoneNumber.tsx
+```
+
+### Точки входа (host)
+
+- `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — монтирует панели из `widgets/dashboard/ui/*`
+- Импорт панели: `widgets/dashboard/ui/<zone>/<Component>` или через `widgets/dashboard/ui` (barrel)
+
+### Внешние зависимости от `orders/workspace/`
+
+- `frontend/src/shared/lib/serialPrint.ts` — `printWarehouseSerialLabels` из `orders-workspace-shared.ts`
+
+### Соглашения после декомпозиции
+
+- новый UI заказов → `orders/workspace/`, `orders/create-order/`, `orders/order-detail/` или `orders/modals/`
+- новый UI склада → `warehouse/`
+- новый UI клиентов → `clients/`
+- общие хелперы заказов (статусы, line items, печать) → `orders/workspace/orders-workspace-shared.ts` или `widgets/dashboard/model/`
+- не добавлять файлы в корень `ui/` — только в тематическую подпапку + при необходимости экспорт через `index.ts`
+
+Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 
 ## Structure Update: Order/Sale Card Product Lookup (2026-06-26)
 
 ### Frontend
 
 - `frontend/src/widgets/dashboard/model/create-order-products.ts` — shared product suggestion builder (`buildCreateOrderProductSuggestions`) for create-order, rapid sale, and opened order/sale card `Products` add-row inputs
-- `frontend/src/widgets/dashboard/ui/OrderDetailCard.tsx` — `LineItemsPanel` product lookup delegates to the shared builder (article/name/serial search in repair order and sale cards)
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderDetailLineItemsPanel.tsx` — product lookup delegates to the shared builder (article/name/serial search in repair order and sale cards)
 
 ## Structure Update: Rapid Sale (2026-06-24)
 
 ### Frontend
 
-- `frontend/src/widgets/dashboard/ui/RapidSaleModal.tsx` — compact modal UI (products, services, draft list, issue)
-- `frontend/src/widgets/dashboard/ui/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items
-- `frontend/src/widgets/dashboard/ui/WarehouseSelectField.tsx` — shared warehouse dropdown (rapid sale + serial bind)
-- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default + product filter helpers
+- `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` — compact modal UI (products, services, draft list, issue)
+- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items
+- `frontend/src/widgets/dashboard/ui/warehouse/WarehouseSelectField.tsx` — shared warehouse dropdown (rapid sale + serial bind)
+- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers for serial bind modal
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — stock suggestions, draft validation, line-item builder
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
-- `frontend/src/widgets/dashboard/ui/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
+- `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
 - `frontend/src/pages/dashboard/model/dashboard-actions.ts` — `saveRapidSale`
 - `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — `handleRapidSaleCreated`, `pendingPaymentSale` payment handoff
-- `frontend/src/widgets/dashboard/ui/OrdersWorkspace.tsx` — list client column override, `pendingPaymentSale` effect
+- `frontend/src/widgets/dashboard/ui/orders/workspace/OrdersWorkspace.tsx` — list client column override, `pendingPaymentSale` effect
 - Styles: `frontend/src/shared/styles/layout.css` (`.rapid-sale-*`), `responsive.css` (breakpoints)
 
 ### Backend
@@ -163,8 +277,8 @@ Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 
 ### Tests
 
-- `frontend/src/widgets/dashboard/ui/RapidSaleModal.test.tsx`
-- `frontend/src/widgets/dashboard/ui/SerialBindModal.test.tsx`
+- `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.test.tsx`
+- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.test.tsx`
 - `frontend/src/widgets/dashboard/model/warehouse-serial-filter.test.ts`
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.test.ts`
 - `frontend/src/widgets/dashboard/model/sale-client-display.test.ts`
@@ -188,4 +302,4 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 ### Integration Points
 
 - `backend/src/domain/sale/service.ts` - syncs names into `catalog-products`.
-- `frontend/src/widgets/dashboard/ui/ProductCatalogPanel.tsx` - adds `Products` tab.
+- `frontend/src/widgets/dashboard/ui/product-catalog/ProductCatalogPanel.tsx` - adds `Products` tab.

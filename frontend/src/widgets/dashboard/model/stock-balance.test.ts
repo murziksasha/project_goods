@@ -3,10 +3,13 @@ import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
+  buildSalesByProductId,
   buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
   filterStockProducts,
+  getIssuedSaleProductIds,
   getStockSupplierLabel,
+  isSaleLineItemLinkedToStockProduct,
   type StockSupplierOrderLink,
 } from './stock-balance';
 
@@ -294,5 +297,137 @@ describe('stock balance', () => {
     });
 
     expect(links['p-linked']).toEqual([]);
+  });
+
+  it('links serialized stock only when serial numbers are bound', () => {
+    const stockProduct = product({ id: 'p-1', serialNumber: 'S-1' });
+    const linkedItem = {
+      id: 'line-1',
+      kind: 'product' as const,
+      productId: 'p-1',
+      name: 'Airmouse G10S',
+      price: 100,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: ['S-1'],
+    };
+    const unboundItem = {
+      ...linkedItem,
+      serialNumbers: [] as string[],
+    };
+
+    expect(
+      isSaleLineItemLinkedToStockProduct(linkedItem, stockProduct),
+    ).toBe(true);
+    expect(
+      isSaleLineItemLinkedToStockProduct(unboundItem, stockProduct),
+    ).toBe(false);
+  });
+
+  it('keeps bulk stock linked by product id without serial numbers', () => {
+    const bulkProduct = product({ id: 'p-bulk', serialNumber: '' });
+    const bulkItem = {
+      id: 'line-bulk',
+      kind: 'product' as const,
+      productId: 'p-bulk',
+      name: 'Patchcord 1m',
+      price: 35,
+      quantity: 4,
+      warrantyPeriod: 0,
+      serialNumbers: [] as string[],
+    };
+
+    expect(
+      isSaleLineItemLinkedToStockProduct(bulkItem, bulkProduct),
+    ).toBe(true);
+  });
+
+  it('does not map client order for unbound serialized line items', () => {
+    const products = [product({ id: 'p-1', serialNumber: 'S-1' })];
+    const linkedSales = buildSalesByProductId(products, [
+      sale({
+        id: 's-bound',
+        recordNumber: 'SO-BOUND',
+        lineItems: [
+          {
+            id: 'line-1',
+            kind: 'product',
+            productId: 'p-1',
+            name: 'Airmouse G10S',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S-1'],
+          },
+        ],
+      }),
+      sale({
+        id: 's-unbound',
+        recordNumber: 'SO-UNBOUND',
+        lineItems: [
+          {
+            id: 'line-2',
+            kind: 'product',
+            productId: 'p-1',
+            name: 'Airmouse G10S',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: [],
+          },
+        ],
+      }),
+    ]);
+
+    expect(linkedSales['p-1']?.map((item) => item.recordNumber)).toEqual([
+      'SO-BOUND',
+    ]);
+  });
+
+  it('does not hide issued serialized stock when serials were unbound', () => {
+    const products = [product({ id: 'p-1', serialNumber: 'S-1' })];
+
+    expect(
+      getIssuedSaleProductIds(products, [
+        sale({
+          status: 'issued',
+          lineItems: [
+            {
+              id: 'line-1',
+              kind: 'product',
+              productId: 'p-1',
+              name: 'Airmouse G10S',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        }),
+      ]).has('p-1'),
+    ).toBe(false);
+
+    expect(
+      filter({
+        products,
+        sales: [
+          sale({
+            status: 'issued',
+            lineItems: [
+              {
+                id: 'line-1',
+                kind: 'product',
+                productId: 'p-1',
+                name: 'Airmouse G10S',
+                price: 100,
+                quantity: 1,
+                warrantyPeriod: 0,
+                serialNumbers: [],
+              },
+            ],
+          }),
+        ],
+      }).map((item) => item.id),
+    ).toEqual(['p-1']);
   });
 });

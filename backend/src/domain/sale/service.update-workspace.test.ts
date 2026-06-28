@@ -72,10 +72,12 @@ vi.mock('../catalog-product/service', () => ({
   upsertCatalogProducts: upsertCatalogProductsMock,
 }));
 
+const saleId = '507f1f77bcf86cd799439012';
+
 import { updateSaleWorkspace } from './service';
 
 const buildExistingSale = (kind: 'repair' | 'sale') => ({
-  _id: 'sale-1',
+  _id: saleId,
   kind,
   status: 'new',
   paidAmount: 0,
