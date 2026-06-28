@@ -992,16 +992,13 @@ export const OrderDetailLineItemsPanel = ({
   };
 
   const showSerialColumn = isProductKind;
-  const gridTemplateColumns = showSerialColumn
-    ? 'minmax(0, 1fr) 150px 140px 104px 120px 110px'
-    : 'minmax(0, 1fr) 140px 104px 120px 110px';
+  const tableClassName = showSerialColumn
+    ? 'order-detail-table order-detail-table-wide order-detail-table-wide-product'
+    : 'order-detail-table order-detail-table-wide order-detail-table-wide-service';
 
   return (
     <div className='order-line-items'>
-      <div
-        className='order-detail-table order-detail-table-wide'
-        style={{ gridTemplateColumns }}
-      >
+      <div className={tableClassName}>
         <div className="order-detail-table-header">
           {t('orders.detail.lineItems.name')}
         </div>
@@ -1040,6 +1037,7 @@ export const OrderDetailLineItemsPanel = ({
               <div
                 key={`${item.id}-name`}
                 className={lastRowClass || undefined}
+                data-label={t('orders.detail.lineItems.name')}
               >
                 <button
                   type='button'
@@ -1054,6 +1052,7 @@ export const OrderDetailLineItemsPanel = ({
                 <div
                   key={`${item.id}-serial`}
                   className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                  data-label={t('orders.detail.lineItems.serialNumber')}
                 >
                   {item.kind === 'product' &&
                   (item.serialNumbers ?? []).length > 0 ? (
@@ -1094,6 +1093,7 @@ export const OrderDetailLineItemsPanel = ({
               <div
                 key={`${item.id}-price`}
                 className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                data-label={t('orders.detail.lineItems.price')}
               >
                 <NumberStepper
                   className='line-item-inline-input'
@@ -1108,6 +1108,7 @@ export const OrderDetailLineItemsPanel = ({
               <div
                 key={`${item.id}-qty`}
                 className={lastRowClass || undefined}
+                data-label={t('orders.detail.lineItems.qty')}
               >
                 <NumberStepper
                   className='line-item-inline-input'
@@ -1135,6 +1136,7 @@ export const OrderDetailLineItemsPanel = ({
               <div
                 key={`${item.id}-warranty`}
                 className={lastRowClass || undefined}
+                data-label={t('orders.detail.lineItems.warranty')}
               >
                 <select
                   className='line-item-inline-input'
@@ -1155,7 +1157,8 @@ export const OrderDetailLineItemsPanel = ({
               </div>
               <div
                 key={`${item.id}-action`}
-                className={lastRowClass || undefined}
+                className={`order-line-item-action-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                data-label={t('orders.detail.lineItems.action')}
               >
                 {(() => {
                   const isProduct = item.kind === 'product';
