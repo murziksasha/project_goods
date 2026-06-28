@@ -50,9 +50,9 @@ import {
   normalizeOrderStatus,
   orderDetailRelatedTabStorageKey,
   isOrderEditableStatus,
+  patchOrderDetailSectionState,
   readOrderDetailSectionsState,
   withSupplierOrderLinkNote,
-  writeOrderDetailSectionsState,
   type OrderStatus,
   type OrdersTab,
   type TimelineEntry,
@@ -68,6 +68,17 @@ import {
 import { buildCreatedOrderTimelineMessage } from './order-detail-shared';
 
 export type { OrderDetailCardProps } from './order-detail-card-types';
+
+const COLLAPSE_ICON_EXPANDED = '\u2303';
+const COLLAPSE_ICON_COLLAPSED = '\u2304';
+const EM_DASH = '\u2014';
+const CURRENCY_UAH = '\u20B4';
+
+const COMPACT_LAYOUT_MEDIA_QUERY = '(max-width: 1024px)';
+
+const getIsCompactLayout = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY).matches;
 
 export const OrderDetailCard = ({
   sale,
@@ -119,6 +130,9 @@ export const OrderDetailCard = ({
   const [isServicesOpen, setIsServicesOpen] = useState(
     isSaleCard ? false : true,
   );
+  const [isMainInfoOpen, setIsMainInfoOpen] = useState(true);
+  const [isLiveFeedOpen, setIsLiveFeedOpen] = useState(() => !getIsCompactLayout());
+  const [isCompactLayout, setIsCompactLayout] = useState(getIsCompactLayout);
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
   const [relatedTab, setRelatedTab] = useState<OrdersTab>(
     getStoredOrderDetailRelatedTab,
@@ -189,17 +203,63 @@ export const OrderDetailCard = ({
     setIsServicesOpen(
       storedState?.servicesOpen ?? servicesOpenByDefault,
     );
+    setIsMainInfoOpen(storedState?.mainInfoOpen ?? true);
+    setIsLiveFeedOpen(
+      storedState?.liveFeedOpen ?? !getIsCompactLayout(),
+    );
   }, [sale.id, isSaleCard]);
   useEffect(() => {
-    const current = readOrderDetailSectionsState();
-    writeOrderDetailSectionsState({
-      ...current,
-      [sale.id]: {
-        productsOpen: isProductsOpen,
-        servicesOpen: isServicesOpen,
-      },
+    if (typeof window.matchMedia !== 'function') return;
+
+    const media = window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY);
+    const handleLayoutChange = () => {
+      setIsCompactLayout(media.matches);
+    };
+
+    handleLayoutChange();
+    media.addEventListener('change', handleLayoutChange);
+    return () => media.removeEventListener('change', handleLayoutChange);
+  }, []);
+  const toggleMainInfoSection = () => {
+    setIsMainInfoOpen((current) => {
+      const next = !current;
+      patchOrderDetailSectionState(sale.id, { mainInfoOpen: next });
+      return next;
     });
-  }, [sale.id, isProductsOpen, isServicesOpen]);
+  };
+  const toggleLiveFeedSection = () => {
+    setIsLiveFeedOpen((current) => {
+      const next = !current;
+      patchOrderDetailSectionState(sale.id, { liveFeedOpen: next });
+      return next;
+    });
+  };
+  const toggleProductsSection = () => {
+    setIsProductsOpen((current) => {
+      const next = !current;
+      patchOrderDetailSectionState(sale.id, { productsOpen: next });
+      return next;
+    });
+  };
+  const toggleServicesSection = () => {
+    setIsServicesOpen((current) => {
+      const next = !current;
+      patchOrderDetailSectionState(sale.id, { servicesOpen: next });
+      return next;
+    });
+  };
+  const toggleDiscountMode = () => {
+    if (isReadOnly) return;
+
+    const nextValue = parseDecimal(discountInput);
+    onDiscountChange({
+      mode: discount.mode === 'percent' ? 'amount' : 'percent',
+      value:
+        Number.isFinite(nextValue) && nextValue > 0
+          ? Math.round(nextValue * 100) / 100
+          : discount.value,
+    });
+  };
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
@@ -610,7 +670,7 @@ export const OrderDetailCard = ({
     let lastKey = '';
     timelineItems.forEach((item, idx) => {
       const key = getDateKey(item.createdAt);
-      const label = formatDateSeparator(item.createdAt) || 'вЂ”';
+      const label = formatDateSeparator(item.createdAt) || EM_DASH;
       if (key && key !== lastKey) {
         out.push({ kind: 'sep', key: `sep-${key}`, label });
         lastKey = key;
@@ -716,6 +776,14 @@ export const OrderDetailCard = ({
           </div>
           <h2>{sale.recordNumber ?? 'r------'}</h2>
         </div>
+        <button
+          type='button'
+          className='create-order-close order-detail-close-button'
+          onClick={onClose}
+          aria-label={t('orders.detail.closeOrderCard')}
+        >
+          &times;
+        </button>
         <div className='order-detail-actions'>
           <select
             className='order-detail-status-select'
@@ -774,21 +842,28 @@ export const OrderDetailCard = ({
             >
               {t('orders.toolbar.createOrder')}
             </a>
-            <button
-              type='button'
-              className='create-order-close'
-              onClick={onClose}
-              aria-label={t('orders.detail.closeOrderCard')}
-            >
-              &times;
-            </button>
           </div>
         </div>
       </header>
 
       <div className='order-detail-grid'>
-        <section className='order-detail-panel'>
-          <h3>{t('orders.detail.mainInformation')}</h3>
+        <section className='order-detail-panel order-detail-main-panel'>
+          <button
+            type='button'
+            className='order-detail-collapse-button order-detail-main-info-toggle'
+            onClick={() => {
+              if (isCompactLayout) {
+                toggleMainInfoSection();
+              }
+            }}
+            aria-expanded={isMainInfoOpen || !isCompactLayout}
+          >
+            <span>{t('orders.detail.mainInformation')}</span>
+            <span className='order-detail-collapse-icon' aria-hidden='true'>
+              {isMainInfoOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            </span>
+          </button>
+          {isMainInfoOpen || !isCompactLayout ? (
           <dl className='order-detail-list'>
             <div>
               <dt>{t('orders.detail.client')}</dt>
@@ -918,10 +993,32 @@ export const OrderDetailCard = ({
               </div>
             ) : null}
           </dl>
+          ) : null}
         </section>
 
-        <section className='order-detail-panel order-detail-live-panel'>
-          <h3>{t('orders.detail.liveFeed')}</h3>
+        <section
+          className={
+            isLiveFeedOpen
+              ? 'order-detail-panel order-detail-live-panel order-detail-live-panel-expanded'
+              : 'order-detail-panel order-detail-live-panel order-detail-live-panel-collapsed'
+          }
+        >
+          <button
+            type='button'
+            className='order-detail-collapse-button order-detail-live-feed-toggle'
+            onClick={() => {
+              if (isCompactLayout) {
+                toggleLiveFeedSection();
+              }
+            }}
+            aria-expanded={isLiveFeedOpen || !isCompactLayout}
+          >
+            <span>{t('orders.detail.liveFeed')}</span>
+            <span className='order-detail-collapse-icon' aria-hidden='true'>
+              {isLiveFeedOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            </span>
+          </button>
+          {isLiveFeedOpen || !isCompactLayout ? (
           <div className='order-timeline'>
             <div className='order-timeline-list'>
             {timelineDisplay.map((entry) =>
@@ -968,20 +1065,19 @@ export const OrderDetailCard = ({
             </button>
             </div>
           </div>
+          ) : null}
         </section>
 
         <section className='order-detail-panel order-detail-line-items-panel order-detail-products-panel'>
           <button
             type='button'
             className='order-detail-collapse-button'
-            onClick={() => {
-              setIsProductsOpen((current) => !current);
-            }}
+            onClick={toggleProductsSection}
             aria-expanded={isProductsOpen}
           >
             <span>{t('orders.detail.products')}</span>
-            <span className='order-detail-collapse-icon'>
-              {isProductsOpen ? 'вЊѓ' : 'вЊ„'}
+            <span className='order-detail-collapse-icon' aria-hidden='true'>
+              {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
             </span>
           </button>
           {isProductsOpen ? (
@@ -1017,14 +1113,12 @@ export const OrderDetailCard = ({
           <button
             type='button'
             className='order-detail-collapse-button'
-            onClick={() => {
-              setIsServicesOpen((current) => !current);
-            }}
+            onClick={toggleServicesSection}
             aria-expanded={isServicesOpen}
           >
             <span>{t('orders.detail.services')}</span>
-            <span className='order-detail-collapse-icon'>
-              {isServicesOpen ? 'вЊѓ' : 'вЊ„'}
+            <span className='order-detail-collapse-icon' aria-hidden='true'>
+              {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
             </span>
           </button>
           {isServicesOpen ? (
@@ -1067,9 +1161,15 @@ export const OrderDetailCard = ({
               <dt>
                 <span className='payment-summary-discount-label'>
                   {t('orders.payment.discount')}
-                  <span className='payment-summary-discount-badge'>
-                    {discount.mode === 'percent' ? '%' : 'в‚ґ'}
-                  </span>
+                  <button
+                    type='button'
+                    className='payment-summary-discount-badge'
+                    onClick={toggleDiscountMode}
+                    aria-label={t('orders.payment.toggleDiscountMode')}
+                    disabled={isReadOnly}
+                  >
+                    {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
+                  </button>
                 </span>
               </dt>
               <dd>
@@ -1104,22 +1204,11 @@ export const OrderDetailCard = ({
                   <button
                     type='button'
                     className='order-payment-discount-mode'
-                    onClick={() => {
-                      const nextValue = parseDecimal(discountInput);
-                      onDiscountChange({
-                        mode:
-                          discount.mode === 'percent'
-                            ? 'amount'
-                            : 'percent',
-                        value: Number.isFinite(nextValue) && nextValue > 0
-                          ? Math.round(nextValue * 100) / 100
-                          : discount.value,
-                      });
-                    }}
+                    onClick={toggleDiscountMode}
                     aria-label={t('orders.payment.toggleDiscountMode')}
                     disabled={isReadOnly}
                   >
-                    {discount.mode === 'percent' ? '%' : 'в‚ґ'}
+                    {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
                   </button>
                 </div>
               </dd>

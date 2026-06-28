@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '../../../shared/api/http';
 import type { Employee } from '../../../entities/employee/model/types';
 import { authTokenStorageKey } from '../../../entities/auth/api/authApi';
-import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
-import { DashboardPage } from './DashboardPage';
+
 
 const { getCurrentEmployeeMock } = vi.hoisted(() => ({
   getCurrentEmployeeMock: vi.fn(),
@@ -23,120 +24,9 @@ vi.mock('../../../entities/auth/api/authApi', async () => {
   };
 });
 
-vi.mock('../model/useDashboardPage', () => {
-  return {
-    useDashboardPage: vi.fn(() => ({
-      state: {
-      allProducts: [],
-      clientDevices: [],
-      catalogProducts: [],
-      suppliers: [],
-      allClients: [],
-      sales: [],
-      services: [],
-      allEmployees: [],
-      settings: null,
-      settingsForm: createDefaultSettingsForm(),
-      statsPeriod: 'today',
-      products: [],
-      clients: [],
-      clientHistory: null,
-      selectedClientId: null,
-      productForm: {},
-      serviceForm: {},
-      clientForm: {},
-      saleForm: {},
-      employeeForm: {},
-      editingProductId: null,
-      editingServiceId: null,
-      editingClientId: null,
-      editingSaleId: null,
-      editingEmployeeId: null,
-      productSearchQuery: '',
-      serviceSearchQuery: '',
-      clientSearchQuery: '',
-      clientStatusFilter: 'all',
-      deferredProductSearchQuery: '',
-      deferredServiceSearchQuery: '',
-      deferredClientSearchQuery: '',
-      totalFreeStock: 0,
-      isProductsLoading: false,
-      isSuppliersLoading: false,
-      isServicesLoading: false,
-      isClientsLoading: false,
-      isSalesLoading: false,
-      isEmployeesLoading: false,
-      isCatalogProductsLoading: false,
-      isClientHistoryLoading: false,
-      isProductSaving: false,
-      isServiceSaving: false,
-      isClientSaving: false,
-      isClientImporting: false,
-      isClientExporting: false,
-      isSaleSaving: false,
-      isEmployeeSaving: false,
-      isSettingsSaving: false,
-      analyticsDateRange: null,
-      draftAnalyticsDateRange: { dateFrom: '', dateTo: '' },
-      isAnalyticsDateFilterOpen: false,
-      isSeeding: false,
-      error: '',
-      successMessage: '',
-      lastSyncAt: '2026-06-22T20:05:31.000Z',
-    },
-    actions: {
-      showError: vi.fn(),
-      showSuccessMessage: vi.fn(),
-      setProductSearchQuery: vi.fn(),
-      saveOrderRequest: vi.fn(),
-      replaceSaleInState: vi.fn(),
-      createSupplierCard: vi.fn(),
-      updateSupplierCard: vi.fn(),
-      updateCatalogProductCard: vi.fn(),
-      setSelectedClientId: vi.fn(),
-      deleteClient: vi.fn(),
-      createClientCard: vi.fn(),
-      importClientsFromFile: vi.fn(),
-      exportClients: vi.fn(),
-      mergeClients: vi.fn(),
-      mergeSuppliers: vi.fn(),
-      updateClientCard: vi.fn(),
-      onSettingsChange: vi.fn(),
-      saveSettings: vi.fn(),
-      onProductChange: vi.fn(),
-      saveProduct: vi.fn(),
-      resetProductEditor: vi.fn(),
-      archiveProduct: vi.fn(),
-      activateProduct: vi.fn(),
-      onServiceSearchChange: vi.fn(),
-      onServiceChange: vi.fn(),
-      saveService: vi.fn(),
-      resetServiceEditor: vi.fn(),
-      editService: vi.fn(),
-      archiveService: vi.fn(),
-      activateService: vi.fn(),
-      createClientDeviceCard: vi.fn(),
-      updateClientDeviceCard: vi.fn(),
-      deleteClientDeviceCard: vi.fn(),
-      createCatalogProductCard: vi.fn(),
-      deleteCatalogProductCard: vi.fn(),
-      transferProduct: vi.fn(),
-      updateProductModelCard: vi.fn(),
-      onEmployeeChange: vi.fn(),
-      saveEmployee: vi.fn(),
-      resetEmployeeEditor: vi.fn(),
-      editEmployee: vi.fn(),
-      deleteEmployee: vi.fn(),
-      eraseAllData: vi.fn(),
-      setStatsPeriod: vi.fn(),
-      setDraftAnalyticsDateRange: vi.fn(),
-      setIsAnalyticsDateFilterOpen: vi.fn(),
-      applyAnalyticsDateRange: vi.fn(),
-      clearAnalyticsDateRange: vi.fn(),
-    },
-  })),
-  };
-});
+vi.mock('../model/use-dashboard-effects', () => ({
+  useDashboardEffects: vi.fn(),
+}));
 
 vi.mock('../../../widgets/dashboard/ui/shared/Notifications', () => ({
   Notifications: ({ error }: { error: string }) => (
@@ -145,6 +35,9 @@ vi.mock('../../../widgets/dashboard/ui/shared/Notifications', () => ({
 }));
 vi.mock('../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection', () => ({
   AnalyticsHeroSection: () => <section>Dashboard home</section>,
+}));
+vi.mock('../../../widgets/dashboard/ui/weather/MarketWeatherWidget', () => ({
+  MarketWeatherWidget: () => null,
 }));
 vi.mock('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace', () => ({
   OrdersWorkspace: () => <section>Orders workspace</section>,
@@ -183,6 +76,8 @@ vi.mock('../../../shared/lib/hardReload', () => ({
   hardReloadApp: (...args: unknown[]) => hardReloadApp(...args),
 }));
 
+import { DashboardPage } from './DashboardPage';
+
 const employee: Employee = {
   id: 'employee-id',
   name: 'Manager',
@@ -198,10 +93,25 @@ const employee: Employee = {
   updatedAt: '2026-06-09T00:00:00.000Z',
 };
 
+beforeEach(() => {
+  getCurrentEmployeeMock.mockResolvedValue(employee);
+});
+
+const renderDashboardPage = (ui: ReactElement = <DashboardPage />) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
-  vi.clearAllMocks();
+  window.history.replaceState(null, '', '/');
 });
 
 describe('DashboardPage sync control', () => {
@@ -209,7 +119,7 @@ describe('DashboardPage sync control', () => {
     getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'valid-token');
 
-    render(<DashboardPage />);
+    renderDashboardPage();
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Last sync:/i })).toBeInTheDocument();
@@ -234,7 +144,7 @@ describe('DashboardPage auth recovery', () => {
       JSON.stringify(employee),
     );
 
-    render(<DashboardPage />);
+    renderDashboardPage();
 
     await waitFor(() => {
       expect(screen.getByText('Dashboard home')).toBeInTheDocument();
@@ -250,18 +160,28 @@ describe('DashboardPage auth recovery', () => {
 
 describe('DashboardPage browser history', () => {
   it('pushes history entries for in-app navigation and restores state on popstate', async () => {
-    const pushState = vi.spyOn(window.history, 'pushState');
+    const pushState = vi
+      .spyOn(window.history, 'pushState')
+      .mockImplementation((_data, _title, url) => {
+        window.history.replaceState(_data, _title, url);
+      });
     getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'valid-token');
     window.history.replaceState(null, '', '/');
 
-    render(<DashboardPage />);
+    renderDashboardPage();
 
     await waitFor(() => {
       expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('link', { name: /Orders/i }));
+    pushState.mockClear();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: /Orders/i }), { button: 0 });
+    });
+
+    expect(pushState).toHaveBeenCalledTimes(1);
     expect(pushState).toHaveBeenCalledWith(
       null,
       '',
@@ -273,7 +193,9 @@ describe('DashboardPage browser history', () => {
     });
 
     window.history.replaceState(null, '', '/');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Dashboard home')).toBeInTheDocument();
@@ -288,7 +210,7 @@ describe('DashboardPage last sync reload', () => {
     getCurrentEmployeeMock.mockResolvedValue(employee);
     window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
 
-    render(<DashboardPage />);
+    renderDashboardPage();
 
     const syncButton = await screen.findByRole('button', { name: /Last sync/i });
     expect(syncButton).toHaveClass('topbar-sync-button');

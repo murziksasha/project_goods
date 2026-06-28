@@ -346,9 +346,20 @@ const restoreApiMocks = () => {
   );
 };
 
+const createMatchMedia = (matches: boolean) =>
+  vi.fn().mockImplementation((query: string) => ({
+    matches: query.includes('max-width: 1024px') ? matches : false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
 beforeEach(() => {
   vi.useRealTimers();
   restoreApiMocks();
+  window.matchMedia = createMatchMedia(false);
 });
 
 afterEach(() => {
@@ -1097,6 +1108,34 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('toggles discount mode from label badge and field control', () => {
+    const onDiscountChange = vi.fn();
+    renderCard({
+      onDiscountChange,
+      saleOverride: {
+        discount: { mode: 'percent', value: 5 },
+      },
+    });
+
+    const discountModeButtons = screen.getAllByRole('button', {
+      name: 'Toggle discount mode',
+    });
+    expect(discountModeButtons).toHaveLength(2);
+
+    fireEvent.click(discountModeButtons[0]);
+    expect(onDiscountChange).toHaveBeenCalledWith({
+      mode: 'amount',
+      value: 5,
+    });
+
+    onDiscountChange.mockClear();
+    fireEvent.click(discountModeButtons[1]);
+    expect(onDiscountChange).toHaveBeenCalledWith({
+      mode: 'amount',
+      value: 5,
+    });
+  });
+
   it('keeps discount percent input editable while accepting comma and dot decimals', () => {
     const onDiscountChange = vi.fn();
     const { container } = renderCard({
@@ -1188,6 +1227,8 @@ describe('OrderDetailCard product entry', () => {
         'sale-1': {
           productsOpen: true,
           servicesOpen: false,
+          liveFeedOpen: true,
+          mainInfoOpen: false,
         },
       }),
     );
@@ -1208,6 +1249,113 @@ describe('OrderDetailCard product entry', () => {
 
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
+  it('collapses live feed by default on compact layout', () => {
+    window.matchMedia = createMatchMedia(true);
+
+    renderCard();
+
+    expect(
+      screen.getByRole('button', { name: /Live feed/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByPlaceholderText('Comment')).not.toBeInTheDocument();
+  });
+
+  it('expands live feed on compact layout when toggle is clicked', () => {
+    window.matchMedia = createMatchMedia(true);
+
+    renderCard();
+
+    fireEvent.click(screen.getByRole('button', { name: /Live feed/i }));
+
+    expect(
+      screen.getByRole('button', { name: /Live feed/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByPlaceholderText('Comment')).toBeInTheDocument();
+  });
+
+  it('collapses main information on compact layout when toggle is clicked', () => {
+    window.matchMedia = createMatchMedia(true);
+
+    renderCard();
+
+    expect(
+      screen.getByRole('button', { name: /Main information/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: /Main information/i }));
+
+    expect(
+      screen.getByRole('button', { name: /Main information/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('000 000 00 00')).not.toBeInTheDocument();
+  });
+
+  it('does not persist section defaults until the user toggles a section', () => {
+    window.matchMedia = createMatchMedia(true);
+
+    renderCard();
+
+    expect(window.localStorage.getItem(orderDetailSectionsStorageKey)).toBeNull();
+  });
+
+  it('persists only the section the user toggled', () => {
+    window.matchMedia = createMatchMedia(true);
+
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: /Live feed/i }));
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(orderDetailSectionsStorageKey) ?? '{}',
+    );
+
+    expect(stored['sale-1']).toEqual({ liveFeedOpen: true });
+  });
+
+  it('keeps default sections when only another section was saved', () => {
+    window.matchMedia = createMatchMedia(true);
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': {
+          liveFeedOpen: true,
+        },
+      }),
+    );
+
+    renderCard();
+
+    expect(
+      screen.getByRole('button', { name: /Live feed/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('button', { name: /Main information/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('button', { name: /Services/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('restores collapsed main information from localStorage on compact layout', () => {
+    window.matchMedia = createMatchMedia(true);
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': {
+          productsOpen: true,
+          servicesOpen: false,
+          mainInfoOpen: false,
+        },
+      }),
+    );
+
+    renderCard();
+
+    expect(
+      screen.getByRole('button', { name: /Main information/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('000 000 00 00')).not.toBeInTheDocument();
   });
 
   it('renders manual live feed comments with manual styling', () => {

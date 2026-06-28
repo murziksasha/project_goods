@@ -96,6 +96,10 @@
 - `Discount` supports two modes switched in the card control:
   - `%` (percentage from total)
   - `₴` (fixed amount in currency)
+- Discount mode toggle is available from both controls in the `Payment` panel:
+  - round badge next to the `Discount` label
+  - mode button inside the discount input field (right side)
+- Both controls call the same toggle logic and stay in sync.
 - Discount reduces final order amount before `To pay` calculation.
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
