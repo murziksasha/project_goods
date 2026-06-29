@@ -1463,14 +1463,43 @@ export const createDashboardActions = ({
             };
           })
           .filter((item) => item.name.length >= 2);
+        const saleServiceItems = (payload.saleServiceItems ?? [])
+          .map((item) => {
+            const quantity = Number.parseInt(item.quantity || '1', 10);
+            const price = parseDecimalInput(item.price);
+            const warrantyPeriod = Number.parseInt(item.warrantyPeriod || '1', 10);
+
+            return {
+              ...item,
+              name: item.name.trim(),
+              quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+              price: Number.isFinite(price) && price >= 0 ? price : 0,
+              warrantyPeriod:
+                Number.isFinite(warrantyPeriod) && warrantyPeriod >= 0
+                  ? warrantyPeriod
+                  : 1,
+            };
+          })
+          .filter((item) => item.name.length >= 2);
         const primarySaleItem = payload.sourceTab === 'sale' ? saleItems[0] : null;
+        const primarySaleServiceItem =
+          payload.sourceTab === 'sale' ? saleServiceItems[0] : null;
         const deviceName =
           payload.sourceTab === 'sale'
-            ? primarySaleItem?.name ?? ''
+            ? primarySaleItem?.name ?? primarySaleServiceItem?.name ?? ''
             : payload.deviceName.trim();
+        const saleProductsTotal = saleItems.reduce(
+          (total, item) => total + item.price * item.quantity,
+          0,
+        );
+        const saleServicesTotal = saleServiceItems.reduce(
+          (total, item) => total + item.price * item.quantity,
+          0,
+        );
         const estimatedCost =
-          payload.sourceTab === 'sale' && saleItems.length > 0
-            ? saleItems.reduce((total, item) => total + item.price * item.quantity, 0)
+          payload.sourceTab === 'sale' &&
+          (saleItems.length > 0 || saleServiceItems.length > 0)
+            ? saleProductsTotal + saleServicesTotal
             : parseDecimal(payload.estimatedCost || '0');
 
         if (normalizedPhone.replace(/\D/g, '').length < 12) {
@@ -1542,7 +1571,7 @@ export const createDashboardActions = ({
           payload.sourceTab === 'repair' && masterName ? `Master: ${masterName}` : '',
           payload.sourceTab ? `Type: ${payload.sourceTab}` : '',
         ].filter(Boolean);
-        const lineItems =
+        const productLineItems =
           payload.sourceTab === 'sale' && saleItems.length > 0
             ? buildCreateOrderSaleLineItems(
                 saleItems.map((item) => ({
@@ -1560,6 +1589,19 @@ export const createDashboardActions = ({
                 })),
               )
             : [];
+        const serviceLineItems =
+          payload.sourceTab === 'sale' && saleServiceItems.length > 0
+            ? saleServiceItems.map((item) => ({
+                id: item.id || createRuntimeId(),
+                kind: 'service' as const,
+                serviceId: item.serviceId || undefined,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                warrantyPeriod: item.warrantyPeriod,
+              }))
+            : [];
+        const lineItems = [...productLineItems, ...serviceLineItems];
 
         const createdSaleResult = await mutateCreateSale({
           saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),

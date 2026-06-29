@@ -249,8 +249,10 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 
 ### Frontend
 
-- `frontend/src/widgets/dashboard/model/create-order-products.ts` — shared product suggestion builder (`buildCreateOrderProductSuggestions`) for create-order, rapid sale, and opened order/sale card `Products` add-row inputs
-- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderDetailLineItemsPanel.tsx` — product lookup delegates to the shared builder (article/name/serial search in repair order and sale cards)
+- `frontend/src/widgets/dashboard/model/create-order-products.ts` — product suggestion builders: `buildCreateOrderProductSuggestions` (rapid sale legacy/shared), `buildOrderDetailProductSuggestions` (create-order sales + opened card `Products`)
+- `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderSaleSection.tsx` — grouped `Products` section for create-order sales
+- `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderSaleServicesSection.tsx` — collapsible `Services` section for create-order sales
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderDetailLineItemsPanel.tsx` — opened card product lookup (`buildOrderDetailProductSuggestions`: serial/article stock mode, name catalog mode, warehouse label in suggestions)
 
 ## Structure Update: Rapid Sale (2026-06-24)
 

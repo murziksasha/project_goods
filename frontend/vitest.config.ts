@@ -19,6 +19,9 @@ const coverageInclude = [
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react-i18next', 'i18next'],
+  },
   test: {
     pool: 'vmForks',
     environment: 'jsdom',

@@ -1,58 +1,55 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({
-  sortArgs: undefined as unknown,
-  queueOrders: [] as Record<string, unknown>[],
-}));
-
-vi.mock('../supplier/model', () => {
-  class SupplierMock {
-    static findById() {
-      return {
-        lean: async () => ({ _id: 'supplier-1', name: 'Cable Supplier' }),
-      };
-    }
-  }
-
-  return { Supplier: SupplierMock };
-});
-
-vi.mock('./model', () => {
-  class SupplierOrderMock {
-    static find() {
-      return {
-        sort: (sortArgs: unknown) => {
-          state.sortArgs = sortArgs;
-          return {
-            lean: async () => state.queueOrders,
-          };
-        },
-      };
-    }
-
-    static updateMany = vi.fn(async () => ({ modifiedCount: 0 }));
-  }
+const { state, findMock, updateManyMock } = vi.hoisted(() => {
+  const sharedState = {
+    sortArgs: undefined as unknown,
+    queueOrders: [] as Record<string, unknown>[],
+  };
 
   return {
-    receiptStatuses: ['new', 'approved', 'received'],
-    supplierOrderStatuses: [
-      'request',
-      'ordered',
-      'approved',
-      'stocked',
-      'overdue',
-      'cancelled',
-      'unavailable',
-    ],
-    supplierPaymentStatuses: [
-      'pending',
-      'paid',
-      'without_payment',
-      'cancelled',
-    ],
-    SupplierOrder: SupplierOrderMock,
+    state: sharedState,
+    findMock: vi.fn(() => ({
+      sort: (sortArgs: unknown) => {
+        sharedState.sortArgs = sortArgs;
+        return {
+          lean: async () => sharedState.queueOrders,
+        };
+      },
+    })),
+    updateManyMock: vi.fn(async () => ({ modifiedCount: 0 })),
   };
 });
+
+vi.mock('../supplier/model', () => ({
+  Supplier: {
+    findById: vi.fn(() => ({
+      lean: async () => ({ _id: 'supplier-1', name: 'Cable Supplier' }),
+    })),
+  },
+}));
+
+vi.mock('./model', () => ({
+  receiptStatuses: ['new', 'approved', 'received'],
+  supplierOrderStatuses: [
+    'request',
+    'ordered',
+    'approved',
+    'stocked',
+    'overdue',
+    'cancelled',
+    'unavailable',
+  ],
+  supplierPaymentStatuses: [
+    'pending',
+    'paid',
+    'without_payment',
+    'cancelled',
+  ],
+  SupplierOrder: {
+    find: findMock,
+    updateMany: updateManyMock,
+  },
+}));
 
 import { SupplierOrder } from './model';
 import { listSupplierOrdersForAccounting } from './service';

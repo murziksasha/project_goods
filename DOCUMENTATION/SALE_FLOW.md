@@ -111,24 +111,27 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 - Search suggestions are rendered in a separate block below the entry row.
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
-- In `Sales order`, `Product search` can suggest:
-  - records from `Products & Services -> Products` (`catalog-products`)
-  - selectable warehouse stock products (`products`) when the item is available
+- In `Sales order`, `Product search` uses the same split lookup rules as opened sale/repair cards (see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)):
+  - serial/article query -> warehouse stock suggestions with bold warehouse name
+  - name query -> `catalog-products` by `name` only
+  - `note` is never matched
 - Operator may type a product by:
   - product name
   - serial number
   - article
 
+## Services During Create (Sales order)
+
+- Below grouped `Products`, `Create order -> Sales order` shows a collapsible `Services` section.
+- Default state: `Services` collapsed; `Products` always expanded.
+- Expanded `Services` reuses existing service-catalog lookup (`getServiceCatalogItems`, debounce 350 ms, min 2 chars) and missing-service creation rules (`missingService` helpers).
+- Operator may add multiple service rows before `Save order`; saved sale persists them as `lineItems[]` with `kind: service`.
+
 ## Product Suggestions
 
 - Product search starts from 2+ characters.
-- Suggestions are loaded from product catalog lookup and available stock lookup.
-- Lookup must match by normalized product `name`, stock `serialNumber`, stock `article`, and relevant notes.
-- The same suggestion builder (`buildCreateOrderProductSuggestions`) is reused in:
-  - `Create order -> Sales order`
-  - `Rapid sale`
-  - Opened sale card `Products` add-row input
-  - Opened repair order card `Products` add-row input
+- `Create order -> Sales order` and opened sale/repair card `Products` use `buildOrderDetailProductSuggestions`.
+- `Rapid sale` keeps `buildRapidSaleStockSuggestions` / warehouse-scoped stock lookup.
 - Clicking a suggestion fills:
   - product name into search input
   - suggested price from product sale price (fallback to base price)

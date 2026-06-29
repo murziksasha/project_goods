@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
+import * as financeApi from '../../../../../entities/finance/api/financeApi';
+import * as saleApi from '../../../../../entities/sale/api/saleApi';
+import * as supplierOrderApi from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type { Employee } from '../../../../../entities/employee/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
@@ -16,30 +19,83 @@ const {
   createFinanceTransactionMock,
   getCashboxesMock,
 } = vi.hoisted(() => ({
-  getSupplierOrdersMock: vi.fn(async () => []),
+  getSupplierOrdersMock: vi.fn(async (_query?: string) => []),
   acceptSalePaymentMock: vi.fn(),
   refundSalePaymentMock: vi.fn(),
   updateSaleFavoriteMock: vi.fn(),
   updateSaleWorkspaceMock: vi.fn(),
   createFinanceTransactionMock: vi.fn(),
-  getCashboxesMock: vi.fn(async (): Promise<Cashbox[]> => []),
+  getCashboxesMock: vi.fn(
+    async (_options?: { includeArchived?: boolean }): Promise<Cashbox[]> => [],
+  ),
 }));
 
-vi.mock('../../../../../entities/supplier-order/api/supplierOrderApi', () => ({
-  getSupplierOrders: getSupplierOrdersMock,
-}));
-vi.mock('../../../../../entities/sale/api/saleApi', () => ({
-  acceptSalePayment: acceptSalePaymentMock,
-  refundSalePayment: refundSalePaymentMock,
-  returnSale: vi.fn(),
-  returnSaleLineItemToStock: vi.fn(),
-  updateSaleFavorite: updateSaleFavoriteMock,
-  updateSaleWorkspace: updateSaleWorkspaceMock,
-}));
-vi.mock('../../../../../entities/finance/api/financeApi', () => ({
-  createFinanceTransaction: createFinanceTransactionMock,
-  getCashboxes: getCashboxesMock,
-}));
+vi.mock('../../../../../entities/supplier-order/api/supplierOrderApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/supplier-order/api/supplierOrderApi')
+  >();
+  return { ...actual, getSupplierOrders: getSupplierOrdersMock };
+});
+vi.mock('../../../../../entities/sale/api/saleApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/sale/api/saleApi')
+  >();
+  return {
+    ...actual,
+    acceptSalePayment: acceptSalePaymentMock,
+    refundSalePayment: refundSalePaymentMock,
+    updateSaleFavorite: updateSaleFavoriteMock,
+    updateSaleWorkspace: updateSaleWorkspaceMock,
+  };
+});
+vi.mock('../../../../../entities/finance/api/financeApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/finance/api/financeApi')
+  >();
+  return {
+    ...actual,
+    createFinanceTransaction: createFinanceTransactionMock,
+    getCashboxes: getCashboxesMock,
+  };
+});
+
+const restoreApiMocks = () => {
+  getSupplierOrdersMock.mockImplementation(async () => []);
+  getCashboxesMock.mockImplementation(async (): Promise<Cashbox[]> => []);
+  vi.spyOn(supplierOrderApi, 'getSupplierOrders').mockImplementation((query = '') =>
+    getSupplierOrdersMock(query),
+  );
+  vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation((saleId, payload) =>
+    acceptSalePaymentMock(saleId, payload),
+  );
+  vi.spyOn(saleApi, 'refundSalePayment').mockImplementation((saleId, payload) =>
+    refundSalePaymentMock(saleId, payload),
+  );
+  vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation((saleId, payload) =>
+    updateSaleFavoriteMock(saleId, payload),
+  );
+  vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation((saleId, payload) =>
+    updateSaleWorkspaceMock(saleId, payload),
+  );
+  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation((payload) =>
+    createFinanceTransactionMock(payload),
+  );
+  vi.spyOn(financeApi, 'getCashboxes').mockImplementation((options = {}) =>
+    getCashboxesMock(options),
+  );
+};
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  acceptSalePaymentMock.mockReset();
+  refundSalePaymentMock.mockReset();
+  updateSaleFavoriteMock.mockReset();
+  updateSaleWorkspaceMock.mockReset();
+  createFinanceTransactionMock.mockReset();
+  getSupplierOrdersMock.mockReset();
+  getCashboxesMock.mockReset();
+  restoreApiMocks();
+});
 
 const employee: Employee = {
   id: 'manager-1',

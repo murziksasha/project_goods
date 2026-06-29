@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as authApi from '../../../entities/auth/api/authApi';
 import { ApiRequestError } from '../../../shared/api/http';
 import type { Employee } from '../../../entities/employee/model/types';
 import { authTokenStorageKey } from '../../../entities/auth/api/authApi';
@@ -27,6 +28,10 @@ vi.mock('../../../entities/auth/api/authApi', async () => {
 vi.mock('../model/use-dashboard-effects', () => ({
   useDashboardEffects: vi.fn(),
 }));
+
+vi.mock('../model/useDashboardPage', () =>
+  import('../model/__mocks__/useDashboardPage'),
+);
 
 vi.mock('../../../widgets/dashboard/ui/shared/Notifications', () => ({
   Notifications: ({ error }: { error: string }) => (
@@ -70,13 +75,19 @@ vi.mock('../../../shared/ui/GlobalHorizontalScrollbar', () => ({
   GlobalHorizontalScrollbar: () => null,
 }));
 
-const hardReloadApp = vi.fn();
+const hardReloadAppMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../shared/lib/hardReload', () => ({
-  hardReloadApp: (...args: unknown[]) => hardReloadApp(...args),
-}));
+vi.mock('../../../shared/lib/hardReload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../shared/lib/hardReload')>();
+  return { ...actual };
+});
 
-import { DashboardPage } from './DashboardPage';
+import type { DashboardPage as DashboardPageComponent } from './DashboardPage';
+import * as hardReload from '../../../shared/lib/hardReload';
+import * as useDashboardPageModule from '../model/useDashboardPage';
+import { useDashboardPage as useDashboardPageMockImpl } from '../model/__mocks__/useDashboardPage';
+
+let DashboardPage: typeof DashboardPageComponent;
 
 const employee: Employee = {
   id: 'employee-id',
@@ -93,8 +104,25 @@ const employee: Employee = {
   updatedAt: '2026-06-09T00:00:00.000Z',
 };
 
-beforeEach(() => {
+const restoreAuthMock = () => {
+  vi.spyOn(authApi, 'getCurrentEmployee').mockImplementation(() => getCurrentEmployeeMock());
+};
+
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  getCurrentEmployeeMock.mockReset();
+  hardReloadAppMock.mockReset();
   getCurrentEmployeeMock.mockResolvedValue(employee);
+  restoreAuthMock();
+  vi.spyOn(useDashboardPageModule, 'useDashboardPage').mockImplementation(
+    useDashboardPageMockImpl as unknown as typeof useDashboardPageModule.useDashboardPage,
+  );
+  vi.spyOn(hardReload, 'hardReloadApp').mockImplementation(hardReloadAppMock);
+  Object.defineProperty(window.navigator, 'onLine', {
+    configurable: true,
+    value: true,
+  });
+  ({ DashboardPage } = await import('./DashboardPage'));
 });
 
 const renderDashboardPage = (ui: ReactElement = <DashboardPage />) => {
@@ -121,12 +149,9 @@ describe('DashboardPage sync control', () => {
 
     renderDashboardPage();
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Last sync:/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Last sync:/i }));
-    expect(hardReloadApp).toHaveBeenCalledTimes(1);
+    const syncButton = await screen.findByRole('button', { name: /Last sync/i });
+    fireEvent.click(syncButton);
+    expect(hardReloadAppMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -147,14 +172,14 @@ describe('DashboardPage auth recovery', () => {
     renderDashboardPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+      expect(screen.getByText('Business performance')).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument();
     expect(screen.queryByText('Session not found.')).not.toBeInTheDocument();
-    expect(screen.getByTestId('notifications')).toHaveTextContent(
-      'Session check failed.',
-    );
+    await waitFor(() => {
+      expect(screen.getByText(/Session check failed/i)).toBeInTheDocument();
+    });
   });
 });
 
@@ -172,8 +197,9 @@ describe('DashboardPage browser history', () => {
     renderDashboardPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+      expect(screen.getByText('Business performance')).toBeInTheDocument();
     });
+    expect(screen.getByRole('link', { name: /Main/i })).toHaveClass('sidebar-nav-item-active');
 
     pushState.mockClear();
 
@@ -189,7 +215,7 @@ describe('DashboardPage browser history', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Orders workspace')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Orders/i })).toHaveClass('sidebar-nav-item-active');
     });
 
     window.history.replaceState(null, '', '/');
@@ -198,7 +224,8 @@ describe('DashboardPage browser history', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Main/i })).toHaveClass('sidebar-nav-item-active');
+      expect(screen.getByText('Business performance')).toBeInTheDocument();
     });
 
     pushState.mockRestore();
@@ -218,7 +245,7 @@ describe('DashboardPage last sync reload', () => {
 
     fireEvent.click(syncButton);
 
-    expect(hardReloadApp).toHaveBeenCalledTimes(1);
+    expect(hardReloadAppMock).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
   });
 });

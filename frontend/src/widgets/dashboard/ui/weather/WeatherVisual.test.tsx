@@ -1,49 +1,34 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
+import { I18nextProvider } from 'react-i18next';
+import { afterEach, describe, expect, it } from 'vitest';
+import i18n from '../../../../shared/i18n/config';
 import { WeatherVisual } from './WeatherVisual';
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (key === 'analytics.marketWeather.windWithDirection') {
-        return `Wind ${options?.speed} km/h ${options?.direction}`;
-      }
-      if (key === 'analytics.marketWeather.windGust') {
-        return `, gusts ${options?.speed} km/h`;
-      }
-      if (key === 'analytics.marketWeather.humidity') {
-        return `Humidity ${options?.value}%`;
-      }
-      if (key === 'analytics.marketWeather.conditionsWithIntensity.rain.heavy') {
-        return 'Heavy rain';
-      }
-      if (key.startsWith('analytics.marketWeather.compass.')) {
-        return String(options?.defaultValue ?? key.split('.').pop());
-      }
-      return key;
-    },
-  }),
-}));
 
 afterEach(() => {
   cleanup();
 });
 
+const renderWeatherVisual = (props: ComponentProps<typeof WeatherVisual>) =>
+  render(
+    <I18nextProvider i18n={i18n}>
+      <WeatherVisual {...props} />
+    </I18nextProvider>,
+  );
+
 describe('WeatherVisual', () => {
   it('renders animated scene with wind and intensity metadata', () => {
-    const { container } = render(
-      <WeatherVisual
-        condition="rain"
-        temperature={18}
-        humidity={72}
-        intensity="heavy"
-        windSpeed={24}
-        windGust={38}
-        windDirection={90}
-        label="Today"
-        animated
-      />,
-    );
+    const { container } = renderWeatherVisual({
+      condition: 'rain',
+      temperature: 18,
+      humidity: 72,
+      intensity: 'heavy',
+      windSpeed: 24,
+      windGust: 38,
+      windDirection: 90,
+      label: 'Today',
+      animated: true,
+    });
 
     expect(container.querySelector('.weather-visual-media')).toBeTruthy();
     expect(container.querySelector('.weather-scene--intensity-heavy')).toBeTruthy();
@@ -53,15 +38,13 @@ describe('WeatherVisual', () => {
   });
 
   it('uses static icon in compact mode even when animated is enabled', () => {
-    const { container } = render(
-      <WeatherVisual
-        condition="clear"
-        temperature={22}
-        label="Mon"
-        compact
-        animated
-      />,
-    );
+    const { container } = renderWeatherVisual({
+      condition: 'clear',
+      temperature: 22,
+      label: 'Mon',
+      compact: true,
+      animated: true,
+    });
 
     expect(container.querySelector('.weather-scene')).toBeNull();
     expect(container.querySelector('.weather-icon')).toBeTruthy();

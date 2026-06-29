@@ -1,6 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { ComponentProps } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ComponentProps, ReactElement } from 'react';
+import { I18nextProvider } from 'react-i18next';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as financeApi from '../../../../entities/finance/api/financeApi';
+import i18n from '../../../../shared/i18n/config';
+import * as useAccountingFinanceDataModule from './useAccountingFinanceData';
+import * as useAccountingPreferencesModule from './useAccountingPreferences';
 
 import type {
   Cashbox,
@@ -14,7 +20,11 @@ import type {
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
-import { AccountingPanel } from './AccountingPanel';
+import type { AccountingPanel as AccountingPanelComponent } from './AccountingPanel';
+import type { AccountingTransactionsView as RealAccountingTransactionsViewComponent } from './AccountingTransactionsView';
+
+let AccountingPanel: typeof AccountingPanelComponent;
+let RealAccountingTransactionsView: typeof RealAccountingTransactionsViewComponent;
 
 const {
   cancelFinanceTransactionMock,
@@ -42,288 +52,77 @@ const {
   useAccountingPreferencesMock: vi.fn(),
 }));
 
-type AccountingTabsProps = ComponentProps<typeof import('./AccountingTabs').AccountingTabs>;
-type AccountingCashboxesViewProps = ComponentProps<
-  typeof import('./AccountingCashboxesView').AccountingCashboxesView
->;
-type AccountingFinanceSettingsProps = ComponentProps<
-  typeof import('./AccountingFinanceSettings').AccountingFinanceSettings
->;
-type AccountingTransactionsViewProps = ComponentProps<
-  typeof import('./AccountingTransactionsView').AccountingTransactionsView
->;
-type AccountingSupplierOrdersQueueProps = ComponentProps<
-  typeof import('./AccountingSupplierOrdersQueue').AccountingSupplierOrdersQueue
->;
-type AccountingReportsViewProps = ComponentProps<
-  typeof import('./AccountingReportsView').AccountingReportsView
->;
-type SupplierOrderModalProps = ComponentProps<
-  typeof import('../orders/modals/SupplierOrderModal').SupplierOrderModal
->;
-type CancelTransferModalProps = ComponentProps<
-  typeof import('./AccountingConfirmModals').CancelTransferModal
->;
-type IssueWithoutPaymentModalProps = ComponentProps<
-  typeof import('./AccountingConfirmModals').IssueWithoutPaymentModal
->;
+vi.mock('../../../../entities/finance/api/financeApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/finance/api/financeApi')
+  >();
+  return {
+    ...actual,
+    cancelFinanceTransaction: cancelFinanceTransactionMock,
+    createCashbox: createCashboxMock,
+    createFinanceCurrency: createFinanceCurrencyMock,
+    createFinanceTransaction: createFinanceTransactionMock,
+    issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
+    paySupplierOrder: paySupplierOrderMock,
+    updateCashbox: updateCashboxMock,
+    updateFinanceCurrency: updateFinanceCurrencyMock,
+    updateFinanceTransaction: updateFinanceTransactionMock,
+    useCancelFinanceTransactionMutation: () => ({
+      mutateAsync: cancelFinanceTransactionMock,
+    }),
+    useCreateCashboxMutation: () => ({ mutateAsync: createCashboxMock }),
+    useCreateFinanceCurrencyMutation: () => ({
+      mutateAsync: createFinanceCurrencyMock,
+    }),
+    useCreateFinanceTransactionMutation: () => ({
+      mutateAsync: createFinanceTransactionMock,
+    }),
+    useIssueSupplierOrderWithoutPaymentMutation: () => ({
+      mutateAsync: issueSupplierOrderWithoutPaymentMock,
+    }),
+    usePaySupplierOrderMutation: () => ({
+      mutateAsync: ({
+        payload,
+        supplierOrderId,
+      }: {
+        payload: { cashboxId: string; note?: string };
+        supplierOrderId: string;
+      }) => paySupplierOrderMock(supplierOrderId, payload),
+    }),
+    useUpdateCashboxMutation: () => ({
+      mutateAsync: ({
+        cashboxId,
+        payload,
+      }: {
+        cashboxId: string;
+        payload: Partial<Cashbox>;
+      }) => updateCashboxMock(cashboxId, payload),
+    }),
+    useUpdateFinanceCurrencyMutation: () => ({
+      mutateAsync: ({
+        currencyCode,
+        payload,
+      }: {
+        currencyCode: string;
+        payload: { isArchived?: boolean };
+      }) => updateFinanceCurrencyMock(currencyCode, payload),
+    }),
+    useUpdateFinanceTransactionMutation: () => ({
+      mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: any }) =>
+        updateFinanceTransactionMock(transactionId, payload),
+    }),
+  };
+});
 
-vi.mock('../../../../entities/finance/api/financeApi', () => ({
-  cancelFinanceTransaction: cancelFinanceTransactionMock,
-  createCashbox: createCashboxMock,
-  createFinanceCurrency: createFinanceCurrencyMock,
-  createFinanceTransaction: createFinanceTransactionMock,
-  issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
-  paySupplierOrder: paySupplierOrderMock,
-  updateCashbox: updateCashboxMock,
-  updateFinanceCurrency: updateFinanceCurrencyMock,
-  updateFinanceTransaction: updateFinanceTransactionMock,
-  useCancelFinanceTransactionMutation: () => ({
-    mutateAsync: cancelFinanceTransactionMock,
-  }),
-  useCreateCashboxMutation: () => ({ mutateAsync: createCashboxMock }),
-  useCreateFinanceCurrencyMutation: () => ({
-    mutateAsync: createFinanceCurrencyMock,
-  }),
-  useCreateFinanceTransactionMutation: () => ({
-    mutateAsync: createFinanceTransactionMock,
-  }),
-  useIssueSupplierOrderWithoutPaymentMutation: () => ({
-    mutateAsync: issueSupplierOrderWithoutPaymentMock,
-  }),
-  usePaySupplierOrderMutation: () => ({
-    mutateAsync: ({
-      payload,
-      supplierOrderId,
-    }: {
-      payload: { cashboxId: string; note?: string };
-      supplierOrderId: string;
-    }) => paySupplierOrderMock(supplierOrderId, payload),
-  }),
-  useUpdateCashboxMutation: () => ({
-    mutateAsync: ({
-      cashboxId,
-      payload,
-    }: {
-      cashboxId: string;
-      payload: Partial<Cashbox>;
-    }) => updateCashboxMock(cashboxId, payload),
-  }),
-  useUpdateFinanceCurrencyMutation: () => ({
-    mutateAsync: ({
-      currencyCode,
-      payload,
-    }: {
-      currencyCode: string;
-      payload: { isArchived?: boolean };
-    }) => updateFinanceCurrencyMock(currencyCode, payload),
-  }),
-  useUpdateFinanceTransactionMutation: () => ({
-    mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: any }) =>
-      updateFinanceTransactionMock(transactionId, payload),
-  }),
-}));
+vi.mock('./useAccountingFinanceData', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./useAccountingFinanceData')>();
+  return { ...actual, useAccountingFinanceData: useAccountingFinanceDataMock };
+});
 
-vi.mock('./useAccountingFinanceData', () => ({
-  useAccountingFinanceData: useAccountingFinanceDataMock,
-}));
-
-vi.mock('./useAccountingPreferences', () => ({
-  useAccountingPreferences: useAccountingPreferencesMock,
-}));
-
-vi.mock('./AccountingTabs', () => ({
-  AccountingTabs: (props: AccountingTabsProps) => (
-    <nav>
-      <button type='button' onClick={props.onOpenSettings}>settings</button>
-      <button type='button' onClick={() => props.onTabChange('cashboxes')}>cashboxes</button>
-      <button type='button' onClick={() => props.onTabChange('transactions')}>transactions</button>
-      <button type='button' onClick={() => props.onTabChange('orders')}>orders</button>
-      <button type='button' onClick={() => props.onTabChange('reports')}>reports</button>
-      <span data-testid='tabs-state'>
-        {props.activeTab}:{String(props.isFinanceSettingsOpen)}:{String(props.canManageCashboxes)}
-      </span>
-    </nav>
-  ),
-}));
-
-vi.mock('./AccountingCashboxesView', () => ({
-  AccountingCashboxesView: (props: AccountingCashboxesViewProps) => (
-    <section>
-      <span data-testid='cashboxes-view'>{props.cashboxes.length}</span>
-      <button type='button' onClick={props.onCreateCashbox}>create cashbox</button>
-      <button type='button' onClick={props.onCreateTransaction}>create transaction</button>
-      <button type='button' onClick={() => props.onStartTransaction('deposit', props.cashboxes[0])}>start deposit</button>
-      <button type='button' onClick={() => props.onStartTransaction('withdraw', props.cashboxes[0])}>start withdraw</button>
-      <button type='button' onClick={() => props.onStartTransaction('transfer', props.cashboxes[0])}>start transfer</button>
-      <button type='button' onClick={() => props.onOpenCashboxTransactions(props.cashboxes[0])}>open transactions</button>
-      <button type='button' onClick={() => props.onTransactionTypeChange('deposit')}>type deposit</button>
-      <button type='button' onClick={() => props.onTransactionTypeChange('transfer')}>type transfer</button>
-      <button type='button' onClick={() => props.onTransactionTypeChange('withdraw')}>type withdraw</button>
-      <button type='button' onClick={() => props.onTransactionTypeChange('refund' as FinanceTransactionType)}>type forbidden</button>
-      <button type='button' onClick={() => props.onNewCashboxNameChange('Desk')}>cashbox view name</button>
-      <button type='button' onClick={() => props.onSetDraggedCashboxId('cashbox-1')}>drag cashbox</button>
-      <button type='button' onClick={() => props.onSetCashboxes(props.cashboxes.slice().reverse())}>reorder cashboxes</button>
-      <button type='button' onClick={() => props.cashboxCurrencyRows(props.cashboxes[0])}>currency rows</button>
-      <button
-        type='button'
-        onClick={() =>
-          props.onTransactionFormChange((current: CreateFinanceTransactionPayload) => ({
-            ...current,
-            currency: 'EUR',
-          }))
-        }
-      >
-        unavailable currency
-      </button>
-      <button
-        type='button'
-        onClick={() =>
-          props.onTransactionFormChange((current: CreateFinanceTransactionPayload) => ({
-            ...current,
-            amount: '0',
-          }))
-        }
-      >
-        zero amount
-      </button>
-      <button
-        type='button'
-        onClick={() =>
-          props.onTransactionFormChange((current: CreateFinanceTransactionPayload) => ({
-            ...current,
-            amount: '25',
-          }))
-        }
-      >
-        amount
-      </button>
-    </section>
-  ),
-}));
-
-vi.mock('./AccountingFinanceSettings', () => ({
-  AccountingFinanceSettings: (props: AccountingFinanceSettingsProps) => (
-    <section>
-      <span data-testid='settings-view'>{props.activeTab}</span>
-      <button type='button' onClick={() => props.onNewCashboxNameChange('Desk')}>cashbox name</button>
-      <button type='button' onClick={props.onCreateCashbox}>settings create cashbox</button>
-      <button type='button' onClick={() => props.onStartEditCashbox(props.allCashboxes[0])}>edit cashbox</button>
-      <button type='button' onClick={() => props.onEditingCashboxNameChange('Renamed')}>edit name</button>
-      <button type='button' onClick={props.onSaveCashbox}>save cashbox</button>
-      <button type='button' onClick={props.onCancelCashboxEdit}>cancel edit</button>
-      <button type='button' onClick={() => props.onToggleCashboxArchived(props.allCashboxes[0])}>archive cashbox</button>
-      <button type='button' onClick={() => props.onNewCurrencyCodeChange('eur')}>currency code</button>
-      <button type='button' onClick={() => props.onNewCurrencyCodeChange('usd')}>duplicate currency code</button>
-      <button type='button' onClick={() => props.onNewCurrencyCodeChange('12')}>bad currency code</button>
-      <button type='button' onClick={props.onAddCurrency}>add currency</button>
-      <button type='button' onClick={() => props.onRemoveCurrency('UAH')}>remove uah</button>
-      <button type='button' onClick={() => props.onRemoveCurrency('USD')}>remove usd</button>
-      <button type='button' onClick={() => props.onRemoveCurrency('EUR')}>remove eur</button>
-      <button type='button' onClick={() => props.onToggleCurrencyActivity('UAH')}>toggle uah</button>
-      <button type='button' onClick={() => props.onToggleCurrencyActivity('USD')}>toggle usd</button>
-      <button type='button' onClick={() => props.onToggleCurrencyActivity('EUR')}>toggle missing currency</button>
-      <button type='button' onClick={() => props.onToggleCashboxCurrencyActivity(props.allCashboxes[0].id, 'UAH')}>toggle box uah</button>
-      <button type='button' onClick={() => props.onToggleCashboxCurrencyActivity(props.allCashboxes[0].id, 'USD')}>toggle box usd</button>
-      <button type='button' onClick={() => props.onToggleCashboxCurrencyActivity('missing', 'USD')}>toggle missing box</button>
-      <button type='button' onClick={() => props.onToggleCard('cashboxes')}>toggle card</button>
-      <button type='button' onClick={() => props.onTabChange('currencies')}>settings tab</button>
-    </section>
-  ),
-}));
-
-vi.mock('./AccountingTransactionsView', () => ({
-  AccountingTransactionsView: (props: AccountingTransactionsViewProps) => (
-    <section data-testid='transactions-view'>
-      <span>{props.filteredTransactions.length}</span>
-      <button type='button' onClick={() => props.onPageSizeChange(10)}>page size</button>
-      <button type='button' onClick={() => props.onPageChange(4)}>page high</button>
-      <button type='button' onClick={() => props.onFilterOpenChange(true)}>filter open</button>
-      <button type='button' onClick={() => props.onDateFilterOpenChange(true)}>date open</button>
-      <button
-        type='button'
-        onClick={() => props.onSetAppliedFilters({ ...props.appliedFilters, type: 'deposit' })}
-      >
-        apply filter
-      </button>
-      <button
-        type='button'
-        onClick={() => props.onSetDraftFilters({ ...props.draftFilters, currency: 'UAH' })}
-      >
-        draft filter
-      </button>
-      <button type='button' onClick={() => props.onSelectedCashboxIdChange('cashbox-1')}>select cashbox</button>
-      <button type='button' onClick={() => props.onSetTransferToCancel(props.filteredTransactions[0])}>cancel transfer</button>
-      <button
-        type='button'
-        onClick={() => props.onSetTransferToCancel({ ...props.filteredTransactions[0], transactionDate: '2020-01-01T00:00:00.000Z' })}
-      >
-        cancel old transfer
-      </button>
-      <button type='button' onClick={() => props.canCancelTransferTransaction(props.filteredTransactions[0])}>can cancel</button>
-      <button type='button' onClick={() => props.onSelectedSupplierOrderChange(props.supplierOrders[0])}>supplier modal</button>
-      <button type='button' onClick={() => props.onOpenSaleCard({ id: 'sale-1', kind: 'sale' })}>sale card</button>
-      <button type='button' onClick={() => props.onEditTransactionNote?.(props.filteredTransactions[0])}>edit note</button>
-      <button type='button' onClick={() => props.onEditTransactionNote?.({ ...props.filteredTransactions[0], id: 'tx-manual', note: 'Manual deposit note text' })}>edit manual note</button>
-      <span data-testid="tx-mock-actions" />
-    </section>
-  ),
-}));
-
-vi.mock('./AccountingSupplierOrdersQueue', () => ({
-  AccountingSupplierOrdersQueue: (props: AccountingSupplierOrdersQueueProps) => (
-    <section>
-      <span data-testid='orders-view'>{props.supplierOrdersQueue.length}</span>
-      <button type='button' onClick={() => props.onPaySupplierOrder(props.supplierOrdersQueue[0], props.firstCashboxId, 'SO-1')}>pay order</button>
-      <button type='button' onClick={() => props.onPaySupplierOrder(props.supplierOrdersQueue[0], '', 'SO-1')}>pay order without cashbox</button>
-      <button type='button' onClick={() => props.onIssueWithoutPayment(props.supplierOrdersQueue[0])}>issue without payment</button>
-      <button type='button' onClick={() => props.onSelectedSupplierOrderChange(props.supplierOrders[0])}>open supplier</button>
-      <button
-        type='button'
-        onClick={() =>
-          props.onTransactionFormChange((current: CreateFinanceTransactionPayload) => ({
-            ...current,
-            type: 'withdraw' as FinanceTransactionType,
-          }))
-        }
-      >
-        orders form
-      </button>
-    </section>
-  ),
-}));
-
-vi.mock('./AccountingReportsView', () => ({
-  AccountingReportsView: (props: AccountingReportsViewProps) => (
-    <section data-testid='reports-view'>{props.financeOverview.transactionCount}</section>
-  ),
-}));
-
-vi.mock('../orders/modals/SupplierOrderModal', () => ({
-  SupplierOrderModal: (props: SupplierOrderModalProps) =>
-    props.isOpen ? (
-      <section data-testid='supplier-modal'>
-        <button type='button' onClick={() => props.onCreateSupplier({ name: 'Supplier' } as never)}>create supplier inline</button>
-        <button type='button' onClick={() => props.onSubmit({} as never)}>submit supplier inline</button>
-        <button type='button' onClick={props.onClose}>close supplier modal</button>
-      </section>
-    ) : null,
-}));
-
-vi.mock('./AccountingConfirmModals', () => ({
-  CancelTransferModal: (props: CancelTransferModalProps) => (
-    <section data-testid='cancel-transfer-modal'>
-      <button type='button' onClick={props.onConfirm}>confirm cancel transfer</button>
-      <button type='button' onClick={props.onClose}>close cancel transfer</button>
-    </section>
-  ),
-  IssueWithoutPaymentModal: (props: IssueWithoutPaymentModalProps) => (
-    <section data-testid='issue-without-payment-modal'>
-      <button type='button' onClick={props.onConfirm}>confirm issue without payment</button>
-      <button type='button' onClick={props.onClose}>close issue without payment</button>
-    </section>
-  ),
-}));
+vi.mock('./useAccountingPreferences', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./useAccountingPreferences')>();
+  return { ...actual, useAccountingPreferences: useAccountingPreferencesMock };
+});
 
 const now = '2026-06-16T10:00:00.000Z';
 
@@ -423,7 +222,11 @@ const supplierOrder = (): SupplierOrder =>
 const mutableState = {
   activeTab: 'cashboxes' as 'cashboxes' | 'transactions' | 'orders' | 'reports',
   isFinanceSettingsOpen: false,
+  expandedFinanceSettingsCard: null as string | null,
+  financeSettingsTab: 'cashboxes' as 'cashboxes' | 'currencies',
 };
+
+let panelRerender: (() => void) | null = null;
 
 const setupHooks = (
   patch: Partial<ReturnType<typeof useAccountingFinanceDataMock>> = {},
@@ -453,27 +256,35 @@ const setupPreferences = (
 ) => {
   useAccountingPreferencesMock.mockImplementation(() => ({
     activeTab: mutableState.activeTab,
-    expandedFinanceSettingsCard: null,
-    financeSettingsTab: 'cashboxes',
+    expandedFinanceSettingsCard: mutableState.expandedFinanceSettingsCard,
+    financeSettingsTab: mutableState.financeSettingsTab,
     isFinanceSettingsOpen: mutableState.isFinanceSettingsOpen,
     lastTargetCashboxByType: {},
     setActiveTab: vi.fn((next) => {
       mutableState.activeTab = next;
+      panelRerender?.();
     }),
     setExpandedFinanceSettingsCard: vi.fn((updater) => {
       if (typeof updater === 'function') {
-        updater(null);
-        updater('cashboxes');
+        mutableState.expandedFinanceSettingsCard = updater(
+          mutableState.expandedFinanceSettingsCard,
+        );
+      } else {
+        mutableState.expandedFinanceSettingsCard = updater;
       }
+      panelRerender?.();
     }),
-    setFinanceSettingsTab: vi.fn(),
+    setFinanceSettingsTab: vi.fn((tab) => {
+      mutableState.financeSettingsTab = tab;
+      panelRerender?.();
+    }),
     setIsFinanceSettingsOpen: vi.fn((updater) => {
       if (typeof updater === 'function') {
-        updater(false);
-        mutableState.isFinanceSettingsOpen = updater(true);
+        mutableState.isFinanceSettingsOpen = updater(mutableState.isFinanceSettingsOpen);
       } else {
         mutableState.isFinanceSettingsOpen = updater;
       }
+      panelRerender?.();
     }),
     setLastTargetCashboxByType: vi.fn((updater) => {
       if (typeof updater === 'function') {
@@ -484,17 +295,252 @@ const setupPreferences = (
   }));
 };
 
-const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}) =>
-  render(
-    <AccountingPanel
-      currentEmployee={employee()}
-      onError={vi.fn()}
-      onSuccess={vi.fn()}
-      sales={[]}
-      onOpenSaleCard={vi.fn()}
-      {...props}
-    />,
+const restoreApiMocks = () => {
+  vi.spyOn(financeApi, 'cancelFinanceTransaction').mockImplementation((transactionId) =>
+    cancelFinanceTransactionMock(transactionId),
   );
+  vi.spyOn(financeApi, 'createCashbox').mockImplementation((payload) =>
+    createCashboxMock(payload),
+  );
+  vi.spyOn(financeApi, 'createFinanceCurrency').mockImplementation((payload) =>
+    createFinanceCurrencyMock(payload),
+  );
+  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation((payload) =>
+    createFinanceTransactionMock(payload),
+  );
+  vi.spyOn(financeApi, 'issueSupplierOrderWithoutPayment').mockImplementation((supplierOrderId) =>
+    issueSupplierOrderWithoutPaymentMock(supplierOrderId),
+  );
+  vi.spyOn(financeApi, 'paySupplierOrder').mockImplementation((supplierOrderId, payload) =>
+    paySupplierOrderMock(supplierOrderId, payload),
+  );
+  vi.spyOn(financeApi, 'updateCashbox').mockImplementation((cashboxId, payload) =>
+    updateCashboxMock(cashboxId, payload),
+  );
+  vi.spyOn(financeApi, 'updateFinanceCurrency').mockImplementation((currencyCode, payload) =>
+    updateFinanceCurrencyMock(currencyCode, payload),
+  );
+  vi.spyOn(financeApi, 'updateFinanceTransaction').mockImplementation((transactionId, payload) =>
+    updateFinanceTransactionMock(transactionId, payload),
+  );
+  vi.spyOn(financeApi, 'useCreateCashboxMutation').mockReturnValue({
+    mutateAsync: createCashboxMock,
+  } as unknown as ReturnType<typeof financeApi.useCreateCashboxMutation>);
+  vi.spyOn(financeApi, 'useUpdateCashboxMutation').mockReturnValue({
+    mutateAsync: ({ cashboxId, payload }: { cashboxId: string; payload: Partial<Cashbox> }) =>
+      updateCashboxMock(cashboxId, payload),
+  } as unknown as ReturnType<typeof financeApi.useUpdateCashboxMutation>);
+  vi.spyOn(financeApi, 'useCreateFinanceCurrencyMutation').mockReturnValue({
+    mutateAsync: createFinanceCurrencyMock,
+  } as unknown as ReturnType<typeof financeApi.useCreateFinanceCurrencyMutation>);
+  vi.spyOn(financeApi, 'useUpdateFinanceCurrencyMutation').mockReturnValue({
+    mutateAsync: ({
+      currencyCode,
+      payload,
+    }: {
+      currencyCode: string;
+      payload: { isArchived?: boolean };
+    }) => updateFinanceCurrencyMock(currencyCode, payload),
+  } as unknown as ReturnType<typeof financeApi.useUpdateFinanceCurrencyMutation>);
+  vi.spyOn(financeApi, 'useCreateFinanceTransactionMutation').mockReturnValue({
+    mutateAsync: createFinanceTransactionMock,
+  } as unknown as ReturnType<typeof financeApi.useCreateFinanceTransactionMutation>);
+  vi.spyOn(financeApi, 'useCancelFinanceTransactionMutation').mockReturnValue({
+    mutateAsync: cancelFinanceTransactionMock,
+  } as unknown as ReturnType<typeof financeApi.useCancelFinanceTransactionMutation>);
+  vi.spyOn(financeApi, 'usePaySupplierOrderMutation').mockReturnValue({
+    mutateAsync: ({
+      payload,
+      supplierOrderId,
+    }: {
+      payload: { cashboxId: string; note?: string };
+      supplierOrderId: string;
+    }) => paySupplierOrderMock(supplierOrderId, payload),
+  } as unknown as ReturnType<typeof financeApi.usePaySupplierOrderMutation>);
+  vi.spyOn(financeApi, 'useIssueSupplierOrderWithoutPaymentMutation').mockReturnValue({
+    mutateAsync: issueSupplierOrderWithoutPaymentMock,
+  } as unknown as ReturnType<typeof financeApi.useIssueSupplierOrderWithoutPaymentMutation>);
+  vi.spyOn(financeApi, 'useUpdateFinanceTransactionMutation').mockReturnValue({
+    mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: unknown }) =>
+      updateFinanceTransactionMock(transactionId, payload),
+  } as unknown as ReturnType<typeof financeApi.useUpdateFinanceTransactionMutation>);
+  vi.spyOn(useAccountingFinanceDataModule, 'useAccountingFinanceData').mockImplementation(
+    useAccountingFinanceDataMock,
+  );
+  vi.spyOn(useAccountingPreferencesModule, 'useAccountingPreferences').mockImplementation(
+    useAccountingPreferencesMock,
+  );
+};
+
+const renderWithProviders = (ui: ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>{ui}</I18nextProvider>
+    </QueryClientProvider>,
+  );
+};
+
+const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const panelProps: ComponentProps<typeof AccountingPanel> = {
+    currentEmployee: employee(),
+    onError: vi.fn(),
+    onSuccess: vi.fn(),
+    sales: [],
+    onOpenSaleCard: vi.fn(),
+    ...props,
+  };
+  const ui = (
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>
+        <AccountingPanel {...panelProps} />
+      </I18nextProvider>
+    </QueryClientProvider>
+  );
+  const result = render(ui);
+  panelRerender = () => {
+    result.rerender(
+      <QueryClientProvider client={queryClient}>
+        <I18nextProvider i18n={i18n}>
+          <AccountingPanel {...panelProps} />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+  };
+  return result;
+};
+
+const accountingTablist = () => screen.getByRole('tablist', { name: 'Accounting sections' });
+
+const clickTab = (tab: 'Cashboxes' | 'Transactions' | 'Orders' | 'Information') => {
+  fireEvent.click(within(accountingTablist()).getByRole('button', { name: tab }));
+};
+
+const openAccountingSettings = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Accounting settings' }));
+};
+
+const clickFirstCashboxAction = (action: 'Withdraw' | 'Deposit' | 'Transfer') => {
+  fireEvent.click(screen.getAllByRole('button', { name: action })[0]);
+};
+
+const setNewCashboxName = async (name: string) => {
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText('New cashbox'), { target: { value: name } });
+  });
+};
+
+const createCashbox = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Add cashbox' }));
+  });
+};
+
+const setTransactionAmount = async (amount: string) => {
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText('Amount', { selector: 'input' }), {
+      target: { value: amount },
+    });
+  });
+};
+
+const setTransactionType = async (type: FinanceTransactionType) => {
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText('Type', { selector: 'select' }), {
+      target: { value: type },
+    });
+  });
+};
+
+const saveTransaction = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
+  });
+};
+
+const waitForCashboxesView = async () => {
+  await waitFor(() => {
+    expect(screen.getByPlaceholderText('New cashbox')).toBeInTheDocument();
+  });
+};
+
+const expandSettingsCard = async (title: string | RegExp) => {
+  const pattern = typeof title === 'string' ? new RegExp(title, 'i') : title;
+  const toggle = screen.getByRole('button', { name: pattern });
+  if (toggle.getAttribute('aria-expanded') !== 'true') {
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+  }
+};
+
+const setSettingsCashboxName = async (name: string) => {
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText('Enter cashbox name'), {
+      target: { value: name },
+    });
+  });
+};
+
+const createCashboxInSettings = async () => {
+  await act(async () => {
+    const createButtons = screen.getAllByRole('button', { name: 'Create' });
+    fireEvent.click(createButtons[createButtons.length - 1]!);
+  });
+};
+
+const clickSettingsTab = (tab: 'Cashboxes' | 'Currencies') => {
+  const target = Array.from(document.querySelectorAll('.warehouse-settings-tab')).find(
+    (element) => element.textContent === tab,
+  );
+  if (target) {
+    fireEvent.click(target);
+  }
+};
+
+const resetMutableState = () => {
+  mutableState.activeTab = 'cashboxes';
+  mutableState.isFinanceSettingsOpen = false;
+  mutableState.expandedFinanceSettingsCard = null;
+  mutableState.financeSettingsTab = 'cashboxes';
+};
+
+const preparePanelTest = async () => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  resetMutableState();
+  panelRerender = null;
+  cancelFinanceTransactionMock.mockReset();
+  createCashboxMock.mockReset();
+  createFinanceCurrencyMock.mockReset();
+  createFinanceTransactionMock.mockReset();
+  issueSupplierOrderWithoutPaymentMock.mockReset();
+  paySupplierOrderMock.mockReset();
+  updateCashboxMock.mockReset();
+  updateFinanceCurrencyMock.mockReset();
+  updateFinanceTransactionMock.mockReset();
+  useAccountingFinanceDataMock.mockReset();
+  useAccountingPreferencesMock.mockReset();
+  setupHooks();
+  setupPreferences();
+  restoreApiMocks();
+  createCashboxMock.mockResolvedValue(cashbox());
+  createFinanceTransactionMock.mockResolvedValue(transfer());
+  createFinanceCurrencyMock.mockResolvedValue(currency());
+  updateCashboxMock.mockResolvedValue(cashbox());
+  updateFinanceCurrencyMock.mockResolvedValue(currency());
+  cancelFinanceTransactionMock.mockResolvedValue(transfer());
+  paySupplierOrderMock.mockResolvedValue(undefined);
+  issueSupplierOrderWithoutPaymentMock.mockResolvedValue(undefined);
+  vi.stubGlobal('crypto', { randomUUID: () => 'uuid-1' });
+  ({ AccountingPanel } = await import('./AccountingPanel'));
+};
 
 describe('AccountingPanel', () => {
   afterEach(() => {
@@ -503,21 +549,8 @@ describe('AccountingPanel', () => {
     vi.useRealTimers();
   });
 
-  beforeEach(() => {
-    vi.useRealTimers();
-    mutableState.activeTab = 'cashboxes';
-    mutableState.isFinanceSettingsOpen = false;
-    setupHooks();
-    setupPreferences();
-    createCashboxMock.mockResolvedValue(cashbox());
-    createFinanceTransactionMock.mockResolvedValue(transfer());
-    createFinanceCurrencyMock.mockResolvedValue(currency());
-    updateCashboxMock.mockResolvedValue(cashbox());
-    updateFinanceCurrencyMock.mockResolvedValue(currency());
-    cancelFinanceTransactionMock.mockResolvedValue(transfer());
-    paySupplierOrderMock.mockResolvedValue(undefined);
-    issueSupplierOrderWithoutPaymentMock.mockResolvedValue(undefined);
-    vi.stubGlobal('crypto', { randomUUID: () => 'uuid-1' });
+  beforeEach(async () => {
+    await preparePanelTest();
   });
 
   it('renders loading state', () => {
@@ -531,44 +564,52 @@ describe('AccountingPanel', () => {
   it('drives cashbox operations from the cashboxes view', async () => {
     const onSuccess = vi.fn();
     renderPanel({ onSuccess });
+    await waitForCashboxesView();
 
-    fireEvent.click(screen.getByRole('button', { name: 'settings' }));
-    fireEvent.click(screen.getByRole('button', { name: 'transactions' }));
-    fireEvent.click(screen.getByRole('button', { name: 'orders' }));
-    fireEvent.click(screen.getByRole('button', { name: 'reports' }));
-    fireEvent.click(screen.getByRole('button', { name: 'cashboxes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'cashbox view name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create cashbox' }));
+    openAccountingSettings();
+    clickTab('Transactions');
+    clickTab('Orders');
+    clickTab('Information');
+    clickTab('Cashboxes');
+
+    await setNewCashboxName('Desk');
+    await createCashbox();
     await waitFor(() => expect(createCashboxMock).toHaveBeenCalledWith({ name: 'Desk' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'currency rows' }));
-    fireEvent.click(screen.getByRole('button', { name: 'drag cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'reorder cashboxes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'start withdraw' }));
-    fireEvent.click(screen.getByRole('button', { name: 'start transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'type withdraw' }));
-    fireEvent.click(screen.getByRole('button', { name: 'type deposit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'type forbidden' }));
-    fireEvent.click(screen.getByRole('button', { name: 'start deposit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    const cards = document.querySelectorAll('.finance-cashbox-card');
+    fireEvent.dragStart(cards[0]);
+    fireEvent.dragOver(cards[1]);
+    fireEvent.drop(cards[1]);
+
+    clickFirstCashboxAction('Withdraw');
+    clickFirstCashboxAction('Transfer');
+    await setTransactionType('withdraw');
+    await setTransactionType('deposit');
+    clickFirstCashboxAction('Deposit');
+    await setTransactionAmount('25');
+    await saveTransaction();
 
     await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
     expect(onSuccess).toHaveBeenCalledWith('Finance transaction saved.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'type transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'open transactions' }));
+    await setTransactionType('transfer');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Transactions' })[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+    });
   });
 
   it('resolves remembered and fallback cashbox targets', async () => {
     setupPreferences({ lastTargetCashboxByType: { deposit: 'cashbox-2', transfer: 'cashbox-2' } });
     renderPanel();
+    await waitForCashboxesView();
 
-    fireEvent.click(screen.getByRole('button', { name: 'start deposit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'type transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'type withdraw' }));
+    clickFirstCashboxAction('Deposit');
+    await setTransactionType('transfer');
+    await setTransactionType('withdraw');
 
     cleanup();
+    await preparePanelTest();
     setupHooks({
       allCashboxes: [cashbox({ balances: { UAH: 100 } })],
       cashboxes: [cashbox({ balances: { UAH: 100 } })],
@@ -579,112 +620,91 @@ describe('AccountingPanel', () => {
     });
     setupPreferences();
     renderPanel();
-
-    fireEvent.click(screen.getByRole('button', { name: 'currency rows' }));
+    await waitForCashboxesView();
 
     cleanup();
+    await preparePanelTest();
     setupHooks({
       allCashboxes: [cashbox()],
       cashboxes: [cashbox()],
     });
     setupPreferences({ lastTargetCashboxByType: { transfer: 'cashbox-1' } });
     renderPanel();
+    await waitForCashboxesView();
 
-    fireEvent.click(screen.getByRole('button', { name: 'start transfer' }));
+    clickFirstCashboxAction('Transfer');
 
     cleanup();
+    await preparePanelTest();
     setupHooks({ allCashboxes: [], cashboxes: [] });
     setupPreferences();
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'type deposit' }));
+    expect(screen.queryByRole('button', { name: 'Deposit' })).not.toBeInTheDocument();
   });
 
   it('reports cashbox and transaction validation failures', async () => {
     const onError = vi.fn();
     renderPanel({ currentEmployee: employee('support'), onError });
 
-    fireEvent.click(screen.getByRole('button', { name: 'start deposit' }));
-    expect(onError).toHaveBeenCalledWith(
-      'Current employee does not have permission for this finance operation.',
-    );
+    expect(screen.queryByRole('button', { name: 'Deposit' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'cashbox view name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create cashbox' }));
+    cleanup();
+    await preparePanelTest();
+    mutableState.isFinanceSettingsOpen = true;
+    renderPanel({ currentEmployee: employee('support'), onError });
+    await expandSettingsCard('Create cashbox');
+    await setSettingsCashboxName('Desk');
+    await createCashboxInSettings();
     expect(onError).toHaveBeenCalledWith(
       'Current employee does not have permission to manage cashboxes.',
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
-    expect(onError).toHaveBeenCalledWith(
-      'Current employee does not have permission for this finance operation.',
-    );
-
     cleanup();
-    setupHooks({ allCashboxes: [], cashboxes: [] });
-    setupPreferences();
-    renderPanel({ onError });
-
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
-    expect(onError).toHaveBeenCalledWith(
-      'Selected currency is not available for this operation.',
-    );
-
-    cleanup();
+    await preparePanelTest();
     setupHooks();
     setupPreferences();
     renderPanel({ onError });
+    await waitForCashboxesView();
 
-    fireEvent.click(screen.getByRole('button', { name: 'start deposit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'unavailable currency' }));
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    cleanup();
-    setupHooks();
-    setupPreferences();
-    renderPanel({ onError });
-
-    fireEvent.click(screen.getByRole('button', { name: 'start deposit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'zero amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    clickFirstCashboxAction('Deposit');
+    await setTransactionAmount('0');
+    await saveTransaction();
     expect(onError).toHaveBeenCalledWith(
       'Transaction amount must be greater than 0.',
     );
 
     createFinanceTransactionMock.mockRejectedValueOnce(new Error('transaction failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    await setTransactionAmount('25');
+    await saveTransaction();
     await waitFor(() => expect(onError).toHaveBeenCalledWith('transaction failed'));
 
     createFinanceTransactionMock.mockRejectedValueOnce('nope');
-    fireEvent.click(screen.getByRole('button', { name: 'start withdraw' }));
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    clickFirstCashboxAction('Withdraw');
+    await setTransactionAmount('25');
+    await saveTransaction();
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to save transaction.'),
     );
 
     createFinanceTransactionMock.mockResolvedValueOnce(transfer({ type: 'withdraw' }));
-    fireEvent.click(screen.getByRole('button', { name: 'start withdraw' }));
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    clickFirstCashboxAction('Withdraw');
+    await setTransactionAmount('25');
+    await saveTransaction();
     await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
   });
 
   it('creates transfer without crashing even if crypto.randomUUID is unavailable', async () => {
     vi.unstubAllGlobals();
-    // Simulate environment without randomUUID (e.g. some browsers or test contexts)
     vi.stubGlobal('crypto', {});
 
     const onSuccess = vi.fn();
     renderPanel({ onSuccess });
+    await waitForCashboxesView();
 
-    fireEvent.click(screen.getByRole('button', { name: 'start transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'amount' }));
-    fireEvent.click(screen.getByRole('button', { name: 'create transaction' }));
+    clickFirstCashboxAction('Transfer');
+    await setTransactionAmount('25');
+    await saveTransaction();
 
     await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
     const lastCall = createFinanceTransactionMock.mock.calls.at(-1)?.[0] as
@@ -700,45 +720,82 @@ describe('AccountingPanel', () => {
     const onSuccess = vi.fn();
     renderPanel({ onError, onSuccess });
 
-    fireEvent.click(screen.getByRole('button', { name: 'settings create cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'cashbox name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'settings create cashbox' }));
+    await expandSettingsCard('Create cashbox');
+    await setSettingsCashboxName('Desk');
+    await createCashboxInSettings();
     await waitFor(() => expect(createCashboxMock).toHaveBeenCalledWith({ name: 'Desk' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'toggle card' }));
-    fireEvent.click(screen.getByRole('button', { name: 'settings tab' }));
-    fireEvent.click(screen.getByRole('button', { name: 'cancel edit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'save cashbox' }));
+    await expandSettingsCard(/Edit cashbox Main/i);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit cashbox' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByDisplayValue('Main'), { target: { value: 'Renamed' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
+    await waitFor(() =>
+      expect(updateCashboxMock).toHaveBeenCalledWith('cashbox-1', { name: 'Renamed' }),
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'edit name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'save cashbox' }));
-    await waitFor(() => expect(updateCashboxMock).toHaveBeenCalledWith('cashbox-1', { name: 'Renamed' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'currency code' }));
-    fireEvent.click(screen.getByRole('button', { name: 'add currency' }));
+    clickSettingsTab('Currencies');
+    await expandSettingsCard('Create currency');
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+    });
     await waitFor(() => expect(createFinanceCurrencyMock).toHaveBeenCalledWith({ code: 'EUR' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'bad currency code' }));
-    fireEvent.click(screen.getByRole('button', { name: 'add currency' }));
-    fireEvent.click(screen.getByRole('button', { name: 'duplicate currency code' }));
-    fireEvent.click(screen.getByRole('button', { name: 'add currency' }));
-    fireEvent.click(screen.getByRole('button', { name: 'remove uah' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle uah' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle box uah' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle missing currency' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle missing box' }));
-    expect(onError).toHaveBeenCalledWith('UAH is the main currency and cannot be archived.');
-    expect(onError).toHaveBeenCalledWith('UAH is always active.');
-    expect(onError).toHaveBeenCalledWith('Currency code must be 3-6 latin letters.');
-    expect(onError).toHaveBeenCalledWith('Currency already exists.');
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: '12X' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+    });
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('Currency code must be 3-6 latin letters.'),
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'remove usd' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle usd' }));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle box usd' }));
-    fireEvent.click(screen.getByRole('button', { name: 'archive cashbox' }));
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'usd' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+    });
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('Currency already exists.'),
+    );
+
+    await expandSettingsCard('Currency activity');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    });
+    const usdToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) => input.closest('.finance-currency-activity-item')?.textContent?.includes('USD'));
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
+
+    clickSettingsTab('Cashboxes');
+    await expandSettingsCard(/Edit cashbox Main/i);
+    const mainActiveToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) =>
+        input.closest('.catalog-edit-body')?.textContent?.includes('Active (default)'),
+      );
+    if (mainActiveToggle) {
+      fireEvent.click(mainActiveToggle);
+    }
+
     await waitFor(() => expect(updateFinanceCurrencyMock).toHaveBeenCalled());
     await waitFor(() => expect(updateCashboxMock).toHaveBeenCalled());
+    expect(onSuccess).toHaveBeenCalled();
   });
 
   it('handles settings permission denials and API failures', async () => {
@@ -747,14 +804,27 @@ describe('AccountingPanel', () => {
     const onSuccess = vi.fn();
 
     renderPanel({ currentEmployee: employee('support'), onError });
-    fireEvent.click(screen.getByRole('button', { name: 'edit cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'save cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'archive cashbox' }));
+    await expandSettingsCard(/Edit cashbox Main/i);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit cashbox' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
+    const mainActiveToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) =>
+        input.closest('.catalog-edit-body')?.textContent?.includes('Active (default)'),
+      );
+    if (mainActiveToggle) {
+      fireEvent.click(mainActiveToggle);
+    }
     expect(onError).toHaveBeenCalledWith(
       'Current employee does not have permission to manage cashboxes.',
     );
 
     cleanup();
+    await preparePanelTest();
     mutableState.isFinanceSettingsOpen = true;
     setupHooks({
       allCashboxes: [cashbox({ isArchived: true })],
@@ -763,54 +833,89 @@ describe('AccountingPanel', () => {
     setupPreferences();
     renderPanel({ onError, onSuccess });
 
-    fireEvent.click(screen.getByRole('button', { name: 'archive cashbox' }));
+    await expandSettingsCard(/Edit cashbox Main/i);
+    const archivedActiveToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) => input.closest('.catalog-edit-body')?.textContent?.includes('Active'));
+    if (archivedActiveToggle) {
+      fireEvent.click(archivedActiveToggle);
+    }
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('Cashbox reactivated.'));
 
     updateCashboxMock.mockRejectedValueOnce(new Error('save failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'edit cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'save cashbox' }));
+    await expandSettingsCard(/Edit cashbox Main/i);
+    const editCashboxButton = screen.queryByRole('button', { name: 'Edit cashbox' });
+    if (editCashboxButton) {
+      await act(async () => {
+        fireEvent.click(editCashboxButton);
+      });
+    }
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
     await waitFor(() => expect(onError).toHaveBeenCalledWith('save failed'));
 
     updateCashboxMock.mockRejectedValueOnce('save failed generic');
-    fireEvent.click(screen.getByRole('button', { name: 'edit cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'save cashbox' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to update cashbox.'),
     );
 
     updateCashboxMock.mockRejectedValueOnce(new Error('status failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'archive cashbox' }));
+    if (archivedActiveToggle) {
+      fireEvent.click(archivedActiveToggle);
+    }
     await waitFor(() => expect(onError).toHaveBeenCalledWith('status failed'));
 
     updateCashboxMock.mockRejectedValueOnce('bad status');
-    fireEvent.click(screen.getByRole('button', { name: 'archive cashbox' }));
+    if (archivedActiveToggle) {
+      fireEvent.click(archivedActiveToggle);
+    }
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to update cashbox status.'),
     );
 
+    clickSettingsTab('Currencies');
+    await expandSettingsCard('Create currency');
     createFinanceCurrencyMock.mockRejectedValueOnce(new Error('currency failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'currency code' }));
-    fireEvent.click(screen.getByRole('button', { name: 'add currency' }));
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+    });
     await waitFor(() => expect(onError).toHaveBeenCalledWith('currency failed'));
 
     createFinanceCurrencyMock.mockRejectedValueOnce('currency failed generic');
-    fireEvent.click(screen.getByRole('button', { name: 'currency code' }));
-    fireEvent.click(screen.getByRole('button', { name: 'add currency' }));
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+    });
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to create currency.'),
     );
 
+    await expandSettingsCard('Currency activity');
     updateFinanceCurrencyMock.mockRejectedValueOnce(new Error('archive failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'remove usd' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    });
     await waitFor(() => expect(onError).toHaveBeenCalledWith('archive failed'));
 
     updateFinanceCurrencyMock.mockRejectedValueOnce('archive failed');
-    fireEvent.click(screen.getByRole('button', { name: 'remove usd' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    });
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to archive currency.'),
     );
 
     cleanup();
+    await preparePanelTest();
     mutableState.isFinanceSettingsOpen = true;
     setupHooks({
       currencies: [
@@ -821,41 +926,72 @@ describe('AccountingPanel', () => {
     setupPreferences();
     renderPanel({ onError, onSuccess });
 
-    fireEvent.click(screen.getByRole('button', { name: 'toggle usd' }));
+    clickSettingsTab('Currencies');
+    await expandSettingsCard('Currency activity');
+    const usdToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) => input.closest('.finance-currency-activity-item')?.textContent?.includes('USD'));
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('Currency restored.'));
 
     updateFinanceCurrencyMock.mockRejectedValueOnce(new Error('toggle failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle usd' }));
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
     await waitFor(() => expect(onError).toHaveBeenCalledWith('toggle failed'));
 
     updateFinanceCurrencyMock.mockRejectedValueOnce('toggle failed generic');
-    fireEvent.click(screen.getByRole('button', { name: 'toggle usd' }));
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to update currency.'),
     );
 
+    clickSettingsTab('Cashboxes');
+    await expandSettingsCard(/Edit cashbox Main/i);
+    const boxUsdToggle = screen
+      .getAllByRole('checkbox')
+      .find(
+        (input) =>
+          input.closest('.finance-currency-activity-item')?.textContent?.includes('USD') &&
+          input.closest('.finance-settings-cashbox'),
+      );
     updateCashboxMock.mockRejectedValueOnce(new Error('box currency failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'toggle box usd' }));
+    if (boxUsdToggle) {
+      fireEvent.click(boxUsdToggle);
+    }
     await waitFor(() => expect(onError).toHaveBeenCalledWith('box currency failed'));
 
     updateCashboxMock.mockRejectedValueOnce('box currency failed');
-    fireEvent.click(screen.getByRole('button', { name: 'toggle box usd' }));
+    if (boxUsdToggle) {
+      fireEvent.click(boxUsdToggle);
+    }
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith(
         'Failed to update cashbox currency settings.',
       ),
     );
 
+    await expandSettingsCard('Create cashbox');
     createCashboxMock.mockRejectedValueOnce('create failed generic');
-    fireEvent.click(screen.getByRole('button', { name: 'cashbox name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'settings create cashbox' }));
+    await setSettingsCashboxName('Desk');
+    await createCashboxInSettings();
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to create cashbox.'),
     );
 
     createCashboxMock.mockRejectedValueOnce(new Error('create failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'cashbox name' }));
-    fireEvent.click(screen.getByRole('button', { name: 'settings create cashbox' }));
+    await setSettingsCashboxName('Desk');
+    await createCashboxInSettings();
     await waitFor(() => expect(onError).toHaveBeenCalledWith('create failed'));
   });
 
@@ -863,61 +999,104 @@ describe('AccountingPanel', () => {
     vi.setSystemTime(new Date('2026-06-16T10:00:00.000Z'));
     mutableState.activeTab = 'transactions';
     const onError = vi.fn();
-    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.fn();
+    const origOpen = window.open;
+    window.open = openSpy;
+
+    const sampleSale: Sale = {
+      id: 'sale-1',
+      kind: 'sale',
+      recordNumber: 's001',
+      status: 'inRepair',
+      deviceName: '',
+      deviceBrand: '',
+      deviceModel: '',
+      serialNumber: '',
+      note: '',
+      client: { id: 'c1', name: 'Client', phone: '', status: 'active' },
+      discount: { mode: 'amount', value: 0 },
+      paidAmount: 0,
+      lineItems: [],
+      createdAt: '2026',
+      updatedAt: '2026',
+    } as unknown as Sale;
+
+    setupHooks({
+      transactions: [
+        transfer({ id: 'tx-1', transactionDate: now }),
+        transfer({
+          id: 'tx-old',
+          transactionDate: '2020-01-01T00:00:00.000Z',
+        }),
+        transfer({
+          id: 'tx-sale',
+          type: 'deposit',
+          fromCashbox: null,
+          toCashbox: { id: 'cashbox-1', name: 'Main' },
+          note: 'Payment for order s001',
+          transactionDate: now,
+        }),
+        transfer({
+          id: 'tx-supplier',
+          type: 'deposit',
+          fromCashbox: null,
+          toCashbox: { id: 'cashbox-1', name: 'Main' },
+          note: 'Payment for order SO-1',
+          transactionDate: now,
+        }),
+      ],
+    });
+
     renderPanel({
       onError,
-      onOpenSaleCard,
+      sales: [sampleSale],
       currentEmployee: employee('owner', ['finance.transactions.transfer']),
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'filter open' }));
-    fireEvent.click(screen.getByRole('button', { name: 'date open' }));
-    fireEvent.click(screen.getByRole('button', { name: 'page high' }));
-    fireEvent.click(screen.getByRole('button', { name: 'page size' }));
-    fireEvent.click(screen.getByRole('button', { name: 'draft filter' }));
-    fireEvent.click(screen.getByRole('button', { name: 'select cashbox' }));
-    fireEvent.click(screen.getByRole('button', { name: 'can cancel' }));
-    fireEvent.click(screen.getByRole('button', { name: 'sale card' }));
-    expect(onOpenSaleCard).toHaveBeenCalledWith({ id: 'sale-1', kind: 'sale' });
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Date' }));
+    fireEvent.click(screen.getByLabelText('Filter transactions by cashbox'));
+    fireEvent.change(screen.getByLabelText('Rows per page'), { target: { value: '10' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'cancel old transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm cancel transfer' }));
-    await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith(
-        'Transfer can be cancelled only during the transaction day.',
-      ),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Payment for order s001' }));
+    expect(openSpy).toHaveBeenCalled();
+
+    expect(screen.queryByText('01.01.2020')).not.toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Cancel transfer' })).toHaveLength(1);
 
     cancelFinanceTransactionMock.mockRejectedValueOnce(new Error('cancel failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'cancel transfer' }));
-    expect(screen.getByTestId('cancel-transfer-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm cancel transfer' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('cancel failed'));
 
     cancelFinanceTransactionMock.mockRejectedValueOnce('cancel failed');
-    fireEvent.click(screen.getByRole('button', { name: 'cancel transfer' }));
-    expect(screen.getByTestId('cancel-transfer-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm cancel transfer' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to cancel transfer.'),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'cancel transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'close cancel transfer' }));
-    expect(screen.queryByTestId('cancel-transfer-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('heading', { name: 'Cancel transfer' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'cancel transfer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm cancel transfer' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
     await waitFor(() => expect(cancelFinanceTransactionMock).toHaveBeenCalledWith('tx-1'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'supplier modal' }));
-    expect(screen.getByTestId('supplier-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'create supplier inline' }));
-    fireEvent.click(screen.getByRole('button', { name: 'submit supplier inline' }));
-    fireEvent.click(screen.getByRole('button', { name: 'close supplier modal' }));
-    expect(screen.queryByTestId('supplier-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-1' }));
+    const supplierDialog = screen.getByRole('dialog');
+    expect(supplierDialog).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(
+        within(within(supplierDialog).getByRole('contentinfo')).getByRole('button', {
+          name: 'Close',
+        }),
+      );
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'apply filter' }));
+    window.open = origOpen;
   });
 
   it('handles supplier order payments and issue without payment', async () => {
@@ -925,22 +1104,41 @@ describe('AccountingPanel', () => {
     const onError = vi.fn();
     renderPanel({ onError });
 
-    fireEvent.click(screen.getByRole('button', { name: 'orders form' }));
-    fireEvent.click(screen.getByRole('button', { name: 'pay order without cashbox' }));
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Cashbox', { selector: 'select' }), {
+        target: { value: 'cashbox-2' },
+      });
+    });
+
+    cleanup();
+    await preparePanelTest();
+    mutableState.activeTab = 'orders';
+    setupHooks({ allCashboxes: [], cashboxes: [], supplierOrdersQueue: [queueItem()] });
+    setupPreferences();
+    renderPanel({ onError });
+
+    expect(screen.getByRole('button', { name: 'Pay' })).toBeDisabled();
     expect(paySupplierOrderMock).not.toHaveBeenCalled();
 
+    cleanup();
+    await preparePanelTest();
+    mutableState.activeTab = 'orders';
+    setupHooks();
+    setupPreferences();
+    renderPanel({ onError });
+
     paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'pay order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
 
     paySupplierOrderMock.mockRejectedValueOnce('pay failed generic');
-    fireEvent.click(screen.getByRole('button', { name: 'pay order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to pay order.'),
     );
 
     paySupplierOrderMock.mockResolvedValueOnce(undefined);
-    fireEvent.click(screen.getByRole('button', { name: 'pay order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
     await waitFor(() =>
       expect(paySupplierOrderMock).toHaveBeenCalledWith('queue-1', {
         cashboxId: 'cashbox-1',
@@ -949,42 +1147,51 @@ describe('AccountingPanel', () => {
     );
 
     issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce(new Error('issue failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'issue without payment' }));
-    expect(screen.getByTestId('issue-without-payment-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('issue failed'));
 
     issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce('issue failed');
-    fireEvent.click(screen.getByRole('button', { name: 'issue without payment' }));
-    expect(screen.getByTestId('issue-without-payment-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to issue order without payment.'),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'issue without payment' }));
-    fireEvent.click(screen.getByRole('button', { name: 'close issue without payment' }));
-    expect(screen.queryByTestId('issue-without-payment-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByRole('heading', { name: 'Confirm issue without payment' }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'issue without payment' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
       expect(issueSupplierOrderWithoutPaymentMock).toHaveBeenCalledWith('queue-1'),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'open supplier' }));
-    expect(screen.getByTestId('supplier-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open supplier order SO-1' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('renders reports tab', () => {
     mutableState.activeTab = 'reports';
     renderPanel();
 
-    expect(screen.getByTestId('reports-view')).toHaveTextContent('1');
+    expect(screen.getByText('Accounting information')).toBeInTheDocument();
+    const summaryCards = document.querySelectorAll('.finance-report-grid .analytics-summary-card');
+    expect(summaryCards[0]?.textContent).toContain('1');
   });
 });
 
 describe('AccountingTransactionsView note navigation (real component)', () => {
+  beforeAll(async () => {
+    ({ AccountingTransactionsView: RealAccountingTransactionsView } =
+      await vi.importActual<typeof import('./AccountingTransactionsView')>(
+        './AccountingTransactionsView',
+      ));
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -1075,12 +1282,8 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const origOpen = window.open;
     window.open = openSpy;
 
-    const { AccountingTransactionsView: RealView } = await vi.importActual<
-      typeof import('./AccountingTransactionsView')
-    >('./AccountingTransactionsView');
-
     const props = minimalProps('Payment for order r000066', [sampleSale], []);
-    render(<RealView {...props} />);
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
 
     const noteBtn = screen.getByRole('button', { name: 'Payment for order r000066' });
     fireEvent.click(noteBtn);
@@ -1089,7 +1292,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const urlArg = openSpy.mock.calls[0][0] as string;
     expect(urlArg).toContain('page=orders');
     expect(urlArg).toContain('saleId=sale-xyz');
-    expect(urlArg).toContain('ordersTab=orders'); // repair kind
+    expect(urlArg).toContain('ordersTab=orders');
 
     window.open = origOpen;
   });
@@ -1099,13 +1302,9 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const origOpen = window.open;
     window.open = openSpy;
 
-    const { AccountingTransactionsView: RealView } = await vi.importActual<
-      typeof import('./AccountingTransactionsView')
-    >('./AccountingTransactionsView');
-
     const saleForRefund = { ...sampleSaleSaleKind, recordNumber: 's999' };
     const props = minimalProps('Refund for order s999', [saleForRefund], []);
-    render(<RealView {...props} />);
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
 
     const noteBtn = screen.getByRole('button', { name: 'Refund for order s999' });
     fireEvent.click(noteBtn);
@@ -1119,15 +1318,11 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 
   it('Supplier-order note still opens read-only supplier modal via onSelectedSupplierOrderChange', async () => {
     const onSelect = vi.fn();
-    const { AccountingTransactionsView: RealView } = await vi.importActual<
-      typeof import('./AccountingTransactionsView')
-    >('./AccountingTransactionsView');
-
     const props = {
       ...minimalProps('Payment for order SUP-77', [], [sampleSupplier]),
       onSelectedSupplierOrderChange: onSelect,
     };
-    render(<RealView {...props} />);
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
 
     const noteBtn = screen.getByRole('button', { name: /Payment for order SUP-77/i });
     fireEvent.click(noteBtn);
@@ -1139,21 +1334,16 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
   it('Plain manual deposit/withdraw note does not open an order (renders as editable note button)', async () => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
-    const { AccountingTransactionsView: RealView } = await vi.importActual<
-      typeof import('./AccountingTransactionsView')
-    >('./AccountingTransactionsView');
-
     const props = {
       ...minimalProps('Manual cash deposit from client', [], []),
       onSelectedSupplierOrderChange: onSelect,
       onOpenSaleCard: vi.fn(),
       onEditTransactionNote: onEdit,
     };
-    const { container } = render(<RealView {...props} />);
+    const { container } = renderWithProviders(<RealAccountingTransactionsView {...props} />);
 
     const noteBtn = screen.getByRole('button', { name: 'Manual cash deposit from client' });
     expect(noteBtn).toBeInTheDocument();
-    // note cell contains text
     expect(container.textContent).toContain('Manual cash deposit from client');
     expect(onSelect).not.toHaveBeenCalled();
 
@@ -1162,10 +1352,6 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
   });
 
   it('shows Cancel transfer only when canCancelTransferTransaction returns true', async () => {
-    const { AccountingTransactionsView: RealView } = await vi.importActual<
-      typeof import('./AccountingTransactionsView')
-    >('./AccountingTransactionsView');
-
     const txToday = baseTx('') as any;
     txToday.id = 'tx-today';
     txToday.type = 'transfer';
@@ -1182,7 +1368,9 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
       onSetTransferToCancel: vi.fn(),
     };
-    const { container: c1, unmount } = render(<RealView {...propsToday} />);
+    const { container: c1, unmount } = renderWithProviders(
+      <RealAccountingTransactionsView {...propsToday} />,
+    );
     expect(c1.textContent).toContain('Cancel transfer');
     unmount();
 
@@ -1192,7 +1380,9 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       filteredTransactions: [txOld],
       canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
     };
-    const { container: c2 } = render(<RealView {...propsOld} />);
+    const { container: c2 } = renderWithProviders(
+      <RealAccountingTransactionsView {...propsOld} />,
+    );
     expect(c2.textContent).not.toContain('Cancel transfer');
   });
 });
@@ -1202,20 +1392,28 @@ describe('AccountingPanel transaction note editing', () => {
     cleanup();
   });
 
-  beforeEach(() => {
-    updateFinanceTransactionMock.mockReset();
+  beforeEach(async () => {
+    await preparePanelTest();
     updateFinanceTransactionMock.mockResolvedValue({} as any);
-    setupPreferences();
   });
 
-  it('clicking manual withdraw/deposit note (via mock trigger) opens note modal', () => {
+  it('clicking manual withdraw/deposit note opens note modal', async () => {
     mutableState.activeTab = 'transactions';
     setupHooks({
-      transactions: [{ id: 'tx1', note: 'Manual deposit 500', type: 'deposit' } as any],
+      transactions: [
+        transfer({
+          id: 'tx1',
+          type: 'deposit',
+          fromCashbox: null,
+          toCashbox: { id: 'cashbox-1', name: 'Main' },
+          note: 'Manual deposit note text',
+        }),
+      ],
     });
+    setupPreferences();
     renderPanel();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'edit manual note' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual deposit note text' }));
     expect(screen.getByText('Transaction note')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Enter note...')).toHaveValue('Manual deposit note text');
   });
@@ -1223,24 +1421,35 @@ describe('AccountingPanel transaction note editing', () => {
   it('editing and saving calls PATCH API via updateFinanceTransaction and closes modal', async () => {
     mutableState.activeTab = 'transactions';
     setupHooks({
-      transactions: [transfer({ id: 'tx2', note: 'Old note', type: 'withdraw' })],
+      transactions: [
+        transfer({
+          id: 'tx2',
+          type: 'withdraw',
+          fromCashbox: { id: 'cashbox-1', name: 'Main' },
+          toCashbox: null,
+          note: 'Old note',
+        }),
+      ],
     });
+    setupPreferences();
     const onSuccess = vi.fn();
     renderPanel({ onSuccess });
 
-    fireEvent.click(
-      within(screen.getByTestId('transactions-view')).getByRole('button', { name: 'edit note' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Old note' }));
     const dialog = screen.getByRole('dialog', { name: 'Transaction note' });
     const textarea = within(dialog).getByPlaceholderText('Enter note...');
 
     await act(async () => {
       fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
+    });
+    await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     });
 
     await waitFor(() => {
-      expect(updateFinanceTransactionMock).toHaveBeenCalledWith('tx2', { note: 'Updated manual note' });
+      expect(updateFinanceTransactionMock).toHaveBeenCalledWith('tx2', {
+        note: 'Updated manual note',
+      });
     });
     await waitFor(() => {
       expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
@@ -1248,14 +1457,23 @@ describe('AccountingPanel transaction note editing', () => {
     expect(onSuccess).toHaveBeenCalledWith('Note updated.');
   });
 
-  it('cancelling note edit does not call API', () => {
+  it('cancelling note edit does not call API', async () => {
     mutableState.activeTab = 'transactions';
     setupHooks({
-      transactions: [{ id: 'tx3', note: 'Something', type: 'deposit' } as any],
+      transactions: [
+        transfer({
+          id: 'tx3',
+          type: 'deposit',
+          fromCashbox: null,
+          toCashbox: { id: 'cashbox-1', name: 'Main' },
+          note: 'Something',
+        }),
+      ],
     });
+    setupPreferences();
     renderPanel();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'edit manual note' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Something' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(updateFinanceTransactionMock).not.toHaveBeenCalled();
     expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();

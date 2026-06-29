@@ -46,13 +46,12 @@
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
 - Product suggestion selection pre-fills line values and stores selected `productId` or `catalogProductId`.
 - Manual value entry is still allowed.
-- Lookup in an existing sale card add-row input uses `buildCreateOrderProductSuggestions` and must match stock `Product` rows by normalized `name`, `article`, `serialNumber`, and `note`.
-- Catalog fallback suggestions come from `catalog-products` when no selectable stock row covers the same model name.
-- When the user types an explicit serial number, the matching stock row must appear first when available.
-- When the user types an article or product name, matching selectable stock rows must appear before catalog fallback.
-- Suggestion rows must show whether the stock row is free, already linked to the current order, linked to another order, or unavailable because it has no free stock.
-- Only active/free stock rows may be selected from suggestions.
-- Serial-query suggestion click auto-adds one atomic product row; article/name suggestion click pre-fills the entry row and waits for `Add product`.
+- Lookup in an existing sale card add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
+- Lookup must **never** match `note` on stock or catalog rows.
+- Serial/article query (exact or partial) shows warehouse stock suggestions only; product-name query shows `catalog-products` by `name` only.
+- Stock suggestion rows must show warehouse name in bold and whether the stock row is free, already linked to the current order, linked to another order, or unavailable because it has no free stock.
+- Only active/free stock rows may be selected from stock suggestions.
+- Stock suggestion click with a bound `serialNumber` auto-adds one atomic product row; catalog suggestion click or stock suggestion without `serialNumber` pre-fills the entry row and waits for `Add product`; serial binding uses the `Serials` modal.
 - In create-order sales flow, clicking the name of an already selected product row opens the shared product model modal; suggestion clicks still only select products.
 - In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
 - The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.

@@ -718,7 +718,7 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
-  it('shows stock suggestions when searching by article', async () => {
+  it('shows stock suggestions with warehouse when searching by article', async () => {
     renderCard({ catalogProducts: [] });
 
     fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
@@ -728,23 +728,24 @@ describe('OrderDetailCard product entry', () => {
     await waitFor(() => {
       expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
     });
+    expect(screen.getByText('Main warehouse')).toBeInTheDocument();
     expect(screen.getByText(/A000001/)).toBeInTheDocument();
   });
 
-  it('shows stock suggestions when searching by product name', async () => {
-    renderCard({ catalogProducts: [] });
+  it('shows catalog suggestions when searching by product name', async () => {
+    renderCard();
 
     fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
       target: { value: 'TerraE' },
     });
 
     await waitFor(() => {
-      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+      expect(screen.getByText(/Product List/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/A000001/)).toBeInTheDocument();
+    expect(screen.queryByText(/A000001/)).not.toBeInTheDocument();
   });
 
-  it('prefills product fields when selecting a stock match by article', async () => {
+  it('auto-binds serial when selecting a stock suggestion that has a serial number', async () => {
     const onAddLineItem = vi.fn();
     renderCard({ catalogProducts: [], onAddLineItem });
 
@@ -755,12 +756,6 @@ describe('OrderDetailCard product entry', () => {
       expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
-
-    expect(onAddLineItem).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toHaveValue(
-      'TerraE 30E INR18650 2900mAh',
-    );
-    fireEvent.click(screen.getByText('Add product'));
 
     expect(onAddLineItem).toHaveBeenCalledWith(
       expect.objectContaining({
