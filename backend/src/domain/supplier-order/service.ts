@@ -142,7 +142,7 @@ export const listSupplierOrdersForAccounting = async () => {
     paymentStatus: 'pending',
     total: { $gt: 0 },
   })
-    .sort({ deliveryDate: 1, createdAt: 1 })
+    .sort({ createdAt: -1 })
     .lean<SupplierOrderDocument[]>();
 
   return Promise.all(
