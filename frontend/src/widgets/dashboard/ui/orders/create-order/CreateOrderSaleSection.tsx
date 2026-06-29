@@ -1,13 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import type { CreateOrderProductSuggestion } from '../../../model/create-order-products';
+import { formatCurrency } from '../../../../../shared/lib/format';
+import type { OrderDetailProductSuggestion } from '../../../model/create-order-products';
 import type { SaleOrderItem } from './create-order-card-shared';
 import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
 
 type CreateOrderSaleSectionProps = {
   saleItems: SaleOrderItem[];
   focusedSaleItem: SaleOrderItem | null;
-  visibleSaleProductSuggestions: CreateOrderProductSuggestion[];
+  visibleSaleProductSuggestions: OrderDetailProductSuggestion[];
   isSaleProductLookupLoading: boolean;
   saleItemsTotal: number;
   issueFromClient: string;
@@ -23,7 +24,7 @@ type CreateOrderSaleSectionProps = {
   onRemoveSaleItem: (itemId: string) => void;
   onApplySaleProduct: (
     itemId: string,
-    suggestion: CreateOrderProductSuggestion,
+    suggestion: OrderDetailProductSuggestion,
   ) => void;
 };
 
@@ -47,7 +48,7 @@ export const CreateOrderSaleSection = ({
   const warrantyOptions = getWarrantyOptions();
 
   return (
-    <>
+    <section className="create-order-sale-section create-order-sale-products-section">
       <h3 className="create-section-title">{t('orders.create.products')}</h3>
       <div className="sale-items-list">
         {saleItems.map((item, index) => (
@@ -153,9 +154,16 @@ export const CreateOrderSaleSection = ({
             >
               <strong>{product.name}</strong>
               <span>
-                {product.source === 'stock'
-                  ? `${product.article || '-'} / ${product.serialNumber || '-'} / ${product.availabilityLabel}`
-                  : product.note}
+                {product.source === 'stock' ? (
+                  <>
+                    <strong>{product.warehouseName ?? '-'}</strong>
+                    {' / '}
+                    {formatCurrency(product.price)} / {product.article || '-'} /{' '}
+                    {product.serialNumber || '-'} / {product.availabilityLabel}
+                  </>
+                ) : (
+                  product.note
+                )}
               </span>
             </button>
           ))}
@@ -174,6 +182,6 @@ export const CreateOrderSaleSection = ({
           placeholder={t('orders.create.saleNotesPlaceholder')}
         />
       </label>
-    </>
+    </section>
   );
 };

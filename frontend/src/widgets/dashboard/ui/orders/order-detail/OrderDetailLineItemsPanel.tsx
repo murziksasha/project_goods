@@ -27,7 +27,7 @@ import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../modals/SupplierOrderModal';
 import { ProductModelModal } from '../modals/ProductModelModal';
 import { SerialBindModal } from '../modals/SerialBindModal';
-import { buildCreateOrderProductSuggestions } from '../../../model/create-order-products';
+import { buildOrderDetailProductSuggestions } from '../../../model/create-order-products';
 import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../../../model/missingService';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import {
@@ -99,7 +99,7 @@ export type OrderDetailLineItemsPanelProps = {
 
 type ProductEntrySuggestion =
   | { type: 'catalog'; catalogProduct: CatalogProduct; price: number; warrantyPeriod: number }
-  | { type: 'stock'; product: Product };
+  | { type: 'stock'; product: Product; warehouseName: string };
 
 export const OrderDetailLineItemsPanel = ({
   kind,
@@ -176,6 +176,9 @@ export const OrderDetailLineItemsPanel = ({
   const [serialBindWarehouses, setSerialBindWarehouses] = useState<WarehouseItem[]>(
     [],
   );
+  const [productLookupWarehouses, setProductLookupWarehouses] = useState<
+    WarehouseItem[]
+  >([]);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
@@ -479,6 +482,26 @@ export const OrderDetailLineItemsPanel = ({
   };
 
   useEffect(() => {
+    if (!isProductKind) {
+      setProductLookupWarehouses([]);
+      return;
+    }
+
+    let isActive = true;
+    void getWarehouseSettings()
+      .then((settings) => {
+        if (isActive) setProductLookupWarehouses(settings.warehouses);
+      })
+      .catch(() => {
+        if (isActive) setProductLookupWarehouses([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isProductKind]);
+
+  useEffect(() => {
     if (!serialsEditingItem) {
       setSerialBindWarehouses([]);
       return;
@@ -603,11 +626,12 @@ export const OrderDetailLineItemsPanel = ({
 
     const timeoutId = window.setTimeout(() => {
       setIsProductLookupLoading(true);
-      const suggestions = buildCreateOrderProductSuggestions({
+      const suggestions = buildOrderDetailProductSuggestions({
         products,
         catalogProducts,
         sales,
         query: name,
+        warehouses: productLookupWarehouses,
         limit: 8,
         currentSaleId,
       });
@@ -618,7 +642,11 @@ export const OrderDetailLineItemsPanel = ({
             (product) => product.id === suggestion.productId,
           );
           if (stockProduct) {
-            mappedSuggestions.push({ type: 'stock', product: stockProduct });
+            mappedSuggestions.push({
+              type: 'stock',
+              product: stockProduct,
+              warehouseName: suggestion.warehouseName ?? '-',
+            });
           }
           return;
         }
@@ -645,6 +673,7 @@ export const OrderDetailLineItemsPanel = ({
     getCatalogDefaults,
     kind,
     name,
+    productLookupWarehouses,
     products,
     sales,
     selectedCatalogProductId,
@@ -715,12 +744,8 @@ export const OrderDetailLineItemsPanel = ({
     const suggestedPrice =
       product.salePriceOptions[0] ?? product.price ?? 0;
     const serial = normalizeSerialNumber(product.serialNumber);
-    const normalizedQuery = normalizeProductLookupValue(name);
-    const isSerialPick =
-      serial &&
-      normalizeProductLookupValue(serial).includes(normalizedQuery);
 
-    if (isSerialPick) {
+    if (serial) {
       onAddItem({
         ...buildSerializedProductLineItem({
           product,
@@ -748,7 +773,7 @@ export const OrderDetailLineItemsPanel = ({
     setPrice(String(suggestedPrice));
     setQuantity('1');
     setWarrantyPeriod('0');
-    setSelectedProductId(product.id);
+    setSelectedProductId(undefined);
     setSelectedCatalogProductId(undefined);
     setProductSuggestions([]);
   };
@@ -1314,10 +1339,13 @@ export const OrderDetailLineItemsPanel = ({
                 suggestion.type === 'catalog'
                   ? suggestion.catalogProduct.name
                   : suggestion.product.name;
-              const suggestionDetails =
-                suggestion.type === 'catalog'
-                  ? `${formatCurrency(suggestion.price)} / ${t('orders.detail.lineItems.productList')}`
-                  : `${formatCurrency(suggestion.product.salePriceOptions[0] ?? suggestion.product.price ?? 0)} / ${suggestion.product.article} / ${suggestion.product.serialNumber} / ${t(state.labelKey)}`;
+              const stockPrice = formatCurrency(
+                suggestion.type === 'stock'
+                  ? (suggestion.product.salePriceOptions[0] ??
+                    suggestion.product.price ??
+                    0)
+                  : suggestion.price,
+              );
               return (
                 <button
                   key={suggestionKey}
@@ -1332,7 +1360,21 @@ export const OrderDetailLineItemsPanel = ({
                   title={state.selectable ? undefined : t(state.labelKey)}
                 >
                   <strong>{suggestionName}</strong>
-                  <span>{suggestionDetails}</span>
+                  <span>
+                    {suggestion.type === 'catalog' ? (
+                      <>
+                        {stockPrice} / {t('orders.detail.lineItems.productList')}
+                      </>
+                    ) : (
+                      <>
+                        <strong>{suggestion.warehouseName}</strong>
+                        {' / '}
+                        {stockPrice} / {suggestion.product.article} /{' '}
+                        {suggestion.product.serialNumber || '-'} /{' '}
+                        {t(state.labelKey)}
+                      </>
+                    )}
+                  </span>
                 </button>
               );
             })}

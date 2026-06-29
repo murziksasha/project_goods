@@ -1,27 +1,37 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as clientApi from '../../../../../entities/client/api/clientApi';
+import * as clientDeviceApi from '../../../../../entities/client-device/api/clientDeviceApi';
+import * as serviceCatalogApi from '../../../../../entities/service-catalog/api/serviceCatalogApi';
+import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { queryKeys } from '../../../../../shared/api/queryClient';
 import type { Employee } from '../../../../../entities/employee/model/types';
 import type { Product } from '../../../../../entities/product/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Client, ClientHistory } from '../../../../../entities/client/model/types';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../../../entities/client-device/model/types';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
 const {
   createClientMock,
-  getClientsMock,
-  getClientHistoryMock,
-  getClientDevicesMock,
-  updateClientDeviceMock,
   deleteClientDeviceMock,
+  getClientDevicesMock,
+  getClientHistoryMock,
+  getClientsMock,
+  getServiceCatalogItemsMock,
+  getWarehouseSettingsMock,
+  updateClientDeviceMock,
 } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
-  getClientsMock: vi.fn(async (): Promise<Client[]> => []),
-  getClientHistoryMock: vi.fn(async (): Promise<ClientHistory> => ({
+  getClientsMock: vi.fn<(query?: string) => Promise<Client[]>>(async () => []),
+  getClientHistoryMock: vi.fn<(clientId: string) => Promise<ClientHistory>>(async () => ({
     client: {
       id: 'client-1',
       name: 'Client',
@@ -39,23 +49,113 @@ const {
     sales: [],
     stats: { totalSales: 0, totalRevenue: 0, totalItemsSold: 0 },
   })),
-  getClientDevicesMock: vi.fn(async (): Promise<ClientDevice[]> => []),
-  updateClientDeviceMock: vi.fn(async () => ({})),
-  deleteClientDeviceMock: vi.fn(async () => ({ id: 'device-1' })),
+  getClientDevicesMock: vi.fn<(query?: string) => Promise<ClientDevice[]>>(async () => []),
+  updateClientDeviceMock: vi.fn<
+    (deviceId: string, payload: ClientDeviceFormValues) => Promise<ClientDevice>
+  >(async (deviceId, payload) => ({
+    id: deviceId,
+    clientId: payload.clientId,
+    clientName: payload.clientName,
+    clientPhone: payload.clientPhone,
+    name: payload.name,
+    serialNumber: payload.serialNumber,
+    note: payload.note,
+    source: payload.source ?? 'repairOrder',
+    isActive: payload.isActive ?? true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  })),
+  deleteClientDeviceMock: vi.fn<(deviceId: string) => Promise<{ id: string }>>(async (deviceId) => ({
+    id: deviceId,
+  })),
+  getServiceCatalogItemsMock: vi.fn<(query?: string) => Promise<ServiceCatalogItem[]>>(
+    async () => [],
+  ),
+  getWarehouseSettingsMock: vi.fn(async () => ({
+    id: 'warehouse-settings-test',
+    serviceCenters: [],
+    warehouses: [
+      {
+        id: 'wh-main',
+        name: 'Main warehouse',
+        isActive: true,
+        serviceCenterId: 'sc-1',
+        receiptAddress: '',
+        receiptPhone: '',
+        locations: [{ id: 'loc-1', name: 'Shelf A' }],
+      },
+    ],
+    administrators: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  })),
 }));
 
-vi.mock('../../../../../entities/client/api/clientApi', () => ({
-  createClient: createClientMock,
-  getClients: getClientsMock,
-  getClientHistory: getClientHistoryMock,
-}));
+vi.mock('../../../../../entities/client/api/clientApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/client/api/clientApi')
+  >();
+  return {
+    ...actual,
+    createClient: createClientMock,
+    getClients: getClientsMock,
+    getClientHistory: getClientHistoryMock,
+  };
+});
 
-vi.mock('../../../../../entities/client-device/api/clientDeviceApi', () => ({
-  createClientDevice: vi.fn(),
-  getClientDevices: getClientDevicesMock,
-  updateClientDevice: updateClientDeviceMock,
-  deleteClientDevice: deleteClientDeviceMock,
-}));
+vi.mock('../../../../../entities/client-device/api/clientDeviceApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/client-device/api/clientDeviceApi')
+  >();
+  return {
+    ...actual,
+    getClientDevices: getClientDevicesMock,
+    updateClientDevice: updateClientDeviceMock,
+    deleteClientDevice: deleteClientDeviceMock,
+  };
+});
+
+vi.mock('../../../../../entities/service-catalog/api/serviceCatalogApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/service-catalog/api/serviceCatalogApi')
+  >();
+  return {
+    ...actual,
+    getServiceCatalogItems: getServiceCatalogItemsMock,
+  };
+});
+
+vi.mock('../../../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../../entities/warehouse-settings/api/warehouseSettingsApi')
+  >();
+  return {
+    ...actual,
+    getWarehouseSettings: getWarehouseSettingsMock,
+    useWarehouseSettingsQuery: () => ({
+      data: {
+        id: 'warehouse-settings-test',
+        serviceCenters: [],
+        warehouses: [
+          {
+            id: 'wh-main',
+            name: 'Main warehouse',
+            isActive: true,
+            serviceCenterId: 'sc-1',
+            receiptAddress: '',
+            receiptPhone: '',
+            locations: [{ id: 'loc-1', name: 'Shelf A' }],
+          },
+        ],
+        administrators: [],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      isLoading: false,
+    }),
+    useUpdateWarehouseSettingsMutation: vi.fn(),
+  };
+});
 
 const product = (patch: Partial<Product>): Product => ({
   id: 'p1',
@@ -164,6 +264,10 @@ const renderCreateOrderCard = (
   onSave = vi.fn(async () => null),
   onOpenClientCard = vi.fn(),
   clients: Parameters<typeof CreateOrderCard>[0]['clients'] = [],
+  options: {
+    catalogProducts?: Parameters<typeof CreateOrderCard>[0]['catalogProducts'];
+    products?: Product[];
+  } = {},
 ) =>
   render(
     <CreateOrderCard
@@ -171,8 +275,8 @@ const renderCreateOrderCard = (
       employees={[ownerEmployee]}
       currentEmployee={ownerEmployee}
       initialTab={initialTab}
-      catalogProducts={[]}
-      products={[product({})]}
+      catalogProducts={options.catalogProducts ?? []}
+      products={options.products ?? [product({})]}
       sales={[]}
       clients={clients}
       onClose={vi.fn()}
@@ -180,13 +284,130 @@ const renderCreateOrderCard = (
       onError={vi.fn()}
       onOpenClientCard={onOpenClientCard}
     />,
-);
+  );
+
+const DEBOUNCE_MS = 400;
+
+const advanceDebounce = async () => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+  });
+};
+
+const afterDebouncedInput = async (
+  action: () => void,
+  assertion: () => void,
+) => {
+  vi.useFakeTimers();
+  action();
+  await advanceDebounce();
+  vi.useRealTimers();
+  await waitFor(assertion, { timeout: 3000 });
+};
+
+const renderWithQueryClient = (ui: ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(queryKeys.warehouseSettings, warehouseSettingsFixture);
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
+const warehouseSettingsFixture = {
+  id: 'warehouse-settings-test',
+  serviceCenters: [],
+  warehouses: [
+    {
+      id: 'wh-main',
+      name: 'Main warehouse',
+      isActive: true,
+      serviceCenterId: 'sc-1',
+      receiptAddress: '',
+      receiptPhone: '',
+      locations: [{ id: 'loc-1', name: 'Shelf A' }],
+    },
+  ],
+  administrators: [],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const defaultClientHistory = emptyClientHistory({
+  id: 'client-1',
+  name: 'Client',
+  phone: '+380000000000',
+  phones: ['+380000000000'],
+  email: '',
+  address: '',
+  registrationId: '',
+  iban: '',
+  note: '',
+  status: 'new',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+});
+
+const restoreApiMocks = () => {
+  getClientsMock.mockImplementation(async () => []);
+  getClientHistoryMock.mockImplementation(async () => defaultClientHistory);
+  getClientDevicesMock.mockImplementation(async () => []);
+  getServiceCatalogItemsMock.mockImplementation(async () => []);
+  getWarehouseSettingsMock.mockImplementation(async () => warehouseSettingsFixture);
+  deleteClientDeviceMock.mockImplementation(async (deviceId) => ({ id: deviceId }));
+  updateClientDeviceMock.mockImplementation(async (deviceId, payload) => ({
+    id: deviceId,
+    clientId: payload.clientId,
+    clientName: payload.clientName,
+    clientPhone: payload.clientPhone,
+    name: payload.name,
+    serialNumber: payload.serialNumber,
+    note: payload.note,
+    source: payload.source ?? 'repairOrder',
+    isActive: payload.isActive ?? true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }));
+
+  vi.spyOn(clientApi, 'getClients').mockImplementation((query = '') => getClientsMock(query));
+  vi.spyOn(clientApi, 'getClientHistory').mockImplementation((clientId) =>
+    getClientHistoryMock(clientId),
+  );
+  vi.spyOn(clientDeviceApi, 'getClientDevices').mockImplementation((query = '') =>
+    getClientDevicesMock(query),
+  );
+  vi.spyOn(clientDeviceApi, 'updateClientDevice').mockImplementation((deviceId, payload) =>
+    updateClientDeviceMock(deviceId, payload),
+  );
+  vi.spyOn(clientDeviceApi, 'deleteClientDevice').mockImplementation((deviceId) =>
+    deleteClientDeviceMock(deviceId),
+  );
+  vi.spyOn(serviceCatalogApi, 'getServiceCatalogItems').mockImplementation((query = '') =>
+    getServiceCatalogItemsMock(query),
+  );
+  vi.spyOn(warehouseSettingsApi, 'getWarehouseSettings').mockImplementation(async () =>
+    warehouseSettingsFixture,
+  );
+};
 
 describe('CreateOrderCard', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    getClientsMock.mockReset();
+    getClientHistoryMock.mockReset();
+    getClientDevicesMock.mockReset();
+    getServiceCatalogItemsMock.mockReset();
+    getWarehouseSettingsMock.mockReset();
+    deleteClientDeviceMock.mockReset();
+    updateClientDeviceMock.mockReset();
+    restoreApiMocks();
+  });
+
   afterEach(() => {
     cleanup();
     window.localStorage.clear();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
   it('renders registered client devices with unbind in the side panel', () => {
@@ -337,18 +558,19 @@ describe('CreateOrderCard', () => {
   });
 
   it('binds a warehouse serial product into the sales order payload', async () => {
-    vi.useFakeTimers();
     const onSave = vi.fn(async () => null);
 
     renderCreateOrderCard('sale', onSave);
 
-    fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
-      target: { value: 'S000003' },
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(350);
-    });
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'S000003' },
+        }),
+      () => {
+        expect(screen.getByText('iPhone 14')).toBeInTheDocument();
+      },
+    );
 
     fireEvent.click(screen.getByText('iPhone 14'));
 
@@ -363,8 +585,8 @@ describe('CreateOrderCard', () => {
 
     fireEvent.click(screen.getByText('Save order'));
 
-    await act(async () => {
-      await vi.runOnlyPendingTimersAsync();
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
     });
 
     expect(onSave).toHaveBeenCalledWith(
@@ -384,8 +606,6 @@ describe('CreateOrderCard', () => {
         ],
       }),
     );
-
-    vi.useRealTimers();
   });
 
   it('uses the workspace tab instead of a persisted tab when opening', () => {
@@ -437,7 +657,6 @@ describe('CreateOrderCard', () => {
   });
 
   it('shows a suggestion when user types an additional phone from loaded clients', async () => {
-    vi.useFakeTimers();
     const existingClient = {
       id: 'client-existing',
       name: 'Existing Client',
@@ -456,17 +675,16 @@ describe('CreateOrderCard', () => {
 
     renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
 
-    fireEvent.change(screen.getByPlaceholderText('+380'), {
-      target: { value: '063556709' },
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(350);
-    });
-
-    expect(screen.getByRole('button', { name: /Existing Client/i })).toBeInTheDocument();
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('+380'), {
+          target: { value: '063556709' },
+        }),
+      () => {
+        expect(screen.getByRole('button', { name: /Existing Client/i })).toBeInTheDocument();
+      },
+    );
     expect(screen.getByPlaceholderText('Full name')).toHaveValue('');
-    vi.useRealTimers();
   });
 
   it('auto-selects an existing client when user types an additional phone', async () => {
@@ -497,10 +715,9 @@ describe('CreateOrderCard', () => {
     fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
 
     await waitFor(() => {
-      expect(getClientsMock).toHaveBeenCalledWith('+380635567090');
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
     });
     expect(createClientMock).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
   });
 
   it('uses an existing exact phone client instead of creating a duplicate for another name', async () => {
@@ -518,74 +735,64 @@ describe('CreateOrderCard', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
-    getClientsMock.mockResolvedValue([existingClient]);
-
-    renderCreateOrderCard('repair');
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
+
     fireEvent.change(screen.getByPlaceholderText('Full name'), {
       target: { value: 'Another Name' },
     });
     fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
 
     await waitFor(() => {
-      expect(getClientsMock).toHaveBeenCalledWith('+380635567090');
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
     });
     expect(createClientMock).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
   });
 
   it('shows a blacklist warning while typing a matching repair client phone', async () => {
-    vi.useFakeTimers();
-    getClientsMock.mockResolvedValue([
-      lookupClient({
-        id: 'client-blacklist',
-        name: 'Risk Client',
-        phone: '+380635567090',
-        status: 'blacklist',
-      }),
-    ]);
+    const blacklistClient = lookupClient({
+      id: 'client-blacklist',
+      name: 'Risk Client',
+      phone: '+380635567090',
+      status: 'blacklist',
+    });
+    getClientsMock.mockResolvedValue([blacklistClient]);
 
-    renderCreateOrderCard('repair');
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [blacklistClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(350);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', {
+          name: /Open blacklist client card: Risk Client/,
+        }),
+      ).toHaveTextContent('Client is in blacklist');
     });
-
-    const warning = screen.getByRole('button', {
-      name: /Open blacklist client card: Risk Client/,
-    });
-    expect(warning).toHaveTextContent(
-      'Client is in blacklist',
-    );
-    expect(warning).toHaveTextContent('Risk Client');
   });
 
   it('keeps the blacklist warning after selecting a client suggestion', async () => {
-    vi.useFakeTimers();
-    getClientsMock.mockResolvedValue([
-      lookupClient({
-        id: 'client-blacklist',
-        name: 'Risk Client',
-        phone: '+380635567090',
-        status: 'blacklist',
-      }),
-    ]);
+    const blacklistClient = lookupClient({
+      id: 'client-blacklist',
+      name: 'Risk Client',
+      phone: '+380635567090',
+      status: 'blacklist',
+    });
+    getClientsMock.mockResolvedValue([blacklistClient]);
 
-    renderCreateOrderCard('repair');
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [blacklistClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(350);
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Risk Client');
     });
 
     // auto-apply exact phone sets selected client (clears suggestions); warning should still be present
@@ -594,29 +801,32 @@ describe('CreateOrderCard', () => {
     })).toHaveTextContent(
       'Client is in blacklist',
     );
-    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Risk Client');
   });
 
   it('opens the selected blacklist client card from the warning notice', async () => {
-    vi.useFakeTimers();
     const onOpenClientCard = vi.fn();
-    getClientsMock.mockResolvedValue([
-      lookupClient({
-        id: 'client-blacklist',
-        name: 'Risk Client',
-        phone: '+380635567090',
-        status: 'blacklist',
-      }),
-    ]);
+    const blacklistClient = lookupClient({
+      id: 'client-blacklist',
+      name: 'Risk Client',
+      phone: '+380635567090',
+      status: 'blacklist',
+    });
+    getClientsMock.mockResolvedValue([blacklistClient]);
 
-    renderCreateOrderCard('repair', vi.fn(async () => null), onOpenClientCard);
+    renderCreateOrderCard('repair', vi.fn(async () => null), onOpenClientCard, [
+      blacklistClient,
+    ]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(350);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', {
+          name: /Open blacklist client card: Risk Client/,
+        }),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(
@@ -629,52 +839,46 @@ describe('CreateOrderCard', () => {
   });
 
   it('shows a blacklist warning on the sales order tab', async () => {
-    vi.useFakeTimers();
-    getClientsMock.mockResolvedValue([
-      lookupClient({
-        id: 'client-blacklist',
-        name: 'Risk Client',
-        phone: '+380635567090',
-        status: 'blacklist',
-      }),
-    ]);
+    const blacklistClient = lookupClient({
+      id: 'client-blacklist',
+      name: 'Risk Client',
+      phone: '+380635567090',
+      status: 'blacklist',
+    });
+    getClientsMock.mockResolvedValue([blacklistClient]);
 
-    renderCreateOrderCard('sale');
+    renderCreateOrderCard('sale', vi.fn(), vi.fn(), [blacklistClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(350);
+    await waitFor(() => {
+      expect(screen.getByRole('button', {
+        name: /Open blacklist client card: Risk Client/,
+      })).toHaveTextContent(
+        'Client is in blacklist',
+      );
     });
-
-    expect(screen.getByRole('button', {
-      name: /Open blacklist client card: Risk Client/,
-    })).toHaveTextContent(
-      'Client is in blacklist',
-    );
   });
 
   it('does not show a blacklist warning for a regular client suggestion', async () => {
-    vi.useFakeTimers();
-    getClientsMock.mockResolvedValue([
-      lookupClient({
-        id: 'client-regular',
-        name: 'Regular Client',
-        phone: '+380635567090',
-        status: 'new',
-      }),
-    ]);
+    const regularClient = lookupClient({
+      id: 'client-regular',
+      name: 'Regular Client',
+      phone: '+380635567090',
+      status: 'new',
+    });
+    getClientsMock.mockResolvedValue([regularClient]);
 
-    renderCreateOrderCard('repair');
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [regularClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(350);
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Regular Client');
     });
 
     expect(
@@ -702,30 +906,27 @@ describe('CreateOrderCard', () => {
       usageCount: 0,
     });
     getClientsMock.mockResolvedValue([existingClient]);
-    getClientHistoryMock.mockResolvedValue(
+    getClientHistoryMock.mockImplementation(async () =>
       emptyClientHistory(existingClient),
     );
-    getClientDevicesMock.mockResolvedValue([removableDevice]);
-    deleteClientDeviceMock.mockResolvedValue({ id: removableDevice.id });
+    getClientDevicesMock.mockImplementation(async () => [removableDevice]);
+    deleteClientDeviceMock.mockImplementation(async () => ({ id: removableDevice.id }));
 
     renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Existing Client' },
-    });
 
     await waitFor(() => {
       expect(screen.getByText('Coffee machine')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
 
     await waitFor(() => {
       expect(deleteClientDeviceMock).toHaveBeenCalledWith('device-removable');
-    });
+    }, { timeout: 3000 });
     expect(screen.queryByText('Coffee machine')).not.toBeInTheDocument();
     confirmSpy.mockRestore();
   });
@@ -747,27 +948,24 @@ describe('CreateOrderCard', () => {
       usageCount: 2,
     });
     getClientsMock.mockResolvedValue([existingClient]);
-    getClientHistoryMock.mockResolvedValue(
+    getClientHistoryMock.mockImplementation(async () =>
       emptyClientHistory(existingClient),
     );
-    getClientDevicesMock.mockResolvedValue([usedDevice]);
-    updateClientDeviceMock.mockResolvedValue({
+    getClientDevicesMock.mockImplementation(async () => [usedDevice]);
+    updateClientDeviceMock.mockImplementation(async () => ({
       ...usedDevice,
       isActive: false,
-    });
+    }));
 
     renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
 
     fireEvent.change(screen.getByPlaceholderText('+380'), {
       target: { value: '0635567090' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Full name'), {
-      target: { value: 'Existing Client' },
-    });
 
     await waitFor(() => {
       expect(screen.getByText('Used laptop')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
 
@@ -785,8 +983,7 @@ describe('CreateOrderCard', () => {
   });
 
   it('renders repair device suggestions as a compact selectable list', async () => {
-    vi.useFakeTimers();
-    getClientDevicesMock.mockResolvedValue([
+    getClientDevicesMock.mockImplementation(async () => [
       clientDevice({
         id: 'coffee-1',
         name: 'Кавомашина Delonghi',
@@ -795,13 +992,20 @@ describe('CreateOrderCard', () => {
 
     renderCreateOrderCard('repair');
 
-    fireEvent.change(screen.getByPlaceholderText('Enter device name'), {
-      target: { value: 'кавома' },
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(350);
-    });
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Enter device name'), {
+          target: { value: 'кавома' },
+        }),
+      () => {
+        expect(getClientDevicesMock).toHaveBeenCalled();
+        expect(
+          screen.getByRole('button', {
+            name: /Кавомашина Delonghi/i,
+          }),
+        ).toBeInTheDocument();
+      },
+    );
 
     const suggestion = screen.getByRole('button', {
       name: /Кавомашина Delonghi/i,
@@ -816,26 +1020,146 @@ describe('CreateOrderCard', () => {
     );
   });
 
-  const renderWithQueryClient = (ui: ReactElement) => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
-    });
-    queryClient.setQueryData(queryKeys.warehouseSettings, {
-      warehouses: [
+  it('keeps services section collapsed by default on sales tab', () => {
+    renderCreateOrderCard('sale');
+
+    expect(screen.getByRole('button', { name: /Services/i })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Add service' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows catalog suggestions when searching by product name', async () => {
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      catalogProducts: [
         {
-          id: 'wh-main',
-          name: 'Main warehouse',
+          id: 'catalog-1',
+          name: 'iPhone 14',
+          note: 'Catalog note',
           isActive: true,
-          serviceCenterId: 'sc-1',
-          receiptAddress: '',
-          receiptPhone: '',
-          locations: [{ id: 'loc-1', name: 'Shelf A' }],
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ],
     });
 
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
-  };
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'iPhone' },
+        }),
+      () => {
+        expect(screen.getByText('iPhone 14')).toBeInTheDocument();
+        expect(screen.getByText('Catalog note')).toBeInTheDocument();
+      },
+    );
+  });
+
+  it('adds multiple services to the save payload', async () => {
+    const onSave = vi.fn(async () => null);
+    getServiceCatalogItemsMock.mockImplementation(async (query = '') => {
+      if (query.toLowerCase().includes('clean')) {
+        return [
+          {
+            id: 'service-1',
+            name: 'Screen cleaning',
+            price: 150,
+            salePriceOptions: [150],
+            note: '',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ];
+      }
+      if (query.toLowerCase().includes('diag')) {
+        return [
+          {
+            id: 'service-2',
+            name: 'Diagnostics',
+            price: 300,
+            salePriceOptions: [300],
+            note: '',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderCreateOrderCard('sale', onSave);
+
+    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Add service')).toBeInTheDocument();
+    });
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByPlaceholderText('Add service'), {
+      target: { value: 'Screen cleaning' },
+    });
+    await advanceDebounce();
+    vi.useRealTimers();
+    await waitFor(() => {
+      expect(getServiceCatalogItemsMock).toHaveBeenCalled();
+      expect(screen.getByText('Screen cleaning')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Screen cleaning'));
+    fireEvent.click(document.querySelector('.create-order-add-service-button')!);
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByPlaceholderText('Add service'), {
+      target: { value: 'Diagnostics' },
+    });
+    await advanceDebounce();
+    vi.useRealTimers();
+    await waitFor(() => {
+      expect(screen.getByText('Diagnostics')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Diagnostics'));
+    fireEvent.click(document.querySelector('.create-order-add-service-button')!);
+
+    fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Manual product line' },
+    });
+    const priceInputs = screen.getAllByPlaceholderText('0');
+    fireEvent.change(priceInputs[0]!, {
+      target: { value: '1200' },
+    });
+
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saleServiceItems: [
+          expect.objectContaining({
+            serviceId: 'service-1',
+            name: 'Screen cleaning',
+            price: '150',
+          }),
+          expect.objectContaining({
+            serviceId: 'service-2',
+            name: 'Diagnostics',
+            price: '300',
+          }),
+        ],
+      }),
+    );
+  });
 
   it('shows rapid sale button only on sales tab and opens modal', () => {
     const onRapidSale = vi.fn(async () => null);

@@ -7037,6 +7037,66 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   color: #2e3e52;
 }
 
+.create-order-sale-section {
+  display: grid;
+  gap: 12px;
+}
+
+.create-order-sale-products-section {
+  margin-top: 4px;
+}
+
+.create-order-sale-services-section {
+  margin-top: 8px;
+}
+
+.create-order-services-toggle {
+  width: 100%;
+  margin: 0;
+}
+
+.create-order-service-entry-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns:
+    minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(70px, 0.5fr)
+    minmax(110px, 0.7fr) minmax(120px, 0.8fr);
+  align-items: end;
+}
+
+.create-order-service-search {
+  min-width: 0;
+}
+
+.create-order-add-service-button,
+.create-order-create-service-button {
+  width: 100%;
+  min-height: 38px;
+}
+
+.create-order-service-suggestions {
+  margin-top: -4px;
+}
+
+.create-order-service-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.create-order-service-items-table th,
+.create-order-service-items-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #d8e0ea;
+  text-align: left;
+}
+
+.create-order-service-items-table th:last-child,
+.create-order-service-items-table td:last-child {
+  width: 96px;
+  text-align: right;
+}
+
 .create-subtitle {
   margin: 4px 0;
   font-size: 1.4rem;

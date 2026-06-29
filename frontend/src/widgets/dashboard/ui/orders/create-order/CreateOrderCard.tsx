@@ -26,9 +26,21 @@ import type { Product } from '../../../../../entities/product/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
-  buildCreateOrderProductSuggestions,
-  type CreateOrderProductSuggestion,
+  buildOrderDetailProductSuggestions,
+  type OrderDetailProductSuggestion,
 } from '../../../model/create-order-products';
+import {
+  createServiceCatalogItem,
+  getServiceCatalogItems,
+} from '../../../../../entities/service-catalog/api/serviceCatalogApi';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+import { initialServiceCatalogForm } from '../../../../../entities/service-catalog/model/forms';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+import {
+  buildMissingServicePayload,
+  shouldCreateMissingServiceOnSubmit,
+} from '../../../model/missingService';
 import {
   findBlacklistClientMatch,
   getBlacklistClientWarning,
@@ -39,6 +51,7 @@ import {
   createOrderClientRequestsTabStorageKey,
   createOrderTabStorageKey,
   createSaleOrderItem,
+  createSaleServiceOrderItem,
   extraOptionsLeft,
   extraOptionsRight,
   extractDeviceKit,
@@ -53,11 +66,14 @@ import {
   topTabs,
   type ClientRequestTab,
   type SaleOrderItem,
+  type SaleServiceOrderItem,
 } from './create-order-card-shared';
 import type { RapidSaleDraftItem } from '../../../model/rapid-sale-line-items';
 import { CreateOrderDeviceModal } from './CreateOrderDeviceModal';
 import { CreateOrderRepairSection } from './CreateOrderRepairSection';
 import { CreateOrderSaleSection } from './CreateOrderSaleSection';
+import { CreateOrderSaleServicesSection } from './CreateOrderSaleServicesSection';
+import { OrderDetailCatalogServiceEditorModal } from '../order-detail/OrderDetailCatalogServiceEditorModal';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 import { RapidSaleModal } from './RapidSaleModal';
 
@@ -150,7 +166,42 @@ export const CreateOrderCard = ({
   const [newDeviceIsActive, setNewDeviceIsActive] = useState(true);
   const [isDeviceCreating, setIsDeviceCreating] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleOrderItem[]>(() => [createSaleOrderItem()]);
-  const [saleProductSuggestions, setSaleProductSuggestions] = useState<CreateOrderProductSuggestion[]>([]);
+  const [saleServiceItems, setSaleServiceItems] = useState<SaleServiceOrderItem[]>([]);
+  const [saleProductSuggestions, setSaleProductSuggestions] = useState<
+    OrderDetailProductSuggestion[]
+  >([]);
+  const [isServicesSectionOpen, setIsServicesSectionOpen] = useState(false);
+  const [serviceQuery, setServiceQuery] = useState('');
+  const [servicePrice, setServicePrice] = useState('');
+  const [serviceQuantity, setServiceQuantity] = useState('1');
+  const [serviceWarranty, setServiceWarranty] = useState('1');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
+  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
+  const [createServiceForm, setCreateServiceForm] = useState(initialServiceCatalogForm);
+  const [isCreateServiceSaving, setIsCreateServiceSaving] = useState(false);
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
+
+  useEffect(() => {
+    if (activeTab !== 'sale') {
+      setWarehouses([]);
+      return;
+    }
+
+    let isActive = true;
+    void getWarehouseSettings()
+      .then((settings) => {
+        if (isActive) setWarehouses(settings.warehouses);
+      })
+      .catch(() => {
+        if (isActive) setWarehouses([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab]);
   const [selectedDeviceSuggestionId, setSelectedDeviceSuggestionId] = useState<string | null>(null);
   const [focusedSaleItemId, setFocusedSaleItemId] = useState<string | null>(null);
   const [isClientLookupLoading, setIsClientLookupLoading] = useState(false);
@@ -293,6 +344,24 @@ export const CreateOrderCard = ({
     const quantity = Number.parseInt(item.quantity || '0', 10);
     return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
+  const saleServicesTotal = saleServiceItems.reduce((total, item) => {
+    const price = parseDecimalInput(item.price);
+    const quantity = Number.parseInt(item.quantity || '0', 10);
+    return total + (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
+  }, 0);
+  const saleOrderTotal = saleItemsTotal + saleServicesTotal;
+  const serviceLookupQuery = serviceQuery.trim();
+  const hasExactServiceSuggestion = serviceSuggestions.some(
+    (service) =>
+      service.name.trim().toLowerCase() === serviceLookupQuery.toLowerCase(),
+  );
+  const canCreateMissingService =
+    isServicesSectionOpen &&
+    serviceLookupQuery.length >= 2 &&
+    !isServiceLookupLoading &&
+    serviceSuggestions.length === 0 &&
+    !hasExactServiceSuggestion &&
+    !selectedServiceId;
   const effectiveManagerId =
     canCurrentEmployeeManageOrders && currentEmployee ? currentEmployee.id : managerId;
 
@@ -467,11 +536,12 @@ export const CreateOrderCard = ({
       try {
         if (isActive) {
           setSaleProductSuggestions(
-            buildCreateOrderProductSuggestions({
+            buildOrderDetailProductSuggestions({
               products,
               catalogProducts,
               sales,
               query: saleProductLookupQuery,
+              warehouses,
               limit: 8,
             }),
           );
@@ -495,6 +565,43 @@ export const CreateOrderCard = ({
     products,
     saleProductLookupQuery,
     sales,
+    warehouses,
+  ]);
+
+  useEffect(() => {
+    if (
+      activeTab !== 'sale' ||
+      !isServicesSectionOpen ||
+      serviceLookupQuery.length < 2 ||
+      Boolean(selectedServiceId)
+    ) {
+      setServiceSuggestions([]);
+      setIsServiceLookupLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setIsServiceLookupLoading(true);
+      try {
+        const services = await getServiceCatalogItems(serviceLookupQuery);
+        if (isActive) setServiceSuggestions(services.slice(0, 6));
+      } catch {
+        if (isActive) setServiceSuggestions([]);
+      } finally {
+        if (isActive) setIsServiceLookupLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeTab,
+    isServicesSectionOpen,
+    selectedServiceId,
+    serviceLookupQuery,
   ]);
 
   const toggleFlag = (flag: string) => {
@@ -580,7 +687,7 @@ export const CreateOrderCard = ({
 
   const applySaleProduct = (
     itemId: string,
-    suggestion: CreateOrderProductSuggestion,
+    suggestion: OrderDetailProductSuggestion,
   ) => {
     if (!suggestion.selectable) {
       onError(
@@ -592,23 +699,146 @@ export const CreateOrderCard = ({
     }
 
     const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
-    const isSerializedStock =
-      suggestion.source === 'stock' && Boolean(serialNumber);
     const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '';
+
+    if (suggestion.source === 'catalog') {
+      updateSaleItem(itemId, {
+        query: suggestion.name,
+        source: 'catalog',
+        productId: '',
+        catalogProductId: suggestion.catalogProductId,
+        article: '',
+        serialNumber: '',
+        price: unitPrice,
+        unitPrice,
+        quantity: '1',
+        warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
+      });
+      setSaleProductSuggestions([]);
+      return;
+    }
+
+    if (serialNumber) {
+      updateSaleItem(itemId, {
+        query: suggestion.name,
+        source: 'stock',
+        productId: suggestion.productId,
+        catalogProductId: '',
+        article: suggestion.article,
+        serialNumber,
+        price: unitPrice,
+        unitPrice,
+        quantity: '1',
+        warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
+      });
+      setSaleProductSuggestions([]);
+      return;
+    }
 
     updateSaleItem(itemId, {
       query: suggestion.name,
-      source: suggestion.source,
-      productId: suggestion.productId,
-      catalogProductId: suggestion.catalogProductId,
+      source: '',
+      productId: '',
+      catalogProductId: '',
       article: suggestion.article,
-      serialNumber,
+      serialNumber: '',
       price: unitPrice,
       unitPrice,
-      quantity: isSerializedStock ? '1' : '1',
+      quantity: '1',
       warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
     });
     setSaleProductSuggestions([]);
+  };
+
+  const resetServiceEntry = () => {
+    setServiceQuery('');
+    setServicePrice('');
+    setServiceQuantity('1');
+    setServiceWarranty('1');
+    setSelectedServiceId('');
+    setServiceSuggestions([]);
+  };
+
+  const applyServiceSuggestion = (service: ServiceCatalogItem) => {
+    setServiceQuery(service.name);
+    setServicePrice(String(service.price));
+    setServiceQuantity('1');
+    setServiceWarranty('1');
+    setSelectedServiceId(service.id);
+    setServiceSuggestions([]);
+  };
+
+  const addServiceItem = async () => {
+    const normalizedName = serviceQuery.trim();
+    if (normalizedName.length < 2) {
+      onError(t('orders.rapidSale.errors.serviceName'));
+      return;
+    }
+
+    let nextServiceId = selectedServiceId || undefined;
+    if (
+      shouldCreateMissingServiceOnSubmit({
+        kind: 'service',
+        normalizedName,
+        selectedServiceId: nextServiceId,
+        suggestionNames: serviceSuggestions.map((service) => service.name),
+      })
+    ) {
+      try {
+        const createdService = await createServiceCatalogItem(
+          buildMissingServicePayload(
+            normalizedName,
+            parseDecimalInput(servicePrice) || 0,
+          ),
+        );
+        nextServiceId = createdService.id;
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.rapidSale.errors.failedCreateService'),
+        );
+        return;
+      }
+    }
+
+    setSaleServiceItems((current) => [
+      ...current,
+      createSaleServiceOrderItem({
+        serviceId: nextServiceId,
+        name: normalizedName,
+        price: servicePrice || '0',
+        quantity: serviceQuantity || '1',
+        warrantyPeriod: serviceWarranty || '1',
+      }),
+    ]);
+    resetServiceEntry();
+  };
+
+  const openCreateServiceModal = () => {
+    setCreateServiceForm({
+      ...initialServiceCatalogForm,
+      name: serviceLookupQuery,
+      price: servicePrice,
+    });
+    setIsCreateServiceOpen(true);
+  };
+
+  const saveCreatedService = async () => {
+    setIsCreateServiceSaving(true);
+    try {
+      const createdService = await createServiceCatalogItem(createServiceForm);
+      applyServiceSuggestion(createdService);
+      setIsCreateServiceOpen(false);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.rapidSale.errors.failedCreateService'),
+      );
+    } finally {
+      setIsCreateServiceSaving(false);
+    }
   };
 
   const addSaleItem = () => {
@@ -815,6 +1045,21 @@ export const CreateOrderCard = ({
       };
     });
 
+    const normalizedSaleServiceItems = saleServiceItems
+      .map((item) => ({
+        id: item.id,
+        serviceId: item.serviceId,
+        name: item.name.trim(),
+        price: String(Math.max(0, parseDecimalInput(item.price) || 0)),
+        quantity: String(
+          Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1),
+        ),
+        warrantyPeriod: String(
+          Math.max(0, Number.parseInt(item.warrantyPeriod || '1', 10) || 1),
+        ),
+      }))
+      .filter((item) => item.name.length >= 2);
+
     const createdSale = await onSave({
       clientPhone,
       clientName,
@@ -827,7 +1072,10 @@ export const CreateOrderCard = ({
       repairType,
       issueFromClient,
       externalView,
-      estimatedCost: activeTab === 'sale' ? String(Math.round(saleItemsTotal * 100) / 100) : '0',
+      estimatedCost:
+        activeTab === 'sale'
+          ? String(Math.round(saleOrderTotal * 100) / 100)
+          : '0',
       readyDate,
       readyTime,
       managerId: effectiveManagerId,
@@ -835,6 +1083,7 @@ export const CreateOrderCard = ({
       extraFlags: selectedFlags,
       sourceTab: activeTab,
       saleItems: normalizedSaleItems,
+      saleServiceItems: normalizedSaleServiceItems,
     });
 
     if (createdSale) {
@@ -961,22 +1210,51 @@ export const CreateOrderCard = ({
             ) : null}
 
             {activeTab === 'sale' ? (
-              <CreateOrderSaleSection
-                saleItems={saleItems}
-                focusedSaleItem={focusedSaleItem}
-                visibleSaleProductSuggestions={visibleSaleProductSuggestions}
-                isSaleProductLookupLoading={isSaleProductLookupLoading}
-                saleItemsTotal={saleItemsTotal}
-                issueFromClient={issueFromClient}
-                onIssueFromClientChange={setIssueFromClient}
-                onFocusSaleItem={setFocusedSaleItemId}
-                onUpdateSaleItem={updateSaleItem}
-                onSaleItemQuantityChange={handleSaleItemQuantityChange}
-                onSaleItemPriceChange={handleSaleItemPriceChange}
-                onAddSaleItem={addSaleItem}
-                onRemoveSaleItem={removeSaleItem}
-                onApplySaleProduct={applySaleProduct}
-              />
+              <>
+                <CreateOrderSaleSection
+                  saleItems={saleItems}
+                  focusedSaleItem={focusedSaleItem}
+                  visibleSaleProductSuggestions={visibleSaleProductSuggestions}
+                  isSaleProductLookupLoading={isSaleProductLookupLoading}
+                  saleItemsTotal={saleOrderTotal}
+                  issueFromClient={issueFromClient}
+                  onIssueFromClientChange={setIssueFromClient}
+                  onFocusSaleItem={setFocusedSaleItemId}
+                  onUpdateSaleItem={updateSaleItem}
+                  onSaleItemQuantityChange={handleSaleItemQuantityChange}
+                  onSaleItemPriceChange={handleSaleItemPriceChange}
+                  onAddSaleItem={addSaleItem}
+                  onRemoveSaleItem={removeSaleItem}
+                  onApplySaleProduct={applySaleProduct}
+                />
+                <CreateOrderSaleServicesSection
+                  isOpen={isServicesSectionOpen}
+                  serviceQuery={serviceQuery}
+                  servicePrice={servicePrice}
+                  serviceQuantity={serviceQuantity}
+                  serviceWarranty={serviceWarranty}
+                  serviceSuggestions={serviceSuggestions}
+                  isServiceLookupLoading={isServiceLookupLoading}
+                  canCreateMissingService={canCreateMissingService}
+                  saleServiceItems={saleServiceItems}
+                  onToggle={() => setIsServicesSectionOpen((current) => !current)}
+                  onServiceQueryChange={(value) => {
+                    setServiceQuery(value);
+                    setSelectedServiceId('');
+                  }}
+                  onServicePriceChange={setServicePrice}
+                  onServiceQuantityChange={setServiceQuantity}
+                  onServiceWarrantyChange={setServiceWarranty}
+                  onApplyServiceSuggestion={applyServiceSuggestion}
+                  onAddService={addServiceItem}
+                  onOpenCreateService={openCreateServiceModal}
+                  onRemoveServiceItem={(itemId) =>
+                    setSaleServiceItems((current) =>
+                      current.filter((item) => item.id !== itemId),
+                    )
+                  }
+                />
+              </>
             ) : (
               <CreateOrderRepairSection
                 deviceName={deviceName}
@@ -1117,6 +1395,22 @@ export const CreateOrderCard = ({
           onIsActiveChange={setNewDeviceIsActive}
           onClose={() => setIsCreateDeviceModalOpen(false)}
           onSave={() => void createDeviceFromModal()}
+        />
+      ) : null}
+      {isCreateServiceOpen ? (
+        <OrderDetailCatalogServiceEditorModal
+          title={t('orders.detail.lineItems.createService')}
+          form={createServiceForm}
+          isSaving={isCreateServiceSaving}
+          isEditing
+          onChange={(field, value) =>
+            setCreateServiceForm((current) => ({
+              ...current,
+              [field]: value,
+            }))
+          }
+          onSubmit={() => void saveCreatedService()}
+          onClose={() => setIsCreateServiceOpen(false)}
         />
       ) : null}
       {isRapidSaleModalOpen && onRapidSale ? (

@@ -30,4 +30,12 @@ export type CreateOrderRequestPayload = {
     warrantyPeriod: string;
     warehouse: string;
   }>;
+  saleServiceItems?: Array<{
+    id: string;
+    serviceId?: string;
+    name: string;
+    price: string;
+    quantity: string;
+    warrantyPeriod: string;
+  }>;
 };

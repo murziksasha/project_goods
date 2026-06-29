@@ -22,6 +22,15 @@ export type SaleOrderItem = {
   warrantyPeriod: string;
 };
 
+export type SaleServiceOrderItem = {
+  id: string;
+  serviceId?: string;
+  name: string;
+  price: string;
+  quantity: string;
+  warrantyPeriod: string;
+};
+
 export type ClientRequestTab = 'orders' | 'sales';
 
 export const topTabs: Array<{
@@ -87,6 +96,18 @@ export const createSaleOrderItem = (): SaleOrderItem => ({
   unitPrice: '',
   quantity: '1',
   warrantyPeriod: '0',
+});
+
+export const createSaleServiceOrderItem = (
+  patch: Partial<SaleServiceOrderItem> = {},
+): SaleServiceOrderItem => ({
+  id: createRuntimeId(),
+  serviceId: undefined,
+  name: '',
+  price: '',
+  quantity: '1',
+  warrantyPeriod: '1',
+  ...patch,
 });
 
 export const formatPhone = (input: string) => {
