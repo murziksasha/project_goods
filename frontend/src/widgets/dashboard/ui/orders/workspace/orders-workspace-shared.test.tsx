@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
+  buildSupplierOrderLinkNote,
   getPrintTemplateData,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
+  isSupplierOrderLinkedToSale,
   printWarehouseSerialLabels,
   type OrderLineItem,
 } from './orders-workspace-shared';
@@ -363,6 +366,96 @@ describe('order print labels', () => {
     expect(writtenHtml).toContain('data-barcode-value="SN-C"');
     expect(writtenHtml).toContain('print-html-label-batch');
     expect(writtenHtml).toContain('print-body-label-batch');
+  });
+
+  const supplierOrder = (overrides: Partial<SupplierOrder> = {}): SupplierOrder => ({
+    id: 'supplier-order-1',
+    orderBaseId: 'SO-1',
+    supplierId: 'supplier-1',
+    supplierName: 'Supplier',
+    deliveryDate: '2026-06-01',
+    supplyType: 'standard',
+    number: 'SO000001',
+    note: '',
+    createdBy: 'Admin',
+    status: 'request',
+    paymentStatus: 'pending',
+    receiptStatus: 'new',
+    total: 100,
+    paid: 0,
+    isFavorite: false,
+    items: [
+      {
+        lineId: 'line-1',
+        itemIndex: 0,
+        productName: 'USB Cable',
+        quantity: 1,
+        price: 100,
+      },
+    ],
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+    ...overrides,
+  });
+
+  const linkedSale = (overrides: Partial<Sale> = {}): Sale => ({
+    id: 'sale-1',
+    recordNumber: 'S000001',
+    saleDate: '2026-06-01T00:00:00.000Z',
+    quantity: 1,
+    salePrice: 100,
+    kind: 'sale',
+    status: 'new',
+    paidAmount: 0,
+    note: '',
+    timeline: [],
+    paymentHistory: [],
+    lineItems: [],
+    client: {
+      id: 'client-1',
+      name: 'Client',
+      phone: '+380000000000',
+      status: 'ok',
+    },
+    product: null,
+    manager: null,
+    master: null,
+    issuedBy: null,
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+    ...overrides,
+  });
+
+  it('matches supplier orders linked by record number', () => {
+    const order = supplierOrder({
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+    });
+
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(true);
+  });
+
+  it('matches supplier orders linked by sale id', () => {
+    const order = supplierOrder({
+      note: buildSupplierOrderLinkNote('sale-1', 'client-1'),
+    });
+
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(true);
+  });
+
+  it('does not match supplier orders linked to another sale card', () => {
+    const order = supplierOrder({
+      note: buildSupplierOrderLinkNote('S000002', 'client-1'),
+    });
+
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(false);
+  });
+
+  it('does not match supplier orders without explicit sale link markers', () => {
+    const order = supplierOrder({
+      note: 'USB Cable for client',
+    });
+
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(false);
   });
 
   it('A4 print HTML contains A4 @page with 12mm margin, no label-only classes', () => {

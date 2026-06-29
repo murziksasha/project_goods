@@ -4124,6 +4124,13 @@
   gap: 8px;
 }
 
+.order-related-list-scrollable {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
 .order-related-stats-list {
   grid-template-columns: minmax(0, 1fr);
 }
