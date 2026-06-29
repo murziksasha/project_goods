@@ -1,8 +1,22 @@
+import mongoose from 'mongoose';
 import { formatCatalogProduct } from '../../shared/lib/formatters';
 import { toNonEmptyString } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { CatalogProduct, type CatalogProductDocument } from './model';
+import {
+  assertCatalogProductNameFitsWarehouse,
+  buildCatalogLineItemNamePattern,
+  buildCatalogSnapshotNamePattern,
+  catalogProductNamesAreEqual,
+  normalizeCatalogProductName,
+  renameSaleForCatalogProduct,
+  renameSupplierOrderItems,
+  shouldPropagateCatalogProductRename,
+} from './name-propagation';
+import { Product } from '../product/model';
+import { getExactProductModelNameQuery } from '../product/service';
 import { Sale } from '../sale/model';
+import { SupplierOrder } from '../supplier-order/model';
 
 export type CatalogProductPayload = {
   name?: unknown;
@@ -26,11 +40,123 @@ const mapCatalogProductError = (error: unknown) => {
   return error;
 };
 
-const normalizeProductName = (value: string) => value.trim().replace(/\s+/g, ' ');
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+type PropagateCatalogProductNameChangeInput = {
+  catalogProductId: string;
+  previousName: string;
+  nextName: string;
+};
+
+export const propagateCatalogProductNameChange = async ({
+  catalogProductId,
+  previousName,
+  nextName,
+}: PropagateCatalogProductNameChangeInput) => {
+  const normalizedPreviousName = normalizeCatalogProductName(previousName);
+  const normalizedNextName = normalizeCatalogProductName(nextName);
+
+  if (!shouldPropagateCatalogProductRename(normalizedPreviousName, normalizedNextName)) {
+    return;
+  }
+
+  assertCatalogProductNameFitsWarehouse(normalizedNextName);
+
+  const catalogObjectId = new mongoose.Types.ObjectId(catalogProductId);
+  const products = await Product.find(getExactProductModelNameQuery(normalizedPreviousName));
+  const matchingProducts = products.filter((product) =>
+    catalogProductNamesAreEqual(product.name, normalizedPreviousName),
+  );
+
+  for (const product of matchingProducts) {
+    product.name = normalizedNextName;
+    await product.validate();
+    await product.save();
+  }
+
+  const supplierOrders = await SupplierOrder.find({
+    $or: [
+      { 'items.catalogProductId': catalogObjectId },
+      {
+        'items.productName': {
+          $regex: buildCatalogSnapshotNamePattern(normalizedPreviousName),
+          $options: 'i',
+        },
+      },
+    ],
+  });
+
+  for (const order of supplierOrders) {
+    const nextItems = renameSupplierOrderItems(
+      order.items ?? [],
+      catalogProductId,
+      normalizedPreviousName,
+      normalizedNextName,
+    );
+
+    if (JSON.stringify(nextItems) === JSON.stringify(order.items ?? [])) {
+      continue;
+    }
+
+    order.set('items', nextItems);
+    await order.validate();
+    await order.save();
+  }
+
+  const linkedSales = await Sale.find({
+    $or: [
+      { 'lineItems.catalogProductId': catalogObjectId },
+      {
+        'productSnapshot.name': {
+          $regex: buildCatalogSnapshotNamePattern(normalizedPreviousName),
+          $options: 'i',
+        },
+      },
+      {
+        'lineItems.name': {
+          $regex: buildCatalogLineItemNamePattern(normalizedPreviousName),
+          $options: 'i',
+        },
+      },
+    ],
+  }).lean();
+
+  await Promise.all(
+    linkedSales.map(async (sale) => {
+      const {
+        snapshotChanged,
+        lineItemsChanged,
+        nextSnapshotName,
+        nextLineItems,
+      } = renameSaleForCatalogProduct(
+        sale,
+        catalogProductId,
+        normalizedPreviousName,
+        normalizedNextName,
+      );
+
+      if (!snapshotChanged && !lineItemsChanged) {
+        return;
+      }
+
+      await Sale.findByIdAndUpdate(sale._id, {
+        ...(snapshotChanged
+          ? {
+              productSnapshot: {
+                article: sale.productSnapshot?.article ?? '',
+                name: nextSnapshotName,
+                serialNumber: sale.productSnapshot?.serialNumber ?? '',
+              },
+            }
+          : {}),
+        ...(lineItemsChanged ? { lineItems: nextLineItems } : {}),
+      });
+    }),
+  );
+};
+
 const getCatalogProductUsageCount = async (item: CatalogProductDocument) => {
-  const normalizedName = normalizeProductName(item.name);
+  const normalizedName = normalizeCatalogProductName(item.name);
   if (!normalizedName) return 0;
 
   const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
@@ -80,13 +206,35 @@ export const updateCatalogProduct = async (
 ) => {
   isValidObjectIdOrThrow(catalogProductId, 'catalogProductId');
   try {
+    const existing = await CatalogProduct.findById(catalogProductId).lean<CatalogProductDocument | null>();
+    if (!existing) {
+      throw new Error('Catalog product not found.');
+    }
+
+    const normalizedPayload = normalizeCatalogProductPayload(payload);
+    const previousName = normalizeCatalogProductName(existing.name);
+    const nextName = normalizeCatalogProductName(normalizedPayload.name);
+    const nameChanged = shouldPropagateCatalogProductRename(previousName, nextName);
+
+    if (nameChanged) {
+      assertCatalogProductNameFitsWarehouse(nextName);
+    }
+
     const item = await CatalogProduct.findByIdAndUpdate(
       catalogProductId,
-      normalizeCatalogProductPayload(payload),
+      normalizedPayload,
       { returnDocument: 'after', runValidators: true },
     ).lean<CatalogProductDocument | null>();
 
     if (!item) throw new Error('Catalog product not found.');
+
+    if (nameChanged) {
+      await propagateCatalogProductNameChange({
+        catalogProductId,
+        previousName,
+        nextName,
+      });
+    }
 
     const usageCount = await getCatalogProductUsageCount(item);
     return formatCatalogProduct(item, usageCount);
@@ -117,7 +265,7 @@ export const upsertCatalogProducts = async (
   const normalizedNames = Array.from(
     new Set(
       names
-        .map((name) => normalizeProductName(name))
+        .map((name) => normalizeCatalogProductName(name))
         .filter((name) => name.length >= 2),
     ),
   );
