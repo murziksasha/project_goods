@@ -1,11 +1,16 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { Product } from '../../../../../entities/product/model/types';
+import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { OrderDetailProductSuggestion } from '../../../model/create-order-products';
 import type { SaleOrderItem } from './create-order-card-shared';
 import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
 
 type CreateOrderSaleSectionProps = {
+  products: Product[];
   saleItems: SaleOrderItem[];
   focusedSaleItem: SaleOrderItem | null;
   visibleSaleProductSuggestions: OrderDetailProductSuggestion[];
@@ -29,6 +34,7 @@ type CreateOrderSaleSectionProps = {
 };
 
 export const CreateOrderSaleSection = ({
+  products,
   saleItems,
   focusedSaleItem,
   visibleSaleProductSuggestions,
@@ -46,6 +52,28 @@ export const CreateOrderSaleSection = ({
 }: CreateOrderSaleSectionProps) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
+  const productsById = useMemo(
+    () => Object.fromEntries(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const [priceTierByItemId, setPriceTierByItemId] = useState<
+    Record<string, ProductSalePriceTier | null>
+  >({});
+  const previousProductIdByItemIdRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    const nextTiers: Record<string, ProductSalePriceTier> = {};
+    saleItems.forEach((item) => {
+      const previousProductId = previousProductIdByItemIdRef.current[item.id];
+      if (item.productId && item.productId !== previousProductId) {
+        nextTiers[item.id] = 'retail';
+      }
+      previousProductIdByItemIdRef.current[item.id] = item.productId;
+    });
+    if (Object.keys(nextTiers).length > 0) {
+      setPriceTierByItemId((current) => ({ ...current, ...nextTiers }));
+    }
+  }, [saleItems]);
 
   return (
     <section className="create-order-sale-section create-order-sale-products-section">
@@ -83,15 +111,21 @@ export const CreateOrderSaleSection = ({
             </label>
             <label className="field">
               <span>{t('orders.create.price')}</span>
-              <NumberStepper
-                min={0}
-                step={0.01}
-                precision={2}
+              <ProductSalePriceField
                 value={item.price}
-                onChange={(value) => {
-                  onSaleItemPriceChange(item, value);
-                }}
+                onChange={(value) => onSaleItemPriceChange(item, value)}
+                product={
+                  item.productId ? productsById[item.productId] ?? null : null
+                }
+                priceTier={priceTierByItemId[item.id] ?? null}
+                onPriceTierChange={(tier) =>
+                  setPriceTierByItemId((current) => ({
+                    ...current,
+                    [item.id]: tier,
+                  }))
+                }
                 placeholder="0"
+                ariaLabel={t('orders.create.price')}
               />
             </label>
             <label className="field">

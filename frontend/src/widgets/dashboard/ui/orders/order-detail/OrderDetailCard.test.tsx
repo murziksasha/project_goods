@@ -1457,7 +1457,7 @@ describe('OrderDetailCard product entry', () => {
       <OrderDetailCard
         sale={sale({ kind: 'repair' })}
         sales={[sale({ kind: 'repair' })]}
-        supplierOrders={supplierOrders}
+        supplierOrders={[supplierOrder()]}
         employees={[]}
         status={'new' as OrderStatus}
         statusOptions={[{ key: 'new' as OrderStatus, labelKey: 'orders.status.repair.new' }]}

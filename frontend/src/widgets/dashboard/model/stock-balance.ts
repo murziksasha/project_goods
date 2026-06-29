@@ -164,9 +164,11 @@ export const buildSalesByProductId = (
     return acc;
   }, {});
 
+export type StockSaleLink = Pick<Sale, 'status' | 'product' | 'lineItems'>;
+
 export const getIssuedSaleProductIds = (
   products: Product[],
-  sales: Sale[],
+  sales: StockSaleLink[],
 ) => {
   const issuedProductIds = new Set<string>();
 

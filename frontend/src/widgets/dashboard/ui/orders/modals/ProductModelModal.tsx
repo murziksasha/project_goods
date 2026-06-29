@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
+import type { Sale } from '../../../../../entities/sale/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
-import { formatCurrency } from '../../../../../shared/lib/format';
-import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
+import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
+import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
 import { PrinterIcon } from './PrinterIcon';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,
+  buildProductModelSerialPurchases,
+  getLatestBatchProduct,
+  getActiveStockProductsByExactModelName,
   getProductModelInitialForm,
-  getProductsByExactModelName,
 } from '../../../model/product-model';
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
@@ -20,6 +23,7 @@ type ProductModelSection = 'main' | 'prices' | 'stock';
 type ProductModelModalProps = {
   name: string;
   products: Product[];
+  sales?: Sale[];
   warehouses: WarehouseItem[];
   printForms?: PrintForm[];
   printProduct?: Product | null;
@@ -31,6 +35,7 @@ type ProductModelModalProps = {
 export const ProductModelModal = ({
   name,
   products,
+  sales = [],
   warehouses,
   printForms = defaultPrintForms,
   printProduct = null,
@@ -40,8 +45,8 @@ export const ProductModelModal = ({
 }: ProductModelModalProps) => {
   const { t } = useTranslation();
   const matchingProducts = useMemo(
-    () => getProductsByExactModelName(products, name),
-    [name, products],
+    () => getActiveStockProductsByExactModelName(products, sales, name),
+    [name, products, sales],
   );
   const [form, setForm] = useState(() =>
     getProductModelInitialForm(matchingProducts),
@@ -53,6 +58,14 @@ export const ProductModelModal = ({
   const stockSummary = useMemo(
     () => aggregateProductModelStock(matchingProducts, warehouses),
     [matchingProducts, warehouses],
+  );
+  const serialPurchases = useMemo(
+    () => buildProductModelSerialPurchases(matchingProducts),
+    [matchingProducts],
+  );
+  const latestBatchProduct = useMemo(
+    () => getLatestBatchProduct(matchingProducts),
+    [matchingProducts],
   );
   const hasStockRows = matchingProducts.length > 0;
   const totalStock = matchingProducts.reduce(
@@ -293,27 +306,77 @@ export const ProductModelModal = ({
                     disabled={!hasStockRows || isSaving}
                   />
                 </label>
-                <label className='field'>
-                  <span>{t('catalog.productModel.purchasePrice')}</span>
-                  <input
-                    value={form.purchasePrice}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        purchasePrice: normalizeDecimalInput(event.target.value),
-                      }))
-                    }
-                    disabled={!hasStockRows || isSaving}
-                  />
-                </label>
               </div>
               {hasStockRows ? (
-                <p className='muted-copy'>
-                  {t('catalog.productModel.lastBatchPrice', {
-                    price: formatCurrency(parseDecimal(form.purchasePrice) || 0),
-                    count: matchingProducts.length,
-                  })}
-                </p>
+                <section className='product-model-serial-purchases'>
+                  <div className='product-model-serial-purchases-header'>
+                    <strong>{t('catalog.productModel.serialPurchasesTitle')}</strong>
+                    {latestBatchProduct ? (
+                      <span className='product-model-purchase-meta'>
+                        {t('catalog.productModel.latestBatchSummary', {
+                          price: formatCurrency(latestBatchProduct.price),
+                          date: formatDate(
+                            latestBatchProduct.purchaseDate ??
+                              latestBatchProduct.createdAt,
+                          ),
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className='product-model-serial-purchases-table-wrap'>
+                    <table className='catalog-table product-model-serial-purchases-table'>
+                      <thead>
+                        <tr>
+                          <th>{t('catalog.productModel.serialNumber')}</th>
+                          <th>{t('catalog.productModel.purchasePrice')}</th>
+                          <th>{t('catalog.productModel.purchaseDate')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {serialPurchases.map((row) => {
+                          const isSelected = printProduct?.id === row.productId;
+                          const rowClassName = [
+                            row.isLatestBatch
+                              ? 'product-model-serial-row-latest'
+                              : '',
+                            isSelected ? 'product-model-serial-row-selected' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ');
+
+                          return (
+                            <tr
+                              key={row.productId}
+                              className={rowClassName || undefined}
+                            >
+                              <td>
+                                <span className='product-model-serial-cell'>
+                                  {row.serialNumber ||
+                                    t('catalog.productModel.serialMissing')}
+                                  {row.isLatestBatch ? (
+                                    <span className='product-model-latest-batch-badge'>
+                                      {t('catalog.productModel.latestBatchBadge')}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </td>
+                              <td>{formatCurrency(row.price)}</td>
+                              <td>{formatDate(row.purchaseDate)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className='muted-copy'>
+                    {t('catalog.productModel.purchasePriceReadOnlyHint')}
+                  </p>
+                  <p className='muted-copy'>
+                    {t('catalog.productModel.matchingStockRows', {
+                      count: matchingProducts.length,
+                    })}
+                  </p>
+                </section>
               ) : null}
             </div>
           ) : null}

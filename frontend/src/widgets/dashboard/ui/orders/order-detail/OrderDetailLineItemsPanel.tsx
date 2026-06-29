@@ -20,7 +20,9 @@ import type { Product, ProductModelUpdatePayload } from '../../../../../entities
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
@@ -132,6 +134,7 @@ export const OrderDetailLineItemsPanel = ({
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [warrantyPeriod, setWarrantyPeriod] = useState(
     kind === 'service' ? '1' : '0',
@@ -148,6 +151,13 @@ export const OrderDetailLineItemsPanel = ({
   const [selectedProductId, setSelectedProductId] = useState<
     string | undefined
   >();
+  const selectedStockProduct = useMemo(
+    () =>
+      selectedProductId
+        ? products.find((product) => product.id === selectedProductId) ?? null
+        : null,
+    [products, selectedProductId],
+  );
   const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<
     string | undefined
   >();
@@ -771,9 +781,10 @@ export const OrderDetailLineItemsPanel = ({
 
     setName(product.name);
     setPrice(String(suggestedPrice));
+    setPriceTier('retail');
     setQuantity('1');
     setWarrantyPeriod('0');
-    setSelectedProductId(undefined);
+    setSelectedProductId(product.id);
     setSelectedCatalogProductId(undefined);
     setProductSuggestions([]);
   };
@@ -992,6 +1003,7 @@ export const OrderDetailLineItemsPanel = ({
     });
     setName('');
     setPrice('');
+    setPriceTier(null);
     setQuantity('1');
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
@@ -1270,6 +1282,7 @@ export const OrderDetailLineItemsPanel = ({
               setSelectedServiceId(undefined);
               setSelectedProductId(undefined);
               setSelectedCatalogProductId(undefined);
+              setPriceTier(null);
             }}
             placeholder={
               isProductKind
@@ -1278,15 +1291,28 @@ export const OrderDetailLineItemsPanel = ({
             }
             disabled={isReadOnly}
           />
-          <NumberStepper
-            min={0}
-            step={0.01}
-            precision={2}
-            value={price}
-            onChange={setPrice}
-            placeholder={t('orders.detail.lineItems.price')}
-            disabled={isReadOnly}
-          />
+          {isProductKind ? (
+            <ProductSalePriceField
+              value={price}
+              onChange={setPrice}
+              product={selectedStockProduct}
+              priceTier={priceTier}
+              onPriceTierChange={setPriceTier}
+              placeholder={t('orders.detail.lineItems.price')}
+              disabled={isReadOnly}
+              ariaLabel={t('orders.detail.lineItems.price')}
+            />
+          ) : (
+            <NumberStepper
+              min={0}
+              step={0.01}
+              precision={2}
+              value={price}
+              onChange={setPrice}
+              placeholder={t('orders.detail.lineItems.price')}
+              disabled={isReadOnly}
+            />
+          )}
           <NumberStepper
             min={1}
             value={quantity}
@@ -1431,6 +1457,7 @@ export const OrderDetailLineItemsPanel = ({
         <ProductModelModal
           name={productModelContext.name}
           products={products}
+          sales={sales}
           warehouses={productModelWarehouses}
           printForms={printForms}
           printProduct={productModelContext.printProduct}

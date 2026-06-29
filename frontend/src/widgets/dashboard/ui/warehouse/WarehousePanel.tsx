@@ -1834,6 +1834,7 @@ export const WarehousePanel = ({
             <ProductModelModal
               name={selectedProductModelContext.name}
               products={products}
+              sales={sales}
               warehouses={warehouses}
               printForms={printForms}
               printProduct={selectedProductModelContext.printProduct}

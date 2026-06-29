@@ -49,7 +49,6 @@ export const applyProductModelUpdate = (
   const salePriceOptions = [...(nextProduct.salePriceOptions ?? [])];
   const retailPrice = parseOptionalPrice(payload.retailPrice);
   const wholesalePrice = parseOptionalPrice(payload.wholesalePrice);
-  const purchasePrice = parseOptionalPrice(payload.purchasePrice);
 
   if (payload.article !== undefined) {
     nextProduct.article = String(payload.article ?? '').trim().toUpperCase();
@@ -65,9 +64,6 @@ export const applyProductModelUpdate = (
   }
   if (retailPrice !== undefined || wholesalePrice !== undefined) {
     nextProduct.salePriceOptions = salePriceOptions;
-  }
-  if (purchasePrice !== undefined) {
-    nextProduct.price = purchasePrice;
   }
 
   return nextProduct;

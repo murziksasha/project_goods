@@ -1441,6 +1441,86 @@
   min-height: 32px;
 }
 
+.product-model-purchase-meta {
+  color: #6f8399;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.product-model-serial-purchases {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.product-model-serial-purchases-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.product-model-serial-purchases-header strong {
+  color: #24415f;
+  font-size: 0.92rem;
+}
+
+.product-model-serial-purchases-table-wrap {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #d7e1ec;
+  border-radius: 8px;
+}
+
+.product-model-serial-purchases-table {
+  margin: 0;
+}
+
+.product-model-serial-purchases-table th,
+.product-model-serial-purchases-table td {
+  padding: 8px 10px;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.product-model-serial-purchases-table th:first-child,
+.product-model-serial-purchases-table td:first-child {
+  min-width: 120px;
+  white-space: normal;
+}
+
+.product-model-serial-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-model-latest-batch-badge {
+  border-radius: 999px;
+  background: #e9f3ff;
+  color: #2d6ea8;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.product-model-serial-row-latest {
+  background: #f8fbff;
+}
+
+.product-model-serial-row-selected {
+  background: #eef6ff;
+}
+
+.product-model-serial-row-selected td {
+  font-weight: 700;
+}
+
 .product-model-title-button {
   display: block;
   max-width: 100%;
@@ -4291,6 +4371,45 @@
   display: grid;
   gap: 6px;
   align-content: start;
+}
+
+.product-sale-price-field {
+  display: grid;
+  gap: 6px;
+}
+
+.product-sale-price-tier-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.product-sale-price-tier-button {
+  border: 1px solid #c8d2df;
+  border-radius: 6px;
+  background: #f8fafd;
+  color: #4f647b;
+  padding: 4px 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.product-sale-price-tier-button:hover:not(:disabled) {
+  border-color: #2d8ae3;
+  color: #2d6ea8;
+}
+
+.product-sale-price-tier-button-active {
+  border-color: #2d8ae3;
+  background: #eef6ff;
+  color: #2d6ea8;
+}
+
+.product-sale-price-tier-button:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 
 .order-line-item-serial-cell {

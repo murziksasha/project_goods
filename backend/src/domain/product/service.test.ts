@@ -30,12 +30,20 @@ describe('product model updates', () => {
       note: 'new',
       retailPrice: '170',
       wholesalePrice: '160',
-      purchasePrice: '120',
     });
 
     expect(updated.article).toBe('A2');
     expect(updated.note).toBe('new');
-    expect(updated.price).toBe(120);
+    expect(updated.price).toBe(100);
     expect(updated.salePriceOptions).toEqual([170, 160, 130]);
+  });
+
+  it('ignores purchase price updates from the product model modal payload', () => {
+    const updated = applyProductModelUpdate(product, {
+      name: 'Mi Box S Gen 3',
+      purchasePrice: '999',
+    });
+
+    expect(updated.price).toBe(100);
   });
 });
