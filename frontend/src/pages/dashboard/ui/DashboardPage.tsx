@@ -1193,7 +1193,6 @@ export const DashboardPage = () => {
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
               sales={state.sales}
-              onOpenSaleCard={openSaleFromClientCard}
               onNavigateAccountingTab={handleNavigateAccountingTab}
               registerAccountingPopstateSync={registerAccountingPopstateSync}
               syncedAccountingTab={syncedAccountingTab}

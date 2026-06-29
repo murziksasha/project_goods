@@ -71,15 +71,16 @@ export const MarketWeatherWidget = ({
       (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)),
   });
 
+  const ratesData = ratesQuery.data;
   const quotesByCurrency = useMemo(() => {
-    const map = new Map<string, typeof ratesQuery.data>();
-    (ratesQuery.data ?? []).forEach((quote) => {
+    const map = new Map<string, typeof ratesData>();
+    (ratesData ?? []).forEach((quote) => {
       const current = map.get(quote.currency) ?? [];
       current.push(quote);
       map.set(quote.currency, current);
     });
     return map;
-  }, [ratesQuery.data]);
+  }, [ratesData]);
 
   const handleRefresh = async () => {
     await Promise.all([

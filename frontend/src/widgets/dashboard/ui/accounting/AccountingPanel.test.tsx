@@ -393,7 +393,6 @@ const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}
     onError: vi.fn(),
     onSuccess: vi.fn(),
     sales: [],
-    onOpenSaleCard: vi.fn(),
     ...props,
   };
   const ui = (
@@ -1266,7 +1265,6 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     canCancelTransferTransaction: () => false,
     onDateFilterOpenChange: vi.fn(),
     onFilterOpenChange: vi.fn(),
-    onOpenSaleCard: vi.fn(),
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
     onSelectedCashboxIdChange: vi.fn(),
@@ -1331,13 +1329,30 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
+  it('Ukrainian supplier-order payment note opens supplier modal instead of note editor', async () => {
+    const onSelect = vi.fn();
+    const onEdit = vi.fn();
+    const props = {
+      ...minimalProps('Оплата за замовлення SUP-77', [], [sampleSupplier]),
+      onSelectedSupplierOrderChange: onSelect,
+      onEditTransactionNote: onEdit,
+    };
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: 'Оплата за замовлення SUP-77' });
+    fireEvent.click(noteBtn);
+
+    expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
   it('Plain manual deposit/withdraw note does not open an order (renders as editable note button)', async () => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
     const props = {
       ...minimalProps('Manual cash deposit from client', [], []),
       onSelectedSupplierOrderChange: onSelect,
-      onOpenSaleCard: vi.fn(),
       onEditTransactionNote: onEdit,
     };
     const { container } = renderWithProviders(<RealAccountingTransactionsView {...props} />);

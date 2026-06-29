@@ -336,6 +336,7 @@ describe('accounting model helpers', () => {
     expect(parseTransactionOrderToken('Payment for order r000066')).toBe('r000066');
     expect(parseTransactionOrderToken('Refund for order ABC-123')).toBe('ABC-123');
     expect(parseTransactionOrderToken('Оплата замовлення SO-42')).toBe('SO-42');
+    expect(parseTransactionOrderToken('Оплата за замовлення SO-42')).toBe('SO-42');
     expect(parseTransactionOrderToken('payment for order x1')).toBe('x1'); // case insen
     expect(parseTransactionOrderToken('Some other note with order foo')).toBe(null);
     expect(parseTransactionOrderToken('Deposit manual')).toBe(null);

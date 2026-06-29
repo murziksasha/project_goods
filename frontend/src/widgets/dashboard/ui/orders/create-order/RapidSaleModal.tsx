@@ -71,7 +71,10 @@ export const RapidSaleModal = ({
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const serviceSearchInputRef = useRef<HTMLInputElement>(null);
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
-  const warehouses = warehouseSettingsQuery.data?.warehouses ?? [];
+  const warehouses = useMemo(
+    () => warehouseSettingsQuery.data?.warehouses ?? [],
+    [warehouseSettingsQuery.data?.warehouses],
+  );
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
 
   useEffect(() => {
