@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { initialEmployeeForm } from '../../../../entities/employee/model/forms';
 import type { EmployeeFormValues } from '../../../../entities/employee/model/types';
+import i18n from '../../../../shared/i18n/config';
 import { EmployeeManagementPanel } from './EmployeeManagementPanel';
-import { useState } from 'react';
 
 afterEach(() => {
   cleanup();
@@ -17,23 +19,25 @@ const PanelHarness = ({
   const [form, setForm] = useState<EmployeeFormValues>(initialForm);
 
   return (
-    <EmployeeManagementPanel
-      employees={[]}
-      form={form}
-      isLoading={false}
-      isSaving={false}
-      isEditing={false}
-      canManageEmployees={true}
-      canManageOwnerAccounts={true}
-      currentEmployeeId="owner-id"
-      onChange={(field, value) =>
-        setForm((currentForm) => ({ ...currentForm, [field]: value }))
-      }
-      onSubmit={vi.fn()}
-      onCancelEdit={vi.fn()}
-      onEdit={vi.fn()}
-      onDelete={vi.fn()}
-    />
+    <I18nextProvider i18n={i18n}>
+      <EmployeeManagementPanel
+        employees={[]}
+        form={form}
+        isLoading={false}
+        isSaving={false}
+        isEditing={false}
+        canManageEmployees={true}
+        canManageOwnerAccounts={true}
+        currentEmployeeId="owner-id"
+        onChange={(field, value) =>
+          setForm((currentForm) => ({ ...currentForm, [field]: value }))
+        }
+        onSubmit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    </I18nextProvider>
   );
 };
 

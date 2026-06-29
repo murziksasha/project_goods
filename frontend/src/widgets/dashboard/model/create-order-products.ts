@@ -6,6 +6,10 @@ import {
   getSaleSerialUsage,
   normalizeSerialNumber,
 } from './order-line-serials';
+import {
+  buildProductWarehouseMetaById,
+  type StockWarehouseItem,
+} from './stock-balance';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import i18n from '../../../shared/i18n/config';
 
@@ -22,6 +26,10 @@ export type CreateOrderProductSuggestion = {
   warrantyPeriod: number;
   availabilityLabel: string;
   selectable: boolean;
+};
+
+export type OrderDetailProductSuggestion = CreateOrderProductSuggestion & {
+  warehouseName?: string;
 };
 
 export type NormalizedCreateOrderSaleItem = {
@@ -157,6 +165,120 @@ export const buildCreateOrderProductSuggestions = ({
     }));
 
   return [...stockMatches, ...catalogMatches].slice(0, limit);
+};
+
+const getOrderDetailStockProductRank = (product: Product, query: string) => {
+  const serial = normalizeCreateOrderProductLookup(product.serialNumber);
+  const article = normalizeCreateOrderProductLookup(product.article);
+
+  if (serial && serial === query) return 0;
+  if (article && article === query) return 1;
+  if (serial && serial.includes(query)) return 2;
+  if (article && article.includes(query)) return 3;
+  return 4;
+};
+
+const stockProductMatchesSerialOrArticle = (
+  product: Product,
+  normalizedQuery: string,
+) => {
+  const serial = normalizeCreateOrderProductLookup(product.serialNumber);
+  const article = normalizeCreateOrderProductLookup(product.article);
+
+  return (
+    (serial && serial.includes(normalizedQuery)) ||
+    (article && article.includes(normalizedQuery))
+  );
+};
+
+const isOrderDetailStockLookupQuery = (
+  products: Product[],
+  normalizedQuery: string,
+) =>
+  products.some((product) =>
+    stockProductMatchesSerialOrArticle(product, normalizedQuery),
+  );
+
+export const buildOrderDetailProductSuggestions = ({
+  products,
+  catalogProducts,
+  sales,
+  query,
+  warehouses,
+  limit = 8,
+  currentSaleId = '',
+}: {
+  products: Product[];
+  catalogProducts: CatalogProduct[];
+  sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
+  query: string;
+  warehouses: StockWarehouseItem[];
+  limit?: number;
+  currentSaleId?: string;
+}): OrderDetailProductSuggestion[] => {
+  const normalizedQuery = normalizeCreateOrderProductLookup(query);
+  if (normalizedQuery.length < 2) return [];
+
+  if (isOrderDetailStockLookupQuery(products, normalizedQuery)) {
+    const serialUsage = getSaleSerialUsage(sales, currentSaleId);
+    const warehouseMetaByProductId = buildProductWarehouseMetaById(
+      products,
+      warehouses,
+    );
+
+    return products
+      .filter((product) =>
+        stockProductMatchesSerialOrArticle(product, normalizedQuery),
+      )
+      .map((product) => {
+        const availability = getProductSerialAvailability(product, serialUsage);
+        return {
+          id: `stock-${product.id}`,
+          source: 'stock' as const,
+          name: product.name,
+          note: product.note || i18n.t('orders.create.warehouseStock'),
+          productId: product.id,
+          catalogProductId: '',
+          article: product.article,
+          serialNumber: normalizeSerialNumber(product.serialNumber),
+          price: getDefaultProductSalePrice(product),
+          warrantyPeriod: product.warrantyPeriod,
+          availabilityLabel: i18n.t(availability.labelKey),
+          selectable: availability.selectable,
+          warehouseName:
+            warehouseMetaByProductId[product.id]?.warehouseName ?? '-',
+          rank: getOrderDetailStockProductRank(product, normalizedQuery),
+        };
+      })
+      .filter((product) => product.selectable)
+      .sort((first, second) => {
+        if (first.rank !== second.rank) return first.rank - second.rank;
+        return first.name.localeCompare(second.name);
+      })
+      .slice(0, limit)
+      .map(({ rank: _rank, ...suggestion }) => suggestion);
+  }
+
+  return catalogProducts
+    .filter((product) => product.isActive !== false)
+    .filter((product) =>
+      normalizeCreateOrderProductLookup(product.name).includes(normalizedQuery),
+    )
+    .slice(0, limit)
+    .map((product) => ({
+      id: `catalog-${product.id}`,
+      source: 'catalog' as const,
+      name: product.name,
+      note: product.note || i18n.t('orders.create.catalogProduct'),
+      productId: '',
+      catalogProductId: product.id,
+      article: '',
+      serialNumber: '',
+      price: 0,
+      warrantyPeriod: 0,
+      availabilityLabel: i18n.t('orders.create.catalogSource'),
+      selectable: true,
+    }));
 };
 
 export const buildCreateOrderSaleLineItems = (

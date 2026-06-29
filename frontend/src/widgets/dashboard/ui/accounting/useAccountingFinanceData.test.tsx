@@ -1,7 +1,9 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as http from '../../../../shared/api/http';
+
 import type {
   Cashbox,
   FinanceCurrencyConfig,
@@ -11,7 +13,11 @@ import type {
 } from '../../../../entities/finance/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import { accountingCashboxOrderStorageKey } from '../../model/accounting';
-import { useAccountingFinanceData } from './useAccountingFinanceData';
+import * as financeApi from '../../../../entities/finance/api/financeApi';
+import * as supplierOrderApi from '../../../../entities/supplier-order/api/supplierOrderApi';
+import type { useAccountingFinanceData as UseAccountingFinanceDataHook } from './useAccountingFinanceData';
+
+let useAccountingFinanceData: typeof UseAccountingFinanceDataHook;
 
 const {
   getCashboxesMock,
@@ -20,6 +26,7 @@ const {
   getFinanceTransactionsMock,
   getSupplierOrdersForPaymentMock,
   getSupplierOrdersMock,
+  httpGetMock,
 } = vi.hoisted(() => ({
   getCashboxesMock: vi.fn(),
   getFinanceCurrenciesMock: vi.fn(),
@@ -27,65 +34,60 @@ const {
   getFinanceTransactionsMock: vi.fn(),
   getSupplierOrdersForPaymentMock: vi.fn(),
   getSupplierOrdersMock: vi.fn(),
+  httpGetMock: vi.fn(),
 }));
 
-vi.mock('../../../../entities/finance/api/financeApi', () => {
+vi.mock('../../../../shared/api/http', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../shared/api/http')>();
   return {
-    getCashboxes: getCashboxesMock,
-    getFinanceCurrencies: getFinanceCurrenciesMock,
-    getFinanceReport: getFinanceReportMock,
-    getFinanceTransactions: getFinanceTransactionsMock,
-    getSupplierOrdersForPayment: getSupplierOrdersForPaymentMock,
-    useCashboxesQuery: (options: { includeArchived?: boolean } = {}) =>
-      useQuery({
-        queryFn: () => getCashboxesMock({ includeArchived: options.includeArchived }),
-        queryKey: options.includeArchived
-          ? ['financeCashboxes', 'all']
-          : ['financeCashboxes'],
-        retry: false,
-      }),
-    useFinanceCurrenciesQuery: (
-      options: { includeArchived?: boolean } = {},
-    ) =>
-      useQuery({
-        queryFn: () =>
-          getFinanceCurrenciesMock({ includeArchived: options.includeArchived }),
-        queryKey: options.includeArchived
-          ? ['financeCurrencies', 'all']
-          : ['financeCurrencies'],
-        retry: false,
-      }),
-    useFinanceReportQuery: () =>
-      useQuery({
-        queryFn: getFinanceReportMock,
-        queryKey: ['financeReport'],
-        retry: false,
-      }),
-    useFinanceTransactionsQuery: () =>
-      useQuery({
-        queryFn: getFinanceTransactionsMock,
-        queryKey: ['financeTransactions'],
-        retry: false,
-      }),
-    useSupplierOrdersForPaymentQuery: () =>
-      useQuery({
-        queryFn: getSupplierOrdersForPaymentMock,
-        queryKey: ['financeSupplierOrdersQueue'],
-        retry: false,
-      }),
+    ...actual,
+    apiClient: {
+      ...actual.apiClient,
+      get: httpGetMock,
+    },
   };
 });
 
-vi.mock('../../../../entities/supplier-order/api/supplierOrderApi', () => {
-  return {
-    getSupplierOrders: getSupplierOrdersMock,
-    useSupplierOrdersQuery: () =>
-      useQuery({
-        queryFn: getSupplierOrdersMock,
-        queryKey: ['supplierOrders'],
-        retry: false,
-      }),
-  };
+const restoreHttpMock = () => {
+  httpGetMock.mockImplementation(
+    async (url: string, config?: { params?: Record<string, string> }) => {
+      if (url === '/finance/cashboxes') {
+        const includeArchived = config?.params?.includeArchived === '1';
+        return { data: await getCashboxesMock({ includeArchived }) };
+      }
+      if (url === '/finance/currencies') {
+        const includeArchived = config?.params?.includeArchived === '1';
+        return { data: await getFinanceCurrenciesMock({ includeArchived }) };
+      }
+      if (url === '/finance/report') {
+        return { data: await getFinanceReportMock() };
+      }
+      if (url === '/finance/transactions') {
+        return { data: await getFinanceTransactionsMock() };
+      }
+      if (url === '/finance/supplier-orders') {
+        return { data: await getSupplierOrdersForPaymentMock() };
+      }
+      if (url === '/supplier-orders') {
+        return { data: await getSupplierOrdersMock() };
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    },
+  );
+};
+
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  getCashboxesMock.mockReset();
+  getFinanceCurrenciesMock.mockReset();
+  getFinanceReportMock.mockReset();
+  getFinanceTransactionsMock.mockReset();
+  getSupplierOrdersForPaymentMock.mockReset();
+  getSupplierOrdersMock.mockReset();
+  httpGetMock.mockReset();
+  restoreHttpMock();
+  vi.spyOn(http.apiClient, 'get').mockImplementation(httpGetMock);
+  ({ useAccountingFinanceData } = await import('./useAccountingFinanceData'));
 });
 
 const cashbox = (patch: Partial<Cashbox> = {}): Cashbox => ({
@@ -190,6 +192,49 @@ const mockSuccessfulApi = () => {
 };
 
 const noop = () => undefined;
+
+const createQueryResult = <T,>(data: T, error: unknown = null) =>
+  ({
+    data: error ? undefined : data,
+    error,
+    isError: Boolean(error),
+    isLoading: false,
+    isPending: false,
+    isFetching: false,
+    status: error ? 'error' : 'success',
+    refetch: vi.fn().mockResolvedValue({}),
+  }) as const;
+
+const mockSuccessfulFinanceQueryHooks = () => {
+  vi.spyOn(financeApi, 'useCashboxesQuery').mockImplementation((options) =>
+    createQueryResult(
+      options?.includeArchived
+        ? [
+            cashbox({ id: 'cashbox-1', name: 'Main' }),
+            cashbox({ id: 'cashbox-2', name: 'Reserve', isArchived: true }),
+          ]
+        : [
+            cashbox({ id: 'cashbox-1', name: 'Main' }),
+            cashbox({ id: 'cashbox-2', name: 'Reserve' }),
+          ],
+    ) as unknown as ReturnType<typeof financeApi.useCashboxesQuery>,
+  );
+  vi.spyOn(financeApi, 'useFinanceTransactionsQuery').mockReturnValue(
+    createQueryResult([transaction()]) as unknown as ReturnType<typeof financeApi.useFinanceTransactionsQuery>,
+  );
+  vi.spyOn(financeApi, 'useFinanceCurrenciesQuery').mockReturnValue(
+    createQueryResult([currency()]) as unknown as ReturnType<typeof financeApi.useFinanceCurrenciesQuery>,
+  );
+  vi.spyOn(financeApi, 'useFinanceReportQuery').mockReturnValue(
+    createQueryResult(report()) as unknown as ReturnType<typeof financeApi.useFinanceReportQuery>,
+  );
+  vi.spyOn(financeApi, 'useSupplierOrdersForPaymentQuery').mockReturnValue(
+    createQueryResult([queueItem()]) as unknown as ReturnType<typeof financeApi.useSupplierOrdersForPaymentQuery>,
+  );
+  vi.spyOn(supplierOrderApi, 'useSupplierOrdersQuery').mockReturnValue(
+    createQueryResult([supplierOrder()]) as unknown as ReturnType<typeof supplierOrderApi.useSupplierOrdersQuery>,
+  );
+};
 
 const renderWithQueryClient = (ui: ReactElement) => {
   const queryClient = new QueryClient({
@@ -304,7 +349,17 @@ describe('useAccountingFinanceData', () => {
 
   it('uses the generic error message for non-error failures', async () => {
     const onError = vi.fn();
-    getCashboxesMock.mockRejectedValue('boom');
+    mockSuccessfulFinanceQueryHooks();
+    vi.spyOn(financeApi, 'useCashboxesQuery').mockImplementation((options) => {
+      if (options?.includeArchived) {
+        return createQueryResult([
+          cashbox({ id: 'cashbox-1', name: 'Main' }),
+          cashbox({ id: 'cashbox-2', name: 'Reserve', isArchived: true }),
+        ]) as unknown as ReturnType<typeof financeApi.useCashboxesQuery>;
+      }
+      return createQueryResult([], 'boom') as unknown as ReturnType<typeof financeApi.useCashboxesQuery>;
+    });
+    ({ useAccountingFinanceData } = await import('./useAccountingFinanceData'));
 
     renderWithQueryClient(<Harness onError={onError} />);
 

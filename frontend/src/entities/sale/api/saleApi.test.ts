@@ -1,29 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as http from '../../../shared/api/http';
 import type { Sale, SaleFormValues, SaleWorkspacePayload } from '../model/types';
-import { createSale, updateSaleWorkspace } from './saleApi';
 
 const { postMock, patchMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
   patchMock: vi.fn(),
 }));
 
-vi.mock('../../../shared/api/http', () => ({
-  ApiRequestError: class ApiRequestError extends Error {
-    status = null;
-    hasResponse = false;
+vi.mock('../../../shared/api/http', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../shared/api/http')>();
+  return { ...actual };
+});
 
-    constructor(message: string) {
-      super(message);
-      this.name = 'ApiRequestError';
-    }
-  },
-  apiClient: {
-    post: postMock,
-    patch: patchMock,
-  },
-  getApiErrorMessage: (error: unknown) =>
-    error instanceof Error ? error.message : 'Unexpected request error.',
-}));
+const restoreHttpMocks = () => {
+  vi.spyOn(http.apiClient, 'post').mockImplementation(postMock);
+  vi.spyOn(http.apiClient, 'patch').mockImplementation(patchMock);
+};
+
+let createSale: typeof import('./saleApi').createSale;
+let updateSaleWorkspace: typeof import('./saleApi').updateSaleWorkspace;
+
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  postMock.mockReset();
+  patchMock.mockReset();
+  restoreHttpMocks();
+  ({ createSale, updateSaleWorkspace } = await import('./saleApi'));
+});
 
 const sale: Sale = {
   id: 'sale-1',
@@ -64,10 +67,6 @@ const createPayload: SaleFormValues = {
 const workspacePayload: SaleWorkspacePayload = {
   status: 'issued',
 };
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 describe('saleApi response validation', () => {
   it('accepts a create sale response with sale and product', async () => {

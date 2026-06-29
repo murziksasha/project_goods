@@ -1,0 +1,561 @@
+
+> frontend@0.0.0 test
+> vitest run --run src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx -t drives cashbox --reporter=verbose
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mc:/Users/murzi/Desktop/project/project_goods/frontend[39m
+
+[90mstdout[2m | src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx
+[22m[39mi18next: languageChanged en
+
+[90mstdout[2m | src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mrenders loading state
+ [31m×[39m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mdrives cashbox operations from the cashboxes view[33m 2255[2mms[22m[39m
+[31m   → expected "vi.fn()" to be called with arguments: [ { name: 'Desk' } ][90m
+
+Number of calls: [1m0[22m
+[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<section[31m
+        [33mclass[31m=[32m"orders-page finance-page"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"finance-tabs-row"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33maria-label[31m=[32m"Accounting sections"[31m
+            [33mclass[31m=[32m"orders-tabs"[31m
+            [33mrole[31m=[32m"tablist"[31m
+          [36m>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"orders-tab orders-tab-active"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0mCashboxes[0m
+            [36m</button>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"orders-tab"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0mTransactions[0m
+            [36m</button>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"orders-tab"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0mOrders[0m
+            [36m</button>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"orders-tab"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0mInformation[0m
+            [36m</button>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"toolbar-settings"[31m
+          [36m>[31m
+            [36m<button[31m
+              [33maria-expanded[31m=[32m"false"[31m
+              [33maria-label[31m=[32m"Accounting settings"[31m
+              [33mclass[31m=[32m"toolbar-square-button"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [36m<svg[31m
+                [33mclass[31m=[32m"toolbar-square-button-icon"[31m
+                [33mfill[31m=[32m"currentColor"[31m
+                [33mviewBox[31m=[32m"0 0 24 24"[31m
+                [33mxmlns[31m=[32m"http://www.w3.org/2000/svg"[31m
+              [36m>[31m
+                [36m<path[31m
+                  [33md[31m=[32m"M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"[31m
+                [36m/>[31m
+              [36m</svg>[31m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"finance-toolbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"finance-total-strip"[31m
+          [36m>[31m
+            [36m<strong>[31m
+              [0m100.00 UAH[0m
+            [36m</strong>[31m
+            [36m<span>[31m
+              [0m10.00 USD[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"finance-add-cashbox"[31m
+          [36m>[31m
+            [36m<input[31m
+              [33mplaceholder[31m=[32m"New cashbox"[31m
+              [33mvalue[31m=[32m"Desk"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"orders-create-button"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0mAdd cashbox[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"finance-cashbox-grid"[31m
+        [36m>[31m
+          [36m<article[31m
+            [33mclass[31m=[32m"finance-cashbox-card"[31m
+            [33mdraggable[31m=[32m"true"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-heading"[31m
+            [36m>[31m
+              [36m<h3>[31m
+                [0mMain[0m
+              [36m</h3>[31m
+              [36m<span>[31m
+                [0mDefault[0m
+              [36m</span>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-balances"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"finance-cashbox-balance-row"[31m
+              [36m>[31m
+                [36m<strong[31m
+                  [33mclass[31m=[32m"finance-cashbox-balance-value finance-cashbox-balance-value-uah"[31m
+                [36m>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"finance-cashbox-balance-amount"[31m
+                  [36m>[31m
+                    [0m100.00[0m
+                  [36m</span>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"finance-cashbox-balance-currency-code"[31m
+                  [36m>[31m
+                    [0mUAH[0m
+                  [36m</span>[31m
+                [36m</strong>[31m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"finance-cashbox-balance-row"[31m
+              [36m>[31m
+                [36m<strong[31m
+                  [33mclass[31m=[32m"finance-cashbox-balance-value"[31m
+                [36m>[31m
+                  [0m10.00 USD[0m
+                [36m</strong>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-actions"[31m
+            [36m>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mWithdraw[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mDeposit[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mTransfer[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mTransactions[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</article>[31m
+          [36m<article[31m
+            [33mclass[31m=[32m"finance-cashbox-card"[31m
+            [33mdraggable[31m=[32m"true"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-heading"[31m
+            [36m>[31m
+              [36m<h3>[31m
+                [0mReserve[0m
+              [36m</h3>[31m
+              [36m<span>[31m
+                [0mDefault[0m
+              [36m</span>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-balances"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"finance-cashbox-balance-row"[31m
+              [36m>[31m
+                [36m<strong[31m
+                  [33mclass[31m=[32m"finance-cashbox-balance-value finance-cashbox-balance-value-uah"[31m
+                [36m>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"finance-cashbox-balance-amount"[31m
+                  [36m>[31m
+                    [0m0.00[0m
+                  [36m</span>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"finance-cashbox-balance-currency-code"[31m
+                  [36m>[31m
+                    [0mUAH[0m
+                  [36m</span>[31m
+                [36m</strong>[31m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"finance-cashbox-balance-row"[31m
+              [36m>[31m
+                [36m<strong[31m
+                  [33mclass[31m=[32m"finance-cashbox-balance-value"[31m
+                [36m>[31m
+                  [0m0.00 USD[0m
+                [36m</strong>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"finance-cashbox-actions"[31m
+            [36m>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mWithdraw[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mDeposit[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mTransfer[0m
+              [36m</button>[31m
+              [36m<button[31m
+                [33mtype[31m=[32m"button"[31m
+              [36m>[31m
+                [0mTransactions[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</article>[31m
+        [36m</div>[31m
+        [36m<section[31m
+          [33mclass[31m=[32m"finance-operation-panel"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"panel-header"[31m
+          [36m>[31m
+            [36m<div>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"section-label"[31m
+              [36m>[31m
+                [0mOperation[0m
+              [36m</p>[31m
+              [36m<h2>[31m
+                [0mDeposit[0m
+              [36m</h2>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"finance-operation-grid"[31m
+          [36m>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mType[0m
+              [36m</span>[31m
+              [36m<select>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"deposit"[31m
+                [36m>[31m
+                  [0mDeposit[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"withdraw"[31m
+                [36m>[31m
+                  [0mWithdraw[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"transfer"[31m
+                [36m>[31m
+                  [0mTransfer[0m
+                [36m</option>[31m
+              [36m</select>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mAmount[0m
+              [36m</span>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"number-stepper"[31m
+              [36m>[31m
+                [36m<input[31m
+                  [33minputmode[31m=[32m"decimal"[31m
+                  [33mtype[31m=[32m"text"[31m
+                  [33mvalue[31m=[32m""[31m
+                [36m/>[31m
+                [36m<div[31m
+                  [33maria-hidden[31m=[32m"true"[31m
+                  [33mclass[31m=[32m"number-stepper-controls"[31m
+                [36m>[31m
+                  [36m<button[31m
+                    [33mtabindex[31m=[32m"-1"[31m
+                    [33mtype[31m=[32m"button"[31m
+                  [36m>[31m
+                    [0m+[0m
+                  [36m</button>[31m
+                  [36m<button[31m
+                    [33mdisabled[31m=[32m""[31m
+                    [33mtabindex[31m=[32m"-1"[31m
+                    [33mtype[31m=[32m"button"[31m
+                  [36m>[31m
+                    [0m-[0m
+                  [36m</button>[31m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mCurrency[0m
+              [36m</span>[31m
+              [36m<select[31m
+                [33mdisabled[31m=[32m""[31m
+              [36m>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m""[31m
+                [36m>[31m
+                  [0mNo available currencies[0m
+                [36m</option>[31m
+              [36m</select>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mFrom cashbox[0m
+              [36m</span>[31m
+              [36m<select[31m
+                [33mdisabled[31m=[32m""[31m
+              [36m>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m""[31m
+                [36m>[31m
+                  [0m-[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"cashbox-1"[31m
+                [36m>[31m
+                  [0mMain[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"cashbox-2"[31m
+                [36m>[31m
+                  [0mReserve[0m
+                [36m</option>[31m
+              [36m</select>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mTo cashbox[0m
+              [36m</span>[31m
+              [36m<select>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m""[31m
+                [36m>[31m
+                  [0m-[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"cashbox-1"[31m
+                [36m>[31m
+                  [0mMain[0m
+                [36m</option>[31m
+                [36m<option[31m
+                  [33mvalue[31m=[32m"cashbox-2"[31m
+                [36m>[31m
+                  [0mReserve[0m
+                [36m</option>[31m
+              [36m</select>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"field"[31m
+            [36m>[31m
+              [36m<span>[31m
+                [0mComment[0m
+              [36m</span>[31m
+              [36m<input[31m
+                [33mvalue[31m=[32m""[31m
+              [36m/>[31m
+            [36m</label>[31m
+          [36m</div>[31m
+          [36m<button[31m
+            [33mclass[31m=[32m"primary-button"[31m
+            [33mdisabled[31m=[32m""[31m
+            [33mtype[31m=[32m"button"[31m
+          [36m>[31m
+            [0mSave operation[0m
+          [36m</button>[31m
+        [36m</section>[31m
+      [36m</section>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mresolves remembered and fallback cashbox targets
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mreports cashbox and transaction validation failures
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mcreates transfer without crashing even if crypto.randomUUID is unavailable
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mhandles settings actions and validation failures
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mhandles settings permission denials and API failures
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mhandles transactions tab modals and cancellation
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mhandles supplier order payments and issue without payment
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel[2m > [22mrenders reports tab
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingTransactionsView note navigation (real component)[2m > [22mPayment for order r000066 opens a new browser tab for sale/repair order
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingTransactionsView note navigation (real component)[2m > [22mRefund for order follows same resolution rules and opens tab
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingTransactionsView note navigation (real component)[2m > [22mSupplier-order note still opens read-only supplier modal via onSelectedSupplierOrderChange
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingTransactionsView note navigation (real component)[2m > [22mPlain manual deposit/withdraw note does not open an order (renders as editable note button)
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingTransactionsView note navigation (real component)[2m > [22mshows Cancel transfer only when canCancelTransferTransaction returns true
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel transaction note editing[2m > [22mclicking manual withdraw/deposit note opens note modal
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel transaction note editing[2m > [22mediting and saving calls PATCH API via updateFinanceTransaction and closes modal
+ [2m[90m↓[39m[22m src/widgets/dashboard/ui/accounting/AccountingPanel.test.tsx[2m > [22mAccountingPanel transaction note editing[2m > [22mcancelling note edit does not call API
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m17 skipped[39m[90m (18)[39m
+[2m   Start at [22m 22:22:08
+[2m   Duration [22m 6.22s[2m (transform 946ms, setup 546ms, import 1.14s, tests 2.26s, environment 1.79s)[22m
+
