@@ -56,6 +56,7 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Stock suggestion with a bound `serialNumber`: click immediately adds one atomic row (`quantity = 1`, `productId`, `serialNumbers[]`).
      - Stock suggestion without `serialNumber`: click pre-fills name/price only; operator confirms with `Add product`; serial binding uses the existing `Serials` modal flow.
      - Catalog suggestion: click pre-fills name/price and stores `catalogProductId`; operator confirms with `Add product`; serial binding uses the `Serials` modal flow.
+     - Catalog suggestion with matching selectable warehouse stock by `name`: resolves to stock pre-fill (`selectedProductId`, retail price, `priceTier: retail`) or immediate atomic add when the matched stock row has a serial; otherwise keeps catalog-only pre-fill.
    - **Create order -> Sales order**:
      - Stock suggestion with `serialNumber`: pre-fills the active product row with `productId` and bound serial (`quantity = 1`).
      - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`).
