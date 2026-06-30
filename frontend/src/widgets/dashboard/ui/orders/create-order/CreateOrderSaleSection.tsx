@@ -196,7 +196,15 @@ export const CreateOrderSaleSection = ({
                     {product.serialNumber || '-'} / {product.availabilityLabel}
                   </>
                 ) : (
-                  product.note
+                  <>
+                    {product.price > 0 ? (
+                      <>
+                        {formatCurrency(product.price)}
+                        {' / '}
+                      </>
+                    ) : null}
+                    {product.note}
+                  </>
                 )}
               </span>
             </button>

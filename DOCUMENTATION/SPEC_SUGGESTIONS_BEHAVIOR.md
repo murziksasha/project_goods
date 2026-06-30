@@ -60,6 +60,7 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Stock suggestion with `serialNumber`: pre-fills the active product row with `productId` and bound serial (`quantity = 1`).
      - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`).
      - Catalog suggestion: pre-fills the active row with `catalogProductId`.
+     - Catalog suggestion with matching selectable warehouse stock by `name`: resolves to stock binding (`productId`, retail price via `getRetailSalePrice`, R/W toggle when wholesale is configured) instead of catalog-only row.
 
 ## Modal Layout Rule
 In modal forms with lookup fields (supplier/client/product/service/device):

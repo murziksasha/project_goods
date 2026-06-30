@@ -229,6 +229,15 @@ When a stock product is linked in a sale product entry row and `salePriceOptions
 
 When selecting a warehouse stock suggestion **without** a bound serial in `Create order -> Sales order`, the active row must bind `productId` and pre-fill price via `formatRetailSalePrice` / `getRetailSalePrice`. Previously `productId` was cleared and price stayed empty when `suggestion.price` was `0`.
 
+### Catalog name lookup with stock resolve (2026-06-30)
+
+`Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
+
+- **Match found:** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
+- **No match:** keep catalog-only row (`catalogProductId`, price `0`).
+
+Suggestion rows may show the resolved retail price before click when matching stock exists.
+
 ### Implementation References
 
 - price helpers: `frontend/src/entities/product/lib/sale-prices.ts`

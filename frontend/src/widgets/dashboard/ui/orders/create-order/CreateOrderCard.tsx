@@ -23,11 +23,15 @@ import {
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import type { Product } from '../../../../../entities/product/model/types';
-import { formatRetailSalePrice } from '../../../../../entities/product/lib/sale-prices';
+import {
+  formatRetailSalePrice,
+  getRetailSalePrice,
+} from '../../../../../entities/product/lib/sale-prices';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
   buildOrderDetailProductSuggestions,
+  findSelectableStockProductByName,
   type OrderDetailProductSuggestion,
 } from '../../../model/create-order-products';
 import {
@@ -333,13 +337,40 @@ export const CreateOrderCard = ({
   const focusedSaleItem =
     saleItems.find((item) => item.id === focusedSaleItemId) ?? saleItems[0] ?? null;
   const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
-  const visibleSaleProductSuggestions =
-    activeTab === 'sale' &&
-    saleProductLookupQuery.length >= 2 &&
-    !focusedSaleItem?.catalogProductId &&
-    !focusedSaleItem?.productId
-      ? saleProductSuggestions
-      : [];
+  const visibleSaleProductSuggestions = useMemo(() => {
+    if (
+      activeTab !== 'sale' ||
+      saleProductLookupQuery.length < 2 ||
+      focusedSaleItem?.catalogProductId ||
+      focusedSaleItem?.productId
+    ) {
+      return [];
+    }
+
+    return saleProductSuggestions.map((suggestion) => {
+      if (suggestion.source !== 'catalog') return suggestion;
+
+      const matchingStock = findSelectableStockProductByName({
+        products,
+        catalogName: suggestion.name,
+        sales,
+      });
+      if (!matchingStock) return suggestion;
+
+      return {
+        ...suggestion,
+        price: getRetailSalePrice(matchingStock),
+      };
+    });
+  }, [
+    activeTab,
+    focusedSaleItem?.catalogProductId,
+    focusedSaleItem?.productId,
+    products,
+    saleProductLookupQuery.length,
+    saleProductSuggestions,
+    sales,
+  ]);
   const saleItemsTotal = saleItems.reduce((total, item) => {
     const price = parseDecimalInput(item.price);
     const quantity = Number.parseInt(item.quantity || '0', 10);
@@ -712,6 +743,31 @@ export const CreateOrderCard = ({
           : '0';
 
     if (suggestion.source === 'catalog') {
+      const matchingStock = findSelectableStockProductByName({
+        products,
+        catalogName: suggestion.name,
+        sales,
+      });
+
+      if (matchingStock) {
+        const resolvedSerial = normalizeSerialNumber(matchingStock.serialNumber);
+        const resolvedUnitPrice = formatRetailSalePrice(matchingStock);
+        updateSaleItem(itemId, {
+          query: suggestion.name,
+          source: 'stock',
+          productId: matchingStock.id,
+          catalogProductId: '',
+          article: matchingStock.article,
+          serialNumber: resolvedSerial,
+          price: resolvedUnitPrice,
+          unitPrice: resolvedUnitPrice,
+          quantity: '1',
+          warrantyPeriod: String(matchingStock.warrantyPeriod ?? 0),
+        });
+        setSaleProductSuggestions([]);
+        return;
+      }
+
       updateSaleItem(itemId, {
         query: suggestion.name,
         source: 'catalog',

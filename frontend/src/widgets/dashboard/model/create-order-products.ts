@@ -56,6 +56,38 @@ export const normalizeCreateOrderProductLookup = (value: string) =>
 
 const getDefaultProductSalePrice = (product: Product) => getRetailSalePrice(product);
 
+export const findSelectableStockProductByName = ({
+  products,
+  catalogName,
+  sales = [],
+  currentSaleId = '',
+}: {
+  products: Product[];
+  catalogName: string;
+  sales?: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
+  currentSaleId?: string;
+}): Product | null => {
+  const normalizedCatalogName = normalizeCreateOrderProductLookup(catalogName);
+  if (!normalizedCatalogName) return null;
+
+  const serialUsage = getSaleSerialUsage(sales, currentSaleId);
+  const selectableMatches = products.filter((product) => {
+    if (
+      normalizeCreateOrderProductLookup(product.name) !== normalizedCatalogName
+    ) {
+      return false;
+    }
+    return getProductSerialAvailability(product, serialUsage).selectable;
+  });
+
+  if (selectableMatches.length === 0) return null;
+
+  const bulkMatch = selectableMatches.find(
+    (product) => !normalizeSerialNumber(product.serialNumber),
+  );
+  return bulkMatch ?? selectableMatches[0];
+};
+
 const getStockProductRank = (product: Product, query: string) => {
   const serial = normalizeCreateOrderProductLookup(product.serialNumber);
   const article = normalizeCreateOrderProductLookup(product.article);
