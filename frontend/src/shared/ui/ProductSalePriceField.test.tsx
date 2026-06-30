@@ -57,6 +57,49 @@ describe('ProductSalePriceField', () => {
     expect(screen.queryByRole('button', { name: 'Wholesale' })).not.toBeInTheDocument();
   });
 
+  it('renders tier badges in the field label row when tierTogglePlacement is label', () => {
+    const { container } = render(
+      <ProductSalePriceField
+        label="Price"
+        fieldClassName="field rapid-sale-price-field"
+        tierTogglePlacement="label"
+        value="1000"
+        onChange={vi.fn()}
+        product={product}
+        priceTier="retail"
+        onPriceTierChange={vi.fn()}
+      />,
+    );
+
+    const labelRow = container.querySelector('.product-sale-price-field-label');
+    expect(labelRow).toBeTruthy();
+    expect(labelRow?.querySelector('.product-sale-price-tier-toggle')).toBeTruthy();
+    expect(container.querySelector('.product-sale-price-field .product-sale-price-tier-toggle')).toBeNull();
+  });
+
+  it('renders tier badges above the stepper when tierTogglePlacement is compact', () => {
+    const { container } = render(
+      <ProductSalePriceField
+        tierTogglePlacement="compact"
+        value="1000"
+        onChange={vi.fn()}
+        product={product}
+        priceTier="retail"
+        onPriceTierChange={vi.fn()}
+        stepperClassName="line-item-inline-input"
+      />,
+    );
+
+    expect(container.querySelector('.product-sale-price-field-compact')).toBeTruthy();
+    const compactLabel = container.querySelector(
+      '.product-sale-price-field-label-compact',
+    );
+    expect(compactLabel?.querySelector('.product-sale-price-tier-toggle')).toBeTruthy();
+    expect(
+      container.querySelector('.product-sale-price-field .product-sale-price-tier-toggle'),
+    ).toBeNull();
+  });
+
   it('switches price to wholesale when wholesale tier badge is selected', () => {
     const onChange = vi.fn();
     const onPriceTierChange = vi.fn();

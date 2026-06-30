@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../entities/client/model/types';
 import type { Product } from '../../../entities/product/model/types';
+import type { ProductSalePriceTier } from '../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
+import { ProductSalePriceField } from '../../../shared/ui/ProductSalePriceField';
 import type { SaleFormValues } from '../../../entities/sale/model/types';
-import { formatCurrency } from '../../../shared/lib/format';
 import {
   DEBOUNCE_MS,
   MAX_SUGGESTIONS,
@@ -48,6 +49,8 @@ export const SaleForm = ({
   const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
+  const previousProductIdRef = useRef(form.productId);
 
   const selectedClient = clients.find((client) => client.id === form.clientId) ?? null;
   const selectedProduct = products.find((product) => product.id === form.productId) ?? null;
@@ -116,17 +119,16 @@ export const SaleForm = ({
     onChange('salePrice', String(getDefaultSalePrice(product)));
     onChange('note', product.note);
     setProductInput(getProductLabel(product));
+    setPriceTier('retail');
     setShowProductSuggestions(false);
   };
 
-  const productSalePriceOptions = selectedProduct
-    ? Array.from(
-        new Set([
-          getDefaultSalePrice(selectedProduct),
-          ...selectedProduct.salePriceOptions,
-        ]),
-      )
-    : [];
+  useEffect(() => {
+    if (form.productId && form.productId !== previousProductIdRef.current) {
+      setPriceTier('retail');
+    }
+    previousProductIdRef.current = form.productId;
+  }, [form.productId]);
 
   return (
     <section className="panel">
@@ -192,6 +194,7 @@ export const SaleForm = ({
           onProductChange={(value) => {
             onChange('productId', '');
             setProductInput(value);
+            setPriceTier(null);
             setShowProductSuggestions(true);
           }}
           onPickProduct={handleProductPick}
@@ -199,26 +202,18 @@ export const SaleForm = ({
           onHideSuggestions={() => setShowProductSuggestions(false)}
         />
 
-        <label className="field">
-          <span>{t('legacy.saleForm.salePrice')}</span>
-          <NumberStepper
-            min={0}
-            step={0.01}
-            precision={2}
-            value={form.salePrice}
-            placeholder={
-              selectedProduct ? formatCurrency(getDefaultSalePrice(selectedProduct)) : ''
-            }
-            onChange={(value) => onChange('salePrice', value)}
-          />
-          {productSalePriceOptions.length > 0 ? (
-            <span>
-              {t('legacy.saleForm.availablePrices', {
-                prices: productSalePriceOptions.join(', '),
-              })}
-            </span>
-          ) : null}
-        </label>
+        <ProductSalePriceField
+          label={t('legacy.saleForm.salePrice')}
+          fieldClassName="field sale-price-field-labeled"
+          tierTogglePlacement="label"
+          value={form.salePrice}
+          onChange={(value) => onChange('salePrice', value)}
+          product={selectedProduct}
+          priceTier={priceTier}
+          onPriceTierChange={setPriceTier}
+          disabled={isSaving}
+          ariaLabel={t('legacy.saleForm.salePrice')}
+        />
 
         <label className="field field-wide">
           <span>{t('common.note')}</span>
