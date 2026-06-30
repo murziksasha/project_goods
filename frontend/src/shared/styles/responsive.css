@@ -1045,9 +1045,61 @@
     width: 100%;
   }
 
-  .order-line-items-entry-row,
-  .order-line-items-entry-row-product {
-    grid-template-columns: 1fr;
+  .order-detail-table-entry-row {
+    display: grid;
+    gap: 0;
+    grid-column: 1;
+    border: 1px solid #d7e0eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
+    overflow: hidden;
+  }
+
+  .order-detail-table-entry-cell {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    border-bottom: 1px solid #e6edf5;
+    padding: 10px 12px;
+    overflow: visible;
+    white-space: normal;
+    text-align: left;
+    background: #fff;
+    color: #53677d;
+    font-weight: 400;
+    justify-content: stretch;
+  }
+
+  .order-detail-table-entry-cell::before {
+    content: attr(data-label);
+    color: #6c7f94;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .order-detail-table-entry-cell:last-child {
+    border-bottom: 0;
+  }
+
+  .order-detail-table-entry-cell.order-line-item-entry-action .primary-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .order-detail-table-wide-product:has(.order-detail-table-entry-cell .product-sale-price-tier-toggle)
+    .order-detail-table-entry-cell:not(.order-line-item-price-cell) {
+    padding-top: 10px;
+  }
+
+  .order-line-item-serial-entry-spacer {
+    display: none;
   }
 
   .order-related-tabs {

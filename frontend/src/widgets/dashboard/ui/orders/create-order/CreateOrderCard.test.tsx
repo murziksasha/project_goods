@@ -557,6 +557,88 @@ describe('CreateOrderCard', () => {
     ).not.toBeNull();
   });
 
+  it('resolves catalog suggestion to stock by name and prefills retail price', async () => {
+    const stockProduct = product({
+      id: 'videx-stock',
+      name: 'Videx',
+      article: 'CAM-100',
+      serialNumber: '',
+      price: 500,
+      salePriceOptions: [1500, 1200],
+    });
+
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      products: [stockProduct],
+      catalogProducts: [
+        {
+          id: 'catalog-videx',
+          name: 'Videx',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'Videx' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('button', { name: /Videx/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    expect(screen.getByDisplayValue('1500')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Wholesale' })).toBeInTheDocument();
+  });
+
+  it('keeps catalog-only selection without price when stock is missing', async () => {
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      products: [],
+      catalogProducts: [
+        {
+          id: 'catalog-only',
+          name: 'Catalog only item',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'Catalog only' },
+        }),
+      () => {
+        expect(screen.getByText('Catalog only item')).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByText('Catalog only item'));
+
+    const priceInput = screen
+      .getByText('Price')
+      .closest('label')
+      ?.querySelector('input');
+    expect(priceInput).toHaveValue('0');
+    expect(screen.queryByRole('button', { name: 'Retail' })).not.toBeInTheDocument();
+  });
+
   it('prefills retail price and product binding for bulk stock without serial', async () => {
     const bulkProduct = product({
       id: 'bulk-1',
@@ -1114,8 +1196,10 @@ describe('CreateOrderCard', () => {
           target: { value: 'iPhone' },
         }),
       () => {
-        expect(screen.getByText('iPhone 14')).toBeInTheDocument();
-        expect(screen.getByText('Catalog note')).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /iPhone 14/i }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/Catalog note/)).toBeInTheDocument();
       },
     );
   });

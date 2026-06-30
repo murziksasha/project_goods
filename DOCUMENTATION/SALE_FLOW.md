@@ -203,7 +203,7 @@ When a stock product is linked in a sale product entry row and `salePriceOptions
 | Surface | Toggle placement | Notes |
 |---------|------------------|-------|
 | `Create order -> Sales order` product rows | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-item-price-field sale-price-field-labeled`; price column ~130px |
-| Opened sale/repair card add-row | In the **Price** label row (`tierTogglePlacement: label`) | Class `order-line-item-price-entry-field sale-price-field-labeled`; price column ~120px |
+| Opened sale/repair card add-row | Above the stepper (`tierTogglePlacement: compact`) | No duplicate **Price** label — table header provides the column title; entry row grid matches `.order-detail-table-wide-product` |
 | Opened sale/repair card line-item table | Above the stepper (`tierTogglePlacement: compact`) | Shown only when line has `productId` and wholesale price is configured |
 | `Rapid sale` entry row | In the **Price** label row (`tierTogglePlacement: label`) | Stepper full width below; column `minmax(120px, 1.15fr)`; class `sale-price-field-labeled rapid-sale-price-field` |
 | Legacy `SaleForm` | In the **Sale price** label row (`tierTogglePlacement: label`) | Class `sale-price-field-labeled` |
@@ -228,6 +228,15 @@ When a stock product is linked in a sale product entry row and `salePriceOptions
 ### Retail price pre-fill fix (bulk stock, 2026-06-30)
 
 When selecting a warehouse stock suggestion **without** a bound serial in `Create order -> Sales order`, the active row must bind `productId` and pre-fill price via `formatRetailSalePrice` / `getRetailSalePrice`. Previously `productId` was cleared and price stayed empty when `suggestion.price` was `0`.
+
+### Catalog name lookup with stock resolve (2026-06-30)
+
+`Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
+
+- **Match found:** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
+- **No match:** keep catalog-only row (`catalogProductId`, price `0`).
+
+Suggestion rows may show the resolved retail price before click when matching stock exists.
 
 ### Implementation References
 
