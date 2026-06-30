@@ -14,6 +14,37 @@ export type SerialUsage = {
 export const normalizeSerialNumber = (value: string | undefined | null) =>
   String(value ?? '').trim().toUpperCase();
 
+export const collectOccupiedSerialNumbers = (
+  serialNumbers: Iterable<string | undefined | null>,
+): string[] => {
+  const occupied = new Set<string>();
+
+  for (const serial of serialNumbers) {
+    const normalized = normalizeSerialNumber(serial);
+    if (normalized) {
+      occupied.add(normalized);
+    }
+  }
+
+  return [...occupied];
+};
+
+export const buildInMemorySerialUsageSale = (
+  serialNumbers: string[],
+): Pick<Sale, 'id' | 'product' | 'lineItems'> => ({
+  id: '',
+  product: { id: '', article: '', name: '', serialNumber: '' },
+  lineItems: collectOccupiedSerialNumbers(serialNumbers).map((serial, index) => ({
+    id: `memory-${index}`,
+    kind: 'product' as const,
+    name: '',
+    price: 0,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [serial],
+  })),
+});
+
 export const getSaleSerialUsage = (
   sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>,
   currentSaleId: string,

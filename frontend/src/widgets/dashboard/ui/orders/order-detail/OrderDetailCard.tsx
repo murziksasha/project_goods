@@ -30,7 +30,6 @@ import { buildSupplierOrderItemNumber, mergeSupplierOrderItemUpdate } from '../.
 import {
   buildOrderNumber,
   canRefundFromStatus,
-  extractLinkedClientIdFromSupplierOrder,
   formatPhoneNumber,
   getDiscount,
   formatReadyDate,
@@ -75,6 +74,7 @@ const EM_DASH = '\u2014';
 const CURRENCY_UAH = '\u20B4';
 
 const COMPACT_LAYOUT_MEDIA_QUERY = '(max-width: 1024px)';
+const ORDER_RELATED_LIST_SCROLL_THRESHOLD = 6;
 
 const getIsCompactLayout = () =>
   typeof window.matchMedia === 'function' &&
@@ -562,71 +562,23 @@ export const OrderDetailCard = ({
       lastContactAt,
     };
   }, [relatedRecords]);
-  const saleProductNames = useMemo(
+  const relatedSupplierOrders = useMemo(
     () =>
-      new Set(
-        lineItems
-          .filter((item) => item.kind === 'product')
-          .map((item) => item.name.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    [lineItems],
-  );
-  const relatedSupplierOrders = useMemo(() => {
-    const byExplicitSaleLink = supplierOrders.filter((order) => {
-      return isSupplierOrderLinkedToSale(order, sale);
-    });
-    if (byExplicitSaleLink.length > 0) {
-      return byExplicitSaleLink.sort(
-        (firstItem, secondItem) =>
-          new Date(secondItem.createdAt).getTime() -
-          new Date(firstItem.createdAt).getTime(),
-      );
-    }
-
-    return supplierOrders
-      .filter((order) => {
-        const linkedClientId = extractLinkedClientIdFromSupplierOrder(order);
-        if (linkedClientId && linkedClientId !== sale.client.id) {
-          return false;
-        }
-        return order.items.some((item) =>
-          saleProductNames.has(item.productName.trim().toLowerCase()),
-        );
-      })
-      .sort(
-        (firstItem, secondItem) =>
-          new Date(secondItem.createdAt).getTime() -
-          new Date(firstItem.createdAt).getTime(),
-      );
-  }, [
-    sale,
-    saleProductNames,
-    supplierOrders,
-  ]);
-  const hasExplicitSaleSupplierLinks = useMemo(
-    () =>
-      relatedSupplierOrders.some(
-        (order) => isSupplierOrderLinkedToSale(order, sale),
-      ),
-    [relatedSupplierOrders, sale],
+      supplierOrders
+        .filter((order) => isSupplierOrderLinkedToSale(order, sale))
+        .sort(
+          (firstItem, secondItem) =>
+            new Date(secondItem.createdAt).getTime() -
+            new Date(firstItem.createdAt).getTime(),
+        ),
+    [sale, supplierOrders],
   );
   const relatedSupplierOrderItems = useMemo(
     () =>
       relatedSupplierOrders.flatMap((order) =>
-        order.items
-          .filter((item) =>
-            hasExplicitSaleSupplierLinks
-              ? true
-              : saleProductNames.has(item.productName.trim().toLowerCase()),
-          )
-          .map((item) => ({ order, item })),
+        order.items.map((item) => ({ order, item })),
       ),
-    [
-      hasExplicitSaleSupplierLinks,
-      relatedSupplierOrders,
-      saleProductNames,
-    ],
+    [relatedSupplierOrders],
   );
   const timelineItems = [
     {
@@ -645,6 +597,14 @@ export const OrderDetailCard = ({
       new Date(firstItem.createdAt).getTime(),
   );
   const isCommentComposerDisabled = isReadOnly || !canAddComment;
+  const relatedListCount =
+    relatedTab === 'supplierOrders'
+      ? relatedSupplierOrderItems.length
+      : relatedTab === 'supplierInformation'
+        ? 0
+        : relatedVisibleRecords.length;
+  const shouldScrollRelatedList =
+    relatedListCount >= ORDER_RELATED_LIST_SCROLL_THRESHOLD;
 
   const getDateKey = (value: string) => {
     const d = new Date(value);
@@ -1272,7 +1232,13 @@ export const OrderDetailCard = ({
               </button>
             ))}
           </div>
-          <div className='order-related-list'>
+          <div
+            className={
+              shouldScrollRelatedList
+                ? 'order-related-list order-related-list-scrollable'
+                : 'order-related-list'
+            }
+          >
             {relatedTab === 'supplierOrders' ? (
               relatedSupplierOrderItems.length === 0 ? (
                 <p>{t('orders.detail.noSupplierOrdersLinked')}</p>

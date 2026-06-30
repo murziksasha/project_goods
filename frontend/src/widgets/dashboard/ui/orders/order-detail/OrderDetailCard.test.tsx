@@ -7,10 +7,12 @@ import * as productApi from '../../../../../entities/product/api/productApi';
 import type { Product } from '../../../../../entities/product/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import type { Sale } from '../../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseSettings } from '../../../../../entities/warehouse-settings/model/types';
 import { OrderDetailCard, type OrderDetailCardProps } from './OrderDetailCard';
 import {
+  buildSupplierOrderLinkNote,
   orderDetailSectionsStorageKey,
   type OrderLineItem,
   type OrderStatus,
@@ -122,6 +124,36 @@ const clientDevice = (
   ...patch,
 });
 
+const supplierOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
+  id: 'supplier-order-1',
+  orderBaseId: 'SO-1',
+  supplierId: 'supplier-1',
+  supplierName: 'Supplier',
+  deliveryDate: '2026-01-01',
+  supplyType: 'standard',
+  number: 'SO000001',
+  note: '',
+  createdBy: 'Admin',
+  status: 'request',
+  paymentStatus: 'pending',
+  receiptStatus: 'new',
+  total: 100,
+  paid: 0,
+  isFavorite: false,
+  items: [
+    {
+      lineId: 'line-1',
+      itemIndex: 0,
+      productName: 'USB Cable',
+      quantity: 1,
+      price: 100,
+    },
+  ],
+  createdAt: now,
+  updatedAt: now,
+  ...patch,
+});
+
 const sale = (patch: Partial<Sale> = {}): Sale => ({
   id: 'sale-1',
   recordNumber: 'R000001',
@@ -183,6 +215,7 @@ const buildCardElement = ({
   onOpenRelatedSale = vi.fn(),
   status,
   lineItems = [],
+  supplierOrders = [],
 }: {
   products?: Product[];
   catalogProducts?: CatalogProduct[];
@@ -235,6 +268,7 @@ const buildCardElement = ({
   onOpenRelatedSale?: (sale: Sale) => void;
   status?: OrderStatus;
   lineItems?: OrderLineItem[];
+  supplierOrders?: SupplierOrder[];
 } = {}) => {
   const cardSale = sale(saleOverride);
   const cardStatus = status ?? (cardSale.status as OrderStatus);
@@ -242,7 +276,7 @@ const buildCardElement = ({
     <OrderDetailCard
       sale={cardSale}
       sales={salesOverride ?? [cardSale]}
-      supplierOrders={[]}
+      supplierOrders={supplierOrders}
       employees={[]}
       status={cardStatus}
       statusOptions={[{ key: cardStatus, labelKey: 'orders.status.repair.new' }]}
@@ -1423,7 +1457,7 @@ describe('OrderDetailCard product entry', () => {
       <OrderDetailCard
         sale={sale({ kind: 'repair' })}
         sales={[sale({ kind: 'repair' })]}
-        supplierOrders={[]}
+        supplierOrders={[supplierOrder()]}
         employees={[]}
         status={'new' as OrderStatus}
         statusOptions={[{ key: 'new' as OrderStatus, labelKey: 'orders.status.repair.new' }]}
@@ -1467,6 +1501,151 @@ describe('OrderDetailCard product entry', () => {
 
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
     expect(screen.getByLabelText('Repair status')).not.toBeDisabled();
+  });
+
+  it('does not enable related list scroll when there are fewer than six records', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const relatedSales = Array.from({ length: 4 }, (_, index) =>
+      sale({
+        id: `sale-related-${index + 1}`,
+        recordNumber: `S00000${index + 2}`,
+        kind: 'sale',
+        lineItems: [
+          {
+            id: `line-${index + 1}`,
+            kind: 'product',
+            name: `Product ${index + 1}`,
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ],
+      }),
+    );
+
+    const { container } = renderCard({
+      saleOverride: currentSale,
+      salesOverride: [currentSale, ...relatedSales],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+    relatedSales.forEach((relatedSale) => {
+      expect(
+        screen.getByRole('link', { name: new RegExp(relatedSale.recordNumber!, 'i') }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      container.querySelector('.order-related-list-scrollable'),
+    ).toBeNull();
+  });
+
+  it('enables related list scroll when there are six or more records', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const relatedSales = Array.from({ length: 6 }, (_, index) =>
+      sale({
+        id: `sale-related-${index + 1}`,
+        recordNumber: `S00000${index + 2}`,
+        kind: 'sale',
+        lineItems: [
+          {
+            id: `line-${index + 1}`,
+            kind: 'product',
+            name: `Product ${index + 1}`,
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ],
+      }),
+    );
+
+    const { container } = renderCard({
+      saleOverride: currentSale,
+      salesOverride: [currentSale, ...relatedSales],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+    relatedSales.forEach((relatedSale) => {
+      expect(
+        screen.getByRole('link', { name: new RegExp(relatedSale.recordNumber!, 'i') }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      container.querySelector('.order-related-list-scrollable'),
+    ).not.toBeNull();
+  });
+
+  it('shows supplier orders explicitly linked to the current sale card', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'USB Cable',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      lineItems: currentSale.lineItems ?? [],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier Order' }));
+    const linkedItem = screen.getByRole('button', { name: /SO000010/i });
+    expect(linkedItem).toBeInTheDocument();
+    expect(within(linkedItem).getByText('USB Cable')).toBeInTheDocument();
+  });
+
+  it('does not show supplier orders that only match product names', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'USB Cable',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+    const unrelatedOrder = supplierOrder({
+      number: 'SO000099',
+      note: 'Created manually without sale link',
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [unrelatedOrder],
+      lineItems: currentSale.lineItems ?? [],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier Order' }));
+    expect(screen.getByText('No supplier orders linked to this sale.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /SO000099/i })).toBeNull();
   });
 
   it('renders related orders and sales as browser links while preserving plain left click handling', () => {

@@ -439,6 +439,60 @@ describe('RapidSaleModal', () => {
     vi.useRealTimers();
   });
 
+  it('hides draft serials from product suggestions after add', async () => {
+    vi.useFakeTimers();
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            id: 'p-serial-1',
+            name: 'iPhone 14',
+            serialNumber: 'S000003',
+            price: 1000,
+            salePriceOptions: [1000],
+          }),
+          product({
+            id: 'p-serial-2',
+            name: 'iPhone 14',
+            serialNumber: 'S000004',
+            price: 1000,
+            salePriceOptions: [1000],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    const searchInput = within(dialog).getByPlaceholderText('Name, serial or article');
+
+    fireEvent.change(searchInput, { target: { value: 'iPhone' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'iPhone 14' })[0]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add product' }));
+
+    expect(within(dialog).getByText('iPhone 14 (S000003)')).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'iPhone' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    const suggestions = within(dialog).getByRole('button', { name: 'iPhone 14' });
+    expect(suggestions).toHaveTextContent('S000004');
+    expect(suggestions).not.toHaveTextContent('S000003');
+    expect(within(dialog).getAllByRole('button', { name: 'iPhone 14' })).toHaveLength(1);
+
+    vi.useRealTimers();
+  });
+
   it('allows editing draft item price before issuing', async () => {
     vi.useFakeTimers();
     const onSubmit = vi.fn(async () => undefined);

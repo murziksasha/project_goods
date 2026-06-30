@@ -8,7 +8,9 @@ import {
 } from '../../../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import {
   buildMissingServicePayload,
@@ -17,6 +19,7 @@ import {
 import {
   buildRapidSaleStockSuggestions,
   getRapidSaleDraftTotal,
+  getRapidSaleOccupiedSerialNumbers,
   validateRapidSaleDraft,
   type RapidSaleDraftItem,
 } from '../../../model/rapid-sale-line-items';
@@ -53,6 +56,8 @@ export const RapidSaleModal = ({
 
   const [productQuery, setProductQuery] = useState('');
   const [productPrice, setProductPrice] = useState('');
+  const [productPriceTier, setProductPriceTier] =
+    useState<ProductSalePriceTier | null>(null);
   const [productQuantity, setProductQuantity] = useState('1');
   const [productWarranty, setProductWarranty] = useState('0');
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -71,7 +76,10 @@ export const RapidSaleModal = ({
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const serviceSearchInputRef = useRef<HTMLInputElement>(null);
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
-  const warehouses = warehouseSettingsQuery.data?.warehouses ?? [];
+  const warehouses = useMemo(
+    () => warehouseSettingsQuery.data?.warehouses ?? [],
+    [warehouseSettingsQuery.data?.warehouses],
+  );
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
 
   useEffect(() => {
@@ -83,6 +91,13 @@ export const RapidSaleModal = ({
   const warehouseFilteredProducts = useMemo(
     () => filterProductsByWarehouse(products, selectedWarehouseId, warehouses),
     [products, selectedWarehouseId, warehouses],
+  );
+  const selectedStockProduct = useMemo(
+    () =>
+      selectedProductId
+        ? products.find((product) => product.id === selectedProductId) ?? null
+        : null,
+    [products, selectedProductId],
   );
 
   const draftTotal = useMemo(() => getRapidSaleDraftTotal(draftItems), [draftItems]);
@@ -106,6 +121,8 @@ export const RapidSaleModal = ({
           products: warehouseFilteredProducts,
           sales,
           query: productQuery,
+          draftItems,
+          pendingSerialNumbers: selectedSerialNumbers,
         });
         if (isActive) setProductSuggestions(suggestions);
       } finally {
@@ -117,12 +134,20 @@ export const RapidSaleModal = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [productQuery, warehouseFilteredProducts, sales, selectedProductId]);
+  }, [
+    productQuery,
+    warehouseFilteredProducts,
+    sales,
+    selectedProductId,
+    draftItems,
+    selectedSerialNumbers,
+  ]);
 
   const handleWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouseId(warehouseId);
     setProductQuery('');
     setProductPrice('');
+    setProductPriceTier(null);
     setProductQuantity('1');
     setProductWarranty('0');
     setSelectedProductId('');
@@ -159,6 +184,7 @@ export const RapidSaleModal = ({
   const resetProductEntry = () => {
     setProductQuery('');
     setProductPrice('');
+    setProductPriceTier(null);
     setProductQuantity('1');
     setProductWarranty('0');
     setSelectedProductId('');
@@ -199,6 +225,7 @@ export const RapidSaleModal = ({
     setSelectedProductId(suggestion.productId);
     setSelectedProductName(suggestion.name);
     setProductPrice(unitPrice);
+    setProductPriceTier('retail');
     setProductQuantity('1');
     setProductWarranty(String(suggestion.warrantyPeriod ?? 0));
     setSelectedSerialNumbers(serialNumber ? [serialNumber] : []);
@@ -208,6 +235,17 @@ export const RapidSaleModal = ({
   const handleAddProduct = () => {
     if (!selectedProductId || selectedProductName.trim().length < 2) {
       onError(t('orders.rapidSale.errors.stockOnly'));
+      return;
+    }
+
+    const occupiedSerials = new Set(
+      getRapidSaleOccupiedSerialNumbers(draftItems),
+    );
+    const hasDuplicateSerial = selectedSerialNumbers.some((serial) =>
+      occupiedSerials.has(normalizeSerialNumber(serial)),
+    );
+    if (hasDuplicateSerial) {
+      onError(t('orders.rapidSale.errors.duplicateSerial'));
       return;
     }
 
@@ -342,12 +380,12 @@ export const RapidSaleModal = ({
               </label>
               <label className="field">
                 <span>{t('orders.create.price')}</span>
-                <NumberStepper
-                  min={0}
-                  step={0.01}
-                  precision={2}
+                <ProductSalePriceField
                   value={productPrice}
                   onChange={setProductPrice}
+                  product={selectedStockProduct}
+                  priceTier={productPriceTier}
+                  onPriceTierChange={setProductPriceTier}
                   placeholder="0"
                   ariaLabel={t('orders.rapidSale.productPrice')}
                 />

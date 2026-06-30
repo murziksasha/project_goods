@@ -1212,6 +1212,7 @@ export const CreateOrderCard = ({
             {activeTab === 'sale' ? (
               <>
                 <CreateOrderSaleSection
+                  products={products}
                   saleItems={saleItems}
                   focusedSaleItem={focusedSaleItem}
                   visibleSaleProductSuggestions={visibleSaleProductSuggestions}

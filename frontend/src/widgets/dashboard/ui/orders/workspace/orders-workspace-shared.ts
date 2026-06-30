@@ -267,11 +267,14 @@ export const isSupplierOrderLinkedToSale = (
     .trim()
     .toLowerCase();
   if (!linkedSaleRef) return false;
-  const saleRecordNumber = (sale.recordNumber ?? '')
-    .trim()
-    .toLowerCase();
-  if (!saleRecordNumber) return false;
-  return linkedSaleRef === saleRecordNumber;
+
+  const saleRecordNumber = (sale.recordNumber ?? '').trim().toLowerCase();
+  const saleId = sale.id.trim().toLowerCase();
+
+  return (
+    (saleRecordNumber.length > 0 && linkedSaleRef === saleRecordNumber) ||
+    (saleId.length > 0 && linkedSaleRef === saleId)
+  );
 };
 
 export type StoredOrderDetailSectionState = {

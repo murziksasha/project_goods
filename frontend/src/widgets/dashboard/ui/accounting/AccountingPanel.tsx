@@ -53,7 +53,6 @@ type AccountingPanelProps = {
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   sales: Sale[];
-  onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
   onNavigateAccountingTab?: (tab: AccountingTab) => void;
   registerAccountingPopstateSync?: (
     sync: ((tab: AccountingTab | null) => void) | null,
@@ -66,7 +65,6 @@ export const AccountingPanel = ({
   onError,
   onSuccess,
   sales,
-  onOpenSaleCard,
   onNavigateAccountingTab,
   registerAccountingPopstateSync,
   syncedAccountingTab = null,
@@ -686,7 +684,6 @@ export const AccountingPanel = ({
           canCancelTransferTransaction={canCancelTransferTransaction}
           onDateFilterOpenChange={setIsTransactionsDateFilterOpen}
           onFilterOpenChange={setIsTransactionsFilterOpen}
-          onOpenSaleCard={onOpenSaleCard}
           onPageChange={setTransactionsPage}
           onPageSizeChange={(nextPageSize) => {
             setTransactionsPageSize(nextPageSize);

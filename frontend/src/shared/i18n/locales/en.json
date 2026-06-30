@@ -389,6 +389,13 @@
     "saving": "Saving...",
     "update": "Update product",
     "salePrices": "Sale prices",
+    "salePrice": {
+      "retail": "Retail",
+      "wholesale": "Wholesale",
+      "retailShort": "R",
+      "wholesaleShort": "W",
+      "tierToggleAria": "Sale price type"
+    },
     "examples": {
       "article": "WM-001",
       "serialNumber": "LOG-M185-0001",
@@ -546,7 +553,8 @@
         "stockOnly": "Rapid sale products must be selected from warehouse stock.",
         "invalidTotal": "Sale total is invalid.",
         "serviceName": "Enter a service name with at least 2 characters.",
-        "failedCreateService": "Failed to create service."
+        "failedCreateService": "Failed to create service.",
+        "duplicateSerial": "This serial is already in the rapid sale draft."
       }
     },
     "toolbar": {
@@ -2280,6 +2288,15 @@
       "retailPrice": "Retail price",
       "wholesalePrice": "Wholesale price",
       "purchasePrice": "Purchase price",
+      "purchaseDate": "Receipt date",
+      "serialNumber": "Serial #",
+      "serialMissing": "No serial #",
+      "serialPurchasesTitle": "Purchase by serial",
+      "latestBatchBadge": "Latest",
+      "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
+      "purchasePriceReadOnlyHint": "Purchase prices are set per unit during receipt and are read-only here.",
+      "latestBatchPurchaseDate": "Receipt date: {{date}}",
+      "matchingStockRows": "Matching stock rows: {{count}}.",
       "lastBatchPrice": "Last batch price: {{price}}. Matching stock rows: {{count}}.",
       "total": "Total",
       "free": "Free",

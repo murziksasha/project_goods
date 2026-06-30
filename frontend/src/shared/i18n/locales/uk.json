@@ -389,6 +389,13 @@
     "saving": "Збереження...",
     "update": "Оновити товар",
     "salePrices": "Ціни продажу",
+    "salePrice": {
+      "retail": "Роздріб",
+      "wholesale": "Опт",
+      "retailShort": "Р",
+      "wholesaleShort": "О",
+      "tierToggleAria": "Тип ціни продажу"
+    },
     "examples": {
       "article": "WM-001",
       "serialNumber": "LOG-M185-0001",
@@ -546,7 +553,8 @@
         "stockOnly": "У швидкому продажі товари можна обирати лише зі складу.",
         "invalidTotal": "Сума продажу некоректна.",
         "serviceName": "Введіть назву послуги щонайменше з 2 символів.",
-        "failedCreateService": "Не вдалося створити послугу."
+        "failedCreateService": "Не вдалося створити послугу.",
+        "duplicateSerial": "Цей серійний номер уже додано до чернетки швидкого продажу."
       }
     },
     "toolbar": {
@@ -2280,6 +2288,15 @@
       "retailPrice": "Роздрібна ціна",
       "wholesalePrice": "Оптова ціна",
       "purchasePrice": "Закупівельна ціна",
+      "purchaseDate": "Дата оприходування",
+      "serialNumber": "Серійний №",
+      "serialMissing": "Без серійного №",
+      "serialPurchasesTitle": "Закупка по серійниках",
+      "latestBatchBadge": "Остання",
+      "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
+      "purchasePriceReadOnlyHint": "Закупівельні ціни задаються при оприходуванні кожної одиниці і тут лише для перегляду.",
+      "latestBatchPurchaseDate": "Дата оприходування: {{date}}",
+      "matchingStockRows": "Відповідних складських рядків: {{count}}.",
       "lastBatchPrice": "Ціна останньої партії: {{price}}. Відповідних складських рядків: {{count}}.",
       "total": "Всього",
       "free": "Вільно",

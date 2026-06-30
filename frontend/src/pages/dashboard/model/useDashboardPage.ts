@@ -278,7 +278,12 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
     mutationFn: ({ catalogProductId, payload }: { catalogProductId: string; payload: CatalogProductFormValues }) =>
       updateCatalogProduct(catalogProductId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.products }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders }),
+      ]);
     },
   });
   const createCatalogProductMutation = useMutation({
