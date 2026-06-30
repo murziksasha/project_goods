@@ -557,6 +557,66 @@ describe('CreateOrderCard', () => {
     ).not.toBeNull();
   });
 
+  it('prefills retail price and product binding for bulk stock without serial', async () => {
+    const bulkProduct = product({
+      id: 'bulk-1',
+      name: 'USB-C Cable',
+      article: 'USB-C-01',
+      serialNumber: '',
+      price: 500,
+      salePriceOptions: [1500, 800],
+    });
+
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      products: [bulkProduct],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'USB-C' },
+        }),
+      () => {
+        expect(screen.getByText('USB-C Cable')).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByText('USB-C Cable'));
+
+    expect(screen.getByDisplayValue('1500')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Wholesale' })).toBeInTheDocument();
+  });
+
+  it('falls back to purchase price when retail sale price is missing', async () => {
+    const bulkProduct = product({
+      id: 'bulk-2',
+      name: 'HDMI Adapter',
+      article: 'HDMI-01',
+      serialNumber: '',
+      price: 750,
+      salePriceOptions: [0],
+    });
+
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      products: [bulkProduct],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'HDMI' },
+        }),
+      () => {
+        expect(screen.getByText('HDMI Adapter')).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByText('HDMI Adapter'));
+
+    expect(screen.getByDisplayValue('750')).toBeInTheDocument();
+  });
+
   it('binds a warehouse serial product into the sales order payload', async () => {
     const onSave = vi.fn(async () => null);
 

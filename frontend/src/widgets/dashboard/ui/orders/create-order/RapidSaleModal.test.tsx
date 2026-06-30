@@ -109,9 +109,31 @@ const renderModal = (ui: ReactElement) => {
 describe('RapidSaleModal', () => {
   afterEach(() => {
     cleanup();
+    document.body.style.overflow = '';
     vi.clearAllMocks();
     vi.useRealTimers();
   });
+
+  it('locks background page scroll while open', () => {
+    document.body.style.overflow = 'auto';
+
+    const { unmount } = renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    expect(document.body.style.overflow).toBe('hidden');
+
+    unmount();
+    expect(document.body.style.overflow).toBe('auto');
+  });
+
   it('renders product and service sections', () => {
     renderModal(
       <RapidSaleModal
@@ -489,6 +511,81 @@ describe('RapidSaleModal', () => {
     expect(suggestions).toHaveTextContent('S000004');
     expect(suggestions).not.toHaveTextContent('S000003');
     expect(within(dialog).getAllByRole('button', { name: 'iPhone 14' })).toHaveLength(1);
+
+    vi.useRealTimers();
+  });
+
+  it('shows retail price and wholesale toggle for stock products with wholesale price', async () => {
+    vi.useFakeTimers();
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            name: 'iPhone 14',
+            salePriceOptions: [1000, 800],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'iPhone' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'iPhone 14' }));
+
+    expect(within(dialog).getByLabelText('Product price')).toHaveValue('1000');
+    expect(within(dialog).getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Wholesale' })).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wholesale' }));
+    expect(within(dialog).getByLabelText('Product price')).toHaveValue('800');
+
+    vi.useRealTimers();
+  });
+
+  it('renders draft items outside the scrollable entry body', async () => {
+    vi.useFakeTimers();
+    renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Cable' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cable' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add product' }));
+
+    const draftSection = dialog.querySelector('.rapid-sale-items');
+    const entryBody = dialog.querySelector('.rapid-sale-body');
+
+    expect(draftSection).toBeTruthy();
+    expect(entryBody).toBeTruthy();
+    expect(entryBody?.contains(draftSection)).toBe(false);
+    expect(within(dialog).getByText('Cable')).toBeInTheDocument();
 
     vi.useRealTimers();
   });

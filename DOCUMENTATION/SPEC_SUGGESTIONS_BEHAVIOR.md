@@ -9,17 +9,28 @@ When a user selects an entity from suggestions:
 2. The suggestion list must hide immediately in UI.
 3. Suggestions may appear again only after user starts a new manual edit in the related input.
 
-## Product Lookup Rule (Create Order And Rapid Sale)
-For product suggestion fields in `Create order -> Sales order` and `Rapid sale`:
-1. Lookup must match by normalized `name`, `article`, `serialNumber`, and relevant stock `note`.
-2. Minimum query length is 2 characters; suggestions are debounced per field.
-3. Stock matches are ranked: exact serial, exact article, partial serial, partial article, partial name.
-4. Selectable warehouse stock rows appear before catalog fallback rows with the same model name.
-5. Unavailable stock models suppress duplicate catalog fallback suggestions.
-6. Shared frontend helper: `buildCreateOrderProductSuggestions` in `frontend/src/widgets/dashboard/model/create-order-products.ts`.
+## Product Lookup Rule (Create Order Sales Tab)
+
+For `Create order -> Sales order` product rows (not rapid sale):
+1. Lookup uses `buildOrderDetailProductSuggestions` — see **Card And Create-Order Products Lookup Rule** below.
+2. Rapid sale uses a separate builder and rules — see **Rapid Sale Product Lookup Rule**.
+
+## Rapid Sale Product Lookup Rule
+
+For `Rapid sale` (`RapidSaleModal` product search):
+1. Builder: `buildRapidSaleStockSuggestions` in `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` (wraps `buildCreateOrderProductSuggestions`).
+2. **Stock only** — no catalog fallback; non-selectable rows are filtered out.
+3. Warehouse-scoped via `filterProductsByWarehouse` on the selected warehouse.
+4. Lookup matches normalized `name`, `article`, `serialNumber`, and stock `note`.
+5. Minimum query length: 2 characters; debounce: 200 ms.
+6. Ranking: exact serial, exact article, partial serial, partial article, partial name.
+7. Suggestions render inline below the product entry row (`.rapid-sale-suggestions`), not as a floating overlay — fixed max-height with internal scroll.
+8. Suggestions are hidden while `selectedProductId` is set; they return only after the operator edits the search input (which clears the product binding).
+9. Selection is two-step: click suggestion → pre-fill entry row → operator clicks `Add product` to move line into draft.
 
 ## Rapid Sale Serial Dedup Rule
-For `Rapid sale` product suggestions (`buildRapidSaleStockSuggestions` in `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts`):
+
+For `Rapid sale` product suggestions (`buildRapidSaleStockSuggestions`):
 1. Before calling `buildCreateOrderProductSuggestions`, collect occupied serial numbers from:
    - `draftItems[]` already confirmed with `Add product`
    - `pendingSerialNumbers[]` currently bound in the active product entry row
@@ -27,7 +38,7 @@ For `Rapid sale` product suggestions (`buildRapidSaleStockSuggestions` in `front
 3. Reuse existing `getSaleSerialUsage` / `getProductSerialAvailability` rules; do not duplicate availability logic in the modal.
 4. Occupied serials must not appear as selectable stock suggestions.
 5. Removing a draft line frees its serial for suggestions again.
-6. `validateRapidSaleDraft` and `Add product` must reject duplicate serial numbers inside the same rapid-sale draft.
+6. `validateRapidSaleDraft` and `Add product` must reject duplicate serial numbers inside the same rapid-sale draft (`orders.rapidSale.errors.duplicateSerial`).
 
 ## Card And Create-Order Products Lookup Rule
 For `Create order -> Sales order`, opened **sale card**, and **repair order card** -> `Products` add-row input:
@@ -47,7 +58,7 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Catalog suggestion: click pre-fills name/price and stores `catalogProductId`; operator confirms with `Add product`; serial binding uses the `Serials` modal flow.
    - **Create order -> Sales order**:
      - Stock suggestion with `serialNumber`: pre-fills the active product row with `productId` and bound serial (`quantity = 1`).
-     - Stock suggestion without `serialNumber`: pre-fills name/price only on the active row.
+     - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`).
      - Catalog suggestion: pre-fills the active row with `catalogProductId`.
 
 ## Modal Layout Rule
@@ -56,6 +67,8 @@ In modal forms with lookup fields (supplier/client/product/service/device):
 2. Dropdown must be visually attached to its input and open directly below the field.
 3. Opening/closing suggestions must not change modal grid height or shift surrounding controls.
 4. This is a presentation-only rule and must not alter existing search, debounce, or selection business logic.
+
+**Exception — `Rapid sale`:** product/service suggestion lists stay in normal document flow below their entry rows (`.rapid-sale-suggestions`). Height is capped with internal scroll so the entry panel layout stays stable. Background page scroll is locked while the modal is open (`useLockBodyScroll`).
 
 ## Notes
 - This rule applies uniformly for clients, products, devices, suppliers, services, and merge selectors.
