@@ -75,6 +75,44 @@ describe('ProductModelModal serial printing', () => {
     printSpy.mockRestore();
   });
 
+  it('shows per-serial purchase rows and highlights the clicked serial', () => {
+    const clickedProduct = createProduct({
+      id: 'old-batch',
+      serialNumber: 'R0000001',
+      price: 200,
+      purchaseDate: '2026-01-10',
+      createdAt: '2026-01-10T10:00:00.000Z',
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[
+          clickedProduct,
+          createProduct({
+            id: 'new-batch',
+            serialNumber: 'R0000002',
+            price: 250,
+            purchaseDate: '2026-03-15',
+            createdAt: '2026-03-15T09:00:00.000Z',
+          }),
+        ]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(screen.getByText('Purchase by serial')).toBeInTheDocument();
+    expect(screen.getByText('Latest batch: 250,00 ₴ · 15.03.2026')).toBeInTheDocument();
+    expect(screen.getByText('R0000001')).toBeInTheDocument();
+    expect(screen.getByText('R0000002')).toBeInTheDocument();
+    expect(screen.getAllByText('Latest')).toHaveLength(1);
+    expect(document.querySelector('.product-model-serial-row-selected')).not.toBeNull();
+  });
+
   it('hides the serial print action without a clicked product', () => {
     render(
       <ProductModelModal

@@ -5,6 +5,11 @@ import {
   buildCreateOrderProductSuggestions,
   type CreateOrderProductSuggestion,
 } from './create-order-products';
+import {
+  buildInMemorySerialUsageSale,
+  collectOccupiedSerialNumbers,
+  normalizeSerialNumber,
+} from './order-line-serials';
 
 export type RapidSaleProductDraft = {
   id: string;
@@ -29,24 +34,50 @@ export type RapidSaleDraftItem =
   | (RapidSaleProductDraft & { kind: 'product' })
   | (RapidSaleServiceDraft & { kind: 'service' });
 
+export const getRapidSaleOccupiedSerialNumbers = (
+  draftItems: RapidSaleDraftItem[],
+  pendingSerialNumbers: string[] = [],
+): string[] =>
+  collectOccupiedSerialNumbers([
+    ...draftItems.flatMap((item) =>
+      item.kind === 'product' ? (item.serialNumbers ?? []) : [],
+    ),
+    ...pendingSerialNumbers,
+  ]);
+
 export const buildRapidSaleStockSuggestions = ({
   products,
   sales,
   query,
+  draftItems = [],
+  pendingSerialNumbers = [],
   limit = 8,
 }: {
   products: Product[];
   sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
   query: string;
+  draftItems?: RapidSaleDraftItem[];
+  pendingSerialNumbers?: string[];
   limit?: number;
-}): CreateOrderProductSuggestion[] =>
-  buildCreateOrderProductSuggestions({
+}): CreateOrderProductSuggestion[] => {
+  const occupiedSerialNumbers = getRapidSaleOccupiedSerialNumbers(
+    draftItems,
+    pendingSerialNumbers,
+  );
+  const draftSerialSale =
+    occupiedSerialNumbers.length > 0
+      ? buildInMemorySerialUsageSale(occupiedSerialNumbers)
+      : null;
+
+  return buildCreateOrderProductSuggestions({
     products,
     catalogProducts: [],
-    sales,
+    sales: draftSerialSale ? [...sales, draftSerialSale] : sales,
     query,
     limit,
+    currentSaleId: '',
   }).filter((suggestion) => suggestion.source === 'stock' && suggestion.selectable);
+};
 
 export const buildRapidSaleLineItems = (
   items: RapidSaleDraftItem[],
@@ -99,6 +130,22 @@ export const validateRapidSaleDraft = (items: RapidSaleDraftItem[]) => {
   );
   if (invalidProduct) {
     return 'orders.rapidSale.errors.stockOnly';
+  }
+
+  const seenSerials = new Set<string>();
+  const hasDuplicateSerial = items.some((item) => {
+    if (item.kind !== 'product') return false;
+
+    return (item.serialNumbers ?? []).some((serial) => {
+      const normalized = normalizeSerialNumber(serial);
+      if (!normalized) return false;
+      if (seenSerials.has(normalized)) return true;
+      seenSerials.add(normalized);
+      return false;
+    });
+  });
+  if (hasDuplicateSerial) {
+    return 'orders.rapidSale.errors.duplicateSerial';
   }
 
   const total = getRapidSaleDraftTotal(items);

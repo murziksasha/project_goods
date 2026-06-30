@@ -20,7 +20,12 @@ import type { Product, ProductModelUpdatePayload } from '../../../../../entities
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+import {
+  hasWholesaleSalePrice,
+  type ProductSalePriceTier,
+} from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
@@ -132,6 +137,10 @@ export const OrderDetailLineItemsPanel = ({
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
+  const [priceTierByItemId, setPriceTierByItemId] = useState<
+    Record<string, ProductSalePriceTier | null>
+  >({});
   const [quantity, setQuantity] = useState('1');
   const [warrantyPeriod, setWarrantyPeriod] = useState(
     kind === 'service' ? '1' : '0',
@@ -148,6 +157,17 @@ export const OrderDetailLineItemsPanel = ({
   const [selectedProductId, setSelectedProductId] = useState<
     string | undefined
   >();
+  const productsById = useMemo(
+    () => Object.fromEntries(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const selectedStockProduct = useMemo(
+    () =>
+      selectedProductId
+        ? productsById[selectedProductId] ?? null
+        : null,
+    [productsById, selectedProductId],
+  );
   const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<
     string | undefined
   >();
@@ -771,9 +791,10 @@ export const OrderDetailLineItemsPanel = ({
 
     setName(product.name);
     setPrice(String(suggestedPrice));
+    setPriceTier('retail');
     setQuantity('1');
     setWarrantyPeriod('0');
-    setSelectedProductId(undefined);
+    setSelectedProductId(product.id);
     setSelectedCatalogProductId(undefined);
     setProductSuggestions([]);
   };
@@ -992,6 +1013,7 @@ export const OrderDetailLineItemsPanel = ({
     });
     setName('');
     setPrice('');
+    setPriceTier(null);
     setQuantity('1');
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
@@ -1054,6 +1076,12 @@ export const OrderDetailLineItemsPanel = ({
           items.map((item, itemIndex) => {
             const isLastRow = itemIndex === items.length - 1;
             const lastRowClass = isLastRow ? 'order-detail-table-last-row' : '';
+            const stockProduct =
+              item.kind === 'product' && item.productId
+                ? productsById[item.productId] ?? null
+                : null;
+            const showLineItemPriceTier =
+              stockProduct !== null && hasWholesaleSalePrice(stockProduct);
             return (
             <div
               key={`${item.id || 'line-item'}-${itemIndex}`}
@@ -1120,15 +1148,33 @@ export const OrderDetailLineItemsPanel = ({
                 className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
                 data-label={t('orders.detail.lineItems.price')}
               >
-                <NumberStepper
-                  className='line-item-inline-input'
-                  min={0}
-                  step={0.01}
-                  precision={2}
-                  value={priceDrafts[item.id] ?? String(item.price)}
-                  onChange={(value) => handleLineItemPriceChange(item, value)}
-                  disabled={isReadOnly}
-                />
+                {showLineItemPriceTier && stockProduct ? (
+                  <ProductSalePriceField
+                    value={priceDrafts[item.id] ?? String(item.price)}
+                    onChange={(value) => handleLineItemPriceChange(item, value)}
+                    product={stockProduct}
+                    priceTier={priceTierByItemId[item.id] ?? null}
+                    onPriceTierChange={(tier) =>
+                      setPriceTierByItemId((current) => ({
+                        ...current,
+                        [item.id]: tier,
+                      }))
+                    }
+                    disabled={isReadOnly}
+                    ariaLabel={t('orders.detail.lineItems.price')}
+                    stepperClassName='line-item-inline-input'
+                  />
+                ) : (
+                  <NumberStepper
+                    className='line-item-inline-input'
+                    min={0}
+                    step={0.01}
+                    precision={2}
+                    value={priceDrafts[item.id] ?? String(item.price)}
+                    onChange={(value) => handleLineItemPriceChange(item, value)}
+                    disabled={isReadOnly}
+                  />
+                )}
               </div>
               <div
                 key={`${item.id}-qty`}
@@ -1270,6 +1316,7 @@ export const OrderDetailLineItemsPanel = ({
               setSelectedServiceId(undefined);
               setSelectedProductId(undefined);
               setSelectedCatalogProductId(undefined);
+              setPriceTier(null);
             }}
             placeholder={
               isProductKind
@@ -1278,15 +1325,28 @@ export const OrderDetailLineItemsPanel = ({
             }
             disabled={isReadOnly}
           />
-          <NumberStepper
-            min={0}
-            step={0.01}
-            precision={2}
-            value={price}
-            onChange={setPrice}
-            placeholder={t('orders.detail.lineItems.price')}
-            disabled={isReadOnly}
-          />
+          {isProductKind ? (
+            <ProductSalePriceField
+              value={price}
+              onChange={setPrice}
+              product={selectedStockProduct}
+              priceTier={priceTier}
+              onPriceTierChange={setPriceTier}
+              placeholder={t('orders.detail.lineItems.price')}
+              disabled={isReadOnly}
+              ariaLabel={t('orders.detail.lineItems.price')}
+            />
+          ) : (
+            <NumberStepper
+              min={0}
+              step={0.01}
+              precision={2}
+              value={price}
+              onChange={setPrice}
+              placeholder={t('orders.detail.lineItems.price')}
+              disabled={isReadOnly}
+            />
+          )}
           <NumberStepper
             min={1}
             value={quantity}
@@ -1431,6 +1491,7 @@ export const OrderDetailLineItemsPanel = ({
         <ProductModelModal
           name={productModelContext.name}
           products={products}
+          sales={sales}
           warehouses={productModelWarehouses}
           printForms={printForms}
           printProduct={productModelContext.printProduct}

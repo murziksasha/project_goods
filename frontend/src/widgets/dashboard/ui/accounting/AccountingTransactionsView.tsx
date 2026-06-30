@@ -40,7 +40,6 @@ type AccountingTransactionsViewProps = {
   canCancelTransferTransaction: (transaction: FinanceTransaction) => boolean;
   onDateFilterOpenChange: (value: SetStateAction<boolean>) => void;
   onFilterOpenChange: (value: SetStateAction<boolean>) => void;
-  onOpenSaleCard: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onSelectedCashboxIdChange: (cashboxId: string) => void;
@@ -70,7 +69,6 @@ export const AccountingTransactionsView = ({
   canCancelTransferTransaction,
   onDateFilterOpenChange,
   onFilterOpenChange,
-  onOpenSaleCard: _onOpenSaleCard,
   onPageChange,
   onPageSizeChange,
   onSelectedCashboxIdChange,

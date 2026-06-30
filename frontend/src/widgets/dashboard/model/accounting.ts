@@ -100,7 +100,7 @@ export const canCancelAccountingTransferTransaction = ({
 const ORDER_TOKEN_PATTERNS = [
   /Payment for order\s+([A-Za-z0-9-]+)/i,
   /Refund for order\s+([A-Za-z0-9-]+)/i,
-  /Оплата замовлення\s+([A-Za-z0-9-]+)/i,
+  /Оплата (?:за )?замовлення\s+([A-Za-z0-9-]+)/i,
 ];
 
 export const parseTransactionOrderToken = (note: string | null | undefined): string | null => {

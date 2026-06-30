@@ -203,12 +203,13 @@
 
 - Supplier orders created from `Sales` card serials modal are now explicitly linked to the source sale.
 - Link is persisted in supplier order note using technical markers:
-  - `[LINKED_SALE_ID:<saleId>]`
+  - `[LINKED_SALE_ID:<saleReference>]`
   - `[LINKED_CLIENT_ID:<clientId>]`
-- In order/sale card bottom related block, tab `Supplier Order` now shows linked supplier orders for the current sale.
-- Matching priority:
-  - explicit link by `LINKED_SALE_ID` (primary),
-  - fallback by linked client marker + product-name intersection (for backward compatibility with older records).
+- `saleReference` is stored as `recordNumber` when available, otherwise `sale.id`.
+- In order/sale card bottom related block, tab `Supplier Order` shows only supplier orders explicitly linked to the current sale/order card.
+- Matching rule:
+  - supplier order is visible only when `LINKED_SALE_ID` matches the opened card by `recordNumber` or `sale.id` (case-insensitive),
+  - product-name or client-only matches without `LINKED_SALE_ID` must not appear in this tab.
 - Purpose:
   - quick jump context for receiving (`Оприбуткувати`) from same workflow window,
   - historical visibility of supplier procurement done for a specific client sale.

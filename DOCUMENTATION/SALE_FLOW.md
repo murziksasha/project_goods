@@ -43,6 +43,8 @@ Compact counter-sale flow for walk-in customers: no client form, stock products 
 - Selecting any stock suggestion (serial or non-serial) pre-fills the product entry row; operator confirms with `Add product`.
 - Serial-bound rows bind the serial in the entry row and lock quantity to `1` until the line is added.
 - Serialized draft rows keep quantity at `1` in the draft table.
+- Serial numbers already added to the draft table, or currently bound in the active product entry row, are excluded from stock suggestions (`orders.serialAvailability.alreadyInThisOrder`).
+- One serial number maps to one draft line; duplicate serial binding is blocked on `Add product` and on `Issued` validation.
 
 ### Service Entry
 
@@ -145,6 +147,33 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
   - `lineItems[].quantity = 1`
 - Manual item text is allowed and sends neither `productId` nor `catalogProductId` at creation time.
 - `productId` and `catalogProductId` must stay separate; empty strings must not be persisted into ObjectId fields.
+
+## Wholesale Price Toggle (2026-06-30)
+
+When a stock product is linked in a sale product entry row and `salePriceOptions[1] > 0`, the price field shows a compact **Retail / Wholesale** toggle below the price stepper.
+
+### Behavior
+
+- Default tier on stock selection: **retail** (`salePriceOptions[0]`, fallback `product.price`).
+- Clicking **Wholesale** fills the entry price with `salePriceOptions[1]`.
+- Clicking **Retail** restores the retail price.
+- Manual edits in the price stepper remain allowed; if the entered value no longer matches either tier, neither toggle button stays highlighted.
+- Toggle is shown only when a concrete stock `productId` / `selectedProductId` is known and wholesale price is configured.
+- Catalog-only or manual text rows keep the plain price stepper without toggle.
+
+### Scope
+
+1. `Create order -> Sales order` product rows (`CreateOrderSaleSection`)
+2. Opened sale/repair card product entry row (`OrderDetailLineItemsPanel`)
+3. `Rapid sale` product entry row (`RapidSaleModal`)
+
+Toggle is **not** added to already-added line-item tables; only the add-product entry row.
+
+### Implementation References
+
+- price helpers: `frontend/src/entities/product/lib/sale-prices.ts`
+- shared UI: `frontend/src/shared/ui/ProductSalePriceField.tsx`
+- styles: `frontend/src/shared/styles/layout.css` (`.product-sale-price-tier-toggle`)
 
 ## Sale Creation: Product/Device Linking Rules
 

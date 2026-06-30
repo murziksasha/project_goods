@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createBackup,
@@ -442,7 +442,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
   const [backupsPage, setBackupsPage] = useState(1);
   const [backupsPageSize, setBackupsPageSize] = useState(30);
 
-  const refreshBackups = async () => {
+  const refreshBackups = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
@@ -456,12 +456,12 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     if (!canManageBackups) return;
     void refreshBackups();
-  }, [canManageBackups]);
+  }, [canManageBackups, refreshBackups]);
 
   const paginatedBackups = useMemo(() => {
     const start = (backupsPage - 1) * backupsPageSize;

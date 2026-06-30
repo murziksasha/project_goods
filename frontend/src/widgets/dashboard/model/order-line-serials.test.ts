@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import {
+  buildInMemorySerialUsageSale,
   buildSerializedProductLineItem,
   getProductSerialAvailability,
   getSaleSerialUsage,
@@ -52,6 +53,17 @@ describe('order line serial helpers', () => {
     expect(getProductSerialAvailability(product, usage)).toEqual({
       labelKey: 'orders.serialAvailability.alreadyInThisOrder',
       selectable: false,
+    });
+  });
+
+  it('builds in-memory serial usage sale for draft occupancy', () => {
+    expect(buildInMemorySerialUsageSale([' s000020 ', 'S000020', 'S000021'])).toEqual({
+      id: '',
+      product: { id: '', article: '', name: '', serialNumber: '' },
+      lineItems: [
+        expect.objectContaining({ serialNumbers: ['S000020'] }),
+        expect.objectContaining({ serialNumbers: ['S000021'] }),
+      ],
     });
   });
 

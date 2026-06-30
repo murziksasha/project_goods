@@ -86,6 +86,45 @@ describe('rapid-sale-line-items', () => {
     expect(getRapidSaleDraftTotal(items)).toBe(250);
   });
 
+  it('excludes serials already present in draft items', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({ id: 'stock-1', serialNumber: 'S000003' }),
+        product({ id: 'stock-2', serialNumber: 'S000004' }),
+      ],
+      sales: [],
+      query: 'S00000',
+      draftItems: [
+        {
+          id: 'draft-1',
+          kind: 'product',
+          productId: 'stock-1',
+          name: 'iPhone 14',
+          price: '1000',
+          quantity: '1',
+          warrantyPeriod: '12',
+          serialNumbers: ['S000003'],
+        },
+      ],
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual(['S000004']);
+  });
+
+  it('excludes serials selected in the pending entry row', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({ id: 'stock-1', serialNumber: 'S000003' }),
+        product({ id: 'stock-2', serialNumber: 'S000004' }),
+      ],
+      sales: [],
+      query: 'S00000',
+      pendingSerialNumbers: ['S000004'],
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual(['S000003']);
+  });
+
   it('validates draft requirements', () => {
     expect(validateRapidSaleDraft([])).toBe('orders.rapidSale.errors.noItems');
     expect(
@@ -113,5 +152,29 @@ describe('rapid-sale-line-items', () => {
         },
       ]),
     ).toBeNull();
+    expect(
+      validateRapidSaleDraft([
+        {
+          id: 'p1',
+          kind: 'product',
+          productId: 'stock-1',
+          name: 'iPhone 14',
+          price: '1000',
+          quantity: '1',
+          warrantyPeriod: '12',
+          serialNumbers: ['S000003'],
+        },
+        {
+          id: 'p2',
+          kind: 'product',
+          productId: 'stock-1',
+          name: 'iPhone 14',
+          price: '1000',
+          quantity: '1',
+          warrantyPeriod: '12',
+          serialNumbers: ['S000003'],
+        },
+      ]),
+    ).toBe('orders.rapidSale.errors.duplicateSerial');
   });
 });

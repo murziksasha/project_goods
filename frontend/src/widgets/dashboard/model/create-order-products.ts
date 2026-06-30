@@ -10,6 +10,7 @@ import {
   buildProductWarehouseMetaById,
   type StockWarehouseItem,
 } from './stock-balance';
+import { getRetailSalePrice } from '../../../entities/product/lib/sale-prices';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import i18n from '../../../shared/i18n/config';
 
@@ -53,8 +54,7 @@ export const normalizeCreateOrderProductLookup = (value: string) =>
     .replace(/\s*\/\s*/g, ' ')
     .replace(/\s+/g, ' ');
 
-const getDefaultProductSalePrice = (product: Product) =>
-  product.salePriceOptions[0] ?? product.price ?? 0;
+const getDefaultProductSalePrice = (product: Product) => getRetailSalePrice(product);
 
 const getStockProductRank = (product: Product, query: string) => {
   const serial = normalizeCreateOrderProductLookup(product.serialNumber);

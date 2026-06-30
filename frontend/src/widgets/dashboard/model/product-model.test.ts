@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
+import type { StockSaleLink } from './stock-balance';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,
+  buildProductModelSerialPurchases,
+  getActiveStockProductsByExactModelName,
+  getLatestBatchProduct,
   getProductsByExactModelName,
 } from './product-model';
 
@@ -83,14 +87,140 @@ describe('product model aggregation', () => {
     expect(aggregateProductModelStock([], warehouses)).toEqual([]);
   });
 
-  it('maps modal price fields to the model update payload', () => {
+  it('excludes issued or zero-quantity units from active model stock rows', () => {
+    const products = [
+      {
+        ...baseProduct,
+        id: 'p-active',
+        serialNumber: 'S-active',
+        quantity: 1,
+      },
+      {
+        ...baseProduct,
+        id: 'p-sold',
+        serialNumber: 'S-sold',
+        quantity: 1,
+      },
+      {
+        ...baseProduct,
+        id: 'p-empty',
+        serialNumber: 'S-empty',
+        quantity: 0,
+      },
+    ];
+    const sales: StockSaleLink[] = [
+      {
+        status: 'issued',
+        product: { id: '', article: '', name: '', serialNumber: '' },
+        lineItems: [
+          {
+            id: 'line-1',
+            kind: 'product',
+            productId: 'p-sold',
+            name: 'Mi Box S Gen 3',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S-sold'],
+          },
+        ],
+      },
+    ];
+
+    expect(
+      getActiveStockProductsByExactModelName(
+        products,
+        sales,
+        'Mi Box S Gen 3',
+      ).map((product) => product.id),
+    ).toEqual(['p-active']);
+    expect(
+      buildProductModelSerialPurchases(
+        getActiveStockProductsByExactModelName(
+          products,
+          sales,
+          'Mi Box S Gen 3',
+        ),
+      ).map((row) => row.serialNumber),
+    ).toEqual(['S-active']);
+  });
+
+  it('builds per-serial purchase rows with latest batch markers', () => {
+    const products = [
+      {
+        ...baseProduct,
+        id: 'p-old-1',
+        serialNumber: 'S001',
+        price: 1000,
+        purchaseDate: '2026-01-10',
+        createdAt: '2026-01-10T10:00:00.000Z',
+      },
+      {
+        ...baseProduct,
+        id: 'p-old-2',
+        serialNumber: 'S002',
+        price: 1000,
+        purchaseDate: '2026-01-10',
+        createdAt: '2026-01-10T11:00:00.000Z',
+      },
+      {
+        ...baseProduct,
+        id: 'p-new-1',
+        serialNumber: 'S004',
+        price: 1200,
+        purchaseDate: '2026-03-15',
+        createdAt: '2026-03-15T09:00:00.000Z',
+      },
+      {
+        ...baseProduct,
+        id: 'p-new-2',
+        serialNumber: 'S005',
+        price: 1200,
+        purchaseDate: '2026-03-15',
+        createdAt: '2026-03-15T10:00:00.000Z',
+      },
+    ];
+
+    expect(getLatestBatchProduct(products)?.id).toBe('p-new-2');
+    expect(buildProductModelSerialPurchases(products)).toEqual([
+      {
+        productId: 'p-new-1',
+        serialNumber: 'S004',
+        price: 1200,
+        purchaseDate: '2026-03-15',
+        isLatestBatch: true,
+      },
+      {
+        productId: 'p-new-2',
+        serialNumber: 'S005',
+        price: 1200,
+        purchaseDate: '2026-03-15',
+        isLatestBatch: true,
+      },
+      {
+        productId: 'p-old-1',
+        serialNumber: 'S001',
+        price: 1000,
+        purchaseDate: '2026-01-10',
+        isLatestBatch: false,
+      },
+      {
+        productId: 'p-old-2',
+        serialNumber: 'S002',
+        price: 1000,
+        purchaseDate: '2026-01-10',
+        isLatestBatch: false,
+      },
+    ]);
+  });
+
+  it('maps modal price fields to the model update payload without purchase price', () => {
     expect(
       buildProductModelSavePayload('Mi Box S Gen 3', {
         article: 'A2',
         note: 'new note',
         retailPrice: '170',
         wholesalePrice: '160',
-        purchasePrice: '120',
       }),
     ).toEqual({
       name: 'Mi Box S Gen 3',
@@ -98,7 +228,6 @@ describe('product model aggregation', () => {
       note: 'new note',
       retailPrice: '170',
       wholesalePrice: '160',
-      purchasePrice: '120',
     });
   });
 });

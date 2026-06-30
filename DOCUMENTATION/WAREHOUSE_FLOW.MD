@@ -139,7 +139,18 @@ This document defines current warehouse requirements for stock balances, receipt
 2. shared editable `article` and `note`
 3. retail price from `salePriceOptions[0]`
 4. wholesale price from `salePriceOptions[1]`
-5. purchase / last batch price from `Product.price`
+5. purchase prices in `PRICES` (**read-only**, per serialized stock unit):
+   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date`
+   - active row rule matches `Stock balances` visibility: `quantity > 0` and not linked to a sale with status `issued`
+   - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
+   - rows are sorted by receipt date descending, then serial number
+   - compact scrollable table (`max-height: 220px`) keeps modal layout stable on mobile
+   - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
+   - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
+   - when a serialized unit is sold/issued, its row disappears from this table after products/sales data refresh
+   - when the last serial from a purchase batch is sold, that batch no longer appears in the table and `Latest batch` summary moves to the next newest active batch automatically
+   - when modal is opened from a stock serial click, that serial's row is visually highlighted
+   - model save never changes any `Product.price`
 6. total/free/reserved stock grouped by warehouse/location using configured warehouse metadata
 - Clicking the `Product model` label, model title, or copy icon near the title copies the exact product name to clipboard and shows a short copied tooltip.
 - Modal content is grouped as an accordion:
@@ -148,6 +159,7 @@ This document defines current warehouse requirements for stock balances, receipt
 3. `STOCK SUMMARY`
 - Default accordion state: only `PRICES` is expanded; all other groups are collapsed.
 - Saving the modal updates all and only matching `Product` stock rows.
+- Model save payload updates only `article`, `note`, `salePriceOptions[0]` (retail), and `salePriceOptions[1]` (wholesale); `Product.price` (purchase price) is never changed through this modal.
 - Saving does not update `CatalogProduct` and does not create stock rows.
 - If no matching stock rows exist, balances are shown as zero and stock-backed fields cannot be saved.
 
