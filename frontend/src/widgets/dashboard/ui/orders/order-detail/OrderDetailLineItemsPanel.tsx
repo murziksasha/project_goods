@@ -33,7 +33,10 @@ import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../modals/SupplierOrderModal';
 import { ProductModelModal } from '../modals/ProductModelModal';
 import { SerialBindModal } from '../modals/SerialBindModal';
-import { buildOrderDetailProductSuggestions } from '../../../model/create-order-products';
+import {
+  buildOrderDetailProductSuggestions,
+  findSelectableStockProductByName,
+} from '../../../model/create-order-products';
 import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../../../model/missingService';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import {
@@ -740,8 +743,56 @@ export const OrderDetailLineItemsPanel = ({
 
   const applyProductSuggestion = (suggestion: ProductEntrySuggestion) => {
     if (suggestion.type === 'catalog') {
+      const matchingStock = findSelectableStockProductByName({
+        products,
+        catalogName: suggestion.catalogProduct.name,
+        sales,
+        currentSaleId,
+      });
+
+      if (matchingStock) {
+        const suggestedPrice = getRetailSalePrice(matchingStock);
+        const serial = normalizeSerialNumber(matchingStock.serialNumber);
+
+        if (serial) {
+          onAddItem({
+            ...buildSerializedProductLineItem({
+              product: matchingStock,
+              price: suggestedPrice,
+              warrantyPeriod: 0,
+            }),
+          });
+          setName('');
+          setPrice('');
+          setPriceTier(null);
+          setQuantity('1');
+          setWarrantyPeriod('0');
+          setSelectedProductId(undefined);
+          setSelectedCatalogProductId(undefined);
+          setProductSuggestions([]);
+          onSuccess(
+            t('orders.messages.success.productWithSerialAdded', {
+              name: matchingStock.name,
+              serial,
+            }),
+          );
+          return;
+        }
+
+        setName(matchingStock.name);
+        setPrice(String(suggestedPrice));
+        setPriceTier('retail');
+        setQuantity('1');
+        setWarrantyPeriod(String(matchingStock.warrantyPeriod ?? 0));
+        setSelectedProductId(matchingStock.id);
+        setSelectedCatalogProductId(undefined);
+        setProductSuggestions([]);
+        return;
+      }
+
       setName(suggestion.catalogProduct.name);
       setPrice(String(suggestion.price));
+      setPriceTier(null);
       setWarrantyPeriod(String(suggestion.warrantyPeriod));
       setSelectedCatalogProductId(suggestion.catalogProduct.id);
       setSelectedProductId(undefined);
@@ -1298,85 +1349,114 @@ export const OrderDetailLineItemsPanel = ({
             );
           })
         )}
+        <div className='order-detail-table-entry-row'>
+          <div
+            className='order-line-item-name-entry order-detail-table-entry-cell'
+            data-label={t('orders.detail.lineItems.name')}
+          >
+            <input
+              className='line-item-inline-input'
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setSelectedServiceId(undefined);
+                setSelectedProductId(undefined);
+                setSelectedCatalogProductId(undefined);
+                setPriceTier(null);
+              }}
+              placeholder={
+                isProductKind
+                  ? t('orders.detail.lineItems.addProductPlaceholder')
+                  : t('orders.detail.lineItems.addServicePlaceholder')
+              }
+              disabled={isReadOnly}
+            />
+          </div>
+          {isProductKind ? (
+            <div
+              className='order-line-item-serial-entry-spacer order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.serialNumber')}
+              aria-hidden='true'
+            />
+          ) : null}
+          <div
+            className='order-line-item-price-cell order-detail-table-entry-cell'
+            data-label={t('orders.detail.lineItems.price')}
+          >
+            {isProductKind ? (
+              <ProductSalePriceField
+                tierTogglePlacement='compact'
+                stepperClassName='line-item-inline-input'
+                value={price}
+                onChange={setPrice}
+                product={selectedStockProduct}
+                priceTier={priceTier}
+                onPriceTierChange={setPriceTier}
+                placeholder={t('orders.detail.lineItems.price')}
+                disabled={isReadOnly}
+                ariaLabel={t('orders.detail.lineItems.price')}
+              />
+            ) : (
+              <NumberStepper
+                className='line-item-inline-input'
+                min={0}
+                step={0.01}
+                precision={2}
+                value={price}
+                onChange={setPrice}
+                placeholder={t('orders.detail.lineItems.price')}
+                disabled={isReadOnly}
+              />
+            )}
+          </div>
+          <div
+            className='order-line-item-entry-field order-detail-table-entry-cell'
+            data-label={t('orders.detail.lineItems.qty')}
+          >
+            <NumberStepper
+              className='line-item-inline-input'
+              min={1}
+              value={quantity}
+              onChange={setQuantity}
+              placeholder={t('orders.detail.lineItems.qty')}
+              disabled={isReadOnly}
+            />
+          </div>
+          <div
+            className='order-line-item-entry-field order-detail-table-entry-cell'
+            data-label={t('orders.detail.lineItems.warranty')}
+          >
+            <select
+              className='line-item-inline-input'
+              value={warrantyPeriod}
+              onChange={(event) => setWarrantyPeriod(event.target.value)}
+              disabled={isReadOnly}
+            >
+              {warrantyOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.labelKey)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div
+            className='order-line-item-entry-field order-line-item-entry-action order-detail-table-entry-cell'
+            data-label={t('orders.detail.lineItems.action')}
+          >
+            <button
+              type='button'
+              className='primary-button line-item-inline-button'
+              onClick={() => void submitItem()}
+              disabled={isReadOnly}
+            >
+              {isProductKind
+                ? t('orders.detail.lineItems.addProduct')
+                : t('orders.detail.lineItems.addService')}
+            </button>
+          </div>
+        </div>
       </div>
       <div className='order-line-items-form'>
-        <div
-          className={
-            kind === 'product'
-              ? 'order-line-items-entry-row order-line-items-entry-row-product'
-              : 'order-line-items-entry-row'
-          }
-        >
-          <input
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setSelectedServiceId(undefined);
-              setSelectedProductId(undefined);
-              setSelectedCatalogProductId(undefined);
-              setPriceTier(null);
-            }}
-            placeholder={
-              isProductKind
-                ? t('orders.detail.lineItems.addProductPlaceholder')
-                : t('orders.detail.lineItems.addServicePlaceholder')
-            }
-            disabled={isReadOnly}
-          />
-          {isProductKind ? (
-            <ProductSalePriceField
-              label={t('orders.detail.lineItems.price')}
-              fieldClassName='order-line-item-price-entry-field sale-price-field-labeled'
-              tierTogglePlacement='label'
-              value={price}
-              onChange={setPrice}
-              product={selectedStockProduct}
-              priceTier={priceTier}
-              onPriceTierChange={setPriceTier}
-              placeholder={t('orders.detail.lineItems.price')}
-              disabled={isReadOnly}
-              ariaLabel={t('orders.detail.lineItems.price')}
-            />
-          ) : (
-            <NumberStepper
-              min={0}
-              step={0.01}
-              precision={2}
-              value={price}
-              onChange={setPrice}
-              placeholder={t('orders.detail.lineItems.price')}
-              disabled={isReadOnly}
-            />
-          )}
-          <NumberStepper
-            min={1}
-            value={quantity}
-            onChange={setQuantity}
-            placeholder={t('orders.detail.lineItems.qty')}
-            disabled={isReadOnly}
-          />
-          <select
-            value={warrantyPeriod}
-            onChange={(event) => setWarrantyPeriod(event.target.value)}
-            disabled={isReadOnly}
-          >
-            {warrantyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={() => void submitItem()}
-            disabled={isReadOnly}
-          >
-            {isProductKind
-              ? t('orders.detail.lineItems.addProduct')
-              : t('orders.detail.lineItems.addService')}
-          </button>
-        </div>
         {kind === 'product' &&
         (productSuggestions.length > 0 || isProductLookupLoading) ? (
           <div className='create-suggestions line-item-suggestions'>

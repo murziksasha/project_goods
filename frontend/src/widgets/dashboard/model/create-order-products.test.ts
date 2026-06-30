@@ -6,6 +6,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import {
   buildCreateOrderProductSuggestions,
   buildCreateOrderSaleLineItems,
+  findSelectableStockProductByName,
 } from './create-order-products';
 
 const product = (patch: Partial<Product>): Product => ({
@@ -198,6 +199,86 @@ describe('create order product helpers', () => {
     });
 
     expect(suggestions).toEqual([]);
+  });
+
+  it('finds selectable bulk stock by catalog name', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'bulk-videx',
+          name: 'Videx',
+          serialNumber: '',
+          salePriceOptions: [1500, 1200],
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [],
+    });
+
+    expect(match?.id).toBe('bulk-videx');
+  });
+
+  it('prefers bulk stock over serialized stock with the same catalog name', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'serial-videx',
+          name: 'Videx',
+          serialNumber: 'S000010',
+        }),
+        product({
+          id: 'bulk-videx',
+          name: 'Videx',
+          serialNumber: '',
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [],
+    });
+
+    expect(match?.id).toBe('bulk-videx');
+  });
+
+  it('skips occupied serialized stock when resolving catalog name', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'occupied-videx',
+          name: 'Videx',
+          serialNumber: 'S000010',
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [
+        {
+          id: 'sale-1',
+          product: { id: '', article: '', name: '', serialNumber: '' },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Videx',
+              price: 1500,
+              quantity: 1,
+              warrantyPeriod: 12,
+              serialNumbers: ['S000010'],
+            },
+          ],
+        } as Pick<Sale, 'id' | 'product' | 'lineItems'>,
+      ],
+    });
+
+    expect(match).toBeNull();
+  });
+
+  it('returns null when no stock matches catalog name', () => {
+    const match = findSelectableStockProductByName({
+      products: [product({ id: 'other', name: 'Other item' })],
+      catalogName: 'Videx',
+      sales: [],
+    });
+
+    expect(match).toBeNull();
   });
 
   it('keeps catalog fallback for catalog-only products', () => {

@@ -688,7 +688,7 @@ describe('OrderDetailCard product entry', () => {
   it('adds a catalog Product List item as a quantity line without serials', async () => {
     const onAddLineItem = vi.fn();
     const onError = vi.fn();
-    renderCard({ onAddLineItem, onError });
+    renderCard({ onAddLineItem, onError, products: [] });
 
     fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
       target: { value: 'TerraE' },
@@ -719,9 +719,9 @@ describe('OrderDetailCard product entry', () => {
         catalogProductId: 'catalog-1',
         productId: undefined,
         name: 'TerraE 30E INR18650 2900mAh',
-        price: 88,
+        price: 0,
         quantity: 4,
-        warrantyPeriod: 6,
+        warrantyPeriod: 0,
         serialNumbers: undefined,
       }),
     );
@@ -766,8 +766,58 @@ describe('OrderDetailCard product entry', () => {
     expect(screen.getByText(/A000001/)).toBeInTheDocument();
   });
 
+  it('resolves catalog suggestion to matching bulk stock and prefills retail price', async () => {
+    const bulkStock = product({
+      id: 'videx-stock',
+      name: 'Videx',
+      article: 'CAM-100',
+      serialNumber: '',
+      price: 500,
+      salePriceOptions: [1500, 1200],
+      warrantyPeriod: 12,
+    });
+
+    renderCard({
+      products: [bulkStock],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-videx',
+          name: 'Videx',
+          note: 'Catalog note',
+        }),
+      ],
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
+      target: { value: 'Videx' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Videx/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    expect(screen.getByDisplayValue('1500')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Wholesale' })).toBeInTheDocument();
+  });
+
+  it('renders product entry row without duplicate Price label above stepper', () => {
+    const { container } = renderCard();
+
+    const entryRow = container.querySelector('.order-detail-table-entry-row');
+    expect(entryRow).toBeTruthy();
+    expect(
+      entryRow?.querySelector('.product-sale-price-field-label-text'),
+    ).toBeNull();
+    expect(
+      entryRow?.querySelector('.product-sale-price-field-compact'),
+    ).toBeTruthy();
+  });
+
   it('shows catalog suggestions when searching by product name', async () => {
-    renderCard();
+    renderCard({ products: [] });
 
     fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
       target: { value: 'TerraE' },
