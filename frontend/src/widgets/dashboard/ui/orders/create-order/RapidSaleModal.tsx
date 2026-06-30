@@ -32,6 +32,7 @@ import {
   getDefaultWarehouseId,
 } from '../../../model/warehouse-serial-filter';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
+import { useLockBodyScroll } from '../../product-catalog/product-catalog-shared';
 
 type RapidSaleModalProps = {
   products: Product[];
@@ -50,6 +51,7 @@ export const RapidSaleModal = ({
   onSubmit,
   onError,
 }: RapidSaleModalProps) => {
+  useLockBodyScroll();
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const [draftItems, setDraftItems] = useState<RapidSaleDraftItem[]>([]);
@@ -353,7 +355,7 @@ export const RapidSaleModal = ({
           </button>
         </header>
 
-        <div className="rapid-sale-body catalog-edit-body">
+        <div className="rapid-sale-body">
           <section className="rapid-sale-section">
             <h3>{t('orders.rapidSale.products')}</h3>
             <WarehouseSelectField
@@ -378,18 +380,18 @@ export const RapidSaleModal = ({
                   placeholder={t('orders.create.productSearchPlaceholder')}
                 />
               </label>
-              <label className="field">
-                <span>{t('orders.create.price')}</span>
-                <ProductSalePriceField
-                  value={productPrice}
-                  onChange={setProductPrice}
-                  product={selectedStockProduct}
-                  priceTier={productPriceTier}
-                  onPriceTierChange={setProductPriceTier}
-                  placeholder="0"
-                  ariaLabel={t('orders.rapidSale.productPrice')}
-                />
-              </label>
+              <ProductSalePriceField
+                label={t('orders.create.price')}
+                fieldClassName="field rapid-sale-price-field"
+                tierTogglePlacement="label"
+                value={productPrice}
+                onChange={setProductPrice}
+                product={selectedStockProduct}
+                priceTier={productPriceTier}
+                onPriceTierChange={setProductPriceTier}
+                placeholder="0"
+                ariaLabel={t('orders.rapidSale.productPrice')}
+              />
               <label className="field">
                 <span>{t('orders.create.qty')}</span>
                 <NumberStepper
@@ -525,64 +527,64 @@ export const RapidSaleModal = ({
               </div>
             ) : null}
           </section>
-
-          {draftItems.length > 0 ? (
-            <section className="rapid-sale-items">
-              <table className="rapid-sale-items-table">
-                <thead>
-                  <tr>
-                    <th>{t('common.name')}</th>
-                    <th>{t('orders.create.price')}</th>
-                    <th>{t('orders.create.qty')}</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {draftItems.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        {item.name}
-                        {item.kind === 'product' && item.serialNumbers?.length
-                          ? ` (${item.serialNumbers.join(', ')})`
-                          : ''}
-                      </td>
-                      <td className="rapid-sale-draft-price-cell">
-                        <NumberStepper
-                          min={0}
-                          step={0.01}
-                          precision={2}
-                          value={item.price}
-                          onChange={(nextPrice) => updateDraftItemPrice(item.id, nextPrice)}
-                          ariaLabel={`${item.name} ${t('orders.create.price')}`}
-                          placeholder="0"
-                          disabled={isSaving}
-                          className="line-item-inline-input rapid-sale-draft-price"
-                        />
-                      </td>
-                      <td>{item.quantity}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="ghost-button"
-                          onClick={() =>
-                            setDraftItems((current) =>
-                              current.filter((draft) => draft.id !== item.id),
-                            )
-                          }
-                        >
-                          {t('orders.detail.lineItems.remove')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="rapid-sale-total">
-                {t('orders.rapidSale.total', { amount: Math.round(draftTotal * 100) / 100 })}
-              </p>
-            </section>
-          ) : null}
         </div>
+
+        {draftItems.length > 0 ? (
+          <section className="rapid-sale-items">
+            <table className="rapid-sale-items-table">
+              <thead>
+                <tr>
+                  <th>{t('common.name')}</th>
+                  <th>{t('orders.create.price')}</th>
+                  <th>{t('orders.create.qty')}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {draftItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      {item.name}
+                      {item.kind === 'product' && item.serialNumbers?.length
+                        ? ` (${item.serialNumbers.join(', ')})`
+                        : ''}
+                    </td>
+                    <td className="rapid-sale-draft-price-cell">
+                      <NumberStepper
+                        min={0}
+                        step={0.01}
+                        precision={2}
+                        value={item.price}
+                        onChange={(nextPrice) => updateDraftItemPrice(item.id, nextPrice)}
+                        ariaLabel={`${item.name} ${t('orders.create.price')}`}
+                        placeholder="0"
+                        disabled={isSaving}
+                        className="line-item-inline-input rapid-sale-draft-price"
+                      />
+                    </td>
+                    <td>{item.quantity}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() =>
+                          setDraftItems((current) =>
+                            current.filter((draft) => draft.id !== item.id),
+                          )
+                        }
+                      >
+                        {t('orders.detail.lineItems.remove')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="rapid-sale-total">
+              {t('orders.rapidSale.total', { amount: Math.round(draftTotal * 100) / 100 })}
+            </p>
+          </section>
+        ) : null}
 
         <footer className="rapid-sale-footer catalog-edit-footer">
           <button type="button" className="secondary-button" onClick={onClose} disabled={isSaving}>

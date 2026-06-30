@@ -484,8 +484,9 @@
 
 .rapid-sale-modal {
   width: min(640px, calc(100vw - 28px));
+  max-height: calc(100vh - 32px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   overflow: hidden;
 }
 
@@ -494,6 +495,7 @@
   flex-direction: column;
   gap: 16px;
   min-height: 0;
+  padding: 16px 16px 0;
   overflow-y: auto;
 }
 
@@ -547,13 +549,42 @@
 
 .rapid-sale-entry-row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(0, 2fr)
+    minmax(120px, 1.15fr)
+    minmax(84px, 0.85fr)
+    minmax(96px, 0.9fr)
+    minmax(0, 1fr);
   gap: 8px;
   align-items: end;
 }
 
 .rapid-sale-entry-row .field {
   min-width: 0;
+}
+
+.rapid-sale-price-field .product-sale-price-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 22px;
+}
+
+.rapid-sale-price-field .product-sale-price-field-label-text {
+  min-width: 0;
+}
+
+.rapid-sale-price-field .product-sale-price-tier-toggle {
+  flex: 0 0 auto;
+}
+
+.rapid-sale-price-field .product-sale-price-field {
+  display: block;
+}
+
+.rapid-sale-price-field .product-sale-price-stepper {
+  width: 100%;
 }
 
 .rapid-sale-entry-action > span[aria-hidden='true'] {
@@ -574,8 +605,13 @@
 }
 
 .rapid-sale-items {
+  flex-shrink: 0;
   min-width: 0;
+  padding: 8px 16px 0;
+  border-top: 1px solid #e3e9f0;
+  max-height: min(220px, 32vh);
   overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -4371,6 +4407,18 @@
   display: grid;
   gap: 6px;
   align-content: start;
+}
+
+.product-sale-price-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.product-sale-price-field-label-text {
+  min-width: 0;
 }
 
 .product-sale-price-field {

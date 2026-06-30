@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { Product } from '../../entities/product/model/types';
 import {
   formatProductSalePrice,
@@ -20,6 +20,9 @@ type ProductSalePriceFieldProps = {
   placeholder?: string;
   ariaLabel?: string;
   stepperClassName?: string;
+  label?: ReactNode;
+  fieldClassName?: string;
+  tierTogglePlacement?: 'inline' | 'label';
 };
 
 export const ProductSalePriceField = ({
@@ -32,6 +35,9 @@ export const ProductSalePriceField = ({
   placeholder = '0',
   ariaLabel,
   stepperClassName,
+  label,
+  fieldClassName,
+  tierTogglePlacement = 'inline',
 }: ProductSalePriceFieldProps) => {
   const showTierToggle = product ? hasWholesaleSalePrice(product) : false;
 
@@ -59,7 +65,15 @@ export const ProductSalePriceField = ({
     ? `${stepperClassName} product-sale-price-stepper`
     : 'product-sale-price-stepper';
 
-  return (
+  const tierToggle = showTierToggle ? (
+    <ProductSalePriceTierToggle
+      activeTier={activeTier}
+      onTierChange={handleTierChange}
+      disabled={disabled}
+    />
+  ) : null;
+
+  const fieldContent = (
     <div className='product-sale-price-field'>
       <NumberStepper
         min={0}
@@ -72,13 +86,21 @@ export const ProductSalePriceField = ({
         ariaLabel={ariaLabel}
         className={resolvedStepperClassName}
       />
-      {showTierToggle ? (
-        <ProductSalePriceTierToggle
-          activeTier={activeTier}
-          onTierChange={handleTierChange}
-          disabled={disabled}
-        />
-      ) : null}
+      {tierToggle && tierTogglePlacement === 'inline' ? tierToggle : null}
     </div>
+  );
+
+  if (!label) {
+    return fieldContent;
+  }
+
+  return (
+    <label className={fieldClassName}>
+      <span className='product-sale-price-field-label'>
+        <span className='product-sale-price-field-label-text'>{label}</span>
+        {tierToggle && tierTogglePlacement === 'label' ? tierToggle : null}
+      </span>
+      {fieldContent}
+    </label>
   );
 };

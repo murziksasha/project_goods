@@ -254,21 +254,24 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderSaleServicesSection.tsx` — collapsible `Services` section for create-order sales
 - `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderDetailLineItemsPanel.tsx` — opened card product lookup (`buildOrderDetailProductSuggestions`: serial/article stock mode, name catalog mode, warehouse label in suggestions)
 
-## Structure Update: Rapid Sale (2026-06-24)
+## Structure Update: Rapid Sale (2026-06-24, UX 2026-06-30)
 
 ### Frontend
 
-- `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` — compact modal UI (products, services, draft list, issue)
+- `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` — modal UI: entry panel, pinned draft table, footer, `useLockBodyScroll`, `ProductSalePriceField` with `tierTogglePlacement: label`
 - `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items
 - `frontend/src/widgets/dashboard/ui/warehouse/WarehouseSelectField.tsx` — shared warehouse dropdown (rapid sale + serial bind)
-- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers for serial bind modal
-- `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — stock suggestions, draft validation, line-item builder
+- `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers
+- `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — `buildRapidSaleStockSuggestions`, `getRapidSaleOccupiedSerialNumbers`, `validateRapidSaleDraft`, line-item builder
+- `frontend/src/widgets/dashboard/model/order-line-serials.ts` — `buildInMemorySerialUsageSale`, `collectOccupiedSerialNumbers` (draft serial occupancy for suggestions)
+- `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
+- `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` — `useLockBodyScroll` (reused by rapid sale modal)
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
 - `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
 - `frontend/src/pages/dashboard/model/dashboard-actions.ts` — `saveRapidSale`
 - `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — `handleRapidSaleCreated`, `pendingPaymentSale` payment handoff
 - `frontend/src/widgets/dashboard/ui/orders/workspace/OrdersWorkspace.tsx` — list client column override, `pendingPaymentSale` effect
-- Styles: `frontend/src/shared/styles/layout.css` (`.rapid-sale-*`), `responsive.css` (breakpoints)
+- Styles: `frontend/src/shared/styles/layout.css` (`.rapid-sale-*`, `.rapid-sale-price-field`), `responsive.css` (breakpoints)
 
 ### Backend
 

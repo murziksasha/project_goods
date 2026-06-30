@@ -57,6 +57,26 @@ describe('ProductSalePriceField', () => {
     expect(screen.queryByRole('button', { name: 'Wholesale' })).not.toBeInTheDocument();
   });
 
+  it('renders tier badges in the field label row when tierTogglePlacement is label', () => {
+    const { container } = render(
+      <ProductSalePriceField
+        label="Price"
+        fieldClassName="field rapid-sale-price-field"
+        tierTogglePlacement="label"
+        value="1000"
+        onChange={vi.fn()}
+        product={product}
+        priceTier="retail"
+        onPriceTierChange={vi.fn()}
+      />,
+    );
+
+    const labelRow = container.querySelector('.product-sale-price-field-label');
+    expect(labelRow).toBeTruthy();
+    expect(labelRow?.querySelector('.product-sale-price-tier-toggle')).toBeTruthy();
+    expect(container.querySelector('.product-sale-price-field .product-sale-price-tier-toggle')).toBeNull();
+  });
+
   it('switches price to wholesale when wholesale tier badge is selected', () => {
     const onChange = vi.fn();
     const onPriceTierChange = vi.fn();

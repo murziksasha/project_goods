@@ -10,55 +10,96 @@
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client does not exist and valid phone+name are provided, client can be created automatically in the same flow.
 
-## Rapid Sale (2026-06-24)
+## Rapid Sale (2026-06-24, UX updates 2026-06-30)
 
-Compact counter-sale flow for walk-in customers: no client form, stock products + services only, immediate issue path.
+Compact counter-sale flow for walk-in customers: no client form, warehouse stock products + services only, immediate issue path.
 
 ### Entry And Visibility
 
 - Entry point: `Create order -> Sales order` tab, header button `Rapid sale` (`orders.rapidSale.openButton`).
 - Button is shown only on the **Sales order** tab when `onRapidSale` handler is wired (dashboard `saveRapidSale`).
 - Button sits in `create-order-header-actions` next to the close control; layout wraps on tablet/phone and must not break the create-order header.
-- Opens `RapidSaleModal` — smaller than the full create-order page, reuses `catalog-edit-modal` shell.
+- Opens `RapidSaleModal` — smaller than the full create-order page, reuses `catalog-edit-modal` shell classes for header/footer styling.
+
+### Modal Shell And Scroll
+
+- Modal grid rows: `header | entry panel | draft list | footer` (`.rapid-sale-modal`).
+- Width `min(640px, 100vw - 28px)`; max-height `calc(100vh - 32px)`; outer shell uses `overflow: hidden`.
+- While the modal is open, background page scroll is locked via `useLockBodyScroll()` (`document.body.style.overflow = hidden`; restored on close/unmount).
+- Only the entry panel scrolls vertically; footer and draft block stay visible in the modal viewport.
 
 ### Modal Layout (Responsive)
 
-- Desktop: modal width `min(640px, 100vw - 28px)`; body scrolls independently; footer stays pinned.
-- Product/service entry rows use a responsive grid (same breakpoint family as `sale-item-row`):
-  - wide: search + price + qty + warranty + add action on one row
-  - `<=1024px`: two columns; search and add action span full width
-  - `<=480px`: single column stack; footer buttons full width
-- Draft items table scrolls horizontally on narrow screens when needed.
-- Suggestion lists keep fixed max height with internal scroll (no layout jump).
+- Scrollable entry panel (`.rapid-sale-body`) contains **only** Products and Services sections (no `catalog-edit-body` class on the scroll container).
+- Draft items table (`.rapid-sale-items`) is a **sibling** between `.rapid-sale-body` and footer — always visible without scrolling the entry forms.
+- Long draft lists scroll inside `.rapid-sale-items` (`max-height: min(220px, 32vh)`); horizontal scroll on narrow screens when needed.
+- Product/service entry rows (`.rapid-sale-entry-row`) use the same breakpoint family as `sale-item-row`:
+  - **wide:** search + price + qty + warranty + add action on one row
+  - **`<=1024px`:** two columns; search and add action span full width
+  - **`<=480px`:** single column stack; footer buttons full width
+- Price grid column: `minmax(120px, 1.15fr)` so the stepper stays readable on desktop/tablet.
+- Product suggestion lists (`.rapid-sale-suggestions`) keep fixed max height with internal scroll (no layout jump in the entry panel).
 
 ### Product Entry (Stock Only)
 
-- Product section includes a **Warehouse** dropdown (active warehouses from `warehouse-settings`).
-- Default selection is the first created active warehouse (first item in settings list).
-- Product search and stock suggestions are scoped to the selected warehouse (`product.warehouseId`, with `purchasePlace` name fallback for legacy rows).
-- Changing warehouse clears the in-progress product entry row.
-- Product search starts from 2+ characters (200 ms debounce).
-- Suggestions come from `buildRapidSaleStockSuggestions` — **warehouse stock only** (`source: stock`, selectable rows).
-- Catalog-only rows and manual product text are rejected on save.
-- Selecting any stock suggestion (serial or non-serial) pre-fills the product entry row; operator confirms with `Add product`.
-- Serial-bound rows bind the serial in the entry row and lock quantity to `1` until the line is added.
-- Serialized draft rows keep quantity at `1` in the draft table.
-- Serial numbers already added to the draft table, or currently bound in the active product entry row, are excluded from stock suggestions (`orders.serialAvailability.alreadyInThisOrder`).
-- One serial number maps to one draft line; duplicate serial binding is blocked on `Add product` and on `Issued` validation.
+- Product section includes a **Warehouse** dropdown (`WarehouseSelectField`, active warehouses from `warehouse-settings`).
+- Default warehouse: first created active warehouse (`getDefaultWarehouseId`).
+- Product search and stock suggestions are scoped to the selected warehouse (`filterProductsByWarehouse`: `product.warehouseId`, with `purchasePlace` name fallback for legacy rows).
+- Changing warehouse clears the in-progress product entry row (search, price, tier, qty, warranty, selected product/serials).
+- Product search: min 2 characters, 200 ms debounce.
+- Suggestions: `buildRapidSaleStockSuggestions` — **warehouse stock only** (`source: stock`, `selectable: true` rows). No catalog fallback.
+- Catalog-only rows and manual product text are rejected on save (`orders.rapidSale.errors.stockOnly`).
+
+#### Suggestion selection
+
+- Clicking a stock suggestion pre-fills the active product entry row; operator confirms with `Add product` (two-step, not immediate draft insert).
+- Pre-fill applies: `productId`, name, retail price (`salePriceOptions[0]`), `priceTier: retail`, qty `1`, warranty from product.
+- If the suggestion has a serial, it binds in the entry row (`selectedSerialNumbers`) and locks qty stepper to `1` until add or search reset.
+- Suggestions hide while `selectedProductId` is set; they reappear only after the operator edits the search field (which clears the product binding).
+- Suggestion row format: `name / article / serial / availabilityLabel`.
+
+See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid Sale Serial Dedup Rule.
+
+#### Serial numbers in draft
+
+- Serial numbers already in the draft table, or currently bound in the active entry row (`pendingSerialNumbers`), are treated as occupied and **excluded** from stock suggestions (`orders.serialAvailability.alreadyInThisOrder`).
+- Implementation: `getRapidSaleOccupiedSerialNumbers` + in-memory pseudo-sale `buildInMemorySerialUsageSale` merged into `sales` for `getSaleSerialUsage`.
+- One serial maps to one draft line. Duplicate binding is blocked:
+  - on `Add product` → `orders.rapidSale.errors.duplicateSerial`
+  - on `Issued` → `validateRapidSaleDraft` returns the same error key
+- Removing a draft line frees its serial for suggestions again.
+
+#### Price and Retail / Wholesale toggle
+
+- Entry price uses `ProductSalePriceField` with `tierTogglePlacement: label` and `fieldClassName: field rapid-sale-price-field`.
+- When `salePriceOptions[1] > 0`, compact **R** / **W** badges render in the **Price label row** (next to the label text), not below the stepper — entry row height stays stable across stock selections.
+- Stepper occupies the full price column width; label row keeps `min-height: 22px`.
+- Default tier on stock selection: **retail**. Wholesale fills `salePriceOptions[1]`; manual edits allowed.
+- Wholesale toggle is **not** shown in the draft items table (plain `NumberStepper` for post-add price override).
 
 ### Service Entry
 
-- Service search reuses service catalog lookup (`getServiceCatalogItems`, 350 ms debounce).
+- Service search: `getServiceCatalogItems`, min 2 characters, 350 ms debounce.
 - Missing service names may be auto-created on add (same `missingService` helpers as create-order).
 - Operator confirms with `Add service`.
 
-### Draft Items List (Lower Section)
+### Draft Items List (Pinned Section)
 
-- Added products and services appear in a table below the entry sections: `Name`, `Price`, `Qty`, `Remove`.
-- **Price is editable** in this list via `NumberStepper` (manual override after add). Total line updates immediately.
-- `Qty` is display-only in the draft table (change quantity before add, or remove and re-add).
-- Footer shows running total: `Total: {{amount}} UAH`.
-- `Issued` stays disabled until at least one valid draft line exists.
+- Added products and services appear in a pinned table between entry panel and footer: `Name`, `Price`, `Qty`, `Remove`.
+- Product names show bound serials inline: `Name (S000003)`.
+- **Price is editable** in the draft table via `NumberStepper` (manual override after add). Running total updates immediately (`orders.rapidSale.total`).
+- `Qty` is display-only in the draft table (change qty before add, or remove and re-add).
+- `Issued` stays disabled until `validateRapidSaleDraft` passes (at least one line, valid stock products, no duplicate serials, finite total).
+
+### Draft Validation Errors (i18n)
+
+| Key | When |
+|-----|------|
+| `orders.rapidSale.errors.noItems` | Empty draft on `Issued` |
+| `orders.rapidSale.errors.stockOnly` | Product line without `productId` |
+| `orders.rapidSale.errors.duplicateSerial` | Same serial in multiple draft lines or re-add attempt |
+| `orders.rapidSale.errors.invalidTotal` | Non-finite or negative total |
+| `orders.rapidSale.errors.serviceName` | Service name shorter than 2 chars |
 
 ### Issue And Payment Handoff
 
@@ -86,20 +127,27 @@ Compact counter-sale flow for walk-in customers: no client form, stock products 
 - Manual product lines without `productId` are rejected.
 - `clientId` in request body is ignored; system rapid-sale client is assigned server-side.
 - Formatted API responses include `isRapidSale: boolean` on the sale snapshot.
+- Frontend duplicate-serial protection applies to the draft only; backend `assertSerialNumbersNotBoundToOtherSales` checks other **saved** sales.
 
 ### Key Implementation Files
 
-| Layer | Path |
-|-------|------|
-| Modal UI | `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` |
-| Draft/line-item helpers | `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` |
-| List client label | `frontend/src/widgets/dashboard/model/sale-client-display.ts` |
-| Create + payment handoff | `frontend/src/pages/dashboard/ui/DashboardPage.tsx` (`handleRapidSaleCreated`, `pendingPaymentSale`) |
-| Save action | `frontend/src/pages/dashboard/model/dashboard-actions.ts` (`saveRapidSale`) |
-| System client | `backend/src/domain/client/rapid-sale-client.ts` |
-| Create rules | `backend/src/domain/sale/service.ts` (`assertRapidSaleLineItems`) |
+| Layer | Path | Role |
+|-------|------|------|
+| Modal UI | `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` | Layout, entry rows, draft table, scroll lock |
+| Draft helpers | `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` | Suggestions, validation, line-item builder |
+| Serial occupancy | `frontend/src/widgets/dashboard/model/order-line-serials.ts` | `buildInMemorySerialUsageSale`, `collectOccupiedSerialNumbers` |
+| Warehouse filter | `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` | Scoped products, default warehouse |
+| Shared price UI | `frontend/src/shared/ui/ProductSalePriceField.tsx` | Retail/wholesale stepper + `tierTogglePlacement` |
+| Scroll lock | `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` | `useLockBodyScroll` |
+| Styles | `frontend/src/shared/styles/layout.css`, `responsive.css` | `.rapid-sale-*`, `.rapid-sale-price-field` |
+| List client label | `frontend/src/widgets/dashboard/model/sale-client-display.ts` | `Rapid sale` list label and search aliases |
+| Entry button | `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.tsx` | Opens modal (sales tab only) |
+| Create + payment | `frontend/src/pages/dashboard/ui/DashboardPage.tsx` | `handleRapidSaleCreated`, `pendingPaymentSale` |
+| Save action | `frontend/src/pages/dashboard/model/dashboard-actions.ts` | `saveRapidSale` |
+| System client | `backend/src/domain/client/rapid-sale-client.ts` | `getOrCreateRapidSaleClient()` |
+| Create rules | `backend/src/domain/sale/service.ts` | `assertRapidSaleLineItems` |
 
-Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.md](./API.md) (`POST /sales` payload), [SALE_CARD.md](./SALE_CARD.md) (opened card rules).
+Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.md](./API.md) (`POST /sales` payload), [SALE_CARD.md](./SALE_CARD.md) (opened card rules), [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) (lookup + serial dedup).
 
 ## Sale Items Input Behavior
 
@@ -150,7 +198,13 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 
 ## Wholesale Price Toggle (2026-06-30)
 
-When a stock product is linked in a sale product entry row and `salePriceOptions[1] > 0`, the price field shows a compact **Retail / Wholesale** toggle below the price stepper.
+When a stock product is linked in a sale product entry row and `salePriceOptions[1] > 0`, the price field shows a compact **Retail / Wholesale** toggle (`ProductSalePriceTierToggle`: badges **R** / **W**).
+
+| Surface | Toggle placement | Notes |
+|---------|------------------|-------|
+| `Create order -> Sales order` | Inline next to stepper (`tierTogglePlacement: inline`, default) | Price column ~130px |
+| Opened sale/repair card add-row | Inline next to stepper | Price column ~120px |
+| `Rapid sale` entry row | In the **Price** label row (`tierTogglePlacement: label`) | Stepper full width below; column `minmax(120px, 1.15fr)`; class `rapid-sale-price-field` |
 
 ### Behavior
 
