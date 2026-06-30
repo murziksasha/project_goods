@@ -202,13 +202,15 @@ When a stock product is linked in a sale product entry row and `salePriceOptions
 
 | Surface | Toggle placement | Notes |
 |---------|------------------|-------|
-| `Create order -> Sales order` | Inline next to stepper (`tierTogglePlacement: inline`, default) | Price column ~130px |
-| Opened sale/repair card add-row | Inline next to stepper | Price column ~120px |
-| `Rapid sale` entry row | In the **Price** label row (`tierTogglePlacement: label`) | Stepper full width below; column `minmax(120px, 1.15fr)`; class `rapid-sale-price-field` |
+| `Create order -> Sales order` product rows | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-item-price-field sale-price-field-labeled`; price column ~130px |
+| Opened sale/repair card add-row | In the **Price** label row (`tierTogglePlacement: label`) | Class `order-line-item-price-entry-field sale-price-field-labeled`; price column ~120px |
+| Opened sale/repair card line-item table | Above the stepper (`tierTogglePlacement: compact`) | Shown only when line has `productId` and wholesale price is configured |
+| `Rapid sale` entry row | In the **Price** label row (`tierTogglePlacement: label`) | Stepper full width below; column `minmax(120px, 1.15fr)`; class `sale-price-field-labeled rapid-sale-price-field` |
+| Legacy `SaleForm` | In the **Sale price** label row (`tierTogglePlacement: label`) | Class `sale-price-field-labeled` |
 
 ### Behavior
 
-- Default tier on stock selection: **retail** (`salePriceOptions[0]`, fallback `product.price`).
+- Default tier on stock selection: **retail** (`getRetailSalePrice`: `salePriceOptions[0]` when `> 0`, otherwise `product.price`).
 - Clicking **Wholesale** fills the entry price with `salePriceOptions[1]`.
 - Clicking **Retail** restores the retail price.
 - Manual edits in the price stepper remain allowed; if the entered value no longer matches either tier, neither toggle button stays highlighted.
@@ -219,15 +221,19 @@ When a stock product is linked in a sale product entry row and `salePriceOptions
 
 1. `Create order -> Sales order` product rows (`CreateOrderSaleSection`)
 2. Opened sale/repair card product entry row (`OrderDetailLineItemsPanel`)
-3. `Rapid sale` product entry row (`RapidSaleModal`)
+3. Opened sale/repair card product line-item price cells when wholesale is configured (`OrderDetailLineItemsPanel`, `tierTogglePlacement: compact`)
+4. `Rapid sale` product entry row (`RapidSaleModal`)
+5. Legacy dashboard `SaleForm`
 
-Toggle is **not** added to already-added line-item tables; only the add-product entry row.
+### Retail price pre-fill fix (bulk stock, 2026-06-30)
+
+When selecting a warehouse stock suggestion **without** a bound serial in `Create order -> Sales order`, the active row must bind `productId` and pre-fill price via `formatRetailSalePrice` / `getRetailSalePrice`. Previously `productId` was cleared and price stayed empty when `suggestion.price` was `0`.
 
 ### Implementation References
 
 - price helpers: `frontend/src/entities/product/lib/sale-prices.ts`
 - shared UI: `frontend/src/shared/ui/ProductSalePriceField.tsx`
-- styles: `frontend/src/shared/styles/layout.css` (`.product-sale-price-tier-toggle`)
+- styles: `frontend/src/shared/styles/layout.css` (`.sale-price-field-labeled`, `.product-sale-price-field-compact`, `.product-sale-price-tier-toggle`)
 
 ## Sale Creation: Product/Device Linking Rules
 

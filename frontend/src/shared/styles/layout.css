@@ -563,6 +563,7 @@
   min-width: 0;
 }
 
+.sale-price-field-labeled .product-sale-price-field-label,
 .rapid-sale-price-field .product-sale-price-field-label {
   display: flex;
   align-items: center;
@@ -571,20 +572,32 @@
   min-height: 22px;
 }
 
+.sale-price-field-labeled .product-sale-price-field-label-text,
 .rapid-sale-price-field .product-sale-price-field-label-text {
   min-width: 0;
 }
 
+.sale-price-field-labeled .product-sale-price-tier-toggle,
 .rapid-sale-price-field .product-sale-price-tier-toggle {
   flex: 0 0 auto;
 }
 
+.sale-price-field-labeled .product-sale-price-field,
 .rapid-sale-price-field .product-sale-price-field {
   display: block;
 }
 
+.sale-price-field-labeled .product-sale-price-stepper,
 .rapid-sale-price-field .product-sale-price-stepper {
   width: 100%;
+}
+
+.sale-item-price-field {
+  min-width: 0;
+}
+
+.order-line-item-price-entry-field {
+  min-width: 0;
 }
 
 .rapid-sale-entry-action > span[aria-hidden='true'] {
@@ -4481,6 +4494,27 @@
 .product-sale-price-tier-badge:disabled {
   cursor: default;
   opacity: 0.7;
+}
+
+.product-sale-price-field-compact {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.product-sale-price-field-label-compact {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 22px;
+}
+
+.product-sale-price-field-compact .product-sale-price-field {
+  display: block;
+}
+
+.product-sale-price-field-compact .product-sale-price-stepper {
+  width: 100%;
 }
 
 .order-line-item-serial-cell {

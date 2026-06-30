@@ -23,6 +23,7 @@ import {
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import type { Product } from '../../../../../entities/product/model/types';
+import { formatRetailSalePrice } from '../../../../../entities/product/lib/sale-prices';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
@@ -699,7 +700,16 @@ export const CreateOrderCard = ({
     }
 
     const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
-    const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '';
+    const stockProduct =
+      suggestion.source === 'stock'
+        ? products.find((product) => product.id === suggestion.productId) ?? null
+        : null;
+    const unitPrice =
+      suggestion.source === 'stock' && stockProduct
+        ? formatRetailSalePrice(stockProduct)
+        : suggestion.price > 0
+          ? String(suggestion.price)
+          : '0';
 
     if (suggestion.source === 'catalog') {
       updateSaleItem(itemId, {
@@ -718,30 +728,13 @@ export const CreateOrderCard = ({
       return;
     }
 
-    if (serialNumber) {
-      updateSaleItem(itemId, {
-        query: suggestion.name,
-        source: 'stock',
-        productId: suggestion.productId,
-        catalogProductId: '',
-        article: suggestion.article,
-        serialNumber,
-        price: unitPrice,
-        unitPrice,
-        quantity: '1',
-        warrantyPeriod: String(suggestion.warrantyPeriod ?? 0),
-      });
-      setSaleProductSuggestions([]);
-      return;
-    }
-
     updateSaleItem(itemId, {
       query: suggestion.name,
-      source: '',
-      productId: '',
+      source: 'stock',
+      productId: suggestion.productId,
       catalogProductId: '',
       article: suggestion.article,
-      serialNumber: '',
+      serialNumber,
       price: unitPrice,
       unitPrice,
       quantity: '1',

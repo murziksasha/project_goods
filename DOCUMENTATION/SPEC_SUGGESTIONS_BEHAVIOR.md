@@ -58,7 +58,7 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Catalog suggestion: click pre-fills name/price and stores `catalogProductId`; operator confirms with `Add product`; serial binding uses the `Serials` modal flow.
    - **Create order -> Sales order**:
      - Stock suggestion with `serialNumber`: pre-fills the active product row with `productId` and bound serial (`quantity = 1`).
-     - Stock suggestion without `serialNumber`: pre-fills name/price only on the active row.
+     - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`).
      - Catalog suggestion: pre-fills the active row with `catalogProductId`.
 
 ## Modal Layout Rule

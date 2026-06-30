@@ -382,7 +382,7 @@ export const RapidSaleModal = ({
               </label>
               <ProductSalePriceField
                 label={t('orders.create.price')}
-                fieldClassName="field rapid-sale-price-field"
+                fieldClassName="field sale-price-field-labeled rapid-sale-price-field"
                 tierTogglePlacement="label"
                 value={productPrice}
                 onChange={setProductPrice}

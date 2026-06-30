@@ -109,25 +109,25 @@ export const CreateOrderSaleSection = ({
                 disabled={item.source === 'stock' && Boolean(item.serialNumber)}
               />
             </label>
-            <label className="field">
-              <span>{t('orders.create.price')}</span>
-              <ProductSalePriceField
-                value={item.price}
-                onChange={(value) => onSaleItemPriceChange(item, value)}
-                product={
-                  item.productId ? productsById[item.productId] ?? null : null
-                }
-                priceTier={priceTierByItemId[item.id] ?? null}
-                onPriceTierChange={(tier) =>
-                  setPriceTierByItemId((current) => ({
-                    ...current,
-                    [item.id]: tier,
-                  }))
-                }
-                placeholder="0"
-                ariaLabel={t('orders.create.price')}
-              />
-            </label>
+            <ProductSalePriceField
+              label={t('orders.create.price')}
+              fieldClassName="field sale-item-price-field sale-price-field-labeled"
+              tierTogglePlacement="label"
+              value={item.price}
+              onChange={(value) => onSaleItemPriceChange(item, value)}
+              product={
+                item.productId ? productsById[item.productId] ?? null : null
+              }
+              priceTier={priceTierByItemId[item.id] ?? null}
+              onPriceTierChange={(tier) =>
+                setPriceTierByItemId((current) => ({
+                  ...current,
+                  [item.id]: tier,
+                }))
+              }
+              placeholder="0"
+              ariaLabel={t('orders.create.price')}
+            />
             <label className="field">
               <span>{t('orders.create.warranty')}</span>
               <select

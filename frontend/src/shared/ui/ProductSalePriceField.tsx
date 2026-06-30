@@ -22,7 +22,7 @@ type ProductSalePriceFieldProps = {
   stepperClassName?: string;
   label?: ReactNode;
   fieldClassName?: string;
-  tierTogglePlacement?: 'inline' | 'label';
+  tierTogglePlacement?: 'inline' | 'label' | 'compact';
 };
 
 export const ProductSalePriceField = ({
@@ -73,19 +73,36 @@ export const ProductSalePriceField = ({
     />
   ) : null;
 
+  const stepper = (
+    <NumberStepper
+      min={0}
+      step={0.01}
+      precision={2}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      ariaLabel={ariaLabel}
+      className={resolvedStepperClassName}
+    />
+  );
+
+  if (tierTogglePlacement === 'compact') {
+    return (
+      <div className={fieldClassName ? `${fieldClassName} product-sale-price-field-compact` : 'product-sale-price-field-compact'}>
+        {tierToggle ? (
+          <div className='product-sale-price-field-label product-sale-price-field-label-compact'>
+            {tierToggle}
+          </div>
+        ) : null}
+        <div className='product-sale-price-field'>{stepper}</div>
+      </div>
+    );
+  }
+
   const fieldContent = (
     <div className='product-sale-price-field'>
-      <NumberStepper
-        min={0}
-        step={0.01}
-        precision={2}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        ariaLabel={ariaLabel}
-        className={resolvedStepperClassName}
-      />
+      {stepper}
       {tierToggle && tierTogglePlacement === 'inline' ? tierToggle : null}
     </div>
   );

@@ -21,6 +21,7 @@ import type { CatalogProduct } from '../../../../../entities/catalog-product/mod
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import {
+  getRetailSalePrice,
   hasWholesaleSalePrice,
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
@@ -624,10 +625,7 @@ export const OrderDetailLineItemsPanel = ({
         normalizeProductLookupValue(catalogProduct.name),
     );
     return {
-      price:
-        matchingStockProduct?.salePriceOptions[0] ??
-        matchingStockProduct?.price ??
-        0,
+      price: matchingStockProduct ? getRetailSalePrice(matchingStockProduct) : 0,
       warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
     };
   }, [products]);
@@ -761,8 +759,7 @@ export const OrderDetailLineItemsPanel = ({
       );
       return;
     }
-    const suggestedPrice =
-      product.salePriceOptions[0] ?? product.price ?? 0;
+    const suggestedPrice = getRetailSalePrice(product);
     const serial = normalizeSerialNumber(product.serialNumber);
 
     if (serial) {
@@ -1163,6 +1160,7 @@ export const OrderDetailLineItemsPanel = ({
                     disabled={isReadOnly}
                     ariaLabel={t('orders.detail.lineItems.price')}
                     stepperClassName='line-item-inline-input'
+                    tierTogglePlacement='compact'
                   />
                 ) : (
                   <NumberStepper
@@ -1327,6 +1325,9 @@ export const OrderDetailLineItemsPanel = ({
           />
           {isProductKind ? (
             <ProductSalePriceField
+              label={t('orders.detail.lineItems.price')}
+              fieldClassName='order-line-item-price-entry-field sale-price-field-labeled'
+              tierTogglePlacement='label'
               value={price}
               onChange={setPrice}
               product={selectedStockProduct}
@@ -1401,9 +1402,7 @@ export const OrderDetailLineItemsPanel = ({
                   : suggestion.product.name;
               const stockPrice = formatCurrency(
                 suggestion.type === 'stock'
-                  ? (suggestion.product.salePriceOptions[0] ??
-                    suggestion.product.price ??
-                    0)
+                  ? getRetailSalePrice(suggestion.product)
                   : suggestion.price,
               );
               return (

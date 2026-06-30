@@ -25,6 +25,11 @@ describe('sale-prices', () => {
     expect(getRetailSalePrice({ price: 250, salePriceOptions: [] })).toBe(250);
   });
 
+  it('falls back retail price to product.price when salePriceOptions[0] is zero', () => {
+    expect(getRetailSalePrice({ price: 250, salePriceOptions: [0] })).toBe(250);
+    expect(getRetailSalePrice({ price: 250, salePriceOptions: [0, 800] })).toBe(250);
+  });
+
   it('treats missing wholesale option as unavailable', () => {
     expect(getWholesaleSalePrice({ salePriceOptions: [1000] })).toBe(0);
     expect(hasWholesaleSalePrice({ salePriceOptions: [1000] })).toBe(false);
