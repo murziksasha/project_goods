@@ -18,6 +18,17 @@ For product suggestion fields in `Create order -> Sales order` and `Rapid sale`:
 5. Unavailable stock models suppress duplicate catalog fallback suggestions.
 6. Shared frontend helper: `buildCreateOrderProductSuggestions` in `frontend/src/widgets/dashboard/model/create-order-products.ts`.
 
+## Rapid Sale Serial Dedup Rule
+For `Rapid sale` product suggestions (`buildRapidSaleStockSuggestions` in `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts`):
+1. Before calling `buildCreateOrderProductSuggestions`, collect occupied serial numbers from:
+   - `draftItems[]` already confirmed with `Add product`
+   - `pendingSerialNumbers[]` currently bound in the active product entry row
+2. When the occupied set is non-empty, merge an in-memory pseudo-sale built by `buildInMemorySerialUsageSale` (`frontend/src/widgets/dashboard/model/order-line-serials.ts`) into the `sales` argument with `currentSaleId: ''`.
+3. Reuse existing `getSaleSerialUsage` / `getProductSerialAvailability` rules; do not duplicate availability logic in the modal.
+4. Occupied serials must not appear as selectable stock suggestions.
+5. Removing a draft line frees its serial for suggestions again.
+6. `validateRapidSaleDraft` and `Add product` must reject duplicate serial numbers inside the same rapid-sale draft.
+
 ## Card And Create-Order Products Lookup Rule
 For `Create order -> Sales order`, opened **sale card**, and **repair order card** -> `Products` add-row input:
 1. Lookup must **never** match `note` on stock or catalog rows.

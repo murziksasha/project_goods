@@ -4374,40 +4374,63 @@
 }
 
 .product-sale-price-field {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.product-sale-price-stepper {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .product-sale-price-tier-toggle {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: inline-flex;
+  flex: 0 0 auto;
   gap: 4px;
 }
 
-.product-sale-price-tier-button {
+.product-sale-price-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border: 1px solid #c8d2df;
-  border-radius: 6px;
+  border-radius: 50%;
   background: #f8fafd;
   color: #4f647b;
-  padding: 4px 6px;
-  font-size: 0.78rem;
+  padding: 0;
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
   cursor: pointer;
 }
 
-.product-sale-price-tier-button:hover:not(:disabled) {
+.product-sale-price-tier-badge-retail:hover:not(:disabled) {
   border-color: #2d8ae3;
   color: #2d6ea8;
 }
 
-.product-sale-price-tier-button-active {
+.product-sale-price-tier-badge-wholesale:hover:not(:disabled) {
+  border-color: #dc3545;
+  color: #b02a37;
+}
+
+.product-sale-price-tier-badge-retail.product-sale-price-tier-badge-active {
   border-color: #2d8ae3;
   background: #eef6ff;
   color: #2d6ea8;
 }
 
-.product-sale-price-tier-button:disabled {
+.product-sale-price-tier-badge-wholesale.product-sale-price-tier-badge-active {
+  border-color: #dc3545;
+  background: #fff0f1;
+  color: #b02a37;
+}
+
+.product-sale-price-tier-badge:disabled {
   cursor: default;
   opacity: 0.7;
 }

@@ -43,6 +43,8 @@ Compact counter-sale flow for walk-in customers: no client form, stock products 
 - Selecting any stock suggestion (serial or non-serial) pre-fills the product entry row; operator confirms with `Add product`.
 - Serial-bound rows bind the serial in the entry row and lock quantity to `1` until the line is added.
 - Serialized draft rows keep quantity at `1` in the draft table.
+- Serial numbers already added to the draft table, or currently bound in the active product entry row, are excluded from stock suggestions (`orders.serialAvailability.alreadyInThisOrder`).
+- One serial number maps to one draft line; duplicate serial binding is blocked on `Add product` and on `Issued` validation.
 
 ### Service Entry
 

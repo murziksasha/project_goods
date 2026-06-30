@@ -392,6 +392,8 @@
     "salePrice": {
       "retail": "Retail",
       "wholesale": "Wholesale",
+      "retailShort": "R",
+      "wholesaleShort": "W",
       "tierToggleAria": "Sale price type"
     },
     "examples": {
@@ -551,7 +553,8 @@
         "stockOnly": "Rapid sale products must be selected from warehouse stock.",
         "invalidTotal": "Sale total is invalid.",
         "serviceName": "Enter a service name with at least 2 characters.",
-        "failedCreateService": "Failed to create service."
+        "failedCreateService": "Failed to create service.",
+        "duplicateSerial": "This serial is already in the rapid sale draft."
       }
     },
     "toolbar": {

@@ -29,7 +29,7 @@ afterEach(() => {
 });
 
 describe('ProductSalePriceField', () => {
-  it('shows retail/wholesale toggle only when wholesale price is configured', () => {
+  it('shows retail/wholesale tier badges only when wholesale price is configured', () => {
     const { rerender } = render(
       <ProductSalePriceField
         value="1000"
@@ -57,7 +57,7 @@ describe('ProductSalePriceField', () => {
     expect(screen.queryByRole('button', { name: 'Wholesale' })).not.toBeInTheDocument();
   });
 
-  it('switches price to wholesale when wholesale tier is selected', () => {
+  it('switches price to wholesale when wholesale tier badge is selected', () => {
     const onChange = vi.fn();
     const onPriceTierChange = vi.fn();
 

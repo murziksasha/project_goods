@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import type { Product } from '../../entities/product/model/types';
 import {
   formatProductSalePrice,
@@ -9,6 +8,7 @@ import {
   type ProductSalePriceTier,
 } from '../../entities/product/lib/sale-prices';
 import { NumberStepper } from './NumberStepper';
+import { ProductSalePriceTierToggle } from './ProductSalePriceTierToggle';
 
 type ProductSalePriceFieldProps = {
   value: string;
@@ -19,6 +19,7 @@ type ProductSalePriceFieldProps = {
   disabled?: boolean;
   placeholder?: string;
   ariaLabel?: string;
+  stepperClassName?: string;
 };
 
 export const ProductSalePriceField = ({
@@ -30,8 +31,8 @@ export const ProductSalePriceField = ({
   disabled = false,
   placeholder = '0',
   ariaLabel,
+  stepperClassName,
 }: ProductSalePriceFieldProps) => {
-  const { t } = useTranslation();
   const showTierToggle = product ? hasWholesaleSalePrice(product) : false;
 
   const activeTier = useMemo(() => {
@@ -54,6 +55,10 @@ export const ProductSalePriceField = ({
     onChange(formatProductSalePrice(getProductSalePriceByTier(product, tier)));
   };
 
+  const resolvedStepperClassName = stepperClassName
+    ? `${stepperClassName} product-sale-price-stepper`
+    : 'product-sale-price-stepper';
+
   return (
     <div className='product-sale-price-field'>
       <NumberStepper
@@ -65,38 +70,14 @@ export const ProductSalePriceField = ({
         placeholder={placeholder}
         disabled={disabled}
         ariaLabel={ariaLabel}
+        className={resolvedStepperClassName}
       />
       {showTierToggle ? (
-        <div
-          className='product-sale-price-tier-toggle'
-          role='group'
-          aria-label={t('product.salePrice.tierToggleAria')}
-        >
-          <button
-            type='button'
-            className={
-              activeTier === 'retail'
-                ? 'product-sale-price-tier-button product-sale-price-tier-button-active'
-                : 'product-sale-price-tier-button'
-            }
-            onClick={() => handleTierChange('retail')}
-            disabled={disabled}
-          >
-            {t('product.salePrice.retail')}
-          </button>
-          <button
-            type='button'
-            className={
-              activeTier === 'wholesale'
-                ? 'product-sale-price-tier-button product-sale-price-tier-button-active'
-                : 'product-sale-price-tier-button'
-            }
-            onClick={() => handleTierChange('wholesale')}
-            disabled={disabled}
-          >
-            {t('product.salePrice.wholesale')}
-          </button>
-        </div>
+        <ProductSalePriceTierToggle
+          activeTier={activeTier}
+          onTierChange={handleTierChange}
+          disabled={disabled}
+        />
       ) : null}
     </div>
   );

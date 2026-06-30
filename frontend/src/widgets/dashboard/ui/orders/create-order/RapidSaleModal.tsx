@@ -19,6 +19,7 @@ import {
 import {
   buildRapidSaleStockSuggestions,
   getRapidSaleDraftTotal,
+  getRapidSaleOccupiedSerialNumbers,
   validateRapidSaleDraft,
   type RapidSaleDraftItem,
 } from '../../../model/rapid-sale-line-items';
@@ -120,6 +121,8 @@ export const RapidSaleModal = ({
           products: warehouseFilteredProducts,
           sales,
           query: productQuery,
+          draftItems,
+          pendingSerialNumbers: selectedSerialNumbers,
         });
         if (isActive) setProductSuggestions(suggestions);
       } finally {
@@ -131,7 +134,14 @@ export const RapidSaleModal = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [productQuery, warehouseFilteredProducts, sales, selectedProductId]);
+  }, [
+    productQuery,
+    warehouseFilteredProducts,
+    sales,
+    selectedProductId,
+    draftItems,
+    selectedSerialNumbers,
+  ]);
 
   const handleWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouseId(warehouseId);
@@ -225,6 +235,17 @@ export const RapidSaleModal = ({
   const handleAddProduct = () => {
     if (!selectedProductId || selectedProductName.trim().length < 2) {
       onError(t('orders.rapidSale.errors.stockOnly'));
+      return;
+    }
+
+    const occupiedSerials = new Set(
+      getRapidSaleOccupiedSerialNumbers(draftItems),
+    );
+    const hasDuplicateSerial = selectedSerialNumbers.some((serial) =>
+      occupiedSerials.has(normalizeSerialNumber(serial)),
+    );
+    if (hasDuplicateSerial) {
+      onError(t('orders.rapidSale.errors.duplicateSerial'));
       return;
     }
 

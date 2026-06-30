@@ -392,6 +392,8 @@
     "salePrice": {
       "retail": "Роздріб",
       "wholesale": "Опт",
+      "retailShort": "Р",
+      "wholesaleShort": "О",
       "tierToggleAria": "Тип ціни продажу"
     },
     "examples": {
@@ -551,7 +553,8 @@
         "stockOnly": "У швидкому продажі товари можна обирати лише зі складу.",
         "invalidTotal": "Сума продажу некоректна.",
         "serviceName": "Введіть назву послуги щонайменше з 2 символів.",
-        "failedCreateService": "Не вдалося створити послугу."
+        "failedCreateService": "Не вдалося створити послугу.",
+        "duplicateSerial": "Цей серійний номер уже додано до чернетки швидкого продажу."
       }
     },
     "toolbar": {

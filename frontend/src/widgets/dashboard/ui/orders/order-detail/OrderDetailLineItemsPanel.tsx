@@ -20,7 +20,10 @@ import type { Product, ProductModelUpdatePayload } from '../../../../../entities
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
-import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
+import {
+  hasWholesaleSalePrice,
+  type ProductSalePriceTier,
+} from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
@@ -135,6 +138,9 @@ export const OrderDetailLineItemsPanel = ({
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
+  const [priceTierByItemId, setPriceTierByItemId] = useState<
+    Record<string, ProductSalePriceTier | null>
+  >({});
   const [quantity, setQuantity] = useState('1');
   const [warrantyPeriod, setWarrantyPeriod] = useState(
     kind === 'service' ? '1' : '0',
@@ -151,12 +157,16 @@ export const OrderDetailLineItemsPanel = ({
   const [selectedProductId, setSelectedProductId] = useState<
     string | undefined
   >();
+  const productsById = useMemo(
+    () => Object.fromEntries(products.map((product) => [product.id, product])),
+    [products],
+  );
   const selectedStockProduct = useMemo(
     () =>
       selectedProductId
-        ? products.find((product) => product.id === selectedProductId) ?? null
+        ? productsById[selectedProductId] ?? null
         : null,
-    [products, selectedProductId],
+    [productsById, selectedProductId],
   );
   const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<
     string | undefined
@@ -1066,6 +1076,12 @@ export const OrderDetailLineItemsPanel = ({
           items.map((item, itemIndex) => {
             const isLastRow = itemIndex === items.length - 1;
             const lastRowClass = isLastRow ? 'order-detail-table-last-row' : '';
+            const stockProduct =
+              item.kind === 'product' && item.productId
+                ? productsById[item.productId] ?? null
+                : null;
+            const showLineItemPriceTier =
+              stockProduct !== null && hasWholesaleSalePrice(stockProduct);
             return (
             <div
               key={`${item.id || 'line-item'}-${itemIndex}`}
@@ -1132,15 +1148,33 @@ export const OrderDetailLineItemsPanel = ({
                 className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
                 data-label={t('orders.detail.lineItems.price')}
               >
-                <NumberStepper
-                  className='line-item-inline-input'
-                  min={0}
-                  step={0.01}
-                  precision={2}
-                  value={priceDrafts[item.id] ?? String(item.price)}
-                  onChange={(value) => handleLineItemPriceChange(item, value)}
-                  disabled={isReadOnly}
-                />
+                {showLineItemPriceTier && stockProduct ? (
+                  <ProductSalePriceField
+                    value={priceDrafts[item.id] ?? String(item.price)}
+                    onChange={(value) => handleLineItemPriceChange(item, value)}
+                    product={stockProduct}
+                    priceTier={priceTierByItemId[item.id] ?? null}
+                    onPriceTierChange={(tier) =>
+                      setPriceTierByItemId((current) => ({
+                        ...current,
+                        [item.id]: tier,
+                      }))
+                    }
+                    disabled={isReadOnly}
+                    ariaLabel={t('orders.detail.lineItems.price')}
+                    stepperClassName='line-item-inline-input'
+                  />
+                ) : (
+                  <NumberStepper
+                    className='line-item-inline-input'
+                    min={0}
+                    step={0.01}
+                    precision={2}
+                    value={priceDrafts[item.id] ?? String(item.price)}
+                    onChange={(value) => handleLineItemPriceChange(item, value)}
+                    disabled={isReadOnly}
+                  />
+                )}
               </div>
               <div
                 key={`${item.id}-qty`}
