@@ -5,6 +5,7 @@ import {
   accountingCashboxOrderStorageKey,
   accountingExpandedFinanceSettingsCardStorageKey,
   accountingFinanceSettingsTabStorageKey,
+  accountingLastOperationByCashboxStorageKey,
   accountingLastTargetCashboxByTypeStorageKey,
   accountingSettingsOpenStorageKey,
   accountingTabStorageKey,
@@ -53,8 +54,8 @@ const Harness = ({
       </span>
       <span data-testid='settings-tab'>{preferences.financeSettingsTab}</span>
       <span data-testid='expanded'>{preferences.expandedFinanceSettingsCard ?? '-'}</span>
-      <span data-testid='targets'>
-        {JSON.stringify(preferences.lastTargetCashboxByType)}
+      <span data-testid='memory'>
+        {JSON.stringify(preferences.lastOperationByCashbox)}
       </span>
       <button type='button' onClick={() => preferences.setActiveTab('reports')}>
         reports
@@ -86,13 +87,23 @@ const Harness = ({
       <button
         type='button'
         onClick={() =>
-          preferences.setLastTargetCashboxByType({
-            deposit: 'cashbox-1',
-            transfer: 'cashbox-2',
+          preferences.setLastOperationByCashbox({
+            'cashbox-1': {
+              deposit: {
+                fromCashboxId: '',
+                toCashboxId: 'cashbox-1',
+                currency: 'UAH',
+              },
+              transfer: {
+                fromCashboxId: 'cashbox-1',
+                toCashboxId: 'cashbox-2',
+                currency: 'UAH',
+              },
+            },
           })
         }
       >
-        targets
+        memory
       </button>
     </section>
   );
@@ -137,8 +148,21 @@ describe('useAccountingPreferences', () => {
     expect(screen.getByTestId('settings-open')).toHaveTextContent('true');
     expect(screen.getByTestId('settings-tab')).toHaveTextContent('currencies');
     expect(screen.getByTestId('expanded')).toHaveTextContent('cashbox-card');
-    expect(screen.getByTestId('targets')).toHaveTextContent(
-      '{"deposit":"cashbox-1","transfer":"cashbox-2"}',
+    expect(screen.getByTestId('memory')).toHaveTextContent(
+      JSON.stringify({
+        'cashbox-1': {
+          deposit: {
+            fromCashboxId: '',
+            toCashboxId: 'cashbox-1',
+            currency: 'UAH',
+          },
+          transfer: {
+            fromCashboxId: 'cashbox-1',
+            toCashboxId: 'cashbox-2',
+            currency: 'UAH',
+          },
+        },
+      }),
     );
     expect(window.localStorage.getItem(accountingCashboxOrderStorageKey)).toBe(
       JSON.stringify(['cashbox-2', 'cashbox-1']),
@@ -152,7 +176,7 @@ describe('useAccountingPreferences', () => {
     fireEvent.click(screen.getByRole('button', { name: 'toggle settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'currencies' }));
     fireEvent.click(screen.getByRole('button', { name: 'expand' }));
-    fireEvent.click(screen.getByRole('button', { name: 'targets' }));
+    fireEvent.click(screen.getByRole('button', { name: 'memory' }));
 
     expect(window.localStorage.getItem(accountingSettingsOpenStorageKey)).toBe(
       'false',
@@ -164,8 +188,23 @@ describe('useAccountingPreferences', () => {
       window.localStorage.getItem(accountingExpandedFinanceSettingsCardStorageKey),
     ).toBe('cashboxes');
     expect(
-      window.localStorage.getItem(accountingLastTargetCashboxByTypeStorageKey),
-    ).toBe('{"deposit":"cashbox-1","transfer":"cashbox-2"}');
+      window.localStorage.getItem(accountingLastOperationByCashboxStorageKey),
+    ).toBe(
+      JSON.stringify({
+        'cashbox-1': {
+          deposit: {
+            fromCashboxId: '',
+            toCashboxId: 'cashbox-1',
+            currency: 'UAH',
+          },
+          transfer: {
+            fromCashboxId: 'cashbox-1',
+            toCashboxId: 'cashbox-2',
+            currency: 'UAH',
+          },
+        },
+      }),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'collapse' }));
     expect(
@@ -195,7 +234,7 @@ describe('useAccountingPreferences', () => {
 
     expect(screen.getByTestId('active-tab')).toHaveTextContent('cashboxes');
     expect(screen.getByTestId('settings-tab')).toHaveTextContent('cashboxes');
-    expect(screen.getByTestId('targets')).toHaveTextContent('{}');
+    expect(screen.getByTestId('memory')).toHaveTextContent('{}');
 
     popstateSyncHolder.current?.('orders');
 
@@ -270,14 +309,14 @@ describe('useAccountingPreferences', () => {
     expect(screen.getByTestId('settings-open')).toHaveTextContent('false');
     expect(screen.getByTestId('settings-tab')).toHaveTextContent('cashboxes');
     expect(screen.getByTestId('expanded')).toHaveTextContent('-');
-    expect(screen.getByTestId('targets')).toHaveTextContent('{}');
+    expect(screen.getByTestId('memory')).toHaveTextContent('{}');
 
     fireEvent.click(screen.getByRole('button', { name: 'reports' }));
     fireEvent.click(screen.getByRole('button', { name: 'toggle settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'currencies' }));
     fireEvent.click(screen.getByRole('button', { name: 'expand' }));
     fireEvent.click(screen.getByRole('button', { name: 'collapse' }));
-    fireEvent.click(screen.getByRole('button', { name: 'targets' }));
+    fireEvent.click(screen.getByRole('button', { name: 'memory' }));
 
     expect(screen.getByTestId('active-tab')).toHaveTextContent('reports');
   });
@@ -290,6 +329,6 @@ describe('useAccountingPreferences', () => {
 
     render(<Harness />);
 
-    expect(screen.getByTestId('targets')).toHaveTextContent('{}');
+    expect(screen.getByTestId('memory')).toHaveTextContent('{}');
   });
 });

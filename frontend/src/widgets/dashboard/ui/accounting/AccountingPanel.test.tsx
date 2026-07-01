@@ -259,7 +259,7 @@ const setupPreferences = (
     expandedFinanceSettingsCard: mutableState.expandedFinanceSettingsCard,
     financeSettingsTab: mutableState.financeSettingsTab,
     isFinanceSettingsOpen: mutableState.isFinanceSettingsOpen,
-    lastTargetCashboxByType: {},
+    lastOperationByCashbox: {},
     setActiveTab: vi.fn((next) => {
       mutableState.activeTab = next;
       panelRerender?.();
@@ -286,7 +286,7 @@ const setupPreferences = (
       }
       panelRerender?.();
     }),
-    setLastTargetCashboxByType: vi.fn((updater) => {
+    setLastOperationByCashbox: vi.fn((updater) => {
       if (typeof updater === 'function') {
         updater({});
       }
@@ -599,7 +599,17 @@ describe('AccountingPanel', () => {
   });
 
   it('resolves remembered and fallback cashbox targets', async () => {
-    setupPreferences({ lastTargetCashboxByType: { deposit: 'cashbox-2', transfer: 'cashbox-2' } });
+    setupPreferences({
+      lastOperationByCashbox: {
+        'cashbox-1': {
+          deposit: {
+            fromCashboxId: '',
+            toCashboxId: 'cashbox-2',
+            currency: 'UAH',
+          },
+        },
+      },
+    });
     renderPanel();
     await waitForCashboxesView();
 
@@ -627,7 +637,17 @@ describe('AccountingPanel', () => {
       allCashboxes: [cashbox()],
       cashboxes: [cashbox()],
     });
-    setupPreferences({ lastTargetCashboxByType: { transfer: 'cashbox-1' } });
+    setupPreferences({
+      lastOperationByCashbox: {
+        'cashbox-1': {
+          transfer: {
+            fromCashboxId: 'cashbox-1',
+            toCashboxId: 'cashbox-2',
+            currency: 'UAH',
+          },
+        },
+      },
+    });
     renderPanel();
     await waitForCashboxesView();
 
@@ -1072,7 +1092,7 @@ describe('AccountingPanel', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to cancel transfer.'),
+      expect(onError).toHaveBeenCalledWith('Failed to cancel transaction.'),
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
@@ -1262,7 +1282,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     sales: salesList,
     selectedCashboxId: 'cb1',
     supplierOrders: suppliersList,
-    canCancelTransferTransaction: () => false,
+    canCancelTransaction: () => false,
     onDateFilterOpenChange: vi.fn(),
     onFilterOpenChange: vi.fn(),
     onPageChange: vi.fn(),
@@ -1271,7 +1291,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     onSelectedSupplierOrderChange: vi.fn(),
     onSetAppliedFilters: vi.fn(),
     onSetDraftFilters: vi.fn(),
-    onSetTransferToCancel: vi.fn(),
+    onSetTransactionToCancel: vi.fn(),
     onEditTransactionNote: vi.fn(),
   });
 
@@ -1366,7 +1386,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
-  it('shows Cancel transfer only when canCancelTransferTransaction returns true', async () => {
+  it('shows Cancel transfer only when canCancelTransaction returns true', async () => {
     const txToday = baseTx('') as any;
     txToday.id = 'tx-today';
     txToday.type = 'transfer';
@@ -1380,8 +1400,8 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       ...minimalProps('', [], []),
       paginatedTransactions: [txToday],
       filteredTransactions: [txToday],
-      canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
-      onSetTransferToCancel: vi.fn(),
+      canCancelTransaction: (t: any) => t.id === 'tx-today',
+      onSetTransactionToCancel: vi.fn(),
     };
     const { container: c1, unmount } = renderWithProviders(
       <RealAccountingTransactionsView {...propsToday} />,
@@ -1393,7 +1413,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       ...propsToday,
       paginatedTransactions: [txOld],
       filteredTransactions: [txOld],
-      canCancelTransferTransaction: (t: any) => t.id === 'tx-today',
+      canCancelTransaction: (t: any) => t.id === 'tx-today',
     };
     const { container: c2 } = renderWithProviders(
       <RealAccountingTransactionsView {...propsOld} />,

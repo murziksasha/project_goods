@@ -24,7 +24,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Notes are always visible (even for system-generated payment notes).
 
 ### Action column
-- Shows a **"Cancel transfer"** button only for eligible cashbox-to-cashbox transfers (see Transfer Cancellation Rules below).
+- Shows a type-specific cancel button for eligible manual `deposit`, `withdraw`, and `transfer` transactions (see Transaction Cancellation Rules below).
 
 ### Transaction-to-Order Navigation (Payment/Refund)
 - Notes for payment and refund operations are parsed when they match these patterns:
@@ -39,14 +39,20 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - **Supplier orders**: opens the supplier order in a **read-only modal** (same behavior as before).
 - Non-matching notes (manual deposits, withdraws, transfers, free-text, etc.) do **not** attempt order navigation — arbitrary text containing the word "order" is not treated as a link. They render as plain clickable text for note editing (if they contain content).
 
-## Transfer Cancellation Rules
-- Only active cashbox-to-cashbox transfer transactions can be cancelled.
+## Transaction Cancellation Rules
+- Active manual `deposit`, `withdraw`, and `transfer` transactions can be cancelled.
+- Order-linked finance transactions cannot be cancelled from Accounting:
+  - notes matching payment/refund order patterns (`Payment for order`, `Refund for order`, `Оплата замовлення`, etc.)
+  - supplier-order payment notes (`Supplier order payment: ...`)
 - Cancellation is available only until the end of the transaction's business day.
 - Business day is calculated in `Europe/Kiev` until company timezone settings exist.
-- After the transaction business day ends, `Cancel transfer` is hidden in the UI.
-- Backend must reject old transfer cancellation attempts with:
-  - `Transfer can be cancelled only during the transaction day.`
-- Cancellation creates a linked reverse transfer and marks the original transaction as `cancelled`.
+- After the transaction business day ends, the cancel button is hidden in the UI.
+- Backend must reject old cancellation attempts with:
+  - `Transaction can be cancelled only during the transaction day.`
+- Cancellation creates a linked reverse transaction and marks the original transaction as `cancelled`:
+  - `deposit` -> reverse `withdraw` from destination cashbox
+  - `withdraw` -> reverse `deposit` into source cashbox
+  - `transfer` -> reverse `transfer` between the same cashboxes
 
 ## Supplier Order Lock Rules
 - Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or `receiptStatus = received`), order content fields are locked.
@@ -94,10 +100,19 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `Deposit`: balance of destination cashbox (`To`) after transaction.
 
 ## Cashbox Card Action Prefill Rules
-- Clicking a cashbox card action opens the operation form with fields prefilled from that specific cashbox.
-- `Deposit`: `To cashbox` is preselected as the clicked cashbox.
-- `Withdraw`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` stays empty.
-- `Transfer`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` is preselected to another valid cashbox.
+- Clicking a cashbox card action opens the operation form for that cashbox.
+- If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `type`, `from`, `to`, and `currency` from that memory; `amount` and `note` start empty.
+- If no remembered operation exists, apply type-specific defaults:
+  - `Deposit`: `To cashbox` is preselected as the clicked cashbox.
+  - `Withdraw`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` stays empty.
+  - `Transfer`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` is preselected to another valid cashbox.
+
+## Operation Form Persistence Rules
+- After a manual transaction submit finishes (success or validation/API error), `type`, `from`, `to`, and `currency` stay unchanged.
+- Only `amount` and `note` are cleared after a successful submit.
+- On successful submit, the operation snapshot is stored per anchor cashbox:
+  - `deposit` -> anchor = `toCashboxId`
+  - `withdraw` / `transfer` -> anchor = `fromCashboxId`
 
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
