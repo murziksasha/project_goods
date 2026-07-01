@@ -4,6 +4,7 @@ import {
   accountingCashboxOrderStorageKey,
   accountingExpandedFinanceSettingsCardStorageKey,
   accountingFinanceSettingsTabStorageKey,
+  accountingLastOperationByCashboxStorageKey,
   accountingLastTargetCashboxByTypeStorageKey,
   accountingSettingsOpenStorageKey,
   accountingTabStorageKey,
@@ -11,7 +12,10 @@ import {
   getStoredAccountingSettingsOpen,
   getStoredAccountingTab,
   getStoredExpandedFinanceSettingsCard,
+  migrateLastTargetCashboxToOperationMemory,
+  parseStoredLastOperationByCashbox,
   type AccountingTab,
+  type LastOperationByCashbox,
   type TransactionTargetMemory,
 } from '../../model/accounting';
 
@@ -25,6 +29,25 @@ type UseAccountingPreferencesOptions = {
     sync: ((tab: AccountingTab | null) => void) | null,
   ) => void;
   syncedAccountingTab?: AccountingTab | null;
+};
+
+const readStoredLastOperationByCashbox = (cashboxes: Cashbox[]): LastOperationByCashbox => {
+  try {
+    const raw = window.localStorage.getItem(accountingLastOperationByCashboxStorageKey);
+    const parsed = parseStoredLastOperationByCashbox(raw);
+    if (Object.keys(parsed).length > 0) {
+      return parsed;
+    }
+
+    const legacyRaw = window.localStorage.getItem(
+      accountingLastTargetCashboxByTypeStorageKey,
+    );
+    if (!legacyRaw) return {};
+    const legacy = JSON.parse(legacyRaw) as TransactionTargetMemory;
+    return migrateLastTargetCashboxToOperationMemory(legacy, cashboxes);
+  } catch {
+    return {};
+  }
 };
 
 export const useAccountingPreferences = ({
@@ -55,26 +78,17 @@ export const useAccountingPreferences = ({
     });
   const [expandedFinanceSettingsCard, setExpandedFinanceSettingsCard] =
     useState<string | null>(getStoredExpandedFinanceSettingsCard);
-  const [lastTargetCashboxByType, setLastTargetCashboxByType] =
-    useState<TransactionTargetMemory>(() => {
-      try {
-        const raw = window.localStorage.getItem(
-          accountingLastTargetCashboxByTypeStorageKey,
-        );
-        if (!raw) return {};
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
-        const next: TransactionTargetMemory = {};
-        if (typeof parsed.deposit === 'string') {
-          next.deposit = parsed.deposit;
-        }
-        if (typeof parsed.transfer === 'string') {
-          next.transfer = parsed.transfer;
-        }
-        return next;
-      } catch {
-        return {};
-      }
-    });
+  const [lastOperationByCashbox, setLastOperationByCashbox] =
+    useState<LastOperationByCashbox>(() => readStoredLastOperationByCashbox(cashboxes));
+
+  useEffect(() => {
+    if (cashboxes.length === 0) return;
+    setLastOperationByCashbox((current) =>
+      Object.keys(current).length > 0
+        ? current
+        : readStoredLastOperationByCashbox(cashboxes),
+    );
+  }, [cashboxes]);
 
   useEffect(() => {
     try {
@@ -122,13 +136,13 @@ export const useAccountingPreferences = ({
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        accountingLastTargetCashboxByTypeStorageKey,
-        JSON.stringify(lastTargetCashboxByType),
+        accountingLastOperationByCashboxStorageKey,
+        JSON.stringify(lastOperationByCashbox),
       );
     } catch {
       // Ignore localStorage write errors.
     }
-  }, [lastTargetCashboxByType]);
+  }, [lastOperationByCashbox]);
 
   useEffect(() => {
     try {
@@ -179,11 +193,11 @@ export const useAccountingPreferences = ({
     expandedFinanceSettingsCard,
     financeSettingsTab,
     isFinanceSettingsOpen,
-    lastTargetCashboxByType,
+    lastOperationByCashbox,
     setActiveTab: changeActiveTab,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
     setIsFinanceSettingsOpen,
-    setLastTargetCashboxByType,
+    setLastOperationByCashbox,
   };
 };

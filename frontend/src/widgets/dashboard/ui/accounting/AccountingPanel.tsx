@@ -24,7 +24,7 @@ import type { Employee } from '../../../../entities/employee/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import {
-  canCancelAccountingTransferTransaction,
+  canCancelAccountingTransaction,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
   getBalanceAfterByTransactionId,
@@ -33,7 +33,7 @@ import {
 } from '../../model/accounting';
 import { AccountingCashboxesView } from './AccountingCashboxesView';
 import {
-  CancelTransferModal,
+  CancelTransactionModal,
   IssueWithoutPaymentModal,
 } from './AccountingConfirmModals';
 import { AccountingFinanceSettings } from './AccountingFinanceSettings';
@@ -88,12 +88,12 @@ export const AccountingPanel = ({
     expandedFinanceSettingsCard,
     financeSettingsTab,
     isFinanceSettingsOpen,
-    lastTargetCashboxByType,
+    lastOperationByCashbox,
     setActiveTab,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
     setIsFinanceSettingsOpen,
-    setLastTargetCashboxByType,
+    setLastOperationByCashbox,
   } = useAccountingPreferences({
     cashboxes,
     isCashboxesOrderHydrated,
@@ -104,7 +104,7 @@ export const AccountingPanel = ({
 
   const [selectedSupplierOrder, setSelectedSupplierOrder] =
     useState<SupplierOrder | null>(null);
-  const [transferToCancel, setTransferToCancel] =
+  const [transactionToCancel, setTransactionToCancel] =
     useState<FinanceTransaction | null>(null);
   const [withoutPaymentOrder, setWithoutPaymentOrder] =
     useState<SupplierOrderPaymentQueueItem | null>(null);
@@ -246,8 +246,8 @@ export const AccountingPanel = ({
     getCurrencyBalance,
     isCashboxCurrencyActive,
     isGlobalCurrencyActive,
-    lastTargetCashboxByType,
-    setLastTargetCashboxByType,
+    lastOperationByCashbox,
+    setLastOperationByCashbox,
     permittedTransactionTypes,
     runFinanceAction,
     createFinanceTransaction: createFinanceTransactionMutation.mutateAsync,
@@ -493,29 +493,31 @@ export const AccountingPanel = ({
     await handleCreateTransactionFromHook();
   };
 
-  const canCancelTransferTransaction = (transaction: FinanceTransaction) =>
-    canCancelAccountingTransferTransaction({
+  const canCancelTransaction = (transaction: FinanceTransaction) =>
+    canCancelAccountingTransaction({
+      canCreateDeposit,
+      canCreateWithdraw,
       canCreateTransfer,
       transaction,
     });
 
-  const handleCancelTransfer = async () => {
-    const transfer = transferToCancel!;
-    if (!canCancelTransferTransaction(transfer)) {
-      onError(i18n.t('accounting.messages.errors.transferCancelOnlySameDay'));
-      setTransferToCancel(null);
+  const handleCancelTransaction = async () => {
+    const transaction = transactionToCancel!;
+    if (!canCancelTransaction(transaction)) {
+      onError(i18n.t('accounting.messages.errors.transactionCancelOnlySameDay'));
+      setTransactionToCancel(null);
       return;
     }
 
     await runFinanceAction(
-      () => cancelFinanceTransactionMutation.mutateAsync(transfer.id),
-      i18n.t('accounting.messages.success.transferCancelled'),
+      () => cancelFinanceTransactionMutation.mutateAsync(transaction.id),
+      i18n.t('accounting.messages.success.transactionCancelled'),
       {
         afterSuccess: () => {
-          setTransferToCancel(null);
+          setTransactionToCancel(null);
         },
         skipRefresh: true,
-        errorFallback: i18n.t('accounting.messages.errors.failedCancelTransfer'),
+        errorFallback: i18n.t('accounting.messages.errors.failedCancelTransaction'),
       },
     );
   };
@@ -681,7 +683,7 @@ export const AccountingPanel = ({
           sales={sales}
           selectedCashboxId={selectedTransactionCashboxId}
           supplierOrders={supplierOrders}
-          canCancelTransferTransaction={canCancelTransferTransaction}
+          canCancelTransaction={canCancelTransaction}
           onDateFilterOpenChange={setIsTransactionsDateFilterOpen}
           onFilterOpenChange={setIsTransactionsFilterOpen}
           onPageChange={setTransactionsPage}
@@ -693,7 +695,7 @@ export const AccountingPanel = ({
           onSelectedSupplierOrderChange={setSelectedSupplierOrder}
           onSetAppliedFilters={setAppliedTransactionFilters}
           onSetDraftFilters={setDraftTransactionFilters}
-          onSetTransferToCancel={setTransferToCancel}
+          onSetTransactionToCancel={setTransactionToCancel}
           onEditTransactionNote={openNoteEditor}
         />
       ) : activeTab === 'orders' ? (
@@ -753,12 +755,12 @@ export const AccountingPanel = ({
         onSuccess={onSuccess}
         onError={onError}
       />
-      {transferToCancel ? (
-        <CancelTransferModal
+      {transactionToCancel ? (
+        <CancelTransactionModal
           isSaving={isSaving}
-          transfer={transferToCancel}
-          onClose={() => setTransferToCancel(null)}
-          onConfirm={handleCancelTransfer}
+          transaction={transactionToCancel}
+          onClose={() => setTransactionToCancel(null)}
+          onConfirm={handleCancelTransaction}
         />
       ) : null}
       {withoutPaymentOrder ? (

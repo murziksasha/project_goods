@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('mongoose', () => ({
+  default: {
+    connection: { readyState: 0 },
+    startSession: vi.fn(),
+  },
+}));
 
 const store = vi.hoisted(() => ({
   cashboxes: new Map<string, any>(),
@@ -16,14 +23,34 @@ vi.mock('./model', () => {
       return leanResult(store.cashboxes.get(String(id)) ?? null);
     }
 
-    static async findByIdAndUpdate(id: string, update: { $inc?: Record<string, number> }) {
+    static findByIdAndUpdate(id: string, update: { $inc?: Record<string, number> }) {
       const cashbox = store.cashboxes.get(String(id));
-      if (!cashbox || !update.$inc) return null;
+      if (!cashbox || !update.$inc) return Promise.resolve(null);
       Object.entries(update.$inc).forEach(([path, delta]) => {
         const currency = path.replace('balances.', '');
         cashbox.balances[currency] = (cashbox.balances[currency] ?? 0) + delta;
       });
-      return cashbox;
+      return Promise.resolve(cashbox);
+    }
+
+    static updateOne(query: any, update: { $inc?: Record<string, number> }) {
+      const cashbox = store.cashboxes.get(String(query._id));
+      if (!cashbox || !update.$inc) {
+        return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+      }
+      const balanceKey = Object.keys(query).find((key) => key.startsWith('balances.'));
+      if (balanceKey) {
+        const currency = balanceKey.replace('balances.', '');
+        const required = query[balanceKey]?.$gte ?? 0;
+        if ((cashbox.balances[currency] ?? 0) < required) {
+          return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+        }
+      }
+      Object.entries(update.$inc).forEach(([path, delta]) => {
+        const currency = path.replace('balances.', '');
+        cashbox.balances[currency] = (cashbox.balances[currency] ?? 0) + delta;
+      });
+      return Promise.resolve({ matchedCount: 1, modifiedCount: 1 });
     }
   }
 
@@ -70,6 +97,13 @@ vi.mock('./model', () => {
       return leanResult(store.transactions.get(String(id)) ?? null);
     }
 
+    static findOne(query: any) {
+      const transaction = [...store.transactions.values()].find(
+        (item) => item.cancelsTransaction === query.cancelsTransaction,
+      );
+      return leanResult(transaction ?? null);
+    }
+
     static findOneAndUpdate(query: any, update: any) {
       const transaction = store.transactions.get(String(query._id));
       if (
@@ -109,6 +143,7 @@ const { cancelFinanceTransaction } = await import('./service');
 const fromCashboxId = '111111111111111111111111';
 const toCashboxId = '222222222222222222222222';
 const transferId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+const sameBusinessDayDate = () => new Date();
 
 const seedCashboxes = () => {
   store.cashboxes.set(fromCashboxId, {
@@ -142,7 +177,7 @@ const seedTransaction = (patch: Record<string, unknown> = {}) => {
     fromSnapshot: { name: 'Main cashbox' },
     toSnapshot: { name: 'Reserve cashbox' },
     note: 'Manual transfer',
-    transactionDate: new Date('2026-05-31T09:00:00.000Z'),
+    transactionDate: sameBusinessDayDate(),
     status: 'active',
     isCancellation: false,
     cancelsTransaction: null,
@@ -156,17 +191,11 @@ const seedTransaction = (patch: Record<string, unknown> = {}) => {
 
 describe('cancelFinanceTransaction', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-05-31T12:00:00.000Z'));
     store.cashboxes.clear();
     store.transactions.clear();
     store.nextTransactionId = 100;
     seedCashboxes();
-    seedTransaction();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
+    seedTransaction({ transactionDate: sameBusinessDayDate() });
   });
 
   it('cancels an active transfer and creates a linked reverse transaction', async () => {
@@ -198,15 +227,71 @@ describe('cancelFinanceTransaction', () => {
     );
   });
 
-  it.each(['deposit', 'withdraw'])('rejects cancelling %s transactions', async (type) => {
+  it('cancels an active deposit and creates a linked reverse withdraw', async () => {
     seedTransaction({
-      type,
-      fromCashbox: type === 'withdraw' ? fromCashboxId : null,
-      toCashbox: type === 'deposit' ? toCashboxId : null,
+      type: 'deposit',
+      fromCashbox: null,
+      toCashbox: toCashboxId,
+      fromSnapshot: undefined,
+      toSnapshot: { name: 'Reserve cashbox' },
     });
+    store.cashboxes.get(toCashboxId).balances.UAH = 75;
+
+    const cancelled = await cancelFinanceTransaction(transferId);
+    const reverseTransaction = [...store.transactions.values()].find(
+      (transaction) => transaction.cancelsTransaction === transferId,
+    );
+
+    expect(cancelled.status).toBe('cancelled');
+    expect(reverseTransaction).toMatchObject({
+      type: 'withdraw',
+      amount: 25,
+      currency: 'UAH',
+      fromCashbox: toCashboxId,
+      toCashbox: null,
+      isCancellation: true,
+      cancelsTransaction: transferId,
+    });
+    expect(store.cashboxes.get(toCashboxId).balances.UAH).toBe(50);
+  });
+
+  it('cancels an active withdraw and creates a linked reverse deposit', async () => {
+    seedTransaction({
+      type: 'withdraw',
+      fromCashbox: fromCashboxId,
+      toCashbox: null,
+      fromSnapshot: { name: 'Main cashbox' },
+      toSnapshot: undefined,
+    });
+    store.cashboxes.get(fromCashboxId).balances.UAH = 75;
+
+    const cancelled = await cancelFinanceTransaction(transferId);
+    const reverseTransaction = [...store.transactions.values()].find(
+      (transaction) => transaction.cancelsTransaction === transferId,
+    );
+
+    expect(cancelled.status).toBe('cancelled');
+    expect(reverseTransaction).toMatchObject({
+      type: 'deposit',
+      amount: 25,
+      currency: 'UAH',
+      fromCashbox: null,
+      toCashbox: fromCashboxId,
+      isCancellation: true,
+      cancelsTransaction: transferId,
+    });
+    expect(store.cashboxes.get(fromCashboxId).balances.UAH).toBe(100);
+  });
+
+  it.each([
+    'Payment for order r000008',
+    'Refund for order r000008',
+    'Supplier order payment: SO-1',
+  ])('rejects cancelling order-linked transaction note %s', async (note) => {
+    seedTransaction({ note });
 
     await expect(cancelFinanceTransaction(transferId)).rejects.toThrow(
-      'Only transfers between cashboxes can be cancelled.',
+      'Order-linked finance transactions cannot be cancelled.',
     );
   });
 
@@ -219,10 +304,10 @@ describe('cancelFinanceTransaction', () => {
   });
 
   it('rejects cancelling transfers from a previous business day without changing balances', async () => {
-    seedTransaction({ transactionDate: new Date('2026-05-30T09:00:00.000Z') });
+    seedTransaction({ transactionDate: new Date('2020-01-01T09:00:00.000Z') });
 
     await expect(cancelFinanceTransaction(transferId)).rejects.toThrow(
-      'Transfer can be cancelled only during the transaction day.',
+      'Transaction can be cancelled only during the transaction day.',
     );
 
     const reverseTransaction = [...store.transactions.values()].find(

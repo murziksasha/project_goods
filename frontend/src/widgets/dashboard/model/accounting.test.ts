@@ -5,6 +5,7 @@ import type {
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
 import {
+  canCancelAccountingTransaction,
   canCancelAccountingTransferTransaction,
   canPerformTransferBetweenCashboxes,
   filterFinanceTransactions,
@@ -16,7 +17,10 @@ import {
   getFinanceOverview,
   initialTransactionFilters,
   normalizeCurrencyActivity,
+  isAccountingOrderLinkedNote,
   parseTransactionOrderToken,
+  resolveCashboxOperationForm,
+  upsertLastOperationByCashbox,
 } from './accounting';
 
 const createCashbox = (
@@ -315,12 +319,66 @@ describe('accounting model helpers', () => {
       }),
     ).toBe(false);
     expect(
-      canCancelAccountingTransferTransaction({
+      canCancelAccountingTransaction({
+        canCreateDeposit: true,
+        canCreateWithdraw: true,
         canCreateTransfer: true,
         now,
-        transaction: { ...transfer, type: 'deposit' },
+        transaction: { ...transfer, type: 'deposit', toCashbox: { id: 'cash-2', name: 'Reserve' }, fromCashbox: null },
+      }),
+    ).toBe(true);
+    expect(
+      canCancelAccountingTransaction({
+        canCreateDeposit: true,
+        canCreateWithdraw: false,
+        canCreateTransfer: false,
+        now,
+        transaction: { ...transfer, type: 'deposit', toCashbox: { id: 'cash-2', name: 'Reserve' }, fromCashbox: null },
+      }),
+    ).toBe(true);
+    expect(
+      canCancelAccountingTransaction({
+        canCreateDeposit: false,
+        canCreateWithdraw: true,
+        canCreateTransfer: false,
+        now,
+        transaction: { ...transfer, type: 'withdraw', fromCashbox: { id: 'cash-1', name: 'Main' }, toCashbox: null },
+      }),
+    ).toBe(true);
+    expect(
+      canCancelAccountingTransaction({
+        canCreateDeposit: true,
+        canCreateWithdraw: true,
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, note: 'Payment for order SO-1' },
       }),
     ).toBe(false);
+    expect(isAccountingOrderLinkedNote('Supplier order payment: SO-1')).toBe(true);
+  });
+
+  it('restores remembered cashbox operation fields when available', () => {
+    const cashboxes = [createCashbox('cash-1', { UAH: 100 }), createCashbox('cash-2', { UAH: 50 })];
+    const memory = upsertLastOperationByCashbox({}, 'withdraw', {
+      fromCashboxId: 'cash-2',
+      toCashboxId: '',
+      currency: 'UAH',
+    });
+
+    expect(
+      resolveCashboxOperationForm({
+        type: 'withdraw',
+        cashboxId: 'cash-2',
+        cashboxes,
+        memory,
+        secondCashboxId: 'cash-1',
+      }),
+    ).toMatchObject({
+      type: 'withdraw',
+      fromCashboxId: 'cash-2',
+      toCashboxId: '',
+      currency: 'UAH',
+    });
   });
 
   it('validates whether a transfer can be performed between two different cashboxes', () => {

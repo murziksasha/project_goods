@@ -104,6 +104,7 @@ http://localhost:5000/api
 - `GET /finance/transactions` - список финансовых операций
 - `POST /finance/transactions` - создать финансовую операцию; optional `idempotencyKey` deduplicates repeated manual submissions.
 - `PATCH /finance/transactions/:transactionId` - update a finance transaction. Currently supports updating the `note` field (`{ "note": "..." }`). Trims the value; max 300 characters. Not allowed on cancelled transactions.
+- `POST /finance/transactions/:transactionId/cancel` - cancel an active manual finance transaction (`deposit`, `withdraw`, or `transfer`) during the same business day (`Europe/Kiev`). Creates a linked reverse transaction and marks the original as `cancelled`. Rejects order-linked notes (payment/refund/supplier-order payment patterns). Permission is checked by the original transaction type.
 - `GET /finance/report` - получить финансовый отчет
 
 ## Supplier Orders
