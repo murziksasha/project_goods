@@ -105,17 +105,24 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   existing.number = payload.number === undefined ? existing.number : toNonEmptyString(payload.number);
   existing.note = payload.note === undefined ? existing.note : toNonEmptyString(payload.note);
   existing.set('items', nextItems);
+  if (payload.paymentStatus !== undefined) {
+    existing.paymentStatus = toPaymentStatus(payload.paymentStatus);
+  }
   if (payload.status !== undefined) {
     const nextStatus = toOrderStatus(payload.status);
     existing.status = nextStatus;
     if (nextStatus === 'approved') {
-      existing.paymentStatus = 'pending';
+      if (
+        existing.paymentStatus !== 'paid' &&
+        existing.paymentStatus !== 'without_payment'
+      ) {
+        existing.paymentStatus = 'pending';
+      }
       if (existing.receiptStatus === 'received') {
         existing.receiptStatus = 'approved';
       }
     }
   }
-  if (payload.paymentStatus !== undefined) existing.paymentStatus = toPaymentStatus(payload.paymentStatus);
   await existing.validate();
   await existing.save();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());

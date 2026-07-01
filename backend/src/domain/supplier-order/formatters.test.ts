@@ -33,4 +33,16 @@ describe('formatSupplierOrder', () => {
   it('defaults missing favorite state to false for old documents', () => {
     expect(formatSupplierOrder(makeOrder()).isFavorite).toBe(false);
   });
+
+  it('coerces non-boolean favorite values to false', () => {
+    expect(formatSupplierOrder(makeOrder({ isFavorite: 1 })).isFavorite).toBe(
+      false,
+    );
+    expect(
+      formatSupplierOrder(makeOrder({ isFavorite: 'false' })).isFavorite,
+    ).toBe(false);
+    expect(formatSupplierOrder(makeOrder({ isFavorite: null })).isFavorite).toBe(
+      false,
+    );
+  });
 });

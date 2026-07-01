@@ -9,12 +9,12 @@ import type {
   SupplierFormValues,
 } from '../../../../entities/supplier/model/types';
 import {
-  cancelSupplierOrder,
-  createSupplierOrder,
-  getSupplierOrders,
-  takeOnChargeSupplierOrder,
-  updateSupplierOrder,
-  updateSupplierOrderFavorite,
+  useCancelSupplierOrderMutation,
+  useCreateSupplierOrderMutation,
+  useSupplierOrdersQuery,
+  useTakeOnChargeSupplierOrderMutation,
+  useUpdateSupplierOrderFavoriteMutation,
+  useUpdateSupplierOrderMutation,
 } from '../../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   SupplierOrder,
@@ -38,6 +38,16 @@ import {
   type OrdersTab,
   type SupplierOrdersColumnKey,
 } from '../../model/supplier-orders-workspace';
+
+const financeVisibilityStatuses: SupplierOrderStatus[] = [
+  'approved',
+  'stocked',
+  'cancelled',
+];
+
+const notifyFinanceUpdated = () => {
+  window.dispatchEvent(new Event('project-goods:finance-updated'));
+};
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../orders/modals/SupplierOrderModal';
 import {
   CatalogProductEditModal,
@@ -87,8 +97,16 @@ export const SupplierOrdersWorkspace = ({
   onError,
 }: Props) => {
   const { t } = useTranslation();
-  const [orders, setOrders] = useState<SupplierOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
+  const createSupplierOrderMutation = useCreateSupplierOrderMutation();
+  const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const updateSupplierOrderFavoriteMutation =
+    useUpdateSupplierOrderFavoriteMutation();
+  const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const takeOnChargeSupplierOrderMutation =
+    useTakeOnChargeSupplierOrderMutation();
+  const orders = supplierOrdersQuery.data ?? [];
+  const isLoading = supplierOrdersQuery.isLoading;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const initialFilters = useMemo(
@@ -232,24 +250,25 @@ export const SupplierOrdersWorkspace = ({
   }, [openStatusOrder]);
 
   const refreshOrders = useCallback(async () => {
-    setIsLoading(true);
     try {
-      const loaded = await getSupplierOrders();
-      setOrders(loaded);
+      await supplierOrdersQuery.refetch();
     } catch (error) {
       onError(
         error instanceof Error
           ? error.message
           : t('orders.supplier.messages.errors.failedLoad'),
       );
-    } finally {
-      setIsLoading(false);
     }
-  }, [onError, t]);
+  }, [onError, supplierOrdersQuery, t]);
 
   useEffect(() => {
-    void refreshOrders();
-  }, [refreshOrders]);
+    if (!supplierOrdersQuery.error) return;
+    onError(
+      supplierOrdersQuery.error instanceof Error
+        ? supplierOrdersQuery.error.message
+        : t('orders.supplier.messages.errors.failedLoad'),
+    );
+  }, [onError, supplierOrdersQuery.error, t]);
 
   useEffect(() => {
     void (async () => {
@@ -389,30 +408,38 @@ export const SupplierOrdersWorkspace = ({
           onError(t('orders.supplier.messages.errors.defaultWarehouseNotFound'));
           return;
         }
-        await takeOnChargeSupplierOrder(order.id, {
-          autoGenerateSerialNumbers: true,
-          serialNumbers: [],
-          autoGenerateArticles: false,
-          articleBase: '',
-          warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
-          locationId: defaultTakeOnChargeWarehouse.locationId,
+        await takeOnChargeSupplierOrderMutation.mutateAsync({
+          supplierOrderId: order.id,
+          payload: {
+            autoGenerateSerialNumbers: true,
+            serialNumbers: [],
+            autoGenerateArticles: false,
+            articleBase: '',
+            warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
+            locationId: defaultTakeOnChargeWarehouse.locationId,
+          },
         });
+        notifyFinanceUpdated();
       } else {
-        await updateSupplierOrder(order.id, {
-          orderBaseId: order.orderBaseId,
-          supplierId: order.supplierId,
-          deliveryDate: order.deliveryDate.slice(0, 10),
-          supplyType: order.supplyType,
-          number: order.number,
-          note: order.note,
-          createdBy: order.createdBy,
-          paymentStatus: order.paymentStatus,
-          status: nextStatus,
-          items: order.items,
+        await updateSupplierOrderMutation.mutateAsync({
+          supplierOrderId: order.id,
+          payload: {
+            orderBaseId: order.orderBaseId,
+            supplierId: order.supplierId,
+            deliveryDate: order.deliveryDate.slice(0, 10),
+            supplyType: order.supplyType,
+            number: order.number,
+            note: order.note,
+            createdBy: order.createdBy,
+            status: nextStatus,
+            items: order.items,
+          },
         });
+        if (financeVisibilityStatuses.includes(nextStatus)) {
+          notifyFinanceUpdated();
+        }
       }
       setOpenStatusOrder(null);
-      await refreshOrders();
       onSuccess(t('orders.supplier.messages.success.statusUpdated'));
     } catch (error) {
       onError(
@@ -429,26 +456,16 @@ export const SupplierOrdersWorkspace = ({
       return;
     }
 
-    const nextIsFavorite = !order.isFavorite;
-    setOrders((current) =>
-      current.map((item) =>
-        item.id === order.id ? { ...item, isFavorite: nextIsFavorite } : item,
-      ),
-    );
+    const nextIsFavorite = order.isFavorite !== true;
 
     try {
-      const updated = await updateSupplierOrderFavorite(order.id, {
-        isFavorite: nextIsFavorite,
+      await updateSupplierOrderFavoriteMutation.mutateAsync({
+        supplierOrderId: order.id,
+        payload: {
+          isFavorite: nextIsFavorite,
+        },
       });
-      setOrders((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
     } catch (error) {
-      setOrders((current) =>
-        current.map((item) =>
-          item.id === order.id ? { ...item, isFavorite: order.isFavorite } : item,
-        ),
-      );
       onError(
         error instanceof Error
           ? error.message
@@ -671,26 +688,28 @@ export const SupplierOrdersWorkspace = ({
         }) => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          const result = await takeOnChargeSupplierOrder(editingOrder.id, {
-            autoGenerateSerialNumbers,
-            serialNumbers,
-            autoGenerateArticles,
-            articleBase: articleBase.trim().toUpperCase(),
-            warehouseId,
-            locationId,
+          const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
+            supplierOrderId: editingOrder.id,
+            payload: {
+              autoGenerateSerialNumbers,
+              serialNumbers,
+              autoGenerateArticles,
+              articleBase: articleBase.trim().toUpperCase(),
+              warehouseId,
+              locationId,
+            },
           });
           onSuccess(t('orders.supplier.messages.success.stocked'));
-          window.dispatchEvent(new Event('project-goods:finance-updated'));
+          notifyFinanceUpdated();
           window.dispatchEvent(new Event('project-goods:products-updated'));
-          await refreshOrders();
           return result;
         }}
         onCancelOrder={async () => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          await cancelSupplierOrder(editingOrder.id);
+          await cancelSupplierOrderMutation.mutateAsync(editingOrder.id);
           onSuccess(t('orders.supplier.messages.success.cancelled'));
-          await refreshOrders();
+          notifyFinanceUpdated();
         }}
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
           if (!canManageSupplierOrders) {
@@ -709,19 +728,21 @@ export const SupplierOrdersWorkspace = ({
             };
 
             if (!editingOrder) {
-              await createSupplierOrder({
+              await createSupplierOrderMutation.mutateAsync({
                 ...basePayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
               onSuccess(t('orders.supplier.messages.success.created'));
             } else {
-              await updateSupplierOrder(editingOrder.id, {
-                ...basePayload,
-                orderBaseId: editingOrder.orderBaseId,
+              await updateSupplierOrderMutation.mutateAsync({
+                supplierOrderId: editingOrder.id,
+                payload: {
+                  ...basePayload,
+                  orderBaseId: editingOrder.orderBaseId,
+                },
               });
               onSuccess(t('orders.supplier.messages.success.updated'));
             }
-            await refreshOrders();
           } catch (error) {
             onError(
               error instanceof Error

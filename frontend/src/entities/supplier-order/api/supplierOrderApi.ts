@@ -7,6 +7,20 @@ import type {
   TakeOnChargeResult,
 } from '../model/types';
 
+export const invalidateSupplierOrderQueries = async (options?: {
+  includeProducts?: boolean;
+}) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.financeSupplierOrdersQueue,
+    }),
+    ...(options?.includeProducts
+      ? [queryClient.invalidateQueries({ queryKey: queryKeys.products })]
+      : []),
+  ]);
+};
+
 export const getSupplierOrders = async (query = '') => {
   try {
     const response = await apiClient.get<SupplierOrder[]>('/supplier-orders', {
@@ -96,7 +110,7 @@ export const useCreateSupplierOrderMutation = () =>
   useMutation({
     mutationFn: createSupplierOrder,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+      await invalidateSupplierOrderQueries();
     },
   });
 
@@ -110,7 +124,7 @@ export const useUpdateSupplierOrderMutation = () =>
       payload: SupplierOrderFormValues;
     }) => updateSupplierOrder(supplierOrderId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+      await invalidateSupplierOrderQueries();
     },
   });
 
@@ -124,7 +138,7 @@ export const useUpdateSupplierOrderFavoriteMutation = () =>
       payload: { isFavorite: boolean };
     }) => updateSupplierOrderFavorite(supplierOrderId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+      await invalidateSupplierOrderQueries();
     },
   });
 
@@ -132,7 +146,7 @@ export const useCancelSupplierOrderMutation = () =>
   useMutation({
     mutationFn: cancelSupplierOrder,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+      await invalidateSupplierOrderQueries();
     },
   });
 
@@ -146,7 +160,6 @@ export const useTakeOnChargeSupplierOrderMutation = () =>
       payload?: TakeOnChargePayload;
     }) => takeOnChargeSupplierOrder(supplierOrderId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await invalidateSupplierOrderQueries({ includeProducts: true });
     },
   });
