@@ -1088,14 +1088,22 @@
     border-bottom: 0;
   }
 
+  .order-detail-table-entry-cell.order-line-item-entry-action {
+    align-items: flex-start;
+  }
+
   .order-detail-table-entry-cell.order-line-item-entry-action .primary-button {
     grid-column: 2;
     justify-self: start;
+    min-width: 0;
   }
 
-  .order-detail-table-wide-product:has(.order-detail-table-entry-cell .product-sale-price-tier-toggle)
-    .order-detail-table-entry-cell:not(.order-line-item-price-cell) {
-    padding-top: 10px;
+  .order-detail-table-entry-cell .line-item-inline-input,
+  .order-detail-table-entry-cell select,
+  .order-detail-table-entry-cell .number-stepper,
+  .order-detail-table-entry-cell .product-sale-price-field {
+    width: 100%;
+    min-width: 0;
   }
 
   .order-line-item-serial-entry-spacer {
@@ -1130,7 +1138,8 @@
     display: none;
   }
 
-  .order-detail-table-row {
+  .order-detail-table-row,
+  .order-detail-table-entry-row {
     display: grid;
     gap: 0;
     border: 1px solid #d7e0eb;
@@ -1140,7 +1149,8 @@
     overflow: hidden;
   }
 
-  .order-detail-table-row > div {
+  .order-detail-table-row > div,
+  .order-detail-table-entry-row > div {
     display: grid;
     grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
     gap: 10px;
@@ -1157,22 +1167,27 @@
     font-weight: 400;
   }
 
-  .order-detail-table-row > div.order-line-item-action-cell {
+  .order-detail-table-row > div.order-line-item-action-cell,
+  .order-detail-table-entry-row > div.order-line-item-action-cell {
     display: grid;
     align-items: start;
   }
 
   .order-detail-table-row > div.order-line-item-action-cell .line-item-serials-button,
-  .order-detail-table-row > div.order-line-item-action-cell .line-item-remove-button {
+  .order-detail-table-row > div.order-line-item-action-cell .line-item-remove-button,
+  .order-detail-table-entry-row > div.order-line-item-action-cell .line-item-serials-button,
+  .order-detail-table-entry-row > div.order-line-item-action-cell .line-item-remove-button {
     grid-column: 2;
     justify-self: start;
   }
 
-  .order-detail-table-row > div:last-child {
+  .order-detail-table-row > div:last-child,
+  .order-detail-table-entry-row > div:last-child {
     border-bottom: 0;
   }
 
-  .order-detail-table-row > div::before {
+  .order-detail-table-row > div::before,
+  .order-detail-table-entry-row > div::before {
     content: attr(data-label);
     color: #6c7f94;
     font-size: 0.76rem;
