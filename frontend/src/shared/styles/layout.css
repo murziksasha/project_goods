@@ -600,6 +600,24 @@
   min-width: 0;
 }
 
+.order-line-item-price-entry-compact {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.order-line-item-price-entry-compact .product-sale-price-field-label-compact {
+  display: none;
+}
+
+.order-line-item-price-entry-compact .product-sale-price-field {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .rapid-sale-entry-action > span[aria-hidden='true'] {
   display: block;
   height: 1.15rem;
@@ -4356,6 +4374,22 @@
   font-weight: 800;
 }
 
+.order-detail-table-price-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.order-detail-table-price-header-label {
+  min-width: 0;
+}
+
+.order-detail-table-price-header .product-sale-price-tier-toggle {
+  flex: 0 0 auto;
+}
+
 .order-detail-table-last-row {
   border-bottom: 0;
 }
@@ -4391,6 +4425,7 @@
   flex-direction: column;
   justify-content: flex-end;
   min-width: 0;
+  padding: 7px 12px;
 }
 
 .order-line-item-name-entry {
@@ -4423,12 +4458,7 @@
 .order-line-item-entry-field .number-stepper,
 .order-line-item-entry-field .primary-button {
   width: 100%;
-}
-
-.order-detail-table-wide-product:has(.order-detail-table-entry-cell .product-sale-price-tier-toggle)
-  .order-detail-table-entry-cell:not(.order-line-item-price-cell) {
-  padding-top: calc(11px + 26px);
-  box-sizing: border-box;
+  min-height: 36px;
 }
 
 .order-line-item-entry-action .primary-button,
@@ -4484,24 +4514,8 @@
   min-width: 0;
 }
 
-.order-line-item-price-cell .product-sale-price-field-compact {
+.order-line-item-price-cell .number-stepper {
   width: 100%;
-  min-width: 0;
-}
-
-.order-line-item-price-cell .product-sale-price-field-label-compact {
-  justify-content: center;
-  min-height: 22px;
-}
-
-.order-line-item-price-cell .product-sale-price-field {
-  display: block;
-  width: 100%;
-}
-
-.order-line-item-price-cell .product-sale-price-stepper {
-  width: 100%;
-  max-width: 100%;
 }
 
 .order-detail-table-wide .order-detail-table-row > div {

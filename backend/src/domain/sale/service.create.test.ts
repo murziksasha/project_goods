@@ -1,97 +1,16 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const {
-  saleCtor,
-  saleModel,
-  clientModel,
-  employeeModel,
-  productModel,
-  catalogProductModel,
-  getNextRecordNumberMock,
-  upsertCatalogProductsMock,
-} = vi.hoisted(() => {
-  const ctor = vi.fn(function SaleMock(this: Record<string, unknown>, payload: object) {
-    Object.assign(this, payload, {
-      _id: '507f1f77bcf86cd799439099',
-      createdAt: new Date('2026-05-31T10:00:00.000Z'),
-      updatedAt: new Date('2026-05-31T10:00:00.000Z'),
-    });
-    this.validate = vi.fn().mockResolvedValue(undefined);
-    this.save = vi.fn().mockResolvedValue(this);
-    this.toObject = vi.fn(() => this);
-  });
-
-  return {
-    saleCtor: ctor,
-    saleModel: Object.assign(ctor, {
-      find: vi.fn(),
-      countDocuments: vi.fn(),
-    }),
-    clientModel: {
-      findById: vi.fn(),
-    },
-    employeeModel: {
-      findById: vi.fn(),
-    },
-    productModel: {
-      findById: vi.fn(),
-      findByIdAndUpdate: vi.fn(),
-    },
-    catalogProductModel: {
-      findById: vi.fn(),
-      countDocuments: vi.fn(),
-    },
-    getNextRecordNumberMock: vi.fn(),
-    upsertCatalogProductsMock: vi.fn(),
-  };
-});
-
-vi.mock('./model', () => ({
-  Sale: saleModel,
-}));
-
-vi.mock('../client/model', () => ({
-  Client: clientModel,
-}));
-
-vi.mock('../employee/model', () => ({
-  Employee: employeeModel,
-}));
-
-vi.mock('../catalog-product/model', () => ({
-  CatalogProduct: catalogProductModel,
-}));
-
-vi.mock('../product/model', () => ({
-  Product: productModel,
-}));
-
-vi.mock('../../shared/lib/formatters', () => ({
-  formatProduct: vi.fn((value) => value),
-  formatSale: vi.fn((value) => value),
-}));
-
-vi.mock('../../shared/lib/query', () => ({
-  isValidObjectIdOrThrow: vi.fn(),
-}));
-
-vi.mock('../sequence/service', () => ({
-  getNextRecordNumber: getNextRecordNumberMock,
-}));
-
-vi.mock('../finance/service', () => ({
-  createFinanceTransaction: vi.fn(),
-}));
-
-vi.mock('../../shared/lib/errors', () => ({
-  assertNotStale: vi.fn(),
-}));
-
-vi.mock('../catalog-product/service', () => ({
-  upsertCatalogProducts: upsertCatalogProductsMock,
-}));
-
+import { CatalogProduct } from '../catalog-product/model';
+import * as catalogProductService from '../catalog-product/service';
+import { Client } from '../client/model';
+import { Employee } from '../employee/model';
+import { Product } from '../product/model';
+import * as sequenceService from '../sequence/service';
+import { Sale } from './model';
 import { createSale } from './service';
+import { leanResult, leanSelectResult, withFormatSaleFields } from './test-helpers';
+
+const capturedSales: any[] = [];
 
 const client = {
   _id: '507f1f77bcf86cd799439011',
@@ -125,27 +44,86 @@ const basePayload = {
   paymentHistory: [],
 };
 
-const leanResult = <T,>(value: T) => ({
-  lean: vi.fn().mockResolvedValue(value),
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
+
+  vi.spyOn(Sale, 'find').mockReturnValue(leanSelectResult([]) as never);
+  vi.spyOn(Sale, 'countDocuments').mockResolvedValue(0 as never);
+  vi.spyOn(Sale.prototype, 'validate').mockResolvedValue(undefined as never);
+  vi.spyOn(Sale.prototype, 'save').mockImplementation(async function saveSale(
+    this: any,
+  ) {
+    const now = new Date('2026-05-31T10:00:00.000Z');
+    this._id = this._id ?? '507f1f77bcf86cd799439099';
+    this.createdAt = this.createdAt ?? now;
+    this.updatedAt = this.updatedAt ?? now;
+    capturedSales.push(this);
+    return this;
+  });
+  vi.spyOn(Sale.prototype, 'toObject').mockImplementation(function toObject(
+    this: any,
+  ) {
+    return withFormatSaleFields({
+      _id: String(this._id),
+      recordNumber: this.recordNumber,
+      saleDate: this.saleDate,
+      quantity: this.quantity,
+      salePrice: this.salePrice,
+      kind: this.kind,
+      status: this.status,
+      paidAmount: this.paidAmount ?? 0,
+      isRapidSale: this.isRapidSale ?? false,
+      note: this.note ?? '',
+      timeline: this.timeline ?? [],
+      paymentHistory: this.paymentHistory ?? [],
+      lineItems: this.lineItems ?? [],
+      discount: this.discount,
+      client: this.client,
+      clientSnapshot: this.clientSnapshot,
+      product: this.product,
+      productSnapshot: this.productSnapshot,
+      manager: this.manager,
+      managerSnapshot: this.managerSnapshot,
+      master: this.master,
+      masterSnapshot: this.masterSnapshot,
+      issuedBy: this.issuedBy,
+      issuedBySnapshot: this.issuedBySnapshot,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    }) as never;
+  });
+
+  vi.spyOn(Client, 'findById').mockReturnValue(leanResult(client) as never);
+  vi.spyOn(Employee, 'findById').mockImplementation((id: unknown) => {
+    if (String(id) === manager._id) {
+      return leanResult(manager) as never;
+    }
+    return leanResult(null) as never;
+  });
+  vi.spyOn(Product, 'findById').mockReturnValue(leanResult(null) as never);
+  vi.spyOn(CatalogProduct, 'findById').mockReturnValue(leanResult(null) as never);
+  vi.spyOn(CatalogProduct, 'countDocuments').mockResolvedValue(1 as never);
+  vi.spyOn(sequenceService, 'getNextRecordNumber').mockResolvedValue('r000123');
+  vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
+    undefined as never,
+  );
+};
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  capturedSales.length = 0;
+  installSpies();
 });
 
 describe('createSale product identity', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    saleModel.find.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        lean: vi.fn().mockResolvedValue([]),
-      }),
-    });
-    clientModel.findById.mockReturnValue(leanResult(client));
-    employeeModel.findById.mockReturnValue(leanResult(manager));
-    productModel.findById.mockReturnValue(leanResult(null));
-    catalogProductModel.findById.mockReturnValue(leanResult(null));
-    catalogProductModel.countDocuments.mockResolvedValue(1);
-    saleModel.countDocuments.mockResolvedValue(0);
-    getNextRecordNumberMock.mockResolvedValue('r000123');
-  });
-
   it('creates a catalog sale item without setting Sale.product', async () => {
     await createSale({
       ...basePayload,
@@ -163,17 +141,17 @@ describe('createSale product identity', () => {
       ],
     });
 
-    const salePayload = saleCtor.mock.calls[0][0];
+    const salePayload = capturedSales[0];
     expect(salePayload).toMatchObject({
       product: null,
       productSnapshot: {
         name: 'USB hub',
       },
     });
-    expect(salePayload.lineItems[0]).toMatchObject({
-      productId: undefined,
-      catalogProductId: '507f1f77bcf86cd799439031',
-    });
+    expect(salePayload.lineItems[0].productId).toBeNull();
+    expect(String(salePayload.lineItems[0].catalogProductId)).toBe(
+      '507f1f77bcf86cd799439031',
+    );
   });
 
   it('creates a stock sale item with only line item productId', async () => {
@@ -193,12 +171,12 @@ describe('createSale product identity', () => {
       ],
     });
 
-    const salePayload = saleCtor.mock.calls[0][0];
+    const salePayload = capturedSales[0];
     expect(salePayload.product).toBeNull();
-    expect(salePayload.lineItems[0]).toMatchObject({
-      productId: '507f1f77bcf86cd799439041',
-      catalogProductId: undefined,
-    });
+    expect(String(salePayload.lineItems[0].productId)).toBe(
+      '507f1f77bcf86cd799439041',
+    );
+    expect(salePayload.lineItems[0].catalogProductId).toBeNull();
   });
 
   it('creates a manual sale item without object id fields', async () => {
@@ -218,11 +196,11 @@ describe('createSale product identity', () => {
       ],
     });
 
-    const salePayload = saleCtor.mock.calls[0][0];
+    const salePayload = capturedSales[0];
     expect(salePayload.product).toBeNull();
     expect(salePayload.lineItems[0]).toMatchObject({
-      productId: undefined,
-      catalogProductId: undefined,
+      productId: null,
+      catalogProductId: null,
     });
   });
 });

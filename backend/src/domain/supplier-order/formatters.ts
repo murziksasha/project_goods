@@ -17,7 +17,7 @@ export const formatSupplierOrder = (
   receiptStatus: order.receiptStatus,
   total: order.total,
   paid: order.paid,
-  isFavorite: order.isFavorite ?? false,
+  isFavorite: order.isFavorite === true,
   items: (order.items ?? []).map((item) => ({
     lineId: item.lineId,
     itemIndex: item.itemIndex,

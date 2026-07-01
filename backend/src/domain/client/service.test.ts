@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Client } from './model';
+import { Sale } from '../sale/model';
+import * as service from './service';
 
 const duplicatePhoneMessage = 'Client phone already exists.';
 
@@ -15,57 +18,26 @@ const {
   saveMock,
   updateManyMock,
   countDocumentsMock,
-  FakeClient,
 } = vi.hoisted(() => {
-  const findOneLeanMock = vi.fn();
-  const findOneMock = vi.fn(() => ({ lean: findOneLeanMock }));
-  const findByIdLeanMock = vi.fn();
-  const findByIdMock = vi.fn(() => ({ lean: findByIdLeanMock }));
-  const findByIdAndUpdateLeanMock = vi.fn();
-  const findByIdAndUpdateMock = vi.fn(() => ({
-    lean: findByIdAndUpdateLeanMock,
-  }));
-  const findByIdAndDeleteLeanMock = vi.fn();
-  const findByIdAndDeleteMock = vi.fn(() => ({
-    lean: findByIdAndDeleteLeanMock,
-  }));
+  const createLeanQueryMock = () => {
+    const leanResult = vi.fn();
+    const lean = vi.fn(() => leanResult());
+    const query = vi.fn(() => ({ lean }));
+    return { query, leanResult };
+  };
+
+  const { query: findOneMock, leanResult: findOneLeanMock } =
+    createLeanQueryMock();
+  const { query: findByIdMock, leanResult: findByIdLeanMock } =
+    createLeanQueryMock();
+  const { query: findByIdAndUpdateMock, leanResult: findByIdAndUpdateLeanMock } =
+    createLeanQueryMock();
+  const { query: findByIdAndDeleteMock, leanResult: findByIdAndDeleteLeanMock } =
+    createLeanQueryMock();
   const validateMock = vi.fn();
   const saveMock = vi.fn();
   const updateManyMock = vi.fn();
   const countDocumentsMock = vi.fn();
-
-  class FakeClient {
-    static findOne = findOneMock;
-    static findById = findByIdMock;
-    static findByIdAndUpdate = findByIdAndUpdateMock;
-    static findByIdAndDelete = findByIdAndDeleteMock;
-    static find = vi.fn();
-    static exists = vi.fn();
-
-    validate = validateMock;
-    save = saveMock;
-
-    constructor(input: Record<string, unknown>) {
-      Object.assign(this, input);
-    }
-
-    toObject() {
-      return {
-        _id: { toString: () => 'created-client-id' },
-        phone: '+380635567090',
-        phones: ['+380635567090'],
-        name: 'Created Client',
-        email: '',
-        address: '',
-        registrationId: '',
-        iban: '',
-        note: '',
-        status: 'new',
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      };
-    }
-  }
 
   return {
     findOneLeanMock,
@@ -80,27 +52,30 @@ const {
     saveMock,
     updateManyMock,
     countDocumentsMock,
-    FakeClient,
   };
 });
 
-vi.mock('./model', () => ({
-  Client: FakeClient,
-}));
-
-vi.mock('../sale/model', () => ({
-  Sale: {
-    updateMany: updateManyMock,
-    exists: vi.fn(),
-    find: vi.fn(),
-    countDocuments: countDocumentsMock,
-  },
-}));
-
-import * as service from './service';
+const installClientModelSpies = () => {
+  vi.spyOn(Client, 'findOne').mockImplementation(findOneMock as never);
+  vi.spyOn(Client, 'findById').mockImplementation(findByIdMock as never);
+  vi.spyOn(Client, 'findByIdAndUpdate').mockImplementation(
+    findByIdAndUpdateMock as never,
+  );
+  vi.spyOn(Client, 'findByIdAndDelete').mockImplementation(
+    findByIdAndDeleteMock as never,
+  );
+  vi.spyOn(Client.prototype, 'validate').mockImplementation(validateMock);
+  vi.spyOn(Client.prototype, 'save').mockImplementation(saveMock);
+  vi.spyOn(Sale, 'updateMany').mockImplementation(updateManyMock as never);
+  vi.spyOn(Sale, 'countDocuments').mockImplementation(
+    countDocumentsMock as never,
+  );
+};
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
+  installClientModelSpies();
   findOneLeanMock.mockResolvedValue(null);
   findByIdLeanMock.mockResolvedValue(null);
   findByIdAndUpdateLeanMock.mockResolvedValue(null);

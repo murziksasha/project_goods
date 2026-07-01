@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   cancelFinanceTransaction,
+  getFinanceTransactionTypeForCancel,
   createCashbox,
   createFinanceCurrency,
   createFinanceTransaction,
@@ -86,8 +87,11 @@ financeRouter.patch('/finance/transactions/:transactionId', asyncHandler(async (
 }));
 
 financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'finance.transactions.transfer');
-  res.json(await cancelFinanceTransaction(routeParam(req, 'transactionId')));
+  const transactionId = routeParam(req, 'transactionId');
+  const transactionType = await getFinanceTransactionTypeForCancel(transactionId);
+  const permission = transactionPermissionByType[transactionType];
+  await requirePermission(req, permission ?? 'finance.transactions.deposit');
+  res.json(await cancelFinanceTransaction(transactionId));
 }));
 
 financeRouter.get('/finance/report', asyncHandler(async (req, res) => {

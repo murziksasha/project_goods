@@ -22,6 +22,8 @@ export const accountingCashboxCurrencyActivityStorageKey =
   'project-goods.accounting-cashbox-currency-activity';
 export const accountingLastTargetCashboxByTypeStorageKey =
   'project-goods.accounting-last-target-cashbox-by-type';
+export const accountingLastOperationByCashboxStorageKey =
+  'project-goods.accounting-last-operation-by-cashbox';
 export const accountingFinanceSettingsTabStorageKey =
   'project-goods.accounting-finance-settings-tab';
 
@@ -79,24 +81,6 @@ export const getAccountingBusinessDateKey = (
   return `${byType.year}-${byType.month}-${byType.day}`;
 };
 
-export const canCancelAccountingTransferTransaction = ({
-  canCreateTransfer,
-  now = new Date(),
-  transaction,
-}: {
-  canCreateTransfer: boolean;
-  now?: Date;
-  transaction: FinanceTransaction;
-}) =>
-  canCreateTransfer &&
-  transaction.type === 'transfer' &&
-  Boolean(transaction.fromCashbox && transaction.toCashbox) &&
-  (transaction.status ?? 'active') !== 'cancelled' &&
-  !transaction.isCancellation &&
-  !transaction.cancelsTransactionId &&
-  getAccountingBusinessDateKey(transaction.transactionDate) ===
-    getAccountingBusinessDateKey(now);
-
 const ORDER_TOKEN_PATTERNS = [
   /Payment for order\s+([A-Za-z0-9-]+)/i,
   /Refund for order\s+([A-Za-z0-9-]+)/i,
@@ -114,6 +98,65 @@ export const parseTransactionOrderToken = (note: string | null | undefined): str
   }
   return null;
 };
+
+export const isAccountingOrderLinkedNote = (
+  note: string | null | undefined,
+): boolean =>
+  parseTransactionOrderToken(note) !== null ||
+  (note?.trim().toLowerCase().startsWith('supplier order payment:') ?? false);
+
+export const canCancelAccountingTransaction = ({
+  canCreateDeposit,
+  canCreateWithdraw,
+  canCreateTransfer,
+  now = new Date(),
+  transaction,
+}: {
+  canCreateDeposit: boolean;
+  canCreateWithdraw: boolean;
+  canCreateTransfer: boolean;
+  now?: Date;
+  transaction: FinanceTransaction;
+}) => {
+  const hasPermission =
+    (transaction.type === 'deposit' && canCreateDeposit) ||
+    (transaction.type === 'withdraw' && canCreateWithdraw) ||
+    (transaction.type === 'transfer' && canCreateTransfer);
+  const hasRequiredCashboxes =
+    (transaction.type === 'deposit' && Boolean(transaction.toCashbox)) ||
+    (transaction.type === 'withdraw' && Boolean(transaction.fromCashbox)) ||
+    (transaction.type === 'transfer' &&
+      Boolean(transaction.fromCashbox && transaction.toCashbox));
+
+  return (
+    hasPermission &&
+    hasRequiredCashboxes &&
+    !isAccountingOrderLinkedNote(transaction.note) &&
+    (transaction.status ?? 'active') !== 'cancelled' &&
+    !transaction.isCancellation &&
+    !transaction.cancelsTransactionId &&
+    getAccountingBusinessDateKey(transaction.transactionDate) ===
+      getAccountingBusinessDateKey(now)
+  );
+};
+
+/** @deprecated Use canCancelAccountingTransaction */
+export const canCancelAccountingTransferTransaction = ({
+  canCreateTransfer,
+  now = new Date(),
+  transaction,
+}: {
+  canCreateTransfer: boolean;
+  now?: Date;
+  transaction: FinanceTransaction;
+}) =>
+  canCancelAccountingTransaction({
+    canCreateDeposit: false,
+    canCreateWithdraw: false,
+    canCreateTransfer,
+    now,
+    transaction,
+  });
 
 export const truncateLabel = (value: string, maxLength: number) => {
   if (value.length <= maxLength) return value;
@@ -143,6 +186,189 @@ export const initialTransactionForm: CreateFinanceTransactionPayload = {
 };
 
 export type TransactionTargetMemory = Partial<Record<'deposit' | 'transfer', string>>;
+
+export type CashboxOperationSnapshot = {
+  fromCashboxId: string;
+  toCashboxId: string;
+  currency: FinanceCurrency;
+};
+
+export type LastOperationByCashbox = Record<
+  string,
+  Partial<Record<FinanceTransactionType, CashboxOperationSnapshot>>
+>;
+
+export const getCashboxOperationAnchorId = (
+  type: FinanceTransactionType,
+  fromCashboxId: string,
+  toCashboxId: string,
+): string => {
+  if (type === 'deposit') return toCashboxId;
+  return fromCashboxId;
+};
+
+export const buildCashboxOperationMemoryEntry = (
+  type: FinanceTransactionType,
+  form: Pick<CreateFinanceTransactionPayload, 'fromCashboxId' | 'toCashboxId' | 'currency'>,
+): { anchorId: string; snapshot: CashboxOperationSnapshot } | null => {
+  const fromCashboxId = form.fromCashboxId ?? '';
+  const toCashboxId = form.toCashboxId ?? '';
+  const anchorId = getCashboxOperationAnchorId(type, fromCashboxId, toCashboxId);
+  if (!anchorId) return null;
+  return {
+    anchorId,
+    snapshot: {
+      fromCashboxId,
+      toCashboxId,
+      currency: form.currency,
+    },
+  };
+};
+
+export const upsertLastOperationByCashbox = (
+  memory: LastOperationByCashbox,
+  type: FinanceTransactionType,
+  form: Pick<CreateFinanceTransactionPayload, 'fromCashboxId' | 'toCashboxId' | 'currency'>,
+): LastOperationByCashbox => {
+  const entry = buildCashboxOperationMemoryEntry(type, form);
+  if (!entry) return memory;
+  return {
+    ...memory,
+    [entry.anchorId]: {
+      ...memory[entry.anchorId],
+      [type]: entry.snapshot,
+    },
+  };
+};
+
+export const parseStoredLastOperationByCashbox = (
+  raw: string | null,
+): LastOperationByCashbox => {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const next: LastOperationByCashbox = {};
+    for (const [cashboxId, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== 'object') continue;
+      const byType = value as Record<string, unknown>;
+      const snapshotByType: Partial<
+        Record<FinanceTransactionType, CashboxOperationSnapshot>
+      > = {};
+      for (const type of ['deposit', 'withdraw', 'transfer'] as FinanceTransactionType[]) {
+        const snapshot = byType[type];
+        if (!snapshot || typeof snapshot !== 'object') continue;
+        const record = snapshot as Record<string, unknown>;
+        if (
+          typeof record.fromCashboxId !== 'string' ||
+          typeof record.toCashboxId !== 'string' ||
+          typeof record.currency !== 'string'
+        ) {
+          continue;
+        }
+        snapshotByType[type] = {
+          fromCashboxId: record.fromCashboxId,
+          toCashboxId: record.toCashboxId,
+          currency: record.currency as FinanceCurrency,
+        };
+      }
+      if (Object.keys(snapshotByType).length > 0) {
+        next[cashboxId] = snapshotByType;
+      }
+    }
+    return next;
+  } catch {
+    return {};
+  }
+};
+
+export const migrateLastTargetCashboxToOperationMemory = (
+  legacy: TransactionTargetMemory,
+  cashboxes: Cashbox[],
+): LastOperationByCashbox => {
+  const firstCashboxId = cashboxes[0]?.id ?? '';
+  const secondCashboxId =
+    cashboxes.find((cashbox) => cashbox.id !== firstCashboxId)?.id ?? '';
+  const next: LastOperationByCashbox = {};
+  if (legacy.deposit && cashboxes.some((cashbox) => cashbox.id === legacy.deposit)) {
+    next[legacy.deposit] = {
+      deposit: {
+        fromCashboxId: '',
+        toCashboxId: legacy.deposit,
+        currency: 'UAH',
+      },
+    };
+  }
+  if (legacy.transfer && cashboxes.some((cashbox) => cashbox.id === legacy.transfer)) {
+    const fromCashboxId =
+      cashboxes.find((cashbox) => cashbox.id !== legacy.transfer)?.id ?? firstCashboxId;
+    next[fromCashboxId] = {
+      ...next[fromCashboxId],
+      transfer: {
+        fromCashboxId,
+        toCashboxId: legacy.transfer,
+        currency: 'UAH',
+      },
+    };
+  }
+  void secondCashboxId;
+  return next;
+};
+
+export const resolveCashboxOperationForm = ({
+  type,
+  cashboxId,
+  cashboxes,
+  memory,
+  secondCashboxId,
+}: {
+  type: FinanceTransactionType;
+  cashboxId: string;
+  cashboxes: Cashbox[];
+  memory: LastOperationByCashbox;
+  secondCashboxId: string;
+}): Pick<CreateFinanceTransactionPayload, 'type' | 'fromCashboxId' | 'toCashboxId' | 'currency'> => {
+  const has = (id: string) => Boolean(id) && cashboxes.some((cashbox) => cashbox.id === id);
+  const remembered = memory[cashboxId]?.[type];
+  if (remembered) {
+    const fromCashboxId =
+      type === 'deposit' ? '' : remembered.fromCashboxId || cashboxId;
+    const toCashboxId =
+      type === 'withdraw'
+        ? ''
+        : remembered.toCashboxId ||
+          (type === 'deposit' ? cashboxId : secondCashboxId);
+    const fromValid = type === 'deposit' || has(fromCashboxId);
+    const toValid = type === 'withdraw' || has(toCashboxId);
+    if (fromValid && toValid) {
+      return {
+        type,
+        fromCashboxId,
+        toCashboxId,
+        currency: remembered.currency,
+      };
+    }
+  }
+
+  const nextFromCashboxId =
+    type === 'withdraw' || type === 'transfer' ? cashboxId : '';
+  let nextToCashboxId = '';
+  if (type === 'deposit') {
+    nextToCashboxId = cashboxId;
+  } else if (type === 'transfer') {
+    nextToCashboxId =
+      secondCashboxId && secondCashboxId !== cashboxId
+        ? secondCashboxId
+        : (cashboxes.find((cashbox) => cashbox.id !== cashboxId)?.id ?? '');
+  }
+
+  return {
+    type,
+    fromCashboxId: nextFromCashboxId,
+    toCashboxId: nextToCashboxId,
+    currency: 'UAH',
+  };
+};
 
 export type TransactionFilters = {
   type: '' | FinanceTransactionType;

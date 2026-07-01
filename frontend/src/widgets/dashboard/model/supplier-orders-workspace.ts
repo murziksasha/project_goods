@@ -190,7 +190,7 @@ export const filterSupplierOrders = (
   const normalized = filters.query.trim().toLowerCase();
 
   return orders.filter((order) => {
-    if (filters.favoritesOnly && !order.isFavorite) {
+    if (filters.favoritesOnly && order.isFavorite !== true) {
       return false;
     }
 

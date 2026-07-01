@@ -30,8 +30,36 @@ import {
 const defaultCashboxName = 'Основная';
 
 const accountingBusinessTimeZone = 'Europe/Kiev';
-const transferCancellationDayError =
-  'Transfer can be cancelled only during the transaction day.';
+const transactionCancellationDayError =
+  'Transaction can be cancelled only during the transaction day.';
+
+const ORDER_LINKED_NOTE_PATTERNS = [
+  /Payment for order\s+/i,
+  /Refund for order\s+/i,
+  /Оплата (?:за )?замовлення\s+/i,
+  /^Supplier order payment:/i,
+];
+
+export const isOrderLinkedFinanceTransactionNote = (
+  note: string | null | undefined,
+): boolean => {
+  if (!note) return false;
+  const trimmed = note.trim();
+  return ORDER_LINKED_NOTE_PATTERNS.some((pattern) => pattern.test(trimmed));
+};
+
+export const getFinanceTransactionTypeForCancel = async (
+  transactionId: string,
+): Promise<FinanceTransactionDocument['type']> => {
+  isValidObjectIdOrThrow(transactionId, 'transactionId');
+  const transaction = await FinanceTransaction.findById(transactionId).lean<
+    FinanceTransactionDocument | null
+  >();
+  if (!transaction) {
+    throw new Error('Transaction not found.');
+  }
+  return transaction.type;
+};
 
 const getAccountingBusinessDateKey = (
   value: string | Date,
@@ -632,8 +660,20 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       throw new Error('Transaction not found.');
     }
 
-    if (transaction.type !== 'transfer' || !transaction.fromCashbox || !transaction.toCashbox) {
-      throw new Error('Only transfers between cashboxes can be cancelled.');
+    if (!['deposit', 'withdraw', 'transfer'].includes(transaction.type)) {
+      throw new Error('Only manual finance transactions can be cancelled.');
+    }
+    if (transaction.type === 'deposit' && !transaction.toCashbox) {
+      throw new Error('Deposit transaction cashbox not found.');
+    }
+    if (transaction.type === 'withdraw' && !transaction.fromCashbox) {
+      throw new Error('Withdraw transaction cashbox not found.');
+    }
+    if (
+      transaction.type === 'transfer' &&
+      (!transaction.fromCashbox || !transaction.toCashbox)
+    ) {
+      throw new Error('Transfer transaction cashboxes not found.');
     }
     if ((transaction.status ?? 'active') === 'cancelled') {
       throw new Error('Transaction is already cancelled.');
@@ -641,45 +681,147 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
     if (transaction.isCancellation || transaction.cancelsTransaction) {
       throw new Error('Cancellation transactions cannot be cancelled.');
     }
+    if (isOrderLinkedFinanceTransactionNote(transaction.note)) {
+      throw new Error('Order-linked finance transactions cannot be cancelled.');
+    }
     if (
       getAccountingBusinessDateKey(transaction.transactionDate) !==
       getAccountingBusinessDateKey(new Date())
     ) {
-      throw new Error(transferCancellationDayError);
+      throw new Error(transactionCancellationDayError);
     }
 
-    const fromCashbox = await leanWithOptionalSession<CashboxDocument | null>(
-      Cashbox.findById(transaction.fromCashbox),
-      session,
-    );
-    const toCashbox = await leanWithOptionalSession<CashboxDocument | null>(
-      Cashbox.findById(transaction.toCashbox),
-      session,
-    );
-    if (!fromCashbox || !toCashbox) {
+    const fromCashbox =
+      transaction.fromCashbox &&
+      (await leanWithOptionalSession<CashboxDocument | null>(
+        Cashbox.findById(transaction.fromCashbox),
+        session,
+      ));
+    const toCashbox =
+      transaction.toCashbox &&
+      (await leanWithOptionalSession<CashboxDocument | null>(
+        Cashbox.findById(transaction.toCashbox),
+        session,
+      ));
+
+    if (transaction.type === 'transfer' && (!fromCashbox || !toCashbox)) {
+      throw new Error('Transaction cashbox not found.');
+    }
+    if (transaction.type === 'deposit' && !toCashbox) {
+      throw new Error('Transaction cashbox not found.');
+    }
+    if (transaction.type === 'withdraw' && !fromCashbox) {
       throw new Error('Transaction cashbox not found.');
     }
 
-    let fromDeltaApplied = false;
-    await applyCashboxDelta(toCashbox._id, transaction.currency, -transaction.amount, session);
+    const cancellationNote = `Cancellation of ${transaction.type} ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`;
+    let primaryDeltaApplied = false;
+    let secondaryDeltaApplied = false;
+
+    const rollbackWithoutSession = async () => {
+      if (!session) {
+        if (transaction.type === 'transfer' && fromCashbox && toCashbox) {
+          if (secondaryDeltaApplied) {
+            await applyCashboxDelta(
+              fromCashbox._id,
+              transaction.currency,
+              -transaction.amount,
+            );
+          }
+          if (primaryDeltaApplied) {
+            await applyCashboxDelta(
+              toCashbox._id,
+              transaction.currency,
+              transaction.amount,
+            );
+          }
+          return;
+        }
+        if (transaction.type === 'deposit' && toCashbox && primaryDeltaApplied) {
+          await applyCashboxDelta(
+            toCashbox._id,
+            transaction.currency,
+            transaction.amount,
+          );
+        }
+        if (transaction.type === 'withdraw' && fromCashbox && primaryDeltaApplied) {
+          await applyCashboxDelta(
+            fromCashbox._id,
+            transaction.currency,
+            -transaction.amount,
+          );
+        }
+      }
+    };
+
     try {
-      await applyCashboxDelta(
-        fromCashbox._id,
-        transaction.currency,
-        transaction.amount,
-        session,
-      );
-      fromDeltaApplied = true;
+      if (transaction.type === 'transfer' && fromCashbox && toCashbox) {
+        await applyCashboxDelta(
+          toCashbox._id,
+          transaction.currency,
+          -transaction.amount,
+          session,
+        );
+        primaryDeltaApplied = true;
+        await applyCashboxDelta(
+          fromCashbox._id,
+          transaction.currency,
+          transaction.amount,
+          session,
+        );
+        secondaryDeltaApplied = true;
+      } else if (transaction.type === 'deposit' && toCashbox) {
+        await applyCashboxDelta(
+          toCashbox._id,
+          transaction.currency,
+          -transaction.amount,
+          session,
+        );
+        primaryDeltaApplied = true;
+      } else if (transaction.type === 'withdraw' && fromCashbox) {
+        await applyCashboxDelta(
+          fromCashbox._id,
+          transaction.currency,
+          transaction.amount,
+          session,
+        );
+        primaryDeltaApplied = true;
+      }
+
+      const cancellationPayload =
+        transaction.type === 'transfer' && fromCashbox && toCashbox
+          ? {
+              type: 'transfer' as const,
+              amount: transaction.amount,
+              currency: transaction.currency,
+              fromCashbox: toCashbox._id,
+              toCashbox: fromCashbox._id,
+              fromSnapshot: { name: toCashbox.name },
+              toSnapshot: { name: fromCashbox.name },
+            }
+          : transaction.type === 'deposit' && toCashbox
+            ? {
+                type: 'withdraw' as const,
+                amount: transaction.amount,
+                currency: transaction.currency,
+                fromCashbox: toCashbox._id,
+                toCashbox: null,
+                fromSnapshot: { name: toCashbox.name },
+                toSnapshot: undefined,
+              }
+            : {
+                type: 'deposit' as const,
+                amount: transaction.amount,
+                currency: transaction.currency,
+                fromCashbox: null,
+                toCashbox: fromCashbox!._id,
+                fromSnapshot: undefined,
+                toSnapshot: { name: fromCashbox!.name },
+              };
 
       const cancellation = new FinanceTransaction({
-        type: 'transfer',
-        amount: transaction.amount,
-        currency: transaction.currency,
-        fromCashbox: toCashbox._id,
-        toCashbox: fromCashbox._id,
-        fromSnapshot: { name: toCashbox.name },
-        toSnapshot: { name: fromCashbox.name },
-        note: `Cancellation of transfer ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`,
+        ...cancellationPayload,
+        note: cancellationNote,
         transactionDate: new Date(),
         isCancellation: true,
         cancelsTransaction: transaction._id,
@@ -690,7 +832,6 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
         await cancellation.save({ session });
       } catch (err: any) {
         if (err?.code === 11000 && transaction._id) {
-          // duplicate cancel tx due to race; lookup existing reverse and proceed to mark
           const existingReverse = await leanWithOptionalSession<FinanceTransactionDocument | null>(
             FinanceTransaction.findOne({ cancelsTransaction: transaction._id }),
             session,
@@ -725,20 +866,13 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       if (!cancelled) {
         if (!session) {
           await FinanceTransaction.findByIdAndDelete(cancellation._id);
-          await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
-          fromDeltaApplied = false;
         }
         throw new Error('Transaction is already cancelled.');
       }
 
       return formatTransaction(cancelled);
     } catch (error) {
-      if (!session) {
-        if (fromDeltaApplied) {
-          await applyCashboxDelta(fromCashbox._id, transaction.currency, -transaction.amount);
-        }
-        await applyCashboxDelta(toCashbox._id, transaction.currency, transaction.amount);
-      }
+      await rollbackWithoutSession();
       throw error;
     }
   });

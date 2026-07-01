@@ -15,6 +15,7 @@ export default defineConfig({
     pool: 'vmForks',
     testTimeout: 15000,
     environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',

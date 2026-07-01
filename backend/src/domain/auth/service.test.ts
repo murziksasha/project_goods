@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Employee } from '../employee/model';
 import {
   employeeHasAnyPermission,
   employeeHasPermission,
@@ -9,18 +11,13 @@ import {
 } from './service';
 import { hashPassword } from '../../shared/lib/auth';
 
-const findOneMock = vi.hoisted(() => vi.fn());
-
-vi.mock('../employee/model', () => ({
-  Employee: {
-    findOne: findOneMock,
-  },
-}));
+let employeeRecord: any;
 
 const mockEmployeeFindOne = (employee: unknown) => {
-  const select = vi.fn().mockResolvedValue(employee);
-  findOneMock.mockReturnValue({ select });
-  return select;
+  employeeRecord = employee;
+  vi.spyOn(Employee, 'findOne').mockReturnValue({
+    select: vi.fn().mockResolvedValue(employee),
+  } as never);
 };
 
 const createEmployeeRecord = (
@@ -45,7 +42,7 @@ const createEmployeeRecord = (
     updatedAt: now,
     passwordHash: hashPassword('secret'),
     authToken: '',
-    authTokens: [],
+    authTokens: [] as string[],
     save: vi.fn().mockResolvedValue(undefined),
     toObject() {
       return this;
@@ -57,7 +54,12 @@ const createEmployeeRecord = (
 };
 
 beforeEach(() => {
-  findOneMock.mockReset();
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
 });
 
 describe('auth permission helpers', () => {
@@ -130,11 +132,11 @@ describe('auth sessions', () => {
     await expect(getCurrentEmployee('second-token')).resolves.toMatchObject({
       id: 'employee-id',
     });
-    expect(findOneMock).toHaveBeenCalledWith({
+    expect(Employee.findOne).toHaveBeenCalledWith({
       isActive: true,
       $or: [{ authTokens: 'first-token' }, { authToken: 'first-token' }],
     });
-    expect(findOneMock).toHaveBeenCalledWith({
+    expect(Employee.findOne).toHaveBeenCalledWith({
       isActive: true,
       $or: [{ authTokens: 'second-token' }, { authToken: 'second-token' }],
     });
@@ -164,7 +166,7 @@ describe('auth sessions', () => {
     await expect(getCurrentEmployee('legacy-token')).resolves.toMatchObject({
       id: 'employee-id',
     });
-    expect(findOneMock).toHaveBeenCalledWith({
+    expect(Employee.findOne).toHaveBeenCalledWith({
       isActive: true,
       $or: [{ authTokens: 'legacy-token' }, { authToken: 'legacy-token' }],
     });

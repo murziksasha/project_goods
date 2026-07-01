@@ -1,4 +1,18 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  Cashbox,
+  FinanceCurrencyConfig,
+  FinanceTransaction,
+} from './model';
+import {
+  createCashbox,
+  createFinanceCurrency,
+  createFinanceTransaction,
+  listCashboxes,
+  listFinanceCurrencies,
+  updateCashbox,
+} from './service';
 
 const store = vi.hoisted(() => ({
   cashboxes: new Map<string, any>(),
@@ -10,7 +24,7 @@ const store = vi.hoisted(() => ({
 }));
 
 const leanResult = <T>(value: T) => ({
-  lean: async () => value,
+  lean: vi.fn(async () => value),
 });
 
 const matchesQuery = (cashbox: any, query: any) => {
@@ -27,13 +41,40 @@ const matchesQuery = (cashbox: any, query: any) => {
   return true;
 };
 
-vi.mock('./model', () => {
-  class FinanceCurrencyConfigMock {
-    static findOne(query: any) {
-      return leanResult(store.currencies.get(String(query.code)) ?? null);
+const applySetUpdate = (target: any, $set: Record<string, unknown> = {}) => {
+  Object.entries($set).forEach(([path, value]) => {
+    if (path.includes('.')) {
+      const [root, key] = path.split('.');
+      target[root] = { ...(target[root] ?? {}), [key]: value };
+    } else {
+      target[path] = value;
     }
+  });
+};
 
-    static findOneAndUpdate(query: any, update: any) {
+const applyIncUpdate = (target: any, $inc: Record<string, number> = {}) => {
+  Object.entries($inc).forEach(([path, delta]) => {
+    const currency = path.replace('balances.', '');
+    target.balances[currency] = (target.balances[currency] ?? 0) + Number(delta);
+  });
+};
+
+const installFinanceModelSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
+
+  vi.spyOn(FinanceCurrencyConfig, 'findOne').mockImplementation((query: any) =>
+    leanResult(store.currencies.get(String(query.code)) ?? null),
+  );
+
+  vi.spyOn(FinanceCurrencyConfig, 'findOneAndUpdate').mockImplementation(
+    (query: any, update: any) => {
       const code = String(query.code);
       let currency = store.currencies.get(code);
       if (!currency) {
@@ -49,202 +90,193 @@ vi.mock('./model', () => {
         store.currencies.set(code, currency);
       }
       Object.assign(currency, update.$set ?? {});
-      return leanResult(currency);
-    }
+      return leanResult(currency) as never;
+    },
+  );
 
-    static find(query: any) {
-      const results = [...store.currencies.values()].filter(
-        (currency) => query.isArchived === undefined || currency.isArchived === query.isArchived,
-      );
-      return {
-        sort: () => ({
-          lean: async () => results,
-        }),
-      };
-    }
-  }
+  vi.spyOn(FinanceCurrencyConfig, 'find').mockImplementation((query: any) => {
+    const results = [...store.currencies.values()].filter(
+      (currency) =>
+        query.isArchived === undefined ||
+        currency.isArchived === query.isArchived,
+    );
+    return {
+      sort: () => leanResult(results),
+    } as never;
+  });
 
-  class CashboxMock {
-    _id: string;
-    name: string;
-    balances: Record<string, number>;
-    enabledCurrencies?: Record<string, boolean>;
-    isDefault: boolean;
-    isArchived: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-
-    constructor(payload: any) {
-      this._id = String(store.nextCashboxId++).padStart(24, '0');
-      this.name = payload.name;
-      this.balances = payload.balances ?? { UAH: 0, USD: 0 };
-      this.enabledCurrencies = payload.enabledCurrencies;
-      this.isDefault = payload.isDefault ?? false;
-      this.isArchived = payload.isArchived ?? false;
-      this.createdAt = new Date('2026-06-01T10:00:00.000Z');
-      this.updatedAt = new Date('2026-06-01T10:00:00.000Z');
-    }
-
-    static findOne(query: any) {
-      return leanResult([...store.cashboxes.values()].find((cashbox) => matchesQuery(cashbox, query)) ?? null);
-    }
-
-    static findOneAndUpdate(query: any, update: any) {
-      let cashbox = [...store.cashboxes.values()].find((item) => matchesQuery(item, query));
-      if (!cashbox) {
-        cashbox = {
-          _id: String(store.nextCashboxId++).padStart(24, '0'),
-          ...(update.$setOnInsert ?? {}),
-          isDefault: false,
-          isArchived: false,
-          createdAt: new Date('2026-06-01T10:00:00.000Z'),
-          updatedAt: new Date('2026-06-01T10:00:00.000Z'),
-        };
-        store.cashboxes.set(cashbox._id, cashbox);
-      }
-      Object.entries(update.$set ?? {}).forEach(([path, value]) => {
-        if (path.includes('.')) {
-          const [root, key] = path.split('.');
-          cashbox[root] = { ...(cashbox[root] ?? {}), [key]: value };
-        } else {
-          cashbox[path] = value;
-        }
-      });
-      return leanResult(cashbox);
-    }
-
-    static async updateMany(query: any, update: any) {
-      [...store.cashboxes.values()].forEach((cashbox) => {
-        if (
-          query.enabledCurrencies?.$exists === false &&
-          cashbox.enabledCurrencies !== undefined
-        ) {
-          return;
-        }
-        if (
-          query['enabledCurrencies.UAH']?.$ne === true &&
-          cashbox.enabledCurrencies?.UAH === true
-        ) {
-          return;
-        }
-        if (
-          query['enabledCurrencies.USD']?.$exists === false &&
-          cashbox.enabledCurrencies?.USD !== undefined
-        ) {
-          return;
-        }
-        Object.entries(update.$set ?? {}).forEach(([path, value]) => {
-          if (!path.includes('.')) {
-            cashbox[path] = value;
-            return;
-          }
-          const [root, key] = path.split('.');
-          cashbox[root] = { ...(cashbox[root] ?? {}), [key]: value };
-        });
-      });
-    }
-
-    static find(query: any) {
-      const results = [...store.cashboxes.values()].filter((cashbox) =>
+  vi.spyOn(Cashbox, 'findOne').mockImplementation((query: any) =>
+    leanResult(
+      [...store.cashboxes.values()].find((cashbox) =>
         matchesQuery(cashbox, query),
-      );
-      return {
-        sort: () => ({
-          lean: async () => results,
-        }),
+      ) ?? null,
+    ),
+  );
+
+  vi.spyOn(Cashbox, 'findOneAndUpdate').mockImplementation((query: any, update: any) => {
+    let cashbox = [...store.cashboxes.values()].find((item) =>
+      matchesQuery(item, query),
+    );
+    if (!cashbox) {
+      cashbox = {
+        _id: String(store.nextCashboxId++).padStart(24, '0'),
+        ...(update.$setOnInsert ?? {}),
+        isDefault: false,
+        isArchived: false,
+        createdAt: new Date('2026-06-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-06-01T10:00:00.000Z'),
       };
+      store.cashboxes.set(cashbox._id, cashbox);
     }
+    applySetUpdate(cashbox, update.$set ?? {});
+    return leanResult(cashbox) as never;
+  });
 
-    static findById(id: string) {
-      return leanResult(store.cashboxes.get(String(id)) ?? null);
-    }
-
-    static findByIdAndUpdate(id: string, update: any) {
-      const cashbox = store.cashboxes.get(String(id));
-      if (!cashbox) return leanResult(null);
-      Object.entries(update.$set ?? {}).forEach(([path, value]) => {
-        if (path.includes('.')) {
-          const [root, key] = path.split('.');
-          cashbox[root] = { ...(cashbox[root] ?? {}), [key]: value };
-        } else {
-          cashbox[path] = value;
-        }
-      });
-      Object.entries(update.$inc ?? {}).forEach(([path, delta]) => {
-        const currency = path.replace('balances.', '');
-        cashbox.balances[currency] = (cashbox.balances[currency] ?? 0) + Number(delta);
-      });
-      return leanResult(cashbox);
-    }
-
-    static updateOne(query: any, update: any) {
-      const cashbox = store.cashboxes.get(String(query._id));
-      if (!cashbox) return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
-      const balanceCondition = Object.entries(query).find(([key]) =>
+  vi.spyOn(Cashbox, 'updateMany').mockImplementation(async (query: any, update: any) => {
+    [...store.cashboxes.values()].forEach((cashbox) => {
+      if (
+        query.enabledCurrencies?.$exists === false &&
+        cashbox.enabledCurrencies !== undefined
+      ) {
+        return;
+      }
+      if (
+        query['enabledCurrencies.UAH']?.$ne === true &&
+        cashbox.enabledCurrencies?.UAH === true
+      ) {
+        return;
+      }
+      if (
+        query['enabledCurrencies.USD']?.$exists === false &&
+        cashbox.enabledCurrencies?.USD !== undefined
+      ) {
+        return;
+      }
+      const balanceKey = Object.keys(query).find((key) =>
         key.startsWith('balances.'),
       );
-      if (balanceCondition) {
-        const [path, condition] = balanceCondition;
-        const currency = path.replace('balances.', '');
-        const minimum = (condition as { $gte?: number }).$gte ?? 0;
-        if ((cashbox.balances[currency] ?? 0) < minimum) {
-          return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+      if (balanceKey && query[balanceKey]?.$exists === false) {
+        const currency = balanceKey.replace('balances.', '');
+        if (cashbox.balances?.[currency] !== undefined) {
+          return;
         }
       }
-      Object.entries(update.$inc ?? {}).forEach(([path, delta]) => {
-        const currency = path.replace('balances.', '');
-        cashbox.balances[currency] = (cashbox.balances[currency] ?? 0) + Number(delta);
-      });
-      return Promise.resolve({ matchedCount: 1, modifiedCount: 1 });
-    }
-
-    async validate() {
-      return undefined;
-    }
-
-    async save() {
-      store.cashboxes.set(this._id, this);
-    }
-
-    toObject() {
-      return this;
-    }
-  }
-
-  class FinanceTransactionMock {
-    _id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    [key: string]: any;
-
-    constructor(payload: any) {
-      Object.assign(this, payload);
-      this._id = String(store.nextTransactionId++).padStart(24, '0');
-      this.createdAt = new Date('2026-06-01T10:00:00.000Z');
-      this.updatedAt = new Date('2026-06-01T10:00:00.000Z');
-    }
-
-    static findOne(query: any) {
-      if (query && typeof query.idempotencyKey !== 'undefined') {
-        const key = String(query.idempotencyKey ?? '').trim();
-        if (!key) {
-          return leanResult(null);
+      const enabledKey = Object.keys(query).find((key) =>
+        key.startsWith('enabledCurrencies.'),
+      );
+      if (enabledKey && query[enabledKey]?.$exists === false) {
+        const currency = enabledKey.replace('enabledCurrencies.', '');
+        if (cashbox.enabledCurrencies?.[currency] !== undefined) {
+          return;
         }
-        const transaction = [...store.transactions.values()].find(
-          (item) => item.idempotencyKey && String(item.idempotencyKey).trim() === key,
-        );
-        return leanResult(transaction ?? null);
       }
-      // unsupported query shape for this mock; return null to avoid false matches
-      return leanResult(null);
-    }
+      applySetUpdate(cashbox, update.$set ?? {});
+    });
+  });
 
-    async validate() {
-      return undefined;
-    }
+  vi.spyOn(Cashbox, 'find').mockImplementation((query: any) => {
+    const results = [...store.cashboxes.values()].filter((cashbox) =>
+      matchesQuery(cashbox, query),
+    );
+    return {
+      sort: () => leanResult(results),
+    } as never;
+  });
 
-    async save() {
-      const key = this.idempotencyKey ? String(this.idempotencyKey).trim() : '';
+  vi.spyOn(Cashbox, 'findById').mockImplementation((id: unknown) =>
+    leanResult(store.cashboxes.get(String(id)) ?? null),
+  );
+
+  vi.spyOn(Cashbox, 'findByIdAndUpdate').mockImplementation(
+    (id: unknown, update: any) => {
+      const cashbox = store.cashboxes.get(String(id));
+      if (!cashbox) {
+        return leanResult(null) as never;
+      }
+      applySetUpdate(cashbox, update.$set ?? {});
+      applyIncUpdate(cashbox, update.$inc ?? {});
+      return leanResult(cashbox) as never;
+    },
+  );
+
+  vi.spyOn(Cashbox, 'updateOne').mockImplementation((query: any, update: any) => {
+    const cashbox = store.cashboxes.get(String(query._id));
+    if (!cashbox) {
+      return Promise.resolve({ matchedCount: 0, modifiedCount: 0 }) as never;
+    }
+    const balanceCondition = Object.entries(query).find(([key]) =>
+      key.startsWith('balances.'),
+    );
+    if (balanceCondition) {
+      const [path, condition] = balanceCondition;
+      const currency = path.replace('balances.', '');
+      const minimum = (condition as { $gte?: number }).$gte ?? 0;
+      if ((cashbox.balances[currency] ?? 0) < minimum) {
+        return Promise.resolve({ matchedCount: 0, modifiedCount: 0 }) as never;
+      }
+    }
+    applyIncUpdate(cashbox, update.$inc ?? {});
+    return Promise.resolve({ matchedCount: 1, modifiedCount: 1 }) as never;
+  });
+
+  vi.spyOn(Cashbox.prototype, 'validate').mockResolvedValue(undefined as never);
+  vi.spyOn(Cashbox.prototype, 'save').mockImplementation(async function saveCashbox(
+    this: any,
+  ) {
+    if (!this._id) {
+      this._id = String(store.nextCashboxId++).padStart(24, '0');
+    }
+    const record = {
+      _id: String(this._id),
+      name: this.name,
+      balances: Object.fromEntries(
+        this.balances instanceof Map
+          ? this.balances.entries()
+          : Object.entries(this.balances ?? {}),
+      ),
+      enabledCurrencies: Object.fromEntries(
+        this.enabledCurrencies instanceof Map
+          ? this.enabledCurrencies.entries()
+          : Object.entries(this.enabledCurrencies ?? {}),
+      ),
+      isDefault: this.isDefault ?? false,
+      isArchived: this.isArchived ?? false,
+      createdAt: new Date('2026-06-01T10:00:00.000Z'),
+      updatedAt: new Date('2026-06-01T10:00:00.000Z'),
+    };
+    store.cashboxes.set(record._id, record);
+    return this;
+  });
+  vi.spyOn(Cashbox.prototype, 'toObject').mockImplementation(function toObject(
+    this: any,
+  ) {
+    const stored = store.cashboxes.get(String(this._id));
+    return (stored ?? this) as never;
+  });
+
+  vi.spyOn(FinanceTransaction, 'findOne').mockImplementation((query: any) => {
+    if (query && typeof query.idempotencyKey !== 'undefined') {
+      const key = String(query.idempotencyKey ?? '').trim();
+      if (!key) {
+        return leanResult(null) as never;
+      }
+      const transaction = [...store.transactions.values()].find(
+        (item) =>
+          item.idempotencyKey && String(item.idempotencyKey).trim() === key,
+      );
+      return leanResult(transaction ?? null) as never;
+    }
+    return leanResult(null) as never;
+  });
+
+  vi.spyOn(FinanceTransaction.prototype, 'validate').mockResolvedValue(
+    undefined as never,
+  );
+  vi.spyOn(FinanceTransaction.prototype, 'save').mockImplementation(
+    async function saveTransaction(this: any) {
+      const key = this.idempotencyKey
+        ? String(this.idempotencyKey).trim()
+        : '';
       if (key) {
         const existing = [...store.transactions.values()].find(
           (item) =>
@@ -258,35 +290,51 @@ vi.mock('./model', () => {
           throw err;
         }
       }
-      store.transactions.set(this._id, this);
-    }
-
-    toObject() {
+      const id = String(store.nextTransactionId++).padStart(24, '0');
+      const record = {
+        _id: id,
+        type: this.type,
+        amount: this.amount,
+        currency: this.currency,
+        fromCashbox:
+          this.fromCashbox != null ? String(this.fromCashbox) : null,
+        toCashbox: this.toCashbox != null ? String(this.toCashbox) : null,
+        fromSnapshot: this.fromSnapshot,
+        toSnapshot: this.toSnapshot,
+        note: this.note ?? '',
+        transactionDate: this.transactionDate,
+        status: this.status ?? 'active',
+        idempotencyKey: key || undefined,
+        createdAt: new Date('2026-06-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-06-01T10:00:00.000Z'),
+      };
+      store.transactions.set(id, record);
+      this._id = id;
       return this;
-    }
-  }
-
-  return {
-    Cashbox: CashboxMock,
-    FinanceCurrencyConfig: FinanceCurrencyConfigMock,
-    FinanceTransaction: FinanceTransactionMock,
-    baseFinanceCurrency: 'UAH',
-    seededFinanceCurrencies: ['UAH', 'USD'],
-    transactionTypes: ['deposit', 'withdraw', 'transfer'],
-  };
-});
-
-const {
-  createFinanceCurrency,
-  createCashbox,
-  createFinanceTransaction,
-  listCashboxes,
-  listFinanceCurrencies,
-  updateCashbox,
-} = await import('./service');
+    },
+  );
+  vi.spyOn(FinanceTransaction.prototype, 'toObject').mockImplementation(
+    function toObject(this: any) {
+      const stored = store.transactions.get(String(this._id));
+      return (stored ?? this) as never;
+    },
+  );
+};
 
 const defaultCashboxId = '111111111111111111111111';
 const reserveCashboxId = '222222222222222222222222';
+
+const seedCurrency = (code: string, patch: Record<string, unknown> = {}) => {
+  store.currencies.set(code, {
+    _id: String(store.nextCurrencyId++).padStart(24, '0'),
+    code,
+    isSystem: code === 'UAH' || code === 'USD',
+    isArchived: false,
+    createdAt: new Date('2026-06-01T10:00:00.000Z'),
+    updatedAt: new Date('2026-06-01T10:00:00.000Z'),
+    ...patch,
+  });
+};
 
 const seedCashbox = (id: string, patch: Record<string, unknown> = {}) => {
   store.cashboxes.set(id, {
@@ -304,14 +352,19 @@ const seedCashbox = (id: string, patch: Record<string, unknown> = {}) => {
 
 describe('cashbox currency settings', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
     store.cashboxes.clear();
     store.currencies.clear();
     store.transactions.clear();
     store.nextCashboxId = 10;
     store.nextCurrencyId = 50;
     store.nextTransactionId = 100;
+    seedCurrency('UAH');
+    seedCurrency('USD');
     seedCashbox(defaultCashboxId);
     seedCashbox(reserveCashboxId);
+    installFinanceModelSpies();
   });
 
   it('creates cashboxes with USD disabled by default', async () => {
@@ -397,7 +450,9 @@ describe('cashbox currency settings', () => {
     expect(currency).toMatchObject({ code: 'EUR', isArchived: false });
     expect(currencies.map((item) => item.code)).toContain('EUR');
     expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(0);
-    expect(store.cashboxes.get(defaultCashboxId).enabledCurrencies.EUR).toBe(false);
+    expect(store.cashboxes.get(defaultCashboxId).enabledCurrencies.EUR).toBe(
+      false,
+    );
   });
 
   it('uses custom currencies with the same receive and withdraw-only rules', async () => {
@@ -453,8 +508,12 @@ describe('cashbox currency settings', () => {
       }),
     ]);
 
-    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(
+      1,
+    );
     expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(0);
   });
 
@@ -481,7 +540,9 @@ describe('cashbox currency settings', () => {
 
     const fulfilled = results.filter((r) => r.status === 'fulfilled');
     expect(fulfilled).toHaveLength(2);
-    const txIds = fulfilled.map((r: any) => r.value?.id ?? r.value?._id).filter(Boolean);
+    const txIds = fulfilled
+      .map((r: any) => r.value?.id ?? r.value?._id)
+      .filter(Boolean);
     expect(new Set(txIds).size).toBe(1);
     expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(70);
     expect(store.transactions.size).toBe(1);
@@ -489,7 +550,6 @@ describe('cashbox currency settings', () => {
 
   it('concurrent transfers from same cashbox do not overdraw (only one succeeds)', async () => {
     store.cashboxes.get(defaultCashboxId).balances.UAH = 50;
-    seedCashbox(reserveCashboxId); // ensure target exists
 
     const results = await Promise.allSettled([
       createFinanceTransaction({

@@ -769,23 +769,23 @@ export const SupplierOrdersTable = ({
                       <button
                         type='button'
                         className={
-                          order.isFavorite
+                          order.isFavorite === true
                             ? 'supplier-order-row-star supplier-order-row-star-active'
                             : 'supplier-order-row-star'
                         }
                         aria-label={
-                          order.isFavorite
+                          order.isFavorite === true
                             ? t('orders.supplier.table.unstarOrder', { id })
                             : t('orders.supplier.table.starOrder', { id })
                         }
-                        aria-pressed={order.isFavorite}
+                        aria-pressed={order.isFavorite === true}
                         disabled={!canManageSupplierOrders}
                         onClick={(event) => {
                           event.stopPropagation();
                           onToggleFavorite(order);
                         }}
                       >
-                        {order.isFavorite ? '★' : '☆'}
+                        {order.isFavorite === true ? '★' : '☆'}
                       </button>
                       <button
                         type='button'

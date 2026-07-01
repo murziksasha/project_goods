@@ -1,5 +1,19 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import * as clientDeviceApi from '../../../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
@@ -10,7 +24,10 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseSettings } from '../../../../../entities/warehouse-settings/model/types';
-import { OrderDetailCard, type OrderDetailCardProps } from './OrderDetailCard';
+import {
+  OrderDetailCard,
+  type OrderDetailCardProps,
+} from './OrderDetailCard';
 import {
   buildSupplierOrderLinkNote,
   orderDetailSectionsStorageKey,
@@ -18,47 +35,72 @@ import {
   type OrderStatus,
 } from '../workspace/orders-workspace-shared';
 
-const { getProductsMock, getClientDevicesMock, getWarehouseSettingsMock } = vi.hoisted(() => ({
-  getProductsMock: vi.fn(async (_query = ''): Promise<Product[]> => []),
-  getClientDevicesMock: vi.fn(async (_query = ''): Promise<ClientDevice[]> => []),
+const {
+  getProductsMock,
+  getClientDevicesMock,
+  getWarehouseSettingsMock,
+} = vi.hoisted(() => ({
+  getProductsMock: vi.fn(
+    async (_query = ''): Promise<Product[]> => [],
+  ),
+  getClientDevicesMock: vi.fn(
+    async (_query = ''): Promise<ClientDevice[]> => [],
+  ),
   getWarehouseSettingsMock: vi.fn(),
 }));
 
-vi.mock('../../../../../entities/product/api/productApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../../entities/product/api/productApi')
-  >();
-  return {
-    ...actual,
-    getProducts: getProductsMock,
-  };
-});
+vi.mock(
+  '../../../../../entities/product/api/productApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/product/api/productApi')
+      >();
+    return {
+      ...actual,
+      getProducts: getProductsMock,
+    };
+  },
+);
 
-vi.mock('../../../../../entities/client-device/api/clientDeviceApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../../entities/client-device/api/clientDeviceApi')
-  >();
-  return {
-    ...actual,
-    getClientDevices: getClientDevicesMock,
-  };
-});
+vi.mock(
+  '../../../../../entities/client-device/api/clientDeviceApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/client-device/api/clientDeviceApi')
+      >();
+    return {
+      ...actual,
+      getClientDevices: getClientDevicesMock,
+    };
+  },
+);
 
-vi.mock('../../../../../entities/warehouse-settings/api/warehouseSettingsApi', () => ({
-  getWarehouseSettings: getWarehouseSettingsMock,
-}));
+vi.mock(
+  '../../../../../entities/warehouse-settings/api/warehouseSettingsApi',
+  () => ({
+    getWarehouseSettings: getWarehouseSettingsMock,
+  }),
+);
 
-vi.mock('../../../../../entities/service-catalog/api/serviceCatalogApi', () => ({
-  createServiceCatalogItem: vi.fn(),
-  getServiceCatalogItems: vi.fn(async () => []),
-}));
+vi.mock(
+  '../../../../../entities/service-catalog/api/serviceCatalogApi',
+  () => ({
+    createServiceCatalogItem: vi.fn(),
+    getServiceCatalogItems: vi.fn(async () => []),
+  }),
+);
 
-vi.mock('../../../../../entities/supplier-order/api/supplierOrderApi', () => ({
-  cancelSupplierOrder: vi.fn(),
-  createSupplierOrder: vi.fn(),
-  takeOnChargeSupplierOrder: vi.fn(),
-  updateSupplierOrder: vi.fn(),
-}));
+vi.mock(
+  '../../../../../entities/supplier-order/api/supplierOrderApi',
+  () => ({
+    cancelSupplierOrder: vi.fn(),
+    createSupplierOrder: vi.fn(),
+    takeOnChargeSupplierOrder: vi.fn(),
+    updateSupplierOrder: vi.fn(),
+  }),
+);
 
 vi.mock('../../../../../entities/supplier/api/supplierApi', () => ({
   createSupplier: vi.fn(),
@@ -124,7 +166,9 @@ const clientDevice = (
   ...patch,
 });
 
-const supplierOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
+const supplierOrder = (
+  patch: Partial<SupplierOrder> = {},
+): SupplierOrder => ({
   id: 'supplier-order-1',
   orderBaseId: 'SO-1',
   supplierId: 'supplier-1',
@@ -279,7 +323,9 @@ const buildCardElement = ({
       supplierOrders={supplierOrders}
       employees={[]}
       status={cardStatus}
-      statusOptions={[{ key: cardStatus, labelKey: 'orders.status.repair.new' }]}
+      statusOptions={[
+        { key: cardStatus, labelKey: 'orders.status.repair.new' },
+      ]}
       comments={comments}
       lineItems={lineItems}
       products={products}
@@ -293,7 +339,7 @@ const buildCardElement = ({
       canRefundPayment={true}
       canCreateOrders={canCreateOrders}
       onCreateOrder={onCreateOrder}
-      createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+      createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
       onClose={vi.fn()}
       onAddComment={vi.fn()}
       onAddLineItem={onAddLineItem}
@@ -319,14 +365,21 @@ const buildCardElement = ({
   );
 };
 
-const renderCard = (options: Parameters<typeof buildCardElement>[0] = {}) => {
+const renderCard = (
+  options: Parameters<typeof buildCardElement>[0] = {},
+) => {
   const {
     onCreateClientDevice = vi.fn(async () => true),
     onOpenRelatedSale = vi.fn(),
     onSaveMainInfo = vi.fn(async () => undefined),
   } = options;
   const result = render(buildCardElement(options));
-  return { ...result, onCreateClientDevice, onOpenRelatedSale, onSaveMainInfo };
+  return {
+    ...result,
+    onCreateClientDevice,
+    onOpenRelatedSale,
+    onSaveMainInfo,
+  };
 };
 
 const warehouseSettingsFixture: WarehouseSettings = {
@@ -368,16 +421,19 @@ const warehouseSettingsFixture: WarehouseSettings = {
 const restoreApiMocks = () => {
   getClientDevicesMock.mockImplementation(async () => []);
   getProductsMock.mockImplementation(async () => []);
-  getWarehouseSettingsMock.mockImplementation(async () => warehouseSettingsFixture);
-  vi.spyOn(productApi, 'getProducts').mockImplementation((query = '') =>
-    getProductsMock(query),
-  );
-  vi.spyOn(clientDeviceApi, 'getClientDevices').mockImplementation((query = '') =>
-    getClientDevicesMock(query),
-  );
-  vi.spyOn(warehouseSettingsApi, 'getWarehouseSettings').mockImplementation(
+  getWarehouseSettingsMock.mockImplementation(
     async () => warehouseSettingsFixture,
   );
+  vi.spyOn(productApi, 'getProducts').mockImplementation(
+    (query = '') => getProductsMock(query),
+  );
+  vi.spyOn(clientDeviceApi, 'getClientDevices').mockImplementation(
+    (query = '') => getClientDevicesMock(query),
+  );
+  vi.spyOn(
+    warehouseSettingsApi,
+    'getWarehouseSettings',
+  ).mockImplementation(async () => warehouseSettingsFixture);
 };
 
 const createMatchMedia = (matches: boolean) =>
@@ -411,7 +467,9 @@ const waitForSerialBindModal = async () => {
     name: /bind serial numbers/i,
   });
   await waitFor(() => {
-    expect(within(modal).getByLabelText('Warehouse')).toHaveValue('wh-main');
+    expect(within(modal).getByLabelText('Warehouse')).toHaveValue(
+      'wh-main',
+    );
   });
   return modal;
 };
@@ -421,7 +479,9 @@ describe('OrderDetailCard create order header action', () => {
     const onCreateOrder = vi.fn();
     renderCard({ onCreateOrder });
 
-    const createOrderButton = screen.getByRole('link', { name: 'Create order' });
+    const createOrderButton = screen.getByRole('link', {
+      name: 'Create order',
+    });
     expect(createOrderButton).toBeInTheDocument();
     expect(createOrderButton).toHaveAttribute(
       'href',
@@ -435,10 +495,17 @@ describe('OrderDetailCard create order header action', () => {
   it('renders disabled create order button when permission is missing', () => {
     renderCard({ canCreateOrders: false });
 
-    const createOrderButton = screen.getByRole('link', { name: 'Create order' });
-    expect(createOrderButton).toHaveClass('orders-create-button-disabled');
+    const createOrderButton = screen.getByRole('link', {
+      name: 'Create order',
+    });
+    expect(createOrderButton).toHaveClass(
+      'orders-create-button-disabled',
+    );
     expect(createOrderButton).toHaveAttribute('href', '#');
-    expect(createOrderButton).toHaveAttribute('aria-disabled', 'true');
+    expect(createOrderButton).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 });
 
@@ -457,7 +524,9 @@ describe('OrderDetailCard repair device replacement', () => {
   it('syncs the displayed device name when the sale snapshot is refreshed', () => {
     const { rerender } = renderCard({ saleOverride: repairSale });
 
-    expect(screen.getByLabelText('Change device')).toHaveTextContent('Old device');
+    expect(screen.getByLabelText('Change device')).toHaveTextContent(
+      'Old device',
+    );
 
     rerender(
       buildCardElement({
@@ -473,18 +542,24 @@ describe('OrderDetailCard repair device replacement', () => {
       }),
     );
 
-    expect(screen.getByLabelText('Change device')).toHaveTextContent('Correct device');
+    expect(screen.getByLabelText('Change device')).toHaveTextContent(
+      'Correct device',
+    );
   });
 
   it('shows the device change action only for repair orders', () => {
     renderCard({ saleOverride: repairSale });
 
-    expect(screen.getByLabelText('Change device')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Change device'),
+    ).toBeInTheDocument();
 
     cleanup();
     renderCard();
 
-    expect(screen.queryByLabelText('Change device')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Change device'),
+    ).not.toBeInTheDocument();
   });
 
   it('lists only active devices for the current client', () => {
@@ -492,16 +567,28 @@ describe('OrderDetailCard repair device replacement', () => {
       saleOverride: repairSale,
       clientDevices: [
         clientDevice({ id: 'active-1', name: 'Espresso machine' }),
-        clientDevice({ id: 'inactive-1', name: 'Inactive grinder', isActive: false }),
-        clientDevice({ id: 'other-client', clientId: 'client-2', name: 'Other client phone' }),
+        clientDevice({
+          id: 'inactive-1',
+          name: 'Inactive grinder',
+          isActive: false,
+        }),
+        clientDevice({
+          id: 'other-client',
+          clientId: 'client-2',
+          name: 'Other client phone',
+        }),
       ],
     });
 
     fireEvent.click(screen.getByLabelText('Change device'));
 
     expect(screen.getByText('Espresso machine')).toBeInTheDocument();
-    expect(screen.queryByText('Inactive grinder')).not.toBeInTheDocument();
-    expect(screen.queryByText('Other client phone')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Inactive grinder'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Other client phone'),
+    ).not.toBeInTheDocument();
   });
 
   it('finds active devices through the same lookup used by create order', async () => {
@@ -519,14 +606,21 @@ describe('OrderDetailCard repair device replacement', () => {
     });
 
     fireEvent.click(screen.getByLabelText('Change device'));
-    fireEvent.change(screen.getByPlaceholderText('Search client devices'), {
-      target: { value: 'Lookup RZTK coffee machine' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Search client devices'),
+      {
+        target: { value: 'Lookup RZTK coffee machine' },
+      },
+    );
 
     expect(
-      await screen.findByRole('button', {
-        name: /Lookup RZTK coffee machine/,
-      }, { timeout: 3000 }),
+      await screen.findByRole(
+        'button',
+        {
+          name: /Lookup RZTK coffee machine/,
+        },
+        { timeout: 3000 },
+      ),
     ).toBeInTheDocument();
     expect(getClientDevicesMock).toHaveBeenCalledWith(
       'Lookup RZTK coffee machine',
@@ -537,12 +631,16 @@ describe('OrderDetailCard repair device replacement', () => {
     const onSaveMainInfo = vi.fn(async () => undefined);
     renderCard({
       saleOverride: repairSale,
-      clientDevices: [clientDevice({ id: 'device-new', name: 'New client laptop' })],
+      clientDevices: [
+        clientDevice({ id: 'device-new', name: 'New client laptop' }),
+      ],
       onSaveMainInfo,
     });
 
     fireEvent.click(screen.getByLabelText('Change device'));
-    fireEvent.click(screen.getByRole('button', { name: /New client laptop/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /New client laptop/ }),
+    );
     fireEvent.click(screen.getByText('Save changes'));
 
     await waitFor(() => {
@@ -556,12 +654,16 @@ describe('OrderDetailCard repair device replacement', () => {
   });
 
   it('unbinds a removable client device without applying it to the order draft', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValue(true);
     const onDeleteClientDevice = vi.fn(async () => true);
     const onSaveMainInfo = vi.fn(async () => undefined);
     renderCard({
       saleOverride: repairSale,
-      clientDevices: [clientDevice({ id: 'device-new', name: 'New client laptop' })],
+      clientDevices: [
+        clientDevice({ id: 'device-new', name: 'New client laptop' }),
+      ],
       onDeleteClientDevice,
       onSaveMainInfo,
     });
@@ -577,7 +679,9 @@ describe('OrderDetailCard repair device replacement', () => {
   });
 
   it('deactivates a used client device when unbind is confirmed', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValue(true);
     const onUpdateClientDevice = vi.fn(async () => true);
     renderCard({
       saleOverride: repairSale,
@@ -646,13 +750,22 @@ describe('OrderDetailCard repair device replacement', () => {
     const onSaveMainInfo = vi.fn(async () => undefined);
     renderCard({
       saleOverride: repairSale,
-      clientDevices: [clientDevice({ id: 'device-new', name: 'Replacement tablet' })],
+      clientDevices: [
+        clientDevice({
+          id: 'device-new',
+          name: 'Replacement tablet',
+        }),
+      ],
       onSaveMainInfo,
     });
 
     fireEvent.click(screen.getByLabelText('Change device'));
-    fireEvent.click(screen.getByLabelText('Clear S/N for this order'));
-    fireEvent.click(screen.getByRole('button', { name: /Replacement tablet/ }));
+    fireEvent.click(
+      screen.getByLabelText('Clear S/N for this order'),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Replacement tablet/ }),
+    );
     fireEvent.click(screen.getByText('Save changes'));
 
     await waitFor(() => {
@@ -690,9 +803,12 @@ describe('OrderDetailCard product entry', () => {
     const onError = vi.fn();
     renderCard({ onAddLineItem, onError, products: [] });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'TerraE' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'TerraE' },
+      },
+    );
     await waitFor(() => {
       expect(screen.getByText(/Product List/)).toBeInTheDocument();
     });
@@ -731,11 +847,16 @@ describe('OrderDetailCard product entry', () => {
     const onAddLineItem = vi.fn();
     renderCard({ catalogProducts: [], onAddLineItem });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'S000003' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'S000003' },
+      },
+    );
     await waitFor(() => {
-      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+      expect(
+        screen.getByText('TerraE 30E INR18650 2900mAh'),
+      ).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
 
@@ -755,12 +876,17 @@ describe('OrderDetailCard product entry', () => {
   it('shows stock suggestions with warehouse when searching by article', async () => {
     renderCard({ catalogProducts: [] });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'A000001' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'A000001' },
+      },
+    );
 
     await waitFor(() => {
-      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+      expect(
+        screen.getByText('TerraE 30E INR18650 2900mAh'),
+      ).toBeInTheDocument();
     });
     expect(screen.getByText('Main warehouse')).toBeInTheDocument();
     expect(screen.getByText(/A000001/)).toBeInTheDocument();
@@ -788,40 +914,86 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'Videx' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'Videx' },
+      },
+    );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Videx/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Videx/i }),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
 
     expect(screen.getByDisplayValue('1500')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Wholesale' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Retail' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Wholesale' }),
+    ).toBeInTheDocument();
   });
 
-  it('renders product entry row without duplicate Price label above stepper', () => {
-    const { container } = renderCard();
+  it('renders retail/wholesale toggles in the price column header', async () => {
+    const bulkStock = product({
+      id: 'product-videx-bulk',
+      name: 'Videx',
+      article: 'CAM-100',
+      serialNumber: '',
+      salePriceOptions: [1500, 1200],
+    });
+    const { container } = renderCard({
+      products: [bulkStock],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-videx',
+          name: 'Videx',
+          note: 'Catalog note',
+        }),
+      ],
+    });
 
-    const entryRow = container.querySelector('.order-detail-table-entry-row');
-    expect(entryRow).toBeTruthy();
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'Videx' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Videx/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    const priceHeader = container.querySelector(
+      '.order-detail-table-price-header',
+    );
     expect(
-      entryRow?.querySelector('.product-sale-price-field-label-text'),
-    ).toBeNull();
-    expect(
-      entryRow?.querySelector('.product-sale-price-field-compact'),
+      priceHeader?.querySelector('.product-sale-price-tier-toggle'),
     ).toBeTruthy();
+    expect(
+      container.querySelector(
+        '.order-detail-table-entry-row .product-sale-price-tier-toggle',
+      ),
+    ).toBeNull();
   });
 
   it('shows catalog suggestions when searching by product name', async () => {
     renderCard({ products: [] });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'TerraE' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'TerraE' },
+      },
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/Product List/)).toBeInTheDocument();
@@ -833,11 +1005,16 @@ describe('OrderDetailCard product entry', () => {
     const onAddLineItem = vi.fn();
     renderCard({ catalogProducts: [], onAddLineItem });
 
-    fireEvent.change(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER), {
-      target: { value: 'A000001' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'A000001' },
+      },
+    );
     await waitFor(() => {
-      expect(screen.getByText('TerraE 30E INR18650 2900mAh')).toBeInTheDocument();
+      expect(
+        screen.getByText('TerraE 30E INR18650 2900mAh'),
+      ).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
 
@@ -848,6 +1025,100 @@ describe('OrderDetailCard product entry', () => {
         name: 'TerraE 30E INR18650 2900mAh',
         quantity: 1,
         serialNumbers: ['S000003'],
+      }),
+    );
+  });
+
+  it('catalog suggestion with serialized stock pre-fills entry without immediate add', async () => {
+    const onAddLineItem = vi.fn();
+    const serializedStock = product({
+      id: 'videx-stock',
+      name: 'Videx',
+      serialNumber: 'S000099',
+      price: 500,
+      salePriceOptions: [1500, 1200],
+    });
+
+    renderCard({
+      products: [serializedStock],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-videx',
+          name: 'Videx',
+        }),
+      ],
+      onAddLineItem,
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'Videx' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Videx/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    // Should pre-fill entry row without calling onAddLineItem
+    expect(onAddLineItem).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('1500')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Videx')).toBeInTheDocument();
+  });
+
+  it('Add product after catalog pre-fill does not auto-bind serial', async () => {
+    const onAddLineItem = vi.fn();
+    const serializedStock = product({
+      id: 'videx-stock',
+      name: 'Videx',
+      serialNumber: 'S000099',
+      price: 500,
+      salePriceOptions: [1500, 1200],
+    });
+
+    renderCard({
+      products: [serializedStock],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-videx',
+          name: 'Videx',
+        }),
+      ],
+      onAddLineItem,
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'Videx' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Videx/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    // Click Add product button
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add product' }),
+    );
+
+    expect(onAddLineItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'product',
+        name: 'Videx',
+        price: 1500,
+        quantity: 1,
+        serialNumbers: undefined,
       }),
     );
   });
@@ -884,13 +1155,21 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
 
     const modal = await waitForSerialBindModal();
 
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
-      expect(within(modal).queryByRole('button', { name: /\[ \] S000004/i })).not.toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000003/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).queryByRole('button', {
+          name: /\[ \] S000004/i,
+        }),
+      ).not.toBeInTheDocument();
     });
 
     fireEvent.change(within(modal).getByLabelText('Warehouse'), {
@@ -898,8 +1177,14 @@ describe('OrderDetailCard product entry', () => {
     });
 
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
-      expect(within(modal).queryByRole('button', { name: /\[ \] S000003/i })).not.toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000004/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).queryByRole('button', {
+          name: /\[ \] S000003/i,
+        }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -929,50 +1214,86 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Serials\s*0\/2/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
 
     const modal = await waitForSerialBindModal();
 
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[ \] S000003/i })).toBeInTheDocument();
-      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000003/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000004/i }),
+      ).toBeInTheDocument();
     });
     expect(within(modal).queryByRole('textbox')).toBeNull();
 
-    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000003/i }));
+    fireEvent.click(
+      within(modal).getByRole('button', { name: /\[ \] S000003/i }),
+    );
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[x\] S000003/i })).toBeInTheDocument();
-      expect(within(modal).getByText('S000003', { selector: '.serial-bind-selected-item strong' }))
-        .toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[x\] S000003/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getByText('S000003', {
+          selector: '.serial-bind-selected-item strong',
+        }),
+      ).toBeInTheDocument();
     });
-    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000004/i }));
+    fireEvent.click(
+      within(modal).getByRole('button', { name: /\[ \] S000004/i }),
+    );
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[x\] S000004/i })).toBeInTheDocument();
-      expect(within(modal).getAllByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }))
-        .toHaveLength(2);
+      expect(
+        within(modal).getByRole('button', { name: /\[x\] S000004/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getAllByText(/S00000[34]/, {
+          selector: '.serial-bind-selected-item strong',
+        }),
+      ).toHaveLength(2);
     });
 
-    const selectedRemoveButton = within(modal).getAllByRole('button', {
-      name: 'Remove',
-    })[0];
+    const selectedRemoveButton = within(modal).getAllByRole(
+      'button',
+      {
+        name: 'Remove',
+      },
+    )[0];
     fireEvent.click(selectedRemoveButton);
     await waitFor(() => {
       expect(
-        within(modal).getAllByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }),
+        within(modal).getAllByText(/S00000[34]/, {
+          selector: '.serial-bind-selected-item strong',
+        }),
       ).toHaveLength(1);
     });
 
-    fireEvent.click(within(modal).getByRole('button', { name: 'Clear selected' }));
+    fireEvent.click(
+      within(modal).getByRole('button', { name: 'Clear selected' }),
+    );
     await waitFor(() => {
-      expect(within(modal).queryByText(/S00000[34]/, { selector: '.serial-bind-selected-item strong' }))
-        .not.toBeInTheDocument();
+      expect(
+        within(modal).queryByText(/S00000[34]/, {
+          selector: '.serial-bind-selected-item strong',
+        }),
+      ).not.toBeInTheDocument();
     });
 
     await waitFor(() => {
-      expect(within(modal).getByRole('button', { name: /\[ \] S000004/i })).toBeInTheDocument();
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000004/i }),
+      ).toBeInTheDocument();
     });
-    fireEvent.click(within(modal).getByRole('button', { name: /\[ \] S000004/i }));
-    fireEvent.click(within(modal).getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      within(modal).getByRole('button', { name: /\[ \] S000004/i }),
+    );
+    fireEvent.click(
+      within(modal).getByRole('button', { name: 'Save' }),
+    );
 
     expect(onReplaceLineItem).toHaveBeenCalledWith(
       'line-item-1',
@@ -1014,13 +1335,17 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Serials\s*1\/1/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*1\/1/i }),
+    );
 
     const modal = await waitForSerialBindModal();
     fireEvent.click(
       within(modal).getByRole('button', { name: 'Clear selected' }),
     );
-    fireEvent.click(within(modal).getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      within(modal).getByRole('button', { name: 'Save' }),
+    );
 
     expect(onUpdateLineItem).toHaveBeenCalledWith(
       'line-item-1',
@@ -1081,15 +1406,30 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.change(priceInput, { target: { value: '1.3' } });
     fireEvent.change(priceInput, { target: { value: '1,3' } });
 
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(1, 'line-item-1', undefined, {
-      price: 0,
-    });
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(2, 'line-item-1', undefined, {
-      price: 1.3,
-    });
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(3, 'line-item-1', undefined, {
-      price: 1.3,
-    });
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
+      1,
+      'line-item-1',
+      undefined,
+      {
+        price: 0,
+      },
+    );
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
+      2,
+      'line-item-1',
+      undefined,
+      {
+        price: 1.3,
+      },
+    );
+    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
+      3,
+      'line-item-1',
+      undefined,
+      {
+        price: 1.3,
+      },
+    );
   });
 
   it('shows bound product serials in a column before price without the S/N label', () => {
@@ -1115,9 +1455,15 @@ describe('OrderDetailCard product entry', () => {
     ).toBeTruthy();
 
     const serial = screen.getByText('R0035752');
-    expect(serial.closest('.order-line-item-serial-cell')).not.toBeNull();
+    expect(
+      serial.closest('.order-line-item-serial-cell'),
+    ).not.toBeNull();
     expect(serial.closest('.order-line-item-price-cell')).toBeNull();
-    expect(screen.getByDisplayValue('650').closest('.order-line-item-price-cell')).not.toBeNull();
+    expect(
+      screen
+        .getByDisplayValue('650')
+        .closest('.order-line-item-price-cell'),
+    ).not.toBeNull();
     expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
   });
 
@@ -1177,7 +1523,9 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Existing part' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Existing part' }),
+    );
 
     expect(
       await screen.findByRole('dialog', { name: 'Product model' }),
@@ -1263,9 +1611,15 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
-    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Add product' })).not.toBeDisabled();
+    fireEvent.click(
+      screen.getByRole('button', { name: /Products/i }),
+    );
+    expect(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).not.toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Add product' }),
+    ).not.toBeDisabled();
   });
 
   it('keeps order card products collapsed by default even with existing product items', () => {
@@ -1287,7 +1641,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps sale card products open by default', () => {
@@ -1296,7 +1652,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).toBeInTheDocument();
   });
 
   it('restores saved section state from localStorage', () => {
@@ -1320,14 +1678,18 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER)).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).toBeInTheDocument();
   });
 
   it('disables live feed composer without orders.chat permission', () => {
     renderCard({ canAddComment: false });
 
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Add' }),
+    ).toBeDisabled();
   });
 
   it('collapses live feed by default on compact layout', () => {
@@ -1338,7 +1700,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Live feed/i }),
     ).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByPlaceholderText('Comment')).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText('Comment'),
+    ).not.toBeInTheDocument();
   });
 
   it('expands live feed on compact layout when toggle is clicked', () => {
@@ -1346,12 +1710,16 @@ describe('OrderDetailCard product entry', () => {
 
     renderCard();
 
-    fireEvent.click(screen.getByRole('button', { name: /Live feed/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Live feed/i }),
+    );
 
     expect(
       screen.getByRole('button', { name: /Live feed/i }),
     ).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByPlaceholderText('Comment')).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText('Comment'),
+    ).toBeInTheDocument();
   });
 
   it('collapses main information on compact layout when toggle is clicked', () => {
@@ -1363,12 +1731,16 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: /Main information/i }),
     ).toHaveAttribute('aria-expanded', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: /Main information/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Main information/i }),
+    );
 
     expect(
       screen.getByRole('button', { name: /Main information/i }),
     ).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('000 000 00 00')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('000 000 00 00'),
+    ).not.toBeInTheDocument();
   });
 
   it('does not persist section defaults until the user toggles a section', () => {
@@ -1376,17 +1748,22 @@ describe('OrderDetailCard product entry', () => {
 
     renderCard();
 
-    expect(window.localStorage.getItem(orderDetailSectionsStorageKey)).toBeNull();
+    expect(
+      window.localStorage.getItem(orderDetailSectionsStorageKey),
+    ).toBeNull();
   });
 
   it('persists only the section the user toggled', () => {
     window.matchMedia = createMatchMedia(true);
 
     renderCard();
-    fireEvent.click(screen.getByRole('button', { name: /Live feed/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Live feed/i }),
+    );
 
     const stored = JSON.parse(
-      window.localStorage.getItem(orderDetailSectionsStorageKey) ?? '{}',
+      window.localStorage.getItem(orderDetailSectionsStorageKey) ??
+        '{}',
     );
 
     expect(stored['sale-1']).toEqual({ liveFeedOpen: true });
@@ -1434,7 +1811,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Main information/i }),
     ).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('000 000 00 00')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('000 000 00 00'),
+    ).not.toBeInTheDocument();
   });
 
   it('renders manual live feed comments with manual styling', () => {
@@ -1468,9 +1847,9 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    expect(screen.getByText('Manager added service "Diagnostics".')).toHaveClass(
-      'order-timeline-message-system',
-    );
+    expect(
+      screen.getByText('Manager added service "Diagnostics".'),
+    ).toHaveClass('order-timeline-message-system');
   });
 
   it('renders date separators and groups messages by calendar day', () => {
@@ -1494,7 +1873,9 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    const seps = screen.getAllByText(/---\s*\d{2}\/\d{2}\/\d{4}\s*---/);
+    const seps = screen.getAllByText(
+      /---\s*\d{2}\/\d{2}\/\d{4}\s*---/,
+    );
     expect(seps).toHaveLength(2);
     expect(seps[0]).toHaveTextContent(/09\/06\/2026/);
     expect(seps[1]).toHaveTextContent(/08\/06\/2026/);
@@ -1510,7 +1891,12 @@ describe('OrderDetailCard product entry', () => {
         supplierOrders={[supplierOrder()]}
         employees={[]}
         status={'new' as OrderStatus}
-        statusOptions={[{ key: 'new' as OrderStatus, labelKey: 'orders.status.repair.new' }]}
+        statusOptions={[
+          {
+            key: 'new' as OrderStatus,
+            labelKey: 'orders.status.repair.new',
+          },
+        ]}
         comments={[]}
         lineItems={[]}
         products={[product()]}
@@ -1524,7 +1910,7 @@ describe('OrderDetailCard product entry', () => {
         canRefundPayment={true}
         canCreateOrders={true}
         onCreateOrder={vi.fn()}
-        createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+        createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
         onClose={vi.fn()}
         onAddComment={vi.fn()}
         onAddLineItem={vi.fn()}
@@ -1585,7 +1971,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
     relatedSales.forEach((relatedSale) => {
       expect(
-        screen.getByRole('link', { name: new RegExp(relatedSale.recordNumber!, 'i') }),
+        screen.getByRole('link', {
+          name: new RegExp(relatedSale.recordNumber!, 'i'),
+        }),
       ).toBeInTheDocument();
     });
     expect(
@@ -1625,7 +2013,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
     relatedSales.forEach((relatedSale) => {
       expect(
-        screen.getByRole('link', { name: new RegExp(relatedSale.recordNumber!, 'i') }),
+        screen.getByRole('link', {
+          name: new RegExp(relatedSale.recordNumber!, 'i'),
+        }),
       ).toBeInTheDocument();
     });
     expect(
@@ -1660,10 +2050,16 @@ describe('OrderDetailCard product entry', () => {
       lineItems: currentSale.lineItems ?? [],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Supplier Order' }));
-    const linkedItem = screen.getByRole('button', { name: /SO000010/i });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    const linkedItem = screen.getByRole('button', {
+      name: /SO000010/i,
+    });
     expect(linkedItem).toBeInTheDocument();
-    expect(within(linkedItem).getByText('USB Cable')).toBeInTheDocument();
+    expect(
+      within(linkedItem).getByText('USB Cable'),
+    ).toBeInTheDocument();
   });
 
   it('does not show supplier orders that only match product names', () => {
@@ -1693,9 +2089,15 @@ describe('OrderDetailCard product entry', () => {
       lineItems: currentSale.lineItems ?? [],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Supplier Order' }));
-    expect(screen.getByText('No supplier orders linked to this sale.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /SO000099/i })).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.getByText('No supplier orders linked to this sale.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /SO000099/i }),
+    ).toBeNull();
   });
 
   it('renders related orders and sales as browser links while preserving plain left click handling', () => {

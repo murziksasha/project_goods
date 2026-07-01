@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type {
   FinanceTransaction,
+  FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../../entities/finance/model/types';
 import {
@@ -9,20 +10,33 @@ import {
 } from '../../model/accounting';
 import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils';
 
-type CancelTransferModalProps = {
+type CancelTransactionModalProps = {
   isSaving: boolean;
-  transfer: FinanceTransaction;
+  transaction: FinanceTransaction;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-export const CancelTransferModal = ({
+const cancelModalTitleKey: Record<FinanceTransactionType, string> = {
+  deposit: 'accounting.confirmModals.cancelDepositTitle',
+  withdraw: 'accounting.confirmModals.cancelWithdrawTitle',
+  transfer: 'accounting.confirmModals.cancelTransferTitle',
+};
+
+const cancelModalDescriptionKey: Record<FinanceTransactionType, string> = {
+  deposit: 'accounting.confirmModals.cancelDepositDescription',
+  withdraw: 'accounting.confirmModals.cancelWithdrawDescription',
+  transfer: 'accounting.confirmModals.cancelTransferDescription',
+};
+
+export const CancelTransactionModal = ({
   isSaving,
-  transfer,
+  transaction,
   onClose,
   onConfirm,
-}: CancelTransferModalProps) => {
+}: CancelTransactionModalProps) => {
   const { t } = useTranslation();
+  const type = transaction.type;
 
   return (
     <div
@@ -38,12 +52,10 @@ export const CancelTransferModal = ({
         className='catalog-edit-modal finance-cancel-transfer-modal'
         role='dialog'
         aria-modal='true'
-        aria-labelledby='cancel-transfer-title'
+        aria-labelledby='cancel-transaction-title'
       >
         <header className='catalog-edit-header'>
-          <h2 id='cancel-transfer-title'>
-            {t('accounting.confirmModals.cancelTransferTitle')}
-          </h2>
+          <h2 id='cancel-transaction-title'>{t(cancelModalTitleKey[type])}</h2>
           <button
             type='button'
             className='ghost-button'
@@ -55,23 +67,23 @@ export const CancelTransferModal = ({
         </header>
         <div className='catalog-edit-body'>
           <p>
-            {t('accounting.confirmModals.cancelTransferDescription', {
-              toCashbox: transfer.toCashbox?.name ?? '-',
-              fromCashbox: transfer.fromCashbox?.name ?? '-',
+            {t(cancelModalDescriptionKey[type], {
+              toCashbox: transaction.toCashbox?.name ?? '-',
+              fromCashbox: transaction.fromCashbox?.name ?? '-',
             })}
           </p>
           <div className='finance-cancel-transfer-summary'>
             <span>{t('accounting.confirmModals.date')}</span>
-            <strong>{formatDateDdMmYyyy(transfer.transactionDate)}</strong>
+            <strong>{formatDateDdMmYyyy(transaction.transactionDate)}</strong>
             <span>{t('accounting.confirmModals.amount')}</span>
-            <strong>{formatMoney(transfer.amount, transfer.currency)}</strong>
+            <strong>{formatMoney(transaction.amount, transaction.currency)}</strong>
             <span>{t('accounting.confirmModals.from')}</span>
-            <strong>{transfer.fromCashbox?.name ?? '-'}</strong>
+            <strong>{transaction.fromCashbox?.name ?? '-'}</strong>
             <span>{t('accounting.confirmModals.to')}</span>
-            <strong>{transfer.toCashbox?.name ?? '-'}</strong>
+            <strong>{transaction.toCashbox?.name ?? '-'}</strong>
           </div>
           <p className='muted-copy'>
-            {t('accounting.confirmModals.cancelTransferHistoryNote')}
+            {t('accounting.confirmModals.cancelTransactionHistoryNote')}
           </p>
         </div>
         <footer className='catalog-edit-footer'>
@@ -98,6 +110,9 @@ export const CancelTransferModal = ({
     </div>
   );
 };
+
+/** @deprecated Use CancelTransactionModal */
+export const CancelTransferModal = CancelTransactionModal;
 
 type IssueWithoutPaymentModalProps = {
   isSaving: boolean;

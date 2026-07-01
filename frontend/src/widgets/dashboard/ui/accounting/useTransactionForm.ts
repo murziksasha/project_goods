@@ -11,8 +11,9 @@ import {
   canPerformTransferBetweenCashboxes,
   getAllowedAccountingTransactionCurrencies,
   initialTransactionForm,
-  resolvePreferredTargetCashboxId,
-  type TransactionTargetMemory,
+  resolveCashboxOperationForm,
+  upsertLastOperationByCashbox,
+  type LastOperationByCashbox,
 } from '../../model/accounting';
 
 type UseTransactionFormOptions = {
@@ -21,8 +22,8 @@ type UseTransactionFormOptions = {
   getCurrencyBalance: (cashbox: Cashbox, currencyCode: string) => number;
   isCashboxCurrencyActive: (cashboxId: string, currencyCode: string) => boolean;
   isGlobalCurrencyActive: (currencyCode: string) => boolean;
-  lastTargetCashboxByType: TransactionTargetMemory;
-  setLastTargetCashboxByType: Dispatch<SetStateAction<TransactionTargetMemory>>;
+  lastOperationByCashbox: LastOperationByCashbox;
+  setLastOperationByCashbox: Dispatch<SetStateAction<LastOperationByCashbox>>;
   permittedTransactionTypes: FinanceTransactionType[];
   runFinanceAction: (
     action: () => Promise<unknown>,
@@ -44,8 +45,8 @@ export const useTransactionForm = ({
   getCurrencyBalance,
   isCashboxCurrencyActive,
   isGlobalCurrencyActive,
-  lastTargetCashboxByType,
-  setLastTargetCashboxByType,
+  lastOperationByCashbox,
+  setLastOperationByCashbox,
   permittedTransactionTypes,
   runFinanceAction,
   createFinanceTransaction,
@@ -105,24 +106,20 @@ export const useTransactionForm = ({
   const handleTransactionTypeChange = (nextType: FinanceTransactionType) => {
     if (!permittedTransactionTypes.includes(nextType)) return;
     setTransactionForm((current) => {
-      const nextFromCashboxId =
-        nextType === 'deposit' ? '' : current.fromCashboxId || firstCashboxId;
-      const fallbackToCashboxId =
-        nextType === 'deposit'
+      const contextCashboxId =
+        current.type === 'deposit'
           ? current.toCashboxId || firstCashboxId
-          : secondCashboxId;
-      const nextToCashboxId = resolvePreferredTargetCashboxId({
+          : current.fromCashboxId || firstCashboxId;
+      const resolved = resolveCashboxOperationForm({
         type: nextType,
-        fromCashboxId: nextFromCashboxId,
-        fallbackCashboxId: fallbackToCashboxId,
+        cashboxId: contextCashboxId,
         cashboxes,
-        lastTargetCashboxByType,
+        memory: lastOperationByCashbox,
+        secondCashboxId,
       });
       return {
         ...current,
-        type: nextType,
-        fromCashboxId: nextFromCashboxId,
-        toCashboxId: nextToCashboxId,
+        ...resolved,
       };
     });
   };
@@ -132,28 +129,25 @@ export const useTransactionForm = ({
       onError(i18n.t('accounting.messages.errors.noPermissionFinanceOperation'));
       return;
     }
-    const nextFromCashboxId =
-      type === 'withdraw' || type === 'transfer' ? cashbox.id : '';
-    const fallbackToCashboxId = type === 'deposit' ? cashbox.id : secondCashboxId;
-    const nextToCashboxId = resolvePreferredTargetCashboxId({
+    const resolved = resolveCashboxOperationForm({
       type,
-      fromCashboxId: nextFromCashboxId,
-      fallbackCashboxId: fallbackToCashboxId,
+      cashboxId: cashbox.id,
       cashboxes,
-      lastTargetCashboxByType,
-      preferFallback: type === 'deposit',
+      memory: lastOperationByCashbox,
+      secondCashboxId,
     });
     const availableCurrencies = getAllowedTransactionCurrencies(
-      type,
-      nextFromCashboxId,
-      nextToCashboxId,
+      resolved.type,
+      resolved.fromCashboxId,
+      resolved.toCashboxId,
     );
     setTransactionForm({
       ...initialTransactionForm,
-      type,
-      fromCashboxId: nextFromCashboxId,
-      toCashboxId: nextToCashboxId,
-      currency: availableCurrencies[0] ?? initialTransactionForm.currency,
+      ...resolved,
+      currency:
+        availableCurrencies.includes(resolved.currency)
+          ? resolved.currency
+          : (availableCurrencies[0] ?? initialTransactionForm.currency),
     });
   };
 
@@ -192,28 +186,18 @@ export const useTransactionForm = ({
       i18n.t('accounting.messages.success.financeTransactionSaved'),
       {
         afterSuccess: () => {
-          if (
-            (type === 'deposit' || type === 'transfer') &&
-            toCashboxId
-          ) {
-            setLastTargetCashboxByType((current) => ({
-              ...current,
-              [type]: toCashboxId,
-            }));
-          }
-          const nextInitialType: FinanceTransactionType = 'deposit';
-          const nextToCashboxId = resolvePreferredTargetCashboxId({
-            type: nextInitialType,
-            fromCashboxId: '',
-            fallbackCashboxId: firstCashboxId,
-            cashboxes,
-            lastTargetCashboxByType,
-          });
-          setTransactionForm({
-            ...initialTransactionForm,
-            type: permittedTransactionTypes[0] ?? 'deposit',
-            toCashboxId: nextToCashboxId,
-          });
+          setLastOperationByCashbox((current) =>
+            upsertLastOperationByCashbox(current, type, {
+              fromCashboxId,
+              toCashboxId,
+              currency,
+            }),
+          );
+          setTransactionForm((current) => ({
+            ...current,
+            amount: '',
+            note: '',
+          }));
         },
         skipRefresh: true,
         errorFallback: i18n.t('accounting.messages.errors.failedSaveTransaction'),

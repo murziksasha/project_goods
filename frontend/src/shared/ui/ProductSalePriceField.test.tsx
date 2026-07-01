@@ -77,6 +77,24 @@ describe('ProductSalePriceField', () => {
     expect(container.querySelector('.product-sale-price-field .product-sale-price-tier-toggle')).toBeNull();
   });
 
+  it('renders only the stepper when tierTogglePlacement is none', () => {
+    const { container } = render(
+      <ProductSalePriceField
+        tierTogglePlacement="none"
+        value="1000"
+        onChange={vi.fn()}
+        product={product}
+        priceTier="retail"
+        onPriceTierChange={vi.fn()}
+        stepperClassName="line-item-inline-input"
+      />,
+    );
+
+    expect(container.querySelector('.number-stepper')).toBeTruthy();
+    expect(container.querySelector('.product-sale-price-tier-toggle')).toBeNull();
+    expect(container.querySelector('.product-sale-price-field-compact')).toBeNull();
+  });
+
   it('renders tier badges above the stepper when tierTogglePlacement is compact', () => {
     const { container } = render(
       <ProductSalePriceField

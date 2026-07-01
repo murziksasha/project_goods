@@ -37,7 +37,7 @@ type AccountingTransactionsViewProps = {
   sales: Sale[];
   selectedCashboxId: string;
   supplierOrders: SupplierOrder[];
-  canCancelTransferTransaction: (transaction: FinanceTransaction) => boolean;
+  canCancelTransaction: (transaction: FinanceTransaction) => boolean;
   onDateFilterOpenChange: (value: SetStateAction<boolean>) => void;
   onFilterOpenChange: (value: SetStateAction<boolean>) => void;
   onPageChange: (page: number) => void;
@@ -46,7 +46,7 @@ type AccountingTransactionsViewProps = {
   onSelectedSupplierOrderChange: (order: SupplierOrder) => void;
   onSetAppliedFilters: Dispatch<SetStateAction<TransactionFilters>>;
   onSetDraftFilters: Dispatch<SetStateAction<TransactionFilters>>;
-  onSetTransferToCancel: (transaction: FinanceTransaction) => void;
+  onSetTransactionToCancel: (transaction: FinanceTransaction) => void;
   onEditTransactionNote?: (transaction: FinanceTransaction) => void;
 };
 
@@ -66,7 +66,7 @@ export const AccountingTransactionsView = ({
   sales,
   selectedCashboxId,
   supplierOrders,
-  canCancelTransferTransaction,
+  canCancelTransaction,
   onDateFilterOpenChange,
   onFilterOpenChange,
   onPageChange,
@@ -75,7 +75,7 @@ export const AccountingTransactionsView = ({
   onSelectedSupplierOrderChange,
   onSetAppliedFilters,
   onSetDraftFilters,
-  onSetTransferToCancel,
+  onSetTransactionToCancel,
   onEditTransactionNote,
 }: AccountingTransactionsViewProps) => {
   const { t } = useTranslation();
@@ -416,8 +416,13 @@ export const AccountingTransactionsView = ({
                 const isCancellation =
                   transaction.isCancellation ||
                   Boolean(transaction.cancelsTransactionId);
-                const canCancelTransfer =
-                  canCancelTransferTransaction(transaction);
+                const canCancel = canCancelTransaction(transaction);
+                const cancelLabelKey =
+                  transaction.type === 'deposit'
+                    ? 'accounting.transactions.cancelDeposit'
+                    : transaction.type === 'withdraw'
+                      ? 'accounting.transactions.cancelWithdraw'
+                      : 'accounting.transactions.cancelTransfer';
                 return (
                   <Fragment key={transaction.id}>
                     {isNewDay ? (
@@ -546,13 +551,13 @@ export const AccountingTransactionsView = ({
                         className='finance-transaction-action-cell'
                         data-label={t('accounting.transactions.action')}
                       >
-                        {canCancelTransfer ? (
+                        {canCancel ? (
                           <button
                             type='button'
                             className='toolbar-filter-button finance-transaction-cancel-button'
-                            onClick={() => onSetTransferToCancel(transaction)}
+                            onClick={() => onSetTransactionToCancel(transaction)}
                           >
-                            {t('accounting.transactions.cancelTransfer')}
+                            {t(cancelLabelKey)}
                           </button>
                         ) : null}
                       </td>

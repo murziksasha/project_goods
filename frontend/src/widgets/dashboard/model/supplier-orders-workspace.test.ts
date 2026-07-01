@@ -141,6 +141,30 @@ describe('supplier-orders-workspace', () => {
     ).toEqual(['so-2']);
   });
 
+  it('excludes orders with non-strict favorite values from starred filter', () => {
+    const orders = [
+      makeOrder({
+        id: 'so-truthy',
+        isFavorite: 1 as unknown as boolean,
+      }),
+      makeOrder({
+        id: 'so-starred',
+        isFavorite: true,
+      }),
+    ];
+
+    expect(
+      filterSupplierOrders(orders, {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: true,
+      }).map((order) => order.id),
+    ).toEqual(['so-starred']);
+  });
+
   it('builds grouped item rows with display numbers', () => {
     const rows = buildGroupedSupplierOrderView(
       makeOrder({
