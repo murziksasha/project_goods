@@ -22,7 +22,7 @@ type ProductSalePriceFieldProps = {
   stepperClassName?: string;
   label?: ReactNode;
   fieldClassName?: string;
-  tierTogglePlacement?: 'inline' | 'label' | 'compact';
+  tierTogglePlacement?: 'inline' | 'label' | 'compact' | 'none';
 };
 
 export const ProductSalePriceField = ({
@@ -86,6 +86,10 @@ export const ProductSalePriceField = ({
       className={resolvedStepperClassName}
     />
   );
+
+  if (tierTogglePlacement === 'none') {
+    return stepper;
+  }
 
   if (tierTogglePlacement === 'compact') {
     return (

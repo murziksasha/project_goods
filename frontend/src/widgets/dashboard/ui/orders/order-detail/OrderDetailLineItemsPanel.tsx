@@ -12,32 +12,51 @@ import {
   toServiceCatalogForm,
 } from '../../../../../entities/service-catalog/model/forms';
 import { getProducts } from '../../../../../entities/product/api/productApi';
-import { createSupplier, getSuppliers } from '../../../../../entities/supplier/api/supplierApi';
-import type { Supplier, SupplierFormValues } from '../../../../../entities/supplier/model/types';
+import {
+  createSupplier,
+  getSuppliers,
+} from '../../../../../entities/supplier/api/supplierApi';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../../../entities/supplier/model/types';
 import type { SupplierOrderFormValues } from '../../../../../entities/supplier-order/model/types';
 import { createSupplierOrder } from '../../../../../entities/supplier-order/api/supplierOrderApi';
-import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
+import type {
+  Product,
+  ProductModelUpdatePayload,
+} from '../../../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import {
+  formatProductSalePrice,
+  getProductSalePriceByTier,
   getRetailSalePrice,
   hasWholesaleSalePrice,
+  matchesProductSalePriceTier,
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
+import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
-import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../modals/SupplierOrderModal';
+import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from '../modals/SupplierOrderModal';
 import { ProductModelModal } from '../modals/ProductModelModal';
 import { SerialBindModal } from '../modals/SerialBindModal';
 import {
   buildOrderDetailProductSuggestions,
   findSelectableStockProductByName,
 } from '../../../model/create-order-products';
-import { buildMissingServicePayload, shouldCreateMissingServiceOnSubmit } from '../../../model/missingService';
+import {
+  buildMissingServicePayload,
+  shouldCreateMissingServiceOnSubmit,
+} from '../../../model/missingService';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import {
   buildSerializedProductLineItem,
@@ -101,13 +120,20 @@ export type OrderDetailLineItemsPanelProps = {
   discount: ReturnType<typeof getDiscount>;
   isReadOnly: boolean;
   onSupplierOrderCreated: () => Promise<void>;
-  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  onUpdateProductModel: (
+    payload: ProductModelUpdatePayload,
+  ) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 };
 
 type ProductEntrySuggestion =
-  | { type: 'catalog'; catalogProduct: CatalogProduct; price: number; warrantyPeriod: number }
+  | {
+      type: 'catalog';
+      catalogProduct: CatalogProduct;
+      price: number;
+      warrantyPeriod: number;
+    }
   | { type: 'stock'; product: Product; warehouseName: string };
 
 export const OrderDetailLineItemsPanel = ({
@@ -141,10 +167,14 @@ export const OrderDetailLineItemsPanel = ({
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
+  const [priceTier, setPriceTier] =
+    useState<ProductSalePriceTier | null>(null);
   const [priceTierByItemId, setPriceTierByItemId] = useState<
     Record<string, ProductSalePriceTier | null>
   >({});
+  const [activePriceContext, setActivePriceContext] = useState<
+    'entry' | string
+  >('entry');
   const [quantity, setQuantity] = useState('1');
   const [warrantyPeriod, setWarrantyPeriod] = useState(
     kind === 'service' ? '1' : '0',
@@ -162,19 +192,21 @@ export const OrderDetailLineItemsPanel = ({
     string | undefined
   >();
   const productsById = useMemo(
-    () => Object.fromEntries(products.map((product) => [product.id, product])),
+    () =>
+      Object.fromEntries(
+        products.map((product) => [product.id, product]),
+      ),
     [products],
   );
   const selectedStockProduct = useMemo(
     () =>
       selectedProductId
-        ? productsById[selectedProductId] ?? null
+        ? (productsById[selectedProductId] ?? null)
         : null,
     [productsById, selectedProductId],
   );
-  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<
-    string | undefined
-  >();
+  const [selectedCatalogProductId, setSelectedCatalogProductId] =
+    useState<string | undefined>();
   const [isServiceLookupLoading, setIsServiceLookupLoading] =
     useState(false);
   const [isProductLookupLoading, setIsProductLookupLoading] =
@@ -197,19 +229,22 @@ export const OrderDetailLineItemsPanel = ({
     useState(false);
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
-  const [serialBindWarehouses, setSerialBindWarehouses] = useState<WarehouseItem[]>(
-    [],
-  );
-  const [productLookupWarehouses, setProductLookupWarehouses] = useState<
+  const [serialBindWarehouses, setSerialBindWarehouses] = useState<
     WarehouseItem[]
   >([]);
-  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
+  const [productLookupWarehouses, setProductLookupWarehouses] =
+    useState<WarehouseItem[]>([]);
+  const [priceDrafts, setPriceDrafts] = useState<
+    Record<string, string>
+  >({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
   const [supplierOrderProductName, setSupplierOrderProductName] =
     useState('');
-  const [supplierOrderInitialQuantity, setSupplierOrderInitialQuantity] =
-    useState(1);
+  const [
+    supplierOrderInitialQuantity,
+    setSupplierOrderInitialQuantity,
+  ] = useState(1);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
@@ -220,9 +255,8 @@ export const OrderDetailLineItemsPanel = ({
     name: string;
     printProduct: Product | null;
   } | null>(null);
-  const [productModelWarehouses, setProductModelWarehouses] = useState<
-    WarehouseItem[]
-  >([]);
+  const [productModelWarehouses, setProductModelWarehouses] =
+    useState<WarehouseItem[]>([]);
   const serviceLookupQuery = kind === 'service' ? name.trim() : '';
   const hasExactServiceSuggestion = serviceSuggestions.some(
     (service) =>
@@ -236,7 +270,8 @@ export const OrderDetailLineItemsPanel = ({
     serviceSuggestions.length === 0 &&
     !hasExactServiceSuggestion;
   const serialUsage = useMemo((): SerialUsage => {
-    if (!isProductKind) return { current: new Set(), other: new Set() };
+    if (!isProductKind)
+      return { current: new Set(), other: new Set() };
     return getSaleSerialUsage(sales, currentSaleId);
   }, [isProductKind, currentSaleId, sales]);
   const productsBySerial = useMemo(() => {
@@ -257,7 +292,8 @@ export const OrderDetailLineItemsPanel = ({
         itemIds.has(itemId),
       );
 
-      if (nextEntries.length === Object.keys(current).length) return current;
+      if (nextEntries.length === Object.keys(current).length)
+        return current;
 
       return Object.fromEntries(nextEntries);
     });
@@ -295,7 +331,11 @@ export const OrderDetailLineItemsPanel = ({
   }, [isProductKind, currentSaleId, sales, serialsEditingItem]);
   const getProductSuggestionState = useCallback(
     (product: Product): ProductSerialAvailability => {
-      if (!isProductKind) return { labelKey: 'orders.serialAvailability.free', selectable: true };
+      if (!isProductKind)
+        return {
+          labelKey: 'orders.serialAvailability.free',
+          selectable: true,
+        };
       return getProductSerialAvailability(product, serialUsage);
     },
     [isProductKind, serialUsage],
@@ -316,8 +356,9 @@ export const OrderDetailLineItemsPanel = ({
     !isReadOnly &&
     canRemoveItemAfterPayment(item) &&
     (item.serialNumbers ?? []).length === 0;
-  const isRepairFinalStockStatus =
-    stockLockedRepairStatuses.has(currentStatus as RepairStatus);
+  const isRepairFinalStockStatus = stockLockedRepairStatuses.has(
+    currentStatus as RepairStatus,
+  );
   const canReturnIssuedProductItem = (item: OrderLineItem) =>
     item.kind === 'product' &&
     (isIssuedSale || isRepairFinalStockStatus) &&
@@ -325,10 +366,7 @@ export const OrderDetailLineItemsPanel = ({
   const getProductActionBlockedReason = (item: OrderLineItem) => {
     if (canDirectRemoveProductItem(item)) return '';
     if (canReturnIssuedProductItem(item)) return '';
-    if (
-      isIssuedSale &&
-      (item.serialNumbers ?? []).length === 0
-    ) {
+    if (isIssuedSale && (item.serialNumbers ?? []).length === 0) {
       return t('orders.messages.errors.bindSerialBeforeReturnDetail');
     }
     if (isReadOnly) {
@@ -407,7 +445,9 @@ export const OrderDetailLineItemsPanel = ({
     const unavailableSerials = serialProducts
       .filter(({ product }) => {
         if (!product) return false;
-        if (product.id === (serialsEditingItem.productId ?? '').trim()) {
+        if (
+          product.id === (serialsEditingItem.productId ?? '').trim()
+        ) {
           return false;
         }
         return !isProductAvailableForOrder(product);
@@ -454,9 +494,11 @@ export const OrderDetailLineItemsPanel = ({
     onUpdateItem(serialsEditingItem.id, undefined, {
       productId:
         uniqueSerials.length > 0
-          ? (serialProducts[0]?.product?.id ?? serialsEditingItem.productId)
+          ? (serialProducts[0]?.product?.id ??
+            serialsEditingItem.productId)
           : undefined,
-      name: serialProducts[0]?.product?.name ?? serialsEditingItem.name,
+      name:
+        serialProducts[0]?.product?.name ?? serialsEditingItem.name,
       quantity: 1,
       serialNumbers: uniqueSerials,
     });
@@ -589,19 +631,21 @@ export const OrderDetailLineItemsPanel = ({
 
         const sorted = [...filtered]
           .filter((product) => {
-            const serial = normalizeSerialNumber(product.serialNumber);
+            const serial = normalizeSerialNumber(
+              product.serialNumber,
+            );
             if (!serial) return false;
             return !occupiedSerials.has(serial);
           })
           .sort((first, second) => {
-          const firstTime = new Date(
-            first.purchaseDate ?? first.createdAt,
-          ).getTime();
-          const secondTime = new Date(
-            second.purchaseDate ?? second.createdAt,
-          ).getTime();
-          return firstTime - secondTime;
-        });
+            const firstTime = new Date(
+              first.purchaseDate ?? first.createdAt,
+            ).getTime();
+            const secondTime = new Date(
+              second.purchaseDate ?? second.createdAt,
+            ).getTime();
+            return firstTime - secondTime;
+          });
         setAvailableSerialProducts(sorted);
       } catch {
         if (isActive) setAvailableSerialProducts([]);
@@ -621,17 +665,22 @@ export const OrderDetailLineItemsPanel = ({
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
   }, [kind]);
 
-  const getCatalogDefaults = useCallback((catalogProduct: CatalogProduct) => {
-    const matchingStockProduct = products.find(
-      (product) =>
-        normalizeProductLookupValue(product.name) ===
-        normalizeProductLookupValue(catalogProduct.name),
-    );
-    return {
-      price: matchingStockProduct ? getRetailSalePrice(matchingStockProduct) : 0,
-      warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
-    };
-  }, [products]);
+  const getCatalogDefaults = useCallback(
+    (catalogProduct: CatalogProduct) => {
+      const matchingStockProduct = products.find(
+        (product) =>
+          normalizeProductLookupValue(product.name) ===
+          normalizeProductLookupValue(catalogProduct.name),
+      );
+      return {
+        price: matchingStockProduct
+          ? getRetailSalePrice(matchingStockProduct)
+          : 0,
+        warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
+      };
+    },
+    [products],
+  );
 
   useEffect(() => {
     if (
@@ -741,7 +790,9 @@ export const OrderDetailLineItemsPanel = ({
     setServiceSuggestions([]);
   };
 
-  const applyProductSuggestion = (suggestion: ProductEntrySuggestion) => {
+  const applyProductSuggestion = (
+    suggestion: ProductEntrySuggestion,
+  ) => {
     if (suggestion.type === 'catalog') {
       const matchingStock = findSelectableStockProductByName({
         products,
@@ -752,32 +803,6 @@ export const OrderDetailLineItemsPanel = ({
 
       if (matchingStock) {
         const suggestedPrice = getRetailSalePrice(matchingStock);
-        const serial = normalizeSerialNumber(matchingStock.serialNumber);
-
-        if (serial) {
-          onAddItem({
-            ...buildSerializedProductLineItem({
-              product: matchingStock,
-              price: suggestedPrice,
-              warrantyPeriod: 0,
-            }),
-          });
-          setName('');
-          setPrice('');
-          setPriceTier(null);
-          setQuantity('1');
-          setWarrantyPeriod('0');
-          setSelectedProductId(undefined);
-          setSelectedCatalogProductId(undefined);
-          setProductSuggestions([]);
-          onSuccess(
-            t('orders.messages.success.productWithSerialAdded', {
-              name: matchingStock.name,
-              serial,
-            }),
-          );
-          return;
-        }
 
         setName(matchingStock.name);
         setPrice(String(suggestedPrice));
@@ -999,19 +1024,31 @@ export const OrderDetailLineItemsPanel = ({
       }
     }
     const suggestedStockProduct = productSuggestions.find(
-      (candidate): candidate is Extract<ProductEntrySuggestion, { type: 'stock' }> =>
-        candidate.type === 'stock' && candidate.product.name === normalizedName,
+      (
+        candidate,
+      ): candidate is Extract<
+        ProductEntrySuggestion,
+        { type: 'stock' }
+      > =>
+        candidate.type === 'stock' &&
+        candidate.product.name === normalizedName,
     );
     const selectedProduct =
       kind === 'product'
         ? products.find(
             (product) =>
               product.id ===
-              (selectedProductId ?? suggestedStockProduct?.product.id),
+              (selectedProductId ??
+                suggestedStockProduct?.product.id),
           )
         : null;
     const suggestedCatalogProduct = productSuggestions.find(
-      (candidate): candidate is Extract<ProductEntrySuggestion, { type: 'catalog' }> =>
+      (
+        candidate,
+      ): candidate is Extract<
+        ProductEntrySuggestion,
+        { type: 'catalog' }
+      > =>
         candidate.type === 'catalog' &&
         candidate.catalogProduct.name === normalizedName,
     );
@@ -1032,32 +1069,23 @@ export const OrderDetailLineItemsPanel = ({
       selectedProductSerial &&
       normalizedQuantity > 1
     ) {
-      onError(t('orders.messages.errors.oneSerialPerLineAddSeparately'));
+      onError(
+        t('orders.messages.errors.oneSerialPerLineAddSeparately'),
+      );
       return;
     }
 
     onAddItem({
       kind,
-      productId:
-        kind === 'product'
-          ? selectedProduct?.id
-          : undefined,
+      productId: kind === 'product' ? selectedProduct?.id : undefined,
       catalogProductId:
-        kind === 'product'
-          ? selectedCatalogProduct?.id
-          : undefined,
-      serviceId:
-        kind === 'service'
-          ? nextServiceId
-          : undefined,
+        kind === 'product' ? selectedCatalogProduct?.id : undefined,
+      serviceId: kind === 'service' ? nextServiceId : undefined,
       name: normalizedName,
       price: normalizedPrice,
       quantity: normalizedQuantity,
       warrantyPeriod: Number(warrantyPeriod),
-      serialNumbers:
-        kind === 'product' && selectedProductSerial
-          ? [selectedProductSerial]
-          : undefined,
+      serialNumbers: undefined,
     });
     setName('');
     setPrice('');
@@ -1070,7 +1098,10 @@ export const OrderDetailLineItemsPanel = ({
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
-  const handleLineItemPriceChange = (item: OrderLineItem, value: string) => {
+  const handleLineItemPriceChange = (
+    item: OrderLineItem,
+    value: string,
+  ) => {
     setPriceDrafts((current) => ({
       ...current,
       [item.id]: value,
@@ -1086,6 +1117,94 @@ export const OrderDetailLineItemsPanel = ({
     });
   };
 
+  const resolveSalePriceTier = useCallback(
+    (
+      product: Product | null,
+      value: string,
+      tier: ProductSalePriceTier | null,
+    ): ProductSalePriceTier | null => {
+      if (!product || !hasWholesaleSalePrice(product)) return null;
+      if (tier && matchesProductSalePriceTier(product, value, tier))
+        return tier;
+      if (matchesProductSalePriceTier(product, value, 'wholesale')) {
+        return 'wholesale';
+      }
+      if (matchesProductSalePriceTier(product, value, 'retail')) {
+        return 'retail';
+      }
+      return null;
+    },
+    [],
+  );
+  const activePriceHeaderTarget = useMemo(() => {
+    if (!isProductKind) return null;
+
+    if (activePriceContext === 'entry') {
+      return null;
+    }
+
+    const item = items.find(
+      (lineItem) => lineItem.id === activePriceContext,
+    );
+    if (!item || item.kind !== 'product') return null;
+
+    const product = item.productId
+      ? (productsById[item.productId] ?? null)
+      : null;
+
+    return {
+      product,
+      value: priceDrafts[item.id] ?? String(item.price),
+      priceTier: priceTierByItemId[item.id] ?? null,
+      setPriceTier: (tier: ProductSalePriceTier) => {
+        setPriceTierByItemId((current) => ({
+          ...current,
+          [item.id]: tier,
+        }));
+      },
+      onPriceChange: (nextPrice: string) => {
+        handleLineItemPriceChange(item, nextPrice);
+      },
+    };
+  }, [
+    activePriceContext,
+    handleLineItemPriceChange,
+    isProductKind,
+    items,
+    price,
+    priceDrafts,
+    priceTier,
+    priceTierByItemId,
+    productsById,
+    selectedStockProduct,
+  ]);
+  const showPriceHeaderTierToggle = Boolean(
+    activePriceContext !== 'entry' &&
+    activePriceHeaderTarget?.product &&
+    hasWholesaleSalePrice(activePriceHeaderTarget.product),
+  );
+  const priceHeaderActiveTier = activePriceHeaderTarget
+    ? resolveSalePriceTier(
+        activePriceHeaderTarget.product,
+        activePriceHeaderTarget.value,
+        activePriceHeaderTarget.priceTier,
+      )
+    : null;
+  const handlePriceHeaderTierChange = (
+    tier: ProductSalePriceTier,
+  ) => {
+    if (!activePriceHeaderTarget?.product) return;
+
+    activePriceHeaderTarget.setPriceTier(tier);
+    activePriceHeaderTarget.onPriceChange(
+      formatProductSalePrice(
+        getProductSalePriceByTier(
+          activePriceHeaderTarget.product,
+          tier,
+        ),
+      ),
+    );
+  };
   const showSerialColumn = isProductKind;
   const tableClassName = showSerialColumn
     ? 'order-detail-table order-detail-table-wide order-detail-table-wide-product'
@@ -1094,24 +1213,33 @@ export const OrderDetailLineItemsPanel = ({
   return (
     <div className='order-line-items'>
       <div className={tableClassName}>
-        <div className="order-detail-table-header">
+        <div className='order-detail-table-header'>
           {t('orders.detail.lineItems.name')}
         </div>
         {showSerialColumn ? (
-          <div className="order-detail-table-header">
+          <div className='order-detail-table-header'>
             {t('orders.detail.lineItems.serialNumber')}
           </div>
         ) : null}
-        <div className="order-detail-table-header">
-          {t('orders.detail.lineItems.price')}
+        <div className='order-detail-table-header order-detail-table-price-header'>
+          <span className='order-detail-table-price-header-label'>
+            {t('orders.detail.lineItems.price')}
+          </span>
+          {showPriceHeaderTierToggle && activePriceHeaderTarget ? (
+            <ProductSalePriceTierToggle
+              activeTier={priceHeaderActiveTier}
+              onTierChange={handlePriceHeaderTierChange}
+              disabled={isReadOnly}
+            />
+          ) : null}
         </div>
-        <div className="order-detail-table-header">
+        <div className='order-detail-table-header'>
           {t('orders.detail.lineItems.qty')}
         </div>
-        <div className="order-detail-table-header">
+        <div className='order-detail-table-header'>
           {t('orders.detail.lineItems.warranty')}
         </div>
-        <div className="order-detail-table-header">
+        <div className='order-detail-table-header'>
           {t('orders.detail.lineItems.action')}
         </div>
         {items.length === 0 ? (
@@ -1123,229 +1251,226 @@ export const OrderDetailLineItemsPanel = ({
         ) : (
           items.map((item, itemIndex) => {
             const isLastRow = itemIndex === items.length - 1;
-            const lastRowClass = isLastRow ? 'order-detail-table-last-row' : '';
-            const stockProduct =
-              item.kind === 'product' && item.productId
-                ? productsById[item.productId] ?? null
-                : null;
-            const showLineItemPriceTier =
-              stockProduct !== null && hasWholesaleSalePrice(stockProduct);
+            const lastRowClass = isLastRow
+              ? 'order-detail-table-last-row'
+              : '';
             return (
-            <div
-              key={`${item.id || 'line-item'}-${itemIndex}`}
-              className='order-detail-table-row'
-            >
               <div
-                key={`${item.id}-name`}
-                className={lastRowClass || undefined}
-                data-label={t('orders.detail.lineItems.name')}
+                key={`${item.id || 'line-item'}-${itemIndex}`}
+                className='order-detail-table-row'
               >
-                <button
-                  type='button'
-                  className='order-line-item-name-button'
-                  onClick={() => void openLineItemModal(item)}
-                  disabled={isReadOnly}
-                >
-                  {item.name}
-                </button>
-              </div>
-              {showSerialColumn ? (
                 <div
-                  key={`${item.id}-serial`}
-                  className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                  data-label={t('orders.detail.lineItems.serialNumber')}
+                  key={`${item.id}-name`}
+                  className={lastRowClass || undefined}
+                  data-label={t('orders.detail.lineItems.name')}
                 >
-                  {item.kind === 'product' &&
-                  (item.serialNumbers ?? []).length > 0 ? (
-                    <p className='muted-copy order-line-item-serials'>
-                      {(item.serialNumbers ?? []).map((serial) => {
-                        const normalizedSerial = normalizeSerialNumber(serial);
-                        const serialProduct = productsBySerial.get(normalizedSerial);
-                        if (!serialProduct) {
-                          return (
-                            <span key={serial}>
-                              {serial}
-                            </span>
-                          );
-                        }
-
-                        return (
-                          <button
-                            key={serial}
-                            type='button'
-                            className='order-line-item-serial-button'
-                            onClick={() =>
-                              void openProductModelModal(
-                                serialProduct.name,
-                                serialProduct,
-                              )
-                            }
-                          >
-                            {serial}
-                          </button>
-                        );
-                      })}
-                    </p>
-                  ) : (
-                    <span className='muted-copy'>-</span>
-                  )}
-                </div>
-              ) : null}
-              <div
-                key={`${item.id}-price`}
-                className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                data-label={t('orders.detail.lineItems.price')}
-              >
-                {showLineItemPriceTier && stockProduct ? (
-                  <ProductSalePriceField
-                    value={priceDrafts[item.id] ?? String(item.price)}
-                    onChange={(value) => handleLineItemPriceChange(item, value)}
-                    product={stockProduct}
-                    priceTier={priceTierByItemId[item.id] ?? null}
-                    onPriceTierChange={(tier) =>
-                      setPriceTierByItemId((current) => ({
-                        ...current,
-                        [item.id]: tier,
-                      }))
-                    }
+                  <button
+                    type='button'
+                    className='order-line-item-name-button'
+                    onClick={() => void openLineItemModal(item)}
                     disabled={isReadOnly}
-                    ariaLabel={t('orders.detail.lineItems.price')}
-                    stepperClassName='line-item-inline-input'
-                    tierTogglePlacement='compact'
-                  />
-                ) : (
+                  >
+                    {item.name}
+                  </button>
+                </div>
+                {showSerialColumn ? (
+                  <div
+                    key={`${item.id}-serial`}
+                    className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                    data-label={t(
+                      'orders.detail.lineItems.serialNumber',
+                    )}
+                  >
+                    {item.kind === 'product' &&
+                    (item.serialNumbers ?? []).length > 0 ? (
+                      <p className='muted-copy order-line-item-serials'>
+                        {(item.serialNumbers ?? []).map((serial) => {
+                          const normalizedSerial =
+                            normalizeSerialNumber(serial);
+                          const serialProduct =
+                            productsBySerial.get(normalizedSerial);
+                          if (!serialProduct) {
+                            return <span key={serial}>{serial}</span>;
+                          }
+
+                          return (
+                            <button
+                              key={serial}
+                              type='button'
+                              className='order-line-item-serial-button'
+                              onClick={() =>
+                                void openProductModelModal(
+                                  serialProduct.name,
+                                  serialProduct,
+                                )
+                              }
+                            >
+                              {serial}
+                            </button>
+                          );
+                        })}
+                      </p>
+                    ) : (
+                      <span className='muted-copy'>-</span>
+                    )}
+                  </div>
+                ) : null}
+                <div
+                  key={`${item.id}-price`}
+                  className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                  data-label={t('orders.detail.lineItems.price')}
+                >
                   <NumberStepper
                     className='line-item-inline-input'
                     min={0}
                     step={0.01}
                     precision={2}
                     value={priceDrafts[item.id] ?? String(item.price)}
-                    onChange={(value) => handleLineItemPriceChange(item, value)}
+                    onChange={(value) =>
+                      handleLineItemPriceChange(item, value)
+                    }
+                    onFocus={() => setActivePriceContext(item.id)}
                     disabled={isReadOnly}
+                    ariaLabel={t('orders.detail.lineItems.price')}
                   />
-                )}
-              </div>
-              <div
-                key={`${item.id}-qty`}
-                className={lastRowClass || undefined}
-                data-label={t('orders.detail.lineItems.qty')}
-              >
-                <NumberStepper
-                  className='line-item-inline-input'
-                  min={1}
-                  value={String(item.quantity)}
-                  onChange={(value) => {
-                    if (
-                      item.kind === 'product' &&
-                      (item.serialNumbers ?? []).length > 0
-                    ) {
-                      onError(t('orders.messages.errors.oneSerialPerLine'));
-                      return;
-                    }
-                    onUpdateItem(item.id, undefined, {
-                      quantity: Math.max(1, Number(value) || 1),
-                    });
-                  }}
-                  disabled={
-                    isReadOnly ||
-                    (item.kind === 'product' &&
-                      (item.serialNumbers ?? []).length > 0)
-                  }
-                />
-              </div>
-              <div
-                key={`${item.id}-warranty`}
-                className={lastRowClass || undefined}
-                data-label={t('orders.detail.lineItems.warranty')}
-              >
-                <select
-                  className='line-item-inline-input'
-                  value={item.warrantyPeriod}
-                  onChange={(event) =>
-                    onUpdateItem(item.id, undefined, {
-                      warrantyPeriod: Number(event.target.value),
-                    })
-                  }
-                  disabled={isReadOnly}
+                </div>
+                <div
+                  key={`${item.id}-qty`}
+                  className={lastRowClass || undefined}
+                  data-label={t('orders.detail.lineItems.qty')}
                 >
-                  {warrantyOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {t(option.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div
-                key={`${item.id}-action`}
-                className={`order-line-item-action-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                data-label={t('orders.detail.lineItems.action')}
-              >
-                {(() => {
-                  const isProduct = item.kind === 'product';
-                  const hasBoundSerials =
-                    (item.serialNumbers ?? []).length > 0;
-                  const canDirectRemove = canDirectRemoveProductItem(item);
-                  const canReturnIssued = canReturnIssuedProductItem(item);
-                  const canRemoveService = canRemoveServiceItem(item);
-                  const canOpenSerials = !isReadOnly || hasBoundSerials;
-                  const actionDisabled = isProduct
-                    ? !canDirectRemove && !canReturnIssued
-                    : !canRemoveService;
-                  const actionLabel = isProduct
-                    ? canReturnIssued
-                      ? t('orders.detail.lineItems.return')
-                      : t('orders.detail.lineItems.remove')
-                    : t('orders.detail.lineItems.remove');
-                  const actionBlockedReason =
-                    isProduct && actionDisabled
-                      ? getProductActionBlockedReason(item)
-                      : !isProduct && actionDisabled
-                        ? isReadOnly
-                          ? t('orders.messages.errors.editingBlocked')
-                          : t('orders.messages.errors.refundBeforeRemoveItem')
-                        : '';
-                  return (
-                    <>
-                {item.kind === 'product' ? (
-                  <button
-                    type='button'
-                    className='line-item-serials-button'
-                    onClick={() => {
-                      setSerialsEditingItem(item);
+                  <NumberStepper
+                    className='line-item-inline-input'
+                    min={1}
+                    value={String(item.quantity)}
+                    onChange={(value) => {
+                      if (
+                        item.kind === 'product' &&
+                        (item.serialNumbers ?? []).length > 0
+                      ) {
+                        onError(
+                          t(
+                            'orders.messages.errors.oneSerialPerLine',
+                          ),
+                        );
+                        return;
+                      }
+                      onUpdateItem(item.id, undefined, {
+                        quantity: Math.max(1, Number(value) || 1),
+                      });
                     }}
-                    disabled={!canOpenSerials}
-                    title={
-                      canOpenSerials
-                        ? undefined
-                        : t('orders.messages.errors.editingBlocked')
+                    disabled={
+                      isReadOnly ||
+                      (item.kind === 'product' &&
+                        (item.serialNumbers ?? []).length > 0)
                     }
-                  >
-                    <span>{t('orders.detail.lineItems.serials')}</span>
-                    <span className='line-item-serials-count'>
-                      {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
-                    </span>
-                  </button>
-                ) : null}
-                <button
-                  type='button'
-                  className='line-item-remove-button'
-                  onClick={() =>
-                    isProduct
-                      ? canDirectRemove
-                        ? onRemoveItem(item.id, undefined)
-                        : onReturnItem(item)
-                      : onRemoveItem(item.id, undefined)
-                  }
-                  disabled={actionDisabled}
-                  title={actionBlockedReason || undefined}
+                  />
+                </div>
+                <div
+                  key={`${item.id}-warranty`}
+                  className={lastRowClass || undefined}
+                  data-label={t('orders.detail.lineItems.warranty')}
                 >
-                  {actionLabel}
-                </button>
-                    </>
-                  );
-                })()}
+                  <select
+                    className='line-item-inline-input'
+                    value={item.warrantyPeriod}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, undefined, {
+                        warrantyPeriod: Number(event.target.value),
+                      })
+                    }
+                    disabled={isReadOnly}
+                  >
+                    {warrantyOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div
+                  key={`${item.id}-action`}
+                  className={`order-line-item-action-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                  data-label={t('orders.detail.lineItems.action')}
+                >
+                  {(() => {
+                    const isProduct = item.kind === 'product';
+                    const hasBoundSerials =
+                      (item.serialNumbers ?? []).length > 0;
+                    const canDirectRemove =
+                      canDirectRemoveProductItem(item);
+                    const canReturnIssued =
+                      canReturnIssuedProductItem(item);
+                    const canRemoveService =
+                      canRemoveServiceItem(item);
+                    const canOpenSerials =
+                      !isReadOnly || hasBoundSerials;
+                    const actionDisabled = isProduct
+                      ? !canDirectRemove && !canReturnIssued
+                      : !canRemoveService;
+                    const actionLabel = isProduct
+                      ? canReturnIssued
+                        ? t('orders.detail.lineItems.return')
+                        : t('orders.detail.lineItems.remove')
+                      : t('orders.detail.lineItems.remove');
+                    const actionBlockedReason =
+                      isProduct && actionDisabled
+                        ? getProductActionBlockedReason(item)
+                        : !isProduct && actionDisabled
+                          ? isReadOnly
+                            ? t(
+                                'orders.messages.errors.editingBlocked',
+                              )
+                            : t(
+                                'orders.messages.errors.refundBeforeRemoveItem',
+                              )
+                          : '';
+                    return (
+                      <>
+                        {item.kind === 'product' ? (
+                          <button
+                            type='button'
+                            className='line-item-serials-button'
+                            onClick={() => {
+                              setSerialsEditingItem(item);
+                            }}
+                            disabled={!canOpenSerials}
+                            title={
+                              canOpenSerials
+                                ? undefined
+                                : t(
+                                    'orders.messages.errors.editingBlocked',
+                                  )
+                            }
+                          >
+                            <span>
+                              {t('orders.detail.lineItems.serials')}
+                            </span>
+                            <span className='line-item-serials-count'>
+                              {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                            </span>
+                          </button>
+                        ) : null}
+                        <button
+                          type='button'
+                          className='line-item-remove-button'
+                          onClick={() =>
+                            isProduct
+                              ? canDirectRemove
+                                ? onRemoveItem(item.id, undefined)
+                                : onReturnItem(item)
+                              : onRemoveItem(item.id, undefined)
+                          }
+                          disabled={actionDisabled}
+                          title={actionBlockedReason || undefined}
+                        >
+                          {actionLabel}
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
             );
           })
         )}
@@ -1380,46 +1505,35 @@ export const OrderDetailLineItemsPanel = ({
             />
           ) : null}
           <div
-            className='order-line-item-price-cell order-detail-table-entry-cell'
+            className='order-line-item-price-cell order-line-item-price-entry-field order-detail-table-entry-cell'
             data-label={t('orders.detail.lineItems.price')}
           >
-            {isProductKind ? (
-              <ProductSalePriceField
-                tierTogglePlacement='compact'
-                stepperClassName='line-item-inline-input'
-                value={price}
-                onChange={setPrice}
-                product={selectedStockProduct}
-                priceTier={priceTier}
-                onPriceTierChange={setPriceTier}
-                placeholder={t('orders.detail.lineItems.price')}
-                disabled={isReadOnly}
-                ariaLabel={t('orders.detail.lineItems.price')}
-              />
-            ) : (
-              <NumberStepper
-                className='line-item-inline-input'
-                min={0}
-                step={0.01}
-                precision={2}
-                value={price}
-                onChange={setPrice}
-                placeholder={t('orders.detail.lineItems.price')}
-                disabled={isReadOnly}
-              />
-            )}
+            <ProductSalePriceField
+              tierTogglePlacement='compact'
+              fieldClassName='order-line-item-price-entry-compact'
+              stepperClassName='line-item-inline-input'
+              value={price}
+              onChange={setPrice}
+              product={selectedStockProduct}
+              priceTier={priceTier}
+              onPriceTierChange={setPriceTier}
+              placeholder={t('orders.detail.lineItems.price')}
+              disabled={isReadOnly}
+              ariaLabel={t('orders.detail.lineItems.price')}
+            />
           </div>
           <div
-            className='order-line-item-entry-field order-detail-table-entry-cell'
+            className='order-line-item-entry-field order-line-item-qty-entry-field order-detail-table-entry-cell'
             data-label={t('orders.detail.lineItems.qty')}
           >
             <NumberStepper
-              className='line-item-inline-input'
+              className='line-item-inline-input order-line-item-qty-entry-stepper'
               min={1}
               value={quantity}
               onChange={setQuantity}
               placeholder={t('orders.detail.lineItems.qty')}
               disabled={isReadOnly}
+              ariaLabel={t('orders.detail.lineItems.qty')}
             />
           </div>
           <div
@@ -1429,7 +1543,9 @@ export const OrderDetailLineItemsPanel = ({
             <select
               className='line-item-inline-input'
               value={warrantyPeriod}
-              onChange={(event) => setWarrantyPeriod(event.target.value)}
+              onChange={(event) =>
+                setWarrantyPeriod(event.target.value)
+              }
               disabled={isReadOnly}
             >
               {warrantyOptions.map((option) => (
@@ -1465,7 +1581,9 @@ export const OrderDetailLineItemsPanel = ({
             ) : null}
             {productSuggestions.map((suggestion) => {
               const isStockSuggestion = suggestion.type === 'stock';
-              const product = isStockSuggestion ? suggestion.product : null;
+              const product = isStockSuggestion
+                ? suggestion.product
+                : null;
               const state = product
                 ? getProductSuggestionState(product)
                 : {
@@ -1494,15 +1612,17 @@ export const OrderDetailLineItemsPanel = ({
                     event.preventDefault();
                     applyProductSuggestion(suggestion);
                   }}
-                  onClick={() => applyProductSuggestion(suggestion)}
                   disabled={isReadOnly || !state.selectable}
-                  title={state.selectable ? undefined : t(state.labelKey)}
+                  title={
+                    state.selectable ? undefined : t(state.labelKey)
+                  }
                 >
                   <strong>{suggestionName}</strong>
                   <span>
                     {suggestion.type === 'catalog' ? (
                       <>
-                        {stockPrice} / {t('orders.detail.lineItems.productList')}
+                        {stockPrice} /{' '}
+                        {t('orders.detail.lineItems.productList')}
                       </>
                     ) : (
                       <>

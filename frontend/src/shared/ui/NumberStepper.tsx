@@ -14,6 +14,7 @@ type NumberStepperProps = {
   disabled?: boolean;
   ariaLabel?: string;
   className?: string;
+  onFocus?: () => void;
 };
 
 const getDecimalLength = (value: string) => {
@@ -47,6 +48,7 @@ export const NumberStepper = ({
   disabled = false,
   ariaLabel,
   className,
+  onFocus,
 }: NumberStepperProps) => {
   const updateValue = (direction: 1 | -1) => {
     const normalizedValue = normalizeDecimalInput(value);
@@ -78,6 +80,7 @@ export const NumberStepper = ({
         placeholder={placeholder}
         disabled={disabled}
         aria-label={ariaLabel}
+        onFocus={onFocus}
       />
       <div className="number-stepper-controls" aria-hidden="true">
         <button
