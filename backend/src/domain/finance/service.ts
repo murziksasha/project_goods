@@ -866,7 +866,6 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       if (!cancelled) {
         if (!session) {
           await FinanceTransaction.findByIdAndDelete(cancellation._id);
-          await rollbackWithoutSession();
         }
         throw new Error('Transaction is already cancelled.');
       }

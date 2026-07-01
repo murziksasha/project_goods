@@ -1140,7 +1140,15 @@ export const OrderDetailLineItemsPanel = ({
     if (!isProductKind) return null;
 
     if (activePriceContext === 'entry') {
-      return null;
+      if (!selectedStockProduct) return null;
+
+      return {
+        product: selectedStockProduct,
+        value: price,
+        priceTier,
+        setPriceTier,
+        onPriceChange: setPrice,
+      };
     }
 
     const item = items.find(
@@ -1179,7 +1187,6 @@ export const OrderDetailLineItemsPanel = ({
     selectedStockProduct,
   ]);
   const showPriceHeaderTierToggle = Boolean(
-    activePriceContext !== 'entry' &&
     activePriceHeaderTarget?.product &&
     hasWholesaleSalePrice(activePriceHeaderTarget.product),
   );
@@ -1509,7 +1516,9 @@ export const OrderDetailLineItemsPanel = ({
             data-label={t('orders.detail.lineItems.price')}
           >
             <ProductSalePriceField
-              tierTogglePlacement='compact'
+              tierTogglePlacement={
+                showPriceHeaderTierToggle ? 'none' : 'compact'
+              }
               fieldClassName='order-line-item-price-entry-compact'
               stepperClassName='line-item-inline-input'
               value={price}
@@ -1610,8 +1619,8 @@ export const OrderDetailLineItemsPanel = ({
                   className='create-suggestion-item'
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    applyProductSuggestion(suggestion);
                   }}
+                  onClick={() => applyProductSuggestion(suggestion)}
                   disabled={isReadOnly || !state.selectable}
                   title={
                     state.selectable ? undefined : t(state.labelKey)

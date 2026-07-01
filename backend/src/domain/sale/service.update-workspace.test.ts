@@ -1,104 +1,42 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const {
-  saleModel,
-  employeeModel,
-  productModel,
-  normalizeSalePayloadMock,
-  upsertCatalogProductsMock,
-} = vi.hoisted(() => ({
-  saleModel: {
-    find: vi.fn(),
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
-  employeeModel: {
-    findById: vi.fn(),
-  },
-  productModel: {
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
-  normalizeSalePayloadMock: vi.fn(),
-  upsertCatalogProductsMock: vi.fn(),
-}));
-
-vi.mock('./model', () => ({
-  Sale: saleModel,
-}));
-
-vi.mock('../client/model', () => ({
-  Client: {},
-}));
-
-vi.mock('../employee/model', () => ({
-  Employee: employeeModel,
-}));
-
-vi.mock('../catalog-product/model', () => ({
-  CatalogProduct: {},
-}));
-
-vi.mock('../product/model', () => ({
-  Product: productModel,
-}));
-
-vi.mock('../../shared/lib/formatters', () => ({
-  formatProduct: vi.fn((value) => value),
-  formatSale: vi.fn((value) => value),
-}));
-
-vi.mock('../../shared/lib/parsers', () => ({
-  normalizeSalePayload: normalizeSalePayloadMock,
-}));
-
-vi.mock('../../shared/lib/query', () => ({
-  isValidObjectIdOrThrow: vi.fn(),
-}));
-
-vi.mock('../sequence/service', () => ({
-  getNextRecordNumber: vi.fn(),
-}));
-
-vi.mock('../finance/service', () => ({
-  createFinanceTransaction: vi.fn(),
-}));
-
-vi.mock('../../shared/lib/errors', () => ({
-  assertNotStale: vi.fn(),
-}));
-
-vi.mock('../catalog-product/service', () => ({
-  upsertCatalogProducts: upsertCatalogProductsMock,
-}));
+import { CatalogProduct } from '../catalog-product/model';
+import * as catalogProductService from '../catalog-product/service';
+import { Employee } from '../employee/model';
+import { Product } from '../product/model';
+import * as errors from '../../shared/lib/errors';
+import * as parsers from '../../shared/lib/parsers';
+import { Sale } from './model';
+import { updateSaleWorkspace } from './service';
+import { leanResult, leanSelectResult, withFormatSaleFields } from './test-helpers';
 
 const saleId = '507f1f77bcf86cd799439012';
 
-import { updateSaleWorkspace } from './service';
-
-const buildExistingSale = (kind: 'repair' | 'sale') => ({
-  _id: saleId,
-  kind,
-  status: 'new',
-  paidAmount: 0,
-  salePrice: 0,
-  quantity: 1,
-  product: '507f1f77bcf86cd799439011',
-  productSnapshot: {
-    article: 'ART-1',
-    name: 'System Block',
-    serialNumber: '',
-  },
-  timeline: [],
-  paymentHistory: [],
-  lineItems: [],
-  discount: { mode: 'amount', value: 0 },
-  master: null,
-  issuedBy: null,
-  masterSnapshot: null,
-  issuedBySnapshot: null,
-  updatedAt: new Date('2026-05-23T10:00:00.000Z'),
-});
+const buildExistingSale = (kind: 'repair' | 'sale') =>
+  withFormatSaleFields({
+    _id: saleId,
+    kind,
+    status: 'new',
+    paidAmount: 0,
+    salePrice: 0,
+    quantity: 1,
+    product: '507f1f77bcf86cd799439011',
+    productSnapshot: {
+      article: 'ART-1',
+      name: 'System Block',
+      serialNumber: '',
+    },
+    timeline: [],
+    paymentHistory: [],
+    lineItems: [],
+    discount: { mode: 'amount', value: 0 },
+    master: null,
+    issuedBy: null,
+    masterSnapshot: null,
+    issuedBySnapshot: null,
+    createdAt: new Date('2026-05-23T10:00:00.000Z'),
+    updatedAt: new Date('2026-05-23T10:00:00.000Z'),
+  });
 
 const lineItem = {
   id: 'li-1',
@@ -131,45 +69,69 @@ const serializedLineItem = {
   serialNumbers: ['S000020'],
 };
 
-describe('updateSaleWorkspace line items', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    saleModel.find.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        lean: vi.fn().mockResolvedValue([]),
-      }),
-    });
-    productModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: '507f1f77bcf86cd799439012',
-        quantity: 10,
-        reservedQuantity: 0,
-      }),
-    });
-    productModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: '507f1f77bcf86cd799439012',
-        quantity: 9,
-        reservedQuantity: 0,
-      }),
-    });
-    employeeModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(null),
-    });
+let currentSale: any;
+let productFindByIdResult: any;
+const updateCalls: any[] = [];
+
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
   });
 
+  vi.spyOn(errors, 'assertNotStale').mockImplementation(() => undefined);
+  vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
+    undefined as never,
+  );
+  vi.spyOn(CatalogProduct, 'countDocuments').mockResolvedValue(0 as never);
+
+  vi.spyOn(Sale, 'find').mockReturnValue(leanSelectResult([]) as never);
+  vi.spyOn(Sale, 'findById').mockImplementation(
+    () => leanResult(currentSale) as never,
+  );
+  vi.spyOn(Sale, 'findByIdAndUpdate').mockImplementation(
+    (_id: unknown, update: any) => {
+      updateCalls.push(update);
+      return leanResult(
+        withFormatSaleFields({ ...currentSale, ...update }),
+      ) as never;
+    },
+  );
+
+  vi.spyOn(Product, 'findById').mockImplementation(
+    () => leanResult(productFindByIdResult) as never,
+  );
+  vi.spyOn(Product, 'findByIdAndUpdate').mockReturnValue(
+    leanResult({
+      _id: '507f1f77bcf86cd799439012',
+      quantity: 9,
+      reservedQuantity: 0,
+    }) as never,
+  );
+  vi.spyOn(Employee, 'findById').mockReturnValue(leanResult(null) as never);
+};
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  currentSale = buildExistingSale('repair');
+  productFindByIdResult = {
+    _id: '507f1f77bcf86cd799439012',
+    quantity: 10,
+    reservedQuantity: 0,
+  };
+  updateCalls.length = 0;
+  installSpies();
+});
+
+describe('updateSaleWorkspace line items', () => {
   it('keeps product line item name for repair orders', async () => {
-    const existingSale = buildExistingSale('repair');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        lineItems: [lineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('repair');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'new',
       paidAmount: 0,
@@ -181,30 +143,20 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [lineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'new',
       lineItems: [lineItem],
     });
 
-    const updatePayload = saleModel.findByIdAndUpdate.mock.calls[0]?.[1];
-    expect(updatePayload.lineItems[0].name).toBe('Wireless Mouse');
+    expect(updateCalls[0].lineItems[0].name).toBe('Wireless Mouse');
   });
 
   it('keeps product line item name for sale orders', async () => {
-    const existingSale = buildExistingSale('sale');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        lineItems: [lineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('sale');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'sale',
       status: 'new',
       paidAmount: 0,
@@ -216,31 +168,21 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [lineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'sale',
       status: 'new',
       lineItems: [lineItem],
     });
 
-    const updatePayload = saleModel.findByIdAndUpdate.mock.calls[0]?.[1];
-    expect(updatePayload.lineItems[0].name).toBe('Wireless Mouse');
+    expect(updateCalls[0].lineItems[0].name).toBe('Wireless Mouse');
   });
 
   it('keeps names for multiple product line items', async () => {
-    const existingSale = buildExistingSale('repair');
+    currentSale = buildExistingSale('repair');
     const nextItems = [lineItem, secondLineItem];
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        lineItems: nextItems,
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'new',
       paidAmount: 0,
@@ -252,38 +194,29 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: nextItems,
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'new',
       lineItems: nextItems,
     });
 
-    const updatePayload = saleModel.findByIdAndUpdate.mock.calls[0]?.[1];
-    expect(updatePayload.lineItems).toHaveLength(2);
-    expect(updatePayload.lineItems[0].name).toBe('Wireless Mouse');
-    expect(updatePayload.lineItems[1].name).toBe('Keyboard');
+    expect(updateCalls[0].lineItems).toHaveLength(2);
+    expect(updateCalls[0].lineItems[0].name).toBe('Wireless Mouse');
+    expect(updateCalls[0].lineItems[1].name).toBe('Keyboard');
   });
 
   it('rejects serialized line items with quantity greater than 1', async () => {
-    const existingSale = buildExistingSale('sale');
-    const invalidItem = {
-      ...serializedLineItem,
-      quantity: 2,
+    currentSale = buildExistingSale('sale');
+    const invalidItem = { ...serializedLineItem, quantity: 2 };
+    productFindByIdResult = {
+      _id: serializedLineItem.productId,
+      quantity: 1,
+      reservedQuantity: 0,
+      serialNumber: 'S000020',
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    productModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: serializedLineItem.productId,
-        quantity: 1,
-        reservedQuantity: 0,
-        serialNumber: 'S000020',
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'sale',
       status: 'new',
       paidAmount: 0,
@@ -295,10 +228,10 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [invalidItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
     await expect(
-      updateSaleWorkspace(existingSale._id, {
+      updateSaleWorkspace(currentSale._id, {
         kind: 'sale',
         status: 'new',
         lineItems: [invalidItem],
@@ -309,19 +242,14 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('rejects serialized line items linked to a different stock product', async () => {
-    const existingSale = buildExistingSale('sale');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    productModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: serializedLineItem.productId,
-        quantity: 1,
-        reservedQuantity: 0,
-        serialNumber: 'S000021',
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('sale');
+    productFindByIdResult = {
+      _id: serializedLineItem.productId,
+      quantity: 1,
+      reservedQuantity: 0,
+      serialNumber: 'S000021',
+    };
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'sale',
       status: 'new',
       paidAmount: 0,
@@ -333,10 +261,10 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [serializedLineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
     await expect(
-      updateSaleWorkspace(existingSale._id, {
+      updateSaleWorkspace(currentSale._id, {
         kind: 'sale',
         status: 'new',
         lineItems: [serializedLineItem],
@@ -347,24 +275,19 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('rejects quantity greater than 1 for a serialized stock product without a bound serial', async () => {
-    const existingSale = buildExistingSale('sale');
+    currentSale = buildExistingSale('sale');
     const invalidItem = {
       ...serializedLineItem,
       quantity: 2,
       serialNumbers: [],
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    productModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: serializedLineItem.productId,
-        quantity: 2,
-        reservedQuantity: 0,
-        serialNumber: 'S000020',
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    productFindByIdResult = {
+      _id: serializedLineItem.productId,
+      quantity: 2,
+      reservedQuantity: 0,
+      serialNumber: 'S000020',
+    };
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'sale',
       status: 'new',
       paidAmount: 0,
@@ -376,10 +299,10 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [invalidItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
     await expect(
-      updateSaleWorkspace(existingSale._id, {
+      updateSaleWorkspace(currentSale._id, {
         kind: 'sale',
         status: 'new',
         lineItems: [invalidItem],
@@ -390,18 +313,8 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('decrements stock for repair orders when status becomes issued', async () => {
-    const existingSale = buildExistingSale('repair');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        status: 'issued',
-        lineItems: [lineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('repair');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'issued',
       paidAmount: 150,
@@ -413,16 +326,16 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [lineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'issued',
       paidAmount: 150,
       lineItems: [lineItem],
     });
 
-    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       lineItem.productId,
       { $inc: { quantity: -1 } },
       { returnDocument: 'after' },
@@ -430,27 +343,14 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('decrements stock for paid repair orders with bound serials when status becomes issued', async () => {
-    const existingSale = buildExistingSale('repair');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    productModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: serializedLineItem.productId,
-        quantity: 1,
-        reservedQuantity: 0,
-        serialNumber: 'S000020',
-      }),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        status: 'issued',
-        paidAmount: 500,
-        lineItems: [serializedLineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('repair');
+    productFindByIdResult = {
+      _id: serializedLineItem.productId,
+      quantity: 1,
+      reservedQuantity: 0,
+      serialNumber: 'S000020',
+    };
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'issued',
       paidAmount: 500,
@@ -462,16 +362,16 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [serializedLineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'issued',
       paidAmount: 500,
       lineItems: [serializedLineItem],
     });
 
-    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       serializedLineItem.productId,
       { $inc: { quantity: -1 } },
       { returnDocument: 'after' },
@@ -479,11 +379,8 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('rejects repair refusal status while bound serials are still attached', async () => {
-    const existingSale = buildExistingSale('repair');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('repair');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'issuedWithoutRepair',
       paidAmount: 500,
@@ -495,10 +392,10 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [serializedLineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
     await expect(
-      updateSaleWorkspace(existingSale._id, {
+      updateSaleWorkspace(currentSale._id, {
         kind: 'repair',
         status: 'issuedWithoutRepair',
         paidAmount: 500,
@@ -510,18 +407,8 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('does not decrement stock for repair orders in non-closing status', async () => {
-    const existingSale = buildExistingSale('repair');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        status: 'inRepair',
-        lineItems: [lineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('repair');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'inRepair',
       paidAmount: 0,
@@ -533,30 +420,20 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [lineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'inRepair',
       lineItems: [lineItem],
     });
 
-    expect(productModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(Product.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('keeps sale stock behavior unchanged for issued status', async () => {
-    const existingSale = buildExistingSale('sale');
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        status: 'issued',
-        lineItems: [lineItem],
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    currentSale = buildExistingSale('sale');
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'sale',
       status: 'issued',
       paidAmount: 150,
@@ -568,16 +445,16 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [lineItem],
       masterId: '',
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'sale',
       status: 'issued',
       paidAmount: 150,
       lineItems: [lineItem],
     });
 
-    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       lineItem.productId,
       { $inc: { quantity: -1 } },
       { returnDocument: 'after' },
@@ -585,7 +462,7 @@ describe('updateSaleWorkspace line items', () => {
   });
 
   it('persists updated master and master snapshot from workspace main info', async () => {
-    const existingSale = buildExistingSale('repair');
+    currentSale = buildExistingSale('repair');
     const master = {
       _id: '507f1f77bcf86cd799439099',
       name: 'Vadim',
@@ -593,20 +470,8 @@ describe('updateSaleWorkspace line items', () => {
       permissions: [],
       isActive: true,
     };
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(existingSale),
-    });
-    employeeModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(master),
-    });
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...existingSale,
-        master: master._id,
-        masterSnapshot: { name: master.name, role: master.role },
-      }),
-    });
-    normalizeSalePayloadMock.mockReturnValue({
+    vi.spyOn(Employee, 'findById').mockReturnValue(leanResult(master) as never);
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
       kind: 'repair',
       status: 'new',
       paidAmount: 0,
@@ -618,9 +483,9 @@ describe('updateSaleWorkspace line items', () => {
       lineItems: [],
       masterId: master._id,
       issuedById: '',
-    });
+    } as never);
 
-    await updateSaleWorkspace(existingSale._id, {
+    await updateSaleWorkspace(currentSale._id, {
       kind: 'repair',
       status: 'new',
       masterId: master._id,
@@ -628,9 +493,8 @@ describe('updateSaleWorkspace line items', () => {
       serialNumber: '',
     });
 
-    const updatePayload = saleModel.findByIdAndUpdate.mock.calls[0]?.[1];
-    expect(updatePayload.master).toBe(master._id);
-    expect(updatePayload.masterSnapshot).toEqual({
+    expect(updateCalls[0].master).toBe(master._id);
+    expect(updateCalls[0].masterSnapshot).toEqual({
       name: 'Vadim',
       role: 'master',
     });
