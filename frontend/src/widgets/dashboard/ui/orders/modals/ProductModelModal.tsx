@@ -20,6 +20,8 @@ import {
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
 
+const EMPTY_SALES: Sale[] = [];
+
 type ProductModelModalProps = {
   name: string;
   products: Product[];
@@ -35,7 +37,7 @@ type ProductModelModalProps = {
 export const ProductModelModal = ({
   name,
   products,
-  sales = [],
+  sales = EMPTY_SALES,
   warehouses,
   printForms = defaultPrintForms,
   printProduct = null,

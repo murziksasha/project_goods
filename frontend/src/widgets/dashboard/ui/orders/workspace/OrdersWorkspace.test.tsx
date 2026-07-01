@@ -62,27 +62,14 @@ vi.mock('../../../../../entities/finance/api/financeApi', async (importOriginal)
 const restoreApiMocks = () => {
   getSupplierOrdersMock.mockImplementation(async () => []);
   getCashboxesMock.mockImplementation(async (): Promise<Cashbox[]> => []);
-  vi.spyOn(supplierOrderApi, 'getSupplierOrders').mockImplementation((query = '') =>
-    getSupplierOrdersMock(query),
-  );
-  vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation((saleId, payload) =>
-    acceptSalePaymentMock(saleId, payload),
-  );
-  vi.spyOn(saleApi, 'refundSalePayment').mockImplementation((saleId, payload) =>
-    refundSalePaymentMock(saleId, payload),
-  );
-  vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation((saleId, payload) =>
-    updateSaleFavoriteMock(saleId, payload),
-  );
-  vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation((saleId, payload) =>
-    updateSaleWorkspaceMock(saleId, payload),
-  );
-  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation((payload) =>
-    createFinanceTransactionMock(payload),
-  );
-  vi.spyOn(financeApi, 'getCashboxes').mockImplementation((options = {}) =>
-    getCashboxesMock(options),
-  );
+
+  vi.spyOn(supplierOrderApi, 'getSupplierOrders').mockImplementation(getSupplierOrdersMock);
+  vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation(acceptSalePaymentMock);
+  vi.spyOn(saleApi, 'refundSalePayment').mockImplementation(refundSalePaymentMock);
+  vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation(updateSaleFavoriteMock);
+  vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation(updateSaleWorkspaceMock);
+  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation(createFinanceTransactionMock);
+  vi.spyOn(financeApi, 'getCashboxes').mockImplementation(getCashboxesMock);
 };
 
 beforeEach(() => {

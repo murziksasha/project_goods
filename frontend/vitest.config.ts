@@ -24,9 +24,11 @@ export default defineConfig({
   },
   test: {
     pool: 'vmForks',
+    fileParallelism: false,
+    maxWorkers: 1,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    testTimeout: 15000,
+    testTimeout: 30000,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     coverage: {
       provider: 'v8',

@@ -7560,6 +7560,12 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   font-size: 0.96rem;
 }
 
+.create-suggestion-item strong,
+.create-suggestion-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .create-suggestion-item span,
 .create-side-list-button span {
   color: #6f8399;
@@ -7852,13 +7858,23 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 
 .sale-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 104px 130px 130px 140px 42px;
+  grid-template-columns:
+    minmax(0, 2.2fr)
+    minmax(88px, 0.55fr)
+    minmax(110px, 0.75fr)
+    minmax(110px, 0.75fr)
+    40px;
   gap: 10px;
   align-items: end;
 }
 
 .sale-item-product {
   min-width: 0;
+}
+
+.sale-item-action {
+  width: 40px;
+  justify-self: start;
 }
 
 .sale-item-add-button {

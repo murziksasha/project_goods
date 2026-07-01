@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
+
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
   name: 'БЖ Meanwell 9V 1.66A',
@@ -26,7 +27,6 @@ const createProduct = (patch: Partial<Product>): Product => ({
 });
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

@@ -216,11 +216,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sale-item-add-button,
+  .sale-item-product,
+  .sale-item-action,
   .sale-item-stock,
   .rapid-sale-field-search,
   .rapid-sale-entry-action {
     grid-column: 1 / -1;
+  }
+
+  .sale-item-action {
+    justify-self: start;
+  }
+
+  .sale-item-action > span {
+    display: none;
   }
 
   .rapid-sale-entry-action > span[aria-hidden='true'] {
