@@ -1,12 +1,15 @@
 import mongoose from 'mongoose';
-import { afterAll, beforeAll } from 'vitest';
+import { beforeEach } from 'vitest';
 
-// Prevent buffered mongoose operations from hanging unit tests when a model mock
-// did not apply and no database is available.
-beforeAll(() => {
-  mongoose.set('bufferTimeoutMS', 100);
-});
+// Fail fast when a model mock did not apply and no database is available.
+mongoose.set('bufferTimeoutMS', 250);
 
-afterAll(async () => {
-  await mongoose.disconnect().catch(() => undefined);
+const resetMongooseModels = () => {
+  for (const modelName of Object.keys(mongoose.models)) {
+    mongoose.deleteModel(modelName);
+  }
+};
+
+beforeEach(() => {
+  resetMongooseModels();
 });

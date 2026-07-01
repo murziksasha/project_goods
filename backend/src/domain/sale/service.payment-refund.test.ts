@@ -1,78 +1,10 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { saleModel, employeeModel, createFinanceTransactionMock } = vi.hoisted(
-  () => ({
-    saleModel: {
-      findById: vi.fn(),
-      findByIdAndUpdate: vi.fn(),
-    },
-    employeeModel: {
-      findById: vi.fn(),
-    },
-    createFinanceTransactionMock: vi.fn(),
-  }),
-);
-
-vi.mock('./model', () => ({
-  Sale: saleModel,
-}));
-
-vi.mock('../client/model', () => ({
-  Client: {},
-}));
-
-vi.mock('../employee/model', () => ({
-  Employee: employeeModel,
-}));
-
-vi.mock('../catalog-product/model', () => ({
-  CatalogProduct: {},
-}));
-
-vi.mock('../product/model', () => ({
-  Product: {},
-}));
-
-vi.mock('../../shared/lib/formatters', () => ({
-  formatProduct: vi.fn((value) => value),
-  formatSale: vi.fn((value) => value),
-}));
-
-vi.mock('../../shared/lib/parsers', () => ({
-  normalizeSalePayload: vi.fn(),
-  toNumber: vi.fn((value: unknown) => {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string' && value.trim()) {
-      const normalizedValue = value.trim().replace(/\s+/g, '').replace(',', '.');
-      return /^-?\d+(?:\.\d*)?$/.test(normalizedValue)
-        ? Number(normalizedValue)
-        : NaN;
-    }
-    return NaN;
-  }),
-}));
-
-vi.mock('../../shared/lib/query', () => ({
-  isValidObjectIdOrThrow: vi.fn(),
-}));
-
-vi.mock('../sequence/service', () => ({
-  getNextRecordNumber: vi.fn(),
-}));
-
-vi.mock('../finance/service', () => ({
-  createFinanceTransaction: createFinanceTransactionMock,
-}));
-
-vi.mock('../../shared/lib/errors', () => ({
-  assertNotStale: vi.fn(),
-}));
-
-vi.mock('../catalog-product/service', () => ({
-  upsertCatalogProducts: vi.fn(),
-}));
-
+import { Employee } from '../employee/model';
+import * as financeService from '../finance/service';
+import { Sale } from './model';
 import { acceptSalePayment, refundSalePayment } from './service';
+import { leanResult, withFormatSaleFields } from './test-helpers';
 
 const saleId = '507f1f77bcf86cd799439012';
 
@@ -87,53 +19,65 @@ const lineItem = {
   serialNumbers: [],
 };
 
-const buildSale = () => ({
-  _id: saleId,
-  recordNumber: 'r000008',
-  kind: 'sale',
-  status: 'reserved',
-  paidAmount: 0,
-  salePrice: 290,
-  quantity: 1,
-  product: null,
-  productSnapshot: { name: 'Sale', serialNumber: '', article: 'SALE' },
-  lineItems: [lineItem],
-  discount: { mode: 'amount', value: 0 },
-  paymentHistory: [],
-  timeline: [],
-  issuedBy: null,
-  issuedBySnapshot: null,
-});
-
-/**
- * Sets up findById + findByIdAndUpdate mocks for payment tests.
- * Uses mockImplementation to capture the exact update payload for the current call.
- * This supports multiple accept/refund calls inside a single it() without stale mock.calls[0] issues.
- */
-const setupPaymentMocks = (sale: any) => {
-  saleModel.findById.mockReturnValue({
-    lean: vi.fn().mockResolvedValue(sale),
+const buildSale = () =>
+  withFormatSaleFields({
+    _id: saleId,
+    recordNumber: 'r000008',
+    kind: 'sale',
+    status: 'reserved',
+    paidAmount: 0,
+    salePrice: 290,
+    quantity: 1,
+    product: null,
+    productSnapshot: { name: 'Sale', serialNumber: '', article: 'SALE' },
+    lineItems: [lineItem],
+    discount: { mode: 'amount', value: 0 },
+    paymentHistory: [],
+    timeline: [],
+    issuedBy: null,
+    issuedBySnapshot: null,
   });
-  saleModel.findByIdAndUpdate.mockImplementation((_id: any, update: any) => ({
-    lean: vi.fn().mockResolvedValue({ ...sale, ...update }),
-  }));
+
+let currentSale: any;
+
+const setupPaymentMocks = (sale: any) => {
+  currentSale = { ...sale };
 };
 
-describe('sale payment/refund finance coupling', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    employeeModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(null),
-    });
-    createFinanceTransactionMock.mockResolvedValue({
-      toCashbox: { name: 'Основная' },
-      fromCashbox: { name: 'Основная' },
-    });
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
   });
 
+  vi.spyOn(Sale, 'findById').mockImplementation(
+    () => leanResult(currentSale) as never,
+  );
+  vi.spyOn(Sale, 'findByIdAndUpdate').mockImplementation(
+    (_id: unknown, update: any) =>
+      leanResult(withFormatSaleFields({ ...currentSale, ...update })) as never,
+  );
+  vi.spyOn(Employee, 'findById').mockReturnValue(leanResult(null) as never);
+  vi.spyOn(financeService, 'createFinanceTransaction').mockResolvedValue({
+    toCashbox: { name: 'Основная' },
+    fromCashbox: { name: 'Основная' },
+  } as never);
+};
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  currentSale = buildSale();
+  installSpies();
+});
+
+describe('sale payment/refund finance coupling', () => {
   it('creates a deposit and updates sale payment state together', async () => {
-    const sale = buildSale();
-    setupPaymentMocks(sale);
+    setupPaymentMocks(buildSale());
 
     const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
@@ -144,7 +88,7 @@ describe('sale payment/refund finance coupling', () => {
       author: 'Manager',
     });
 
-    expect(createFinanceTransactionMock).toHaveBeenCalledWith({
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith({
       type: 'deposit',
       amount: '290',
       currency: 'UAH',
@@ -162,8 +106,7 @@ describe('sale payment/refund finance coupling', () => {
   });
 
   it('does not create a deposit when issuing would violate payment rules', async () => {
-    const sale = buildSale();
-    setupPaymentMocks(sale);
+    setupPaymentMocks(buildSale());
 
     await expect(
       acceptSalePayment(saleId, {
@@ -176,17 +119,16 @@ describe('sale payment/refund finance coupling', () => {
       }),
     ).rejects.toThrow('Product shipped but payment has not been received.');
 
-    expect(createFinanceTransactionMock).not.toHaveBeenCalled();
-    expect(saleModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(financeService.createFinanceTransaction).not.toHaveBeenCalled();
+    expect(Sale.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('creates a withdraw and updates sale refund state together', async () => {
-    const sale = {
+    setupPaymentMocks({
       ...buildSale(),
       status: 'issued',
       paidAmount: 290,
-    };
-    setupPaymentMocks(sale);
+    });
 
     const updatedSale = await refundSalePayment(saleId, {
       cashboxId: 'cashbox-1',
@@ -194,7 +136,7 @@ describe('sale payment/refund finance coupling', () => {
       author: 'Manager',
     });
 
-    expect(createFinanceTransactionMock).toHaveBeenCalledWith({
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith({
       type: 'withdraw',
       amount: '100',
       currency: 'UAH',
@@ -211,11 +153,10 @@ describe('sale payment/refund finance coupling', () => {
   });
 
   it('rejects refund over paid amount before creating finance transaction', async () => {
-    const sale = {
+    setupPaymentMocks({
       ...buildSale(),
       paidAmount: 50,
-    };
-    setupPaymentMocks(sale);
+    });
 
     await expect(
       refundSalePayment(saleId, {
@@ -225,18 +166,17 @@ describe('sale payment/refund finance coupling', () => {
       }),
     ).rejects.toThrow('Refund amount cannot exceed the paid amount.');
 
-    expect(createFinanceTransactionMock).not.toHaveBeenCalled();
-    expect(saleModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(financeService.createFinanceTransaction).not.toHaveBeenCalled();
+    expect(Sale.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('partial deposit creates finance transaction and does not change status', async () => {
-    const sale = {
+    setupPaymentMocks({
       ...buildSale(),
       kind: 'sale',
       status: 'reserved',
       paidAmount: 0,
-    };
-    setupPaymentMocks(sale);
+    });
 
     const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
@@ -247,7 +187,7 @@ describe('sale payment/refund finance coupling', () => {
       author: 'Manager',
     });
 
-    expect(createFinanceTransactionMock).toHaveBeenCalledWith({
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith({
       type: 'deposit',
       amount: '100',
       currency: 'UAH',
@@ -255,7 +195,7 @@ describe('sale payment/refund finance coupling', () => {
       note: 'Payment for order r000008',
     });
     expect(updatedSale.paidAmount).toBe(100);
-    expect(updatedSale.status).toBe('reserved'); // unchanged because partial
+    expect(updatedSale.status).toBe('reserved');
     expect(updatedSale.paymentHistory[0]).toMatchObject({
       type: 'deposit',
       amount: 100,
@@ -264,24 +204,23 @@ describe('sale payment/refund finance coupling', () => {
   });
 
   it('full deposit via deposit action auto marks paid when remaining reaches 0', async () => {
-    const sale = {
+    setupPaymentMocks({
       ...buildSale(),
       kind: 'sale',
       status: 'new',
       paidAmount: 0,
-    };
-    setupPaymentMocks(sale);
+    });
 
     const updatedSale = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
       amount: '290',
       paymentMethod: 'non-cash',
       action: 'deposit',
-      targetStatus: 'issued', // even if target suggests issued, full deposit -> paid
+      targetStatus: 'issued',
       author: 'Manager',
     });
 
-    expect(createFinanceTransactionMock).toHaveBeenCalled();
+    expect(financeService.createFinanceTransaction).toHaveBeenCalled();
     expect(updatedSale.paidAmount).toBe(290);
     expect(updatedSale.status).toBe('paid');
   });
@@ -292,12 +231,7 @@ describe('sale payment/refund finance coupling', () => {
       kind: 'repair',
       status: 'diagnostics',
       paidAmount: 50,
-      lineItems: [
-        {
-          ...lineItem,
-          kind: 'product',
-        },
-      ],
+      lineItems: [{ ...lineItem, kind: 'product' }],
     };
     setupPaymentMocks(repair);
 
@@ -306,26 +240,24 @@ describe('sale payment/refund finance coupling', () => {
       amount: '100',
       paymentMethod: 'cash',
       action: 'deposit',
-      targetStatus: 'issued', // opened from repair card
+      targetStatus: 'issued',
       author: 'Technician',
     });
 
-    expect(createFinanceTransactionMock).toHaveBeenCalledWith(
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ toCashboxId: 'cashbox-2', amount: '100' }),
     );
     expect(updated.paidAmount).toBe(150);
-    expect(updated.status).toBe('diagnostics'); // partial, no change, no issue
+    expect(updated.status).toBe('diagnostics');
   });
 
   it('full deposit on repair order (with and without products) auto sets paid only', async () => {
-    // with product
-    const repairWithProduct = {
+    setupPaymentMocks({
       ...buildSale(),
       kind: 'repair',
       status: 'inRepair',
       paidAmount: 0,
-    };
-    setupPaymentMocks(repairWithProduct);
+    });
 
     const updatedWith = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
@@ -336,10 +268,9 @@ describe('sale payment/refund finance coupling', () => {
       author: 'Tech',
     });
     expect(updatedWith.paidAmount).toBe(290);
-    expect(updatedWith.status).toBe('paid'); // payment complete, but not issued
+    expect(updatedWith.status).toBe('paid');
 
-    // without product (service only)
-    const repairServiceOnly = {
+    setupPaymentMocks({
       ...buildSale(),
       kind: 'repair',
       status: 'waitingParts',
@@ -354,8 +285,7 @@ describe('sale payment/refund finance coupling', () => {
           warrantyPeriod: 0,
         },
       ],
-    };
-    setupPaymentMocks(repairServiceOnly);
+    });
 
     const updatedSvc = await acceptSalePayment(saleId, {
       cashboxId: 'cashbox-1',
@@ -370,7 +300,7 @@ describe('sale payment/refund finance coupling', () => {
   });
 
   it('rejects payment greater than remaining balance', async () => {
-    const repair = {
+    setupPaymentMocks({
       ...buildSale(),
       kind: 'repair',
       status: 'inRepair',
@@ -385,8 +315,7 @@ describe('sale payment/refund finance coupling', () => {
           warrantyPeriod: 0,
         },
       ],
-    };
-    setupPaymentMocks(repair);
+    });
 
     await expect(
       acceptSalePayment(saleId, {

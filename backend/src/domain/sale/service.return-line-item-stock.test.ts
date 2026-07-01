@@ -1,72 +1,9 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const {
-  saleModel,
-  productModel,
-} = vi.hoisted(() => ({
-  saleModel: {
-    find: vi.fn(),
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
-  productModel: {
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
-}));
-
-vi.mock('./model', () => ({
-  Sale: saleModel,
-}));
-
-vi.mock('../client/model', () => ({
-  Client: {},
-}));
-
-vi.mock('../employee/model', () => ({
-  Employee: {
-    findById: vi.fn(),
-  },
-}));
-
-vi.mock('../catalog-product/model', () => ({
-  CatalogProduct: {},
-}));
-
-vi.mock('../product/model', () => ({
-  Product: productModel,
-}));
-
-vi.mock('../../shared/lib/formatters', () => ({
-  formatProduct: vi.fn((value) => value),
-  formatSale: vi.fn((value) => value),
-}));
-
-vi.mock('../../shared/lib/parsers', () => ({
-  normalizeSalePayload: vi.fn(),
-}));
-
-vi.mock('../../shared/lib/query', () => ({
-  isValidObjectIdOrThrow: vi.fn(),
-}));
-
-vi.mock('../sequence/service', () => ({
-  getNextRecordNumber: vi.fn(),
-}));
-
-vi.mock('../finance/service', () => ({
-  createFinanceTransaction: vi.fn(),
-}));
-
-vi.mock('../../shared/lib/errors', () => ({
-  assertNotStale: vi.fn(),
-}));
-
-vi.mock('../catalog-product/service', () => ({
-  upsertCatalogProducts: vi.fn(),
-}));
-
+import { Product } from '../product/model';
+import { Sale } from './model';
 import { returnSaleLineItemToStock } from './service';
+import { leanResult, withFormatSaleFields } from './test-helpers';
 
 const lineItem = {
   id: 'li-1',
@@ -79,40 +16,65 @@ const lineItem = {
   serialNumbers: ['S000001'],
 };
 
-const buildSale = (kind: 'repair' | 'sale') => ({
-  _id: '507f1f77bcf86cd799439012',
-  id: '507f1f77bcf86cd799439012',
-  kind,
-  status: 'issued',
-  paidAmount: 0,
-  quantity: 1,
-  salePrice: 350,
-  lineItems: [lineItem],
-  discount: { mode: 'amount', value: 0 },
-  timeline: [],
+const buildSale = (kind: 'repair' | 'sale') =>
+  withFormatSaleFields({
+    _id: '507f1f77bcf86cd799439012',
+    id: '507f1f77bcf86cd799439012',
+    kind,
+    status: 'issued',
+    paidAmount: 0,
+    quantity: 1,
+    salePrice: 350,
+    product: null,
+    productSnapshot: { name: 'Item', serialNumber: '', article: 'SALE' },
+    lineItems: [lineItem],
+    discount: { mode: 'amount', value: 0 },
+    timeline: [],
+  });
+
+let currentSale: any;
+
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
+
+  vi.spyOn(Sale, 'findById').mockImplementation(
+    () => leanResult(currentSale) as never,
+  );
+  vi.spyOn(Sale, 'findByIdAndUpdate').mockImplementation(
+    (_id: unknown, update: any) =>
+      leanResult(
+        withFormatSaleFields({
+          ...currentSale,
+          ...update,
+          lineItems: update.lineItems ?? currentSale.lineItems,
+        }),
+      ) as never,
+  );
+  vi.spyOn(Product, 'findByIdAndUpdate').mockReturnValue(
+    leanResult({
+      _id: lineItem.productId,
+      purchasePlace: 'Service center',
+    }) as never,
+  );
+};
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  currentSale = buildSale('sale');
+  installSpies();
 });
 
 describe('returnSaleLineItemToStock', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    saleModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        ...buildSale('sale'),
-        lineItems: [],
-      }),
-    });
-    productModel.findByIdAndUpdate.mockReturnValue({
-      lean: vi.fn().mockResolvedValue({
-        _id: lineItem.productId,
-        purchasePlace: 'Service center',
-      }),
-    });
-  });
-
   it('allows returning product line item to stock for repair orders', async () => {
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(buildSale('repair')),
-    });
+    currentSale = buildSale('repair');
 
     await returnSaleLineItemToStock('507f1f77bcf86cd799439011', {
       lineItemId: lineItem.id,
@@ -120,7 +82,7 @@ describe('returnSaleLineItemToStock', () => {
       author: 'QA',
     });
 
-    expect(productModel.findByIdAndUpdate).toHaveBeenCalledWith(
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       lineItem.productId,
       {
         $inc: { quantity: lineItem.quantity },
@@ -128,13 +90,11 @@ describe('returnSaleLineItemToStock', () => {
       },
       { returnDocument: 'before' },
     );
-    expect(saleModel.findByIdAndUpdate).toHaveBeenCalled();
+    expect(Sale.findByIdAndUpdate).toHaveBeenCalled();
   });
 
   it('keeps return-to-stock flow working for sale orders', async () => {
-    saleModel.findById.mockReturnValue({
-      lean: vi.fn().mockResolvedValue(buildSale('sale')),
-    });
+    currentSale = buildSale('sale');
 
     await returnSaleLineItemToStock('507f1f77bcf86cd799439011', {
       lineItemId: lineItem.id,
@@ -142,7 +102,6 @@ describe('returnSaleLineItemToStock', () => {
       author: 'QA',
     });
 
-    expect(saleModel.findByIdAndUpdate).toHaveBeenCalled();
+    expect(Sale.findByIdAndUpdate).toHaveBeenCalled();
   });
 });
-

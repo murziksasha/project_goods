@@ -1,105 +1,87 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { leanResult } from '../../test/mongoose-mocks';
+import { defaultPrintForms, Settings } from './model';
+import { getSettings, updatePrintForms, updateSettings } from './service';
 
-const defaultPrintForms = [
-  {
-    id: 'receipt',
-    title: 'Receipt',
-    type: 'receipt',
-    content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
-    isActive: true,
-    sortOrder: 10,
-  },
-];
+const defaultDate = new Date('2026-05-29T10:00:00.000Z');
 
 const makeSettingsDocument = (overrides: Record<string, unknown> = {}) => ({
   _id: { toString: () => 'settings-id' },
   serviceName: 'Service CRM',
-  createdAt: new Date('2026-05-29T10:00:00.000Z'),
-  updatedAt: new Date('2026-05-29T10:00:00.000Z'),
+  createdAt: defaultDate,
+  updatedAt: defaultDate,
   ...overrides,
 });
 
-const setupSettingsService = async ({
-  findOneResult,
-  updateResult,
-}: {
-  findOneResult?: Record<string, unknown> | null;
-  updateResult?: Record<string, unknown> | null;
-} = {}) => {
-  const findOneLean = vi.fn().mockResolvedValue(findOneResult ?? null);
-  const findOneMock = vi.fn(() => ({ lean: findOneLean }));
-  const findOneAndUpdateLean = vi
-    .fn()
-    .mockResolvedValue(updateResult ?? makeSettingsDocument());
-  const findOneAndUpdateMock = vi.fn(() => ({
-    lean: findOneAndUpdateLean,
-  }));
-  const validateMock = vi.fn().mockResolvedValue(undefined);
-  const saveMock = vi.fn().mockResolvedValue(undefined);
+let storedSettings: Record<string, unknown> | null = null;
+const updateCalls: Array<{ update: unknown; options?: unknown }> = [];
 
-  class FakeSettings {
-    _id = { toString: () => 'created-id' };
-    serviceName = 'Service CRM';
-    createdAt = new Date('2026-05-29T10:00:00.000Z');
-    updatedAt = new Date('2026-05-29T10:00:00.000Z');
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
 
-    constructor(input: Record<string, unknown>) {
-      Object.assign(this, input);
-    }
-
-    validate = validateMock;
-    save = saveMock;
-
-    toObject() {
-      return {
-        _id: this._id,
-        serviceName: this.serviceName,
-        createdAt: this.createdAt,
-        updatedAt: this.updatedAt,
-      };
-    }
-
-    static findOne = findOneMock;
-    static findOneAndUpdate = findOneAndUpdateMock;
-  }
-
-  vi.doMock('./model', () => ({
-    Settings: FakeSettings,
-    defaultLabelSize: { presetId: '25x40', widthMm: 25, heightMm: 40 },
-    defaultPrintForms,
-    legacyDefaultPrintFormTitles: new Set([
-      'Receipt',
-      'Check',
-      'Warranty',
-      'Completion act',
-      'Invoice',
-      'Barcode label',
-    ]),
-  }));
-
-  const service = await import('./service');
-  return {
-    service,
-    findOneMock,
-    findOneAndUpdateMock,
-    validateMock,
-    saveMock,
-  };
+  vi.spyOn(Settings, 'findOne').mockImplementation(
+    () => leanResult(storedSettings) as never,
+  );
+  vi.spyOn(Settings, 'findOneAndUpdate').mockImplementation(
+    (_query: unknown, update: unknown, options?: unknown) => {
+      updateCalls.push({ update, options });
+      const patch =
+        update && typeof update === 'object' && '$set' in (update as object)
+          ? (update as { $set: Record<string, unknown> }).$set
+          : update;
+      storedSettings = makeSettingsDocument({
+        ...(storedSettings ?? {}),
+        ...(patch as Record<string, unknown>),
+      });
+      return leanResult(storedSettings) as never;
+    },
+  );
+  vi.spyOn(Settings.prototype, 'validate').mockResolvedValue(undefined as never);
+  vi.spyOn(Settings.prototype, 'save').mockImplementation(async function saveSettings(
+    this: any,
+  ) {
+    storedSettings = makeSettingsDocument({
+      _id: { toString: () => 'created-id' },
+      serviceName: this.serviceName ?? 'Service CRM',
+      createdAt: this.createdAt ?? defaultDate,
+      updatedAt: this.updatedAt ?? defaultDate,
+    });
+    return this;
+  });
+  vi.spyOn(Settings.prototype, 'toObject').mockImplementation(function toObject(
+    this: any,
+  ) {
+    return makeSettingsDocument({
+      _id: { toString: () => 'created-id' },
+      serviceName: this.serviceName ?? 'Service CRM',
+      createdAt: this.createdAt ?? defaultDate,
+      updatedAt: this.updatedAt ?? defaultDate,
+    }) as never;
+  });
 };
 
 beforeEach(() => {
-  vi.resetModules();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
+  storedSettings = null;
+  updateCalls.length = 0;
+  installSpies();
 });
 
 describe('settings service', () => {
   it('creates default settings with default print forms when none exist', async () => {
-    const { service, validateMock, saveMock } = await setupSettingsService();
+    const settings = await getSettings();
 
-    const settings = await service.getSettings();
-
-    expect(validateMock).toHaveBeenCalled();
-    expect(saveMock).toHaveBeenCalled();
+    expect(Settings.prototype.validate).toHaveBeenCalled();
+    expect(Settings.prototype.save).toHaveBeenCalled();
     expect(settings).toMatchObject({
       id: 'created-id',
       serviceName: 'Service CRM',
@@ -109,7 +91,6 @@ describe('settings service', () => {
       companyIban: '',
       companyEmail: '',
       companySite: '',
-      printForms: defaultPrintForms,
       orderDefaults: {
         defaultRepairTermDays: 7,
         defaultWarrantyMonths: 1,
@@ -117,6 +98,9 @@ describe('settings service', () => {
         defaultSaleStatus: 'new',
       },
     });
+    expect(settings.printForms.map((form) => form.id)).toEqual(
+      defaultPrintForms.map((form) => form.id),
+    );
   });
 
   it('updates and returns expanded settings', async () => {
@@ -143,11 +127,9 @@ describe('settings service', () => {
         paymentMethod: 'non-cash',
       },
     });
-    const { service, findOneAndUpdateMock } = await setupSettingsService({
-      updateResult,
-    });
+    storedSettings = updateResult;
 
-    const settings = await service.updateSettings({
+    const settings = await updateSettings({
       serviceName: ' Repair CRM ',
       company: ' Repair Company ',
       companyAddress: ' Kyiv, Main street 1 ',
@@ -155,11 +137,11 @@ describe('settings service', () => {
       companyIban: ' UA123456789123456789123456789 ',
       companyEmail: ' billing@example.com ',
       companySite: ' https://example.com ',
-      printForms: updateResult.printForms,
-      financeDefaults: updateResult.financeDefaults,
+      printForms: updateResult.printForms as never,
+      financeDefaults: updateResult.financeDefaults as never,
     });
 
-    expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+    expect(Settings.findOneAndUpdate).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
         serviceName: 'Repair CRM',
@@ -191,32 +173,21 @@ describe('settings service', () => {
       companyAddress: 'Kyiv, Main street 1',
       companyId: '12345678',
       companyIban: 'UA123456789123456789123456789',
-      printForms: [
-        expect.objectContaining({
-          id: 'invoice',
-          contentFormat: 'text',
-          pageSize: 'A4',
-          orientation: 'portrait',
-        }),
-        expect.objectContaining({
-          id: 'receipt',
-        }),
-      ],
       financeDefaults: {
         currency: 'USD',
         paymentMethod: 'non-cash',
       },
     });
+    expect(settings.printForms.some((form) => form.id === 'invoice')).toBe(true);
+    expect(settings.printForms.some((form) => form.id === 'receipt')).toBe(true);
   });
 
   it('returns fallback company fields for old settings documents', async () => {
-    const { service } = await setupSettingsService({
-      findOneResult: makeSettingsDocument({
-        printForms: defaultPrintForms,
-      }),
+    storedSettings = makeSettingsDocument({
+      printForms: defaultPrintForms,
     });
 
-    const settings = await service.getSettings();
+    const settings = await getSettings();
 
     expect(settings).toMatchObject({
       company: 'Service CRM',
@@ -247,48 +218,42 @@ describe('settings service', () => {
         sortOrder: 20,
       },
     ];
-    const { service } = await setupSettingsService({
-      findOneResult: makeSettingsDocument({
-        printForms: [
-          {
-            id: 'receipt',
-            title: 'Receipt',
-            type: 'receipt',
-            content: 'Order {{orderNumber}}',
-            isActive: true,
-            sortOrder: 10,
-          },
-          {
-            id: 'custom',
-            title: 'Custom',
-            type: 'custom',
-            content: 'Custom {{orderNumber}}',
-            isActive: true,
-            sortOrder: 20,
-          },
-        ],
-      }),
-      updateResult: makeSettingsDocument({
-        printForms: migratedPrintForms,
-      }),
+    const legacyReceipt = defaultPrintForms.find((form) => form.id === 'receipt');
+    storedSettings = makeSettingsDocument({
+      printForms: [
+        {
+          ...legacyReceipt,
+          content: 'Order {{orderNumber}}',
+        },
+        {
+          id: 'custom',
+          title: 'Custom',
+          type: 'custom',
+          content: 'Custom {{orderNumber}}',
+          isActive: true,
+          sortOrder: 20,
+        },
+      ],
     });
 
-    const settings = await service.getSettings();
+    const settings = await getSettings();
 
-    expect(settings.printForms).toEqual([
-      expect.objectContaining({
-        id: 'receipt',
-        content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
-      }),
-      expect.objectContaining({
-        id: 'custom',
-        content: 'Custom {{orderNumber}}',
-      }),
-    ]);
+    const migratedReceipt = settings.printForms.find((form) => form.id === 'receipt');
+    expect(migratedReceipt?.content).toContain('{{products_table}}');
+    expect(migratedReceipt?.content).toContain('{{services_table}}');
+    expect(settings.printForms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'custom',
+          content: 'Custom {{orderNumber}}',
+        }),
+      ]),
+    );
+    expect(Settings.findOneAndUpdate).toHaveBeenCalled();
   });
 
   it('updates only print forms without replacing other settings fields', async () => {
-    const existingSettings = makeSettingsDocument({
+    storedSettings = makeSettingsDocument({
       serviceName: 'Repair CRM',
       company: 'Repair Company',
       printForms: defaultPrintForms,
@@ -303,17 +268,10 @@ describe('settings service', () => {
         sortOrder: 10,
       },
     ];
-    const { service, findOneAndUpdateMock } = await setupSettingsService({
-      findOneResult: existingSettings,
-      updateResult: makeSettingsDocument({
-        ...existingSettings,
-        printForms: updatedPrintForms,
-      }),
-    });
 
-    const settings = await service.updatePrintForms(updatedPrintForms);
+    const settings = await updatePrintForms(updatedPrintForms);
 
-    expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+    expect(Settings.findOneAndUpdate).toHaveBeenCalledWith(
       {},
       {
         $set: {

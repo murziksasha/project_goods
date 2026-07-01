@@ -1,8 +1,15 @@
+import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as errors from '../../shared/lib/errors';
+import { leanResult } from '../../test/mongoose-mocks';
+import { Sale } from '../sale/model';
+import { ClientDevice } from './model';
+import { updateClientDevice } from './service';
 
 const clientId = '507f1f77bcf86cd799439011';
 const deviceId = '507f1f77bcf86cd799439012';
 const linkedSaleId = '507f1f77bcf86cd799439013';
+
 const existingDevice = {
   _id: deviceId,
   client: clientId,
@@ -13,6 +20,7 @@ const existingDevice = {
   note: '',
   source: 'repairOrder',
   isActive: true,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
 
@@ -44,69 +52,38 @@ const linkedRepairSale = {
   ],
 };
 
-const {
-  clientDeviceModel,
-  saleModel,
-  assertNotStaleMock,
-  formatClientDeviceMock,
-} = vi.hoisted(() => ({
-  clientDeviceModel: {
-    findById: vi.fn(),
-    exists: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-  },
-  saleModel: {
-    find: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-    countDocuments: vi.fn(),
-  },
-  assertNotStaleMock: vi.fn(),
-  formatClientDeviceMock: vi.fn((device, usageCount = 0) => ({
-    id: device._id,
-    clientId: device.client?.toString?.() ?? device.client,
-    name: device.name,
-    serialNumber: device.serialNumber,
-    usageCount,
-    canRemove: usageCount === 0,
-  })),
-}));
+let linkedSales: any[] = [];
 
-vi.mock('./model', () => ({
-  ClientDevice: clientDeviceModel,
-}));
+const installSpies = () => {
+  vi.spyOn(mongoose, 'isValidObjectId').mockImplementation(
+    (value: unknown) =>
+      typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
+  );
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    configurable: true,
+    get: () => 0,
+  });
 
-vi.mock('../sale/model', () => ({
-  Sale: saleModel,
-}));
-
-vi.mock('../../shared/lib/formatters', () => ({
-  formatClientDevice: formatClientDeviceMock,
-}));
-
-vi.mock('../../shared/lib/query', () => ({
-  isValidObjectIdOrThrow: vi.fn(),
-}));
-
-vi.mock('../../shared/lib/errors', () => ({
-  assertNotStale: assertNotStaleMock,
-}));
-
-import { updateClientDevice } from './service';
+  vi.spyOn(errors, 'assertNotStale').mockImplementation(() => undefined);
+  vi.spyOn(ClientDevice, 'findById').mockReturnValue(
+    leanResult(existingDevice) as never,
+  );
+  vi.spyOn(ClientDevice, 'exists').mockResolvedValue(null as never);
+  vi.spyOn(ClientDevice, 'findByIdAndUpdate').mockReturnValue(
+    leanResult(updatedDevice) as never,
+  );
+  vi.spyOn(Sale, 'find').mockImplementation(
+    () => leanResult(linkedSales) as never,
+  );
+  vi.spyOn(Sale, 'findByIdAndUpdate').mockResolvedValue(null as never);
+  vi.spyOn(Sale, 'countDocuments').mockResolvedValue(1 as never);
+};
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
-  clientDeviceModel.findById.mockReturnValue({
-    lean: vi.fn().mockResolvedValue(existingDevice),
-  });
-  clientDeviceModel.exists.mockResolvedValue(false);
-  clientDeviceModel.findByIdAndUpdate.mockReturnValue({
-    lean: vi.fn().mockResolvedValue(updatedDevice),
-  });
-  saleModel.find.mockReturnValue({
-    lean: vi.fn().mockResolvedValue([linkedRepairSale]),
-  });
-  saleModel.findByIdAndUpdate.mockResolvedValue(null);
-  saleModel.countDocuments.mockResolvedValue(1);
+  linkedSales = [linkedRepairSale];
+  installSpies();
 });
 
 describe('updateClientDevice repair sale propagation', () => {
@@ -122,8 +99,8 @@ describe('updateClientDevice repair sale propagation', () => {
       isActive: true,
     });
 
-    expect(saleModel.find).toHaveBeenCalledTimes(1);
-    expect(saleModel.find.mock.calls[0][0]).toEqual({
+    expect(Sale.find).toHaveBeenCalledTimes(1);
+    expect(Sale.find.mock.calls[0][0]).toEqual({
       client: clientId,
       kind: 'repair',
       $or: [
@@ -144,7 +121,7 @@ describe('updateClientDevice repair sale propagation', () => {
         },
       ],
     });
-    expect(saleModel.findByIdAndUpdate).toHaveBeenCalledWith(linkedSaleId, {
+    expect(Sale.findByIdAndUpdate).toHaveBeenCalledWith(linkedSaleId, {
       productSnapshot: {
         article: 'REPAIR',
         name: 'Correct name',
@@ -161,9 +138,7 @@ describe('updateClientDevice repair sale propagation', () => {
   });
 
   it('does not update repair sales that no longer match the previous device name', async () => {
-    saleModel.find.mockReturnValue({
-      lean: vi.fn().mockResolvedValue([]),
-    });
+    linkedSales = [];
 
     await updateClientDevice(deviceId, {
       clientId,
@@ -176,6 +151,6 @@ describe('updateClientDevice repair sale propagation', () => {
       isActive: true,
     });
 
-    expect(saleModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(Sale.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 });
