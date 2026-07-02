@@ -241,7 +241,12 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
   const existing = await SupplierOrder.findById(supplierOrderId);
   if (!existing) throw new Error('Supplier order not found.');
-  if (existing.paymentStatus === 'paid' || existing.paymentStatus === 'without_payment') throw new Error('Оплачений заказ не можна скасувати.');
+  if (existing.status === 'cancelled' || existing.paymentStatus === 'cancelled') {
+    throw new Error('Замовлення вже скасовано.');
+  }
+  if (existing.status === 'stocked' || existing.receiptStatus === 'received') {
+    throw new Error('Оприбутковане замовлення не можна скасувати.');
+  }
 
   existing.status = 'cancelled';
   existing.paymentStatus = 'cancelled';

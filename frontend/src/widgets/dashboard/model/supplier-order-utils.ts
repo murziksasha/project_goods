@@ -3,7 +3,57 @@ import i18n from '../../../shared/i18n/config';
 import type {
   SupplierOrder,
   SupplierOrderItem,
+  SupplierReceiptStatus,
 } from '../../../entities/supplier-order/model/types';
+
+export type SupplierOrderModalLocks = {
+  isContentLocked: boolean;
+  isTakeOnChargeLocked: boolean;
+  isCancelLocked: boolean;
+};
+
+export type SupplierOrderModalLockInput = Pick<
+  SupplierOrder,
+  'status' | 'paymentStatus' | 'receiptStatus' | 'items'
+>;
+
+export type SupplierOrderModalLockOptions = {
+  itemReceiptStatus?: SupplierReceiptStatus;
+};
+
+const isSupplierOrderFinalCancelled = (order: SupplierOrderModalLockInput) =>
+  order.status === 'cancelled' || order.paymentStatus === 'cancelled';
+
+const isSupplierOrderFullyReceived = (order: SupplierOrderModalLockInput) =>
+  order.status === 'stocked' || order.receiptStatus === 'received';
+
+export const resolveSupplierOrderModalLocks = (
+  order: SupplierOrderModalLockInput | null | undefined,
+  options?: SupplierOrderModalLockOptions,
+): SupplierOrderModalLocks => {
+  if (!order) {
+    return {
+      isContentLocked: false,
+      isTakeOnChargeLocked: false,
+      isCancelLocked: false,
+    };
+  }
+
+  const cancelled = isSupplierOrderFinalCancelled(order);
+  const fullyReceived = isSupplierOrderFullyReceived(order);
+  const itemReceived =
+    options?.itemReceiptStatus === 'received' ||
+    (order.items.length === 1 && order.items[0]?.receiptStatus === 'received');
+
+  const isTakeOnChargeLocked = cancelled || fullyReceived || itemReceived;
+  const isContentLocked =
+    isTakeOnChargeLocked ||
+    order.paymentStatus === 'paid' ||
+    order.paymentStatus === 'without_payment';
+  const isCancelLocked = cancelled || fullyReceived;
+
+  return { isContentLocked, isTakeOnChargeLocked, isCancelLocked };
+};
 
 export type SupplierOrderProductStat = {
   productName: string;

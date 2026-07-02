@@ -18,6 +18,7 @@ import type {
   SupplierOrderProductStat,
   SupplierOrderSupplierStat,
 } from '../../model/supplier-order-utils';
+import { buildSupplierOrderItemNumber } from '../../model/supplier-order-utils';
 import {
   buildGroupedSupplierOrderView,
   formatPercent,
@@ -795,7 +796,15 @@ export const SupplierOrdersTable = ({
                             onError(t('orders.supplier.messages.errors.noViewPermission'));
                             return;
                           }
-                          onEditOrder(order);
+                          onEditOrder({
+                            ...order,
+                            receiptStatus: item.receiptStatus ?? 'new',
+                            number: buildSupplierOrderItemNumber(
+                              order,
+                              item.itemIndex,
+                            ),
+                            items: [item],
+                          });
                         }}
                       >
                         {id}

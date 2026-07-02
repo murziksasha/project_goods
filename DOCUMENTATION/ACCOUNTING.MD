@@ -58,6 +58,10 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or `receiptStatus = received`), order content fields are locked.
 - Locked fields include supplier, delivery date, supply type, order number, note, item name, quantity, and price.
 - In locked mode, save and mutation actions are unavailable; only viewing and closing are allowed.
+- For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep both warehouse actions available:
+  - `Оприбуткувати`,
+  - `Скасувати`.
+- `paymentStatus = paid` or `without_payment` on an `approved` order locks content editing only; it must not block take-on-charge or cancel in `Orders -> Supplier Order`, Warehouse receipts, or linked sale/order card flows.
 
 ## Financial Queue Rules (`Accounting -> Замовлення`)
 - Supplier order payment queue includes orders with:

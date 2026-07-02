@@ -661,16 +661,7 @@ export const SupplierOrdersWorkspace = ({
         isOpen={isModalOpen}
         suppliers={suppliers}
         editingOrder={editingOrder}
-        forceReadOnly={Boolean(
-          editingOrder &&
-            (!canManageSupplierOrders ||
-            (editingOrder.status === 'stocked' ||
-              editingOrder.receiptStatus === 'received' ||
-              editingOrder.status === 'cancelled' ||
-              editingOrder.paymentStatus === 'cancelled' ||
-              editingOrder.paymentStatus === 'paid' ||
-              editingOrder.paymentStatus === 'without_payment')),
-        )}
+        forceReadOnly={!canManageSupplierOrders}
         onClose={() => {
           setIsModalOpen(false);
           setEditingOrder(null);

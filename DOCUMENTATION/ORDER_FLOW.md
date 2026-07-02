@@ -287,8 +287,13 @@
 - If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
 - If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
 - Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
-- If the order is locked by receipt/payment/final status, the opened modal is read-only instead of blocked.
-- Editable controls remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order lock rules.
+- If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, or `cancelled`), the opened modal is read-only instead of blocked.
+- For `status = approved` that is not yet stocked/received, the modal must allow warehouse actions:
+  - `Оприбуткувати` (take-on-charge),
+  - `Скасувати` (cancel),
+  regardless of `paymentStatus` (`pending`, `paid`, `without_payment`).
+- On `approved` orders, `paid` / `without_payment` may lock order content fields (supplier, items, prices), but must not hide or disable take-on-charge / cancel actions when the employee has `supplierOrders.manage`.
+- Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
 
 ## Truncated Text Hover Tooltip
 

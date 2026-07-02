@@ -277,12 +277,18 @@ Implementation references:
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.
 - Projection rule: if `status = cancelled` OR `paymentStatus = cancelled`, row state is `cancelled` regardless of previous `receiptStatus`.
 
-### 8) Take-On-Charge Availability
-- Action `Оприбуткувати` in receipt-linked supplier order is allowed regardless of payment state (`pending` / `paid`).
-- Locks for action/edit:
+### 8) Take-On-Charge and Cancel Availability (`Approved`)
+- For `status = approved` that is not yet stocked/received, operator must be able to either:
+  1. take the order on charge (`Оприбуткувати`), or
+  2. cancel it (`Скасувати`),
+  from `SupplierOrderModal` in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
+- Both actions are allowed regardless of payment state (`pending` / `paid` / `without_payment`).
+- Locks for take-on-charge and cancel:
 1. selected item `receiptStatus = received`
-2. `status = cancelled`
-3. `paymentStatus = cancelled`
+2. order-level `status = stocked` or `receiptStatus = received`
+3. `status = cancelled`
+4. `paymentStatus = cancelled`
+- `paid` / `without_payment` must not block take-on-charge or cancel while the order remains `approved` and unreceived.
 
 ### 9) New Receipt Order Initial State
 - New supplier order created from `Warehouse -> Receipts` starts as `approved` (not auto-`stocked`) to allow later receiving.
