@@ -16,7 +16,7 @@ import {
   formatMoney,
   formatTransactionDayLabel,
   initialTransactionFilters,
-  parseTransactionOrderToken,
+  resolveTransactionNoteLink,
   type TransactionFilters,
 } from '../../model/accounting';
 import { getOrderLink } from '../orders/create-order/create-order-card-shared';
@@ -480,57 +480,51 @@ export const AccountingTransactionsView = ({
                       </td>
                       <td data-label={t('accounting.transactions.note')}>
                         {(() => {
-                          const token = parseTransactionOrderToken(
-                            transaction.note,
-                          );
-                          if (token) {
-                            const normalizedToken = token.toLowerCase();
-                            const matchedSale = sales.find(
-                              (sale) =>
-                                (sale.recordNumber ?? '').toLowerCase() ===
-                                  normalizedToken ||
-                                sale.id.toLowerCase() === normalizedToken,
+                          const noteLink = resolveTransactionNoteLink({
+                            note: transaction.note,
+                            sales,
+                            supplierOrders,
+                          });
+
+                          if (noteLink.kind === 'sale') {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() => {
+                                  const url = getOrderLink(
+                                    noteLink.sale.id,
+                                    noteLink.sale.kind,
+                                  );
+                                  window.open(url, '_blank', 'noopener,noreferrer');
+                                }}
+                              >
+                                {transaction.note}
+                              </button>
                             );
-                            if (matchedSale) {
-                              return (
-                                <button
-                                  type='button'
-                                  className='catalog-name-button'
-                                  onClick={() => {
-                                    const url = getOrderLink(
-                                      matchedSale.id,
-                                      matchedSale.kind,
-                                    );
-                                    window.open(url, '_blank', 'noopener,noreferrer');
-                                  }}
-                                >
-                                  {transaction.note}
-                                </button>
-                              );
-                            }
-                            const matchedOrder = supplierOrders.find(
-                              (order) =>
-                                order.number === token ||
-                                order.orderBaseId === token,
-                            );
-                            if (matchedOrder) {
-                              return (
-                                <button
-                                  type='button'
-                                  className='catalog-name-button'
-                                  onClick={() =>
-                                    onSelectedSupplierOrderChange(matchedOrder)
-                                  }
-                                >
-                                  {transaction.note}
-                                </button>
-                              );
-                            }
                           }
-                          const hasNote =
-                            transaction.note &&
-                            transaction.note.trim().length > 0;
-                          if (hasNote) {
+
+                          if (noteLink.kind === 'supplier') {
+                            return (
+                              <button
+                                type='button'
+                                className='catalog-name-button'
+                                onClick={() =>
+                                  onSelectedSupplierOrderChange(
+                                    noteLink.supplierOrder,
+                                  )
+                                }
+                              >
+                                {transaction.note}
+                              </button>
+                            );
+                          }
+
+                          if (noteLink.kind === 'linked') {
+                            return transaction.note?.trim() ? transaction.note : '-';
+                          }
+
+                          if (transaction.note?.trim()) {
                             return (
                               <button
                                 type='button'
@@ -544,6 +538,7 @@ export const AccountingTransactionsView = ({
                               </button>
                             );
                           }
+
                           return '-';
                         })()}
                       </td>

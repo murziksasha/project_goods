@@ -541,7 +541,7 @@ export const AccountingPanel = ({
   const handlePaySupplierOrder = async (
     order: SupplierOrderPaymentQueueItem,
     cashboxId: string,
-    orderNumber: string,
+    _orderNumber: string,
   ) => {
     if (!cashboxId) return;
     await runFinanceAction(
@@ -550,7 +550,9 @@ export const AccountingPanel = ({
           supplierOrderId: order.id,
           payload: {
             cashboxId,
-            note: i18n.t('accounting.orders.paymentNote', { orderNumber }),
+            note: i18n.t('accounting.orders.paymentNote', {
+              orderNumber: order.orderBaseId,
+            }),
           },
         }),
       i18n.t('accounting.messages.success.orderPaid'),

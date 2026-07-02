@@ -1212,7 +1212,7 @@ describe('AccountingPanel', () => {
     await waitFor(() =>
       expect(paySupplierOrderMock).toHaveBeenCalledWith('queue-1', {
         cashboxId: 'cashbox-1',
-        note: 'Payment for order SO-1',
+        note: 'Payment for order base-1',
       }),
     );
 
@@ -1398,6 +1398,41 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 
     expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
     expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('Supplier order payment backend note opens supplier modal instead of note editor', async () => {
+    const onSelect = vi.fn();
+    const onEdit = vi.fn();
+    const props = {
+      ...minimalProps('Supplier order payment: base-77', [], [sampleSupplier]),
+      onSelectedSupplierOrderChange: onSelect,
+      onEditTransactionNote: onEdit,
+    };
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+
+    const noteBtn = screen.getByRole('button', { name: 'Supplier order payment: base-77' });
+    fireEvent.click(noteBtn);
+
+    expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it('order-linked note without a matching entity stays read-only', async () => {
+    const onEdit = vi.fn();
+    const props = {
+      ...minimalProps('Payment for order MISSING-1', [], []),
+      onEditTransactionNote: onEdit,
+    };
+    const { container } = renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
+
+    expect(container.textContent).toContain('Payment for order MISSING-1');
+    expect(
+      screen.queryByRole('button', { name: 'Payment for order MISSING-1' }),
+    ).not.toBeInTheDocument();
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it('Ukrainian supplier-order payment note opens supplier modal instead of note editor', async () => {
