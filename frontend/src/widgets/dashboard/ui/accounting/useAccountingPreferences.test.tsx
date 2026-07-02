@@ -112,7 +112,6 @@ const Harness = ({
 describe('useAccountingPreferences', () => {
   afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
   });

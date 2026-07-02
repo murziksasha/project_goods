@@ -24,25 +24,27 @@ function getInitialLanguage(): string {
   return String(navLang).toLowerCase().startsWith('uk') ? 'uk' : 'en';
 }
 
-i18n.use(initReactI18next).init({
-  resources: {
-    en: { translation: en },
-    uk: { translation: uk },
-  },
-  lng: getInitialLanguage(),
-  fallbackLng: 'uk',
-  supportedLngs: ['en', 'uk'],
-  nonExplicitSupportedLngs: true,
-  interpolation: {
-    escapeValue: false,
-  },
-  debug: (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ?? false,
-  react: {
-    useSuspense: false,
-    bindI18n: 'languageChanged',
-    bindI18nStore: 'added removed',
-  },
-});
+if (!i18n.isInitialized) {
+  i18n.use(initReactI18next).init({
+    resources: {
+      en: { translation: en },
+      uk: { translation: uk },
+    },
+    lng: getInitialLanguage(),
+    fallbackLng: 'uk',
+    supportedLngs: ['en', 'uk'],
+    nonExplicitSupportedLngs: true,
+    interpolation: {
+      escapeValue: false,
+    },
+    debug: (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ?? false,
+    react: {
+      useSuspense: false,
+      bindI18n: 'languageChanged',
+      bindI18nStore: 'added removed',
+    },
+  });
+}
 
 i18n.on('languageChanged', (lng: string) => {
   try {

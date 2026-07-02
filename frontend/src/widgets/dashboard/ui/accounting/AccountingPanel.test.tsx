@@ -5,6 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as financeApi from '../../../../entities/finance/api/financeApi';
 import i18n from '../../../../shared/i18n/config';
+import { AccountingPanel } from './AccountingPanel';
 import * as useAccountingFinanceDataModule from './useAccountingFinanceData';
 import * as useAccountingPreferencesModule from './useAccountingPreferences';
 
@@ -20,10 +21,8 @@ import type {
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
-import type { AccountingPanel as AccountingPanelComponent } from './AccountingPanel';
 import type { AccountingTransactionsView as RealAccountingTransactionsViewComponent } from './AccountingTransactionsView';
 
-let AccountingPanel: typeof AccountingPanelComponent;
 let RealAccountingTransactionsView: typeof RealAccountingTransactionsViewComponent;
 
 const {
@@ -115,13 +114,23 @@ vi.mock('../../../../entities/finance/api/financeApi', async (importOriginal) =>
 });
 
 vi.mock('./useAccountingFinanceData', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./useAccountingFinanceData')>();
-  return { ...actual, useAccountingFinanceData: useAccountingFinanceDataMock };
+  const actual = await importOriginal<
+    typeof import('./useAccountingFinanceData')
+  >();
+  return {
+    ...actual,
+    useAccountingFinanceData: useAccountingFinanceDataMock,
+  };
 });
 
 vi.mock('./useAccountingPreferences', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./useAccountingPreferences')>();
-  return { ...actual, useAccountingPreferences: useAccountingPreferencesMock };
+  const actual = await importOriginal<
+    typeof import('./useAccountingPreferences')
+  >();
+  return {
+    ...actual,
+    useAccountingPreferences: useAccountingPreferencesMock,
+  };
 });
 
 const now = '2026-06-16T10:00:00.000Z';
@@ -227,15 +236,17 @@ const mutableState = {
 };
 
 let panelRerender: (() => void) | null = null;
+let cryptoUuidCounter = 0;
 
-const setupHooks = (
+const buildFinanceDataState = (
   patch: Partial<ReturnType<typeof useAccountingFinanceDataMock>> = {},
 ) => {
   const cashboxes = [
     cashbox(),
     cashbox({ id: 'cashbox-2', name: 'Reserve', balances: { UAH: 0, USD: 0 } }),
   ];
-  useAccountingFinanceDataMock.mockReturnValue({
+
+  return {
     allCashboxes: cashboxes,
     cashboxes,
     currencies: [{ ...currency(), code: 'UAH', isSystem: true }, currency()],
@@ -248,13 +259,46 @@ const setupHooks = (
     supplierOrdersQueue: [queueItem()],
     transactions: [transfer()],
     ...patch,
-  });
+  };
+};
+
+type Procedure = (...args: any[]) => any;
+type ModuleMethod<T extends object> = keyof {
+  [K in keyof T as T[K] extends Procedure ? K : never]: T[K];
+};
+
+const wireHookMock = <
+  TModule extends Record<string, Procedure>,
+  TKey extends ModuleMethod<Required<TModule>>,
+>(
+  module: TModule,
+  exportName: TKey,
+  mockFn: TModule[TKey],
+) => {
+  const current = module[exportName];
+  if (vi.isMockFunction(current)) {
+    current.mockImplementation(mockFn as Procedure);
+    return;
+  }
+  vi.spyOn(module, exportName).mockImplementation(mockFn as never);
+};
+
+const setupHooks = (
+  patch: Partial<ReturnType<typeof useAccountingFinanceDataMock>> = {},
+) => {
+  const state = buildFinanceDataState(patch);
+  useAccountingFinanceDataMock.mockImplementation(() => state);
+  wireHookMock(
+    useAccountingFinanceDataModule,
+    'useAccountingFinanceData',
+    useAccountingFinanceDataMock,
+  );
 };
 
 const setupPreferences = (
   patch: Partial<ReturnType<typeof useAccountingPreferencesMock>> = {},
 ) => {
-  useAccountingPreferencesMock.mockImplementation(() => ({
+  const implementation = () => ({
     activeTab: mutableState.activeTab,
     expandedFinanceSettingsCard: mutableState.expandedFinanceSettingsCard,
     financeSettingsTab: mutableState.financeSettingsTab,
@@ -292,7 +336,13 @@ const setupPreferences = (
       }
     }),
     ...patch,
-  }));
+  });
+  useAccountingPreferencesMock.mockImplementation(implementation);
+  wireHookMock(
+    useAccountingPreferencesModule,
+    'useAccountingPreferences',
+    useAccountingPreferencesMock,
+  );
 };
 
 const restoreApiMocks = () => {
@@ -364,12 +414,6 @@ const restoreApiMocks = () => {
     mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: unknown }) =>
       updateFinanceTransactionMock(transactionId, payload),
   } as unknown as ReturnType<typeof financeApi.useUpdateFinanceTransactionMutation>);
-  vi.spyOn(useAccountingFinanceDataModule, 'useAccountingFinanceData').mockImplementation(
-    useAccountingFinanceDataMock,
-  );
-  vi.spyOn(useAccountingPreferencesModule, 'useAccountingPreferences').mockImplementation(
-    useAccountingPreferencesMock,
-  );
 };
 
 const renderWithProviders = (ui: ReactElement) => {
@@ -510,11 +554,7 @@ const resetMutableState = () => {
   mutableState.financeSettingsTab = 'cashboxes';
 };
 
-const preparePanelTest = async () => {
-  vi.restoreAllMocks();
-  vi.useRealTimers();
-  resetMutableState();
-  panelRerender = null;
+const resetHoistedMocks = () => {
   cancelFinanceTransactionMock.mockReset();
   createCashboxMock.mockReset();
   createFinanceCurrencyMock.mockReset();
@@ -526,9 +566,17 @@ const preparePanelTest = async () => {
   updateFinanceTransactionMock.mockReset();
   useAccountingFinanceDataMock.mockReset();
   useAccountingPreferencesMock.mockReset();
+};
+
+const preparePanelTest = async () => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  resetMutableState();
+  panelRerender = null;
+  resetHoistedMocks();
+  restoreApiMocks();
   setupHooks();
   setupPreferences();
-  restoreApiMocks();
   createCashboxMock.mockResolvedValue(cashbox());
   createFinanceTransactionMock.mockResolvedValue(transfer());
   createFinanceCurrencyMock.mockResolvedValue(currency());
@@ -537,15 +585,18 @@ const preparePanelTest = async () => {
   cancelFinanceTransactionMock.mockResolvedValue(transfer());
   paySupplierOrderMock.mockResolvedValue(undefined);
   issueSupplierOrderWithoutPaymentMock.mockResolvedValue(undefined);
-  vi.stubGlobal('crypto', { randomUUID: () => 'uuid-1' });
-  ({ AccountingPanel } = await import('./AccountingPanel'));
+  cryptoUuidCounter = 0;
+  vi.stubGlobal('crypto', {
+    randomUUID: () => `uuid-${++cryptoUuidCounter}`,
+  });
+  await i18n.changeLanguage('en');
 };
 
 describe('AccountingPanel', () => {
   afterEach(() => {
     cleanup();
-    vi.unstubAllGlobals();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   beforeEach(async () => {
@@ -557,7 +608,7 @@ describe('AccountingPanel', () => {
 
     renderPanel();
 
-    expect(screen.getByText('Loading finance data...')).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('accounting.transactions.loading'))).toBeInTheDocument();
   });
 
   it('drives cashbox operations from the cashboxes view', async () => {
@@ -1425,6 +1476,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 describe('AccountingPanel transaction note editing', () => {
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   beforeEach(async () => {

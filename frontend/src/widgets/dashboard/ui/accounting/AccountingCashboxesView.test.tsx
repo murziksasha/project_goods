@@ -77,7 +77,7 @@ const renderView = (
 describe('AccountingCashboxesView', () => {
   afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders totals, cashbox balances, management controls and action callbacks', () => {

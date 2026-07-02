@@ -1371,15 +1371,6 @@ export const OrderDetailCard = ({
         isOpen={isRelatedSupplierOrderModalOpen}
         suppliers={relatedSuppliers}
         editingOrder={selectedRelatedSupplierOrder}
-        forceReadOnly={Boolean(
-          selectedRelatedSupplierOrder &&
-            (selectedRelatedSupplierOrder.status === 'stocked' ||
-              selectedRelatedSupplierOrder.receiptStatus === 'received' ||
-              selectedRelatedSupplierOrder.status === 'cancelled' ||
-              selectedRelatedSupplierOrder.paymentStatus === 'cancelled' ||
-              selectedRelatedSupplierOrder.paymentStatus === 'paid' ||
-              selectedRelatedSupplierOrder.paymentStatus === 'without_payment'),
-        )}
         warehouseOptions={relatedWarehouseOptions}
         onClose={() => {
           setIsRelatedSupplierOrderModalOpen(false);

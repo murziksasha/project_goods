@@ -946,6 +946,9 @@
         "loading": "Loading...",
         "empty": "No supplier orders found."
       },
+      "statusMenu": {
+        "orderLabel": "Order {{id}}"
+      },
       "information": {
         "loading": "Loading...",
         "empty": "No supplier-order information for the selected filters.",
@@ -1045,7 +1048,12 @@
           "duplicateProductsInOrder": "An order cannot contain duplicate products.",
           "failedCreateProduct": "Failed to create product.",
           "failedTakeOnCharge": "Failed to take order on charge.",
-          "failedCreateSupplier": "Failed to create supplier."
+          "failedCreateSupplier": "Failed to create supplier.",
+          "paidNotEditable": "Paid supplier orders cannot be edited.",
+          "paidNotCancellable": "Paid supplier orders cannot be cancelled from the modal.",
+          "receivedNotCancellable": "Received supplier orders cannot be cancelled.",
+          "alreadyCancelled": "Supplier order is already cancelled.",
+          "closedNotReceivable": "Closed supplier orders cannot be taken on charge."
         },
         "success": {
           "statusUpdated": "Supplier order status updated.",

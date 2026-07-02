@@ -145,8 +145,8 @@ export const CreateOrderSaleSection = ({
                 ))}
               </select>
             </label>
-            <label className="field">
-              <span>&nbsp;</span>
+            <div className="field sale-item-action">
+              <span aria-hidden="true">&nbsp;</span>
               <button
                 type="button"
                 className="toolbar-square-button sale-item-add-button"
@@ -163,7 +163,7 @@ export const CreateOrderSaleSection = ({
               >
                 {index === saleItems.length - 1 ? '+' : '-'}
               </button>
-            </label>
+            </div>
           </div>
         ))}
       </div>
