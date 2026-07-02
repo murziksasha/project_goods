@@ -416,6 +416,7 @@ export const WarehousePanel = ({
         acceptedAt: order.updatedAt,
         status:
           order.status === 'cancelled' ||
+          order.status === 'unavailable' ||
           order.paymentStatus === 'cancelled'
             ? 'cancelled'
             : item.receiptStatus ?? 'new',

@@ -299,9 +299,12 @@ const afterDebouncedInput = async (
   assertion: () => void,
 ) => {
   vi.useFakeTimers();
-  action();
-  await advanceDebounce();
-  vi.useRealTimers();
+  try {
+    action();
+    await advanceDebounce();
+  } finally {
+    vi.useRealTimers();
+  }
   await waitFor(assertion, { timeout: 3000 });
 };
 
@@ -392,8 +395,9 @@ const restoreApiMocks = () => {
 
 describe('CreateOrderCard', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     getClientsMock.mockReset();
     getClientHistoryMock.mockReset();
     getClientDevicesMock.mockReset();
@@ -407,8 +411,9 @@ describe('CreateOrderCard', () => {
   afterEach(() => {
     cleanup();
     window.localStorage.clear();
-    vi.restoreAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
   it('renders registered client devices with unbind in the side panel', () => {
     const onUnbindDevice = vi.fn();
@@ -1246,29 +1251,31 @@ describe('CreateOrderCard', () => {
       expect(screen.getByPlaceholderText('Add service')).toBeInTheDocument();
     });
 
-    vi.useFakeTimers();
-    fireEvent.change(screen.getByPlaceholderText('Add service'), {
-      target: { value: 'Screen cleaning' },
-    });
-    await advanceDebounce();
-    vi.useRealTimers();
-    await waitFor(() => {
-      expect(getServiceCatalogItemsMock).toHaveBeenCalled();
-      expect(screen.getByText('Screen cleaning')).toBeInTheDocument();
-    });
+    await afterDebouncedInput(
+      () => {
+        fireEvent.change(screen.getByPlaceholderText('Add service'), {
+          target: { value: 'Screen cleaning' },
+        });
+      },
+      () => {
+        expect(getServiceCatalogItemsMock).toHaveBeenCalled();
+        expect(screen.getByText('Screen cleaning')).toBeInTheDocument();
+      },
+    );
 
     fireEvent.click(screen.getByText('Screen cleaning'));
     fireEvent.click(document.querySelector('.create-order-add-service-button')!);
 
-    vi.useFakeTimers();
-    fireEvent.change(screen.getByPlaceholderText('Add service'), {
-      target: { value: 'Diagnostics' },
-    });
-    await advanceDebounce();
-    vi.useRealTimers();
-    await waitFor(() => {
-      expect(screen.getByText('Diagnostics')).toBeInTheDocument();
-    });
+    await afterDebouncedInput(
+      () => {
+        fireEvent.change(screen.getByPlaceholderText('Add service'), {
+          target: { value: 'Diagnostics' },
+        });
+      },
+      () => {
+        expect(screen.getByText('Diagnostics')).toBeInTheDocument();
+      },
+    );
 
     fireEvent.click(screen.getByText('Diagnostics'));
     fireEvent.click(document.querySelector('.create-order-add-service-button')!);

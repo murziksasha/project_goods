@@ -23,8 +23,12 @@ import type {
   SupplierPaymentStatus,
 } from '../../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import { buildSupplierOrderAnalytics } from '../../model/supplier-order-utils';
 import {
+  buildSupplierOrderAnalytics,
+  resolveSupplierOrderErrorMessage,
+} from '../../model/supplier-order-utils';
+import {
+  computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
@@ -143,6 +147,8 @@ export const SupplierOrdersWorkspace = ({
   const [statusMenuPosition, setStatusMenuPosition] = useState<{
     top: number;
     left: number;
+    maxHeight: number;
+    placement: 'below' | 'above';
   } | null>(null);
   const [statusQuery, setStatusQuery] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
@@ -229,23 +235,17 @@ export const SupplierOrdersWorkspace = ({
       return;
     }
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const closeStatusMenu = () => {
       setOpenStatusOrder(null);
     };
 
-    const closeStatusMenuOnOutsideScroll = (event: Event) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('.supplier-order-status-menu-portal')) {
-        return;
-      }
-      closeStatusMenu();
-    };
-
     window.addEventListener('resize', closeStatusMenu);
-    window.addEventListener('scroll', closeStatusMenuOnOutsideScroll, true);
     return () => {
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('resize', closeStatusMenu);
-      window.removeEventListener('scroll', closeStatusMenuOnOutsideScroll, true);
     };
   }, [openStatusOrder]);
 
@@ -443,9 +443,11 @@ export const SupplierOrdersWorkspace = ({
       onSuccess(t('orders.supplier.messages.success.statusUpdated'));
     } catch (error) {
       onError(
-        error instanceof Error
-          ? error.message
-          : t('orders.supplier.messages.errors.failedUpdateStatus'),
+        resolveSupplierOrderErrorMessage(
+          error,
+          t,
+          'orders.supplier.messages.errors.failedUpdateStatus',
+        ),
       );
     }
   };
@@ -467,9 +469,11 @@ export const SupplierOrdersWorkspace = ({
       });
     } catch (error) {
       onError(
-        error instanceof Error
-          ? error.message
-          : t('orders.supplier.messages.errors.failedUpdateStar'),
+        resolveSupplierOrderErrorMessage(
+          error,
+          t,
+          'orders.supplier.messages.errors.failedUpdateStar',
+        ),
       );
     }
   };
@@ -633,13 +637,14 @@ export const SupplierOrdersWorkspace = ({
               onError(t('orders.supplier.messages.errors.noManagePermission'));
               return;
             }
-            setStatusMenuPosition({
-              top: rect.bottom + 4,
-              left: rect.left,
-            });
-            setOpenStatusOrder((current) =>
-              current?.key === key ? null : { key, order },
+            if (openStatusOrder?.key === key) {
+              setOpenStatusOrder(null);
+              return;
+            }
+            setStatusMenuPosition(
+              computeSupplierOrderStatusMenuPosition(rect),
             );
+            setOpenStatusOrder({ key, order });
           }}
           onPageChange={setPage}
           onPageSizeChange={(nextSize) => {
@@ -661,16 +666,7 @@ export const SupplierOrdersWorkspace = ({
         isOpen={isModalOpen}
         suppliers={suppliers}
         editingOrder={editingOrder}
-        forceReadOnly={Boolean(
-          editingOrder &&
-            (!canManageSupplierOrders ||
-            (editingOrder.status === 'stocked' ||
-              editingOrder.receiptStatus === 'received' ||
-              editingOrder.status === 'cancelled' ||
-              editingOrder.paymentStatus === 'cancelled' ||
-              editingOrder.paymentStatus === 'paid' ||
-              editingOrder.paymentStatus === 'without_payment')),
-        )}
+        forceReadOnly={!canManageSupplierOrders}
         onClose={() => {
           setIsModalOpen(false);
           setEditingOrder(null);
@@ -745,9 +741,11 @@ export const SupplierOrdersWorkspace = ({
             }
           } catch (error) {
             onError(
-              error instanceof Error
-                ? error.message
-                : t('orders.supplier.messages.errors.failedSave'),
+              resolveSupplierOrderErrorMessage(
+                error,
+                t,
+                'orders.supplier.messages.errors.failedSave',
+              ),
             );
           }
         }}

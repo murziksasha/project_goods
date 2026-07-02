@@ -287,6 +287,7 @@ describe('cancelFinanceTransaction', () => {
     'Payment for order r000008',
     'Refund for order r000008',
     'Supplier order payment: SO-1',
+    'Оплата за замовлення ПП-77',
   ])('rejects cancelling order-linked transaction note %s', async (note) => {
     seedTransaction({ note });
 

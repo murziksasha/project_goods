@@ -1,5 +1,14 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
 import i18n from '../shared/i18n/config';
+
+afterEach(() => {
+  cleanup();
+  document.body.replaceChildren();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const createStorageMock = (): Storage => {
   const values = new Map<string, string>();

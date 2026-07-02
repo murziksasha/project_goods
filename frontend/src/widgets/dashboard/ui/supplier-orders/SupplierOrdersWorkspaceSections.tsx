@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
@@ -18,6 +18,7 @@ import type {
   SupplierOrderProductStat,
   SupplierOrderSupplierStat,
 } from '../../model/supplier-order-utils';
+import { buildSupplierOrderItemNumber } from '../../model/supplier-order-utils';
 import {
   buildGroupedSupplierOrderView,
   formatPercent,
@@ -26,6 +27,7 @@ import {
   getSupplierOrderStatusLabel,
   getSupplierPaymentStatusClass,
   getSupplierPaymentStatusLabel,
+  manualSupplierOrderStatuses,
   supplierOrderStatuses,
   supplierOrderTabs,
   supplierOrdersAllColumns,
@@ -795,7 +797,15 @@ export const SupplierOrdersTable = ({
                             onError(t('orders.supplier.messages.errors.noViewPermission'));
                             return;
                           }
-                          onEditOrder(order);
+                          onEditOrder({
+                            ...order,
+                            receiptStatus: item.receiptStatus ?? 'new',
+                            number: buildSupplierOrderItemNumber(
+                              order,
+                              item.itemIndex,
+                            ),
+                            items: [item],
+                          });
                         }}
                       >
                         {id}
@@ -881,11 +891,15 @@ export const SupplierOrdersTable = ({
                       <button
                         type='button'
                         className={getSupplierOrderStatusClass(order.status)}
+                        data-supplier-order-status-trigger={id}
                         disabled={
                           !canManageSupplierOrders ||
-                          order.paymentStatus === 'cancelled'
+                          order.paymentStatus === 'cancelled' ||
+                          order.status === 'cancelled' ||
+                          order.status === 'unavailable'
                         }
                         aria-expanded={openStatusOrder?.key === id}
+                        aria-haspopup='listbox'
                         onClick={(event) =>
                           onOpenStatusOrder(
                             id,
@@ -938,10 +952,40 @@ export const SupplierOrderStatusMenuPortal = ({
   onUpdateStatus,
 }: {
   openStatusOrder: { key: string; order: SupplierOrder } | null;
-  statusMenuPosition: { top: number; left: number } | null;
+  statusMenuPosition: {
+    top: number;
+    left: number;
+    maxHeight: number;
+    placement: 'below' | 'above';
+  } | null;
   onUpdateStatus: (order: SupplierOrder, status: SupplierOrderStatus) => void;
 }) => {
   const { t } = useTranslation();
+  const optionsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const options = optionsRef.current;
+    if (!options) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.stopPropagation();
+      const { scrollTop, scrollHeight, clientHeight } = options;
+      if (scrollHeight <= clientHeight) {
+        event.preventDefault();
+        return;
+      }
+
+      const deltaY = event.deltaY;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      if ((deltaY > 0 && atBottom) || (deltaY < 0 && atTop)) {
+        event.preventDefault();
+      }
+    };
+
+    options.addEventListener('wheel', handleWheel, { passive: false });
+    return () => options.removeEventListener('wheel', handleWheel);
+  }, [openStatusOrder, statusMenuPosition]);
 
   if (!openStatusOrder || !statusMenuPosition || typeof document === 'undefined') {
     return null;
@@ -949,26 +993,41 @@ export const SupplierOrderStatusMenuPortal = ({
 
   return createPortal(
     <div
-      className='supplier-order-status-menu supplier-order-status-menu-portal'
+      className={`supplier-order-status-menu supplier-order-status-menu-portal supplier-order-status-menu-portal-${statusMenuPosition.placement}`}
       style={{
         top: statusMenuPosition.top,
         left: statusMenuPosition.left,
+        maxHeight: statusMenuPosition.maxHeight,
       }}
     >
-      {supplierOrderStatuses.map((status) => (
-        <button
-          key={status.key}
-          type='button'
-          className={
-            status.key === openStatusOrder.order.status
-              ? 'supplier-order-status-option supplier-order-status-option-active'
-              : 'supplier-order-status-option'
-          }
-          onClick={() => onUpdateStatus(openStatusOrder.order, status.key)}
-        >
-          {t(status.labelKey)}
-        </button>
-      ))}
+      <div className='supplier-order-status-menu-header'>
+        {t('orders.supplier.statusMenu.orderLabel', { id: openStatusOrder.key })}
+      </div>
+      <div
+        ref={optionsRef}
+        className='supplier-order-status-menu-options'
+        role='listbox'
+        aria-label={t('orders.supplier.statusMenu.orderLabel', {
+          id: openStatusOrder.key,
+        })}
+      >
+        {manualSupplierOrderStatuses.map((status) => (
+          <button
+            key={status.key}
+            type='button'
+            role='option'
+            aria-selected={status.key === openStatusOrder.order.status}
+            className={
+              status.key === openStatusOrder.order.status
+                ? 'supplier-order-status-option supplier-order-status-option-active'
+                : 'supplier-order-status-option'
+            }
+            onClick={() => onUpdateStatus(openStatusOrder.order, status.key)}
+          >
+            {t(status.labelKey)}
+          </button>
+        ))}
+      </div>
     </div>,
     document.body,
   );

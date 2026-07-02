@@ -16,6 +16,7 @@ import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../
 import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
+  resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
 
 export type SupplierOrderModalSubmitPayload = {
@@ -138,16 +139,9 @@ export const SupplierOrderModal = ({
   });
 
   const isEditing = Boolean(editingOrder);
-  const isTakenOnChargeLocked = Boolean(
-    editingOrder &&
-      (editingOrder.status === 'stocked' ||
-        editingOrder.receiptStatus === 'received' ||
-        editingOrder.status === 'cancelled' ||
-        editingOrder.paymentStatus === 'cancelled' ||
-        editingOrder.paymentStatus === 'paid' ||
-        editingOrder.paymentStatus === 'without_payment'),
-  );
-  const isReadOnly = forceReadOnly || isTakenOnChargeLocked;
+  const { isContentLocked, isTakeOnChargeLocked, isCancelLocked } =
+    resolveSupplierOrderModalLocks(editingOrder);
+  const isFormDisabled = forceReadOnly || isContentLocked;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -415,11 +409,11 @@ export const SupplierOrderModal = ({
           <div className='catalog-edit-title'>
             <h2>{t('orders.supplier.modal.title')}</h2>
           </div>
-          {isEditing && onCancelOrder ? (
+          {isEditing && onCancelOrder && !forceReadOnly && !isCancelLocked ? (
             <button
               type='button'
               className='danger-button'
-              disabled={isActionSubmitting || isReadOnly}
+              disabled={isActionSubmitting}
               onClick={async () => {
                 setIsActionSubmitting(true);
                 try {
@@ -446,7 +440,7 @@ export const SupplierOrderModal = ({
                 <input
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
-                  disabled={isReadOnly}
+                  disabled={isFormDisabled}
                   onFocus={() => setShowSupplierSuggestions(true)}
                   onBlur={() => {
                     setSupplierTouched(true);
@@ -462,7 +456,7 @@ export const SupplierOrderModal = ({
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label={t('orders.supplier.modal.createSupplier')}
-                  disabled={isReadOnly}
+                  disabled={isFormDisabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateSupplierForm({ name: supplierSearch.trim(), phone: '+380', note: '' });
@@ -497,12 +491,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>{t('orders.supplier.modal.deliveryDate')}</span>
-            <input type='date' value={form.deliveryDate} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
+            <input type='date' value={form.deliveryDate} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
           </label>
 
           <label className='field supplier-order-supply-type-field'>
             <span>{t('orders.supplier.modal.supplyType')}</span>
-            <select value={form.supplyType} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
+            <select value={form.supplyType} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
               <option value="Локально">{t('orders.supplier.modal.supplyLocal')}</option>
               <option value="Закордон">{t('orders.supplier.modal.supplyForeign')}</option>
             </select>
@@ -510,12 +504,12 @@ export const SupplierOrderModal = ({
 
           <label className='field'>
             <span>{t('orders.supplier.modal.number')}</span>
-            <input value={form.number} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
+            <input value={form.number} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
           </label>
 
           <label className='field field-wide'>
             <span>{t('orders.supplier.modal.note')}</span>
-            <textarea rows={2} value={form.note} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+            <textarea rows={2} value={form.note} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
           </label>
 
           <div className='supplier-order-product-row field-wide'>
@@ -526,7 +520,7 @@ export const SupplierOrderModal = ({
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
                   value={productSearch}
-                  disabled={isReadOnly}
+                  disabled={isFormDisabled}
                   onFocus={() => setShowProductSuggestions(true)}
                   onBlur={() => {
                     setProductTouched(true);
@@ -542,7 +536,7 @@ export const SupplierOrderModal = ({
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
                   aria-label={t('orders.supplier.modal.createCatalogProduct')}
-                  disabled={isReadOnly}
+                  disabled={isFormDisabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setCreateCatalogProductForm({ name: productSearch.trim(), note: '' });
@@ -577,11 +571,11 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.priceUah')}</span>
-              <input value={form.price} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, price: normalizeDecimalInput(event.target.value) }))} />
+              <input value={form.price} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, price: normalizeDecimalInput(event.target.value) }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.qty')}</span>
-              <input value={form.quantity} disabled={isReadOnly} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
+              <input value={form.quantity} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.amount')}</span>
@@ -591,7 +585,7 @@ export const SupplierOrderModal = ({
                 type='button'
                 className='toolbar-square-button supplier-order-product-add'
                 aria-label={t('orders.supplier.modal.addProduct')}
-                disabled={!canAddBasketItem || isReadOnly}
+                disabled={!canAddBasketItem || isFormDisabled}
                 onClick={() => {
                   if (!canAddBasketItem) {
                     setProductTouched(true);
@@ -639,7 +633,7 @@ export const SupplierOrderModal = ({
                     <div className='field supplier-order-product-compact'>
                       <input
                         value={String(item.price)}
-                        disabled={isReadOnly}
+                        disabled={isFormDisabled}
                         onChange={(event) =>
                           updateBasketItemPrice(index, event.target.value)
                         }
@@ -648,7 +642,7 @@ export const SupplierOrderModal = ({
                     <div className='field supplier-order-product-compact'>
                       <input
                         value={String(item.quantity)}
-                        disabled={isReadOnly}
+                        disabled={isFormDisabled}
                         onChange={(event) =>
                           updateBasketItemQuantity(index, event.target.value)
                         }
@@ -659,7 +653,7 @@ export const SupplierOrderModal = ({
                       type='button'
                       className='toolbar-square-button supplier-order-product-add'
                       aria-label={t('orders.supplier.modal.removeProduct')}
-                      disabled={isReadOnly}
+                      disabled={isFormDisabled}
                       onClick={() => removeBasketItem(index)}
                     >
                       -
@@ -677,7 +671,7 @@ export const SupplierOrderModal = ({
         </div>
 
         <footer className='catalog-edit-footer'>
-          {isEditing && onTakeOnCharge && !isReadOnly ? (
+          {isEditing && onTakeOnCharge && !forceReadOnly && !isTakeOnChargeLocked ? (
             <button
               type='button'
               className='primary-button'
@@ -694,7 +688,7 @@ export const SupplierOrderModal = ({
               {t('orders.supplier.modal.takeOnCharge')}
             </button>
           ) : null}
-          {isReadOnly ? (
+          {forceReadOnly || isContentLocked ? (
             <button type='button' className='secondary-button' onClick={onClose}>
               {t('common.close')}
             </button>

@@ -526,18 +526,19 @@ export const OrderDetailLineItemsPanel = ({
   const handleSubmitSupplierOrder = async (
     payload: SupplierOrderModalSubmitPayload,
   ) => {
+    const orderBaseId = `SO-${Date.now()}`;
     const createPayload: SupplierOrderFormValues = {
       supplierId: payload.supplierId,
       deliveryDate: payload.deliveryDate,
       supplyType: payload.supplyType,
-      number: payload.number,
+      number: payload.number.trim() || orderBaseId,
       note: withSupplierOrderLinkNote(
         payload.note,
         currentSaleRecordNumber ?? currentSaleId,
         currentClientId,
       ),
       createdBy: t('common.administrator'),
-      orderBaseId: `SO-${Date.now()}`,
+      orderBaseId,
       status: 'request',
       paymentStatus: 'pending',
       items: payload.items,

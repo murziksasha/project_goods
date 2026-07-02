@@ -17,9 +17,12 @@ import {
   getFinanceOverview,
   initialTransactionFilters,
   normalizeCurrencyActivity,
+  findSupplierOrderByTransactionToken,
   isAccountingOrderLinkedNote,
+  normalizeTransactionOrderToken,
   parseTransactionOrderToken,
   resolveCashboxOperationForm,
+  resolveTransactionNoteLink,
   upsertLastOperationByCashbox,
 } from './accounting';
 
@@ -355,6 +358,16 @@ describe('accounting model helpers', () => {
       }),
     ).toBe(false);
     expect(isAccountingOrderLinkedNote('Supplier order payment: SO-1')).toBe(true);
+    expect(isAccountingOrderLinkedNote('Оплата за замовлення ПП-77')).toBe(true);
+    expect(
+      canCancelAccountingTransaction({
+        canCreateDeposit: true,
+        canCreateWithdraw: true,
+        canCreateTransfer: true,
+        now,
+        transaction: { ...transfer, note: 'Оплата за замовлення ПП-77' },
+      }),
+    ).toBe(false);
   });
 
   it('restores remembered cashbox operation fields when available', () => {
@@ -395,11 +408,53 @@ describe('accounting model helpers', () => {
     expect(parseTransactionOrderToken('Refund for order ABC-123')).toBe('ABC-123');
     expect(parseTransactionOrderToken('Оплата замовлення SO-42')).toBe('SO-42');
     expect(parseTransactionOrderToken('Оплата за замовлення SO-42')).toBe('SO-42');
+    expect(parseTransactionOrderToken('Оплата за замовлення ПП-77')).toBe('ПП-77');
+    expect(parseTransactionOrderToken('Supplier order payment: SO-1')).toBe('SO-1');
     expect(parseTransactionOrderToken('payment for order x1')).toBe('x1'); // case insen
     expect(parseTransactionOrderToken('Some other note with order foo')).toBe(null);
     expect(parseTransactionOrderToken('Deposit manual')).toBe(null);
     expect(parseTransactionOrderToken('')).toBe(null);
     expect(parseTransactionOrderToken(null)).toBe(null);
     expect(parseTransactionOrderToken('Payment for order r000066 extra')).toBe('r000066');
+  });
+
+  it('normalizes item suffixes and resolves supplier orders from transaction notes', () => {
+    expect(normalizeTransactionOrderToken('SO-1-2')).toBe('so-1');
+
+    const supplierOrders = [
+      {
+        id: 'supplier-1',
+        orderBaseId: 'SO-1',
+        number: 'SO-1',
+      },
+    ] as any[];
+
+    expect(
+      findSupplierOrderByTransactionToken('SO-1-2', supplierOrders)?.id,
+    ).toBe('supplier-1');
+    expect(
+      resolveTransactionNoteLink({
+        note: 'Supplier order payment: SO-1',
+        sales: [],
+        supplierOrders,
+      }),
+    ).toEqual({
+      kind: 'supplier',
+      supplierOrder: supplierOrders[0],
+    });
+    expect(
+      resolveTransactionNoteLink({
+        note: 'Payment for order MISSING',
+        sales: [],
+        supplierOrders,
+      }),
+    ).toEqual({ kind: 'linked' });
+    expect(
+      resolveTransactionNoteLink({
+        note: 'Manual cash note',
+        sales: [],
+        supplierOrders,
+      }),
+    ).toEqual({ kind: 'manual' });
   });
 });

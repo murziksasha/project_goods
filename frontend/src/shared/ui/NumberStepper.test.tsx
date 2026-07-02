@@ -1,13 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { NumberStepper } from './NumberStepper';
 
 describe('NumberStepper', () => {
   it('accepts comma and dot decimal input without collapsing editable states', () => {
     const onChange = vi.fn();
-    render(<NumberStepper value='' onChange={onChange} />);
+    const { container } = render(<NumberStepper value='' onChange={onChange} />);
 
-    const input = screen.getByRole('textbox');
+    const stepper = container.querySelector('.number-stepper') as HTMLElement;
+    const input = within(stepper).getByRole('textbox');
     fireEvent.change(input, { target: { value: '834,48' } });
     fireEvent.change(input, { target: { value: '834.48' } });
     fireEvent.change(input, { target: { value: '0,01' } });
