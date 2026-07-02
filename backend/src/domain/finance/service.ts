@@ -34,9 +34,9 @@ const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
 
 const ORDER_LINKED_NOTE_PATTERNS = [
-  /Payment for order\s+/i,
-  /Refund for order\s+/i,
-  /Оплата (?:за )?замовлення\s+/i,
+  /Payment for order\s+[\p{L}\p{N}-]+/iu,
+  /Refund for order\s+[\p{L}\p{N}-]+/iu,
+  /Оплата (?:за )?замовлення\s+[\p{L}\p{N}-]+/iu,
   /^Supplier order payment:/i,
 ];
 
@@ -897,6 +897,10 @@ export const updateFinanceTransactionNote = async (
 
   if ((transaction.status ?? 'active') === 'cancelled' || transaction.isCancellation) {
     throw new Error('Cannot edit note for a cancelled transaction.');
+  }
+
+  if (isOrderLinkedFinanceTransactionNote(transaction.note)) {
+    throw new Error('Order-linked finance transaction notes cannot be edited.');
   }
 
   transaction.note = note;

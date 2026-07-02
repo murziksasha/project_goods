@@ -7,6 +7,8 @@ import type {
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
+import type { Sale } from '../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import { formatDateTime } from '../../../shared/lib/format';
 
 export type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
@@ -81,10 +83,19 @@ export const getAccountingBusinessDateKey = (
   return `${byType.year}-${byType.month}-${byType.day}`;
 };
 
+const ORDER_TOKEN_CAPTURE = '([\\p{L}\\p{N}-]+)';
 const ORDER_TOKEN_PATTERNS = [
-  /Payment for order\s+([A-Za-z0-9-]+)/i,
-  /Refund for order\s+([A-Za-z0-9-]+)/i,
-  /Оплата (?:за )?замовлення\s+([A-Za-z0-9-]+)/i,
+  new RegExp(`Payment for order\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
+  new RegExp(`Refund for order\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
+  new RegExp(`Оплата (?:за )?замовлення\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
+  new RegExp(`Supplier order payment:\\s*(.+)`, 'i'),
+];
+
+export const ORDER_LINKED_NOTE_PATTERNS = [
+  /Payment for order\s+/i,
+  /Refund for order\s+/i,
+  /Оплата (?:за )?замовлення\s+/i,
+  /^Supplier order payment:/i,
 ];
 
 export const parseTransactionOrderToken = (note: string | null | undefined): string | null => {
@@ -93,7 +104,7 @@ export const parseTransactionOrderToken = (note: string | null | undefined): str
   for (const pattern of ORDER_TOKEN_PATTERNS) {
     const match = trimmed.match(pattern);
     if (match && match[1]) {
-      return match[1];
+      return match[1].trim();
     }
   }
   return null;
@@ -101,9 +112,92 @@ export const parseTransactionOrderToken = (note: string | null | undefined): str
 
 export const isAccountingOrderLinkedNote = (
   note: string | null | undefined,
-): boolean =>
-  parseTransactionOrderToken(note) !== null ||
-  (note?.trim().toLowerCase().startsWith('supplier order payment:') ?? false);
+): boolean => {
+  if (!note) return false;
+  const trimmed = note.trim();
+  return (
+    parseTransactionOrderToken(trimmed) !== null ||
+    ORDER_LINKED_NOTE_PATTERNS.some((pattern) => pattern.test(trimmed))
+  );
+};
+
+export const normalizeTransactionOrderToken = (token: string) => {
+  const normalized = token.trim().toLowerCase();
+  const withoutItemSuffix = normalized.replace(/-\d+$/, '');
+  return withoutItemSuffix || normalized;
+};
+
+const supplierOrderTokenMatches = (
+  order: Pick<SupplierOrder, 'number' | 'orderBaseId' | 'id'>,
+  normalizedToken: string,
+) => {
+  const candidates = [order.number, order.orderBaseId, order.id]
+    .map((value) => value?.trim().toLowerCase())
+    .filter(Boolean);
+  return candidates.some(
+    (candidate) =>
+      candidate === normalizedToken ||
+      normalizeTransactionOrderToken(candidate) === normalizedToken,
+  );
+};
+
+export const findSupplierOrderByTransactionToken = (
+  token: string,
+  supplierOrders: SupplierOrder[],
+): SupplierOrder | undefined => {
+  const normalizedToken = normalizeTransactionOrderToken(token);
+  if (!normalizedToken) return undefined;
+  return supplierOrders.find((order) =>
+    supplierOrderTokenMatches(order, normalizedToken),
+  );
+};
+
+export type TransactionNoteLinkResolution =
+  | { kind: 'sale'; sale: Sale }
+  | { kind: 'supplier'; supplierOrder: SupplierOrder }
+  | { kind: 'linked' }
+  | { kind: 'manual' };
+
+export const resolveTransactionNoteLink = ({
+  note,
+  sales,
+  supplierOrders,
+}: {
+  note: string | null | undefined;
+  sales: Sale[];
+  supplierOrders: SupplierOrder[];
+}): TransactionNoteLinkResolution => {
+  const token = parseTransactionOrderToken(note);
+  if (token) {
+    const normalizedToken = normalizeTransactionOrderToken(token);
+    const matchedSale = sales.find(
+      (sale) =>
+        normalizeTransactionOrderToken(sale.recordNumber ?? '') === normalizedToken ||
+        normalizeTransactionOrderToken(sale.id) === normalizedToken,
+    );
+    if (matchedSale) {
+      return { kind: 'sale', sale: matchedSale };
+    }
+
+    const matchedOrder = findSupplierOrderByTransactionToken(
+      token,
+      supplierOrders,
+    );
+    if (matchedOrder) {
+      return { kind: 'supplier', supplierOrder: matchedOrder };
+    }
+
+    if (isAccountingOrderLinkedNote(note)) {
+      return { kind: 'linked' };
+    }
+  }
+
+  if (note?.trim()) {
+    return { kind: 'manual' };
+  }
+
+  return { kind: 'manual' };
+};
 
 export const canCancelAccountingTransaction = ({
   canCreateDeposit,
