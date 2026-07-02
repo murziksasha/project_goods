@@ -32,6 +32,10 @@ export const supplierOrderStatuses: Array<{
   { key: 'unavailable', labelKey: 'orders.supplier.orderStatuses.unavailable' },
 ];
 
+export const manualSupplierOrderStatuses = supplierOrderStatuses.filter(
+  (status) => status.key !== 'overdue',
+);
+
 export const supplierPaymentStatuses: Array<{
   key: SupplierPaymentStatus;
   labelKey: string;
@@ -251,3 +255,53 @@ export const buildGroupedSupplierOrderView = (order: SupplierOrder) =>
     item,
     order,
   }));
+
+export const SUPPLIER_ORDER_STATUS_MENU_WIDTH = 210;
+export const SUPPLIER_ORDER_STATUS_MENU_MAX_HEIGHT = 220;
+export const SUPPLIER_ORDER_STATUS_MENU_GAP = 4;
+export const SUPPLIER_ORDER_STATUS_MENU_VIEWPORT_PADDING = 8;
+export const SUPPLIER_ORDER_STATUS_MENU_MIN_HEIGHT = 120;
+
+export type SupplierOrderStatusMenuPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+  placement: 'below' | 'above';
+};
+
+export const computeSupplierOrderStatusMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): SupplierOrderStatusMenuPosition => {
+  const menuWidth = SUPPLIER_ORDER_STATUS_MENU_WIDTH;
+  const menuMaxHeight = SUPPLIER_ORDER_STATUS_MENU_MAX_HEIGHT;
+  const gap = SUPPLIER_ORDER_STATUS_MENU_GAP;
+  const pad = SUPPLIER_ORDER_STATUS_MENU_VIEWPORT_PADDING;
+
+  const spaceBelow = viewport.height - anchorRect.bottom - gap - pad;
+  const spaceAbove = anchorRect.top - gap - pad;
+  const openBelow = spaceBelow >= spaceAbove;
+  const availableSpace = openBelow ? spaceBelow : spaceAbove;
+  const maxHeight = Math.max(
+    SUPPLIER_ORDER_STATUS_MENU_MIN_HEIGHT,
+    Math.min(menuMaxHeight, availableSpace),
+  );
+
+  let top = openBelow
+    ? anchorRect.bottom + gap
+    : anchorRect.top - gap - maxHeight;
+  top = Math.max(pad, Math.min(top, viewport.height - pad - maxHeight));
+
+  let left = anchorRect.left;
+  left = Math.max(pad, Math.min(left, viewport.width - menuWidth - pad));
+
+  return {
+    top,
+    left,
+    maxHeight,
+    placement: openBelow ? 'below' : 'above',
+  };
+};

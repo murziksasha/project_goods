@@ -264,7 +264,7 @@ Implementation references:
 - When operator takes on charge `...-N`, only selected `itemIndex` changes to `received`.
 - Other items in the same supplier order (`...-2`, `...-3`, etc.) keep `new` until they are taken on charge individually.
 - Receipt row status projection priority:
-1. if `order.status = cancelled` OR `order.paymentStatus = cancelled` -> row status `cancelled`
+1. if `order.status = cancelled` OR `order.status = unavailable` OR `order.paymentStatus = cancelled` -> row status `cancelled`
 2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
 
 ### 6.3) Supplier Order Modal Item List Editing
@@ -275,20 +275,25 @@ Implementation references:
 
 ### 7) Status/Cancel Projection
 - Cancel action in receipt-linked supplier order must project receipt row status as `Cancelled`.
-- Projection rule: if `status = cancelled` OR `paymentStatus = cancelled`, row state is `cancelled` regardless of previous `receiptStatus`.
+- Projection rule: if `status = cancelled` OR `status = unavailable` OR `paymentStatus = cancelled`, row state is `cancelled` regardless of previous `receiptStatus`.
 
-### 8) Take-On-Charge and Cancel Availability (`Approved`)
-- For `status = approved` that is not yet stocked/received, operator must be able to either:
-  1. take the order on charge (`Оприбуткувати`), or
-  2. cancel it (`Скасувати`),
-  from `SupplierOrderModal` in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
-- Both actions are allowed regardless of payment state (`pending` / `paid` / `without_payment`).
-- Locks for take-on-charge and cancel:
-1. selected item `receiptStatus = received`
-2. order-level `status = stocked` or `receiptStatus = received`
-3. `status = cancelled`
+### 8) Take-On-Charge and Cancel Availability
+- `overdue` is auto-only on list fetch and does **not** block take-on-charge or content editing.
+- For open orders (`approved`, `overdue`, etc.) that are not yet stocked/received:
+  1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`.
+  2. **Delete in modal (`Скасувати`)** — allowed only for `paymentStatus = pending`.
+  3. **Status badge closure** — paid / `without_payment` orders may be moved manually to `cancelled` or `unavailable`; `paymentStatus` stays unchanged for paid orders.
+- Take-on-charge locks:
+1. `status = cancelled` or `unavailable`
+2. selected item `receiptStatus = received`
+3. order-level `status = stocked` or `receiptStatus = received`
 4. `paymentStatus = cancelled`
-- `paid` / `without_payment` must not block take-on-charge or cancel while the order remains `approved` and unreceived.
+- Modal Delete / `POST /supplier-orders/:supplierOrderId/cancel` locks:
+1. `paymentStatus = paid` or `without_payment`
+2. `status = cancelled` or `unavailable`
+3. order-level `status = stocked` or `receiptStatus = received`
+4. `paymentStatus = cancelled`
+- `paid` / `without_payment` must not block take-on-charge while the order remains open and unreceived.
 
 ### 9) New Receipt Order Initial State
 - New supplier order created from `Warehouse -> Receipts` starts as `approved` (not auto-`stocked`) to allow later receiving.

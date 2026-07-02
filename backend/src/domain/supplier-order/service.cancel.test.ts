@@ -62,7 +62,29 @@ beforeEach(() => {
 });
 
 describe('cancelSupplierOrder', () => {
-  it('cancels approved paid orders that are not received yet', async () => {
+  it('rejects cancellation for paid orders', async () => {
+    await expect(
+      cancelSupplierOrder('507f1f77bcf86cd799439011'),
+    ).rejects.toThrow('Оплачений заказ не можна скасувати.');
+  });
+
+  it('rejects cancellation for without_payment orders', async () => {
+    state.supplierOrder = buildSupplierOrder({
+      paymentStatus: 'without_payment',
+      paid: 0,
+    });
+
+    await expect(
+      cancelSupplierOrder('507f1f77bcf86cd799439011'),
+    ).rejects.toThrow('Оплачений заказ не можна скасувати.');
+  });
+
+  it('cancels approved pending orders that are not received yet', async () => {
+    state.supplierOrder = buildSupplierOrder({
+      paymentStatus: 'pending',
+      paid: 0,
+    });
+
     const result = await cancelSupplierOrder('507f1f77bcf86cd799439011');
 
     expect(result.status).toBe('cancelled');
@@ -75,6 +97,8 @@ describe('cancelSupplierOrder', () => {
     state.supplierOrder = buildSupplierOrder({
       status: 'stocked',
       receiptStatus: 'received',
+      paymentStatus: 'pending',
+      paid: 0,
     });
 
     await expect(
@@ -86,6 +110,8 @@ describe('cancelSupplierOrder', () => {
     state.supplierOrder = buildSupplierOrder({
       status: 'approved',
       receiptStatus: 'received',
+      paymentStatus: 'pending',
+      paid: 0,
     });
 
     await expect(

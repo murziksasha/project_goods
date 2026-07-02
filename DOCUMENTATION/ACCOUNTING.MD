@@ -58,10 +58,13 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or `receiptStatus = received`), order content fields are locked.
 - Locked fields include supplier, delivery date, supply type, order number, note, item name, quantity, and price.
 - In locked mode, save and mutation actions are unavailable; only viewing and closing are allowed.
-- For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep both warehouse actions available:
-  - `Оприбуткувати`,
-  - `Скасувати`.
-- `paymentStatus = paid` or `without_payment` on an `approved` order locks content editing only; it must not block take-on-charge or cancel in `Orders -> Supplier Order`, Warehouse receipts, or linked sale/order card flows.
+- For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep take-on-charge (`Оприбуткувати`) available in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
+- `paymentStatus = paid` or `without_payment` on an open order locks content editing and forbids modal Delete:
+  - UI must hide the Delete button in `SupplierOrderModal`,
+  - backend must reject `POST /supplier-orders/:supplierOrderId/cancel` with `Оплачений заказ не можна скасувати.`
+- Paid / `without_payment` orders may still be closed manually through status badge `Cancelled` or `Unavailable`; for paid orders `paymentStatus` remains `paid`.
+- `overdue` is auto-only and does not block take-on-charge or payment visibility rules by itself.
+- `paymentStatus = paid` or `without_payment` must not block take-on-charge while the order remains open (`approved`, `overdue`, etc.) and unreceived.
 
 ## Financial Queue Rules (`Accounting -> Замовлення`)
 - Supplier order payment queue includes orders with:

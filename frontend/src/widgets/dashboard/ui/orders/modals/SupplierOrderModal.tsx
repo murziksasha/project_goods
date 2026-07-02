@@ -409,11 +409,11 @@ export const SupplierOrderModal = ({
           <div className='catalog-edit-title'>
             <h2>{t('orders.supplier.modal.title')}</h2>
           </div>
-          {isEditing && onCancelOrder ? (
+          {isEditing && onCancelOrder && !forceReadOnly && !isCancelLocked ? (
             <button
               type='button'
               className='danger-button'
-              disabled={isActionSubmitting || forceReadOnly || isCancelLocked}
+              disabled={isActionSubmitting}
               onClick={async () => {
                 setIsActionSubmitting(true);
                 try {

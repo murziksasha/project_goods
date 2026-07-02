@@ -27,6 +27,28 @@ import {
 
 export type { SupplierOrderPayload } from './normalizers';
 
+const supplierBusinessTimeZone = 'Europe/Kiev';
+const CLOSURE_ORDER_STATUSES = new Set(['cancelled', 'unavailable']);
+
+const getSupplierBusinessDateKey = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: supplierBusinessTimeZone,
+    year: 'numeric',
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+};
+
+const isSupplierOrderReceived = (order: {
+  status?: string;
+  receiptStatus?: string;
+}) =>
+  order.status === 'stocked' || order.receiptStatus === 'received';
+
 const withSupplierName = async (order: SupplierOrderDocument) => {
   const supplier = await Supplier.findById(order.supplier).lean();
   return formatSupplierOrder({
@@ -49,8 +71,35 @@ const autoMarkZeroTotalOrdersWithoutPayment = async () => {
   );
 };
 
+export const autoMarkOverdueSupplierOrders = async (
+  now: Date = new Date(),
+) => {
+  const todayKey = getSupplierBusinessDateKey(now);
+  if (!todayKey) return;
+
+  const candidates = await SupplierOrder.find({
+    status: { $in: ['request', 'ordered', 'approved'] },
+    receiptStatus: { $ne: 'received' },
+  }).lean<SupplierOrderDocument[]>();
+
+  const overdueIds = candidates
+    .filter((order) => {
+      const deliveryKey = getSupplierBusinessDateKey(order.deliveryDate);
+      return Boolean(deliveryKey) && deliveryKey < todayKey;
+    })
+    .map((order) => order._id);
+
+  if (overdueIds.length === 0) return;
+
+  await SupplierOrder.updateMany(
+    { _id: { $in: overdueIds } },
+    { $set: { status: 'overdue' } },
+  );
+};
+
 export const listSupplierOrders = async (queryValue: unknown) => {
   await autoMarkZeroTotalOrdersWithoutPayment();
+  await autoMarkOverdueSupplierOrders();
   const query = getSearchQuery(queryValue);
   const orders = await SupplierOrder.find(query).sort({ createdAt: -1 }).lean<SupplierOrderDocument[]>();
   return Promise.all(orders.map((order) => withSupplierName(order)));
@@ -85,6 +134,22 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
 
   const existing = await SupplierOrder.findById(supplierOrderId);
   if (!existing) throw new Error('Supplier order not found.');
+
+  if (payload.status !== undefined) {
+    const nextStatus = toOrderStatus(payload.status);
+    if (CLOSURE_ORDER_STATUSES.has(nextStatus)) {
+      if (isSupplierOrderReceived(existing)) {
+        throw new Error('Оприбутковане замовлення не можна скасувати.');
+      }
+      existing.status = nextStatus;
+      if (nextStatus === 'cancelled' && existing.paymentStatus === 'pending') {
+        existing.paymentStatus = 'cancelled';
+      }
+      await existing.validate();
+      await existing.save();
+      return withSupplierName(existing.toObject<SupplierOrderDocument>());
+    }
+  }
 
   if (existing.paymentStatus === 'paid' || existing.paymentStatus === 'without_payment') {
     throw new Error('Оплачений заказ не можна редагувати.');
@@ -244,6 +309,9 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
   if (existing.status === 'cancelled' || existing.paymentStatus === 'cancelled') {
     throw new Error('Замовлення вже скасовано.');
   }
+  if (existing.paymentStatus === 'paid' || existing.paymentStatus === 'without_payment') {
+    throw new Error('Оплачений заказ не можна скасувати.');
+  }
   if (existing.status === 'stocked' || existing.receiptStatus === 'received') {
     throw new Error('Оприбутковане замовлення не можна скасувати.');
   }
@@ -262,8 +330,8 @@ export const takeOnChargeSupplierOrder = async (
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
   const existing = await SupplierOrder.findById(supplierOrderId);
   if (!existing) throw new Error('Supplier order not found.');
-  if (existing.status === 'cancelled') {
-    throw new Error('Cancelled supplier order cannot be taken on charge.');
+  if (existing.status === 'cancelled' || existing.status === 'unavailable') {
+    throw new Error('Closed supplier order cannot be taken on charge.');
   }
 
   const requestedItemIndexRaw = toNumber(payload?.itemIndex);

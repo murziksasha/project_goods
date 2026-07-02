@@ -6337,6 +6337,31 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 .supplier-order-status-menu-portal {
   position: fixed;
   z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.supplier-order-status-menu-header {
+  flex-shrink: 0;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid #e8edf3;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5a7088;
+  background: #f8fafc;
+}
+
+.supplier-order-status-menu-portal .supplier-order-status-menu-options {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 6px;
 }
 
 .supplier-order-status-option {

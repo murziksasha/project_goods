@@ -21,8 +21,10 @@ export type SupplierOrderModalLockOptions = {
   itemReceiptStatus?: SupplierReceiptStatus;
 };
 
-const isSupplierOrderFinalCancelled = (order: SupplierOrderModalLockInput) =>
-  order.status === 'cancelled' || order.paymentStatus === 'cancelled';
+const isSupplierOrderFinalClosed = (order: SupplierOrderModalLockInput) =>
+  order.status === 'cancelled' ||
+  order.status === 'unavailable' ||
+  order.paymentStatus === 'cancelled';
 
 const isSupplierOrderFullyReceived = (order: SupplierOrderModalLockInput) =>
   order.status === 'stocked' || order.receiptStatus === 'received';
@@ -39,20 +41,60 @@ export const resolveSupplierOrderModalLocks = (
     };
   }
 
-  const cancelled = isSupplierOrderFinalCancelled(order);
+  const isFinalClosed = isSupplierOrderFinalClosed(order);
   const fullyReceived = isSupplierOrderFullyReceived(order);
   const itemReceived =
     options?.itemReceiptStatus === 'received' ||
     (order.items.length === 1 && order.items[0]?.receiptStatus === 'received');
 
-  const isTakeOnChargeLocked = cancelled || fullyReceived || itemReceived;
+  const isTakeOnChargeLocked = isFinalClosed || fullyReceived || itemReceived;
   const isContentLocked =
     isTakeOnChargeLocked ||
     order.paymentStatus === 'paid' ||
     order.paymentStatus === 'without_payment';
-  const isCancelLocked = cancelled || fullyReceived;
+  const isCancelLocked =
+    isFinalClosed ||
+    fullyReceived ||
+    order.paymentStatus === 'paid' ||
+    order.paymentStatus === 'without_payment';
 
   return { isContentLocked, isTakeOnChargeLocked, isCancelLocked };
+};
+
+const supplierOrderBackendErrorMap: Record<string, string> = {
+  'Оплачений заказ не можна редагувати.':
+    'orders.supplier.messages.errors.paidNotEditable',
+  'Оплачений заказ не можна скасувати.':
+    'orders.supplier.messages.errors.paidNotCancellable',
+  'Оприбутковане замовлення не можна скасувати.':
+    'orders.supplier.messages.errors.receivedNotCancellable',
+  'Замовлення вже скасовано.':
+    'orders.supplier.messages.errors.alreadyCancelled',
+  'Closed supplier order cannot be taken on charge.':
+    'orders.supplier.messages.errors.closedNotReceivable',
+  'Cancelled supplier order cannot be taken on charge.':
+    'orders.supplier.messages.errors.closedNotReceivable',
+};
+
+export const resolveSupplierOrderErrorMessage = (
+  error: unknown,
+  translate: (key: string) => string,
+  fallbackKey = 'orders.supplier.messages.errors.failedSave',
+) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : '';
+  const translationKey = supplierOrderBackendErrorMap[message];
+  if (translationKey) {
+    return translate(translationKey);
+  }
+  if (message.trim()) {
+    return message;
+  }
+  return translate(fallbackKey);
 };
 
 export type SupplierOrderProductStat = {
@@ -250,6 +292,7 @@ export const buildSupplierOrderAnalytics = (
       order.status !== 'stocked' &&
       order.status !== 'cancelled' &&
       order.status !== 'unavailable' &&
+      order.status !== 'overdue' &&
       order.receiptStatus !== 'received';
     if (deliveryTime !== null && isOpenOrder) {
       if (deliveryTime < currentDateTime) {

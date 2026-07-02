@@ -260,14 +260,17 @@
 
 - In `Orders -> Supplier Order`, each row `Status` value is an interactive badge-style button, not a native select.
 - Status badge editing requires `supplierOrders.manage`; employees with only `supplierOrders.view` see supplier orders read-only.
-- Clicking the row status button opens the available supplier-order statuses:
+- Clicking the row status button opens the available **manual** supplier-order statuses:
   - `Purchase request`
   - `Ordered`
   - `Approved`
   - `Stocked`
-  - `Overdue`
   - `Cancelled`
   - `Unavailable`
+- `Overdue` is **auto-only**: backend promotes open orders (`request` / `ordered` / `approved`, unreceived) to `overdue` when `deliveryDate` is before the current business day (`Europe/Kiev`) during `GET /supplier-orders`.
+- `Overdue` does not block take-on-charge, content editing, or payment actions.
+- `Cancelled` and `Unavailable` are manual closure statuses. They block take-on-charge and content editing.
+- Paid / `without_payment` orders may still be moved to `Cancelled` or `Unavailable` through the status badge; `paymentStatus` stays unchanged for paid orders.
 - The status window is rendered in a portal attached to `document.body`, using fixed viewport coordinates measured from the clicked status button.
 - Portal rendering is required because the supplier-order table has horizontal scrolling; the status window must not be clipped by the table wrapper.
 - Opening the status window must not change row height, table height, pagination position, or horizontal scrollbar position.
@@ -285,14 +288,13 @@
   - refreshes the supplier-order list,
   - shows success or error feedback.
 - If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
-- If `paymentStatus = cancelled`, the row status button is disabled and the status window cannot be opened.
+- If `paymentStatus = cancelled`, or `status = cancelled`, or `status = unavailable`, the row status button is disabled and the status window cannot be opened.
 - Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
-- If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, or `cancelled`), the opened modal is read-only instead of blocked.
-- For `status = approved` that is not yet stocked/received, the modal must allow warehouse actions:
-  - `Оприбуткувати` (take-on-charge),
-  - `Скасувати` (cancel),
-  regardless of `paymentStatus` (`pending`, `paid`, `without_payment`).
-- On `approved` orders, `paid` / `without_payment` may lock order content fields (supplier, items, prices), but must not hide or disable take-on-charge / cancel actions when the employee has `supplierOrders.manage`.
+- If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, `cancelled`, or `unavailable`), the opened modal is read-only instead of blocked.
+- For `status = approved` that is not yet stocked/received, the modal must allow take-on-charge (`Оприбуткувати`) regardless of `paymentStatus` (`pending`, `paid`, `without_payment`) when the employee has `supplierOrders.manage`.
+- Cancel (`Скасувати`) in `SupplierOrderModal` is allowed only while `paymentStatus = pending`.
+- If `paymentStatus = paid` or `without_payment`, the Delete button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
+- On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
 
 ## Truncated Text Hover Tooltip
@@ -326,6 +328,7 @@
   - `stocked`,
   - `cancelled`,
   - `unavailable`,
+  - `overdue` (date-based overdueCount must not double-count auto-overdue rows),
   - `receiptStatus = received`.
 - If filters produce no supplier orders, `Information` shows a compact empty state instead of table rows.
 - Services are not included in this tab in v1 because `SupplierOrder` items currently represent goods/products only.

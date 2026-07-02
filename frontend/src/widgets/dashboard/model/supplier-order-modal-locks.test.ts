@@ -41,7 +41,7 @@ describe('resolveSupplierOrderModalLocks', () => {
     expect(locks).toEqual({
       isContentLocked: true,
       isTakeOnChargeLocked: false,
-      isCancelLocked: false,
+      isCancelLocked: true,
     });
   });
 
@@ -54,7 +54,7 @@ describe('resolveSupplierOrderModalLocks', () => {
     expect(locks).toEqual({
       isContentLocked: true,
       isTakeOnChargeLocked: false,
-      isCancelLocked: false,
+      isCancelLocked: true,
     });
   });
 
@@ -93,6 +93,31 @@ describe('resolveSupplierOrderModalLocks', () => {
     expect(locks).toEqual({
       isContentLocked: true,
       isTakeOnChargeLocked: true,
+      isCancelLocked: true,
+    });
+  });
+
+  it('locks take-on-charge for unavailable orders but keeps overdue open', () => {
+    expect(
+      resolveSupplierOrderModalLocks({
+        ...baseLockInput(),
+        status: 'unavailable',
+      }),
+    ).toEqual({
+      isContentLocked: true,
+      isTakeOnChargeLocked: true,
+      isCancelLocked: true,
+    });
+
+    expect(
+      resolveSupplierOrderModalLocks({
+        ...baseLockInput(),
+        status: 'overdue',
+        paymentStatus: 'paid',
+      }),
+    ).toEqual({
+      isContentLocked: true,
+      isTakeOnChargeLocked: false,
       isCancelLocked: true,
     });
   });

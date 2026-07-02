@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
   buildGroupedSupplierOrderView,
+  computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
   normalizeSupplierOrdersColumns,
   parseSupplierOrdersFilters,
@@ -189,5 +190,39 @@ describe('supplier-orders-workspace', () => {
     );
 
     expect(rows.map((row) => row.id)).toEqual(['SO-7-1', 'SO-7-2']);
+  });
+
+  it('opens supplier order status menu below the badge when space allows', () => {
+    const position = computeSupplierOrderStatusMenuPosition(
+      { top: 100, bottom: 132, left: 48, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('below');
+    expect(position.top).toBe(136);
+    expect(position.left).toBe(48);
+    expect(position.maxHeight).toBe(220);
+  });
+
+  it('flips supplier order status menu above the badge near the page bottom', () => {
+    const position = computeSupplierOrderStatusMenuPosition(
+      { top: 820, bottom: 852, left: 900, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('above');
+    expect(position.top).toBeLessThan(820);
+    expect(position.left).toBe(900);
+    expect(position.maxHeight).toBeLessThanOrEqual(220);
+  });
+
+  it('clamps supplier order status menu horizontally inside the viewport', () => {
+    const position = computeSupplierOrderStatusMenuPosition(
+      { top: 200, bottom: 232, left: 1200, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.left).toBeLessThan(1200);
+    expect(position.left + 210).toBeLessThanOrEqual(1280 - 8);
   });
 });
