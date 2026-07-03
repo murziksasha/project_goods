@@ -329,8 +329,9 @@ Suggestion rows may show the resolved retail price before click when matching st
 ## Status Dropdown UX
 
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
-- Status dropdown in list always opens downward.
-- Dropdown menu is rendered in a top overlay layer (portal), above table/content.
+- Status dropdown in list is rendered in overlay (portal) above table/content.
+- Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
+- When the status dropdown is open, mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and sales table must not scroll.
 - Opening dropdown must not change table row height and must not introduce extra scroll inside orders table block.
 
 ## Suggestion Catalog Source (2026-05-09)

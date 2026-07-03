@@ -1182,6 +1182,7 @@
         "new": "Новий ремонт",
         "diagnostics": "Діагностика",
         "inRepair": "В ремонті",
+        "refinement": "Опрацювання",
         "waitingParts": "Очікує запчастини",
         "clientApproved": "Погоджено клієнтом",
         "clientRejected": "Відхилено клієнтом",

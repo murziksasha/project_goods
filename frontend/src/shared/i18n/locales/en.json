@@ -1182,6 +1182,7 @@
         "new": "New repair",
         "diagnostics": "Diagnostics",
         "inRepair": "In repair",
+        "refinement": "Refinement",
         "waitingParts": "Waiting parts",
         "clientApproved": "Client approved",
         "clientRejected": "Client rejected",
