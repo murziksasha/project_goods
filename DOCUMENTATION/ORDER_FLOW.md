@@ -285,7 +285,15 @@
   - `Stocked`
   - `Cancelled`
   - `Unavailable`
-- `Overdue` is **auto-only**: backend promotes open orders (`request` / `ordered` / `approved`, unreceived) to `overdue` when `deliveryDate` is before the current business day (`Europe/Kiev`) during `GET /supplier-orders`.
+- Auto-only statuses (not selectable in status window):
+  - `Overdue`
+  - `Partially stocked` (`partially_stocked`)
+  - `Partially completed` (`partially_completed`)
+- `Overdue` is **auto-only**: backend promotes open orders (`request` / `ordered` / `approved` / `partially_stocked`, unreceived) to `overdue` when `deliveryDate` is before the current business day (`Europe/Kiev`) during `GET /supplier-orders`.
+- Supplier Order table list visibility:
+  - an order disappears from the default working set only when `paymentStatus = pending` and all line items are `cancelled`
+  - partially processed orders (`partially_stocked`, `partially_completed`) stay visible even when the saved status filter still contains only manual open statuses such as `Approved`
+  - paid and `without_payment` orders stay visible even if every line item is `cancelled`
 - `Overdue` does not block take-on-charge, content editing, or payment actions.
 - `Cancelled` and `Unavailable` are manual closure statuses. They block take-on-charge and content editing.
 - Paid / `without_payment` orders may still be moved to `Cancelled` or `Unavailable` through the status badge; `paymentStatus` stays unchanged for paid orders.
@@ -305,7 +313,13 @@
   - updates the supplier order status,
   - refreshes the supplier-order list,
   - shows success or error feedback.
-- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
+- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair and the clicked row `itemIndex`, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
+- Item-scoped actions from `SupplierOrderModal`:
+  - take-on-charge must pass `itemIndex` for the opened row/suborder
+  - `Cancel item` calls `POST /supplier-orders/:supplierOrderId/cancel-item`
+  - item cancel recalculates order `total` from non-cancelled lines; on paid orders `paid` stays at the amount actually paid
+  - cancelled item product names render in red in Supplier Order and Warehouse Receipts
+  - whole-order `Delete` stays available only outside item-scoped multi-item view and only while `paymentStatus = pending`
 - If `paymentStatus = cancelled`, or `status = cancelled`, or `status = unavailable`, the row status button is disabled and the status window cannot be opened.
 - Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
 - If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, `cancelled`, or `unavailable`), the opened modal is read-only instead of blocked.

@@ -7,6 +7,7 @@ import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format
 import { getClientDevices } from '../../../../../entities/client-device/api/clientDeviceApi';
 import {
   cancelSupplierOrder,
+  cancelSupplierOrderItem,
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
 } from '../../../../../entities/supplier-order/api/supplierOrderApi';
@@ -1433,39 +1434,8 @@ export const OrderDetailCard = ({
             return;
           }
           try {
-            if (relatedSupplierOrderSource.items.length <= 1) {
-              await cancelSupplierOrder(relatedSupplierOrderSource.id);
-              onSuccess(t('orders.messages.success.orderCancelled'));
-            } else {
-              const nextItems = relatedSupplierOrderSource.items
-                .filter(
-                  (item) =>
-                    item.itemIndex !== relatedSupplierOrderItemIndex,
-                )
-                .map((item, index) => ({
-                  ...item,
-                  itemIndex: index,
-                }));
-              await updateSupplierOrder(relatedSupplierOrderSource.id, {
-                orderBaseId: relatedSupplierOrderSource.orderBaseId,
-                supplierId: relatedSupplierOrderSource.supplierId,
-                deliveryDate:
-                  relatedSupplierOrderSource.deliveryDate.slice(0, 10),
-                supplyType: relatedSupplierOrderSource.supplyType,
-                number: relatedSupplierOrderSource.number,
-                note: withSupplierOrderLinkNote(
-                  relatedSupplierOrderSource.note,
-                  sale.recordNumber ?? sale.id,
-                  sale.client.id,
-                ),
-                createdBy: relatedSupplierOrderSource.createdBy,
-                status: relatedSupplierOrderSource.status,
-                paymentStatus:
-                  relatedSupplierOrderSource.paymentStatus,
-                items: nextItems,
-              });
-              onSuccess(t('orders.messages.success.supplierItemRemoved'));
-            }
+            await cancelSupplierOrder(relatedSupplierOrderSource.id);
+            onSuccess(t('orders.messages.success.orderCancelled'));
             await onSupplierOrderCreated();
             setIsRelatedSupplierOrderModalOpen(false);
             setRelatedSupplierOrderSource(null);
@@ -1478,6 +1448,35 @@ export const OrderDetailCard = ({
             );
           }
         }}
+        onCancelItem={async (reason) => {
+          if (
+            !relatedSupplierOrderSource ||
+            relatedSupplierOrderItemIndex === null
+          ) {
+            return;
+          }
+          try {
+            await cancelSupplierOrderItem(relatedSupplierOrderSource.id, {
+              itemIndex: relatedSupplierOrderItemIndex,
+              reason,
+            });
+            onSuccess(t('orders.supplier.messages.success.itemCancelled'));
+            await onSupplierOrderCreated();
+            setIsRelatedSupplierOrderModalOpen(false);
+            setRelatedSupplierOrderSource(null);
+            setRelatedSupplierOrderItemIndex(null);
+          } catch (error) {
+            onError(
+              error instanceof Error
+                ? error.message
+                : t('orders.messages.errors.failedRemoveSupplierOrder'),
+            );
+          }
+        }}
+        isItemScopedView={
+          relatedSupplierOrderSource !== null &&
+          relatedSupplierOrderSource.items.length > 1
+        }
         onSubmit={async (payload) => {
           if (
             !relatedSupplierOrderSource ||

@@ -218,4 +218,24 @@ describe('SupplierOrdersTable', () => {
     expect(screen.getByText(`${longNumber}-1`)).toBeInTheDocument();
     expect(screen.getByText(`${longNumber}-2`)).toBeInTheDocument();
   });
+
+  it('marks cancelled item product name with supplier-order-item-cancelled class', () => {
+    const order = makeOrder({
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          catalogProductId: 'cat-1',
+          productName: 'Cancelled cable',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'cancelled',
+        },
+      ],
+    });
+
+    renderTable({ order });
+
+    expect(screen.getByText('Cancelled cable')).toHaveClass('supplier-order-item-cancelled');
+  });
 });

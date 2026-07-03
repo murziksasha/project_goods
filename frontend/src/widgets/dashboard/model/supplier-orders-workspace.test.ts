@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
+  areAllSupplierOrderItemsCancelled,
   buildGroupedSupplierOrderView,
   computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
+  isSupplierOrderHiddenFromList,
+  matchesSupplierOrderStatusFilter,
   normalizeSupplierOrdersColumns,
   parseSupplierOrdersFilters,
   supplierOrdersAllColumns,
@@ -117,6 +120,155 @@ describe('supplier-orders-workspace', () => {
       favoritesOnly: false,
     }).map((order) => order.id),
   ).toEqual(['so-2']);
+  });
+
+  it('keeps partially_stocked orders visible when approved status filter is active', () => {
+    const orders = [
+      makeOrder({
+        id: 'so-partial',
+        status: 'partially_stocked',
+        items: [
+          {
+            lineId: 'line-1',
+            itemIndex: 0,
+            productName: 'Cable A',
+            quantity: 1,
+            price: 100,
+            receiptStatus: 'cancelled',
+          },
+          {
+            lineId: 'line-2',
+            itemIndex: 1,
+            productName: 'Cable B',
+            quantity: 1,
+            price: 50,
+            receiptStatus: 'new',
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      filterSupplierOrders(orders, {
+        query: '',
+        selectedStatuses: ['approved'],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }).map((order) => order.id),
+    ).toEqual(['so-partial']);
+  });
+
+  it('hides unpaid orders only when every item is cancelled', () => {
+    const fullyCancelled = makeOrder({
+      id: 'so-hidden',
+      status: 'cancelled',
+      paymentStatus: 'pending',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'cancelled',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Cable B',
+          quantity: 1,
+          price: 50,
+          receiptStatus: 'cancelled',
+        },
+      ],
+    });
+
+    expect(
+      areAllSupplierOrderItemsCancelled(fullyCancelled),
+    ).toBe(true);
+    expect(
+      isSupplierOrderHiddenFromList(fullyCancelled, {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }),
+    ).toBe(true);
+    expect(
+      filterSupplierOrders([fullyCancelled], {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }),
+    ).toEqual([]);
+    expect(
+      filterSupplierOrders([fullyCancelled], {
+        query: '',
+        selectedStatuses: ['cancelled'],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }).map((order) => order.id),
+    ).toEqual(['so-hidden']);
+  });
+
+  it('keeps fully cancelled paid orders visible in the list', () => {
+    const paidCancelled = makeOrder({
+      id: 'so-paid-cancelled',
+      status: 'cancelled',
+      paymentStatus: 'paid',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'cancelled',
+        },
+      ],
+    });
+
+    expect(
+      isSupplierOrderHiddenFromList(paidCancelled, {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }),
+    ).toBe(false);
+    expect(
+      filterSupplierOrders([paidCancelled], {
+        query: '',
+        selectedStatuses: [],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }).map((order) => order.id),
+    ).toEqual(['so-paid-cancelled']);
+  });
+
+  it('matches partially_completed orders against stocked and approved filters', () => {
+    expect(
+      matchesSupplierOrderStatusFilter('partially_completed', ['approved']),
+    ).toBe(true);
+    expect(
+      matchesSupplierOrderStatusFilter('partially_completed', ['stocked']),
+    ).toBe(true);
+    expect(
+      matchesSupplierOrderStatusFilter('partially_completed', ['cancelled']),
+    ).toBe(false);
   });
 
   it('filters to starred supplier orders only', () => {

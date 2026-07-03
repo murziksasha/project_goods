@@ -999,6 +999,11 @@
       "modal": {
         "title": "Order from supplier",
         "delete": "Delete",
+        "cancelItem": "Cancel item",
+        "cancelItemTitle": "Cancel item",
+        "cancelItemConfirm": "Cancel this item in the supplier order? Payment and order total are not adjusted automatically.",
+        "cancelItemReason": "Reason (optional)",
+        "cancelItemConfirmAction": "Cancel item",
         "deliveryDate": "Delivery date",
         "supplyType": "Supply type",
         "number": "Number",
@@ -1053,10 +1058,16 @@
           "paidNotCancellable": "Paid supplier orders cannot be cancelled from the modal.",
           "receivedNotCancellable": "Received supplier orders cannot be cancelled.",
           "alreadyCancelled": "Supplier order is already cancelled.",
-          "closedNotReceivable": "Closed supplier orders cannot be taken on charge."
+          "closedNotReceivable": "Closed supplier orders cannot be taken on charge.",
+          "itemAlreadyReceived": "This item is already received.",
+          "itemCancelledNotReceivable": "Cancelled items cannot be taken on charge.",
+          "itemReceivedNotCancellable": "Received items cannot be cancelled.",
+          "itemAlreadyCancelled": "This item is already cancelled.",
+          "failedCancelItem": "Failed to cancel supplier order item."
         },
         "success": {
           "statusUpdated": "Supplier order status updated.",
+          "itemCancelled": "Supplier order item cancelled.",
           "supplierUpdated": "Supplier updated.",
           "productUpdated": "Product updated.",
           "stocked": "Supplier order stocked.",
@@ -1071,6 +1082,8 @@
         "request": "Purchase request",
         "ordered": "Ordered",
         "approved": "Approved",
+        "partially_stocked": "Partially stocked",
+        "partially_completed": "Partially completed",
         "stocked": "Stocked",
         "overdue": "Overdue",
         "cancelled": "Cancelled",

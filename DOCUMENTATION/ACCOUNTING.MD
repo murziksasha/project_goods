@@ -54,8 +54,20 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `withdraw` -> reverse `deposit` into source cashbox
   - `transfer` -> reverse `transfer` between the same cashboxes
 
+## Supplier Order Item Cancel (2026-07-03)
+- `POST /supplier-orders/:supplierOrderId/cancel-item` cancels one line item (`items[].receiptStatus = cancelled`).
+- Allowed even when `paymentStatus = paid` or `without_payment`.
+- `total` is recalculated on save as the sum of non-cancelled line items only (current payable amount).
+- `paymentStatus` is unchanged by item cancel.
+- `paid` behavior:
+  - `pending` orders keep `paid = 0`
+  - newly paid orders set `paid = total` at payment time
+  - already paid orders preserve historical `paid` when items are cancelled later (`Total` shrinks, `Paid` stays at the amount actually paid)
+- Cancelled line items are shown with red product name in Supplier Order and Warehouse Receipts.
+- Optional `reason` is appended to supplier-order `note` as `[ITEM_CANCELLED:<itemIndex>] ...`.
+
 ## Supplier Order Lock Rules
-- Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or `receiptStatus = received`), order content fields are locked.
+- Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or all items `receiptStatus = received`), order content fields are locked.
 - Locked fields include supplier, delivery date, supply type, order number, note, item name, quantity, and price.
 - In locked mode, save and mutation actions are unavailable; only viewing and closing are allowed.
 - For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep take-on-charge (`Оприбуткувати`) available in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
@@ -69,7 +81,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Financial Queue Rules (`Accounting -> Замовлення`)
 - Supplier order payment queue includes orders with:
   - `paymentStatus = pending`
-  - `status in [approved, stocked]`
+  - `status in [approved, partially_stocked, partially_completed, stocked]`
   - `total > 0`
 - Supplier orders with zero total (free-of-charge receipts) are allowed in Warehouse flows, but must not appear in this payment queue.
 

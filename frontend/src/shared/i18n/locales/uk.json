@@ -999,6 +999,11 @@
       "modal": {
         "title": "Замовити у постачальника",
         "delete": "Видалити",
+        "cancelItem": "Скасувати позицію",
+        "cancelItemTitle": "Скасування позиції",
+        "cancelItemConfirm": "Скасувати цю позицію в замовленні? Оплата та сума замовлення не змінюються автоматично.",
+        "cancelItemReason": "Причина (необов'язково)",
+        "cancelItemConfirmAction": "Скасувати позицію",
         "deliveryDate": "Дата поставки",
         "supplyType": "Тип поставки",
         "number": "Номер",
@@ -1053,10 +1058,16 @@
           "paidNotCancellable": "Оплачений заказ не можна скасувати.",
           "receivedNotCancellable": "Оприбутковане замовлення не можна скасувати.",
           "alreadyCancelled": "Замовлення вже скасовано.",
-          "closedNotReceivable": "Закриті замовлення постачальника не можна оприбуткувати."
+          "closedNotReceivable": "Закриті замовлення постачальника не можна оприбуткувати.",
+          "itemAlreadyReceived": "Позицію вже оприбутковано.",
+          "itemCancelledNotReceivable": "Скасовану позицію не можна оприбуткувати.",
+          "itemReceivedNotCancellable": "Оприбутковану позицію не можна скасувати.",
+          "itemAlreadyCancelled": "Позицію вже скасовано.",
+          "failedCancelItem": "Не вдалося скасувати позицію."
         },
         "success": {
           "statusUpdated": "Статус замовлення постачальника оновлено.",
+          "itemCancelled": "Позицію замовлення скасовано.",
           "supplierUpdated": "Постачальника оновлено.",
           "productUpdated": "Товар оновлено.",
           "stocked": "Замовлення постачальника оприбутковано.",
@@ -1071,6 +1082,8 @@
         "request": "Запит на закупівлю",
         "ordered": "Замовлено",
         "approved": "Погоджено",
+        "partially_stocked": "Частково оприбутковано",
+        "partially_completed": "Частково виконано",
         "stocked": "На складі",
         "overdue": "Прострочено",
         "cancelled": "Скасовано",

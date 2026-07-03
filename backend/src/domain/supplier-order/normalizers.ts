@@ -63,21 +63,21 @@ export type NormalizedSupplierOrderItem = {
   productName: string;
   quantity: number;
   price: number;
-  receiptStatus: 'new' | 'approved' | 'received';
+  receiptStatus: 'new' | 'approved' | 'received' | 'cancelled';
 };
 
 export const toReceiptStatus = (
   value: unknown,
-): 'new' | 'approved' | 'received' =>
+): 'new' | 'approved' | 'received' | 'cancelled' =>
   receiptStatuses.includes(String(value ?? '') as (typeof receiptStatuses)[number])
-    ? (value as 'new' | 'approved' | 'received')
+    ? (value as 'new' | 'approved' | 'received' | 'cancelled')
     : 'new';
 
 export const normalizeItems = (
   items: unknown,
   existingItems?: Array<{
     itemIndex: number;
-    receiptStatus?: 'new' | 'approved' | 'received';
+    receiptStatus?: 'new' | 'approved' | 'received' | 'cancelled';
   }>,
 ): NormalizedSupplierOrderItem[] => {
   if (!Array.isArray(items)) return [];

@@ -188,6 +188,65 @@ describe('takeOnChargeSupplierOrder', () => {
     expect(state.createdProducts).toHaveLength(0);
   });
 
+  it('sets partially_stocked when only one item in a multi-item order is received', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'approved',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Cable B',
+          quantity: 1,
+          price: 50,
+          receiptStatus: 'new',
+        },
+      ],
+    };
+
+    const result = await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      itemIndex: 0,
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+    });
+
+    expect(result.status).toBe('partially_stocked');
+    expect(result.receiptStatus).toBe('approved');
+    expect(result.items[0]?.receiptStatus).toBe('received');
+    expect(result.items[1]?.receiptStatus).toBe('new');
+  });
+
+  it('rejects take-on-charge for already received items', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'received',
+        },
+      ],
+    };
+
+    await expect(
+      takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+        itemIndex: 0,
+        warehouseId: 'w-1',
+        locationId: 'l-1',
+      }),
+    ).rejects.toThrow('Supplier order item is already received.');
+  });
+
   it('uses the first active warehouse as default', async () => {
     state.warehouseSettings = {
       warehouses: [

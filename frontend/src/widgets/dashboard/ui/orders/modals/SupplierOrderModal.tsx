@@ -48,6 +48,8 @@ type SupplierOrderModalProps = {
     locationId: string;
   }) => Promise<TakeOnChargeResult | void> | TakeOnChargeResult | void;
   onCancelOrder?: () => Promise<void> | void;
+  onCancelItem?: (reason?: string) => Promise<void> | void;
+  isItemScopedView?: boolean;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   warehouseOptions?: Array<{
@@ -85,6 +87,8 @@ export const SupplierOrderModal = ({
   onSubmit,
   onTakeOnCharge,
   onCancelOrder,
+  onCancelItem,
+  isItemScopedView = false,
   onSuccess,
   onError,
   warehouseOptions,
@@ -107,6 +111,8 @@ export const SupplierOrderModal = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
+  const [isCancelItemDialogOpen, setIsCancelItemDialogOpen] = useState(false);
+  const [cancelItemReason, setCancelItemReason] = useState('');
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
@@ -139,9 +145,25 @@ export const SupplierOrderModal = ({
   });
 
   const isEditing = Boolean(editingOrder);
+  const selectedItemReceiptStatus = editingOrder?.items[0]?.receiptStatus;
   const { isContentLocked, isTakeOnChargeLocked, isCancelLocked } =
-    resolveSupplierOrderModalLocks(editingOrder);
+    resolveSupplierOrderModalLocks(editingOrder, {
+      itemReceiptStatus: selectedItemReceiptStatus,
+    });
   const isFormDisabled = forceReadOnly || isContentLocked;
+  const canCancelItem =
+    isEditing &&
+    Boolean(onCancelItem) &&
+    !forceReadOnly &&
+    editingOrder?.items.length === 1 &&
+    selectedItemReceiptStatus !== 'received' &&
+    selectedItemReceiptStatus !== 'cancelled';
+  const showCancelOrderButton =
+    isEditing &&
+    Boolean(onCancelOrder) &&
+    !forceReadOnly &&
+    !isCancelLocked &&
+    !isItemScopedView;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -409,7 +431,18 @@ export const SupplierOrderModal = ({
           <div className='catalog-edit-title'>
             <h2>{t('orders.supplier.modal.title')}</h2>
           </div>
-          {isEditing && onCancelOrder && !forceReadOnly && !isCancelLocked ? (
+          {canCancelItem ? (
+            <button
+              type='button'
+              className='danger-button'
+              disabled={isActionSubmitting}
+              onClick={() => setIsCancelItemDialogOpen(true)}
+              style={{ marginLeft: 'auto', marginRight: 12 }}
+            >
+              {t('orders.supplier.modal.cancelItem')}
+            </button>
+          ) : null}
+          {showCancelOrderButton ? (
             <button
               type='button'
               className='danger-button'
@@ -417,13 +450,16 @@ export const SupplierOrderModal = ({
               onClick={async () => {
                 setIsActionSubmitting(true);
                 try {
-                  await onCancelOrder();
+                  await onCancelOrder?.();
                   onClose();
                 } finally {
                   setIsActionSubmitting(false);
                 }
               }}
-              style={{ marginLeft: 'auto', marginRight: 12 }}
+              style={{
+                marginLeft: canCancelItem ? 0 : 'auto',
+                marginRight: 12,
+              }}
             >
               {t('orders.supplier.modal.delete')}
             </button>
@@ -1018,6 +1054,83 @@ export const SupplierOrderModal = ({
                 }}
               >
                 {isSupplierCreating ? t('orders.supplier.editModal.saving') : t('common.create')}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {isCancelItemDialogOpen ? (
+        <div className='supplier-order-inline-backdrop' role='presentation'>
+          <section
+            className='catalog-edit-modal supplier-order-cancel-item-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>{t('orders.supplier.modal.cancelItemTitle')}</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => {
+                  setIsCancelItemDialogOpen(false);
+                  setCancelItemReason('');
+                }}
+                aria-label={t('common.close')}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>{t('orders.supplier.modal.cancelItemConfirm')}</p>
+              <label className='field field-wide'>
+                <span>{t('orders.supplier.modal.cancelItemReason')}</span>
+                <textarea
+                  rows={3}
+                  value={cancelItemReason}
+                  onChange={(event) => setCancelItemReason(event.target.value)}
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                disabled={isActionSubmitting}
+                onClick={() => {
+                  setIsCancelItemDialogOpen(false);
+                  setCancelItemReason('');
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type='button'
+                className='danger-button'
+                disabled={isActionSubmitting}
+                onClick={async () => {
+                  setIsActionSubmitting(true);
+                  try {
+                    await onCancelItem?.(cancelItemReason.trim() || undefined);
+                    setIsCancelItemDialogOpen(false);
+                    setCancelItemReason('');
+                    onClose();
+                  } catch (error) {
+                    onError(
+                      error instanceof Error
+                        ? error.message
+                        : t('orders.supplier.messages.errors.failedCancelItem'),
+                    );
+                  } finally {
+                    setIsActionSubmitting(false);
+                  }
+                }}
+              >
+                {isActionSubmitting
+                  ? t('orders.supplier.editModal.saving')
+                  : t('orders.supplier.modal.cancelItemConfirmAction')}
               </button>
             </footer>
           </section>

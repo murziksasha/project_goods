@@ -263,9 +263,28 @@ Implementation references:
 - Initial status for each item is `new`.
 - When operator takes on charge `...-N`, only selected `itemIndex` changes to `received`.
 - Other items in the same supplier order (`...-2`, `...-3`, etc.) keep `new` until they are taken on charge individually.
+- Item-level cancel uses `items[].receiptStatus = cancelled` via `POST /supplier-orders/:supplierOrderId/cancel-item`.
 - Receipt row status projection priority:
-1. if `order.status = cancelled` OR `order.status = unavailable` OR `order.paymentStatus = cancelled` -> row status `cancelled`
-2. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
+1. if `item.receiptStatus = cancelled` -> row status `cancelled`
+2. else if `order.status = cancelled` OR `order.status = unavailable` OR `order.paymentStatus = cancelled` -> row status `cancelled`
+3. otherwise -> `item.receiptStatus` (`new` / `approved` / `received`)
+
+### 6.4) Auto Order Status Sync With Receipts / Supplier Order Table
+- `Orders -> Supplier Order` shows `order.status` on every item row of the same supplier order.
+- After partial receive/cancel progress, backend auto-sets:
+  - `partially_stocked` — at least one item is `received` or `cancelled`, but some items remain `new`/`approved`
+  - `partially_completed` — all items are terminal (`received` or `cancelled`) with a mixed outcome
+  - `stocked` — all items are `received`
+  - `cancelled` — all items are `cancelled` (pending payment only auto-cancels `paymentStatus`)
+- `partially_stocked` and `partially_completed` are auto-only (not selectable manually in status window).
+- Supplier Order list visibility rule (`filterSupplierOrders`):
+  - hide order only when `paymentStatus = pending` and every `items[].receiptStatus = cancelled`
+  - keep order visible for partial outcomes (`partially_stocked`, `partially_completed`) and for paid / `without_payment` orders even when all items are cancelled
+  - when operator explicitly filters `Order status = Cancelled`, fully-cancelled unpaid orders remain visible
+- Status filter compatibility:
+  - `partially_stocked` matches open status filters (`request`, `ordered`, `approved`, `overdue`)
+  - `partially_completed` matches `approved`, `stocked`, `partially_completed`, and open status filters
+- Take-on-charge and cancel-item from any entry point (`Warehouse -> Receipts`, `Orders -> Supplier Order`, linked sale card) must invalidate/refetch the shared `supplierOrders` query cache so both tabs stay synchronized.
 
 ### 6.3) Supplier Order Modal Item List Editing
 - In `SupplierOrderModal` (`src/widgets/dashboard/ui/orders/modals/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
@@ -279,21 +298,22 @@ Implementation references:
 
 ### 8) Take-On-Charge and Cancel Availability
 - `overdue` is auto-only on list fetch and does **not** block take-on-charge or content editing.
-- For open orders (`approved`, `overdue`, etc.) that are not yet stocked/received:
-  1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`.
-  2. **Delete in modal (`Скасувати`)** — allowed only for `paymentStatus = pending`.
-  3. **Status badge closure** — paid / `without_payment` orders may be moved manually to `cancelled` or `unavailable`; `paymentStatus` stays unchanged for paid orders.
+- For open orders (`approved`, `partially_stocked`, `overdue`, etc.) that are not yet fully received:
+  1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`; item-scoped via `itemIndex`.
+  2. **Cancel item (`Скасувати позицію`)** — allowed for unreceived items even when `paymentStatus = paid` / `without_payment`; recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red.
+  3. **Delete in modal (`Скасувати`)** — whole-order cancel; allowed only for `paymentStatus = pending` and when not all items are received.
+  4. **Status badge closure** — paid / `without_payment` orders may be moved manually to `cancelled` or `unavailable`; `paymentStatus` stays unchanged for paid orders.
 - Take-on-charge locks:
 1. `status = cancelled` or `unavailable`
-2. selected item `receiptStatus = received`
-3. order-level `status = stocked` or `receiptStatus = received`
+2. selected item `receiptStatus = received` or `cancelled`
+3. all items already `received`
 4. `paymentStatus = cancelled`
 - Modal Delete / `POST /supplier-orders/:supplierOrderId/cancel` locks:
 1. `paymentStatus = paid` or `without_payment`
 2. `status = cancelled` or `unavailable`
-3. order-level `status = stocked` or `receiptStatus = received`
+3. all items already `received`
 4. `paymentStatus = cancelled`
-- `paid` / `without_payment` must not block take-on-charge while the order remains open and unreceived.
+- `paid` / `without_payment` must not block take-on-charge or item cancel while unreceived items remain.
 
 ### 9) New Receipt Order Initial State
 - New supplier order created from `Warehouse -> Receipts` starts as `approved` (not auto-`stocked`) to allow later receiving.
