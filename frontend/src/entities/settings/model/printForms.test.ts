@@ -10,6 +10,7 @@ import {
   normalizeContentMargins,
   normalizePrintFormsForView,
   normalizePrintLayoutBlocks,
+  printLabelDocumentStyles,
   renderPrintLayout,
   renderPrintTemplate,
 } from './printForms';
@@ -83,7 +84,7 @@ describe('renderPrintTemplate', () => {
 
   it('uses the explicit barcode value and renders label variables', () => {
     const rendered = renderPrintTemplate(
-      '<div class="print-label">{{barcode}}<strong>{{labelCode}}</strong><span>{{labelTitle}}</span><span>{{labelContact}}</span></div>',
+      '<div class="print-label">{{barcode}}<strong class="print-label-serial">{{labelCode}}</strong><span>{{labelTitle}}</span><span>{{labelContact}}</span></div>',
       {
         ...templateData,
         barcode: 'SN-ABC-1',
@@ -95,7 +96,7 @@ describe('renderPrintTemplate', () => {
     );
 
     expect(rendered).toContain('data-barcode-value="SN-ABC-1"');
-    expect(rendered).toContain('<strong>SN-ABC-1</strong>');
+    expect(rendered).toContain('<strong class="print-label-serial">SN-ABC-1</strong>');
     expect(rendered).toContain('Adapter &lt;Fujitsu&gt;');
     expect(rendered).toContain('+380671112233');
   });
@@ -163,6 +164,21 @@ describe('renderPrintLayout', () => {
     expect(rendered).toContain('<strong class="print-code-value">{{labelCode}}</strong>');
     expect(rendered).toContain('print-signatures');
     expect(rendered).toContain('print-columns');
+  });
+
+  it('marks labelCode headings with print-label-serial for wrapping', () => {
+    const rendered = renderPrintLayout([
+      { id: 'serial', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
+      { id: 'title', type: 'heading', level: 3, text: '{{labelTitle}}', align: 'center' },
+    ]);
+
+    expect(rendered).toContain(
+      '<h3 class="print-block-heading print-label-serial print-align-center">',
+    );
+    expect(rendered).toContain('<h3 class="print-block-heading print-align-center">');
+    expect(rendered).not.toContain(
+      '<h3 class="print-block-heading print-label-serial print-align-center">{{labelTitle}}',
+    );
   });
 
   it('escapes literal html while preserving variables', () => {
@@ -421,6 +437,7 @@ describe('normalizePrintFormsForView', () => {
     });
     expect(barcode?.content).toContain('class="print-label"');
     expect(barcode?.content).not.toContain('class="print-document"');
+    expect(barcode?.content).toContain('class="print-label-serial"');
     expect(barcode?.content).toContain('{{labelCode}}');
     expect(barcode?.content).toContain('{{labelTitle}}');
     expect(barcode?.content).toContain('{{labelContact}}');
@@ -484,6 +501,13 @@ describe('normalizePrintFormsForView', () => {
     });
     expect(warehouseBarcode?.layoutBlocks?.[0]?.id).toBe('warehouse-barcode-code');
     expect(warehouseBarcode?.content).toContain('class="print-label"');
+    expect(warehouseBarcode?.content).toContain('print-label-serial');
+  });
+
+  it('allows label serial text to wrap in label print styles', () => {
+    expect(printLabelDocumentStyles).toContain('.print-label .print-label-serial');
+    expect(printLabelDocumentStyles).toContain('white-space: normal');
+    expect(printLabelDocumentStyles).toContain('overflow-wrap: anywhere');
   });
 
   it('maps warehouse label template data from product serial fields', () => {

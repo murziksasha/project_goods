@@ -8486,8 +8486,9 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 .settings-print-preview-page .print-form-label {
   box-sizing: border-box;
   width: var(--label-width, 25mm);
-  height: var(--label-height, 40mm);
-  overflow: hidden;
+  height: auto;
+  min-height: var(--label-height, 40mm);
+  overflow: visible;
   padding: 0;
 }
 
@@ -8565,8 +8566,9 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   justify-content: flex-start;
   gap: 0.2mm;
   width: var(--label-width, 25mm);
-  height: var(--label-height, 40mm);
-  overflow: hidden;
+  height: auto;
+  min-height: var(--label-height, 40mm);
+  overflow: visible;
   padding: var(--content-margin-top, 0.45mm) var(--content-margin-right, 1.25mm)
     var(--content-margin-bottom, 0.45mm) var(--content-margin-left, 1.25mm);
   text-align: center;
@@ -8712,6 +8714,16 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   white-space: nowrap;
   font-size: 12px;
   line-height: 1;
+}
+
+.settings-print-preview-page .print-label .print-label-serial,
+.settings-print-preview-page .print-label .print-block-heading.print-label-serial {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+  line-height: 1.15;
 }
 
 .settings-print-preview-page .print-label span {
