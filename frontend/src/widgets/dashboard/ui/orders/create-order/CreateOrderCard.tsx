@@ -897,9 +897,15 @@ export const CreateOrderCard = ({
   };
 
   const removeSaleItem = (itemId: string) => {
-    setSaleItems((current) =>
-      current.length === 1 ? current : current.filter((item) => item.id !== itemId),
-    );
+    setSaleItems((current) => {
+      const canRemoveLastRow =
+        current.length === 1 && saleServiceItems.length > 0;
+      if (current.length === 1 && !canRemoveLastRow) {
+        return current;
+      }
+
+      return current.filter((item) => item.id !== itemId);
+    });
   };
 
   const handleSaleItemQuantityChange = (item: SaleOrderItem, value: string) => {
@@ -1065,7 +1071,9 @@ export const CreateOrderCard = ({
   };
 
   const handleSave = async () => {
-    const normalizedSaleItems = saleItems.map((item) => {
+    const normalizedSaleItems = saleItems
+      .filter((item) => item.query.trim().length >= 2)
+      .map((item) => {
       const quantity = Math.max(1, Number.parseInt(item.quantity || '1', 10) || 1);
       const totalPrice = Math.max(0, parseDecimalInput(item.price) || 0);
       const knownUnitPrice = Math.max(0, parseDecimalInput(item.unitPrice) || 0);

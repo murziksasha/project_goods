@@ -6597,6 +6597,10 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   background: rgb(215, 215, 64);
 }
 
+.order-status-refinement {
+  background: #ebb4b4;
+}
+
 .order-status-waitingParts {
   background: #75add7;
 }
@@ -6660,6 +6664,8 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 .order-status-options-portal {
   position: fixed;
   z-index: 4000;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .order-status-option {

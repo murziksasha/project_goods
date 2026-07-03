@@ -179,6 +179,34 @@ describe('createSale product identity', () => {
     expect(salePayload.lineItems[0].catalogProductId).toBeNull();
   });
 
+  it('creates a service-only sale item snapshot from the first service line', async () => {
+    await createSale({
+      ...basePayload,
+      deviceName: 'Screen cleaning',
+      lineItems: [
+        {
+          id: 'li-service',
+          kind: 'service',
+          serviceId: '507f1f77bcf86cd799439051',
+          name: 'Screen cleaning',
+          price: '150',
+          quantity: '1',
+          warrantyPeriod: '1',
+        },
+      ],
+    });
+
+    const salePayload = capturedSales[0];
+    expect(salePayload.product).toBeNull();
+    expect(salePayload.productSnapshot).toMatchObject({
+      name: 'Screen cleaning',
+    });
+    expect(salePayload.lineItems[0]).toMatchObject({
+      kind: 'service',
+      name: 'Screen cleaning',
+    });
+  });
+
   it('creates a manual sale item without object id fields', async () => {
     await createSale({
       ...basePayload,

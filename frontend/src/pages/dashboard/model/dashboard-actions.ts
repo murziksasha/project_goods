@@ -35,7 +35,9 @@ import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms'
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import {
-} from '../../../entities/service-catalog/api/serviceCatalogApi';
+  getCreateOrderSaleTitle,
+  validateCreateOrderSaleLineItems,
+} from '../../../widgets/dashboard/model/create-order-sale-validation';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
@@ -1482,11 +1484,13 @@ export const createDashboardActions = ({
           })
           .filter((item) => item.name.length >= 2);
         const primarySaleItem = payload.sourceTab === 'sale' ? saleItems[0] : null;
-        const primarySaleServiceItem =
-          payload.sourceTab === 'sale' ? saleServiceItems[0] : null;
+        const saleTitle =
+          payload.sourceTab === 'sale'
+            ? getCreateOrderSaleTitle(saleItems, saleServiceItems)
+            : '';
         const deviceName =
           payload.sourceTab === 'sale'
-            ? primarySaleItem?.name ?? primarySaleServiceItem?.name ?? ''
+            ? saleTitle
             : payload.deviceName.trim();
         const saleProductsTotal = saleItems.reduce(
           (total, item) => total + item.price * item.quantity,
@@ -1508,7 +1512,15 @@ export const createDashboardActions = ({
         if (clientName.length < 2) {
           throw new Error(i18n.t('dashboard.actions.errors.clientNameMinLength'));
         }
-        if (deviceName.length < 2) {
+        if (payload.sourceTab === 'sale') {
+          const saleLineItemsErrorKey = validateCreateOrderSaleLineItems(
+            saleItems,
+            saleServiceItems,
+          );
+          if (saleLineItemsErrorKey) {
+            throw new Error(i18n.t(saleLineItemsErrorKey));
+          }
+        } else if (deviceName.length < 2) {
           throw new Error(i18n.t('dashboard.actions.errors.deviceNameMinLength'));
         }
         if (!payload.managerId.trim()) {
@@ -1615,7 +1627,7 @@ export const createDashboardActions = ({
           note: noteParts.join('\n'),
           managerId: payload.managerId,
           masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
-          deviceName: payload.sourceTab === 'repair' ? deviceName : '',
+          deviceName: payload.sourceTab === 'repair' ? deviceName : saleTitle,
           serialNumber: payload.sourceTab === 'repair' ? serialNumber : '',
           timeline: [
             ...(payload.issueFromClient.trim()

@@ -440,7 +440,9 @@ export const createSale = async (payloadInput: SalePayload) => {
           )
         : [];
   const primaryLineItemName =
-    lineItems.find((item) => item.kind === 'product')?.name?.trim() ?? '';
+    lineItems.find((item) => item.kind === 'product')?.name?.trim() ??
+    lineItems.find((item) => item.kind === 'service')?.name?.trim() ??
+    '';
   const stockDeltas =
     normalizedKind === 'sale' && !product
       ? []
@@ -603,7 +605,9 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           )
         : [];
   const nextPrimaryLineItemName =
-    nextLineItems.find((item) => item.kind === 'product')?.name?.trim() ?? '';
+    nextLineItems.find((item) => item.kind === 'product')?.name?.trim() ??
+    nextLineItems.find((item) => item.kind === 'service')?.name?.trim() ??
+    '';
   const stockDeltas =
     normalizedKind === 'sale' && !product
       ? []

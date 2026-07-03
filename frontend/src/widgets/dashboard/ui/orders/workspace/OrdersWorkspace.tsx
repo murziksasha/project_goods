@@ -111,8 +111,10 @@ import {
   isSalePaymentStatus,
   isUrgentRepairOrder,
   lockedColumnsByTab,
+  computeOrderStatusMenuPosition,
   normalizeOrderStatus,
   orderTabs,
+  type OrderStatusMenuPosition,
   ordersColumnsStorageKey,
   readActiveOrderFilters,
   readSavedOrderFilters,
@@ -222,10 +224,9 @@ export const OrdersWorkspace = ({
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
     string | null
   >(null);
-  const [statusMenuPosition, setStatusMenuPosition] = useState<{
-    top: number;
-    left: number;
-  } | null>(null);
+  const [statusMenuPosition, setStatusMenuPosition] =
+    useState<OrderStatusMenuPosition | null>(null);
+  const statusMenuOptionsRef = useRef<HTMLDivElement>(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
@@ -893,11 +894,9 @@ export const OrdersWorkspace = ({
         return;
       }
 
-      const rect = trigger.getBoundingClientRect();
-      setStatusMenuPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+      setStatusMenuPosition(
+        computeOrderStatusMenuPosition(trigger.getBoundingClientRect()),
+      );
     };
 
     syncStatusMenuPosition();
@@ -907,11 +906,7 @@ export const OrdersWorkspace = ({
     };
 
     const handleScroll = () => {
-      if (activeTab === 'orders') {
-        syncStatusMenuPosition();
-        return;
-      }
-      setOpenStatusSaleId(null);
+      syncStatusMenuPosition();
     };
 
     window.addEventListener('resize', handleResize);
@@ -962,6 +957,30 @@ export const OrdersWorkspace = ({
         : null,
     [openStatusSaleId, sales],
   );
+
+  useEffect(() => {
+    const options = statusMenuOptionsRef.current;
+    if (!openStatusSale || !statusMenuPosition || !options) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.stopPropagation();
+      const { scrollTop, scrollHeight, clientHeight } = options;
+      if (scrollHeight <= clientHeight) {
+        event.preventDefault();
+        return;
+      }
+
+      const deltaY = event.deltaY;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      if ((deltaY > 0 && atBottom) || (deltaY < 0 && atTop)) {
+        event.preventDefault();
+      }
+    };
+
+    options.addEventListener('wheel', handleWheel, { passive: false });
+    return () => options.removeEventListener('wheel', handleWheel);
+  }, [openStatusSale, statusMenuPosition]);
 
   useEffect(() => {
     if (!paymentSale) return;
@@ -3079,10 +3098,12 @@ export const OrdersWorkspace = ({
       typeof document !== 'undefined'
         ? createPortal(
             <div
-              className='order-status-options order-status-options-portal'
+              ref={statusMenuOptionsRef}
+              className={`order-status-options order-status-options-portal order-status-options-portal-${statusMenuPosition.placement}`}
               style={{
                 top: statusMenuPosition.top,
                 left: statusMenuPosition.left,
+                maxHeight: statusMenuPosition.maxHeight,
               }}
             >
               {getStatusOptions(openStatusSale).map(

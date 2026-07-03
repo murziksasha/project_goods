@@ -89,7 +89,7 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 - Product names show bound serials inline: `Name (S000003)`.
 - **Price is editable** in the draft table via `NumberStepper` (manual override after add). Running total updates immediately (`orders.rapidSale.total`).
 - `Qty` is display-only in the draft table (change qty before add, or remove and re-add).
-- `Issued` stays disabled until `validateRapidSaleDraft` passes (at least one line, valid stock products, no duplicate serials, finite total).
+- `Issued` stays disabled until `validateRapidSaleDraft` passes (at least one line, valid stock products when product lines exist, no duplicate serials, finite total). Product lines are optional; a draft with only services is valid.
 
 ### Draft Validation Errors (i18n)
 
@@ -176,6 +176,10 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 - Default state: `Services` collapsed; `Products` always expanded.
 - Expanded `Services` reuses existing service-catalog lookup (`getServiceCatalogItems`, debounce 350 ms, min 2 chars) and missing-service creation rules (`missingService` helpers).
 - Operator may add multiple service rows before `Save order`; saved sale persists them as `lineItems[]` with `kind: service`.
+- **Product lines are optional.** A sales order may contain only services (one or more). Empty product entry rows are ignored on save.
+- Save validation requires at least one normalized line item: product **or** service (`dashboard.actions.errors.saleLineItemsRequired`). The legacy repair-oriented `deviceNameMinLength` check does not apply to the sales tab.
+- When only services are present, the sale title / `productSnapshot.name` comes from the first service line; list views use the same fallback via `getSaleProductName`.
+- Operators may remove the last empty product row after at least one service has been added.
 
 ## Product Suggestions
 
@@ -325,8 +329,9 @@ Suggestion rows may show the resolved retail price before click when matching st
 ## Status Dropdown UX
 
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
-- Status dropdown in list always opens downward.
-- Dropdown menu is rendered in a top overlay layer (portal), above table/content.
+- Status dropdown in list is rendered in overlay (portal) above table/content.
+- Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
+- When the status dropdown is open, mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and sales table must not scroll.
 - Opening dropdown must not change table row height and must not introduce extra scroll inside orders table block.
 
 ## Suggestion Catalog Source (2026-05-09)

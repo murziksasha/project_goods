@@ -120,6 +120,7 @@ export type RepairStatus =
   | 'paid'
   | 'diagnostics'
   | 'inRepair'
+  | 'refinement'
   | 'waitingParts'
   | 'clientApproved'
   | 'clientRejected'
@@ -446,6 +447,7 @@ export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
   { key: 'new', labelKey: 'orders.status.repair.new' },
   { key: 'diagnostics', labelKey: 'orders.status.repair.diagnostics' },
   { key: 'inRepair', labelKey: 'orders.status.repair.inRepair' },
+  { key: 'refinement', labelKey: 'orders.status.repair.refinement' },
   { key: 'waitingParts', labelKey: 'orders.status.repair.waitingParts' },
   { key: 'clientApproved', labelKey: 'orders.status.repair.clientApproved' },
   { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
@@ -555,6 +557,7 @@ export const normalizeOrderStatus = (
     paid: 'paid',
     diagnostics: 'diagnostics',
     inrepair: 'inRepair',
+    refinement: 'refinement',
     waitingparts: 'waitingParts',
     clientapproved: 'clientApproved',
     clientrejected: 'clientRejected',
@@ -925,10 +928,61 @@ export const repairEditableStatuses = new Set<RepairStatus>([
   'paid',
   'diagnostics',
   'inRepair',
+  'refinement',
   'waitingParts',
   'clientApproved',
   'ready',
 ]);
+
+export const ORDER_STATUS_MENU_WIDTH = 230;
+export const ORDER_STATUS_MENU_MAX_HEIGHT = 260;
+export const ORDER_STATUS_MENU_GAP = 4;
+export const ORDER_STATUS_MENU_VIEWPORT_PADDING = 8;
+export const ORDER_STATUS_MENU_MIN_HEIGHT = 120;
+
+export type OrderStatusMenuPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+  placement: 'below' | 'above';
+};
+
+export const computeOrderStatusMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): OrderStatusMenuPosition => {
+  const menuWidth = ORDER_STATUS_MENU_WIDTH;
+  const menuMaxHeight = ORDER_STATUS_MENU_MAX_HEIGHT;
+  const gap = ORDER_STATUS_MENU_GAP;
+  const pad = ORDER_STATUS_MENU_VIEWPORT_PADDING;
+
+  const spaceBelow = viewport.height - anchorRect.bottom - gap - pad;
+  const spaceAbove = anchorRect.top - gap - pad;
+  const openBelow = spaceBelow >= spaceAbove;
+  const availableSpace = openBelow ? spaceBelow : spaceAbove;
+  const maxHeight = Math.max(
+    ORDER_STATUS_MENU_MIN_HEIGHT,
+    Math.min(menuMaxHeight, availableSpace),
+  );
+
+  let top = openBelow
+    ? anchorRect.bottom + gap
+    : anchorRect.top - gap - maxHeight;
+  top = Math.max(pad, Math.min(top, viewport.height - pad - maxHeight));
+
+  let left = anchorRect.left;
+  left = Math.max(pad, Math.min(left, viewport.width - menuWidth - pad));
+
+  return {
+    top,
+    left,
+    maxHeight,
+    placement: openBelow ? 'below' : 'above',
+  };
+};
 
 export const isOrderEditableStatus = (
   sale: Sale,
