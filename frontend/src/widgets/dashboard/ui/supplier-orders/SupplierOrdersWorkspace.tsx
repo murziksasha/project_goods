@@ -9,6 +9,7 @@ import type {
   SupplierFormValues,
 } from '../../../../entities/supplier/model/types';
 import {
+  useCancelSupplierOrderItemMutation,
   useCancelSupplierOrderMutation,
   useCreateSupplierOrderMutation,
   useSupplierOrdersQuery,
@@ -45,6 +46,8 @@ import {
 
 const financeVisibilityStatuses: SupplierOrderStatus[] = [
   'approved',
+  'partially_stocked',
+  'partially_completed',
   'stocked',
   'cancelled',
 ];
@@ -107,6 +110,8 @@ export const SupplierOrdersWorkspace = ({
   const updateSupplierOrderFavoriteMutation =
     useUpdateSupplierOrderFavoriteMutation();
   const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const cancelSupplierOrderItemMutation =
+    useCancelSupplierOrderItemMutation();
   const takeOnChargeSupplierOrderMutation =
     useTakeOnChargeSupplierOrderMutation();
   const orders = supplierOrdersQuery.data ?? [];
@@ -143,6 +148,7 @@ export const SupplierOrdersWorkspace = ({
   const [openStatusOrder, setOpenStatusOrder] = useState<{
     key: string;
     order: SupplierOrder;
+    itemIndex: number;
   } | null>(null);
   const [statusMenuPosition, setStatusMenuPosition] = useState<{
     top: number;
@@ -154,6 +160,11 @@ export const SupplierOrdersWorkspace = ({
   const [paymentQuery, setPaymentQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SupplierOrder | null>(null);
+  const [editingOrderSource, setEditingOrderSource] =
+    useState<SupplierOrder | null>(null);
+  const [editingOrderItemIndex, setEditingOrderItemIndex] = useState<
+    number | null
+  >(null);
   const orderStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const paymentStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -415,6 +426,7 @@ export const SupplierOrdersWorkspace = ({
             serialNumbers: [],
             autoGenerateArticles: false,
             articleBase: '',
+            itemIndex: openStatusOrder?.itemIndex,
             warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
             locationId: defaultTakeOnChargeWarehouse.locationId,
           },
@@ -625,14 +637,16 @@ export const SupplierOrdersWorkspace = ({
           canViewSupplierOrders={canViewSupplierOrders}
           canManageSupplierOrders={canManageSupplierOrders}
           onError={onError}
-          onEditOrder={(order) => {
+          onEditOrder={(order, sourceOrder, itemIndex) => {
             setEditingOrder(order);
+            setEditingOrderSource(sourceOrder);
+            setEditingOrderItemIndex(itemIndex);
             setIsModalOpen(true);
           }}
           onOpenCatalogProduct={setSelectedCatalogProductForEdit}
           onOpenSupplier={setSelectedSupplierForEdit}
           onToggleFavorite={(order) => void toggleSupplierOrderFavorite(order)}
-          onOpenStatusOrder={(key, order, rect) => {
+          onOpenStatusOrder={(key, order, itemIndex, rect) => {
             if (!canManageSupplierOrders) {
               onError(t('orders.supplier.messages.errors.noManagePermission'));
               return;
@@ -644,7 +658,7 @@ export const SupplierOrdersWorkspace = ({
             setStatusMenuPosition(
               computeSupplierOrderStatusMenuPosition(rect),
             );
-            setOpenStatusOrder({ key, order });
+            setOpenStatusOrder({ key, order, itemIndex });
           }}
           onPageChange={setPage}
           onPageSizeChange={(nextSize) => {
@@ -670,6 +684,8 @@ export const SupplierOrdersWorkspace = ({
         onClose={() => {
           setIsModalOpen(false);
           setEditingOrder(null);
+          setEditingOrderSource(null);
+          setEditingOrderItemIndex(null);
         }}
         onCreateSupplier={onCreateSupplier}
         onSuccess={onSuccess}
@@ -684,13 +700,19 @@ export const SupplierOrdersWorkspace = ({
         }) => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
+          const orderId =
+            editingOrderSource?.id ?? editingOrder.id;
           const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
-            supplierOrderId: editingOrder.id,
+            supplierOrderId: orderId,
             payload: {
               autoGenerateSerialNumbers,
               serialNumbers,
               autoGenerateArticles,
               articleBase: articleBase.trim().toUpperCase(),
+              itemIndex:
+                editingOrderItemIndex === null
+                  ? undefined
+                  : editingOrderItemIndex,
               warehouseId,
               locationId,
             },
@@ -703,10 +725,33 @@ export const SupplierOrdersWorkspace = ({
         onCancelOrder={async () => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          await cancelSupplierOrderMutation.mutateAsync(editingOrder.id);
+          const orderId =
+            editingOrderSource?.id ?? editingOrder.id;
+          await cancelSupplierOrderMutation.mutateAsync(orderId);
           onSuccess(t('orders.supplier.messages.success.cancelled'));
           notifyFinanceUpdated();
         }}
+        onCancelItem={async (reason) => {
+          if (!canManageSupplierOrders) return;
+          if (!editingOrder) return;
+          if (editingOrderItemIndex === null) return;
+          const orderId =
+            editingOrderSource?.id ?? editingOrder.id;
+          await cancelSupplierOrderItemMutation.mutateAsync({
+            supplierOrderId: orderId,
+            payload: {
+              itemIndex: editingOrderItemIndex,
+              reason,
+            },
+          });
+          onSuccess(t('orders.supplier.messages.success.itemCancelled'));
+          notifyFinanceUpdated();
+        }}
+        isItemScopedView={
+          editingOrderItemIndex !== null &&
+          (editingOrderSource?.items.length ?? editingOrder?.items.length ?? 0) >
+            1
+        }
         onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
           if (!canManageSupplierOrders) {
             onError(t('orders.supplier.messages.errors.noManagePermission'));

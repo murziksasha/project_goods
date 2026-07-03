@@ -12,6 +12,7 @@ import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal } from '../../../../shared/lib/decimal';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import {
+  useCancelSupplierOrderItemMutation,
   useCancelSupplierOrderMutation,
   useCreateSupplierOrderMutation,
   useSupplierOrdersQuery,
@@ -123,6 +124,8 @@ export const WarehousePanel = ({
   const updateSupplierOrderFavoriteMutation =
     useUpdateSupplierOrderFavoriteMutation();
   const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const cancelSupplierOrderItemMutation =
+    useCancelSupplierOrderItemMutation();
   const takeOnChargeSupplierOrderMutation =
     useTakeOnChargeSupplierOrderMutation();
   const updateWarehouseSettingsMutation =
@@ -415,6 +418,7 @@ export const WarehousePanel = ({
             : order.createdBy || t('common.administrator'),
         acceptedAt: order.updatedAt,
         status:
+          item.receiptStatus === 'cancelled' ||
           order.status === 'cancelled' ||
           order.status === 'unavailable' ||
           order.paymentStatus === 'cancelled'
@@ -2120,6 +2124,28 @@ export const WarehousePanel = ({
           onSuccess(i18n.t('orders.messages.success.orderCancelled'));
           await refreshSupplierOrders();
         }}
+        onCancelItem={async (reason) => {
+          if (!canManageSupplierOrders) return;
+          if (!editingSupplierOrder) return;
+          if (editingSupplierOrderItemIndex === null) return;
+          const orderId =
+            editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
+          await cancelSupplierOrderItemMutation.mutateAsync({
+            supplierOrderId: orderId,
+            payload: {
+              itemIndex: editingSupplierOrderItemIndex,
+              reason,
+            },
+          });
+          onSuccess(i18n.t('orders.supplier.messages.success.itemCancelled'));
+          await refreshSupplierOrders();
+        }}
+        isItemScopedView={
+          editingSupplierOrderItemIndex !== null &&
+          (editingSupplierOrderSource?.items.length ??
+            editingSupplierOrder?.items.length ??
+            0) > 1
+        }
         onSubmit={async (
           payload: SupplierOrderModalSubmitPayload,
         ) => {

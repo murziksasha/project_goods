@@ -24,6 +24,10 @@ import {
   type SupplierOrderPayload,
   type SupplierOrderTakeOnChargePayload,
 } from './normalizers';
+import {
+  areAllSupplierOrderItemsReceived,
+  resolveSupplierOrderStatusFromItems,
+} from './status-resolver';
 
 export type { SupplierOrderPayload } from './normalizers';
 
@@ -46,8 +50,30 @@ const getSupplierBusinessDateKey = (value: string | Date) => {
 const isSupplierOrderReceived = (order: {
   status?: string;
   receiptStatus?: string;
+  items?: Array<{ receiptStatus?: string }>;
 }) =>
-  order.status === 'stocked' || order.receiptStatus === 'received';
+  areAllSupplierOrderItemsReceived(order.items ?? []) ||
+  order.status === 'stocked' ||
+  order.receiptStatus === 'received';
+
+const applyResolvedStatusFromItems = (
+  order: SupplierOrderDocument,
+  options?: { preserveManualStatus?: boolean },
+) => {
+  const resolved = resolveSupplierOrderStatusFromItems(order.items ?? []);
+  if (resolved.status) {
+    order.status = resolved.status;
+    order.receiptStatus = resolved.receiptStatus;
+    if (resolved.status === 'cancelled' && order.paymentStatus === 'pending') {
+      order.paymentStatus = 'cancelled';
+    }
+    return;
+  }
+
+  if (!options?.preserveManualStatus) {
+    order.receiptStatus = resolved.receiptStatus;
+  }
+};
 
 const withSupplierName = async (order: SupplierOrderDocument) => {
   const supplier = await Supplier.findById(order.supplier).lean();
@@ -78,7 +104,7 @@ export const autoMarkOverdueSupplierOrders = async (
   if (!todayKey) return;
 
   const candidates = await SupplierOrder.find({
-    status: { $in: ['request', 'ordered', 'approved'] },
+    status: { $in: ['request', 'ordered', 'approved', 'partially_stocked'] },
     receiptStatus: { $ne: 'received' },
   }).lean<SupplierOrderDocument[]>();
 
@@ -210,7 +236,9 @@ export const updateSupplierOrderFavorite = async (
 export const listSupplierOrdersForAccounting = async () => {
   await autoMarkZeroTotalOrdersWithoutPayment();
   const orders = await SupplierOrder.find({
-    status: { $in: ['approved', 'stocked'] },
+    status: {
+      $in: ['approved', 'partially_stocked', 'partially_completed', 'stocked'],
+    },
     paymentStatus: 'pending',
     total: { $gt: 0 },
   })
@@ -242,7 +270,12 @@ export const paySupplierOrder = async (
   if (!existing) throw new Error('Supplier order not found.');
   if (existing.paymentStatus === 'paid') throw new Error('Замовлення вже сплачено.');
   if (existing.paymentStatus === 'without_payment') throw new Error('Замовлення вже видано без оплати.');
-  if (existing.status !== 'approved' && existing.status !== 'stocked') {
+  if (
+    existing.status !== 'approved' &&
+    existing.status !== 'stocked' &&
+    existing.status !== 'partially_stocked' &&
+    existing.status !== 'partially_completed'
+  ) {
     throw new Error('Оплата доступна тільки для замовлень зі статусом approved або stocked.');
   }
 
@@ -262,6 +295,7 @@ export const paySupplierOrder = async (
   existing.paymentStatus = 'paid';
   existing.receiptStatus = existing.receiptStatus === 'new' ? 'approved' : existing.receiptStatus;
   await existing.validate();
+  existing.paid = existing.total;
   await existing.save();
 
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
@@ -275,7 +309,12 @@ export const issueSupplierOrderWithoutPayment = async (
   if (!existing) throw new Error('Supplier order not found.');
   if (existing.paymentStatus === 'paid') throw new Error('Замовлення вже сплачено.');
   if (existing.paymentStatus === 'without_payment') throw new Error('Замовлення вже видано без оплати.');
-  if (existing.status !== 'approved' && existing.status !== 'stocked') {
+  if (
+    existing.status !== 'approved' &&
+    existing.status !== 'stocked' &&
+    existing.status !== 'partially_stocked' &&
+    existing.status !== 'partially_completed'
+  ) {
     throw new Error('Видача без оплати доступна тільки для замовлень зі статусом approved або stocked.');
   }
 
@@ -312,12 +351,58 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
   if (existing.paymentStatus === 'paid' || existing.paymentStatus === 'without_payment') {
     throw new Error('Оплачений заказ не можна скасувати.');
   }
-  if (existing.status === 'stocked' || existing.receiptStatus === 'received') {
+  if (isSupplierOrderReceived(existing)) {
     throw new Error('Оприбутковане замовлення не можна скасувати.');
+  }
+
+  for (const item of existing.items ?? []) {
+    if (item.receiptStatus !== 'received' && item.receiptStatus !== 'cancelled') {
+      item.receiptStatus = 'cancelled';
+    }
   }
 
   existing.status = 'cancelled';
   existing.paymentStatus = 'cancelled';
+  await existing.validate();
+  await existing.save();
+  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+};
+
+export const cancelSupplierOrderItem = async (
+  supplierOrderId: string,
+  payload?: { itemIndex?: unknown; reason?: unknown },
+) => {
+  isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
+  const existing = await SupplierOrder.findById(supplierOrderId);
+  if (!existing) throw new Error('Supplier order not found.');
+  if (existing.status === 'cancelled' || existing.status === 'unavailable') {
+    throw new Error('Closed supplier order cannot cancel items.');
+  }
+
+  const itemIndex = Math.max(0, Math.floor(toNumber(payload?.itemIndex)));
+  const targetItem = (existing.items ?? []).find(
+    (item) => item.itemIndex === itemIndex,
+  );
+  if (!targetItem) {
+    throw new Error('Selected supplier order item not found.');
+  }
+  if (targetItem.receiptStatus === 'received') {
+    throw new Error('Received supplier order item cannot be cancelled.');
+  }
+  if (targetItem.receiptStatus === 'cancelled') {
+    throw new Error('Supplier order item is already cancelled.');
+  }
+
+  targetItem.receiptStatus = 'cancelled';
+  const reason = toNonEmptyString(payload?.reason);
+  if (reason) {
+    const marker = `[ITEM_CANCELLED:${itemIndex}] ${reason}`;
+    existing.note = existing.note?.trim()
+      ? `${existing.note.trim()}\n${marker}`
+      : marker;
+  }
+
+  applyResolvedStatusFromItems(existing);
   await existing.validate();
   await existing.save();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
@@ -347,6 +432,17 @@ export const takeOnChargeSupplierOrder = async (
         );
   if (targetItems.length === 0) {
     throw new Error('Selected supplier order item not found.');
+  }
+
+  const blockedItem = targetItems.find(
+    (item) =>
+      item.receiptStatus === 'received' || item.receiptStatus === 'cancelled',
+  );
+  if (blockedItem) {
+    if (blockedItem.receiptStatus === 'received') {
+      throw new Error('Supplier order item is already received.');
+    }
+    throw new Error('Cancelled supplier order item cannot be taken on charge.');
   }
 
   const autoGenerateSerialNumbers =
@@ -480,12 +576,7 @@ export const takeOnChargeSupplierOrder = async (
     item.receiptStatus = 'received';
   }
 
-  const allItemsReceived = (existing.items ?? []).every(
-    (item) => item.receiptStatus === 'received',
-  );
-
-  existing.status = allItemsReceived ? 'stocked' : 'approved';
-  existing.receiptStatus = allItemsReceived ? 'received' : 'approved';
+  applyResolvedStatusFromItems(existing);
   if (existing.total <= 0) {
     existing.paymentStatus = 'without_payment';
   } else if (existing.paymentStatus !== 'paid' && existing.paymentStatus !== 'without_payment') {

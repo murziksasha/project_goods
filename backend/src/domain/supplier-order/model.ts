@@ -1,9 +1,12 @@
 import mongoose from 'mongoose';
+import { applySupplierOrderFinancialTotals } from './totals';
 
 export const supplierOrderStatuses = [
   'request',
   'ordered',
   'approved',
+  'partially_stocked',
+  'partially_completed',
   'stocked',
   'overdue',
   'cancelled',
@@ -11,7 +14,7 @@ export const supplierOrderStatuses = [
 ] as const;
 
 export const supplierPaymentStatuses = ['pending', 'paid', 'without_payment', 'cancelled'] as const;
-export const receiptStatuses = ['new', 'approved', 'received'] as const;
+export const receiptStatuses = ['new', 'approved', 'received', 'cancelled'] as const;
 
 const supplierOrderItemSchema = new mongoose.Schema(
   {
@@ -121,8 +124,14 @@ export const supplierOrderSchema = new mongoose.Schema(
 );
 
 supplierOrderSchema.pre('validate', function updateSearchText() {
-  this.total = (this.items ?? []).reduce((sum, item) => sum + item.price * item.quantity, 0);
-  this.paid = this.paymentStatus === 'paid' ? this.total : 0;
+  const { total, paid } = applySupplierOrderFinancialTotals({
+    items: this.items ?? [],
+    paymentStatus: this.paymentStatus,
+    paid: this.paid ?? 0,
+    isPaymentStatusModified: this.isModified('paymentStatus'),
+  });
+  this.total = total;
+  this.paid = paid;
   this.searchText = [
     this.orderBaseId,
     this.number,

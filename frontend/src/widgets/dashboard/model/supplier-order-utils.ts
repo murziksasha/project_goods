@@ -27,7 +27,10 @@ const isSupplierOrderFinalClosed = (order: SupplierOrderModalLockInput) =>
   order.paymentStatus === 'cancelled';
 
 const isSupplierOrderFullyReceived = (order: SupplierOrderModalLockInput) =>
-  order.status === 'stocked' || order.receiptStatus === 'received';
+  (order.items.length > 0 &&
+    order.items.every((item) => item.receiptStatus === 'received')) ||
+  order.status === 'stocked' ||
+  order.receiptStatus === 'received';
 
 export const resolveSupplierOrderModalLocks = (
   order: SupplierOrderModalLockInput | null | undefined,
@@ -43,11 +46,13 @@ export const resolveSupplierOrderModalLocks = (
 
   const isFinalClosed = isSupplierOrderFinalClosed(order);
   const fullyReceived = isSupplierOrderFullyReceived(order);
-  const itemReceived =
-    options?.itemReceiptStatus === 'received' ||
-    (order.items.length === 1 && order.items[0]?.receiptStatus === 'received');
+  const itemReceiptStatus =
+    options?.itemReceiptStatus ?? order.items[0]?.receiptStatus;
+  const itemReceived = itemReceiptStatus === 'received';
+  const itemCancelled = itemReceiptStatus === 'cancelled';
 
-  const isTakeOnChargeLocked = isFinalClosed || fullyReceived || itemReceived;
+  const isTakeOnChargeLocked =
+    isFinalClosed || fullyReceived || itemReceived || itemCancelled;
   const isContentLocked =
     isTakeOnChargeLocked ||
     order.paymentStatus === 'paid' ||
@@ -74,6 +79,14 @@ const supplierOrderBackendErrorMap: Record<string, string> = {
     'orders.supplier.messages.errors.closedNotReceivable',
   'Cancelled supplier order cannot be taken on charge.':
     'orders.supplier.messages.errors.closedNotReceivable',
+  'Supplier order item is already received.':
+    'orders.supplier.messages.errors.itemAlreadyReceived',
+  'Cancelled supplier order item cannot be taken on charge.':
+    'orders.supplier.messages.errors.itemCancelledNotReceivable',
+  'Received supplier order item cannot be cancelled.':
+    'orders.supplier.messages.errors.itemReceivedNotCancellable',
+  'Supplier order item is already cancelled.':
+    'orders.supplier.messages.errors.itemAlreadyCancelled',
 };
 
 export const resolveSupplierOrderErrorMessage = (
@@ -283,13 +296,19 @@ export const buildSupplierOrderAnalytics = (
       cancelledUnavailableCount += 1;
     }
 
-    if (order.status === 'stocked' || order.receiptStatus === 'received') {
+    if (
+      order.status === 'stocked' ||
+      order.status === 'partially_stocked' ||
+      order.status === 'partially_completed' ||
+      order.receiptStatus === 'received'
+    ) {
       stockedCount += 1;
     }
 
     const deliveryTime = toDateOnlyTime(order.deliveryDate);
     const isOpenOrder =
       order.status !== 'stocked' &&
+      order.status !== 'partially_completed' &&
       order.status !== 'cancelled' &&
       order.status !== 'unavailable' &&
       order.status !== 'overdue' &&

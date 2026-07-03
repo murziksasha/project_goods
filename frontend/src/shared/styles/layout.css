@@ -6283,6 +6283,18 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   background: #7c3aed;
 }
 
+.supplier-order-status-partially_stocked {
+  background: #0d9488;
+}
+
+.supplier-order-item-cancelled {
+  color: #dc2626;
+}
+
+.supplier-order-status-partially_completed {
+  background: #6366f1;
+}
+
 .supplier-order-status-stocked {
   background: #16a34a;
 }

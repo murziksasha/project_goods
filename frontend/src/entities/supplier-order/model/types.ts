@@ -2,13 +2,15 @@ export type SupplierOrderStatus =
   | 'request'
   | 'ordered'
   | 'approved'
+  | 'partially_stocked'
+  | 'partially_completed'
   | 'stocked'
   | 'overdue'
   | 'cancelled'
   | 'unavailable';
 
 export type SupplierPaymentStatus = 'pending' | 'paid' | 'without_payment' | 'cancelled';
-export type SupplierReceiptStatus = 'new' | 'approved' | 'received';
+export type SupplierReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
 
 export type SupplierOrderItem = {
   lineId: string;

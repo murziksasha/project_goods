@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   cancelSupplierOrder,
+  cancelSupplierOrderItem,
   createSupplierOrder,
   issueSupplierOrderWithoutPayment,
   listSupplierOrders,
@@ -41,6 +42,16 @@ supplierOrderRouter.patch('/supplier-orders/:supplierOrderId/favorite', asyncHan
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/cancel', asyncHandler(async (req, res) => {
   await requirePermission(req, 'supplierOrders.manage');
   res.json(await cancelSupplierOrder(routeParam(req, 'supplierOrderId')));
+}));
+
+supplierOrderRouter.post('/supplier-orders/:supplierOrderId/cancel-item', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'supplierOrders.manage');
+  res.json(
+    await cancelSupplierOrderItem(routeParam(req, 'supplierOrderId'), req.body as {
+      itemIndex?: unknown;
+      reason?: unknown;
+    }),
+  );
 }));
 
 supplierOrderRouter.post('/supplier-orders/:supplierOrderId/take-on-charge', asyncHandler(async (req, res) => {

@@ -684,13 +684,18 @@ type SupplierOrdersTableProps = {
   canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
   onError: (message: string) => void;
-  onEditOrder: (order: SupplierOrder) => void;
+  onEditOrder: (
+    order: SupplierOrder,
+    sourceOrder: SupplierOrder,
+    itemIndex: number,
+  ) => void;
   onOpenCatalogProduct: (product: CatalogProduct) => void;
   onOpenSupplier: (supplier: Supplier) => void;
   onToggleFavorite: (order: SupplierOrder) => void;
   onOpenStatusOrder: (
     key: string,
     order: SupplierOrder,
+    itemIndex: number,
     rect: DOMRect,
   ) => void;
   onPageChange: (page: number) => void;
@@ -797,15 +802,19 @@ export const SupplierOrdersTable = ({
                             onError(t('orders.supplier.messages.errors.noViewPermission'));
                             return;
                           }
-                          onEditOrder({
-                            ...order,
-                            receiptStatus: item.receiptStatus ?? 'new',
-                            number: buildSupplierOrderItemNumber(
-                              order,
-                              item.itemIndex,
-                            ),
-                            items: [item],
-                          });
+                          onEditOrder(
+                            {
+                              ...order,
+                              receiptStatus: item.receiptStatus ?? 'new',
+                              number: buildSupplierOrderItemNumber(
+                                order,
+                                item.itemIndex,
+                              ),
+                              items: [item],
+                            },
+                            order,
+                            item.itemIndex,
+                          );
                         }}
                       >
                         {id}
@@ -817,7 +826,11 @@ export const SupplierOrdersTable = ({
                   <td data-label={t('orders.supplier.columns.product')}>
                     <button
                       type='button'
-                      className='catalog-name-button'
+                      className={`catalog-name-button${
+                        item.receiptStatus === 'cancelled'
+                          ? ' supplier-order-item-cancelled'
+                          : ''
+                      }`}
                       onClick={() => {
                         const matchedProduct = item.catalogProductId
                           ? catalogProducts.find(
@@ -904,6 +917,7 @@ export const SupplierOrdersTable = ({
                           onOpenStatusOrder(
                             id,
                             order,
+                            item.itemIndex,
                             event.currentTarget.getBoundingClientRect(),
                           )
                         }

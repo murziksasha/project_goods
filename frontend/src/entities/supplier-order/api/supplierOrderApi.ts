@@ -74,6 +74,26 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
   }
 };
 
+export type CancelSupplierOrderItemPayload = {
+  itemIndex: number;
+  reason?: string;
+};
+
+export const cancelSupplierOrderItem = async (
+  supplierOrderId: string,
+  payload: CancelSupplierOrderItemPayload,
+) => {
+  try {
+    const response = await apiClient.post<SupplierOrder>(
+      `/supplier-orders/${supplierOrderId}/cancel-item`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export type TakeOnChargePayload = {
   autoGenerateSerialNumbers?: boolean;
   serialNumbers?: string[];
@@ -145,6 +165,20 @@ export const useUpdateSupplierOrderFavoriteMutation = () =>
 export const useCancelSupplierOrderMutation = () =>
   useMutation({
     mutationFn: cancelSupplierOrder,
+    onSuccess: async () => {
+      await invalidateSupplierOrderQueries();
+    },
+  });
+
+export const useCancelSupplierOrderItemMutation = () =>
+  useMutation({
+    mutationFn: ({
+      supplierOrderId,
+      payload,
+    }: {
+      supplierOrderId: string;
+      payload: CancelSupplierOrderItemPayload;
+    }) => cancelSupplierOrderItem(supplierOrderId, payload),
     onSuccess: async () => {
       await invalidateSupplierOrderQueries();
     },

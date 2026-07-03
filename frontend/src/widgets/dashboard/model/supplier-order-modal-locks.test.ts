@@ -158,6 +158,28 @@ describe('resolveSupplierOrderModalLocks', () => {
     });
   });
 
+  it('locks take-on-charge for cancelled item-scoped suborders', () => {
+    const locks = resolveSupplierOrderModalLocks(
+      {
+        ...baseLockInput(),
+        paymentStatus: 'paid',
+        items: [
+          {
+            ...baseLockInput().items[0],
+            receiptStatus: 'new',
+          },
+        ],
+      },
+      { itemReceiptStatus: 'cancelled' },
+    );
+
+    expect(locks).toEqual({
+      isContentLocked: true,
+      isTakeOnChargeLocked: true,
+      isCancelLocked: true,
+    });
+  });
+
   it('returns unlocked defaults for missing order', () => {
     expect(resolveSupplierOrderModalLocks(null)).toEqual({
       isContentLocked: false,

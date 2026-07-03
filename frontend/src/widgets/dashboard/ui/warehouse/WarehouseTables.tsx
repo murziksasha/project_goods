@@ -95,7 +95,13 @@ export const ReceiptsTable = ({
                       </button>
                     </div>
                   ) : columnKey === 'product' ? (
-                    <button type='button' className='catalog-name-button' onClick={() => onOpenProduct(receipt)}>
+                    <button
+                      type='button'
+                      className={`catalog-name-button${
+                        receipt.status === 'cancelled' ? ' supplier-order-item-cancelled' : ''
+                      }`}
+                      onClick={() => onOpenProduct(receipt)}
+                    >
                       {receipt.productName}
                     </button>
                   ) : columnKey === 'quantity' ? (
