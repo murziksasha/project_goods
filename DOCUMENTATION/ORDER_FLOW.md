@@ -89,7 +89,8 @@
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Status dropdown in list is rendered in overlay (portal) above table/content.
 - Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
-- When the status dropdown is open, mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and orders table must not scroll.
+- When the status dropdown is open, background scroll is locked: `body`/page scroll and `orders-table-wrap` scroll are disabled until the menu closes.
+- Mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and orders table must not scroll.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
 - For repair orders with attached warehouse products, status change to `issued` is allowed only after the attached products are fully paid.
 - When a paid repair order changes to `issued`, bound warehouse serials stay attached to the order and stock is shipped by the workspace save flow.
