@@ -227,6 +227,7 @@ export const OrdersWorkspace = ({
   const [statusMenuPosition, setStatusMenuPosition] =
     useState<OrderStatusMenuPosition | null>(null);
   const statusMenuOptionsRef = useRef<HTMLDivElement>(null);
+  const ordersTableWrapRef = useRef<HTMLDivElement>(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
@@ -880,6 +881,44 @@ export const OrdersWorkspace = ({
   }, [openStatusSaleId]);
 
   useEffect(() => {
+    if (!openStatusSaleId) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const tableWrap = ordersTableWrapRef.current;
+    const previousTableWrapOverflow = tableWrap?.style.overflow ?? '';
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    if (tableWrap) {
+      tableWrap.style.overflow = 'hidden';
+    }
+
+    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.order-status-options-portal')) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', preventBackgroundScroll, {
+      passive: false,
+    });
+    document.addEventListener('touchmove', preventBackgroundScroll, {
+      passive: false,
+    });
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      if (tableWrap) {
+        tableWrap.style.overflow = previousTableWrapOverflow;
+      }
+      document.removeEventListener('wheel', preventBackgroundScroll);
+      document.removeEventListener('touchmove', preventBackgroundScroll);
+    };
+  }, [openStatusSaleId]);
+
+  useEffect(() => {
     if (!openStatusSaleId) {
       setStatusMenuPosition(null);
       return;
@@ -905,16 +944,10 @@ export const OrdersWorkspace = ({
       setOpenStatusSaleId(null);
     };
 
-    const handleScroll = () => {
-      syncStatusMenuPosition();
-    };
-
     window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [activeTab, openStatusSaleId]);
 
@@ -3019,7 +3052,7 @@ export const OrdersWorkspace = ({
         </div>
       ) : null}
 
-      <div className='orders-table-wrap'>
+      <div className='orders-table-wrap' ref={ordersTableWrapRef}>
         <table
           className='orders-table orders-workspace-table'
           style={{ minWidth: tableMinWidth }}
