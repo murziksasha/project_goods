@@ -6,10 +6,12 @@ import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
+  computeOrderStatusMenuPosition,
   getPrintTemplateData,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
+  normalizeOrderStatus,
   printWarehouseSerialLabels,
   type OrderLineItem,
 } from './orders-workspace-shared';
@@ -471,5 +473,48 @@ describe('order print labels', () => {
     expect(html).not.toContain('print-html-label');
     expect(html).not.toContain('print-body-label');
     expect(html).not.toContain('--label-width');
+  });
+});
+
+describe('repair status refinement', () => {
+  it('normalizes refinement status key', () => {
+    expect(normalizeOrderStatus('refinement')).toBe('refinement');
+    expect(normalizeOrderStatus(' Refinement ')).toBe('refinement');
+  });
+});
+
+describe('order status menu position', () => {
+  it('opens below the badge when space allows', () => {
+    const position = computeOrderStatusMenuPosition(
+      { top: 100, bottom: 132, left: 48, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('below');
+    expect(position.top).toBe(136);
+    expect(position.left).toBe(48);
+    expect(position.maxHeight).toBe(260);
+  });
+
+  it('flips above the badge near the page bottom', () => {
+    const position = computeOrderStatusMenuPosition(
+      { top: 820, bottom: 852, left: 900, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('above');
+    expect(position.top).toBeLessThan(820);
+    expect(position.left).toBe(900);
+    expect(position.maxHeight).toBeLessThanOrEqual(260);
+  });
+
+  it('clamps horizontally inside the viewport', () => {
+    const position = computeOrderStatusMenuPosition(
+      { top: 200, bottom: 232, left: 1200, width: 120 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.left).toBeLessThan(1200);
+    expect(position.left + 230).toBeLessThanOrEqual(1280 - 8);
   });
 });

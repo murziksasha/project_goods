@@ -111,8 +111,10 @@ import {
   isSalePaymentStatus,
   isUrgentRepairOrder,
   lockedColumnsByTab,
+  computeOrderStatusMenuPosition,
   normalizeOrderStatus,
   orderTabs,
+  type OrderStatusMenuPosition,
   ordersColumnsStorageKey,
   readActiveOrderFilters,
   readSavedOrderFilters,
@@ -222,10 +224,10 @@ export const OrdersWorkspace = ({
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
     string | null
   >(null);
-  const [statusMenuPosition, setStatusMenuPosition] = useState<{
-    top: number;
-    left: number;
-  } | null>(null);
+  const [statusMenuPosition, setStatusMenuPosition] =
+    useState<OrderStatusMenuPosition | null>(null);
+  const statusMenuOptionsRef = useRef<HTMLDivElement>(null);
+  const ordersTableWrapRef = useRef<HTMLDivElement>(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
@@ -879,6 +881,44 @@ export const OrdersWorkspace = ({
   }, [openStatusSaleId]);
 
   useEffect(() => {
+    if (!openStatusSaleId) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const tableWrap = ordersTableWrapRef.current;
+    const previousTableWrapOverflow = tableWrap?.style.overflow ?? '';
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    if (tableWrap) {
+      tableWrap.style.overflow = 'hidden';
+    }
+
+    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.order-status-options-portal')) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', preventBackgroundScroll, {
+      passive: false,
+    });
+    document.addEventListener('touchmove', preventBackgroundScroll, {
+      passive: false,
+    });
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      if (tableWrap) {
+        tableWrap.style.overflow = previousTableWrapOverflow;
+      }
+      document.removeEventListener('wheel', preventBackgroundScroll);
+      document.removeEventListener('touchmove', preventBackgroundScroll);
+    };
+  }, [openStatusSaleId]);
+
+  useEffect(() => {
     if (!openStatusSaleId) {
       setStatusMenuPosition(null);
       return;
@@ -893,11 +933,9 @@ export const OrdersWorkspace = ({
         return;
       }
 
-      const rect = trigger.getBoundingClientRect();
-      setStatusMenuPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+      setStatusMenuPosition(
+        computeOrderStatusMenuPosition(trigger.getBoundingClientRect()),
+      );
     };
 
     syncStatusMenuPosition();
@@ -906,20 +944,10 @@ export const OrdersWorkspace = ({
       setOpenStatusSaleId(null);
     };
 
-    const handleScroll = () => {
-      if (activeTab === 'orders') {
-        syncStatusMenuPosition();
-        return;
-      }
-      setOpenStatusSaleId(null);
-    };
-
     window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [activeTab, openStatusSaleId]);
 
@@ -962,6 +990,30 @@ export const OrdersWorkspace = ({
         : null,
     [openStatusSaleId, sales],
   );
+
+  useEffect(() => {
+    const options = statusMenuOptionsRef.current;
+    if (!openStatusSale || !statusMenuPosition || !options) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.stopPropagation();
+      const { scrollTop, scrollHeight, clientHeight } = options;
+      if (scrollHeight <= clientHeight) {
+        event.preventDefault();
+        return;
+      }
+
+      const deltaY = event.deltaY;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      if ((deltaY > 0 && atBottom) || (deltaY < 0 && atTop)) {
+        event.preventDefault();
+      }
+    };
+
+    options.addEventListener('wheel', handleWheel, { passive: false });
+    return () => options.removeEventListener('wheel', handleWheel);
+  }, [openStatusSale, statusMenuPosition]);
 
   useEffect(() => {
     if (!paymentSale) return;
@@ -3000,7 +3052,7 @@ export const OrdersWorkspace = ({
         </div>
       ) : null}
 
-      <div className='orders-table-wrap'>
+      <div className='orders-table-wrap' ref={ordersTableWrapRef}>
         <table
           className='orders-table orders-workspace-table'
           style={{ minWidth: tableMinWidth }}
@@ -3079,10 +3131,12 @@ export const OrdersWorkspace = ({
       typeof document !== 'undefined'
         ? createPortal(
             <div
-              className='order-status-options order-status-options-portal'
+              ref={statusMenuOptionsRef}
+              className={`order-status-options order-status-options-portal order-status-options-portal-${statusMenuPosition.placement}`}
               style={{
                 top: statusMenuPosition.top,
                 left: statusMenuPosition.left,
+                maxHeight: statusMenuPosition.maxHeight,
               }}
             >
               {getStatusOptions(openStatusSale).map(

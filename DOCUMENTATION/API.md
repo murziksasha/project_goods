@@ -39,6 +39,7 @@ http://localhost:5000/api
 
 - `GET /sales` - список продаж и заказов
 - `POST /sales` - создать продажу или заказ
+  - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).
     - Required: `kind: "sale"`, `isRapidSale: true`, non-empty `lineItems[]`, `managerId`.
     - `clientId` may be empty; backend assigns `getOrCreateRapidSaleClient()` (`note: __rapid_sale_system__`).

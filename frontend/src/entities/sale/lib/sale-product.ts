@@ -12,6 +12,7 @@ export const getSaleProductSnapshot = (sale: Sale): SaleProductSnapshot => ({
   name:
     sale.product?.name ??
     (sale.lineItems ?? []).find((item) => item.kind === 'product')?.name ??
+    (sale.lineItems ?? []).find((item) => item.kind === 'service')?.name ??
     '',
   serialNumber: sale.product?.serialNumber ?? '',
 });
@@ -24,6 +25,7 @@ export const getSaleProductName = (sale: Sale, fallback = '') => {
 
   const lineItemName =
     (sale.lineItems ?? []).find((item) => item.kind === 'product')?.name?.trim() ??
+    (sale.lineItems ?? []).find((item) => item.kind === 'service')?.name?.trim() ??
     '';
   return lineItemName || productName || fallback;
 };

@@ -87,7 +87,10 @@
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
-- Status dropdown in list always opens downward and is rendered in overlay (portal) above table/content.
+- Status dropdown in list is rendered in overlay (portal) above table/content.
+- Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
+- When the status dropdown is open, background scroll is locked: `body`/page scroll and `orders-table-wrap` scroll are disabled until the menu closes.
+- Mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and orders table must not scroll.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
 - For repair orders with attached warehouse products, status change to `issued` is allowed only after the attached products are fully paid.
 - When a paid repair order changes to `issued`, bound warehouse serials stay attached to the order and stock is shipped by the workspace save flow.
@@ -123,6 +126,21 @@
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
 - Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until the attached products are fully paid.
 - For `Sales`, `Issue without payment` remains blocked for target status `issued` while `To pay > 0`.
+
+## Repair Status Refinement (2026-07-03)
+
+- Repair orders support intermediate status `refinement`:
+  - key: `refinement`
+  - EN label: `Refinement`
+  - UK label: `Опрацювання`
+- Status position in workflow/list: after `in repair`, before `waiting parts`.
+- Badge color: pale red (`#ebb4b4`).
+- `refinement` is a non-final working status:
+  - available in `Orders` list status dropdown, order-card status select, and `Order status` filter checkboxes,
+  - editable in order card while the order remains in a non-final status,
+  - does not fill `Issued`, does not set `Ready date`, does not trigger payment modal on selection,
+  - does not block `client rejected` / `issued without repair` by itself (same stock-lock rules as other non-final statuses),
+  - `Refund to client` remains allowed.
 
 ## Repair Order Refund Guard
 

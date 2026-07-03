@@ -169,6 +169,32 @@ describe('createSale rapid sale', () => {
     expect(salePayload.lineItems).toHaveLength(2);
   });
 
+  it('creates a rapid sale with service-only line items', async () => {
+    await createSale({
+      ...baseRapidPayload,
+      lineItems: [
+        {
+          id: 'li-service',
+          kind: 'service',
+          serviceId: '507f1f77bcf86cd799439051',
+          name: 'Setup',
+          price: '400',
+          quantity: '1',
+          warrantyPeriod: '1',
+        },
+      ],
+    });
+
+    const salePayload = capturedSales[0];
+    expect(salePayload.isRapidSale).toBe(true);
+    expect(salePayload.lineItems).toHaveLength(1);
+    expect(salePayload.lineItems[0]).toMatchObject({
+      kind: 'service',
+      name: 'Setup',
+    });
+    expect(salePayload.productSnapshot.name).toBe('Setup');
+  });
+
   it('rejects rapid sale without line items', async () => {
     await expect(createSale({ ...baseRapidPayload, lineItems: [] })).rejects.toThrow(
       'Rapid sale must contain at least one line item.',

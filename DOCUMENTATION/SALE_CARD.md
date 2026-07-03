@@ -8,6 +8,11 @@
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
 
+## Service-Only Sales
+
+- A sale may contain only service line items (no product rows). This is valid for both `Create order -> Sales order` and `Rapid sale`.
+- When no product snapshot or product line exists, list/search labels and opened-card product title fall back to the first service line name via `getSaleProductName`.
+
 ## Sections And Defaults
 
 - Sale card uses two collapsible line-item sections:

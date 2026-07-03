@@ -418,7 +418,9 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
         case 'heading': {
           const level = clampTextLevel(block.level);
           const weight = clampTextWeight(block.weight);
-          return `<h${level} class="print-block-heading${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</h${level}>`;
+          const serialClass =
+            block.text.trim() === '{{labelCode}}' ? ' print-label-serial' : '';
+          return `<h${level} class="print-block-heading${serialClass}${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</h${level}>`;
         }
         case 'paragraph': {
           const level = clampTextLevel(block.level);
@@ -646,7 +648,7 @@ export const defaultPrintForms: PrintForm[] = [
     content: `
       <div class="print-label">
         <div class="print-label-code">{{barcode}}</div>
-        <strong>{{labelCode}}</strong>
+        <strong class="print-label-serial">{{labelCode}}</strong>
         <span>{{labelTitle}}</span>
         <span>{{labelContact}}</span>
       </div>
@@ -665,7 +667,7 @@ export const defaultPrintForms: PrintForm[] = [
     content: `
       <div class="print-label">
         <div class="print-label-code">{{barcode}}</div>
-        <strong>{{labelCode}}</strong>
+        <strong class="print-label-serial">{{labelCode}}</strong>
         <span>{{labelTitle}}</span>
         <span>{{labelContact}}</span>
       </div>
@@ -1338,6 +1340,8 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-paragraph-level-2 { font-size: 10px; }
   .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }
   .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
+  .print-label .print-label-serial,
+  .print-label .print-block-heading.print-label-serial { white-space: normal; overflow: visible; overflow-wrap: anywhere; word-break: break-word; text-overflow: clip; line-height: 1.15; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
   @media print {

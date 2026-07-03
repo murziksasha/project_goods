@@ -1312,6 +1312,68 @@ describe('CreateOrderCard', () => {
     );
   });
 
+  it('saves a service-only sales order without product lines', async () => {
+    const onSave = vi.fn(async () => null);
+    getServiceCatalogItemsMock.mockImplementation(async (query = '') => {
+      if (query.toLowerCase().includes('clean')) {
+        return [
+          {
+            id: 'service-1',
+            name: 'Screen cleaning',
+            price: 150,
+            salePriceOptions: [150],
+            note: '',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderCreateOrderCard('sale', onSave);
+
+    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Add service')).toBeInTheDocument();
+    });
+
+    await afterDebouncedInput(
+      () => {
+        fireEvent.change(screen.getByPlaceholderText('Add service'), {
+          target: { value: 'Screen cleaning' },
+        });
+      },
+      () => {
+        expect(screen.getByText('Screen cleaning')).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByText('Screen cleaning'));
+    fireEvent.click(document.querySelector('.create-order-add-service-button')!);
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTab: 'sale',
+        saleItems: [],
+        saleServiceItems: [
+          expect.objectContaining({
+            serviceId: 'service-1',
+            name: 'Screen cleaning',
+            price: '150',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('shows rapid sale button only on sales tab and opens modal', () => {
     const onRapidSale = vi.fn(async () => null);
 
