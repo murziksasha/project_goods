@@ -63,6 +63,7 @@ import {
   initialWarehouses,
   lockedWarehouseColumns,
   normalizeProductName,
+  normalizeReceiptStatuses,
   receiptStatusFilterOptions,
   savedWarehouseFiltersStorageKey,
   tabs,
@@ -84,6 +85,7 @@ import {
   type TransferHistoryRow,
   type WarehouseColumnVisibility,
   type WarehouseColumnsTab,
+  type ReceiptStatus,
   type WarehouseFilters,
   type WarehouseFormState,
   type WarehouseItem,
@@ -135,15 +137,11 @@ export const WarehousePanel = ({
   const isWarehouseSettingsSaving =
     updateWarehouseSettingsMutation.isPending;
   const normalizeWarehouseFilters = (
-    filters?: Partial<WarehouseFilters>,
+    filters?: Partial<WarehouseFilters> & { status?: ReceiptStatus | '' },
   ): WarehouseFilters => ({
     ...initialWarehouseFilters,
     ...(filters ?? {}),
-    status:
-      filters?.status &&
-      receiptStatusFilterOptions.includes(filters.status)
-        ? filters.status
-        : '',
+    statuses: normalizeReceiptStatuses(filters),
     favoritesOnly: filters?.favoritesOnly === true,
   });
   const [selectedProductModelContext, setSelectedProductModelContext] =
@@ -225,6 +223,8 @@ export const WarehousePanel = ({
     }
   });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isReceiptStatusFilterOpen, setIsReceiptStatusFilterOpen] =
+    useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
@@ -326,6 +326,7 @@ export const WarehousePanel = ({
     setEditingSupplierOrderItemIndex,
   ] = useState<number | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const receiptStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
@@ -772,9 +773,18 @@ export const WarehousePanel = ({
     activeTab === 'receipts'
       ? t('warehouse.search.receipts')
       : t(`warehouse.search.${searchMode}`);
-  const activeFilterCount = Object.values(appliedFilters).filter((value) =>
-    typeof value === 'boolean' ? value : value.trim(),
-  ).length;
+  const activeFilterCount =
+    (appliedFilters.statuses.length > 0 ? 1 : 0) +
+    (appliedFilters.favoritesOnly ? 1 : 0) +
+    [
+      appliedFilters.name,
+      appliedFilters.serial,
+      appliedFilters.article,
+      appliedFilters.warehouse,
+      appliedFilters.supplier,
+      appliedFilters.buyer,
+      appliedFilters.location,
+    ].filter((value) => value.trim()).length;
   const stockSummaryText =
     activeTab === 'stock'
       ? t('warehouse.summary.stockRows', { count: filteredProducts.length })
@@ -866,6 +876,25 @@ export const WarehousePanel = ({
     return () =>
       document.removeEventListener('mousedown', handleDocumentClick);
   }, [isColumnsMenuOpen]);
+  useEffect(() => {
+    if (!isFilterPanelOpen) {
+      setIsReceiptStatusFilterOpen(false);
+    }
+  }, [isFilterPanelOpen]);
+  useEffect(() => {
+    if (!isReceiptStatusFilterOpen) return;
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        receiptStatusFilterRef.current &&
+        !receiptStatusFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsReceiptStatusFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () =>
+      document.removeEventListener('mousedown', handleDocumentClick);
+  }, [isReceiptStatusFilterOpen]);
   useEffect(() => {
     if (!draftFilters.warehouse || !draftFilters.location) return;
     const hasLocation = availableLocationOptions.some(
@@ -1215,6 +1244,27 @@ export const WarehousePanel = ({
       current.filter((item) => item.id !== filterId),
     );
   };
+  const toggleReceiptStatusFilter = (status: ReceiptStatus) => {
+    setDraftFilters((current) => {
+      const hasStatus = current.statuses.includes(status);
+      return {
+        ...current,
+        statuses: hasStatus
+          ? current.statuses.filter((key) => key !== status)
+          : [...current.statuses, status],
+      };
+    });
+  };
+  const toggleAllReceiptStatuses = () => {
+    setDraftFilters((current) => {
+      const isAllSelected =
+        current.statuses.length === receiptStatusFilterOptions.length;
+      return {
+        ...current,
+        statuses: isAllSelected ? [] : [...receiptStatusFilterOptions],
+      };
+    });
+  };
   const toggleColumnVisibility = (
     columnKey: StockColumnKey | ReceiptsColumnKey,
   ) => {
@@ -1536,25 +1586,53 @@ export const WarehousePanel = ({
               </label>
             ) : null}
             {activeTab === 'receipts' ? (
-              <label className='orders-filter-field'>
+              <div
+                className='orders-filter-field orders-filter-status-field'
+                ref={receiptStatusFilterRef}
+              >
                 <span>{t('warehouse.filters.status')}</span>
-                <select
-                  value={draftFilters.status}
-                  onChange={(event) =>
-                    setDraftFilters((current) => ({
-                      ...current,
-                      status: event.target.value as WarehouseFilters['status'],
-                    }))
+                <button
+                  type='button'
+                  className='orders-filter-status-toggle'
+                  aria-expanded={isReceiptStatusFilterOpen}
+                  onClick={() =>
+                    setIsReceiptStatusFilterOpen((current) => !current)
                   }
                 >
-                  <option value=''>{t('orders.filters.all')}</option>
-                  {receiptStatusFilterOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {t(`warehouse.tables.receipts.status.${status}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {draftFilters.statuses.length > 0
+                    ? t('orders.filters.selectedCount', {
+                        count: draftFilters.statuses.length,
+                      })
+                    : t('orders.filters.all')}
+                </button>
+                {isReceiptStatusFilterOpen ? (
+                  <div className='orders-filter-status-menu'>
+                    <label className='orders-filter-status-all'>
+                      <input
+                        type='checkbox'
+                        checked={
+                          draftFilters.statuses.length ===
+                          receiptStatusFilterOptions.length
+                        }
+                        onChange={toggleAllReceiptStatuses}
+                      />
+                      <strong>{t('orders.filters.all')}</strong>
+                    </label>
+                    {receiptStatusFilterOptions.map((status) => (
+                      <label key={status}>
+                        <input
+                          type='checkbox'
+                          checked={draftFilters.statuses.includes(status)}
+                          onChange={() => toggleReceiptStatusFilter(status)}
+                        />
+                        <span>
+                          {t(`warehouse.tables.receipts.status.${status}`)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {activeTab === 'receipts' ? (
               <label className='orders-filter-field warehouse-favorites-filter'>
