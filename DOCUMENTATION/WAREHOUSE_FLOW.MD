@@ -243,6 +243,14 @@ Implementation references:
 - Creating/editing/cancelling/taking-on-charge supplier-order-backed receipt rows requires `supplierOrders.manage`.
 - Manual receipt rows created only inside the warehouse UI remain local UI/session rows and are composed after supplier-order-backed rows.
 
+### 5.1) Receipts Filter Panel
+- `Warehouse -> Receipts` filter panel includes a multi-select receipt status filter with checkboxes: `new`, `approved`, `received`, `cancelled`.
+- Empty status selection means all receipt statuses are shown.
+- Multiple selected statuses use OR logic: a row passes when its projected receipt status is in the selected set.
+- The toolbar `Filter` button counts a non-empty status selection as one active filter.
+- Saved warehouse filters persist the `statuses` array in local storage.
+- Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
+
 ### 6) Row Click Behavior
 - Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
 - Click `Product` -> open product editor from catalog.

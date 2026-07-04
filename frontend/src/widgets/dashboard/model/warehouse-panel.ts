@@ -82,7 +82,7 @@ export type WarehouseFilters = {
   supplier: string;
   buyer: string;
   location: string;
-  status: ReceiptStatus | '';
+  statuses: ReceiptStatus[];
   favoritesOnly: boolean;
 };
 export type SavedWarehouseFilter = {
@@ -280,8 +280,25 @@ export const initialWarehouseFilters: WarehouseFilters = {
   supplier: '',
   buyer: '',
   location: '',
-  status: '',
+  statuses: [],
   favoritesOnly: false,
+};
+
+export const normalizeReceiptStatuses = (
+  filters?: Partial<WarehouseFilters> & { status?: ReceiptStatus | '' },
+): ReceiptStatus[] => {
+  if (Array.isArray(filters?.statuses)) {
+    return filters.statuses.filter((status) =>
+      receiptStatusFilterOptions.includes(status),
+    );
+  }
+  if (
+    filters?.status &&
+    receiptStatusFilterOptions.includes(filters.status as ReceiptStatus)
+  ) {
+    return [filters.status as ReceiptStatus];
+  }
+  return [];
 };
 export const warehouseFilterIconOptions = [
   '*',
@@ -460,7 +477,10 @@ export const filterReceiptRows = ({
       return false;
     }
 
-    if (filters.status && receipt.status !== filters.status) {
+    if (
+      filters.statuses.length > 0 &&
+      !filters.statuses.includes(receipt.status)
+    ) {
       return false;
     }
 
