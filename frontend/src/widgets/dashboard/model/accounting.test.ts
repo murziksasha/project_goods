@@ -420,6 +420,14 @@ describe('accounting model helpers', () => {
 
   it('normalizes item suffixes and resolves supplier orders from transaction notes', () => {
     expect(normalizeTransactionOrderToken('SO-1-2')).toBe('so-1');
+    expect(normalizeTransactionOrderToken('SO-1')).toBe('so-1');
+    expect(normalizeTransactionOrderToken('SO-42')).toBe('so-42');
+    expect(normalizeTransactionOrderToken('SO-1779142808517')).toBe(
+      'so-1779142808517',
+    );
+    expect(normalizeTransactionOrderToken('SO-1779142808517-1')).toBe(
+      'so-1779142808517',
+    );
 
     const supplierOrders = [
       {
@@ -456,5 +464,49 @@ describe('accounting model helpers', () => {
         supplierOrders,
       }),
     ).toEqual({ kind: 'manual' });
+  });
+
+  it('resolves the correct supplier order when multiple SO-* automation numbers exist', () => {
+    const supplierOrders = [
+      {
+        id: 'supplier-1',
+        orderBaseId: 'SO-1',
+        number: 'SO-1',
+      },
+      {
+        id: 'supplier-5',
+        orderBaseId: 'SO-5',
+        number: 'SO-5',
+      },
+      {
+        id: 'supplier-9',
+        orderBaseId: 'SO-9',
+        number: 'SO-9',
+      },
+    ] as any[];
+
+    expect(
+      findSupplierOrderByTransactionToken('SO-5', supplierOrders)?.id,
+    ).toBe('supplier-5');
+    expect(
+      resolveTransactionNoteLink({
+        note: 'Payment for order SO-5',
+        sales: [],
+        supplierOrders,
+      }),
+    ).toEqual({
+      kind: 'supplier',
+      supplierOrder: supplierOrders[1],
+    });
+    expect(
+      resolveTransactionNoteLink({
+        note: 'Оплата за замовлення SO-9',
+        sales: [],
+        supplierOrders,
+      }),
+    ).toEqual({
+      kind: 'supplier',
+      supplierOrder: supplierOrders[2],
+    });
   });
 });

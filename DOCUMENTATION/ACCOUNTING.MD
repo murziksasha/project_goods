@@ -30,7 +30,8 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Notes for payment and refund operations are parsed when they match these patterns:
   - `Payment for order <token>`
   - `Refund for order <token>`
-  - `Оплата замовлення <token>`
+  - `Оплата (за )?замовлення <token>`
+  - `Supplier order payment: <token>` (backend fallback when note is omitted)
 - Resolution priority for `<token>`:
   1. Sales or Service orders (by `sale.recordNumber` or `sale.id`)
   2. Supplier orders (by `order.number` or `order.orderBaseId`)
@@ -89,6 +90,12 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - `Оплатити`:
   - Creates finance withdraw transaction.
   - Sets `paymentStatus = paid`.
+  - Transaction **note** uses the supplier order **display number**:
+    - custom `number` entered during supplier purchase (e.g. `ПП-77`, `INV-2026-01`) when present;
+    - otherwise the system automation id `orderBaseId` (e.g. `SO-1779142808517`).
+  - Frontend sends localized note via `accounting.orders.paymentNote` (`Payment for order {{orderNumber}}` / `Оплата за замовлення {{orderNumber}}`).
+  - Backend fallback (when `note` is omitted in pay payload): `Supplier order payment: <display number>`.
+  - Display number rule matches UI helper `getSupplierOrderDisplayNumber`: `order.number || order.orderBaseId`.
 - `Видати без оплати`:
   - Requires explicit confirmation in modal dialog.
   - Does not create finance transaction.

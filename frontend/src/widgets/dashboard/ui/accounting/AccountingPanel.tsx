@@ -47,6 +47,7 @@ import { useAccountingPreferences } from './useAccountingPreferences';
 import { useFinanceAction } from './useFinanceAction';
 import { useTransactionFilters } from './useTransactionFilters';
 import { useTransactionForm } from './useTransactionForm';
+import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -541,9 +542,11 @@ export const AccountingPanel = ({
   const handlePaySupplierOrder = async (
     order: SupplierOrderPaymentQueueItem,
     cashboxId: string,
-    _orderNumber: string,
+    orderNumber: string,
   ) => {
     if (!cashboxId) return;
+    const displayOrderNumber =
+      orderNumber.trim() || getSupplierOrderDisplayNumber(order);
     await runFinanceAction(
       () =>
         paySupplierOrderMutation.mutateAsync({
@@ -551,7 +554,7 @@ export const AccountingPanel = ({
           payload: {
             cashboxId,
             note: i18n.t('accounting.orders.paymentNote', {
-              orderNumber: order.orderBaseId,
+              orderNumber: displayOrderNumber,
             }),
           },
         }),
@@ -747,6 +750,7 @@ export const AccountingPanel = ({
         />
       )}
       <SupplierOrderModal
+        key={selectedSupplierOrder?.id ?? 'closed'}
         isOpen={Boolean(selectedSupplierOrder)}
         suppliers={[]}
         editingOrder={selectedSupplierOrder}
