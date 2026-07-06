@@ -106,6 +106,7 @@ frontend/
 - `src/features/` - пользовательские сценарии и интерактивные потоки
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
 - `src/shared/` - переиспользуемая инфраструктура: стили, утилиты, HTTP-слой
+- `src/shared/lib/buildInfo.ts` - метка версии frontend-сборки (`getBuildSha`, `getBuildLabel`); см. [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md)
 
 ## Структурные соглашения
 
@@ -136,6 +137,15 @@ frontend/
 - размещения бизнес-специфичной логики в `shared`
 - разрастания page-компонентов из-за прямого встраивания всей логики в JSX
 - дублирования HTTP-логики по нескольким frontend-модулям
+
+## Structure Update: Build Version Label (2026-07-06)
+
+- `frontend/src/shared/lib/buildInfo.ts` — SHA + build time helpers
+- `frontend/vite.config.ts` — inject `__APP_BUILD_SHA__`, `__APP_BUILD_TIME__`
+- `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — sidebar label below Settings
+- `scripts/docker-up.mjs` — `npm run docker:up` passes `GIT_SHA` into compose build
+
+Spec: [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
 
 ## Structure Update: Browser Navigation (2026-06-22)
 

@@ -89,9 +89,15 @@ createServer(async (request, response) => {
 
   const filePath = getStaticPath(request.url);
 
+  const cacheControl =
+    filePath === join(distDir, 'index.html')
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=31536000, immutable';
+
   try {
     const stats = statSync(filePath);
     response.writeHead(200, {
+      'cache-control': cacheControl,
       'content-length': stats.size,
       'content-type': mimeTypes.get(extname(filePath)) ?? 'application/octet-stream',
     });
@@ -100,6 +106,7 @@ createServer(async (request, response) => {
     try {
       const indexHtml = await readFile(join(distDir, 'index.html'));
       response.writeHead(200, {
+        'cache-control': 'no-cache, no-store, must-revalidate',
         'content-length': indexHtml.byteLength,
         'content-type': 'text/html; charset=utf-8',
       });

@@ -208,12 +208,14 @@
 
 .app-sidebar {
   min-width: 0;
+  min-height: 100%;
+  align-self: stretch;
   background: linear-gradient(180deg, #223447 0%, #2a3f55 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   color: #dbe6f3;
   padding: 24px 0 16px;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
 }
 
 .sidebar-profile {
@@ -315,7 +317,8 @@
 
 .sidebar-build-info {
   min-width: 0;
-  padding: 10px 18px 0;
+  margin-top: 6px;
+  padding: 10px 14px 0 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 0.72rem;
   line-height: 1.35;
@@ -328,6 +331,15 @@
 
 .sidebar-build-info-hidden {
   display: none;
+}
+
+.sidebar-build-info-collapsed {
+  padding-inline: 6px;
+  text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .app-sidebar-collapsed {

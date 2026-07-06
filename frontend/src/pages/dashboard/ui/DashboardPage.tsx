@@ -24,7 +24,7 @@ import {
   isNetworkRequestError,
   isUnauthorizedRequestError,
 } from '../../../shared/lib/request';
-import { getBuildLabel } from '../../../shared/lib/buildInfo';
+import { getBuildLabel, getBuildSha } from '../../../shared/lib/buildInfo';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
@@ -190,10 +190,9 @@ const isTemporaryAdmin = (employee: Employee | null) =>
 
 export const DashboardPage = () => {
   const { t, i18n } = useTranslation();
-  const buildLabel = useMemo(
-    () => getBuildLabel(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US'),
-    [i18n.language],
-  );
+  const buildLocale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
+  const buildLabel = useMemo(() => getBuildLabel(buildLocale), [buildLocale]);
+  const buildSha = useMemo(() => getBuildSha(), []);
   const [isOnline, setIsOnline] = useState(
     () => (typeof navigator === 'undefined' ? true : navigator.onLine),
   );
@@ -994,18 +993,18 @@ export const DashboardPage = () => {
               </a>
             );
           })}
-        </nav>
 
-        <div
-          className={
-            isSidebarCollapsed
-              ? 'sidebar-build-info sidebar-build-info-hidden'
-              : 'sidebar-build-info'
-          }
-          title={buildLabel}
-        >
-          {buildLabel}
-        </div>
+          <div
+            className={
+              isSidebarCollapsed
+                ? 'sidebar-build-info sidebar-build-info-collapsed'
+                : 'sidebar-build-info'
+            }
+            title={buildLabel}
+          >
+            {isSidebarCollapsed ? buildSha : buildLabel}
+          </div>
+        </nav>
       </aside>
 
       <section className="dashboard-main">
@@ -1029,7 +1028,7 @@ export const DashboardPage = () => {
               title={t('common.reloadData')}
               onClick={() => void hardReloadApp()}
             >
-              {`${t('common.lastSync')}: ${new Date(state.lastSyncAt).toLocaleTimeString(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US')}`}
+              {`${t('common.lastSync')}: ${new Date(state.lastSyncAt).toLocaleTimeString(buildLocale)}`}
             </button>
           ) : null}
 
