@@ -1,5 +1,7 @@
 FROM node:20-alpine
 
+ARG GIT_SHA=unknown
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -9,6 +11,7 @@ RUN npm install && npm install --prefix frontend
 COPY . .
 
 WORKDIR /app/frontend
+ENV VITE_BUILD_SHA=$GIT_SHA
 RUN npm run build
 
 EXPOSE 5173

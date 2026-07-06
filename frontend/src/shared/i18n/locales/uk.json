@@ -944,7 +944,11 @@
         "unstarOrder": "Прибрати зірку з {{id}}",
         "pcs": "шт.",
         "loading": "Завантаження...",
-        "empty": "Замовлення постачальників не знайдено."
+        "empty": "Замовлення постачальників не знайдено.",
+        "itemsCount": "{{count}} позицій",
+        "expandOrder": "Розгорнути замовлення {{id}}",
+        "collapseOrder": "Згорнути замовлення {{id}}",
+        "statusNotApplicable": "—"
       },
       "statusMenu": {
         "orderLabel": "Замовлення {{id}}"

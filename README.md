@@ -11,6 +11,7 @@ Project Goods - full-stack приложение для учета товаров
 - [API.md](./DOCUMENTATION/API.md) - backend API и маршруты
 - [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
 - [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - Back/Forward внутри SPA, History API, URL-параметры dashboard
+- [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md) - метка версии сборки в сайдбаре (SHA + время, Docker `GIT_SHA`)
 
 ### Flow-документы
 - [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - business home page: analytics date filter, market rates, weather widget (Chornomorsk/Odesa presets, animation, LAN mode), settings
@@ -106,6 +107,10 @@ npm run dev:backend
 npm run dev:frontend
 npm run db:up
 npm run db:down
+npm run docker:up
+npm run docker:down
 npm run install:all
 ```
+
+Docker-запуск всего стека (MongoDB + backend + frontend) и передача `GIT_SHA` в сборку frontend: см. [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md).
 

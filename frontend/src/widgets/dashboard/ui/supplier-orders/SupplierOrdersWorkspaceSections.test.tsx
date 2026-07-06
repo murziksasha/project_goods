@@ -36,14 +36,25 @@ const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
 
 const renderTable = ({
   order = makeOrder(),
+  expandedOrderIds = new Set<string>(),
   onToggleFavorite = vi.fn(),
+  onEditOrder = vi.fn(),
+  onToggleOrderExpanded = vi.fn(),
 }: {
   order?: SupplierOrder;
+  expandedOrderIds?: Set<string>;
   onToggleFavorite?: (order: SupplierOrder) => void;
+  onEditOrder?: (
+    order: SupplierOrder,
+    sourceOrder: SupplierOrder,
+    itemIndex: number | null,
+  ) => void;
+  onToggleOrderExpanded?: (orderId: string) => void;
 } = {}) => {
   render(
     <SupplierOrdersTable
       catalogProducts={[]}
+      expandedOrderIds={expandedOrderIds}
       filteredOrdersCount={1}
       isLoading={false}
       openStatusOrder={null}
@@ -51,14 +62,15 @@ const renderTable = ({
       pageSize={30}
       paginatedOrders={[order]}
       suppliers={[]}
-      visibleColumns={['number', 'product']}
+      visibleColumns={['number', 'product', 'status', 'paymentStatus']}
       canViewSupplierOrders
       canManageSupplierOrders
       onError={vi.fn()}
-      onEditOrder={vi.fn()}
+      onEditOrder={onEditOrder}
       onOpenCatalogProduct={vi.fn()}
       onOpenSupplier={vi.fn()}
       onToggleFavorite={onToggleFavorite}
+      onToggleOrderExpanded={onToggleOrderExpanded}
       onOpenStatusOrder={vi.fn()}
       onPageChange={vi.fn()}
       onPageSizeChange={vi.fn()}
@@ -92,10 +104,15 @@ describe('SupplierOrdersTable', () => {
   it('opens (calls onEditOrder) for paid supplier order when read access present (read-only view)', () => {
     const onEdit = vi.fn();
     const onErr = vi.fn();
-    const paidOrder = makeOrder({ id: 'so-paid', paymentStatus: 'paid', number: 'SO-PAID' });
+    const paidOrder = makeOrder({
+      id: 'so-paid',
+      paymentStatus: 'paid',
+      number: 'SO-PAID',
+    });
     render(
       <SupplierOrdersTable
         catalogProducts={[]}
+        expandedOrderIds={new Set()}
         filteredOrdersCount={1}
         isLoading={false}
         openStatusOrder={null}
@@ -111,26 +128,37 @@ describe('SupplierOrdersTable', () => {
         onOpenCatalogProduct={vi.fn()}
         onOpenSupplier={vi.fn()}
         onToggleFavorite={vi.fn()}
+        onToggleOrderExpanded={vi.fn()}
         onOpenStatusOrder={vi.fn()}
         onPageChange={vi.fn()}
         onPageSizeChange={vi.fn()}
       />,
     );
 
-    // find the number button by text content
-    const numBtn = screen.getByText('SO-PAID');
-    fireEvent.click(numBtn);
+    fireEvent.click(screen.getByText('SO-PAID'));
 
-    expect(onEdit).toHaveBeenCalledWith(paidOrder);
+    expect(onEdit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        number: 'SO-PAID',
+        items: [paidOrder.items[0]],
+      }),
+      paidOrder,
+      0,
+    );
     expect(onErr).not.toHaveBeenCalled();
   });
 
   it('opens (calls onEditOrder) for stocked supplier order (read-only after receipt)', () => {
     const onEdit = vi.fn();
-    const stockedOrder = makeOrder({ id: 'so-stocked', status: 'stocked', number: 'SO-STK' });
+    const stockedOrder = makeOrder({
+      id: 'so-stocked',
+      status: 'stocked',
+      number: 'SO-STK',
+    });
     render(
       <SupplierOrdersTable
         catalogProducts={[]}
+        expandedOrderIds={new Set()}
         filteredOrdersCount={1}
         isLoading={false}
         openStatusOrder={null}
@@ -146,6 +174,7 @@ describe('SupplierOrdersTable', () => {
         onOpenCatalogProduct={vi.fn()}
         onOpenSupplier={vi.fn()}
         onToggleFavorite={vi.fn()}
+        onToggleOrderExpanded={vi.fn()}
         onOpenStatusOrder={vi.fn()}
         onPageChange={vi.fn()}
         onPageSizeChange={vi.fn()}
@@ -153,7 +182,14 @@ describe('SupplierOrdersTable', () => {
     );
 
     fireEvent.click(screen.getByText('SO-STK'));
-    expect(onEdit).toHaveBeenCalledWith(stockedOrder);
+    expect(onEdit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        number: 'SO-STK',
+        items: [stockedOrder.items[0]],
+      }),
+      stockedOrder,
+      0,
+    );
   });
 
   it('does not call onEditOrder and calls onError when no view permission', () => {
@@ -162,6 +198,7 @@ describe('SupplierOrdersTable', () => {
     render(
       <SupplierOrdersTable
         catalogProducts={[]}
+        expandedOrderIds={new Set()}
         filteredOrdersCount={1}
         isLoading={false}
         openStatusOrder={null}
@@ -177,6 +214,7 @@ describe('SupplierOrdersTable', () => {
         onOpenCatalogProduct={vi.fn()}
         onOpenSupplier={vi.fn()}
         onToggleFavorite={vi.fn()}
+        onToggleOrderExpanded={vi.fn()}
         onOpenStatusOrder={vi.fn()}
         onPageChange={vi.fn()}
         onPageSizeChange={vi.fn()}
@@ -188,9 +226,10 @@ describe('SupplierOrdersTable', () => {
     expect(onErr).toHaveBeenCalled();
   });
 
-  it('renders full long supplier order numbers for multi-item orders', () => {
+  it('renders collapsed parent row for multi-item orders', () => {
     const longNumber = 'SO-1779142808517';
     const order = makeOrder({
+      id: 'so-multi',
       number: longNumber,
       orderBaseId: longNumber,
       items: [
@@ -215,8 +254,124 @@ describe('SupplierOrdersTable', () => {
 
     renderTable({ order });
 
-    expect(screen.getByText(`${longNumber}-1`)).toBeInTheDocument();
-    expect(screen.getByText(`${longNumber}-2`)).toBeInTheDocument();
+    expect(screen.getByText(longNumber)).toBeInTheDocument();
+    expect(screen.queryByText(`${longNumber}-1`)).not.toBeInTheDocument();
+    expect(screen.queryByText(`${longNumber}-2`)).not.toBeInTheDocument();
+    expect(screen.getByText('2 items')).toBeInTheDocument();
+  });
+
+  it('renders child rows when multi-item order is expanded', () => {
+    const longNumber = 'SO-1779142808517';
+    const order = makeOrder({
+      id: 'so-multi',
+      number: longNumber,
+      orderBaseId: longNumber,
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          catalogProductId: 'cat-1',
+          productName: 'Type C cable',
+          quantity: 5,
+          price: 100,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          catalogProductId: 'cat-2',
+          productName: 'Router TP-Link',
+          quantity: 2,
+          price: 900,
+        },
+      ],
+    });
+
+    renderTable({ order, expandedOrderIds: new Set(['so-multi']) });
+
+    const childNumberButtons = document.querySelectorAll(
+      '.supplier-order-group-child .supplier-order-number-button',
+    );
+    expect(childNumberButtons).toHaveLength(2);
+    expect(childNumberButtons[0]).toHaveTextContent('1');
+    expect(childNumberButtons[1]).toHaveTextContent('2');
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('opens full-order modal from parent row and item modal from child row', () => {
+    const order = makeOrder({
+      id: 'so-multi',
+      number: 'SO-MULTI',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+    const onEditOrder = vi.fn();
+
+    renderTable({
+      order,
+      expandedOrderIds: new Set(['so-multi']),
+      onEditOrder,
+    });
+
+    fireEvent.click(screen.getByText('SO-MULTI'));
+    expect(onEditOrder).toHaveBeenCalledWith(order, order, null);
+
+    fireEvent.click(
+      document.querySelector(
+        '.supplier-order-group-child .supplier-order-number-button',
+      ) as HTMLButtonElement,
+    );
+    expect(onEditOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        number: 'SO-MULTI-1',
+        items: [order.items[0]],
+      }),
+      order,
+      0,
+    );
+  });
+
+  it('toggles expanded state from parent chevron', () => {
+    const order = makeOrder({
+      id: 'so-multi',
+      number: 'SO-MULTI',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+    const onToggleOrderExpanded = vi.fn();
+
+    renderTable({ order, onToggleOrderExpanded });
+
+    fireEvent.click(screen.getByLabelText('Expand order SO-MULTI'));
+
+    expect(onToggleOrderExpanded).toHaveBeenCalledWith('so-multi');
   });
 
   it('marks cancelled item product name with supplier-order-item-cancelled class', () => {
