@@ -1212,7 +1212,7 @@ describe('AccountingPanel', () => {
     await waitFor(() =>
       expect(paySupplierOrderMock).toHaveBeenCalledWith('queue-1', {
         cashboxId: 'cashbox-1',
-        note: 'Payment for order base-1',
+        note: 'Payment for order SO-1',
       }),
     );
 
@@ -1398,6 +1398,48 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 
     expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
     expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('each SO-* payment note opens the matching supplier order, not the first in the list', async () => {
+    const supplierOne = {
+      ...sampleSupplier,
+      id: 'sup-so-1',
+      number: 'SO-1',
+      orderBaseId: 'SO-1',
+      supplierName: 'Supplier One',
+      items: [{ lineId: 'l1', itemIndex: 0, productName: 'Widget A', quantity: 1, price: 10 }],
+    };
+    const supplierFive = {
+      ...sampleSupplier,
+      id: 'sup-so-5',
+      number: 'SO-5',
+      orderBaseId: 'SO-5',
+      supplierName: 'Supplier Five',
+      items: [{ lineId: 'l2', itemIndex: 0, productName: 'Widget B', quantity: 2, price: 20 }],
+    };
+    const onSelect = vi.fn();
+    const txOne = {
+      ...baseTx('Payment for order SO-1'),
+      id: 'tx-so-1',
+    };
+    const txFive = {
+      ...baseTx('Payment for order SO-5'),
+      id: 'tx-so-5',
+    };
+    const props = {
+      ...minimalProps('Payment for order SO-1', [], [supplierOne, supplierFive]),
+      filteredTransactions: [txOne, txFive] as any[],
+      paginatedTransactions: [txOne, txFive] as any[],
+      onSelectedSupplierOrderChange: onSelect,
+    };
+    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-5' }));
+    expect(onSelect).toHaveBeenLastCalledWith(supplierFive);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-1' }));
+    expect(onSelect).toHaveBeenLastCalledWith(supplierOne);
+    expect(onSelect).toHaveBeenCalledTimes(2);
   });
 
   it('Supplier order payment backend note opens supplier modal instead of note editor', async () => {

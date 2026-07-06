@@ -123,8 +123,11 @@ export const isAccountingOrderLinkedNote = (
 
 export const normalizeTransactionOrderToken = (token: string) => {
   const normalized = token.trim().toLowerCase();
-  const withoutItemSuffix = normalized.replace(/-\d+$/, '');
-  return withoutItemSuffix || normalized;
+  const itemSuffixMatch = normalized.match(/^(.+-\d+)-\d+$/);
+  if (itemSuffixMatch) {
+    return itemSuffixMatch[1];
+  }
+  return normalized;
 };
 
 const supplierOrderTokenMatches = (
@@ -145,8 +148,20 @@ export const findSupplierOrderByTransactionToken = (
   token: string,
   supplierOrders: SupplierOrder[],
 ): SupplierOrder | undefined => {
-  const normalizedToken = normalizeTransactionOrderToken(token);
+  const trimmedToken = token.trim();
+  if (!trimmedToken) return undefined;
+
+  const lowerToken = trimmedToken.toLowerCase();
+  const normalizedToken = normalizeTransactionOrderToken(trimmedToken);
   if (!normalizedToken) return undefined;
+
+  const exactMatch = supplierOrders.find((order) =>
+    [order.number, order.orderBaseId, order.id].some(
+      (value) => value?.trim().toLowerCase() === lowerToken,
+    ),
+  );
+  if (exactMatch) return exactMatch;
+
   return supplierOrders.find((order) =>
     supplierOrderTokenMatches(order, normalizedToken),
   );
@@ -169,12 +184,18 @@ export const resolveTransactionNoteLink = ({
 }): TransactionNoteLinkResolution => {
   const token = parseTransactionOrderToken(note);
   if (token) {
+    const lowerToken = token.trim().toLowerCase();
     const normalizedToken = normalizeTransactionOrderToken(token);
-    const matchedSale = sales.find(
-      (sale) =>
+    const matchedSale = sales.find((sale) => {
+      const recordNumber = sale.recordNumber?.trim().toLowerCase() ?? '';
+      const saleId = sale.id.trim().toLowerCase();
+      return (
+        recordNumber === lowerToken ||
+        saleId === lowerToken ||
         normalizeTransactionOrderToken(sale.recordNumber ?? '') === normalizedToken ||
-        normalizeTransactionOrderToken(sale.id) === normalizedToken,
-    );
+        normalizeTransactionOrderToken(sale.id) === normalizedToken
+      );
+    });
     if (matchedSale) {
       return { kind: 'sale', sale: matchedSale };
     }

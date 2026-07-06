@@ -15,7 +15,7 @@ import {
   SupplierOrder,
   type SupplierOrderDocument,
 } from './model';
-import { formatSupplierOrder } from './formatters';
+import { formatSupplierOrder, getSupplierOrderDisplayNumber } from './formatters';
 import {
   normalizeItems,
   toOrderStatus,
@@ -288,7 +288,9 @@ export const paySupplierOrder = async (
     currency: 'UAH',
     fromCashboxId: cashboxId,
     toCashboxId: '',
-    note: toNonEmptyString(payload.note) || `Supplier order payment: ${existing.orderBaseId}`,
+    note:
+      toNonEmptyString(payload.note) ||
+      `Supplier order payment: ${getSupplierOrderDisplayNumber(existing)}`,
     transactionDate: payload.transactionDate,
   });
 
