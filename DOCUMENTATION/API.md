@@ -117,6 +117,10 @@ http://localhost:5000/api
   - Updates only the persistent favorite/star state and returns the formatted supplier order.
 
 - `GET /supplier-orders` - list supplier orders; requires `supplierOrders.view` or `supplierOrders.manage`.
+  - Side effects before query (same request):
+    - `reconcileSupplierOrderStatuses()` — fix stale header status when line items are already `received`
+    - `autoMarkOverdueSupplierOrders()` — promote only open `request` orders with past `deliveryDate` (`Europe/Kiev`) to `overdue`; must not overwrite `ordered`, `approved`, `partially_stocked`, or orders with received items
+  - See `ORDER_FLOW.md` § *Supplier Order Backdated Delivery and Status Persistence (2026-07-06)*.
 - `POST /supplier-orders` - create supplier order; requires `supplierOrders.manage`.
 - `PUT /supplier-orders/:supplierOrderId` - update supplier order; requires `supplierOrders.manage`.
 - `POST /supplier-orders/:supplierOrderId/cancel` - cancel supplier order; requires `supplierOrders.manage`.

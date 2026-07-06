@@ -4809,6 +4809,10 @@ select.line-item-inline-input {
   overflow: auto;
 }
 
+.modal-backdrop-scroll-locked {
+  overflow: hidden;
+}
+
 .payment-modal {
   position: relative;
   width: min(760px, calc(100vw - 40px));
@@ -7716,9 +7720,39 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   padding-right: 52px;
 }
 
+.supplier-search-input-wrap-with-actions input {
+  padding-right: 118px;
+}
+
 .supplier-order-invalid-input {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+}
+
+.supplier-search-choose-button {
+  position: absolute;
+  top: 50%;
+  right: 46px;
+  transform: translateY(-50%);
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #c9d5e3;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #4f647b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.supplier-search-choose-button:hover:not(:disabled) {
+  background: #eef3f8;
+  border-color: #b8c7d8;
+}
+
+.supplier-search-choose-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .supplier-search-add-button {
@@ -7728,6 +7762,45 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   transform: translateY(-50%);
   width: 36px;
   height: 30px;
+}
+
+.supplier-choose-modal {
+  width: min(560px, calc(100vw - 56px));
+}
+
+.supplier-choose-modal-body {
+  display: grid;
+  gap: 12px;
+}
+
+.supplier-choose-modal-search {
+  margin: 0;
+}
+
+.supplier-choose-modal-list {
+  display: grid;
+  gap: 6px;
+  max-height: calc(5 * 52px + 4 * 6px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.supplier-choose-modal-item {
+  width: 100%;
+  text-align: left;
+}
+
+.supplier-choose-modal-empty {
+  margin: 0;
+  padding: 16px 8px;
+  color: #5a6f86;
+  font-weight: 600;
+  text-align: center;
+}
+
+.supplier-choose-modal-pagination {
+  display: flex;
+  justify-content: center;
 }
 
 .supplier-order-supply-type-field {
@@ -7838,6 +7911,7 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   place-items: center;
   padding: 20px;
   background: rgba(22, 31, 43, 0.52);
+  overflow: hidden;
 }
 
 .supplier-order-create-supplier-modal {

@@ -16,8 +16,16 @@ import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../
 import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
+  resolveSupplierOrderErrorMessage,
   resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
+import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
+import { SupplierChooseModal } from './SupplierChooseModal';
+
+const SUPPLIER_ORDER_MODAL_SCROLL_REGIONS = [
+  '.supplier-order-modal',
+  '.supplier-order-inline-backdrop',
+];
 
 export type SupplierOrderModalSubmitPayload = {
   supplierId: string;
@@ -105,6 +113,7 @@ export const SupplierOrderModal = ({
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
   const [supplierTouched, setSupplierTouched] = useState(false);
 
+  const [isSupplierChooseModalOpen, setIsSupplierChooseModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
   const [createSupplierForm, setCreateSupplierForm] = useState({ name: '', phone: '+380', note: '' });
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
@@ -196,16 +205,9 @@ export const SupplierOrderModal = ({
     };
   }, [isOpen, warehouseOptions]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-    };
-  }, [isOpen]);
+  useModalBackgroundScrollLock(isOpen, {
+    allowedSelectors: SUPPLIER_ORDER_MODAL_SCROLL_REGIONS,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -218,6 +220,7 @@ export const SupplierOrderModal = ({
     setShowSupplierSuggestions(false);
     setSupplierTouched(false);
 
+    setIsSupplierChooseModalOpen(false);
     setIsCreateSupplierModalOpen(false);
     setCreateSupplierForm({ name: '', phone: '+380', note: '' });
 
@@ -425,7 +428,7 @@ export const SupplierOrderModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className='modal-backdrop' role='presentation'>
+    <div className='modal-backdrop modal-backdrop-scroll-locked' role='presentation'>
       <section className='catalog-edit-modal supplier-order-modal' role='dialog' aria-modal='true'>
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
@@ -472,7 +475,7 @@ export const SupplierOrderModal = ({
           <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
             <label className='field supplier-search-field'>
               <span>{t('common.supplier')}</span>
-              <span className='supplier-search-input-wrap'>
+              <span className='supplier-search-input-wrap supplier-search-input-wrap-with-actions'>
                 <input
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
@@ -488,6 +491,18 @@ export const SupplierOrderModal = ({
                   }}
                   placeholder={t('orders.supplier.toolbar.search')}
                 />
+                <button
+                  type='button'
+                  className='supplier-search-choose-button'
+                  disabled={isFormDisabled}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setShowSupplierSuggestions(false);
+                    setIsSupplierChooseModalOpen(true);
+                  }}
+                >
+                  {t('orders.supplier.modal.chooseSupplier')}
+                </button>
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
@@ -1009,9 +1024,11 @@ export const SupplierOrderModal = ({
                     onClose();
                   } catch (error) {
                     onError(
-                      error instanceof Error
-                        ? error.message
-                        : t('orders.supplier.messages.errors.failedTakeOnCharge'),
+                      resolveSupplierOrderErrorMessage(
+                        error,
+                        t,
+                        'orders.supplier.messages.errors.failedTakeOnCharge',
+                      ),
                     );
                   } finally {
                     setIsActionSubmitting(false);
@@ -1024,6 +1041,17 @@ export const SupplierOrderModal = ({
           </section>
         </div>
       ) : null}
+
+      <SupplierChooseModal
+        isOpen={isSupplierChooseModalOpen}
+        suppliers={suppliers}
+        onClose={() => setIsSupplierChooseModalOpen(false)}
+        onSelect={(supplier) => {
+          setSupplierSearch(supplier.name);
+          setSupplierTouched(true);
+          setShowSupplierSuggestions(false);
+        }}
+      />
 
       {isCreateSupplierModalOpen ? (
         <div className='supplier-order-inline-backdrop' role='presentation'>
@@ -1119,9 +1147,11 @@ export const SupplierOrderModal = ({
                     onClose();
                   } catch (error) {
                     onError(
-                      error instanceof Error
-                        ? error.message
-                        : t('orders.supplier.messages.errors.failedCancelItem'),
+                      resolveSupplierOrderErrorMessage(
+                        error,
+                        t,
+                        'orders.supplier.messages.errors.failedCancelItem',
+                      ),
                     );
                   } finally {
                     setIsActionSubmitting(false);

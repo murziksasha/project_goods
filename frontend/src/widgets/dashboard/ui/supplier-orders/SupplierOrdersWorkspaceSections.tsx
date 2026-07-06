@@ -680,6 +680,7 @@ type SupplierOrdersTableProps = {
   pageSize: number;
   paginatedOrders: SupplierOrder[];
   suppliers: Supplier[];
+  tableWrapRef?: RefObject<HTMLDivElement | null>;
   visibleColumns: SupplierOrdersColumnKey[];
   canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
@@ -711,6 +712,7 @@ export const SupplierOrdersTable = ({
   pageSize,
   paginatedOrders,
   suppliers,
+  tableWrapRef,
   visibleColumns,
   canViewSupplierOrders,
   canManageSupplierOrders,
@@ -727,7 +729,7 @@ export const SupplierOrdersTable = ({
 
   return (
   <>
-    <div className='orders-table-wrap'>
+    <div className='orders-table-wrap' ref={tableWrapRef}>
       <table className='orders-table supplier-orders-table'>
         <thead>
           <tr>

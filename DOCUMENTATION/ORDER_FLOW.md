@@ -289,7 +289,12 @@
   - `Overdue`
   - `Partially stocked` (`partially_stocked`)
   - `Partially completed` (`partially_completed`)
-- `Overdue` is **auto-only**: backend promotes open orders (`request` / `ordered` / `approved` / `partially_stocked`, unreceived) to `overdue` when `deliveryDate` is before the current business day (`Europe/Kiev`) during `GET /supplier-orders`.
+- `Overdue` is **auto-only**: backend promotes only `request` orders (unreceived, no received line items) to `overdue` when `deliveryDate` is before the current business day (`Europe/Kiev`) during `GET /supplier-orders`.
+- Auto-`overdue` must not overwrite workflow progress:
+  - manual statuses `ordered` and `approved` stay after operator selection (including transitions from `overdue`),
+  - `partially_stocked` / `partially_completed` stay after partial take-on-charge,
+  - orders with any received line item are reconciled to the resolved item-based status instead of being forced back to `overdue`.
+- See **Supplier Order Backdated Delivery and Status Persistence (2026-07-06)** below for the full backdated-order workflow.
 - Supplier Order table list visibility:
   - an order disappears from the default working set only when `paymentStatus = pending` and all line items are `cancelled`
   - partially processed orders (`partially_stocked`, `partially_completed`) stay visible even when the saved status filter still contains only manual open statuses such as `Approved`
@@ -304,6 +309,10 @@
 - The status window has internal vertical scroll with fixed maximum height.
 - Mouse-wheel scrolling inside the status window must keep the window open and scroll only the status list.
 - Wheel momentum from the status window must not scroll the page/table behind it.
+- While the status window is open, background scrolling is fully blocked (page, document root, and supplier-order table horizontal scroll), matching `Orders -> Orders/Sales` status menu behavior:
+  - `body` and `documentElement` overflow hidden;
+  - `.orders-table-wrap` overflow hidden;
+  - `wheel` / `touchmove` outside `.supplier-order-status-menu-portal` are prevented.
 - Clicking outside the status button/window closes the status window.
 - Page/table scrolling outside the status window closes it.
 - Browser resize closes it, because the measured fixed position may no longer match the clicked badge.
@@ -328,6 +337,96 @@
 - If `paymentStatus = paid` or `without_payment`, the Delete button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
 - On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
+
+## Supplier Choose Picker in SupplierOrderModal (2026-07-06)
+
+- Scope: `Supplier` field in `SupplierOrderModal` (`Orders -> Supplier Order`, Warehouse receipts, linked sale/order card flows).
+- The inline supplier input keeps existing behavior:
+  - type-to-search autocomplete suggestions;
+  - `+` opens create-supplier nested modal.
+- A `Choose` button is rendered inside the supplier input, to the left of `+`.
+- Clicking `Choose` opens a nested picker modal above the main supplier-order modal.
+- Picker modal contract:
+  - search field at the top;
+  - debounce **300ms**;
+  - search matches supplier **name** or **phone** (including extra phones);
+  - list shows only **active** suppliers;
+  - pagination at the bottom, **10** suppliers per page (`CompactPaginationPanel`);
+  - list viewport shows **5 visible rows**; rows 6-10 on the same page scroll inside the list;
+  - empty state when no active suppliers match the query.
+- Selecting a supplier row fills the `Supplier` input with the supplier name, marks the field touched, and closes the picker.
+- `Choose` and the picker are disabled when supplier-order content is locked (`isFormDisabled`).
+- While `SupplierOrderModal` or nested supplier picker is open, background scrolling is fully blocked (page, document root, supplier-order table horizontal scroll, wheel/touch guard outside modal regions), matching supplier-order status menu behavior.
+- Nested picker uses `supplier-order-inline-backdrop` with `overflow: hidden`; parent modal backdrop uses `modal-backdrop-scroll-locked`.
+
+## Supplier Order Backdated Delivery and Status Persistence (2026-07-06)
+
+This section documents supplier orders created with a **past `deliveryDate`** («задним числом») and how status / take-on-charge must behave after list refresh.
+
+### Business intent
+
+- A backdated delivery date is allowed on create/update; it is **not** rejected by validation.
+- `overdue` is a **signal** that an unreceived `request` missed its planned delivery date.
+- Once the operator advances the order manually (`ordered`, `approved`) or starts receipt (`partially_stocked`), the system must **not** roll the saved `status` back to `overdue` on the next list fetch.
+- `Information` tab overdue analytics still use date-based rules and may count late open orders even when the row badge shows `ordered` / `approved`.
+
+### `GET /supplier-orders` side effects (list refresh)
+
+On every list fetch, backend runs in order:
+
+1. `autoMarkZeroTotalOrdersWithoutPayment()`
+2. `reconcileSupplierOrderStatuses()` — repairs open orders that already have `items[].receiptStatus = received` but still show a stale header status such as `overdue` or `approved`; applies item-based resolver (`partially_stocked`, `partially_completed`, `stocked`).
+3. `autoMarkOverdueSupplierOrders()` — promotes only matching `request` rows to `overdue`.
+
+`autoMarkOverdueSupplierOrders` candidates must satisfy **all** of:
+
+- `status = request`
+- `receiptStatus != received`
+- no line item has `receiptStatus = received`
+- `deliveryDate` (business day, `Europe/Kiev`) is before today
+
+`autoMarkOverdueSupplierOrders` must **never** downgrade or overwrite:
+
+- `ordered`, `approved`, `overdue` (manual or prior auto state after operator action)
+- `partially_stocked`, `partially_completed`, `stocked`
+- any order with at least one received line item
+
+### Manual status changes on backdated orders
+
+| Current badge | Operator selects | Expected result after refresh |
+|---------------|------------------|-------------------------------|
+| `overdue` | `ordered` | stays `ordered` |
+| `overdue` | `approved` | stays `approved` |
+| `request` (future date) | `ordered` | stays `ordered` |
+| `request` (past date, untouched) | — | becomes `overdue` on next list fetch |
+| any open | `stocked` on one row | `partially_stocked` until all lines are received |
+
+- `PUT /supplier-orders/:id` with a manual status must persist; a success toast must not be followed by a silent revert on refetch.
+- If the selected status equals the current status, the status window closes without an API call.
+
+### Multi-item orders (e.g. 18 positions)
+
+- One supplier order with many line items renders as **one table row per item**; every row shows the same header `order.status`.
+- `Stocked` from the row status badge and `Оприбуткувати` from the item-scoped modal receive **only the clicked row** (`itemIndex`).
+- Receiving one line on a multi-item order sets `partially_stocked` (auto-only) until every active line is `received` or terminal.
+- Operator workflow: repeat take-on-charge per remaining row; cancelled lines are skipped.
+- UI success feedback:
+  - full order received -> `orders.supplier.messages.success.stocked`
+  - single line on a multi-item order -> `orders.supplier.messages.success.partiallyStocked`
+
+### Payment and finance on `overdue`
+
+- `overdue` does **not** block take-on-charge, content editing (while still pending), or payment actions.
+- Accounting payment queue and pay/issue-without-payment actions treat `overdue` the same as other open receipt-ready statuses (`approved`, `partially_stocked`, `partially_completed`, `stocked`).
+
+### Implementation references
+
+- Backend: `backend/src/domain/supplier-order/service.ts`
+  - `reconcileSupplierOrderStatuses`
+  - `autoMarkOverdueSupplierOrders`
+  - `listSupplierOrders`
+- Frontend status badge / partial stocked toast: `frontend/src/widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace.tsx`
+- Item-scoped modal take-on-charge: `frontend/src/widgets/dashboard/ui/orders/modals/SupplierOrderModal.tsx`
 
 ## Truncated Text Hover Tooltip
 

@@ -4,6 +4,7 @@ import type { Supplier } from '../../../entities/supplier/model/types';
 import {
   buildSupplierOrderAnalytics,
   buildSupplierOrderItemNumber,
+  filterActiveSuppliers,
   getSupplierSuggestions,
   mergeSupplierOrderItemUpdate,
 } from './supplier-order-utils';
@@ -84,35 +85,53 @@ describe('supplier-order-utils', () => {
     });
   });
 
-  it('returns active supplier suggestions by name or phone', () => {
-    const suppliers: Supplier[] = [
-      {
-        id: '1',
-        name: 'Remont Service',
-        phone: '+3801111111',
-        phones: ['+3801111111'],
-        note: '',
-        supplierOrder: '',
-        isActive: true,
-        createdAt: '',
-        updatedAt: '',
-      },
-      {
-        id: '2',
-        name: 'Inactive Supplier',
-        phone: '+3802222222',
-        phones: ['+3802222222'],
-        note: '',
-        supplierOrder: '',
-        isActive: false,
-        createdAt: '',
-        updatedAt: '',
-      },
-    ];
+  const sampleSuppliers: Supplier[] = [
+    {
+      id: '1',
+      name: 'Remont Service',
+      phone: '+3801111111',
+      phones: ['+3801111111'],
+      note: '',
+      supplierOrder: '',
+      isActive: true,
+      createdAt: '',
+      updatedAt: '',
+    },
+    {
+      id: '2',
+      name: 'Inactive Supplier',
+      phone: '+3802222222',
+      phones: ['+3802222222'],
+      note: '',
+      supplierOrder: '',
+      isActive: false,
+      createdAt: '',
+      updatedAt: '',
+    },
+    {
+      id: '3',
+      name: 'Parts Hub',
+      phone: '+3803333333',
+      phones: ['+3803333333'],
+      note: '',
+      supplierOrder: '',
+      isActive: true,
+      createdAt: '',
+      updatedAt: '',
+    },
+  ];
 
-    expect(getSupplierSuggestions(suppliers, 're')).toHaveLength(1);
-    expect(getSupplierSuggestions(suppliers, '11')[0]?.id).toBe('1');
-    expect(getSupplierSuggestions(suppliers, 'i')).toHaveLength(0);
+  it('returns active supplier suggestions by name or phone', () => {
+    expect(getSupplierSuggestions(sampleSuppliers, 're')).toHaveLength(1);
+    expect(getSupplierSuggestions(sampleSuppliers, '11')[0]?.id).toBe('1');
+    expect(getSupplierSuggestions(sampleSuppliers, 'i')).toHaveLength(0);
+  });
+
+  it('filters active suppliers for choose modal', () => {
+    expect(filterActiveSuppliers(sampleSuppliers, '')).toHaveLength(2);
+    expect(filterActiveSuppliers(sampleSuppliers, 'parts')[0]?.id).toBe('3');
+    expect(filterActiveSuppliers(sampleSuppliers, '380222')).toHaveLength(0);
+    expect(filterActiveSuppliers(sampleSuppliers, '380111')[0]?.id).toBe('1');
   });
 
   it('builds totals and outstanding amount', () => {

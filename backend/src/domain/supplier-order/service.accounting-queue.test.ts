@@ -78,7 +78,13 @@ describe('listSupplierOrdersForAccounting', () => {
 
     expect(SupplierOrder.find).toHaveBeenCalledWith({
       status: {
-        $in: ['approved', 'partially_stocked', 'partially_completed', 'stocked'],
+        $in: [
+          'approved',
+          'overdue',
+          'partially_stocked',
+          'partially_completed',
+          'stocked',
+        ],
       },
       paymentStatus: 'pending',
       total: { $gt: 0 },
