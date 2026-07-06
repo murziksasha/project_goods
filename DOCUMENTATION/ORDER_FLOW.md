@@ -309,6 +309,10 @@
 - The status window has internal vertical scroll with fixed maximum height.
 - Mouse-wheel scrolling inside the status window must keep the window open and scroll only the status list.
 - Wheel momentum from the status window must not scroll the page/table behind it.
+- While the status window is open, background scrolling is fully blocked (page, document root, and supplier-order table horizontal scroll), matching `Orders -> Orders/Sales` status menu behavior:
+  - `body` and `documentElement` overflow hidden;
+  - `.orders-table-wrap` overflow hidden;
+  - `wheel` / `touchmove` outside `.supplier-order-status-menu-portal` are prevented.
 - Clicking outside the status button/window closes the status window.
 - Page/table scrolling outside the status window closes it.
 - Browser resize closes it, because the measured fixed position may no longer match the clicked badge.
@@ -333,6 +337,27 @@
 - If `paymentStatus = paid` or `without_payment`, the Delete button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
 - On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
+
+## Supplier Choose Picker in SupplierOrderModal (2026-07-06)
+
+- Scope: `Supplier` field in `SupplierOrderModal` (`Orders -> Supplier Order`, Warehouse receipts, linked sale/order card flows).
+- The inline supplier input keeps existing behavior:
+  - type-to-search autocomplete suggestions;
+  - `+` opens create-supplier nested modal.
+- A `Choose` button is rendered inside the supplier input, to the left of `+`.
+- Clicking `Choose` opens a nested picker modal above the main supplier-order modal.
+- Picker modal contract:
+  - search field at the top;
+  - debounce **300ms**;
+  - search matches supplier **name** or **phone** (including extra phones);
+  - list shows only **active** suppliers;
+  - pagination at the bottom, **10** suppliers per page (`CompactPaginationPanel`);
+  - list viewport shows **5 visible rows**; rows 6-10 on the same page scroll inside the list;
+  - empty state when no active suppliers match the query.
+- Selecting a supplier row fills the `Supplier` input with the supplier name, marks the field touched, and closes the picker.
+- `Choose` and the picker are disabled when supplier-order content is locked (`isFormDisabled`).
+- While `SupplierOrderModal` or nested supplier picker is open, background scrolling is fully blocked (page, document root, supplier-order table horizontal scroll, wheel/touch guard outside modal regions), matching supplier-order status menu behavior.
+- Nested picker uses `supplier-order-inline-backdrop` with `overflow: hidden`; parent modal backdrop uses `modal-backdrop-scroll-locked`.
 
 ## Supplier Order Backdated Delivery and Status Persistence (2026-07-06)
 

@@ -168,6 +168,7 @@ export const SupplierOrdersWorkspace = ({
   const orderStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const paymentStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
+  const supplierOrdersTableWrapRef = useRef<HTMLDivElement | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<
     SupplierOrdersColumnKey[]
   >(() =>
@@ -246,8 +247,29 @@ export const SupplierOrdersWorkspace = ({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const tableWrap = supplierOrdersTableWrapRef.current;
+    const previousTableWrapOverflow = tableWrap?.style.overflow ?? '';
+
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    if (tableWrap) {
+      tableWrap.style.overflow = 'hidden';
+    }
+
+    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.supplier-order-status-menu-portal')) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', preventBackgroundScroll, {
+      passive: false,
+    });
+    document.addEventListener('touchmove', preventBackgroundScroll, {
+      passive: false,
+    });
 
     const closeStatusMenu = () => {
       setOpenStatusOrder(null);
@@ -255,7 +277,13 @@ export const SupplierOrdersWorkspace = ({
 
     window.addEventListener('resize', closeStatusMenu);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      if (tableWrap) {
+        tableWrap.style.overflow = previousTableWrapOverflow;
+      }
+      document.removeEventListener('wheel', preventBackgroundScroll);
+      document.removeEventListener('touchmove', preventBackgroundScroll);
       window.removeEventListener('resize', closeStatusMenu);
     };
   }, [openStatusOrder]);
@@ -641,6 +669,7 @@ export const SupplierOrdersWorkspace = ({
           pageSize={pageSize}
           paginatedOrders={paginatedOrders}
           suppliers={suppliers}
+          tableWrapRef={supplierOrdersTableWrapRef}
           visibleColumns={visibleColumns}
           canViewSupplierOrders={canViewSupplierOrders}
           canManageSupplierOrders={canManageSupplierOrders}
