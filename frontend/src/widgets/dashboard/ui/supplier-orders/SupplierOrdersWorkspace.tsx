@@ -419,19 +419,27 @@ export const SupplierOrdersWorkspace = ({
           onError(t('orders.supplier.messages.errors.defaultWarehouseNotFound'));
           return;
         }
-        await takeOnChargeSupplierOrderMutation.mutateAsync({
-          supplierOrderId: order.id,
-          payload: {
-            autoGenerateSerialNumbers: true,
-            serialNumbers: [],
-            autoGenerateArticles: false,
-            articleBase: '',
-            itemIndex: openStatusOrder?.itemIndex,
-            warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
-            locationId: defaultTakeOnChargeWarehouse.locationId,
-          },
-        });
+        const takeOnChargeResult =
+          await takeOnChargeSupplierOrderMutation.mutateAsync({
+            supplierOrderId: order.id,
+            payload: {
+              autoGenerateSerialNumbers: true,
+              serialNumbers: [],
+              autoGenerateArticles: false,
+              articleBase: '',
+              itemIndex: openStatusOrder?.itemIndex,
+              warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
+              locationId: defaultTakeOnChargeWarehouse.locationId,
+            },
+          });
         notifyFinanceUpdated();
+        setOpenStatusOrder(null);
+        onSuccess(
+          takeOnChargeResult.status === 'partially_stocked'
+            ? t('orders.supplier.messages.success.partiallyStocked')
+            : t('orders.supplier.messages.success.stocked'),
+        );
+        return;
       } else {
         await updateSupplierOrderMutation.mutateAsync({
           supplierOrderId: order.id,
