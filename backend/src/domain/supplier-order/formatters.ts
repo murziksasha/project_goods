@@ -1,5 +1,11 @@
 import type { SupplierOrderDocument } from './model';
 
+export const getSupplierOrderDisplayNumber = (
+  order: Pick<SupplierOrderDocument, 'number' | 'orderBaseId'> & {
+    _id?: SupplierOrderDocument['_id'];
+  },
+) => order.number?.trim() || order.orderBaseId;
+
 export const formatSupplierOrder = (
   order: SupplierOrderDocument & { supplierName?: string },
 ) => ({

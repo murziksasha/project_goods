@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterReceiptRows,
   initialWarehouseFilters,
+  normalizeReceiptStatuses,
   type ReceiptRow,
 } from './warehouse-panel';
 
@@ -55,7 +56,7 @@ describe('warehouse-panel receipts filtering', () => {
     ).toEqual(['receipt-2']);
   });
 
-  it('filters receipts by status', () => {
+  it('filters receipts by a single selected status', () => {
     const receipts = [
       makeReceipt({ id: 'receipt-new', status: 'new' }),
       makeReceipt({ id: 'receipt-received', status: 'received' }),
@@ -66,7 +67,7 @@ describe('warehouse-panel receipts filtering', () => {
       filterReceiptRows({
         receipts,
         query: '',
-        filters: { ...initialWarehouseFilters, status: 'received' },
+        filters: { ...initialWarehouseFilters, statuses: ['received'] },
       }).map((receipt) => receipt.id),
     ).toEqual(['receipt-received']);
 
@@ -77,6 +78,26 @@ describe('warehouse-panel receipts filtering', () => {
         filters: initialWarehouseFilters,
       }).map((receipt) => receipt.id),
     ).toEqual(['receipt-new', 'receipt-received', 'receipt-cancelled']);
+  });
+
+  it('filters receipts by multiple selected statuses', () => {
+    const receipts = [
+      makeReceipt({ id: 'receipt-new', status: 'new' }),
+      makeReceipt({ id: 'receipt-approved', status: 'approved' }),
+      makeReceipt({ id: 'receipt-received', status: 'received' }),
+      makeReceipt({ id: 'receipt-cancelled', status: 'cancelled' }),
+    ];
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: {
+          ...initialWarehouseFilters,
+          statuses: ['new', 'approved'],
+        },
+      }).map((receipt) => receipt.id),
+    ).toEqual(['receipt-new', 'receipt-approved']);
   });
 
   it('combines status and favorites filters', () => {
@@ -104,10 +125,35 @@ describe('warehouse-panel receipts filtering', () => {
         query: '',
         filters: {
           ...initialWarehouseFilters,
-          status: 'received',
+          statuses: ['received'],
           favoritesOnly: true,
         },
       }).map((receipt) => receipt.id),
     ).toEqual(['receipt-starred-received']);
+  });
+});
+
+describe('normalizeReceiptStatuses', () => {
+  it('returns an empty array when no statuses are selected', () => {
+    expect(normalizeReceiptStatuses()).toEqual([]);
+    expect(normalizeReceiptStatuses({ statuses: [] })).toEqual([]);
+  });
+
+  it('keeps only supported receipt statuses', () => {
+    expect(
+      normalizeReceiptStatuses({
+        statuses: ['new', 'received', 'invalid' as never],
+      }),
+    ).toEqual(['new', 'received']);
+  });
+
+  it('migrates legacy single status values', () => {
+    expect(normalizeReceiptStatuses({ status: 'cancelled' })).toEqual([
+      'cancelled',
+    ]);
+    expect(normalizeReceiptStatuses({ status: '' })).toEqual([]);
+    expect(normalizeReceiptStatuses({ status: 'invalid' as never })).toEqual(
+      [],
+    );
   });
 });

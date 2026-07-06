@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatSupplierOrder } from './formatters';
+import { formatSupplierOrder, getSupplierOrderDisplayNumber } from './formatters';
 
 const makeOrder = (patch: Record<string, unknown> = {}) =>
   ({
@@ -22,6 +22,24 @@ const makeOrder = (patch: Record<string, unknown> = {}) =>
     updatedAt: new Date('2026-06-01T09:00:00.000Z'),
     ...patch,
   }) as never;
+
+describe('getSupplierOrderDisplayNumber', () => {
+  it('prefers custom number over system orderBaseId', () => {
+    expect(
+      getSupplierOrderDisplayNumber(
+        makeOrder({ number: 'ПП-77', orderBaseId: 'SO-1779142808517' }),
+      ),
+    ).toBe('ПП-77');
+  });
+
+  it('falls back to orderBaseId when custom number is empty', () => {
+    expect(
+      getSupplierOrderDisplayNumber(
+        makeOrder({ number: '', orderBaseId: 'SO-1779142808517' }),
+      ),
+    ).toBe('SO-1779142808517');
+  });
+});
 
 describe('formatSupplierOrder', () => {
   it('includes favorite state', () => {

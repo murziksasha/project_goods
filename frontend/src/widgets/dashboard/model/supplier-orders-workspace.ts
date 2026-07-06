@@ -26,14 +26,28 @@ export const supplierOrderStatuses: Array<{
   { key: 'request', labelKey: 'orders.supplier.orderStatuses.request' },
   { key: 'ordered', labelKey: 'orders.supplier.orderStatuses.ordered' },
   { key: 'approved', labelKey: 'orders.supplier.orderStatuses.approved' },
+  {
+    key: 'partially_stocked',
+    labelKey: 'orders.supplier.orderStatuses.partially_stocked',
+  },
+  {
+    key: 'partially_completed',
+    labelKey: 'orders.supplier.orderStatuses.partially_completed',
+  },
   { key: 'stocked', labelKey: 'orders.supplier.orderStatuses.stocked' },
   { key: 'overdue', labelKey: 'orders.supplier.orderStatuses.overdue' },
   { key: 'cancelled', labelKey: 'orders.supplier.orderStatuses.cancelled' },
   { key: 'unavailable', labelKey: 'orders.supplier.orderStatuses.unavailable' },
 ];
 
+export const autoOnlySupplierOrderStatuses: SupplierOrderStatus[] = [
+  'overdue',
+  'partially_stocked',
+  'partially_completed',
+];
+
 export const manualSupplierOrderStatuses = supplierOrderStatuses.filter(
-  (status) => status.key !== 'overdue',
+  (status) => !autoOnlySupplierOrderStatuses.includes(status.key),
 );
 
 export const supplierPaymentStatuses: Array<{
@@ -187,6 +201,57 @@ export const normalizeSupplierOrdersColumns = (
   }
 };
 
+const openSupplierOrderStatuses: SupplierOrderStatus[] = [
+  'request',
+  'ordered',
+  'approved',
+  'overdue',
+];
+
+export const areAllSupplierOrderItemsCancelled = (order: SupplierOrder) =>
+  order.items.length > 0 &&
+  order.items.every((item) => item.receiptStatus === 'cancelled');
+
+export const isSupplierOrderHiddenFromList = (
+  order: SupplierOrder,
+  filters: SupplierOrdersFilters,
+) => {
+  if (order.paymentStatus !== 'pending') {
+    return false;
+  }
+  if (!areAllSupplierOrderItemsCancelled(order)) {
+    return false;
+  }
+  return !filters.selectedStatuses.includes('cancelled');
+};
+
+export const matchesSupplierOrderStatusFilter = (
+  orderStatus: SupplierOrderStatus,
+  selectedStatuses: SupplierOrderStatus[],
+) => {
+  if (selectedStatuses.length === 0) {
+    return true;
+  }
+  if (selectedStatuses.includes(orderStatus)) {
+    return true;
+  }
+  if (
+    orderStatus === 'partially_stocked' &&
+    selectedStatuses.some((status) => openSupplierOrderStatuses.includes(status))
+  ) {
+    return true;
+  }
+  if (orderStatus === 'partially_completed') {
+    return selectedStatuses.some(
+      (status) =>
+        openSupplierOrderStatuses.includes(status) ||
+        status === 'stocked' ||
+        status === 'partially_completed',
+    );
+  }
+  return false;
+};
+
 export const filterSupplierOrders = (
   orders: SupplierOrder[],
   filters: SupplierOrdersFilters,
@@ -194,6 +259,10 @@ export const filterSupplierOrders = (
   const normalized = filters.query.trim().toLowerCase();
 
   return orders.filter((order) => {
+    if (isSupplierOrderHiddenFromList(order, filters)) {
+      return false;
+    }
+
     if (filters.favoritesOnly && order.isFavorite !== true) {
       return false;
     }
@@ -215,8 +284,7 @@ export const filterSupplierOrders = (
     }
 
     if (
-      filters.selectedStatuses.length > 0 &&
-      !filters.selectedStatuses.includes(order.status)
+      !matchesSupplierOrderStatusFilter(order.status, filters.selectedStatuses)
     ) {
       return false;
     }

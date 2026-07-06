@@ -120,6 +120,11 @@ http://localhost:5000/api
 - `POST /supplier-orders` - create supplier order; requires `supplierOrders.manage`.
 - `PUT /supplier-orders/:supplierOrderId` - update supplier order; requires `supplierOrders.manage`.
 - `POST /supplier-orders/:supplierOrderId/cancel` - cancel supplier order; requires `supplierOrders.manage`.
+- `POST /supplier-orders/:supplierOrderId/cancel-item` - cancel one supplier-order line item; requires `supplierOrders.manage`.
+  - Body: `{ "itemIndex": number, "reason"?: string }`
+  - Sets `items[itemIndex].receiptStatus = cancelled` and recalculates auto order status.
+  - Recalculates `total` from non-cancelled items only; `paymentStatus` is unchanged.
+  - For `paymentStatus = paid`, preserves historical `paid` (payable `total` may drop below `paid` after cancel).
 - `POST /supplier-orders/:supplierOrderId/take-on-charge` - receive supplier order into stock; requires `supplierOrders.manage`.
 - `POST /supplier-orders/:supplierOrderId/issue-without-payment` - finance fallback for issue without payment; requires `finance.supplierOrders.issueWithoutPayment`.
 
@@ -226,12 +231,23 @@ Client status localization rule: keep client status values in original English (
   - Request body supports:
     - `autoGenerateSerialNumbers?: boolean`
     - `serialNumbers?: string[]`
+    - `autoGenerateArticles?: boolean`
+    - `articleBase?: string`
+    - `itemIndex?: number` (receive one line item; omit to receive all unreceived items)
     - `warehouseId?: string`
     - `locationId?: string`
+  - Guards:
+    - rejects items already `received` or `cancelled`
+    - rejects closed orders (`cancelled`, `unavailable`)
   - Behavior:
     - creates stock products per unit (`quantity=1` rows)
+    - persists `supplierOrderId` + `supplierOrderItemIndex` on each created product
     - persists `warehouseId` and `locationId` on each created product
     - sets `purchasePlace` to selected warehouse name
+    - sets targeted `items[].receiptStatus = received`
+    - recalculates order status:
+      - all items `received` -> `stocked` / `receiptStatus = received`
+      - mixed received/cancelled/pending -> `partially_stocked` or `partially_completed`
   - Defaults (if IDs are not passed or invalid):
     - warehouse -> first warehouse from `warehouse-settings`
     - location -> first location of selected/default warehouse
