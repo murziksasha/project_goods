@@ -162,26 +162,35 @@ export type SupplierOrderAnalytics = {
   highestPricePosition: SupplierOrderPricePosition;
 };
 
+const supplierMatchesSearch = (supplier: Supplier, normalized: string) =>
+  [
+    supplier.name,
+    supplier.phone,
+    ...(supplier.phones?.length ? supplier.phones : []),
+  ]
+    .join(' ')
+    .toLowerCase()
+    .includes(normalized);
+
+export const filterActiveSuppliers = (
+  suppliers: Supplier[],
+  searchValue: string,
+) => {
+  const normalized = searchValue.trim().toLowerCase();
+  return suppliers.filter((supplier) => {
+    if (!supplier.isActive) return false;
+    if (!normalized) return true;
+    return supplierMatchesSearch(supplier, normalized);
+  });
+};
+
 export const getSupplierSuggestions = (
   suppliers: Supplier[],
   searchValue: string,
 ) => {
   const normalized = searchValue.trim().toLowerCase();
   if (normalized.length < 2) return [];
-  return suppliers
-    .filter(
-      (supplier) =>
-        supplier.isActive &&
-        [
-          supplier.name,
-          supplier.phone,
-          ...(supplier.phones?.length ? supplier.phones : []),
-        ]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalized),
-    )
-    .slice(0, 8);
+  return filterActiveSuppliers(suppliers, searchValue).slice(0, 8);
 };
 
 export const buildSupplierOrderItemNumber = (
