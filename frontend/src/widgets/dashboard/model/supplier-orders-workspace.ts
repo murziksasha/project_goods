@@ -1,10 +1,14 @@
 import type {
   SupplierOrder,
+  SupplierOrderItem,
   SupplierOrderStatus,
   SupplierPaymentStatus,
 } from '../../../entities/supplier-order/model/types';
 import i18n from '../../../shared/i18n/config';
-import { buildSupplierOrderItemNumber } from './supplier-order-utils';
+import {
+  buildSupplierOrderItemNumber,
+  getSupplierOrderDisplayNumber,
+} from './supplier-order-utils';
 
 export type OrdersTab =
   | 'orders'
@@ -317,6 +321,88 @@ export const paginateSupplierOrders = (
   return orders.slice(start, start + pageSize);
 };
 
+export type SupplierOrderTableRow =
+  | {
+      kind: 'single';
+      id: string;
+      order: SupplierOrder;
+      item: SupplierOrderItem;
+    }
+  | {
+      kind: 'parent';
+      id: string;
+      order: SupplierOrder;
+    }
+  | {
+      kind: 'child';
+      id: string;
+      label: string;
+      order: SupplierOrder;
+      item: SupplierOrderItem;
+    };
+
+export const buildSupplierOrderChildRowLabel = (itemIndex: number) =>
+  String(itemIndex + 1);
+
+export const isMultiItemSupplierOrder = (order: SupplierOrder) =>
+  order.items.length >= 2;
+
+export const getActiveSupplierOrderItems = (order: SupplierOrder) =>
+  order.items.filter(
+    (item) =>
+      item.receiptStatus !== 'received' && item.receiptStatus !== 'cancelled',
+  );
+
+export const summarizeSupplierOrderItems = (order: SupplierOrder) => ({
+  count: order.items.length,
+  totalQuantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
+});
+
+export const buildSupplierOrderTableRows = (
+  order: SupplierOrder,
+  expandedOrderIds: ReadonlySet<string>,
+): SupplierOrderTableRow[] => {
+  if (order.items.length <= 1) {
+    const item = order.items[0];
+    if (!item) {
+      return [];
+    }
+
+    return [
+      {
+        kind: 'single',
+        id: getSupplierOrderDisplayNumber(order),
+        order,
+        item,
+      },
+    ];
+  }
+
+  const parentId = getSupplierOrderDisplayNumber(order);
+  const rows: SupplierOrderTableRow[] = [
+    {
+      kind: 'parent',
+      id: parentId,
+      order,
+    },
+  ];
+
+  if (expandedOrderIds.has(order.id)) {
+    order.items.forEach((item) => {
+      rows.push({
+        kind: 'child',
+        id: `${order.id}-item-${item.itemIndex}`,
+        label: buildSupplierOrderChildRowLabel(item.itemIndex),
+        order,
+        item,
+      });
+    });
+  }
+
+  return rows;
+};
+
+/** @deprecated Use buildSupplierOrderTableRows instead */
 export const buildGroupedSupplierOrderView = (order: SupplierOrder) =>
   order.items.map((item) => ({
     id: buildSupplierOrderItemNumber(order, item.itemIndex),

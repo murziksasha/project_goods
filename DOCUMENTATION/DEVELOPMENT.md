@@ -80,6 +80,22 @@ npm run dev:frontend
 npm run db:down
 ```
 
+### Запуск полного стека в Docker
+
+```bash
+npm run docker:up
+```
+
+Команда собирает и поднимает MongoDB, backend и frontend. Скрипт `scripts/docker-up.mjs` передаёт текущий `git rev-parse --short HEAD` в Docker как `GIT_SHA` для метки сборки в UI.
+
+Остановка:
+
+```bash
+npm run docker:down
+```
+
+Подробности метки версии (сайдбар, формат, проверка после деплоя): [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
+
 ## Команды по пакетам
 
 ### Backend

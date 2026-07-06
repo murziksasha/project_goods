@@ -208,6 +208,8 @@
 
 .app-sidebar {
   min-width: 0;
+  min-height: 100%;
+  align-self: stretch;
   background: linear-gradient(180deg, #223447 0%, #2a3f55 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   color: #dbe6f3;
@@ -311,6 +313,33 @@
 
 .sidebar-nav-item-label-hidden {
   display: none;
+}
+
+.sidebar-build-info {
+  min-width: 0;
+  margin-top: 6px;
+  padding: 10px 14px 0 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #8ea4bb;
+  user-select: all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-build-info-hidden {
+  display: none;
+}
+
+.sidebar-build-info-collapsed {
+  padding-inline: 6px;
+  text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .app-sidebar-collapsed {
@@ -6061,8 +6090,53 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 }
 
 .supplier-order-row-star-placeholder {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   visibility: hidden;
   pointer-events: none;
+}
+
+.supplier-order-expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.supplier-order-expand-toggle:hover {
+  color: #0f6fc6;
+}
+
+.supplier-order-group-parent {
+  background: #f8fafc;
+}
+
+.supplier-order-group-parent .supplier-order-number-button {
+  font-weight: 800;
+}
+
+.supplier-order-group-child td:first-child .supplier-order-number-cell {
+  padding-left: 24px;
+}
+
+.supplier-order-items-summary {
+  color: #475569;
+  font-weight: 600;
+}
+
+.supplier-order-group-child-muted {
+  color: #94a3b8;
 }
 
 .orders-table .supplier-orders-col-product {

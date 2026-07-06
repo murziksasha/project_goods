@@ -305,7 +305,8 @@
 - The status window is rendered in a portal attached to `document.body`, using fixed viewport coordinates measured from the clicked status button.
 - Portal rendering is required because the supplier-order table has horizontal scrolling; the status window must not be clipped by the table wrapper.
 - Opening the status window must not change row height, table height, pagination position, or horizontal scrollbar position.
-- If the same supplier order appears as multiple item rows, the opened status window is keyed by the visible row number so it anchors to the exact clicked badge.
+- Multi-item supplier orders (2+ line items) render as one collapsed parent row by default; the status window opens only from the parent row badge and is keyed by the parent order number.
+- Expanded child item rows do not expose a status badge; status changes remain parent-scoped.
 - The status window has internal vertical scroll with fixed maximum height.
 - Mouse-wheel scrolling inside the status window must keep the window open and scroll only the status list.
 - Wheel momentum from the status window must not scroll the page/table behind it.
@@ -322,7 +323,9 @@
   - updates the supplier order status,
   - refreshes the supplier-order list,
   - shows success or error feedback.
-- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair and the clicked row `itemIndex`, matching the manual stocked behavior documented in `WAREHOUSE_FLOW.MD`.
+- If the selected status is `Stocked`, the UI must call the take-on-charge flow directly using the default warehouse/location pair.
+  - Single-item rows and item-scoped modals pass the selected `itemIndex`.
+  - Collapsed multi-item parent rows pass no `itemIndex` and take on charge all remaining non-cancelled line items in one bulk request when none are received yet; partially received multi-item orders take on charge each remaining line sequentially.
 - Item-scoped actions from `SupplierOrderModal`:
   - take-on-charge must pass `itemIndex` for the opened row/suborder
   - `Cancel item` calls `POST /supplier-orders/:supplierOrderId/cancel-item`
@@ -404,15 +407,55 @@ On every list fetch, backend runs in order:
 - `PUT /supplier-orders/:id` with a manual status must persist; a success toast must not be followed by a silent revert on refetch.
 - If the selected status equals the current status, the status window closes without an API call.
 
-### Multi-item orders (e.g. 18 positions)
+### Multi-item orders (2+ positions) — grouped table view (2026-07-06)
 
-- One supplier order with many line items renders as **one table row per item**; every row shows the same header `order.status`.
-- `Stocked` from the row status badge and `Оприбуткувати` from the item-scoped modal receive **only the clicked row** (`itemIndex`).
-- Receiving one line on a multi-item order sets `partially_stocked` (auto-only) until every active line is `received` or terminal.
-- Operator workflow: repeat take-on-charge per remaining row; cancelled lines are skipped.
+Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting payment queue, and linked sale/order card flows keep the existing item-scoped behavior.
+
+#### Collapsed parent row (default)
+
+- Supplier orders with **2 or more** line items render as **one collapsed parent row**.
+- Parent row shows:
+  - clean order number (`order.number || order.orderBaseId`) without `-1/-2` suffixes,
+  - product summary (`N items` / localized equivalent),
+  - aggregated quantity,
+  - order `total`, `paid`, supplier, delivery date,
+  - header `order.status` badge,
+  - `paymentStatus`.
+- Parent row includes an expand/collapse control; pagination still counts supplier orders, not visual table rows.
+
+#### Parent interactions
+
+- Clicking the parent order number opens `SupplierOrderModal` with **all line items** (`isItemScopedView = false`).
+- Modal editability follows existing supplier-order lock rules:
+  - editable while `paymentStatus = pending` and content is not receipt-locked (`request`, `ordered`, `approved`, `overdue`, etc.),
+  - read-only after actual payment (`paid`, `without_payment`) or receipt/final closure.
+- Clicking the parent status badge opens the manual status window for the whole order.
+- Selecting `Stocked` on the parent row take-on-charges **all remaining** non-cancelled lines:
+  - if no line is received yet and 2+ active lines remain -> one bulk `take-on-charge` call without `itemIndex`,
+  - if the order is already partially received -> sequential `take-on-charge` per remaining active line.
+
+#### Expanded child rows
+
+- Expanding the parent reveals one row per line item.
+- Child rows keep the current per-item behavior for product/qty/price/total and catalog navigation.
+- Child number cells show the line position only (`1`, `2`, `3`, matching `SupplierOrderModal` item index labels).
+- Item-scoped `SupplierOrderModal` still uses suffixed order numbers (`<orderNumber>-<itemIndex+1>`) internally.
+- Child rows do **not** show status or payment badges (parent owns order-level state).
+- Child order-level columns (`paid`, `supplier`, `deliveryDate`) render as `—`.
+- Clicking a child order number opens the existing item-scoped `SupplierOrderModal` (`items: [selectedLine]`, `itemIndex` passed); take-on-charge / cancel-item behavior is unchanged.
+
+#### Single-item orders
+
+- Orders with exactly one line item keep the existing flat single-row layout (no expand control, no parent/child nesting).
+
+#### Status and receipt workflow
+
+- Header `order.status` remains order-scoped and is shown only on the parent/single row.
+- Receiving one line on a multi-item order still sets `partially_stocked` (auto-only) until every active line is `received` or terminal.
+- Cancelled lines are skipped by take-on-charge.
 - UI success feedback:
   - full order received -> `orders.supplier.messages.success.stocked`
-  - single line on a multi-item order -> `orders.supplier.messages.success.partiallyStocked`
+  - partial receipt on a multi-item order -> `orders.supplier.messages.success.partiallyStocked`
 
 ### Payment and finance on `overdue`
 

@@ -944,7 +944,11 @@
         "unstarOrder": "Remove star from {{id}}",
         "pcs": "pcs",
         "loading": "Loading...",
-        "empty": "No supplier orders found."
+        "empty": "No supplier orders found.",
+        "itemsCount": "{{count}} items",
+        "expandOrder": "Expand order {{id}}",
+        "collapseOrder": "Collapse order {{id}}",
+        "statusNotApplicable": "—"
       },
       "statusMenu": {
         "orderLabel": "Order {{id}}"

@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
   areAllSupplierOrderItemsCancelled,
-  buildGroupedSupplierOrderView,
+  buildSupplierOrderTableRows,
   computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
+  getActiveSupplierOrderItems,
   isSupplierOrderHiddenFromList,
   matchesSupplierOrderStatusFilter,
   normalizeSupplierOrdersColumns,
   parseSupplierOrdersFilters,
+  summarizeSupplierOrderItems,
   supplierOrdersAllColumns,
 } from './supplier-orders-workspace';
 
@@ -318,30 +320,143 @@ describe('supplier-orders-workspace', () => {
     ).toEqual(['so-starred']);
   });
 
-  it('builds grouped item rows with display numbers', () => {
-    const rows = buildGroupedSupplierOrderView(
-      makeOrder({
-        number: 'SO-7',
-        items: [
-          {
-            lineId: 'line-1',
-            itemIndex: 0,
-            productName: 'Cable',
-            quantity: 1,
-            price: 10,
-          },
-          {
-            lineId: 'line-2',
-            itemIndex: 1,
-            productName: 'Adapter',
-            quantity: 2,
-            price: 20,
-          },
-        ],
-      }),
-    );
+  it('builds a single row for one-item orders', () => {
+    const rows = buildSupplierOrderTableRows(makeOrder({ number: 'SO-7' }), new Set());
 
-    expect(rows.map((row) => row.id)).toEqual(['SO-7-1', 'SO-7-2']);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        kind: 'single',
+        id: 'SO-7',
+      }),
+    ]);
+  });
+
+  it('builds collapsed parent row for multi-item orders', () => {
+    const order = makeOrder({
+      id: 'so-7',
+      number: 'SO-7',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+
+    const rows = buildSupplierOrderTableRows(order, new Set());
+
+    expect(rows.map((row) => ({ kind: row.kind, id: row.id }))).toEqual([
+      { kind: 'parent', id: 'SO-7' },
+    ]);
+  });
+
+  it('builds parent and child rows when multi-item order is expanded', () => {
+    const order = makeOrder({
+      id: 'so-7',
+      number: 'SO-7',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+
+    const rows = buildSupplierOrderTableRows(order, new Set(['so-7']));
+
+    expect(
+      rows.map((row) =>
+        row.kind === 'child'
+          ? { kind: row.kind, id: row.id, label: row.label }
+          : { kind: row.kind, id: row.id },
+      ),
+    ).toEqual([
+      { kind: 'parent', id: 'SO-7' },
+      { kind: 'child', id: 'so-7-item-0', label: '1' },
+      { kind: 'child', id: 'so-7-item-1', label: '2' },
+    ]);
+  });
+
+  it('summarizes multi-item order quantities', () => {
+    expect(
+      summarizeSupplierOrderItems(
+        makeOrder({
+          items: [
+            {
+              lineId: 'line-1',
+              itemIndex: 0,
+              productName: 'Cable',
+              quantity: 1,
+              price: 10,
+            },
+            {
+              lineId: 'line-2',
+              itemIndex: 1,
+              productName: 'Adapter',
+              quantity: 2,
+              price: 20,
+            },
+          ],
+        }),
+      ),
+    ).toEqual({
+      count: 2,
+      totalQuantity: 3,
+    });
+  });
+
+  it('returns only active supplier order items', () => {
+    expect(
+      getActiveSupplierOrderItems(
+        makeOrder({
+          items: [
+            {
+              lineId: 'line-1',
+              itemIndex: 0,
+              productName: 'Cable',
+              quantity: 1,
+              price: 10,
+              receiptStatus: 'received',
+            },
+            {
+              lineId: 'line-2',
+              itemIndex: 1,
+              productName: 'Adapter',
+              quantity: 2,
+              price: 20,
+            },
+            {
+              lineId: 'line-3',
+              itemIndex: 2,
+              productName: 'Hub',
+              quantity: 1,
+              price: 30,
+              receiptStatus: 'cancelled',
+            },
+          ],
+        }),
+      ).map((item) => item.itemIndex),
+    ).toEqual([1]);
   });
 
   it('opens supplier order status menu below the badge when space allows', () => {

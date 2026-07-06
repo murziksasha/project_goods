@@ -20,7 +20,7 @@ import type {
 } from '../../model/supplier-order-utils';
 import { buildSupplierOrderItemNumber } from '../../model/supplier-order-utils';
 import {
-  buildGroupedSupplierOrderView,
+  buildSupplierOrderTableRows,
   formatPercent,
   formatSupplierOrderDate,
   getSupplierOrderStatusClass,
@@ -28,6 +28,7 @@ import {
   getSupplierPaymentStatusClass,
   getSupplierPaymentStatusLabel,
   manualSupplierOrderStatuses,
+  summarizeSupplierOrderItems,
   supplierOrderStatuses,
   supplierOrderTabs,
   supplierOrdersAllColumns,
@@ -673,6 +674,7 @@ export const SupplierInformationDashboard = ({
 
 type SupplierOrdersTableProps = {
   catalogProducts: CatalogProduct[];
+  expandedOrderIds: ReadonlySet<string>;
   filteredOrdersCount: number;
   isLoading: boolean;
   openStatusOrder: { key: string; order: SupplierOrder } | null;
@@ -688,15 +690,16 @@ type SupplierOrdersTableProps = {
   onEditOrder: (
     order: SupplierOrder,
     sourceOrder: SupplierOrder,
-    itemIndex: number,
+    itemIndex: number | null,
   ) => void;
   onOpenCatalogProduct: (product: CatalogProduct) => void;
   onOpenSupplier: (supplier: Supplier) => void;
   onToggleFavorite: (order: SupplierOrder) => void;
+  onToggleOrderExpanded: (orderId: string) => void;
   onOpenStatusOrder: (
     key: string,
     order: SupplierOrder,
-    itemIndex: number,
+    itemIndex: number | null,
     rect: DOMRect,
   ) => void;
   onPageChange: (page: number) => void;
@@ -705,6 +708,7 @@ type SupplierOrdersTableProps = {
 
 export const SupplierOrdersTable = ({
   catalogProducts,
+  expandedOrderIds,
   filteredOrdersCount,
   isLoading,
   openStatusOrder,
@@ -721,11 +725,13 @@ export const SupplierOrdersTable = ({
   onOpenCatalogProduct,
   onOpenSupplier,
   onToggleFavorite,
+  onToggleOrderExpanded,
   onOpenStatusOrder,
   onPageChange,
   onPageSizeChange,
 }: SupplierOrdersTableProps) => {
   const { t } = useTranslation();
+  const notApplicableLabel = t('orders.supplier.table.statusNotApplicable');
 
   return (
   <>
@@ -767,181 +773,289 @@ export const SupplierOrdersTable = ({
         </thead>
         <tbody>
           {paginatedOrders.flatMap((order) =>
-            buildGroupedSupplierOrderView(order).map(({ id, item }) => (
-              <tr key={id}>
-                {visibleColumns.includes('number') ? (
-                  <td
-                    className='supplier-orders-number-cell'
-                    data-label={t('orders.supplier.columns.number')}
-                  >
-                    <div className='supplier-order-number-cell'>
-                      <button
-                        type='button'
-                        className={
-                          order.isFavorite === true
-                            ? 'supplier-order-row-star supplier-order-row-star-active'
-                            : 'supplier-order-row-star'
-                        }
-                        aria-label={
-                          order.isFavorite === true
-                            ? t('orders.supplier.table.unstarOrder', { id })
-                            : t('orders.supplier.table.starOrder', { id })
-                        }
-                        aria-pressed={order.isFavorite === true}
-                        disabled={!canManageSupplierOrders}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onToggleFavorite(order);
-                        }}
-                      >
-                        {order.isFavorite === true ? '★' : '☆'}
-                      </button>
-                      <button
-                        type='button'
-                        className='supplier-order-number-button'
-                        onClick={() => {
-                          if (!canViewSupplierOrders) {
-                            onError(t('orders.supplier.messages.errors.noViewPermission'));
-                            return;
-                          }
-                          onEditOrder(
-                            {
-                              ...order,
-                              receiptStatus: item.receiptStatus ?? 'new',
-                              number: buildSupplierOrderItemNumber(
-                                order,
-                                item.itemIndex,
-                              ),
-                              items: [item],
-                            },
-                            order,
-                            item.itemIndex,
-                          );
-                        }}
-                      >
-                        {id}
-                      </button>
-                    </div>
-                  </td>
-                ) : null}
-                {visibleColumns.includes('product') ? (
-                  <td data-label={t('orders.supplier.columns.product')}>
-                    <button
-                      type='button'
-                      className={`catalog-name-button${
-                        item.receiptStatus === 'cancelled'
-                          ? ' supplier-order-item-cancelled'
-                          : ''
-                      }`}
-                      onClick={() => {
-                        const matchedProduct = item.catalogProductId
-                          ? catalogProducts.find(
-                              (product) =>
-                                product.id === item.catalogProductId,
-                            )
-                          : catalogProducts.find(
-                              (product) =>
-                                product.name.trim().toLowerCase() ===
-                                item.productName.trim().toLowerCase(),
+            buildSupplierOrderTableRows(order, expandedOrderIds).map((row) => {
+              const isChild = row.kind === 'child';
+              const isParent = row.kind === 'parent';
+              const item =
+                row.kind === 'child' || row.kind === 'single' ? row.item : null;
+              const summary = isParent
+                ? summarizeSupplierOrderItems(order)
+                : null;
+              const rowClassName = isParent
+                ? 'supplier-order-group-parent'
+                : isChild
+                  ? 'supplier-order-group-child'
+                  : undefined;
+
+              const openProductCatalog = (targetItem: NonNullable<typeof item>) => {
+                const matchedProduct = targetItem.catalogProductId
+                  ? catalogProducts.find(
+                      (product) => product.id === targetItem.catalogProductId,
+                    )
+                  : catalogProducts.find(
+                      (product) =>
+                        product.name.trim().toLowerCase() ===
+                        targetItem.productName.trim().toLowerCase(),
+                    );
+                if (!matchedProduct) {
+                  onError(t('orders.supplier.messages.errors.productNotFound'));
+                  return;
+                }
+                if (!canManageSupplierOrders) {
+                  onError(t('orders.supplier.messages.errors.noManagePermission'));
+                  return;
+                }
+                onOpenCatalogProduct(matchedProduct);
+              };
+
+              const openOrderModal = () => {
+                if (!canViewSupplierOrders) {
+                  onError(t('orders.supplier.messages.errors.noViewPermission'));
+                  return;
+                }
+
+                if (isParent) {
+                  onEditOrder(order, order, null);
+                  return;
+                }
+
+                if (!item) return;
+
+                onEditOrder(
+                  {
+                    ...order,
+                    receiptStatus: item.receiptStatus ?? 'new',
+                    number: buildSupplierOrderItemNumber(order, item.itemIndex),
+                    items: [item],
+                  },
+                  order,
+                  item.itemIndex,
+                );
+              };
+
+              return (
+                <tr key={`${order.id}-${row.id}`} className={rowClassName}>
+                  {visibleColumns.includes('number') ? (
+                    <td
+                      className='supplier-orders-number-cell'
+                      data-label={t('orders.supplier.columns.number')}
+                    >
+                      <div className='supplier-order-number-cell'>
+                        {isParent ? (
+                          <button
+                            type='button'
+                            className='supplier-order-expand-toggle'
+                            aria-expanded={expandedOrderIds.has(order.id)}
+                            aria-label={
+                              expandedOrderIds.has(order.id)
+                                ? t('orders.supplier.table.collapseOrder', {
+                                    id: row.id,
+                                  })
+                                : t('orders.supplier.table.expandOrder', {
+                                    id: row.id,
+                                  })
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onToggleOrderExpanded(order.id);
+                            }}
+                          >
+                            {expandedOrderIds.has(order.id) ? '⌃' : '⌄'}
+                          </button>
+                        ) : null}
+                        {!isChild ? (
+                          <button
+                            type='button'
+                            className={
+                              order.isFavorite === true
+                                ? 'supplier-order-row-star supplier-order-row-star-active'
+                                : 'supplier-order-row-star'
+                            }
+                            aria-label={
+                              order.isFavorite === true
+                                ? t('orders.supplier.table.unstarOrder', {
+                                    id: row.id,
+                                  })
+                                : t('orders.supplier.table.starOrder', {
+                                    id: row.id,
+                                  })
+                            }
+                            aria-pressed={order.isFavorite === true}
+                            disabled={!canManageSupplierOrders}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onToggleFavorite(order);
+                            }}
+                          >
+                            {order.isFavorite === true ? '★' : '☆'}
+                          </button>
+                        ) : (
+                          <span
+                            className='supplier-order-row-star-placeholder'
+                            aria-hidden='true'
+                          />
+                        )}
+                        <button
+                          type='button'
+                          className='supplier-order-number-button'
+                          onClick={openOrderModal}
+                        >
+                          {row.kind === 'child' ? row.label : row.id}
+                        </button>
+                      </div>
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('product') ? (
+                    <td data-label={t('orders.supplier.columns.product')}>
+                      {isParent && summary ? (
+                        <span className='supplier-order-items-summary'>
+                          {t('orders.supplier.table.itemsCount', {
+                            count: summary.count,
+                          })}
+                        </span>
+                      ) : item ? (
+                        <button
+                          type='button'
+                          className={`catalog-name-button${
+                            item.receiptStatus === 'cancelled'
+                              ? ' supplier-order-item-cancelled'
+                              : ''
+                          }`}
+                          onClick={() => openProductCatalog(item)}
+                        >
+                          {item.productName}
+                        </button>
+                      ) : null}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('quantity') ? (
+                    <td data-label={t('orders.supplier.columns.quantity')}>
+                      {isParent && summary
+                        ? `${summary.totalQuantity} ${t('orders.supplier.table.pcs')}`
+                        : item
+                          ? `${item.quantity} ${t('orders.supplier.table.pcs')}`
+                          : null}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('price') ? (
+                    <td data-label={t('orders.supplier.columns.price')}>
+                      {isParent
+                        ? notApplicableLabel
+                        : item
+                          ? formatCurrency(item.price)
+                          : null}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('total') ? (
+                    <td data-label={t('orders.supplier.columns.total')}>
+                      {isParent
+                        ? formatCurrency(order.total)
+                        : item
+                          ? formatCurrency(item.quantity * item.price)
+                          : null}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('paid') ? (
+                    <td data-label={t('orders.supplier.columns.paid')}>
+                      {isChild
+                        ? notApplicableLabel
+                        : formatCurrency(order.paid)}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('supplier') ? (
+                    <td data-label={t('orders.supplier.columns.supplier')}>
+                      {isChild ? (
+                        notApplicableLabel
+                      ) : (
+                        <button
+                          type='button'
+                          className='catalog-name-button'
+                          onClick={() => {
+                            const matchedSupplier = suppliers.find(
+                              (supplier) => supplier.id === order.supplierId,
                             );
-                        if (!matchedProduct) {
-                          onError(t('orders.supplier.messages.errors.productNotFound'));
-                          return;
-                        }
-                        if (!canManageSupplierOrders) {
-                          onError(t('orders.supplier.messages.errors.noManagePermission'));
-                          return;
-                        }
-                        onOpenCatalogProduct(matchedProduct);
-                      }}
-                    >
-                      {item.productName}
-                    </button>
-                  </td>
-                ) : null}
-                {visibleColumns.includes('quantity') ? (
-                  <td data-label={t('orders.supplier.columns.quantity')}>
-                    {item.quantity} {t('orders.supplier.table.pcs')}
-                  </td>
-                ) : null}
-                {visibleColumns.includes('price') ? (
-                  <td data-label={t('orders.supplier.columns.price')}>{formatCurrency(item.price)}</td>
-                ) : null}
-                {visibleColumns.includes('total') ? (
-                  <td data-label={t('orders.supplier.columns.total')}>{formatCurrency(item.quantity * item.price)}</td>
-                ) : null}
-                {visibleColumns.includes('paid') ? (
-                  <td data-label={t('orders.supplier.columns.paid')}>{formatCurrency(order.paid)}</td>
-                ) : null}
-                {visibleColumns.includes('supplier') ? (
-                  <td data-label={t('orders.supplier.columns.supplier')}>
-                    <button
-                      type='button'
-                      className='catalog-name-button'
-                      onClick={() => {
-                        const matchedSupplier = suppliers.find(
-                          (supplier) => supplier.id === order.supplierId,
-                        );
-                        if (!matchedSupplier) {
-                          onError(t('orders.supplier.messages.errors.supplierNotFound'));
-                          return;
-                        }
-                        if (!canManageSupplierOrders) {
-                          onError(t('orders.supplier.messages.errors.noManagePermission'));
-                          return;
-                        }
-                        onOpenSupplier(matchedSupplier);
-                      }}
-                    >
-                      {order.supplierName}
-                    </button>
-                  </td>
-                ) : null}
-                {visibleColumns.includes('deliveryDate') ? (
-                  <td data-label={t('orders.supplier.columns.deliveryDate')}>{formatSupplierOrderDate(order.deliveryDate)}</td>
-                ) : null}
-                {visibleColumns.includes('status') ? (
-                  <td data-label={t('orders.supplier.columns.status')}>
-                    <div className='supplier-order-status-picker'>
-                      <button
-                        type='button'
-                        className={getSupplierOrderStatusClass(order.status)}
-                        data-supplier-order-status-trigger={id}
-                        disabled={
-                          !canManageSupplierOrders ||
-                          order.paymentStatus === 'cancelled' ||
-                          order.status === 'cancelled' ||
-                          order.status === 'unavailable'
-                        }
-                        aria-expanded={openStatusOrder?.key === id}
-                        aria-haspopup='listbox'
-                        onClick={(event) =>
-                          onOpenStatusOrder(
-                            id,
-                            order,
-                            item.itemIndex,
-                            event.currentTarget.getBoundingClientRect(),
-                          )
-                        }
-                      >
-                        {getSupplierOrderStatusLabel(order.status)}
-                      </button>
-                    </div>
-                  </td>
-                ) : null}
-                {visibleColumns.includes('paymentStatus') ? (
-                  <td data-label={t('orders.supplier.columns.paymentStatus')}>
-                    <span
-                      className={getSupplierPaymentStatusClass(
-                        order.paymentStatus,
+                            if (!matchedSupplier) {
+                              onError(
+                                t('orders.supplier.messages.errors.supplierNotFound'),
+                              );
+                              return;
+                            }
+                            if (!canManageSupplierOrders) {
+                              onError(
+                                t('orders.supplier.messages.errors.noManagePermission'),
+                              );
+                              return;
+                            }
+                            onOpenSupplier(matchedSupplier);
+                          }}
+                        >
+                          {order.supplierName}
+                        </button>
                       )}
-                    >
-                      {getSupplierPaymentStatusLabel(order.paymentStatus)}
-                    </span>
-                  </td>
-                ) : null}
-              </tr>
-            )),
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('deliveryDate') ? (
+                    <td data-label={t('orders.supplier.columns.deliveryDate')}>
+                      {isChild
+                        ? notApplicableLabel
+                        : formatSupplierOrderDate(order.deliveryDate)}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('status') ? (
+                    <td data-label={t('orders.supplier.columns.status')}>
+                      {isChild ? (
+                        <span className='supplier-order-group-child-muted'>
+                          {notApplicableLabel}
+                        </span>
+                      ) : (
+                        <div className='supplier-order-status-picker'>
+                          <button
+                            type='button'
+                            className={getSupplierOrderStatusClass(order.status)}
+                            data-supplier-order-status-trigger={row.id}
+                            disabled={
+                              !canManageSupplierOrders ||
+                              order.paymentStatus === 'cancelled' ||
+                              order.status === 'cancelled' ||
+                              order.status === 'unavailable'
+                            }
+                            aria-expanded={openStatusOrder?.key === row.id}
+                            aria-haspopup='listbox'
+                            onClick={(event) =>
+                              onOpenStatusOrder(
+                                row.id,
+                                order,
+                                isParent ? null : (item?.itemIndex ?? null),
+                                event.currentTarget.getBoundingClientRect(),
+                              )
+                            }
+                          >
+                            {getSupplierOrderStatusLabel(order.status)}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('paymentStatus') ? (
+                    <td data-label={t('orders.supplier.columns.paymentStatus')}>
+                      {isChild ? (
+                        <span className='supplier-order-group-child-muted'>
+                          {notApplicableLabel}
+                        </span>
+                      ) : (
+                        <span
+                          className={getSupplierPaymentStatusClass(
+                            order.paymentStatus,
+                          )}
+                        >
+                          {getSupplierPaymentStatusLabel(order.paymentStatus)}
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
+                </tr>
+              );
+            }),
           )}
         </tbody>
       </table>
