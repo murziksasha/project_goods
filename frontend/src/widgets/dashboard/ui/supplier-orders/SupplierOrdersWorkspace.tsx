@@ -31,6 +31,8 @@ import {
 import {
   computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
+  getActiveSupplierOrderItems,
+  isMultiItemSupplierOrder,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
   parseSupplierOrdersFilters,
@@ -148,8 +150,11 @@ export const SupplierOrdersWorkspace = ({
   const [openStatusOrder, setOpenStatusOrder] = useState<{
     key: string;
     order: SupplierOrder;
-    itemIndex: number;
+    itemIndex: number | null;
   } | null>(null);
+  const [expandedSupplierOrderIds, setExpandedSupplierOrderIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [statusMenuPosition, setStatusMenuPosition] = useState<{
     top: number;
     left: number;
@@ -432,6 +437,18 @@ export const SupplierOrdersWorkspace = ({
     );
   };
 
+  const toggleSupplierOrderExpanded = useCallback((orderId: string) => {
+    setExpandedSupplierOrderIds((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  }, []);
+
   const updateSupplierOrderStatus = async (
     order: SupplierOrder,
     nextStatus: SupplierOrderStatus,
@@ -447,19 +464,60 @@ export const SupplierOrdersWorkspace = ({
           onError(t('orders.supplier.messages.errors.defaultWarehouseNotFound'));
           return;
         }
-        const takeOnChargeResult =
-          await takeOnChargeSupplierOrderMutation.mutateAsync({
+
+        const takeOnChargePayload = {
+          autoGenerateSerialNumbers: true,
+          serialNumbers: [] as string[],
+          autoGenerateArticles: false,
+          articleBase: '',
+          warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
+          locationId: defaultTakeOnChargeWarehouse.locationId,
+        };
+
+        const requestedItemIndex = openStatusOrder?.itemIndex ?? undefined;
+        const isBulkParent =
+          requestedItemIndex === undefined &&
+          openStatusOrder?.itemIndex === null &&
+          isMultiItemSupplierOrder(order);
+
+        const runTakeOnCharge = (itemIndex?: number) =>
+          takeOnChargeSupplierOrderMutation.mutateAsync({
             supplierOrderId: order.id,
             payload: {
-              autoGenerateSerialNumbers: true,
-              serialNumbers: [],
-              autoGenerateArticles: false,
-              articleBase: '',
-              itemIndex: openStatusOrder?.itemIndex,
-              warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
-              locationId: defaultTakeOnChargeWarehouse.locationId,
+              ...takeOnChargePayload,
+              ...(itemIndex === undefined ? {} : { itemIndex }),
             },
           });
+
+        let takeOnChargeResult: SupplierOrder;
+        if (isBulkParent) {
+          const activeItems = getActiveSupplierOrderItems(order);
+          if (activeItems.length === 0) {
+            onError(t('orders.supplier.messages.errors.failedUpdateStatus'));
+            return;
+          }
+
+          const hasReceivedItems = order.items.some(
+            (item) => item.receiptStatus === 'received',
+          );
+
+          if (!hasReceivedItems && activeItems.length > 1) {
+            takeOnChargeResult = await runTakeOnCharge();
+          } else {
+            let lastResult: SupplierOrder | undefined;
+            for (const item of activeItems) {
+              lastResult = await runTakeOnCharge(item.itemIndex);
+            }
+            if (!lastResult) {
+              onError(t('orders.supplier.messages.errors.failedUpdateStatus'));
+              return;
+            }
+            takeOnChargeResult = lastResult;
+          }
+        } else {
+          takeOnChargeResult = await runTakeOnCharge(requestedItemIndex);
+        }
+
         notifyFinanceUpdated();
         setOpenStatusOrder(null);
         onSuccess(
@@ -662,6 +720,7 @@ export const SupplierOrdersWorkspace = ({
       ) : (
         <SupplierOrdersTable
           catalogProducts={catalogProducts}
+          expandedOrderIds={expandedSupplierOrderIds}
           filteredOrdersCount={filteredOrders.length}
           isLoading={isLoading}
           openStatusOrder={openStatusOrder}
@@ -676,13 +735,14 @@ export const SupplierOrdersWorkspace = ({
           onError={onError}
           onEditOrder={(order, sourceOrder, itemIndex) => {
             setEditingOrder(order);
-            setEditingOrderSource(sourceOrder);
+            setEditingOrderSource(sourceOrder ?? order);
             setEditingOrderItemIndex(itemIndex);
             setIsModalOpen(true);
           }}
           onOpenCatalogProduct={setSelectedCatalogProductForEdit}
           onOpenSupplier={setSelectedSupplierForEdit}
           onToggleFavorite={(order) => void toggleSupplierOrderFavorite(order)}
+          onToggleOrderExpanded={toggleSupplierOrderExpanded}
           onOpenStatusOrder={(key, order, itemIndex, rect) => {
             if (!canManageSupplierOrders) {
               onError(t('orders.supplier.messages.errors.noManagePermission'));

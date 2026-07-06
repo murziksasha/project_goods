@@ -6090,8 +6090,53 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 }
 
 .supplier-order-row-star-placeholder {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   visibility: hidden;
   pointer-events: none;
+}
+
+.supplier-order-expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.supplier-order-expand-toggle:hover {
+  color: #0f6fc6;
+}
+
+.supplier-order-group-parent {
+  background: #f8fafc;
+}
+
+.supplier-order-group-parent .supplier-order-number-button {
+  font-weight: 800;
+}
+
+.supplier-order-group-child td:first-child .supplier-order-number-cell {
+  padding-left: 24px;
+}
+
+.supplier-order-items-summary {
+  color: #475569;
+  font-weight: 600;
+}
+
+.supplier-order-group-child-muted {
+  color: #94a3b8;
 }
 
 .orders-table .supplier-orders-col-product {
