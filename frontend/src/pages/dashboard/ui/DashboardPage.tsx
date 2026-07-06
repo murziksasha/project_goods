@@ -24,6 +24,7 @@ import {
   isNetworkRequestError,
   isUnauthorizedRequestError,
 } from '../../../shared/lib/request';
+import { getBuildLabel } from '../../../shared/lib/buildInfo';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
@@ -189,6 +190,10 @@ const isTemporaryAdmin = (employee: Employee | null) =>
 
 export const DashboardPage = () => {
   const { t, i18n } = useTranslation();
+  const buildLabel = useMemo(
+    () => getBuildLabel(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US'),
+    [i18n.language],
+  );
   const [isOnline, setIsOnline] = useState(
     () => (typeof navigator === 'undefined' ? true : navigator.onLine),
   );
@@ -990,6 +995,17 @@ export const DashboardPage = () => {
             );
           })}
         </nav>
+
+        <div
+          className={
+            isSidebarCollapsed
+              ? 'sidebar-build-info sidebar-build-info-hidden'
+              : 'sidebar-build-info'
+          }
+          title={buildLabel}
+        >
+          {buildLabel}
+        </div>
       </aside>
 
       <section className="dashboard-main">

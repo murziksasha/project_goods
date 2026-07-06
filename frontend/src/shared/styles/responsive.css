@@ -108,6 +108,19 @@
     text-overflow: clip;
   }
 
+  .sidebar-build-info {
+    display: block;
+    border-top: 0;
+    padding: 8px 0 0;
+    text-align: right;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .sidebar-build-info-hidden {
+    display: none;
+  }
+
   .topbar {
     flex-wrap: wrap;
     height: auto;
