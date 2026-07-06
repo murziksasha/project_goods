@@ -97,6 +97,27 @@ const autoMarkZeroTotalOrdersWithoutPayment = async () => {
   );
 };
 
+export const reconcileSupplierOrderStatuses = async () => {
+  const candidates = await SupplierOrder.find({
+    status: { $nin: ['stocked', 'cancelled', 'unavailable'] },
+    items: { $elemMatch: { receiptStatus: 'received' } },
+  });
+
+  for (const order of candidates) {
+    const resolved = resolveSupplierOrderStatusFromItems(order.items ?? []);
+    if (!resolved.status) continue;
+
+    const needsStatusUpdate = order.status !== resolved.status;
+    const needsReceiptStatusUpdate = order.receiptStatus !== resolved.receiptStatus;
+    if (!needsStatusUpdate && !needsReceiptStatusUpdate) continue;
+
+    order.status = resolved.status;
+    order.receiptStatus = resolved.receiptStatus;
+    await order.validate();
+    await order.save();
+  }
+};
+
 export const autoMarkOverdueSupplierOrders = async (
   now: Date = new Date(),
 ) => {
@@ -104,8 +125,9 @@ export const autoMarkOverdueSupplierOrders = async (
   if (!todayKey) return;
 
   const candidates = await SupplierOrder.find({
-    status: { $in: ['request', 'ordered', 'approved', 'partially_stocked'] },
+    status: 'request',
     receiptStatus: { $ne: 'received' },
+    items: { $not: { $elemMatch: { receiptStatus: 'received' } } },
   }).lean<SupplierOrderDocument[]>();
 
   const overdueIds = candidates
@@ -125,6 +147,7 @@ export const autoMarkOverdueSupplierOrders = async (
 
 export const listSupplierOrders = async (queryValue: unknown) => {
   await autoMarkZeroTotalOrdersWithoutPayment();
+  await reconcileSupplierOrderStatuses();
   await autoMarkOverdueSupplierOrders();
   const query = getSearchQuery(queryValue);
   const orders = await SupplierOrder.find(query).sort({ createdAt: -1 }).lean<SupplierOrderDocument[]>();
@@ -237,7 +260,13 @@ export const listSupplierOrdersForAccounting = async () => {
   await autoMarkZeroTotalOrdersWithoutPayment();
   const orders = await SupplierOrder.find({
     status: {
-      $in: ['approved', 'partially_stocked', 'partially_completed', 'stocked'],
+      $in: [
+        'approved',
+        'overdue',
+        'partially_stocked',
+        'partially_completed',
+        'stocked',
+      ],
     },
     paymentStatus: 'pending',
     total: { $gt: 0 },
@@ -272,6 +301,7 @@ export const paySupplierOrder = async (
   if (existing.paymentStatus === 'without_payment') throw new Error('Замовлення вже видано без оплати.');
   if (
     existing.status !== 'approved' &&
+    existing.status !== 'overdue' &&
     existing.status !== 'stocked' &&
     existing.status !== 'partially_stocked' &&
     existing.status !== 'partially_completed'
@@ -313,6 +343,7 @@ export const issueSupplierOrderWithoutPayment = async (
   if (existing.paymentStatus === 'without_payment') throw new Error('Замовлення вже видано без оплати.');
   if (
     existing.status !== 'approved' &&
+    existing.status !== 'overdue' &&
     existing.status !== 'stocked' &&
     existing.status !== 'partially_stocked' &&
     existing.status !== 'partially_completed'

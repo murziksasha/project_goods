@@ -1071,6 +1071,7 @@
           "supplierUpdated": "Supplier updated.",
           "productUpdated": "Product updated.",
           "stocked": "Supplier order stocked.",
+          "partiallyStocked": "Line item stocked. Stock the remaining items separately to complete the order.",
           "cancelled": "Supplier order cancelled.",
           "created": "Supplier order created.",
           "updated": "Supplier order updated.",

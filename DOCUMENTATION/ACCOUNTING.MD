@@ -82,8 +82,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Financial Queue Rules (`Accounting -> Замовлення`)
 - Supplier order payment queue includes orders with:
   - `paymentStatus = pending`
-  - `status in [approved, partially_stocked, partially_completed, stocked]`
+  - `status in [approved, overdue, partially_stocked, partially_completed, stocked]`
   - `total > 0`
+- `overdue` rows remain payable when `total > 0` and receipt is not fully closed; auto-`overdue` must not remove them from the queue after operator status advancement.
 - Supplier orders with zero total (free-of-charge receipts) are allowed in Warehouse flows, but must not appear in this payment queue.
 
 ## Payment Actions in Accounting

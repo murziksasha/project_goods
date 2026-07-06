@@ -16,6 +16,7 @@ import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../
 import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
+  resolveSupplierOrderErrorMessage,
   resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
 
@@ -1009,9 +1010,11 @@ export const SupplierOrderModal = ({
                     onClose();
                   } catch (error) {
                     onError(
-                      error instanceof Error
-                        ? error.message
-                        : t('orders.supplier.messages.errors.failedTakeOnCharge'),
+                      resolveSupplierOrderErrorMessage(
+                        error,
+                        t,
+                        'orders.supplier.messages.errors.failedTakeOnCharge',
+                      ),
                     );
                   } finally {
                     setIsActionSubmitting(false);
@@ -1119,9 +1122,11 @@ export const SupplierOrderModal = ({
                     onClose();
                   } catch (error) {
                     onError(
-                      error instanceof Error
-                        ? error.message
-                        : t('orders.supplier.messages.errors.failedCancelItem'),
+                      resolveSupplierOrderErrorMessage(
+                        error,
+                        t,
+                        'orders.supplier.messages.errors.failedCancelItem',
+                      ),
                     );
                   } finally {
                     setIsActionSubmitting(false);

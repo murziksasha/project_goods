@@ -279,6 +279,11 @@ Implementation references:
 
 ### 6.4) Auto Order Status Sync With Receipts / Supplier Order Table
 - `Orders -> Supplier Order` shows `order.status` on every item row of the same supplier order.
+- Backdated supplier orders (`deliveryDate` before today, `Europe/Kiev`):
+  - partial take-on-charge must leave the order in `partially_stocked` (or `stocked` when complete) after list refresh;
+  - `GET /supplier-orders` must not force such orders back to `overdue` once receipt has started or the operator set `ordered` / `approved`;
+  - `reconcileSupplierOrderStatuses()` on list fetch repairs legacy rows that already have received items but still show `overdue`.
+  - See `ORDER_FLOW.md` § *Supplier Order Backdated Delivery and Status Persistence (2026-07-06)*.
 - After partial receive/cancel progress, backend auto-sets:
   - `partially_stocked` — at least one item is `received` or `cancelled`, but some items remain `new`/`approved`
   - `partially_completed` — all items are terminal (`received` or `cancelled`) with a mixed outcome
@@ -305,7 +310,8 @@ Implementation references:
 - Projection rule: if `status = cancelled` OR `status = unavailable` OR `paymentStatus = cancelled`, row state is `cancelled` regardless of previous `receiptStatus`.
 
 ### 8) Take-On-Charge and Cancel Availability
-- `overdue` is auto-only on list fetch and does **not** block take-on-charge or content editing.
+- `overdue` is auto-only on list fetch (from `request` + past `deliveryDate` only) and does **not** block take-on-charge or content editing.
+- Multi-item take-on-charge from the Supplier Order table status badge `Stocked` or item-scoped modal passes `itemIndex`; success on one line shows partial-stocked feedback until all active lines are received.
 - For open orders (`approved`, `partially_stocked`, `overdue`, etc.) that are not yet fully received:
   1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`; item-scoped via `itemIndex`.
   2. **Cancel item (`Скасувати позицію`)** — allowed for unreceived items even when `paymentStatus = paid` / `without_payment`; recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red.
