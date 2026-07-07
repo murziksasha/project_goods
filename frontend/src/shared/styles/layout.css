@@ -629,21 +629,8 @@
   min-width: 0;
 }
 
-.order-line-item-price-entry-compact {
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.order-line-item-price-entry-compact .product-sale-price-field-label-compact {
-  display: none;
-}
-
-.order-line-item-price-entry-compact .product-sale-price-field {
-  min-height: 36px;
-  display: flex;
-  align-items: center;
+.order-line-item-price-entry-field .product-sale-price-stepper,
+.order-line-item-price-entry-field .number-stepper {
   width: 100%;
 }
 
@@ -4459,7 +4446,8 @@
   border-bottom: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: stretch;
   min-width: 0;
   padding: 7px 12px;
 }
@@ -4467,7 +4455,7 @@
 .order-line-item-name-entry {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
@@ -4479,14 +4467,14 @@
 .order-line-item-serial-entry-spacer {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
 .order-line-item-entry-field {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
@@ -4548,6 +4536,15 @@
   justify-content: center;
   align-items: stretch;
   min-width: 0;
+}
+
+.order-line-item-price-entry-field.order-line-item-price-cell {
+  justify-content: center;
+}
+
+.order-detail-table-entry-cell input.line-item-inline-input {
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .order-line-item-price-cell .number-stepper {

@@ -1516,21 +1516,33 @@ export const OrderDetailLineItemsPanel = ({
             className='order-line-item-price-cell order-line-item-price-entry-field order-detail-table-entry-cell'
             data-label={t('orders.detail.lineItems.price')}
           >
-            <ProductSalePriceField
-              tierTogglePlacement={
-                showPriceHeaderTierToggle ? 'none' : 'compact'
-              }
-              fieldClassName='order-line-item-price-entry-compact'
-              stepperClassName='line-item-inline-input'
-              value={price}
-              onChange={setPrice}
-              product={selectedStockProduct}
-              priceTier={priceTier}
-              onPriceTierChange={setPriceTier}
-              placeholder={t('orders.detail.lineItems.price')}
-              disabled={isReadOnly}
-              ariaLabel={t('orders.detail.lineItems.price')}
-            />
+            {isProductKind ? (
+              <ProductSalePriceField
+                tierTogglePlacement='none'
+                stepperClassName='line-item-inline-input'
+                value={price}
+                onChange={setPrice}
+                product={selectedStockProduct}
+                priceTier={priceTier}
+                onPriceTierChange={setPriceTier}
+                placeholder={t('orders.detail.lineItems.price')}
+                disabled={isReadOnly}
+                ariaLabel={t('orders.detail.lineItems.price')}
+                onFocus={() => setActivePriceContext('entry')}
+              />
+            ) : (
+              <NumberStepper
+                className='line-item-inline-input'
+                min={0}
+                step={0.01}
+                precision={2}
+                value={price}
+                onChange={setPrice}
+                placeholder={t('orders.detail.lineItems.price')}
+                disabled={isReadOnly}
+                ariaLabel={t('orders.detail.lineItems.price')}
+              />
+            )}
           </div>
           <div
             className='order-line-item-entry-field order-line-item-qty-entry-field order-detail-table-entry-cell'
