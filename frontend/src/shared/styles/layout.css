@@ -629,21 +629,8 @@
   min-width: 0;
 }
 
-.order-line-item-price-entry-compact {
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.order-line-item-price-entry-compact .product-sale-price-field-label-compact {
-  display: none;
-}
-
-.order-line-item-price-entry-compact .product-sale-price-field {
-  min-height: 36px;
-  display: flex;
-  align-items: center;
+.order-line-item-price-entry-field .product-sale-price-stepper,
+.order-line-item-price-entry-field .number-stepper {
   width: 100%;
 }
 
@@ -2901,6 +2888,9 @@
 
 .weather-visual-hero.weather-visual--animated .weather-visual-media {
   align-self: stretch;
+  flex: 0 0 148px;
+  justify-content: center;
+  padding: 14px 0 14px 14px;
 }
 
 .weather-visual-compact .weather-visual-media {
@@ -2979,6 +2969,12 @@
     padding: 0;
   }
 
+  .weather-visual-hero.weather-visual--animated .weather-visual-media {
+    flex: 1 1 auto;
+    width: 100%;
+    padding: 0;
+  }
+
   .weather-visual-hero.weather-visual--static .weather-visual-media {
     padding: 14px 14px 0;
     justify-content: center;
@@ -3005,6 +3001,7 @@
 }
 
 .weather-scene-sky-fallback {
+  display: block;
   width: 100%;
   height: 100%;
 }
@@ -3139,6 +3136,16 @@
   height: 14px;
 }
 
+.weather-scene-rain .weather-scene-cloud-a,
+.weather-scene-thunder .weather-scene-cloud-a {
+  left: 50%;
+}
+
+.weather-scene-rain .weather-scene-cloud-b,
+.weather-scene-thunder .weather-scene-cloud-b {
+  left: 66%;
+}
+
 .weather-scene-cloud-c {
   top: 22%;
   left: 68%;
@@ -3159,7 +3166,12 @@
 }
 
 .weather-scene-rain {
-  inset: 42% 0 0;
+  top: 42%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  overflow: hidden;
   z-index: 4;
 }
 
@@ -3171,6 +3183,7 @@
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(147, 197, 253, 0.2) 0%, #38bdf8 55%, #0ea5e9 100%);
   transform: skewX(var(--weather-wind-slant, 0deg));
+  transform-origin: top center;
 }
 
 .weather-scene--intensity-light .weather-scene-rain-drop {
@@ -4459,7 +4472,8 @@
   border-bottom: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: stretch;
   min-width: 0;
   padding: 7px 12px;
 }
@@ -4467,7 +4481,7 @@
 .order-line-item-name-entry {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
@@ -4479,14 +4493,14 @@
 .order-line-item-serial-entry-spacer {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
 .order-line-item-entry-field {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
 }
 
@@ -4548,6 +4562,15 @@
   justify-content: center;
   align-items: stretch;
   min-width: 0;
+}
+
+.order-line-item-price-entry-field.order-line-item-price-cell {
+  justify-content: center;
+}
+
+.order-detail-table-entry-cell input.line-item-inline-input {
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .order-line-item-price-cell .number-stepper {
