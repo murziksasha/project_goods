@@ -37,6 +37,21 @@ describe('WeatherVisual', () => {
     expect(screen.getByText('Heavy rain')).toBeTruthy();
   });
 
+  it('renders rain animated hero scene inside media wrapper', () => {
+    const { container } = renderWeatherVisual({
+      condition: 'rain',
+      temperature: 14,
+      label: 'Today',
+      animated: true,
+    });
+
+    expect(container.querySelector('.weather-visual-hero')).toBeTruthy();
+    expect(container.querySelector('.weather-visual--animated')).toBeTruthy();
+    expect(container.querySelector('.weather-visual-media')).toBeTruthy();
+    expect(container.querySelector('.weather-scene-rain')).toBeTruthy();
+    expect(container.querySelectorAll('.weather-scene-rain-drop').length).toBeGreaterThan(0);
+  });
+
   it('uses static icon in compact mode even when animated is enabled', () => {
     const { container } = renderWeatherVisual({
       condition: 'clear',

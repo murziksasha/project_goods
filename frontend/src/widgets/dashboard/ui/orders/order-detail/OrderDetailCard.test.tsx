@@ -941,7 +941,7 @@ describe('OrderDetailCard product entry', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders retail/wholesale toggles in the price column header', async () => {
+  it('renders retail/wholesale toggles in the price column header when adding a product', async () => {
     const bulkStock = product({
       id: 'product-videx-bulk',
       name: 'Videx',
@@ -974,6 +974,44 @@ describe('OrderDetailCard product entry', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+
+    const priceHeader = container.querySelector(
+      '.order-detail-table-price-header',
+    );
+    expect(
+      priceHeader?.querySelector('.product-sale-price-tier-toggle'),
+    ).toBeTruthy();
+    expect(
+      container.querySelector(
+        '.order-detail-table-entry-row .product-sale-price-tier-toggle',
+      ),
+    ).toBeNull();
+  });
+
+  it('renders retail/wholesale toggles in the price column header when editing an existing line item', async () => {
+    const bulkStock = product({
+      id: 'product-videx-bulk',
+      name: 'Videx',
+      article: 'CAM-100',
+      serialNumber: '',
+      salePriceOptions: [1500, 1200],
+    });
+    const { container } = renderCard({
+      products: [bulkStock],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: 'product-videx-bulk',
+          name: 'Videx',
+          price: 1500,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    fireEvent.focus(screen.getByDisplayValue('1500'));
 
     const priceHeader = container.querySelector(
       '.order-detail-table-price-header',

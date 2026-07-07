@@ -23,6 +23,7 @@ type ProductSalePriceFieldProps = {
   label?: ReactNode;
   fieldClassName?: string;
   tierTogglePlacement?: 'inline' | 'label' | 'compact' | 'none';
+  onFocus?: () => void;
 };
 
 export const ProductSalePriceField = ({
@@ -38,6 +39,7 @@ export const ProductSalePriceField = ({
   label,
   fieldClassName,
   tierTogglePlacement = 'inline',
+  onFocus,
 }: ProductSalePriceFieldProps) => {
   const showTierToggle = product ? hasWholesaleSalePrice(product) : false;
 
@@ -84,6 +86,7 @@ export const ProductSalePriceField = ({
       disabled={disabled}
       ariaLabel={ariaLabel}
       className={resolvedStepperClassName}
+      onFocus={onFocus}
     />
   );
 
