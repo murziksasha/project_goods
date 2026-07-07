@@ -54,7 +54,7 @@ http://localhost:5000/api
 - `GET /employees` - список сотрудников, поддерживает `query` и `role`
 - `POST /employees` - создать сотрудника
 - `PUT /employees/:employeeId` - обновить сотрудника
-- `DELETE /employees/:employeeId` - удалить сотрудника
+- `DELETE /employees/:employeeId` - удалить сотрудника; перед удалением снимает привязки `manager` / `master` / `issuedBy` со всех заказов и удаляет запись из warehouse administrators (метрики сотрудника не сохраняются). Подробнее: [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md#employee-deletion-and-metrics-retention)
 
 ## Settings
 

@@ -30,7 +30,7 @@ import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/An
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
 import { OrdersWorkspace } from '../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace';
 import { CreateOrderCard } from '../../../widgets/dashboard/ui/orders/create-order/CreateOrderCard';
-import { EmployeeManagementPanel } from '../../../widgets/dashboard/ui/settings/EmployeeManagementPanel';
+import { EmployeesPanel } from '../../../widgets/dashboard/ui/settings/EmployeesPanel';
 import { SettingsPanel } from '../../../widgets/dashboard/ui/settings/SettingsPanel';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { AccountingPanel } from '../../../widgets/dashboard/ui/accounting/AccountingPanel';
@@ -1147,10 +1147,12 @@ export const DashboardPage = () => {
               )
             )
           ) : activePage === 'employees' && canManageEmployees ? (
-            <EmployeeManagementPanel
+            <EmployeesPanel
               employees={state.allEmployees}
+              sales={state.sales}
               form={state.employeeForm}
               isLoading={state.isEmployeesLoading}
+              isSalesLoading={state.isSalesLoading}
               isSaving={state.isEmployeeSaving}
               isEditing={Boolean(state.editingEmployeeId)}
               canManageEmployees={canManageEmployees}

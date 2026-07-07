@@ -15,6 +15,7 @@ import {
   vi,
 } from 'vitest';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
+import type { Employee } from '../../../../../entities/employee/model/types';
 import * as clientDeviceApi from '../../../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
 import * as productApi from '../../../../../entities/product/api/productApi';
@@ -260,6 +261,7 @@ const buildCardElement = ({
   status,
   lineItems = [],
   supplierOrders = [],
+  employees = [],
 }: {
   products?: Product[];
   catalogProducts?: CatalogProduct[];
@@ -313,6 +315,7 @@ const buildCardElement = ({
   status?: OrderStatus;
   lineItems?: OrderLineItem[];
   supplierOrders?: SupplierOrder[];
+  employees?: OrderDetailCardProps['employees'];
 } = {}) => {
   const cardSale = sale(saleOverride);
   const cardStatus = status ?? (cardSale.status as OrderStatus);
@@ -321,7 +324,7 @@ const buildCardElement = ({
       sale={cardSale}
       sales={salesOverride ?? [cardSale]}
       supplierOrders={supplierOrders}
-      employees={[]}
+      employees={employees}
       status={cardStatus}
       statusOptions={[
         { key: cardStatus, labelKey: 'orders.status.repair.new' },
@@ -2152,5 +2155,57 @@ describe('OrderDetailCard product entry', () => {
       'href',
       '/?page=orders&ordersTab=sales&saleId=sale-2',
     );
+  });
+
+  it('excludes inactive employees from master dropdown', () => {
+    const employees: Employee[] = [
+      {
+        id: 'master-active',
+        name: 'Active Master',
+        phone: '',
+        email: '',
+        username: 'active-master',
+        role: 'master',
+        permissions: ['repairs.execute'],
+        isActive: true,
+        isRegistered: true,
+        note: '',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'master-inactive',
+        name: 'Inactive Master',
+        phone: '',
+        email: '',
+        username: 'inactive-master',
+        role: 'master',
+        permissions: ['repairs.execute'],
+        isActive: false,
+        isRegistered: true,
+        note: '',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          recordNumber: 'R000010',
+        },
+        employees,
+      }),
+    );
+
+    const masterRow = screen.getByText('Master').closest('div');
+    expect(masterRow).not.toBeNull();
+    const masterSelect = within(masterRow as HTMLElement).getByRole('combobox');
+    const options = within(masterSelect).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Select master',
+      'Active Master',
+    ]);
   });
 });

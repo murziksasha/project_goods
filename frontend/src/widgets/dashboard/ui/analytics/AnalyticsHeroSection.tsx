@@ -11,10 +11,10 @@ import {
   buildLinePath,
   formatCurrencyMetric,
   formatMetric,
-  statsPeriodOptions,
-  type StatsPeriod,
 } from '../../model/sales-analytics';
+import type { StatsPeriod } from '../../model/stats-period';
 import { AnalyticsDateFilterPanel } from './AnalyticsDateFilterPanel';
+import { StatsPeriodToggle } from './StatsPeriodToggle';
 import { MarketWeatherWidget } from '../weather/MarketWeatherWidget';
 
 type AnalyticsHeroSectionProps = {
@@ -220,22 +220,11 @@ export const AnalyticsHeroSection = ({
           </p>
         </div>
         <div className="hero-controls">
-          <div className="period-toggle" role="tablist" aria-label={t('analytics.statisticsPeriod')}>
-            {statsPeriodOptions.map((option) => (
-              <button
-                key={option.value}
-                className={
-                  option.value === statsPeriod && !analyticsDateRange
-                    ? 'period-button period-button-active'
-                    : 'period-button'
-                }
-                type="button"
-                onClick={() => onStatsPeriodChange(option.value)}
-              >
-                {t(option.labelKey)}
-              </button>
-            ))}
-          </div>
+          <StatsPeriodToggle
+            statsPeriod={statsPeriod}
+            hasCustomDateRange={Boolean(analyticsDateRange?.dateFrom || analyticsDateRange?.dateTo)}
+            onChange={onStatsPeriodChange}
+          />
           <button
             type="button"
             className="toolbar-filter-button toolbar-filter-toggle-button"

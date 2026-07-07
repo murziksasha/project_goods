@@ -2252,8 +2252,7 @@
         "price": "Price",
         "note": "Note",
         "updated": "Updated",
-        "action": "Action",
-        "select": "Select"
+        "action": "Action"
       },
       "selectAllServices": "Select all services",
       "selectService": "Select {{name}}",
@@ -2329,15 +2328,6 @@
       "retailPrice": "Retail price",
       "wholesalePrice": "Wholesale price",
       "purchasePrice": "Purchase price",
-      "purchaseDate": "Receipt date",
-      "serialNumber": "Serial #",
-      "serialMissing": "No serial #",
-      "serialPurchasesTitle": "Purchase by serial",
-      "latestBatchBadge": "Latest",
-      "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
-      "purchasePriceReadOnlyHint": "Purchase prices are set per unit during receipt and are read-only here.",
-      "latestBatchPurchaseDate": "Receipt date: {{date}}",
-      "matchingStockRows": "Matching stock rows: {{count}}.",
       "lastBatchPrice": "Last batch price: {{price}}. Matching stock rows: {{count}}.",
       "total": "Total",
       "free": "Free",
@@ -2348,17 +2338,14 @@
       "cancel": "Cancel",
       "saving": "Saving...",
       "saveModel": "Save model"
-    },
-    "serviceForm": {
-      "editService": "Edit service",
-      "addService": "Add service",
-      "namePlaceholder": "Software setup",
-      "pricePlaceholder": "700",
-      "notePlaceholder": "Default description or internal note",
-      "updateService": "Update service"
     }
   },
   "employees": {
+    "tabs": {
+      "employees": "Employees",
+      "information": "Information",
+      "ariaLabel": "Employees sections"
+    },
     "list": {
       "sectionLabel": "List",
       "title": "Team",
@@ -2370,11 +2357,105 @@
       "currentUser": "current user",
       "active": "Active",
       "inactive": "Inactive",
+      "inactiveBadge": "Inactive",
       "edit": "Edit",
       "delete": "Delete",
       "cannotDeleteSelf": "You cannot delete your own account.",
       "deleteEmployee": "Delete employee",
       "noPermission": "Only owners can create, edit, or delete employees."
+    },
+    "information": {
+      "sectionLabel": "Employee analytics",
+      "title": "Team performance",
+      "loading": "Loading performance data...",
+      "employeesStatus": "{{count}} employees",
+      "activeEmployeesStatus": "{{count}} active employees",
+      "periodStatus": "Period: {{from}} - {{to}}",
+      "periodStatusLabel": "Period: {{period}}",
+      "statisticsPeriod": "Employee statistics period",
+      "exportToFile": "Export to Excel",
+      "views": {
+        "achievements": "Achievements",
+        "orders": "Orders",
+        "repairs": "Repairs",
+        "sales": "Sales"
+      },
+      "summary": {
+        "activeEmployees": "Active employees",
+        "ordersInPeriod": "Orders in period",
+        "repairsInPeriod": "Repairs in period",
+        "salesInPeriod": "Sales in period",
+        "salesRevenue": "Sales revenue",
+        "repairsRevenue": "Repairs revenue"
+      },
+      "charts": {
+        "leaders": "Ranking",
+        "topPerformers": "Top performers",
+        "comparison": "Comparison",
+        "topThree": "Top 3"
+      },
+      "filters": {
+        "date": "Date",
+        "dateFrom": "Date from",
+        "dateTo": "Date to",
+        "apply": "Apply",
+        "clear": "Clear",
+        "closeDateFiltersAriaLabel": "Close date filters",
+        "search": "Search",
+        "searchPlaceholder": "Name, role, login...",
+        "role": "Role",
+        "allRoles": "All roles",
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "activeEmployees": "Active",
+        "inactiveEmployees": "Inactive",
+        "sort": "Sort",
+        "sortCount": "Count",
+        "sortOrders": "Orders",
+        "sortRepairs": "Repairs",
+        "sortSales": "Sales",
+        "sortRevenue": "Revenue",
+        "sortLatest": "Date",
+        "activeOnlyScope": "Active employees only",
+        "direction": "Direction",
+        "descending": "Descending",
+        "ascending": "Ascending",
+        "searchActive": "Search: {{value}}",
+        "roleActive": "Role: {{value}}",
+        "statusActive": "Status: {{value}}",
+        "periodActive": "Period: {{value}}",
+        "dateFromActive": "From: {{value}}",
+        "dateToActive": "To: {{value}}"
+      },
+      "table": {
+        "empty": "No employee metrics for selected filters.",
+        "columns": {
+          "employee": "Employee",
+          "role": "Role",
+          "status": "Status",
+          "ordersCreated": "Orders",
+          "repairs": "Repairs",
+          "repairsCompleted": "Completed repairs",
+          "sales": "Sales",
+          "salesRevenue": "Sales revenue",
+          "repairsRevenue": "Repairs revenue",
+          "count": "Count",
+          "revenue": "Revenue",
+          "completed": "Completed",
+          "avgTicket": "Avg ticket",
+          "share": "Share",
+          "latest": "Latest"
+        }
+      },
+      "export": {
+        "title": "Employee performance report",
+        "filename": "employee-performance.xlsx",
+        "viewLabel": "View",
+        "generatedLabel": "Generated",
+        "filtersLabel": "Filters",
+        "noFilters": "No filters",
+        "noRowsFound": "No rows found"
+      }
     },
     "form": {
       "sectionLabel": "Employees",
@@ -2555,6 +2636,7 @@
     "orderVolume": "Order volume",
     "noOrdersForPeriod": "No repair orders found for the selected period.",
     "periods": {
+      "whole": "Whole",
       "today": "Today",
       "currentMonth": "This month",
       "lastMonth": "Last month",

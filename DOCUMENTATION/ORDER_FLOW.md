@@ -158,7 +158,8 @@
 - `S/N` must remain editable at any time, including empty value.
 - Empty `S/N` must be accepted by backend validation and must not prevent saving order-card changes.
 - `Save changes` from order card persists the selected device name to the order snapshot.
-- `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights).
+- `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights). Inactive employees are excluded from the dropdown on both create-order and order-card flows.
+- In `Employees -> Employees` list, inactive team members show an inline `Inactive` badge (`catalog-inactive-badge`) after the employee name. See [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md).
 - `Manager` remains informational.
 - `Article` is removed from order card main information.
 - `Save changes` button appears only when main information or status was modified (dirty state), and persists changes atomically.
