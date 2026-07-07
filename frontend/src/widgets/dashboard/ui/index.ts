@@ -7,6 +7,8 @@ export { OrdersWorkspace } from './orders/workspace/OrdersWorkspace';
 export { ProductCatalogPanel } from './product-catalog/ProductCatalogPanel';
 export { Notifications } from './shared/Notifications';
 export { EmployeeManagementPanel } from './settings/EmployeeManagementPanel';
+export { EmployeesPanel } from './settings/EmployeesPanel';
+export { EmployeeInformationPanel } from './settings/EmployeeInformationPanel';
 export { SettingsPanel } from './settings/SettingsPanel';
 export { SupplierOrdersWorkspace } from './supplier-orders/SupplierOrdersWorkspace';
 export { WarehousePanel } from './warehouse/WarehousePanel';

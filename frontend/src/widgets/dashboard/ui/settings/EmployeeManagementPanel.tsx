@@ -166,7 +166,14 @@ export const EmployeeManagementPanel = ({
               <article key={employee.id} className="list-card">
                 <div className="list-card-row">
                   <div>
-                    <h3>{employee.name}</h3>
+                    <h3>
+                      {employee.name}
+                      {!employee.isActive ? (
+                        <span className="catalog-inactive-badge">
+                          {t('employees.list.inactiveBadge')}
+                        </span>
+                      ) : null}
+                    </h3>
                     <p>
                       {employee.email || t('employees.list.noEmail')} |{' '}
                       {employee.phone || t('employees.list.noPhone')} | {employee.role}
@@ -174,11 +181,6 @@ export const EmployeeManagementPanel = ({
                     <p>
                       {employee.username || t('employees.list.noLogin')}
                       {isCurrentEmployee ? ` | ${t('employees.list.currentUser')}` : ''}
-                    </p>
-                    <p>
-                      {employee.isActive
-                        ? t('employees.list.active')
-                        : t('employees.list.inactive')}
                     </p>
                   </div>
                   <div className="card-actions">

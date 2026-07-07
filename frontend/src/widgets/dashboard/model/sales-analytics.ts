@@ -6,8 +6,10 @@ import {
   isSaleInAnalyticsDateRange,
   type AnalyticsDateRange,
 } from './analytics-date-range';
+import type { StatsPeriod } from './stats-period';
 
-export type StatsPeriod = 'today' | 'currentMonth' | 'lastMonth' | 'currentYear' | 'lastYear';
+export type { StatsPeriod } from './stats-period';
+export { getStatsPeriodDateRange, statsPeriodOptions } from './stats-period';
 
 type ChartSnapshot = {
   year: number;
@@ -26,14 +28,6 @@ type PeriodConfig = {
   detailLabel: string;
   axisLabels: string[];
 };
-
-export const statsPeriodOptions: Array<{ value: StatsPeriod; labelKey: string }> = [
-  { value: 'today', labelKey: 'analytics.periods.today' },
-  { value: 'currentMonth', labelKey: 'analytics.periods.currentMonth' },
-  { value: 'lastMonth', labelKey: 'analytics.periods.lastMonth' },
-  { value: 'currentYear', labelKey: 'analytics.periods.currentYear' },
-  { value: 'lastYear', labelKey: 'analytics.periods.lastYear' },
-];
 
 const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
 const finalStatuses = new Set(['issued', 'issuedWithoutRepair', 'paid', 'returned', 'clientRejected']);
@@ -79,6 +73,96 @@ const getPaidAmount = (sale: Sale) => Math.max(Number(sale.paidAmount ?? 0), 0);
 const isFinalRecord = (sale: Sale) => finalStatuses.has(String(sale.status ?? ''));
 
 const getDateKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+const getWholePeriodYears = (records: Sale[], currentDate: Date) => {
+  const years = new Set<number>([currentDate.getFullYear()]);
+  records.forEach((record) => {
+    const year = new Date(record.saleDate).getFullYear();
+    if (!Number.isNaN(year)) {
+      years.add(year);
+    }
+  });
+  return [...years].sort((first, second) => first - second);
+};
+
+const buildYearlySnapshot = (
+  records: Sale[],
+  years: number[],
+  color: string,
+  label: string,
+  getValue: (sale: Sale) => number,
+): ChartSnapshot => {
+  const values = Array.from({ length: years.length }, () => 0);
+
+  records.forEach((record) => {
+    const year = new Date(record.saleDate).getFullYear();
+    const index = years.indexOf(year);
+    if (index < 0) return;
+    values[index] += getValue(record);
+  });
+
+  return {
+    year: years[years.length - 1] ?? currentDateFallback().getFullYear(),
+    label,
+    detailLabel: i18n.t('analytics.periods.whole'),
+    values,
+    total: values.reduce((sum, value) => sum + value, 0),
+    color,
+  };
+};
+
+const currentDateFallback = () => new Date();
+
+const buildWholePeriodAnalytics = (
+  productSales: Sale[],
+  repairOrders: Sale[],
+  products: Product[],
+  currentDate: Date,
+): DashboardAnalytics => {
+  const years = getWholePeriodYears([...productSales, ...repairOrders], currentDate);
+  const axisLabels = years.map(String);
+  const revenueSnapshots = [
+    buildYearlySnapshot(
+      productSales,
+      years,
+      comparisonColors[0],
+      i18n.t('analytics.customRange.current'),
+      getSaleTotal,
+    ),
+  ];
+  const orderSnapshots = [
+    buildYearlySnapshot(
+      repairOrders,
+      years,
+      comparisonColors[0],
+      i18n.t('analytics.customRange.current'),
+      () => 1,
+    ),
+  ];
+  const salesCountSnapshots = [
+    buildYearlySnapshot(
+      productSales,
+      years,
+      comparisonColors[0],
+      i18n.t('analytics.customRange.current'),
+      () => 1,
+    ),
+  ];
+
+  return buildAnalyticsResult({
+    productSales,
+    repairOrders,
+    selectedSales: productSales,
+    selectedOrders: repairOrders,
+    revenueSnapshots,
+    orderSnapshots,
+    salesCountSnapshots,
+    products,
+    currentDate,
+    detailLabel: i18n.t('analytics.periods.whole'),
+    axisLabels,
+  });
+};
 
 const getPeriodConfig = (period: StatsPeriod, currentDate: Date): PeriodConfig => {
   const currentYear = currentDate.getFullYear();
@@ -620,6 +704,15 @@ export const buildDashboardAnalytics = (
       productSales,
       repairOrders,
       customRange,
+      products,
+      currentDate,
+    );
+  }
+
+  if (statsPeriod === 'whole') {
+    return buildWholePeriodAnalytics(
+      productSales,
+      repairOrders,
       products,
       currentDate,
     );
