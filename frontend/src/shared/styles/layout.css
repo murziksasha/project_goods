@@ -1799,6 +1799,13 @@
   text-align: left;
 }
 
+.employee-information-login {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .warehouse-information {
   display: grid;
   gap: 14px;

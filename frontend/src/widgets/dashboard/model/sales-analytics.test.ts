@@ -155,6 +155,27 @@ describe('sales analytics', () => {
     expect(analytics.hasRevenueData).toBe(true);
   });
 
+  it('builds whole-period analytics across all years with a single yearly chart series', () => {
+    const analytics = buildDashboardAnalytics(
+      [
+        { ...baseSale, id: 's-2024', saleDate: '2024-06-01T10:00:00.000Z', salePrice: 100, quantity: 1 },
+        { ...baseSale, id: 's-2026', saleDate: '2026-06-01T10:00:00.000Z', salePrice: 200, quantity: 1 },
+      ],
+      [
+        { ...baseSale, id: 'r-2025', kind: 'repair', saleDate: '2025-06-01T10:00:00.000Z' },
+      ],
+      'whole',
+      [],
+      new Date('2026-07-07T12:00:00.000Z'),
+    );
+
+    expect(analytics.revenueSnapshots).toHaveLength(1);
+    expect(analytics.orderSnapshots).toHaveLength(1);
+    expect(analytics.revenueSnapshots[0].total).toBe(300);
+    expect(analytics.orderSnapshots[0].total).toBe(1);
+    expect(analytics.axisLabels).toEqual(['2024', '2025', '2026']);
+  });
+
   it('returns stable empty-state values without records', () => {
     const analytics = buildDashboardAnalytics(
       [],

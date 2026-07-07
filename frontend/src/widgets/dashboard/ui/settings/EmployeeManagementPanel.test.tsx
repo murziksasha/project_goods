@@ -1,9 +1,9 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { initialEmployeeForm } from '../../../../entities/employee/model/forms';
-import type { EmployeeFormValues } from '../../../../entities/employee/model/types';
+import type { Employee, EmployeeFormValues } from '../../../../entities/employee/model/types';
 import i18n from '../../../../shared/i18n/config';
 import { EmployeeManagementPanel } from './EmployeeManagementPanel';
 
@@ -41,7 +41,50 @@ const PanelHarness = ({
   );
 };
 
+const inactiveEmployee: Employee = {
+  id: 'employee-inactive',
+  name: 'Former Master',
+  phone: '',
+  email: '',
+  username: 'former',
+  role: 'master',
+  permissions: ['repairs.execute'],
+  isActive: false,
+  isRegistered: true,
+  note: '',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
 describe('EmployeeManagementPanel', () => {
+  it('shows inactive badge after employee name', () => {
+    render(
+      <I18nextProvider i18n={i18n}>
+        <EmployeeManagementPanel
+          employees={[inactiveEmployee]}
+          form={initialEmployeeForm}
+          isLoading={false}
+          isSaving={false}
+          isEditing={false}
+          canManageEmployees={true}
+          canManageOwnerAccounts={true}
+          currentEmployeeId="owner-id"
+          onChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </I18nextProvider>,
+    );
+
+    const listCard = screen.getByText('Former Master').closest('.list-card');
+    expect(listCard).not.toBeNull();
+    expect(
+      within(listCard as HTMLElement).getByText('Inactive'),
+    ).toHaveClass('catalog-inactive-badge');
+  });
+
   it('activates default permission checkboxes when role changes', () => {
     render(<PanelHarness />);
 

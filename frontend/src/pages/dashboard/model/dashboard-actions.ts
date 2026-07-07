@@ -1254,6 +1254,10 @@ export const createDashboardActions = ({
         await deleteEmployee(employee.id);
         setAllEmployees((current) => current.filter((item) => item.id !== employee.id));
         if (editingEmployeeId === employee.id) resetEmployeeEditor();
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
         setSuccessMessage(i18n.t('dashboard.actions.success.employeeDeleted'));
       } catch (requestError) {
         setError(

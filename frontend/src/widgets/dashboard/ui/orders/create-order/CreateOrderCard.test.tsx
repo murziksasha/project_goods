@@ -1399,4 +1399,51 @@ describe('CreateOrderCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rapid sale' }));
     expect(screen.getByRole('dialog', { name: 'Rapid sale' })).toBeInTheDocument();
   });
+
+  it('excludes inactive employees from master suggestions', () => {
+    const inactiveMaster: Employee = {
+      ...ownerEmployee,
+      id: 'master-inactive',
+      name: 'Inactive Master',
+      role: 'master',
+      permissions: ['repairs.execute'],
+      isActive: false,
+    };
+    const activeMaster: Employee = {
+      ...ownerEmployee,
+      id: 'master-active',
+      name: 'Active Master',
+      role: 'master',
+      permissions: ['repairs.execute'],
+      isActive: true,
+    };
+
+    render(
+      <CreateOrderCard
+        isSaving={false}
+        employees={[ownerEmployee, inactiveMaster, activeMaster]}
+        currentEmployee={ownerEmployee}
+        initialTab="repair"
+        catalogProducts={[]}
+        products={[product({})]}
+        sales={[]}
+        clients={[]}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => null)}
+        onError={vi.fn()}
+        onOpenClientCard={vi.fn()}
+      />,
+    );
+
+    const masterSelect = screen.getByLabelText('Master');
+    const options = within(masterSelect).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Select master',
+      'Owner',
+      'Active Master',
+    ]);
+    expect(
+      options.map((option) => option.textContent),
+    ).not.toContain('Inactive Master');
+  });
 });

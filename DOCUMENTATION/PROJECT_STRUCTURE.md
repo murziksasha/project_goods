@@ -216,7 +216,9 @@ ui/
 |- settings/                   # настройки, сотрудники, конструктор печати
 |  |- SettingsPanel.tsx
 |  |- PrintFormBuilder.tsx
-|  `- EmployeeManagementPanel.tsx
+|  |- EmployeesPanel.tsx
+|  |- EmployeeManagementPanel.tsx
+|  `- EmployeeInformationPanel.tsx
 |- supplier-orders/            # заказы поставщикам
 |  |- SupplierOrdersWorkspace.tsx
 |  `- SupplierOrdersWorkspaceSections.tsx
@@ -277,6 +279,7 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
 - `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` — `useLockBodyScroll` (reused by rapid sale modal)
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
+- `frontend/src/widgets/dashboard/model/employee-information.ts` — employee performance report builder for Employees Information tab
 - `frontend/src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.tsx` — `Rapid sale` header button (sales tab only)
 - `frontend/src/pages/dashboard/model/dashboard-actions.ts` — `saveRapidSale`
 - `frontend/src/pages/dashboard/ui/DashboardPage.tsx` — `handleRapidSaleCreated`, `pendingPaymentSale` payment handoff

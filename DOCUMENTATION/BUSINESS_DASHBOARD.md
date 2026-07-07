@@ -15,13 +15,17 @@ The business home page is the default dashboard view (`page=home`). It is render
 
 Quick period toggles remain available:
 
-- Today
+- Whole (all-time, leftmost)
+- Today (default)
 - This month
 - Last month
 - This year
 - Last year
 
 Preset buttons filter sales and repair-order analytics through `buildDashboardAnalytics()`.
+
+- **Whole** — all product sales and repair orders in the database; charts use a single yearly series from the earliest record year through the current year (no year-over-year overlay).
+- **Today** — selected by default on first load.
 
 ### Date filter (replaces Export)
 

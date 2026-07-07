@@ -1,4 +1,9 @@
 {
+  "tabs": {
+    "employees": "Співробітники",
+    "information": "Інформація",
+    "ariaLabel": "Розділи співробітників"
+  },
   "list": {
     "sectionLabel": "Список",
     "title": "Команда",
@@ -10,11 +15,105 @@
     "currentUser": "поточний користувач",
     "active": "Активний",
     "inactive": "Неактивний",
+    "inactiveBadge": "Неактивний",
     "edit": "Редагувати",
     "delete": "Видалити",
     "cannotDeleteSelf": "Ви не можете видалити власний обліковий запис.",
     "deleteEmployee": "Видалити співробітника",
     "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників."
+  },
+  "information": {
+    "sectionLabel": "Аналітика співробітників",
+    "title": "Ефективність команди",
+    "loading": "Завантаження даних ефективності...",
+    "employeesStatus": "{{count}} співробітників",
+    "activeEmployeesStatus": "{{count}} активних співробітників",
+    "periodStatus": "Період: {{from}} - {{to}}",
+    "periodStatusLabel": "Період: {{period}}",
+    "statisticsPeriod": "Період статистики співробітників",
+    "exportToFile": "Експорт в Excel",
+    "views": {
+      "achievements": "Досягнення",
+      "orders": "Замовлення",
+      "repairs": "Ремонти",
+      "sales": "Продажі"
+    },
+    "summary": {
+      "activeEmployees": "Активні співробітники",
+      "ordersInPeriod": "Замовлень за період",
+      "repairsInPeriod": "Ремонтів за період",
+      "salesInPeriod": "Продажів за період",
+      "salesRevenue": "Виручка продажів",
+      "repairsRevenue": "Виручка ремонтів"
+    },
+    "charts": {
+      "leaders": "Рейтинг",
+      "topPerformers": "Топ виконавців",
+      "comparison": "Порівняння",
+      "topThree": "Топ 3"
+    },
+    "filters": {
+      "date": "Дата",
+      "dateFrom": "Дата від",
+      "dateTo": "Дата до",
+      "apply": "Застосувати",
+      "clear": "Очистити",
+      "closeDateFiltersAriaLabel": "Закрити фільтр дати",
+      "search": "Пошук",
+      "searchPlaceholder": "Ім'я, роль, логін...",
+      "role": "Роль",
+      "allRoles": "Усі ролі",
+      "status": "Статус",
+      "allStatuses": "Усі статуси",
+      "activeEmployees": "Активний",
+      "inactiveEmployees": "Неактивний",
+      "sort": "Сортування",
+      "sortCount": "Кількість",
+      "sortOrders": "Замовлення",
+      "sortRepairs": "Ремонти",
+      "sortSales": "Продажі",
+      "sortRevenue": "Виручка",
+      "sortLatest": "Дата",
+      "activeOnlyScope": "Лише активні співробітники",
+      "direction": "Напрямок",
+      "descending": "Спадання",
+      "ascending": "Зростання",
+      "searchActive": "Пошук: {{value}}",
+      "roleActive": "Роль: {{value}}",
+      "statusActive": "Статус: {{value}}",
+      "periodActive": "Період: {{value}}",
+      "dateFromActive": "Від: {{value}}",
+      "dateToActive": "До: {{value}}"
+    },
+    "table": {
+      "empty": "Немає метрик для обраних фільтрів.",
+      "columns": {
+        "employee": "Співробітник",
+        "role": "Роль",
+        "status": "Статус",
+        "ordersCreated": "Замовлення",
+        "repairs": "Ремонти",
+        "repairsCompleted": "Завершені ремонти",
+        "sales": "Продажі",
+        "salesRevenue": "Виручка продажів",
+        "repairsRevenue": "Виручка ремонтів",
+        "count": "Кількість",
+        "revenue": "Виручка",
+        "completed": "Завершено",
+        "avgTicket": "Сер. чек",
+        "share": "Частка",
+        "latest": "Останнє"
+      }
+    },
+    "export": {
+      "title": "Звіт ефективності співробітників",
+      "filename": "employee-performance.xlsx",
+      "viewLabel": "Вигляд",
+      "generatedLabel": "Згенеровано",
+      "filtersLabel": "Фільтри",
+      "noFilters": "Без фільтрів",
+      "noRowsFound": "Рядків не знайдено"
+    }
   },
   "form": {
     "sectionLabel": "Співробітники",

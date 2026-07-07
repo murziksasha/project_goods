@@ -50,8 +50,8 @@ vi.mock('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace', () => 
 vi.mock('../../../widgets/dashboard/ui/orders/create-order/CreateOrderCard', () => ({
   CreateOrderCard: () => <section>Create order</section>,
 }));
-vi.mock('../../../widgets/dashboard/ui/settings/EmployeeManagementPanel', () => ({
-  EmployeeManagementPanel: () => <section>Employees</section>,
+vi.mock('../../../widgets/dashboard/ui/settings/EmployeesPanel', () => ({
+  EmployeesPanel: () => <section>Employees</section>,
 }));
 vi.mock('../../../widgets/dashboard/ui/settings/SettingsPanel', () => ({
   SettingsPanel: () => <section>Settings</section>,

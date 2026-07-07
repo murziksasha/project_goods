@@ -1,5 +1,8 @@
+import mongoose from 'mongoose';
 import { employeeRoles, type EmployeeRole } from './constants';
 import { Employee, type EmployeeDocument } from './model';
+import { Sale } from '../sale/model';
+import { WarehouseSettings } from '../warehouse-settings/model';
 import { hashPassword } from '../../shared/lib/auth';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { normalizeEmployeePayload } from '../../shared/lib/parsers';
@@ -155,6 +158,29 @@ export const updateEmployee = async (
   return formatEmployee(employee);
 };
 
+export const purgeEmployeeOperationalLinks = async (employeeId: string) => {
+  const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
+
+  await Promise.all([
+    Sale.updateMany(
+      { manager: employeeObjectId },
+      { $set: { manager: null }, $unset: { managerSnapshot: '' } },
+    ),
+    Sale.updateMany(
+      { master: employeeObjectId },
+      { $set: { master: null }, $unset: { masterSnapshot: '' } },
+    ),
+    Sale.updateMany(
+      { issuedBy: employeeObjectId },
+      { $set: { issuedBy: null }, $unset: { issuedBySnapshot: '' } },
+    ),
+    WarehouseSettings.updateOne(
+      {},
+      { $pull: { administrators: { employeeId } } },
+    ),
+  ]);
+};
+
 export const deleteEmployee = async (employeeId: string, actor?: EmployeeActor) => {
   isValidObjectIdOrThrow(employeeId, 'employeeId');
   const existingEmployee = await Employee.findById(employeeId).lean<EmployeeDocument | null>();
@@ -169,6 +195,7 @@ export const deleteEmployee = async (employeeId: string, actor?: EmployeeActor) 
   }
 
   await ensureTemporaryAdminCanBeChanged(existingEmployee);
+  await purgeEmployeeOperationalLinks(employeeId);
 
   const deletedEmployee = await Employee.findByIdAndDelete(employeeId).lean<EmployeeDocument | null>();
   if (!deletedEmployee) {
