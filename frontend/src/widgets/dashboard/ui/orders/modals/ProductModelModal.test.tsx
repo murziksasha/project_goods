@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import i18n from '../../../../../shared/i18n/config';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
 
@@ -26,8 +27,33 @@ const createProduct = (patch: Partial<Product>): Product => ({
   ...patch,
 });
 
-afterEach(() => {
+const serialPurchaseProducts = () => {
+  const clickedProduct = createProduct({
+    id: 'old-batch',
+    serialNumber: 'R0000001',
+    price: 200,
+    purchaseDate: '2026-01-10',
+    createdAt: '2026-01-10T10:00:00.000Z',
+  });
+
+  return {
+    clickedProduct,
+    products: [
+      clickedProduct,
+      createProduct({
+        id: 'new-batch',
+        serialNumber: 'R0000002',
+        price: 250,
+        purchaseDate: '2026-03-15',
+        createdAt: '2026-03-15T09:00:00.000Z',
+      }),
+    ],
+  };
+};
+
+afterEach(async () => {
   vi.clearAllMocks();
+  await i18n.changeLanguage('en');
 });
 
 describe('ProductModelModal serial printing', () => {
@@ -58,7 +84,11 @@ describe('ProductModelModal serial printing', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print serial number' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalog.productModel.printSerialNumber'),
+      }),
+    );
 
     expect(printSpy).toHaveBeenCalledWith(
       [
@@ -69,34 +99,19 @@ describe('ProductModelModal serial printing', () => {
         },
       ],
       defaultPrintForms,
-      'Warehouse serial number',
+      i18n.t('catalog.productModel.printSerialTitle'),
     );
 
     printSpy.mockRestore();
   });
 
   it('shows per-serial purchase rows and highlights the clicked serial', () => {
-    const clickedProduct = createProduct({
-      id: 'old-batch',
-      serialNumber: 'R0000001',
-      price: 200,
-      purchaseDate: '2026-01-10',
-      createdAt: '2026-01-10T10:00:00.000Z',
-    });
+    const { clickedProduct, products } = serialPurchaseProducts();
 
     render(
       <ProductModelModal
         name='БЖ Meanwell 9V 1.66A'
-        products={[
-          clickedProduct,
-          createProduct({
-            id: 'new-batch',
-            serialNumber: 'R0000002',
-            price: 250,
-            purchaseDate: '2026-03-15',
-            createdAt: '2026-03-15T09:00:00.000Z',
-          }),
-        ]}
+        products={products}
         warehouses={[]}
         printForms={defaultPrintForms}
         printProduct={clickedProduct}
@@ -105,12 +120,59 @@ describe('ProductModelModal serial printing', () => {
       />,
     );
 
-    expect(screen.getByText('Purchase by serial')).toBeInTheDocument();
-    expect(screen.getByText('Latest batch: 250,00 ₴ · 15.03.2026')).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.serialPurchasesTitle')),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        i18n.t('catalog.productModel.latestBatchSummary', {
+          price: '250,00 ₴',
+          date: '15.03.2026',
+        }),
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('R0000001')).toBeInTheDocument();
     expect(screen.getByText('R0000002')).toBeInTheDocument();
-    expect(screen.getAllByText('Latest')).toHaveLength(1);
+    expect(
+      screen.getAllByText(i18n.t('catalog.productModel.latestBatchBadge')),
+    ).toHaveLength(1);
     expect(document.querySelector('.product-model-serial-row-selected')).not.toBeNull();
+  });
+
+  it('renders Ukrainian price-section labels when language is uk', async () => {
+    await i18n.changeLanguage('uk');
+
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.serialPurchasesTitle')),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.serialNumber')),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.purchaseDate')),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        i18n.t('catalog.productModel.latestBatchSummary', {
+          price: '250,00 ₴',
+          date: '15.03.2026',
+        }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it('hides the serial print action without a clicked product', () => {
@@ -126,7 +188,9 @@ describe('ProductModelModal serial printing', () => {
     );
 
     expect(
-      screen.queryByRole('button', { name: 'Print serial number' }),
+      screen.queryByRole('button', {
+        name: i18n.t('catalog.productModel.printSerialNumber'),
+      }),
     ).not.toBeInTheDocument();
   });
 });

@@ -2328,6 +2328,14 @@
       "retailPrice": "Роздрібна ціна",
       "wholesalePrice": "Оптова ціна",
       "purchasePrice": "Закупівельна ціна",
+      "serialPurchasesTitle": "Закупівля за серійним №",
+      "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
+      "serialNumber": "Серійний №",
+      "purchaseDate": "Дата прийому",
+      "serialMissing": "Без серійного №",
+      "latestBatchBadge": "Остання",
+      "purchasePriceReadOnlyHint": "Закупівельні ціни лише для перегляду і не змінюються в цьому вікні.",
+      "matchingStockRows": "Відповідних складських рядків: {{count}}.",
       "lastBatchPrice": "Ціна останньої партії: {{price}}. Відповідних складських рядків: {{count}}.",
       "total": "Всього",
       "free": "Вільно",
@@ -2338,6 +2346,14 @@
       "cancel": "Скасувати",
       "saving": "Збереження...",
       "saveModel": "Зберегти модель"
+    },
+    "serviceForm": {
+      "editService": "Редагувати послугу",
+      "addService": "Додати послугу",
+      "namePlaceholder": "Налаштування ПЗ",
+      "pricePlaceholder": "700",
+      "notePlaceholder": "Типовий опис або внутрішня примітка",
+      "updateService": "Оновити послугу"
     }
   },
   "employees": {

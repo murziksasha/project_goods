@@ -1,4 +1,12 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Supplier, SupplierFormValues } from '../../../../../entities/supplier/model/types';
 import { createCatalogProduct, getCatalogProducts } from '../../../../../entities/catalog-product/api/catalogProductApi';
@@ -21,6 +29,7 @@ import {
 } from '../../../model/supplier-order-utils';
 import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
 import { SupplierChooseModal } from './SupplierChooseModal';
+import { shouldAdvanceAfterSerialBulkInput } from './serial-input-auto-advance';
 
 const SUPPLIER_ORDER_MODAL_SCROLL_REGIONS = [
   '.supplier-order-modal',
@@ -125,6 +134,7 @@ export const SupplierOrderModal = ({
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
   const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
+  const serialInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [isAutoArticleEnabled, setIsAutoArticleEnabled] = useState(false);
   const [shouldPrintSerials, setShouldPrintSerials] = useState(true);
   const [manualArticleBase, setManualArticleBase] = useState('');
@@ -372,6 +382,62 @@ export const SupplierOrderModal = ({
     ? true
     : manualSerialNumbers.length === totalUnits &&
       manualSerialNumbers.every((serial) => serial.trim().length > 0);
+  const focusSerialInput = useCallback((index: number) => {
+    requestAnimationFrame(() => {
+      serialInputRefs.current[index]?.focus();
+    });
+  }, []);
+  const focusNextSerialInput = useCallback(
+    (index: number) => {
+      focusSerialInput(index + 1);
+    },
+    [focusSerialInput],
+  );
+  const updateManualSerialNumber = useCallback((index: number, nextValue: string) => {
+    setManualSerialNumbers((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? nextValue : item,
+      ),
+    );
+  }, []);
+  const handleManualSerialChange = useCallback(
+    (index: number, event: ChangeEvent<HTMLInputElement>) => {
+      const previousValue = manualSerialNumbers[index] ?? '';
+      const nextValue = event.target.value;
+      updateManualSerialNumber(index, nextValue);
+
+      if (shouldAdvanceAfterSerialBulkInput(previousValue, nextValue)) {
+        focusNextSerialInput(index);
+      }
+    },
+    [
+      focusNextSerialInput,
+      manualSerialNumbers,
+      updateManualSerialNumber,
+    ],
+  );
+  const handleManualSerialPaste = useCallback(
+    (index: number) => {
+      window.setTimeout(() => {
+        const value = serialInputRefs.current[index]?.value.trim() ?? '';
+        if (value) {
+          focusNextSerialInput(index);
+        }
+      }, 0);
+    },
+    [focusNextSerialInput],
+  );
+  const handleManualSerialKeyDown = useCallback(
+    (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== 'Enter') return;
+      const value = manualSerialNumbers[index]?.trim() ?? '';
+      if (!value) return;
+
+      event.preventDefault();
+      focusNextSerialInput(index);
+    },
+    [focusNextSerialInput, manualSerialNumbers],
+  );
   const selectedTakeOnChargeWarehouse = resolvedWarehouseOptions.find(
     (warehouse) => warehouse.id === takeOnChargeWarehouseId,
   );
@@ -411,6 +477,22 @@ export const SupplierOrderModal = ({
       current.filter((_, index) => index !== itemIndex),
     );
   };
+
+  useEffect(() => {
+    if (
+      !isSerialModalOpen ||
+      isAutoSerialEnabled ||
+      manualSerialNumbers.length === 0
+    ) {
+      return;
+    }
+    focusSerialInput(0);
+  }, [
+    focusSerialInput,
+    isAutoSerialEnabled,
+    isSerialModalOpen,
+    manualSerialNumbers.length,
+  ]);
 
   useEffect(() => {
     if (selectedTakeOnChargeLocations.length === 0) {
@@ -873,15 +955,16 @@ export const SupplierOrderModal = ({
                         </span>
                       </span>
                       <input
+                        ref={(element) => {
+                          serialInputRefs.current[index] = element;
+                        }}
                         value={serialNumber}
                         onChange={(event) =>
-                          setManualSerialNumbers((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? event.target.value
-                                : item,
-                            ),
-                          )
+                          handleManualSerialChange(index, event)
+                        }
+                        onPaste={() => handleManualSerialPaste(index)}
+                        onKeyDown={(event) =>
+                          handleManualSerialKeyDown(index, event)
                         }
                         placeholder={t('orders.supplier.modal.serialNumberPlaceholder')}
                       />
