@@ -13,10 +13,19 @@ const formatBuildTime = (isoTime: string, locale: string) => {
   });
 };
 
-export const getBuildSha = () => (import.meta.env.DEV ? 'dev' : __APP_BUILD_SHA__);
+const readInjectedBuildSha = () =>
+  typeof __APP_BUILD_SHA__ === 'string' ? __APP_BUILD_SHA__ : 'dev';
+
+const readInjectedBuildTime = () =>
+  typeof __APP_BUILD_TIME__ === 'string'
+    ? __APP_BUILD_TIME__
+    : '1970-01-01T00:00:00.000Z';
+
+export const getBuildSha = () =>
+  import.meta.env.DEV ? 'dev' : readInjectedBuildSha();
 
 export const getBuildLabel = (locale = 'uk-UA') => {
   const sha = getBuildSha();
-  const time = formatBuildTime(__APP_BUILD_TIME__, locale);
+  const time = formatBuildTime(readInjectedBuildTime(), locale);
   return `${sha} · ${time}`;
 };

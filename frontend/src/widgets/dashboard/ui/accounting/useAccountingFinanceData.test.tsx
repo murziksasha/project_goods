@@ -339,7 +339,21 @@ describe('useAccountingFinanceData', () => {
 
   it('reports load errors and leaves loading state', async () => {
     const onError = vi.fn();
-    getCashboxesMock.mockRejectedValue(new Error('network down'));
+    mockSuccessfulFinanceQueryHooks();
+    vi.spyOn(financeApi, 'useCashboxesQuery').mockImplementation((options) => {
+      if (options?.includeArchived) {
+        return createQueryResult([
+          cashbox({ id: 'cashbox-1', name: 'Main' }),
+          cashbox({ id: 'cashbox-2', name: 'Reserve', isArchived: true }),
+        ]) as unknown as ReturnType<typeof financeApi.useCashboxesQuery>;
+      }
+
+      return createQueryResult(
+        [],
+        new Error('network down'),
+      ) as unknown as ReturnType<typeof financeApi.useCashboxesQuery>;
+    });
+    ({ useAccountingFinanceData } = await import('./useAccountingFinanceData'));
 
     renderWithQueryClient(<Harness onError={onError} />);
 

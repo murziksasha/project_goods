@@ -132,6 +132,14 @@
     "retailPrice": "Retail price",
     "wholesalePrice": "Wholesale price",
     "purchasePrice": "Purchase price",
+    "serialPurchasesTitle": "Purchase by serial",
+    "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
+    "serialNumber": "Serial #",
+    "purchaseDate": "Receipt date",
+    "serialMissing": "No serial",
+    "latestBatchBadge": "Latest",
+    "purchasePriceReadOnlyHint": "Purchase prices are read-only and cannot be changed here.",
+    "matchingStockRows": "Matching stock rows: {{count}}.",
     "lastBatchPrice": "Last batch price: {{price}}. Matching stock rows: {{count}}.",
     "total": "Total",
     "free": "Free",
@@ -142,5 +150,13 @@
     "cancel": "Cancel",
     "saving": "Saving...",
     "saveModel": "Save model"
+  },
+  "serviceForm": {
+    "editService": "Edit service",
+    "addService": "Add service",
+    "namePlaceholder": "Software setup",
+    "pricePlaceholder": "700",
+    "notePlaceholder": "Default description or internal note",
+    "updateService": "Update service"
   }
 }
