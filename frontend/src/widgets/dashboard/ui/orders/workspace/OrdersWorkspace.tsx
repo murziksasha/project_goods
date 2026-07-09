@@ -96,6 +96,7 @@ import {
   buildRemovedProductTimelineMessage,
   buildRemovedServiceTimelineMessage,
   buildUpdatedMainInfoTimelineMessage,
+  buildUpdatedUserNoteTimelineMessage,
   getStatusLabel,
   getStatusOptionsForSale,
   getWarehouseLabel,
@@ -1096,6 +1097,7 @@ export const OrdersWorkspace = ({
       timeline?: TimelineEntry[];
       paymentHistory?: PaymentEntry[];
       lineItems?: OrderLineItem[];
+      userNote?: string;
     },
   ) => {
     const updatedSale = await updateSaleWorkspace(sale.id, {
@@ -1110,6 +1112,7 @@ export const OrdersWorkspace = ({
       timeline: payload.timeline ?? sale.timeline,
       paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
       lineItems: payload.lineItems ?? getLineItems(sale),
+      userNote: payload.userNote,
       expectedUpdatedAt: sale.updatedAt,
     });
     if (!isSaleResponse(updatedSale)) {
@@ -2388,6 +2391,34 @@ export const OrdersWorkspace = ({
     }
   };
 
+  const saveOrderUserNote = async (sale: Sale, userNote: string) => {
+    try {
+      const normalizedUserNote = userNote.trim();
+      const currentUserNote = (sale.userNote ?? '').trim();
+      if (normalizedUserNote === currentUserNote) {
+        return;
+      }
+
+      const timeline = [
+        appendTimelineEntry(
+          buildUpdatedUserNoteTimelineMessage(currentEmployeeName),
+        ),
+        ...sale.timeline,
+      ];
+      await persistSaleWorkspace(sale, {
+        userNote: normalizedUserNote,
+        timeline,
+      });
+      onSuccess(t('orders.messages.success.userNoteUpdated'));
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.messages.errors.failedSaveUserNote'),
+      );
+    }
+  };
+
   return (
     <section className='orders-page'>
       {selectedSale ? (
@@ -2477,6 +2508,9 @@ export const OrdersWorkspace = ({
             onSuccess={onSuccess}
             onSaveMainInfo={(payload) =>
               saveOrderMainInfo(selectedSale, payload)
+            }
+            onSaveUserNote={(userNote) =>
+              saveOrderUserNote(selectedSale, userNote)
             }
           />
         </div>

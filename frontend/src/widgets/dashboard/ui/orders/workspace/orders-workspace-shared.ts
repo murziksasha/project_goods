@@ -283,6 +283,7 @@ export type StoredOrderDetailSectionState = {
   servicesOpen?: boolean;
   liveFeedOpen?: boolean;
   mainInfoOpen?: boolean;
+  noteOpen?: boolean;
 };
 
 export type StoredOrderDetailSections = Record<
@@ -621,6 +622,9 @@ export const buildBoundSerialsTimelineMessage = (author: string, name: string) =
 
 export const buildUpdatedMainInfoTimelineMessage = (author: string) =>
   i18n.t('orders.timeline.updatedMainInfo', { author });
+
+export const buildUpdatedUserNoteTimelineMessage = (author: string) =>
+  i18n.t('orders.timeline.updatedUserNote', { author });
 
 export const readSavedOrderFilters = () => {
   try {

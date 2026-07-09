@@ -53,6 +53,7 @@ export type SalePayload = {
   quantity?: unknown;
   salePrice?: unknown;
   note?: unknown;
+  userNote?: unknown;
   managerId?: unknown;
   masterId?: unknown;
   issuedById?: unknown;

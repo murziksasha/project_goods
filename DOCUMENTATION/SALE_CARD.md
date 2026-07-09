@@ -111,6 +111,16 @@
 - Discount value is stored in workspace state and reused across card and payment modal.
 - After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
 
+## Notes
+
+- Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`).
+- Default state: **collapsed** and **empty** (no system auto-text on sale creation).
+- `Notes` is **not** shown inside `Main information` (removed from that block).
+- Only `userNote` is displayed in the sale card; legacy system `note` values from older records are hidden in UI.
+- User note styling and edit flow match repair cards: light blue text, pencil button when expanded, inline Save / Cancel.
+- Editable only when sale status is `new`, `reserved`, or `paid` and the card is not read-only.
+- Empty placeholder: `No notes for this sale yet.`
+
 ## Live Feed
 
 - System-generated messages keep system styling.

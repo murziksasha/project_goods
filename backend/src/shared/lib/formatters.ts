@@ -124,6 +124,7 @@ export const formatSale = (sale: SaleDocument) => ({
   isFavorite: sale.isFavorite ?? false,
   isRapidSale: sale.isRapidSale ?? false,
   note: sale.note,
+  userNote: sale.userNote ?? '',
   timeline: (sale.timeline ?? []).map((entry) => ({
     id: entry.id,
     kind: entry.kind,
