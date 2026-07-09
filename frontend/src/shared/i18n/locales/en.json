@@ -830,6 +830,10 @@
       "notes": "Notes",
       "noNotesSale": "No notes for this sale yet.",
       "noNotesOrder": "No notes for this order yet.",
+      "editNote": "Edit note",
+      "saveNote": "Save note",
+      "cancelNoteEdit": "Cancel",
+      "userNotePlaceholder": "Add your note...",
       "saveChanges": "Save changes",
       "liveFeed": "Live feed",
       "comment": "Comment",
@@ -1145,6 +1149,7 @@
         "failedReturnSale": "Failed to return sale.",
         "fullPaymentBeforeIssue": "Accept full payment before issuing attached products.",
         "failedSaveMainInfo": "Failed to save order main information.",
+        "failedSaveUserNote": "Failed to save note.",
         "returnProductsFirst": "Return products to stock and refund client payment first.",
         "productNotSelectable": "Product cannot be selected: {{reason}}.",
         "oneSerialPerLineAddSeparately": "Serialized products are sold one serial per line. Add each serial separately.",
@@ -1178,6 +1183,7 @@
         "productReturned": "Product returned to stock.",
         "saleReturned": "Sale returned, products moved back to stock, and refund completed.",
         "mainInfoUpdated": "Order main information updated.",
+        "userNoteUpdated": "Note updated.",
         "takenOnCharge": "Order taken on charge.",
         "orderCancelled": "Order cancelled.",
         "supplierItemRemoved": "Supplier order item removed.",
@@ -1225,7 +1231,8 @@
       "removedProduct": "{{author}} removed product \"{{name}}\" from order.",
       "removedService": "{{author}} removed service \"{{name}}\" from order.",
       "boundSerials": "{{author}} bound serial numbers for \"{{name}}\".",
-      "updatedMainInfo": "{{author}} updated order main information."
+      "updatedMainInfo": "{{author}} updated order main information.",
+      "updatedUserNote": "{{author}} updated note."
     },
     "fallbacks": {
       "recordNumber": "r------",

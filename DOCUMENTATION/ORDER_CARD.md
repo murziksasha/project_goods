@@ -111,3 +111,37 @@
 - `Refund to client` availability for repair orders:
   - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
   - For all other repair statuses, refund modal can be opened.
+
+## Notes
+
+- Repair order cards and sale cards share the same collapsible `Notes` panel (`order-detail-note`).
+- Default state: **collapsed** (`noteOpen: false`). Saved expand/collapse state may override on later opens (localStorage key `project-goods.order-detail-sections`).
+- Section header uses compact collapse indicators (`⌃` / `⌄`), same as `Products` / `Services`.
+- When expanded, a pencil button (`toolbar-square-button`) appears on the right; it is shown only when the card is editable (`isOrderEditableStatus` and not `isReadOnly`).
+
+### System note (`note`)
+
+- Written automatically on repair order creation from `Create order` fields. Typical lines (non-empty only):
+  - `(kits: …)` — from `Kit`
+  - free-text issue from client
+  - external view (repair only)
+  - `Service: …`
+  - `Flags: …` (e.g. urgent repair)
+  - `Manager: …`
+  - `Master: …` (repair only)
+  - `Type: repair`
+- Rendered in **gray** (`#5e7188`), read-only in the card.
+- Must not be edited from the card UI.
+
+### User note (`userNote`)
+
+- Operator-added text, stored separately from system `note`.
+- Rendered in **light blue** (`#2d8ae3`).
+- Editable via pencil → inline textarea → `Save note` / `Cancel`.
+- Max length: 500 characters.
+- Persisted with `PATCH /sales/:saleId/workspace` (`userNote` field only); successful save appends a system timeline entry (`{{author}} updated note.`).
+- Editable only in repair statuses allowed by `isOrderEditableStatus` (same rule as other card edits).
+
+### Empty state
+
+- If both system `note` and `userNote` are empty, show `No notes for this order yet.`

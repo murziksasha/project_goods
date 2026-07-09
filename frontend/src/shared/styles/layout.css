@@ -4852,10 +4852,50 @@ select.line-item-inline-input {
   grid-column: 1 / -1;
 }
 
+.order-detail-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.order-detail-note-header .order-detail-note-toggle {
+  flex: 1;
+}
+
+.order-detail-note-edit-button {
+  flex-shrink: 0;
+}
+
+.order-detail-note-body {
+  display: grid;
+  gap: 8px;
+}
+
 .order-detail-note p {
   margin: 0;
-  color: #5e7188;
   white-space: pre-line;
+}
+
+.order-detail-note-system,
+.order-detail-note-empty {
+  color: #5e7188;
+}
+
+.order-detail-note-user {
+  color: #2d8ae3;
+}
+
+.order-detail-note-edit textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.order-detail-note-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .modal-backdrop {

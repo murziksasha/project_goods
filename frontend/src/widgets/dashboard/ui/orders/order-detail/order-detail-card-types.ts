@@ -94,4 +94,5 @@ export type OrderDetailCardProps = {
     masterId: string;
     status: OrderStatus;
   }) => Promise<void>;
+  onSaveUserNote: (userNote: string) => Promise<void>;
 };

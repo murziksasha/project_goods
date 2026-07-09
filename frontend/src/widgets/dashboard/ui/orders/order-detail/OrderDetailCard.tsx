@@ -61,6 +61,7 @@ import {
 import { PrinterIcon } from '../modals/PrinterIcon';
 import { OrderDetailDeviceModal } from './OrderDetailDeviceModal';
 import { OrderDetailLineItemsPanel } from './OrderDetailLineItemsPanel';
+import { OrderDetailNoteSection } from './OrderDetailNoteSection';
 import {
   orderDetailRelatedTabs,
   type OrderDetailCardProps,
@@ -123,6 +124,7 @@ export const OrderDetailCard = ({
   onError,
   onSuccess,
   onSaveMainInfo,
+  onSaveUserNote,
 }: OrderDetailCardProps) => {
   const { t } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
@@ -132,6 +134,8 @@ export const OrderDetailCard = ({
     isSaleCard ? false : true,
   );
   const [isMainInfoOpen, setIsMainInfoOpen] = useState(true);
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [isSavingUserNote, setIsSavingUserNote] = useState(false);
   const [isLiveFeedOpen, setIsLiveFeedOpen] = useState(() => !getIsCompactLayout());
   const [isCompactLayout, setIsCompactLayout] = useState(getIsCompactLayout);
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
@@ -205,6 +209,7 @@ export const OrderDetailCard = ({
       storedState?.servicesOpen ?? servicesOpenByDefault,
     );
     setIsMainInfoOpen(storedState?.mainInfoOpen ?? true);
+    setIsNoteOpen(storedState?.noteOpen ?? false);
     setIsLiveFeedOpen(
       storedState?.liveFeedOpen ?? !getIsCompactLayout(),
     );
@@ -249,6 +254,16 @@ export const OrderDetailCard = ({
       return next;
     });
   };
+  const toggleNoteSection = () => {
+    setIsNoteOpen((current) => {
+      const next = !current;
+      patchOrderDetailSectionState(sale.id, { noteOpen: next });
+      return next;
+    });
+  };
+  const canEditUserNote =
+    !isReadOnly &&
+    isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   const toggleDiscountMode = () => {
     if (isReadOnly) return;
 
@@ -909,12 +924,6 @@ export const OrderDetailCard = ({
                 <dd>{sale.issuedBy?.name || '-'}</dd>
               </div>
             )}
-            {isSaleCard ? (
-              <div className='order-detail-notes-row'>
-                <dt>{t('orders.detail.notes')}</dt>
-                <dd>{sale.note || t('orders.detail.noNotesSale')}</dd>
-              </div>
-            ) : null}
             {isMainInfoDirty ? (
               <div className='order-detail-notes-row'>
                 <dt>&nbsp;</dt>
@@ -1209,12 +1218,24 @@ export const OrderDetailCard = ({
           ) : null}
         </section>
 
-        {!isSaleCard ? (
-          <section className='order-detail-panel order-detail-note'>
-            <h3>{t('orders.detail.notes')}</h3>
-            <p>{sale.note || t('orders.detail.noNotesOrder')}</p>
-          </section>
-        ) : null}
+        <OrderDetailNoteSection
+          saleId={sale.id}
+          isSaleCard={isSaleCard}
+          systemNote={sale.note}
+          userNote={sale.userNote ?? ''}
+          isNoteOpen={isNoteOpen}
+          canEdit={canEditUserNote}
+          isSaving={isSavingUserNote}
+          onToggle={toggleNoteSection}
+          onSaveUserNote={async (userNote) => {
+            setIsSavingUserNote(true);
+            try {
+              await onSaveUserNote(userNote);
+            } finally {
+              setIsSavingUserNote(false);
+            }
+          }}
+        />
 
         <section className='order-detail-panel order-detail-related-panel'>
           <div className='order-related-tabs'>

@@ -20,6 +20,7 @@ export type Sale = {
   isFavorite?: boolean;
   isRapidSale?: boolean;
   note: string;
+  userNote?: string;
   timeline: Array<{
     id: string;
     kind?: 'manual' | 'system';
@@ -91,6 +92,7 @@ export type SaleFormValues = {
   quantity: string;
   salePrice: string;
   note: string;
+  userNote?: string;
   managerId?: string;
   masterId?: string;
   issuedById?: string;
@@ -119,6 +121,7 @@ export type SaleWorkspacePayload = {
   timeline?: Sale['timeline'];
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
+  userNote?: string;
   expectedUpdatedAt?: string;
 };
 

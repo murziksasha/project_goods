@@ -249,6 +249,7 @@ const buildCardElement = ({
   onUpdateClientDevice = vi.fn(async () => true),
   onDeleteClientDevice = vi.fn(async () => true),
   onSaveMainInfo = vi.fn(async () => undefined),
+  onSaveUserNote = vi.fn(async () => undefined),
   onError = vi.fn(),
   canAddComment = true,
   isReadOnly = false,
@@ -297,6 +298,7 @@ const buildCardElement = ({
   onUpdateClientDevice?: OrderDetailCardProps['onUpdateClientDevice'];
   onDeleteClientDevice?: OrderDetailCardProps['onDeleteClientDevice'];
   onSaveMainInfo?: OrderDetailCardProps['onSaveMainInfo'];
+  onSaveUserNote?: OrderDetailCardProps['onSaveUserNote'];
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
@@ -364,6 +366,7 @@ const buildCardElement = ({
       onError={onError}
       onSuccess={vi.fn()}
       onSaveMainInfo={onSaveMainInfo}
+      onSaveUserNote={onSaveUserNote}
     />
   );
 };
@@ -1973,6 +1976,7 @@ describe('OrderDetailCard product entry', () => {
         onError={vi.fn()}
         onSuccess={vi.fn()}
         onSaveMainInfo={vi.fn(async () => undefined)}
+        onSaveUserNote={vi.fn(async () => undefined)}
       />,
     );
 
@@ -2245,5 +2249,36 @@ describe('OrderDetailCard product entry', () => {
       'Select master',
       'Active Master',
     ]);
+  });
+});
+
+describe('OrderDetailCard notes section', () => {
+  it('keeps notes collapsed by default and saves user note from edit mode', async () => {
+    const onSaveUserNote = vi.fn(async () => undefined);
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          note: '(kits: charger)\nType: repair',
+          userNote: '',
+        },
+        onSaveUserNote,
+      }),
+    );
+
+    expect(screen.queryByText(/\(kits: charger\)/)).not.toBeInTheDocument();
+    fireEvent.click(
+      document.querySelector('.order-detail-note-toggle') as HTMLButtonElement,
+    );
+    expect(screen.getByText(/\(kits: charger\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note' }));
+    fireEvent.change(screen.getByPlaceholderText('Add your note...'), {
+      target: { value: 'Call before pickup' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
+
+    await waitFor(() => {
+      expect(onSaveUserNote).toHaveBeenCalledWith('Call before pickup');
+    });
   });
 });
