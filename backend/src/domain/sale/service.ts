@@ -482,6 +482,7 @@ export const createSale = async (payloadInput: SalePayload) => {
       paidAmount: payload.paidAmount || 0,
       isRapidSale,
       note: payload.note,
+      userNote: payload.userNote,
       timeline: payload.timeline ?? [],
       paymentHistory: payload.paymentHistory ?? [],
       lineItems,
@@ -657,6 +658,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
         status: payload.status || existingSale.status || 'new',
         paidAmount: payload.paidAmount || 0,
         note: payload.note,
+        userNote: payload.userNote,
         timeline: payload.timeline ?? existingSale.timeline ?? [],
         paymentHistory:
           payload.paymentHistory ?? existingSale.paymentHistory ?? [],
@@ -747,6 +749,10 @@ export const updateSaleWorkspace = async (
   const issuedBy = await resolveActiveEmployee(payload.issuedById, 'issuedById');
   const hasIssuedByUpdate = payloadInput.issuedById !== undefined;
   const hasMasterUpdate = payloadInput.masterId !== undefined;
+  const hasUserNoteUpdate = payloadInput.userNote !== undefined;
+  const nextUserNote = hasUserNoteUpdate
+    ? payload.userNote
+    : (existingSale.userNote ?? '');
   const nextTimeline =
     Array.isArray(payloadInput.timeline) && payload.timeline.length > 0
       ? payload.timeline
@@ -861,6 +867,7 @@ export const updateSaleWorkspace = async (
         paymentHistory: nextPaymentHistory,
         lineItems: normalizedLineItems,
         discount: nextDiscount,
+        userNote: nextUserNote,
         productSnapshot: {
           article: existingSale.productSnapshot?.article ?? '',
           name: nextDeviceName || existingSale.productSnapshot?.name || '',

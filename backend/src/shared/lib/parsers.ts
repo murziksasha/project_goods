@@ -182,6 +182,7 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   quantity: toNumber(payload.quantity),
   salePrice: toNumber(payload.salePrice),
   note: toNonEmptyString(payload.note),
+  userNote: toNonEmptyString(payload.userNote),
   managerId: toNonEmptyString(payload.managerId),
   masterId: toNonEmptyString(payload.masterId),
   issuedById: toNonEmptyString(payload.issuedById),

@@ -92,6 +92,12 @@ export const saleSchema = new mongoose.Schema(
       maxlength: [500, 'Sale note must contain no more than 500 characters'],
       default: '',
     },
+    userNote: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Sale user note must contain no more than 500 characters'],
+      default: '',
+    },
     timeline: [
       {
         _id: false,

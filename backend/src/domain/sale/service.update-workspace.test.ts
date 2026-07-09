@@ -499,4 +499,36 @@ describe('updateSaleWorkspace line items', () => {
       role: 'master',
     });
   });
+
+  it('updates userNote without changing system note', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('repair'),
+      note: '(kits: charger)\nType: repair',
+      userNote: '',
+    });
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'repair',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [],
+      masterId: '',
+      issuedById: '',
+      note: '(kits: charger)\nType: repair',
+      userNote: 'Call client before pickup',
+    } as never);
+
+    await updateSaleWorkspace(currentSale._id, {
+      kind: 'repair',
+      status: 'new',
+      userNote: 'Call client before pickup',
+    });
+
+    expect(updateCalls[0].userNote).toBe('Call client before pickup');
+    expect(updateCalls[0].note).toBeUndefined();
+  });
 });

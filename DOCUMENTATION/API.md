@@ -209,7 +209,11 @@ Client status localization rule: keep client status values in original English (
 
 ## Sale Workspace Serialized Line Items (2026-05-28)
 
+- Sale/order responses include:
+  - `note` — system-generated text (repair create flow, legacy data)
+  - `userNote` — operator-editable note from the order/sale card (max 500 characters)
 - `PATCH /sales/:saleId/workspace`
+  - Supports `userNote` (string, trimmed, max 500). Updates only `userNote`; does not change system `note`.
   - Manual `Live feed` comment-only saves require `orders.chat`.
   - System-generated timeline entries attached to other workspace actions are still authorized by those actions, not by `orders.chat`.
   - Serialized stock product line items are validated as atomic units.
