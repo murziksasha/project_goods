@@ -276,6 +276,7 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — `buildRapidSaleStockSuggestions`, `getRapidSaleOccupiedSerialNumbers`, `validateRapidSaleDraft`, line-item builder
 - `frontend/src/widgets/dashboard/model/order-line-serials.ts` — `buildInMemorySerialUsageSale`, `collectOccupiedSerialNumbers` (draft serial occupancy for suggestions)
+- `frontend/src/shared/lib/price-stepper.ts` — shared price stepper constants (`PRICE_STEPPER_STEP = 1`, `PRICE_STEPPER_PRECISION = 0`)
 - `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
 - `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` — `useLockBodyScroll` (reused by rapid sale modal)
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases

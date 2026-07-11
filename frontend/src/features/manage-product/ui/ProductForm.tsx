@@ -1,4 +1,8 @@
 import type { ProductFormValues } from '../../../entities/product/model/types';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { useTranslation } from 'react-i18next';
 
@@ -76,8 +80,8 @@ export const ProductForm = ({
         <span>{t('product.price')}</span>
         <NumberStepper
           min={0}
-          step={0.01}
-          precision={2}
+          step={PRICE_STEPPER_STEP}
+          precision={PRICE_STEPPER_PRECISION}
           value={form.price}
           placeholder={t('product.examples.price')}
           onChange={(value) => onChange('price', value)}

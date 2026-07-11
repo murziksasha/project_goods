@@ -5,6 +5,10 @@ import type { Cashbox } from '../../../../../entities/finance/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import {
   defaultPrintForms,
@@ -222,8 +226,8 @@ export const PaymentModal = ({
             <NumberStepper
               min={0}
               max={currentPaymentRemaining}
-              step={0.01}
-              precision={2}
+              step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
@@ -419,8 +423,8 @@ export const RefundModal = ({
             <NumberStepper
               min={0}
               max={paidAmount}
-              step={0.01}
-              precision={2}
+              step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
@@ -606,8 +610,8 @@ export const ReturnSaleModal = ({
             <NumberStepper
               min={minRefund}
               max={maxRefund}
-              step={0.01}
-              precision={2}
+              step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={amount}
               onChange={onAmountChange}
               disabled={isLoading || isSaving}
