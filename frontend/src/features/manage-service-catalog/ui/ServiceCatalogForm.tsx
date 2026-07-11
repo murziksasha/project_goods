@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import type { ServiceCatalogFormValues } from '../../../entities/service-catalog/model/types';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
 type ServiceCatalogFormProps = {
@@ -70,8 +74,8 @@ export const ServiceCatalogForm = ({
           <span>{t('common.price')}</span>
           <NumberStepper
             min={0}
-            step={0.01}
-            precision={2}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
             value={form.price}
             placeholder={t('catalog.serviceForm.pricePlaceholder')}
             onChange={(value) => onChange('price', value)}

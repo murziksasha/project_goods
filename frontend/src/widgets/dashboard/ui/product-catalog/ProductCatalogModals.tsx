@@ -7,6 +7,10 @@ import type { Product, ProductFormValues } from '../../../../entities/product/mo
 import type { ServiceCatalogFormValues, ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { parseDecimal } from '../../../../shared/lib/decimal';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../shared/ui/NumberStepper';
 import {
   getPriceOption,
@@ -188,8 +192,8 @@ export const CatalogProductModal = ({
             <span>{t('catalog.modals.retailPrice')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={getPriceOption(form, 0) || form.price}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 0, value))
@@ -200,8 +204,8 @@ export const CatalogProductModal = ({
             <span>{t('catalog.modals.wholesalePrice1')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={getPriceOption(form, 1)}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 1, value))
@@ -212,8 +216,8 @@ export const CatalogProductModal = ({
             <span>{t('catalog.modals.wholesalePrice2')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={getPriceOption(form, 2)}
               onChange={(value) =>
                 onChange('salePriceOptions', setPriceOption(form, 2, value))
@@ -222,7 +226,7 @@ export const CatalogProductModal = ({
           </label>
           <label className="field">
             <span>{t('catalog.modals.purchasePrice')}</span>
-            <NumberStepper min={0} step={0.01} precision={2} value={form.price} onChange={(value) => onChange('price', value)} />
+            <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
           </label>
           <label className="field">
             <span>{t('catalog.modals.warehouse')}</span>
@@ -328,15 +332,15 @@ export const CatalogServiceModal = ({
         </fieldset>
         <label className="field">
           <span>{t('catalog.modals.retailPrice')}</span>
-          <NumberStepper min={0} step={0.01} precision={2} value={form.price} onChange={(value) => onChange('price', value)} />
+          <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
         </label>
         <div className="catalog-price-grid">
           <label className="field">
             <span>{t('catalog.modals.wholesalePrice1')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 0)}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 0, value))
@@ -347,8 +351,8 @@ export const CatalogServiceModal = ({
             <span>{t('catalog.modals.wholesalePrice2')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 1)}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 1, value))

@@ -704,6 +704,77 @@ describe('CreateOrderCard', () => {
     expect(screen.getByDisplayValue('750')).toBeInTheDocument();
   });
 
+  it('allows quantity greater than 1 for serialized catalog stock without binding serial', async () => {
+    const onSave = vi.fn(async () => null);
+    const serializedStock = product({
+      id: 'aaa-etron-stock',
+      name: 'AAA Etron',
+      article: 'BAT-AAA',
+      serialNumber: 'S000050',
+      price: 80,
+      salePriceOptions: [100, 90],
+    });
+
+    renderCreateOrderCard('sale', onSave, vi.fn(), [], {
+      products: [serializedStock],
+      catalogProducts: [
+        {
+          id: 'catalog-aaa-etron',
+          name: 'AAA Etron',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Name, serial or article'), {
+          target: { value: 'AAA Etron' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('button', { name: /AAA Etron/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /AAA Etron/i }));
+
+    const quantityInput = screen
+      .getByText('Qty')
+      .closest('label')
+      ?.querySelector('input');
+    expect(quantityInput).not.toBeDisabled();
+
+    fireEvent.change(quantityInput!, { target: { value: '3' } });
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTab: 'sale',
+        saleItems: [
+          expect.objectContaining({
+            name: 'AAA Etron',
+            productId: '',
+            serialNumber: '',
+            serialNumbers: undefined,
+            quantity: '3',
+            price: '300',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('binds a warehouse serial product into the sales order payload', async () => {
     const onSave = vi.fn(async () => null);
 

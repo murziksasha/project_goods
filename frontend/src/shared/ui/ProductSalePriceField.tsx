@@ -7,6 +7,10 @@ import {
   matchesProductSalePriceTier,
   type ProductSalePriceTier,
 } from '../../entities/product/lib/sale-prices';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../lib/price-stepper';
 import { NumberStepper } from './NumberStepper';
 import { ProductSalePriceTierToggle } from './ProductSalePriceTierToggle';
 
@@ -20,6 +24,8 @@ type ProductSalePriceFieldProps = {
   placeholder?: string;
   ariaLabel?: string;
   stepperClassName?: string;
+  step?: number;
+  precision?: number;
   label?: ReactNode;
   fieldClassName?: string;
   tierTogglePlacement?: 'inline' | 'label' | 'compact' | 'none';
@@ -36,6 +42,8 @@ export const ProductSalePriceField = ({
   placeholder = '0',
   ariaLabel,
   stepperClassName,
+  step = PRICE_STEPPER_STEP,
+  precision = PRICE_STEPPER_PRECISION,
   label,
   fieldClassName,
   tierTogglePlacement = 'inline',
@@ -78,8 +86,8 @@ export const ProductSalePriceField = ({
   const stepper = (
     <NumberStepper
       min={0}
-      step={0.01}
-      precision={2}
+      step={step}
+      precision={precision}
       value={value}
       onChange={onChange}
       placeholder={placeholder}

@@ -7,6 +7,10 @@ import type {
   FinanceCurrency,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../shared/ui/NumberStepper';
 import {
   canPerformTransferBetweenCashboxes,
@@ -268,8 +272,8 @@ export const AccountingCashboxesView = ({
               <span>{t('accounting.cashboxes.amount')}</span>
               <NumberStepper
                 min={0}
-                step={0.01}
-                precision={2}
+                step={PRICE_STEPPER_STEP}
+                precision={PRICE_STEPPER_PRECISION}
                 value={transactionForm.amount}
                 onChange={(value) =>
                   onTransactionFormChange((current) => ({

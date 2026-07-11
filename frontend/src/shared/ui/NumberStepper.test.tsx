@@ -20,6 +20,26 @@ describe('NumberStepper', () => {
     expect(onChange).toHaveBeenNthCalledWith(4, '834,');
   });
 
+  it('steps whole currency units when configured with integer precision', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <NumberStepper
+        value='100'
+        onChange={onChange}
+        min={0}
+        step={1}
+        precision={0}
+      />,
+    );
+
+    const buttons = container.querySelectorAll('button');
+    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[1]);
+
+    expect(onChange).toHaveBeenNthCalledWith(1, '101');
+    expect(onChange).toHaveBeenNthCalledWith(2, '99');
+  });
+
   it('steps money by cents when configured with precision', () => {
     const onChange = vi.fn();
     const { container } = render(

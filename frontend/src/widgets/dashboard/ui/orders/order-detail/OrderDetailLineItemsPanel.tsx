@@ -37,6 +37,10 @@ import {
   matchesProductSalePriceTier,
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
@@ -1327,8 +1331,8 @@ export const OrderDetailLineItemsPanel = ({
                   <NumberStepper
                     className='line-item-inline-input'
                     min={0}
-                    step={0.01}
-                    precision={2}
+                    step={PRICE_STEPPER_STEP}
+                    precision={PRICE_STEPPER_PRECISION}
                     value={priceDrafts[item.id] ?? String(item.price)}
                     onChange={(value) =>
                       handleLineItemPriceChange(item, value)
@@ -1530,8 +1534,8 @@ export const OrderDetailLineItemsPanel = ({
               <NumberStepper
                 className='line-item-inline-input'
                 min={0}
-                step={0.01}
-                precision={2}
+                step={PRICE_STEPPER_STEP}
+                precision={PRICE_STEPPER_PRECISION}
                 value={price}
                 onChange={setPrice}
                 placeholder={t('orders.detail.lineItems.price')}
