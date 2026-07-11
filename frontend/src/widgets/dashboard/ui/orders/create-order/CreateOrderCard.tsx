@@ -750,7 +750,6 @@ export const CreateOrderCard = ({
       });
 
       if (matchingStock) {
-        const resolvedSerial = normalizeSerialNumber(matchingStock.serialNumber);
         const resolvedUnitPrice = formatRetailSalePrice(matchingStock);
         updateSaleItem(itemId, {
           query: suggestion.name,
@@ -758,7 +757,7 @@ export const CreateOrderCard = ({
           productId: matchingStock.id,
           catalogProductId: '',
           article: matchingStock.article,
-          serialNumber: resolvedSerial,
+          serialNumber: '',
           price: resolvedUnitPrice,
           unitPrice: resolvedUnitPrice,
           quantity: '1',
@@ -1080,23 +1079,34 @@ export const CreateOrderCard = ({
       const resolvedUnitPrice = knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
       const normalizedUnitPrice = String(Math.round(resolvedUnitPrice * 100) / 100);
       const serialNumber = normalizeSerialNumber(item.serialNumber);
+      const linkedStockProduct =
+        item.source === 'stock' && item.productId
+          ? products.find((product) => product.id === item.productId)
+          : null;
+      const linkedStockSerial = normalizeSerialNumber(
+        linkedStockProduct?.serialNumber,
+      );
+      const shouldOmitSerializedProductId =
+        Boolean(linkedStockSerial) && !serialNumber && quantity > 1;
+      const resolvedProductId =
+        item.source === 'stock' && item.productId && !shouldOmitSerializedProductId
+          ? item.productId
+          : '';
+      const hasBoundSerial = item.source === 'stock' && Boolean(serialNumber);
 
       return {
         id: item.id,
-        productId: item.source === 'stock' ? item.productId : '',
+        productId: resolvedProductId,
         catalogProductId:
           item.source === 'catalog' ? item.catalogProductId : undefined,
         name: item.query.trim(),
         article: item.article,
-        serialNumber,
-        serialNumbers:
-          item.source === 'stock' && serialNumber ? [serialNumber] : undefined,
-        price:
-          item.source === 'stock' && serialNumber
-            ? normalizedUnitPrice
-            : String(Math.round(totalPrice * 100) / 100),
-        quantity:
-          item.source === 'stock' && serialNumber ? '1' : String(quantity),
+        serialNumber: hasBoundSerial ? serialNumber : '',
+        serialNumbers: hasBoundSerial ? [serialNumber] : undefined,
+        price: hasBoundSerial
+          ? normalizedUnitPrice
+          : String(Math.round(totalPrice * 100) / 100),
+        quantity: hasBoundSerial ? '1' : String(quantity),
         warrantyPeriod: item.warrantyPeriod,
         warehouse: '',
       };

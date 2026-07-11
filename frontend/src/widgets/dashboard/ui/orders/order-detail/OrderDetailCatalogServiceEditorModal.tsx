@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { initialServiceCatalogForm } from '../../../../../entities/service-catalog/model/forms';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { useLockBodyScroll } from '../../product-catalog/product-catalog-shared';
 
@@ -88,8 +92,8 @@ export const OrderDetailCatalogServiceEditorModal = ({
             <span>{t('orders.detail.serviceEditor.retailPrice')}</span>
             <NumberStepper
               min={0}
-              step={0.01}
-              precision={2}
+              step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
               value={form.price}
               onChange={(value) => onChange('price', value)}
             />

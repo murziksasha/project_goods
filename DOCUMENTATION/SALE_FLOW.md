@@ -72,6 +72,7 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 #### Price and Retail / Wholesale toggle
 
 - Entry price uses `ProductSalePriceField` with `tierTogglePlacement: label` and `fieldClassName: field rapid-sale-price-field`.
+- Price `+/-` buttons use the global 1 UAH step (`PRICE_STEPPER_STEP`); see §Price Stepper below.
 - When `salePriceOptions[1] > 0`, compact **R** / **W** badges render in the **Price label row** (next to the label text), not below the stepper — entry row height stays stable across stock selections.
 - Stepper occupies the full price column width; label row keeps `min-height: 22px`.
 - Default tier on stock selection: **retail**. Wholesale fills `salePriceOptions[1]`; manual edits allowed.
@@ -237,8 +238,15 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 
 `Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
 
-- **Match found:** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
+- **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
+- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card.
 - **No match:** keep catalog-only row (`catalogProductId`, price `0`).
+
+### Price Stepper (2026-07-11)
+
+- Default price `+/-` step across the project is **1 UAH** (`PRICE_STEPPER_STEP` / `PRICE_STEPPER_PRECISION` in `frontend/src/shared/lib/price-stepper.ts`).
+- Applies to create-order sales, `Rapid sale`, opened cards, catalog/product forms, payments, accounting cashboxes, and legacy `SaleForm` via `ProductSalePriceField` defaults and shared `NumberStepper` price fields.
+- Manual decimal typing may still be entered in the input; only the `+/-` buttons use the configured step.
 
 Suggestion rows may show the resolved retail price before click when matching stock exists.
 

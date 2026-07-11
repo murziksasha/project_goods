@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { SaleServiceOrderItem } from './create-order-card-shared';
@@ -83,8 +87,8 @@ export const CreateOrderSaleServicesSection = ({
               <span>{t('orders.create.price')}</span>
               <NumberStepper
                 min={0}
-                step={0.01}
-                precision={2}
+                step={PRICE_STEPPER_STEP}
+                precision={PRICE_STEPPER_PRECISION}
                 value={servicePrice}
                 onChange={onServicePriceChange}
                 placeholder="0"

@@ -9,6 +9,10 @@ import {
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
+import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
@@ -389,6 +393,8 @@ export const RapidSaleModal = ({
                 product={selectedStockProduct}
                 priceTier={productPriceTier}
                 onPriceTierChange={setProductPriceTier}
+                step={PRICE_STEPPER_STEP}
+                precision={PRICE_STEPPER_PRECISION}
                 placeholder="0"
                 ariaLabel={t('orders.rapidSale.productPrice')}
               />
@@ -472,8 +478,8 @@ export const RapidSaleModal = ({
                 <span>{t('orders.create.price')}</span>
                 <NumberStepper
                   min={0}
-                  step={0.01}
-                  precision={2}
+                  step={PRICE_STEPPER_STEP}
+                  precision={PRICE_STEPPER_PRECISION}
                   value={servicePrice}
                   onChange={setServicePrice}
                   placeholder="0"
@@ -552,8 +558,8 @@ export const RapidSaleModal = ({
                     <td className="rapid-sale-draft-price-cell">
                       <NumberStepper
                         min={0}
-                        step={0.01}
-                        precision={2}
+                        step={PRICE_STEPPER_STEP}
+                        precision={PRICE_STEPPER_PRECISION}
                         value={item.price}
                         onChange={(nextPrice) => updateDraftItemPrice(item.id, nextPrice)}
                         ariaLabel={`${item.name} ${t('orders.create.price')}`}
