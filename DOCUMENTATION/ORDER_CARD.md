@@ -75,7 +75,7 @@
 - Selecting a catalog suggestion or a stock suggestion without `serialNumber` pre-fills the entry row; operator confirms with `Add product`; serial binding uses the `Serials` modal.
 - Product add-row grid matches the line-items table columns (`Name | Serial | Price | Qty | Warranty | Action`); the name input stretches to the full Name column; Serial column is a spacer in the add-row.
 - Price entry uses `ProductSalePriceField` in `compact` mode (R/W above stepper, no duplicate **Price** label under the table header).
-- Catalog suggestion selection with matching selectable warehouse stock by `name` resolves to stock pre-fill (`productId`, retail price, R/W when wholesale is configured) via `findSelectableStockProductByName`; catalog-only rows stay unchanged when no stock match exists.
+- Catalog suggestion selection with matching selectable warehouse stock by `name` resolves to stock pre-fill (`selectedProductId` for retail price and R/W when wholesale is configured) via `findSelectableStockProductByName`; catalog-only rows stay unchanged when no stock match exists. When the operator confirms `Add product` with `qty > 1`, the saved line item omits `productId` until serial binding; after bind/split each row becomes atomic.
 - Accepted repair device is not a product line item.
 - Clearing a product row `Price` input while editing must not remove the product line item; explicit `Remove` remains the only row-removal action.
 - Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.

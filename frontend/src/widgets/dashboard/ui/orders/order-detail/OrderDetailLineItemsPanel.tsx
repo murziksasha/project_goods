@@ -1065,20 +1065,16 @@ export const OrderDetailLineItemsPanel = ({
     const selectedProductSerial = normalizeSerialNumber(
       selectedProduct?.serialNumber,
     );
-    if (
-      kind === 'product' &&
-      selectedProductSerial &&
-      normalizedQuantity > 1
-    ) {
-      onError(
-        t('orders.messages.errors.oneSerialPerLineAddSeparately'),
-      );
-      return;
-    }
+    const resolvedProductId =
+      kind === 'product' && selectedProduct
+        ? selectedProductSerial && normalizedQuantity > 1
+          ? undefined
+          : selectedProduct.id
+        : undefined;
 
     onAddItem({
       kind,
-      productId: kind === 'product' ? selectedProduct?.id : undefined,
+      productId: resolvedProductId,
       catalogProductId:
         kind === 'product' ? selectedCatalogProduct?.id : undefined,
       serviceId: kind === 'service' ? nextServiceId : undefined,

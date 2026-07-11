@@ -1167,6 +1167,65 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
+  it('adds serialized catalog pre-fill with quantity greater than 1 without productId', async () => {
+    const onAddLineItem = vi.fn();
+    const onError = vi.fn();
+    const serializedStock = product({
+      id: 'videx-stock',
+      name: 'Videx',
+      serialNumber: 'S000099',
+      price: 500,
+      salePriceOptions: [1500, 1200],
+    });
+
+    renderCard({
+      products: [serializedStock],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-videx',
+          name: 'Videx',
+        }),
+      ],
+      onAddLineItem,
+      onError,
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'Videx' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Videx/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
+    fireEvent.change(screen.getByPlaceholderText('Qty'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add product' }),
+    );
+
+    expect(onError).not.toHaveBeenCalledWith(
+      expect.stringContaining('one serial per line'),
+    );
+    expect(onAddLineItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'product',
+        name: 'Videx',
+        price: 1500,
+        productId: undefined,
+        quantity: 2,
+        serialNumbers: undefined,
+      }),
+    );
+  });
+
   it('filters serial bind modal list by selected warehouse', async () => {
     const stockProducts = [
       product({

@@ -72,6 +72,7 @@
 - Direct `Qty` changes are blocked for product rows that already have a bound serial number.
 - To sell two units of the same serialized model, the operator must bind/add two concrete serial numbers; data is persisted as two product rows, not as one row with `quantity = 2`.
 - If a legacy/non-serialized product row has `quantity > 1` and the operator binds multiple serial numbers, the save flow must split it into one atomic row per selected serial.
+- Catalog/name pre-fill may keep `selectedProductId` for price hints, but `Add product` with `qty > 1` must persist the line without `productId` until serial binding completes.
 - Backend workspace validation must reject serialized rows with `quantity > 1`, more than one serial, or a `productId`/`serialNumber` mismatch.
 - `Serials x/y` opens the shared serial bind modal with a warehouse dropdown; `Auto-select oldest` must pick only from the selected warehouse, oldest `purchaseDate` first (fallback `createdAt`), up to the row quantity.
 
