@@ -4,7 +4,7 @@ import {
   updateWarehouseSettings,
 } from '../domain/warehouse-settings/service';
 import type { WarehouseSettingsPayload } from '../domain/shared/types';
-import { asyncHandler } from '../shared/lib/http';
+import { asyncHandler, requirePermission } from '../shared/lib/http';
 
 export const warehouseSettingsRouter = Router();
 
@@ -13,6 +13,7 @@ warehouseSettingsRouter.get('/warehouse-settings', asyncHandler(async (_req, res
 }));
 
 warehouseSettingsRouter.put('/warehouse-settings', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'inventory.manage');
   res.json(
     await updateWarehouseSettings(req.body as WarehouseSettingsPayload),
   );

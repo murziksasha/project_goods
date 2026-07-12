@@ -35,6 +35,7 @@ import {
 import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { hasDuplicatePhones } from '../../../../shared/lib/phones';
 import { PhonesField } from '../../../../shared/ui/PhonesField';
+import { Modal } from '../../../../shared/ui/Modal';
 
 type ClientCardModalProps = {
   activeHistoryRows: Sale[];
@@ -137,45 +138,44 @@ export const ClientCardModal = ({
       [field]: value,
     }));
 
-  return (
-    <div className='modal-backdrop' role='presentation' onClick={onClose}>
-      <article
-        className='clients-card-modal'
-        role='dialog'
-        aria-modal='true'
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className='clients-card-header'>
-          <div>
-            <p className='section-label'>{t('clients.card.sectionLabel')}</p>
-            <h2>
-              {selectedClient?.name ??
-                historyClient?.name ??
-                t('clients.card.titleFallback')}
-            </h2>
-            <p className='panel-subtitle'>
-              {selectedClient?.phone ?? historyClient?.phone ?? ''}
-            </p>
-            {(() => {
-              const visits = clientVisitCount ?? activeHistoryRows.length;
-              const stored = (selectedClient?.status ?? historyClient?.status ?? '') as ClientStatus | '';
-              const effective = getEffectiveClientStatusLogic(stored || '', visits);
-              if (!effective) return null;
-              return (
-                <span
-                  className={`client-status-badge ${getClientStatusClass(effective)}`}
-                  style={{ backgroundColor: getClientStatusColor(effective), color: 'white', fontSize: '0.75rem', padding: '1px 6px', marginLeft: 8 }}
-                >
-                  {t(getClientStatusLabelKey(effective))}
-                </span>
-              );
-            })()}
-          </div>
-          <button type='button' className='ghost-button' onClick={onClose}>
-            x
-          </button>
-        </header>
+  const clientTitle =
+    selectedClient?.name ??
+    historyClient?.name ??
+    t('clients.card.titleFallback');
+  const clientPhone = selectedClient?.phone ?? historyClient?.phone ?? '';
+  const visits = clientVisitCount ?? activeHistoryRows.length;
+  const stored = (selectedClient?.status ??
+    historyClient?.status ??
+    '') as ClientStatus | '';
+  const effectiveStatus = getEffectiveClientStatusLogic(stored || '', visits);
 
+  return (
+    <Modal
+      isOpen
+      title={clientTitle}
+      subtitle={t('clients.card.sectionLabel')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      shellClassName="clients-card-modal modal-dialog"
+      headerClassName="clients-card-header"
+      bodyClassName="clients-card-body"
+      headerActions={
+        effectiveStatus ? (
+          <span
+            className={`client-status-badge ${getClientStatusClass(effectiveStatus)}`}
+            style={{
+              backgroundColor: getClientStatusColor(effectiveStatus),
+              color: 'white',
+              fontSize: '0.75rem',
+              padding: '1px 6px',
+            }}
+          >
+            {t(getClientStatusLabelKey(effectiveStatus))}
+          </span>
+        ) : null
+      }
+    >
+      {clientPhone ? <p className="panel-subtitle">{clientPhone}</p> : null}
         <div
           className='orders-tabs clients-card-tabs'
           role='tablist'
@@ -191,7 +191,6 @@ export const ClientCardModal = ({
           ))}
         </div>
 
-        <div className='clients-card-body'>
           {isHistoryLoading &&
           clientCardTab !== 'main' &&
           clientCardTab !== 'devices' ? (
@@ -255,9 +254,7 @@ export const ClientCardModal = ({
               />
             </>
           )}
-        </div>
-      </article>
-    </div>
+    </Modal>
   );
 };
 

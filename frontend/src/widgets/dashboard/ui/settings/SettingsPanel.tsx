@@ -27,6 +27,14 @@ import {
   type SettingsTab,
 } from '../../model/settings-panel';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { Button } from '../../../../shared/ui/Button';
+import { Modal } from '../../../../shared/ui/Modal';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
+import {
+  readUiDensity,
+  writeUiDensity,
+  type UiDensity,
+} from '../../../../shared/lib/uiDensity';
 import { PrintFormBuilder } from './PrintFormBuilder';
 
 type SettingsPanelProps = {
@@ -242,9 +250,14 @@ const CompanySettingsSection = ({
   onChange,
 }: CompanySettingsSectionProps) => {
   const { t } = useTranslation();
+  const [uiDensity, setUiDensity] = useState<UiDensity>(() => readUiDensity());
 
   return (
     <section className="settings-section">
+      <PageHeader
+        title={t('settings.tabs.company')}
+        subtitle={t('settings.ui.appearance')}
+      />
       <div className="form-grid">
         <label className="field field-wide">
           <span>{t('settings.company.serviceNameInHeader')}</span>
@@ -253,6 +266,21 @@ const CompanySettingsSection = ({
             onChange={(event) => onChange('serviceName', event.target.value)}
             placeholder={t('settings.company.serviceNamePlaceholder')}
           />
+        </label>
+        <label className="field field-wide">
+          <span>{t('settings.ui.density')}</span>
+          <select
+            value={uiDensity}
+            onChange={(event) => {
+              const next = event.target.value as UiDensity;
+              setUiDensity(next);
+              writeUiDensity(next);
+            }}
+          >
+            <option value="comfortable">{t('settings.ui.densityComfortable')}</option>
+            <option value="compact">{t('settings.ui.densityCompact')}</option>
+          </select>
+          <small className="muted-copy">{t('settings.ui.densityHint')}</small>
         </label>
         <label className="field">
           <span>{t('settings.company.companyName', { company: '{{company}}' })}</span>
@@ -738,58 +766,58 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       ) : null}
 
       {deleteTarget ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
-            <div className="payment-modal-summary">
-              <h3>{t('settings.backups.deleteTitle')}</h3>
-              <p>{t('settings.backups.deleteMessage', { id: deleteTarget.id })}</p>
-            </div>
+        <Modal
+          isOpen
+          title={t('settings.backups.deleteTitle')}
+          onClose={() => setDeleteTarget(null)}
+          closeLabel={t('common.close')}
+          shellClassName="payment-modal payment-modal-message modal-dialog"
+          closeOnBackdrop={deletingBackupId !== deleteTarget.id}
+          closeOnEscape={deletingBackupId !== deleteTarget.id}
+          footer={
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
+                <Button
+                  variant="secondary"
                   onClick={() => setDeleteTarget(null)}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
                   {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="danger-button"
+                </Button>
+                <Button
+                  variant="danger"
                   onClick={() => void handleDeleteBackup()}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
                   {deletingBackupId === deleteTarget.id
                     ? t('settings.backups.deleting')
                     : t('settings.backups.delete')}
-                </button>
+                </Button>
               </div>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <p>{t('settings.backups.deleteMessage', { id: deleteTarget.id })}</p>
+        </Modal>
       ) : null}
 
       {restoreTarget ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
-            <div className="payment-modal-summary">
-              <h3>{t('settings.backups.restoreTitle')}</h3>
-              <p>{t('settings.backups.restoreMessage', { id: restoreTarget.id })}</p>
-            </div>
-            <label className="field field-wide">
-              <span>{t('settings.backups.typeRestoreToConfirm')}</span>
-              <input
-                value={restoreConfirmation}
-                onChange={(event) => setRestoreConfirmation(event.target.value)}
-                placeholder={t('settings.backups.restorePlaceholder')}
-              />
-            </label>
+        <Modal
+          isOpen
+          title={t('settings.backups.restoreTitle')}
+          onClose={() => {
+            setRestoreTarget(null);
+            setRestoreConfirmation('');
+          }}
+          closeLabel={t('common.close')}
+          shellClassName="payment-modal payment-modal-message modal-dialog"
+          closeOnBackdrop={!isRestoring}
+          closeOnEscape={!isRestoring}
+          footer={
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setRestoreTarget(null);
                     setRestoreConfirmation('');
@@ -797,64 +825,53 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   disabled={isRestoring}
                 >
                   {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="warning-button"
+                </Button>
+                <Button
+                  variant="warning"
                   onClick={() => void handleRestoreBackup()}
                   disabled={isRestoring || restoreConfirmation !== 'RESTORE'}
                 >
-                  {isRestoring ? t('settings.backups.restoring') : t('settings.backups.restore')}
-                </button>
+                  {isRestoring
+                    ? t('settings.backups.restoring')
+                    : t('settings.backups.restore')}
+                </Button>
               </div>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <p>{t('settings.backups.restoreMessage', { id: restoreTarget.id })}</p>
+          <label className="field field-wide">
+            <span>{t('settings.backups.typeRestoreToConfirm')}</span>
+            <input
+              value={restoreConfirmation}
+              onChange={(event) => setRestoreConfirmation(event.target.value)}
+              placeholder={t('settings.backups.restorePlaceholder')}
+            />
+          </label>
+        </Modal>
       ) : null}
 
       {isRestoreFileModalOpen ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
-            <div className="payment-modal-summary">
-              <h3>{t('settings.backups.restoreFromFileTitle')}</h3>
-              <p>{t('settings.backups.restoreFromFileMessage')}</p>
-            </div>
-            <label className="field field-wide">
-              <span>{t('settings.backups.backupArchiveFile')}</span>
-              <input
-                type="file"
-                accept=".gz,.archive.gz,application/gzip,application/octet-stream"
-                onChange={(event) =>
-                  setRestoreFile(event.target.files?.[0] ?? null)
-                }
-              />
-            </label>
-            {restoreFile ? (
-              <p className="backup-file-selection">{restoreFile.name}</p>
-            ) : null}
-            <label className="field field-wide">
-              <span>{t('settings.backups.typeRestoreToConfirm')}</span>
-              <input
-                value={restoreFileConfirmation}
-                onChange={(event) =>
-                  setRestoreFileConfirmation(event.target.value)
-                }
-                placeholder={t('settings.backups.restorePlaceholder')}
-              />
-            </label>
+        <Modal
+          isOpen
+          title={t('settings.backups.restoreFromFileTitle')}
+          onClose={closeRestoreFileModal}
+          closeLabel={t('common.close')}
+          shellClassName="payment-modal payment-modal-message modal-dialog"
+          closeOnBackdrop={!isRestoring}
+          closeOnEscape={!isRestoring}
+          footer={
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
+                <Button
+                  variant="secondary"
                   onClick={closeRestoreFileModal}
                   disabled={isRestoring}
                 >
                   {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="success-button"
+                </Button>
+                <Button
+                  variant="success"
                   onClick={() => void handleRestoreBackupFromFile()}
                   disabled={
                     isRestoring ||
@@ -865,11 +882,36 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
                   {isRestoring
                     ? t('settings.backups.restoring')
                     : t('settings.backups.restoreFromFileButton')}
-                </button>
+                </Button>
               </div>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <p>{t('settings.backups.restoreFromFileMessage')}</p>
+          <label className="field field-wide">
+            <span>{t('settings.backups.backupArchiveFile')}</span>
+            <input
+              type="file"
+              accept=".gz,.archive.gz,application/gzip,application/octet-stream"
+              onChange={(event) =>
+                setRestoreFile(event.target.files?.[0] ?? null)
+              }
+            />
+          </label>
+          {restoreFile ? (
+            <p className="backup-file-selection">{restoreFile.name}</p>
+          ) : null}
+          <label className="field field-wide">
+            <span>{t('settings.backups.typeRestoreToConfirm')}</span>
+            <input
+              value={restoreFileConfirmation}
+              onChange={(event) =>
+                setRestoreFileConfirmation(event.target.value)
+              }
+              placeholder={t('settings.backups.restorePlaceholder')}
+            />
+          </label>
+        </Modal>
       ) : null}
     </section>
   );

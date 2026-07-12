@@ -11,6 +11,8 @@ import type { Product } from '../../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal } from '../../../../shared/lib/decimal';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { Modal } from '../../../../shared/ui/Modal';
+import { Button } from '../../../../shared/ui/Button';
 import {
   useCancelSupplierOrderItemMutation,
   useCancelSupplierOrderMutation,
@@ -2318,71 +2320,17 @@ export const WarehousePanel = ({
       />
 
       {selectedSupplierForEdit ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget)
-              setSelectedSupplierForEdit(null);
-          }}
-        >
-          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'>
-              <div className='catalog-edit-title'>
-                <h2>{t('warehouse.modals.supplierTitle')}</h2>
-              </div>
-              <button
-                type='button'
-                className='create-order-close'
-                onClick={() => setSelectedSupplierForEdit(null)}
-                aria-label={t('common.close')}
-              >
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <label className='field'>
-                <span>{t('common.name')}</span>
-                <input
-                  value={supplierEditForm.name}
-                  onChange={(event) =>
-                    setSupplierEditForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className='field'>
-                <span>{t('warehouse.modals.phone')}</span>
-                <input
-                  value={supplierEditForm.phone}
-                  onChange={(event) =>
-                    setSupplierEditForm((current) => ({
-                      ...current,
-                      phone: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className='field field-wide'>
-                <span>{t('warehouse.modals.note')}</span>
-                <textarea
-                  rows={3}
-                  value={supplierEditForm.note}
-                  onChange={(event) =>
-                    setSupplierEditForm((current) => ({
-                      ...current,
-                      note: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
+        <Modal
+          isOpen
+          title={t('warehouse.modals.supplierTitle')}
+          onClose={() => setSelectedSupplierForEdit(null)}
+          closeLabel={t('common.close')}
+          closeOnBackdrop={!isSupplierSaving}
+          closeOnEscape={!isSupplierSaving}
+          footer={
             <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='primary-button'
+              <Button
+                variant='primary'
                 disabled={
                   isSupplierSaving ||
                   supplierEditForm.name.trim().length < 2 ||
@@ -2412,66 +2360,62 @@ export const WarehousePanel = ({
                 }}
               >
                 {isSupplierSaving ? t('warehouse.modals.saving') : t('common.save')}
-              </button>
+              </Button>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <label className='field'>
+            <span>{t('common.name')}</span>
+            <input
+              value={supplierEditForm.name}
+              onChange={(event) =>
+                setSupplierEditForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field'>
+            <span>{t('warehouse.modals.phone')}</span>
+            <input
+              value={supplierEditForm.phone}
+              onChange={(event) =>
+                setSupplierEditForm((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field field-wide'>
+            <span>{t('warehouse.modals.note')}</span>
+            <textarea
+              rows={3}
+              value={supplierEditForm.note}
+              onChange={(event) =>
+                setSupplierEditForm((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+            />
+          </label>
+        </Modal>
       ) : null}
 
       {selectedCatalogProductForEdit ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget)
-              setSelectedCatalogProductForEdit(null);
-          }}
-        >
-          <section className='catalog-edit-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'>
-              <div className='catalog-edit-title'>
-                <h2>{t('warehouse.modals.productTitle')}</h2>
-              </div>
-              <button
-                type='button'
-                className='create-order-close'
-                onClick={() => setSelectedCatalogProductForEdit(null)}
-                aria-label={t('common.close')}
-              >
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <label className='field'>
-                <span>{t('warehouse.modals.productName')}</span>
-                <input
-                  value={productEditForm.name}
-                  onChange={(event) =>
-                    setProductEditForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className='field field-wide'>
-                <span>{t('warehouse.modals.note')}</span>
-                <textarea
-                  rows={3}
-                  value={productEditForm.note}
-                  onChange={(event) =>
-                    setProductEditForm((current) => ({
-                      ...current,
-                      note: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
+        <Modal
+          isOpen
+          title={t('warehouse.modals.productTitle')}
+          onClose={() => setSelectedCatalogProductForEdit(null)}
+          closeLabel={t('common.close')}
+          closeOnBackdrop={!isProductSavingInline}
+          closeOnEscape={!isProductSavingInline}
+          footer={
             <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='primary-button'
+              <Button
+                variant='primary'
                 disabled={
                   isProductSavingInline ||
                   productEditForm.name.trim().length < 2
@@ -2497,19 +2441,46 @@ export const WarehousePanel = ({
                     nextName,
                   );
                   onSuccess(
-                    i18n.t('orders.supplierOrders.messages.success.productUpdated'),
+                    i18n.t(
+                      'orders.supplierOrders.messages.success.productUpdated',
+                    ),
                   );
-                  await refreshSupplierOrders();
                   setSelectedCatalogProductForEdit(null);
                 }}
               >
                 {isProductSavingInline
                   ? t('warehouse.modals.saving')
                   : t('common.save')}
-              </button>
+              </Button>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <label className='field'>
+            <span>{t('warehouse.modals.productName')}</span>
+            <input
+              value={productEditForm.name}
+              onChange={(event) =>
+                setProductEditForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field field-wide'>
+            <span>{t('warehouse.modals.note')}</span>
+            <textarea
+              rows={3}
+              value={productEditForm.note}
+              onChange={(event) =>
+                setProductEditForm((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+            />
+          </label>
+        </Modal>
       ) : null}
     </section>
   );

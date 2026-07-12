@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../../entities/client/model/types';
 import { formatClientPhonesLabel } from '../../../../entities/client/lib/phone-match';
+import { Modal } from '../../../../shared/ui/Modal';
+import { Button } from '../../../../shared/ui/Button';
 
 type ClientMergeField = 'target' | 'source';
 
@@ -38,44 +40,19 @@ export const ClientMergeModal = ({
   const { t } = useTranslation();
 
   return (
-    <div className='modal-backdrop' role='presentation' onClick={onClose}>
-      <article
-        className='catalog-edit-modal clients-modal'
-        role='dialog'
-        aria-modal='true'
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className='catalog-edit-header'>
-          <h2>{t('clients.merge.title')}</h2>
-          <button type='button' className='ghost-button' onClick={onClose}>
-            x
-          </button>
-        </header>
-        <div className='catalog-edit-body clients-modal-body'>
-          <p className='muted-copy'>{t('clients.merge.description')}</p>
-          <ClientMergeInput
-            label={t('clients.merge.client1')}
-            options={targetOptions}
-            query={targetQuery}
-            searchPlaceholder={t('clients.merge.searchPlaceholder')}
-            showSuggestions={showTargetSuggestions}
-            onQueryChange={(value) => onQueryChange('target', value)}
-            onSelectClient={(client) => onSelectClient('target', client)}
-          />
-          <ClientMergeInput
-            label={t('clients.merge.client2')}
-            options={sourceOptions}
-            query={sourceQuery}
-            searchPlaceholder={t('clients.merge.searchPlaceholder')}
-            showSuggestions={showSourceSuggestions}
-            onQueryChange={(value) => onQueryChange('source', value)}
-            onSelectClient={(client) => onSelectClient('source', client)}
-          />
-        </div>
-        <footer className='catalog-edit-footer'>
-          <button
-            type='button'
-            className='primary-button'
+    <Modal
+      isOpen
+      title={t('clients.merge.title')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      className="clients-modal"
+      bodyClassName="clients-modal-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="catalog-edit-footer">
+          <Button
+            variant="primary"
             disabled={
               isSaving || !targetId || !sourceId || targetId === sourceId
             }
@@ -84,10 +61,30 @@ export const ClientMergeModal = ({
             {isSaving
               ? t('clients.merge.merging')
               : t('clients.merge.mergeClients')}
-          </button>
+          </Button>
         </footer>
-      </article>
-    </div>
+      }
+    >
+      <p className="muted-copy">{t('clients.merge.description')}</p>
+      <ClientMergeInput
+        label={t('clients.merge.client1')}
+        options={targetOptions}
+        query={targetQuery}
+        searchPlaceholder={t('clients.merge.searchPlaceholder')}
+        showSuggestions={showTargetSuggestions}
+        onQueryChange={(value) => onQueryChange('target', value)}
+        onSelectClient={(client) => onSelectClient('target', client)}
+      />
+      <ClientMergeInput
+        label={t('clients.merge.client2')}
+        options={sourceOptions}
+        query={sourceQuery}
+        searchPlaceholder={t('clients.merge.searchPlaceholder')}
+        showSuggestions={showSourceSuggestions}
+        onQueryChange={(value) => onQueryChange('source', value)}
+        onSelectClient={(client) => onSelectClient('source', client)}
+      />
+    </Modal>
   );
 };
 
@@ -109,7 +106,7 @@ const ClientMergeInput = ({
   onSelectClient: (client: Client) => void;
 }) => (
   <>
-    <label className='field field-wide modal-suggestions-anchor'>
+    <label className="field field-wide modal-suggestions-anchor">
       <span>{label}</span>
       <input
         value={query}
@@ -118,12 +115,12 @@ const ClientMergeInput = ({
       />
     </label>
     {showSuggestions && options.length > 0 ? (
-      <div className='suggestions-panel'>
+      <div className="suggestions-panel">
         {options.map((client) => (
           <button
             key={client.id}
-            type='button'
-            className='suggestion-item'
+            type="button"
+            className="suggestion-item"
             onClick={() => onSelectClient(client)}
           >
             <strong>{client.name}</strong>

@@ -10,6 +10,8 @@ import {
   selectOldestSerialsForWarehouse,
 } from '../../../model/warehouse-serial-filter';
 import { normalizeSerialNumber } from '../../../model/order-line-serials';
+import { Modal } from '../../../../../shared/ui/Modal';
+import { Button } from '../../../../../shared/ui/Button';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
 
 export type SerialBindLineItem = {
@@ -131,138 +133,116 @@ export const SerialBindModal = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <section
-        className="payment-modal payment-modal-message serial-bind-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="serial-bind-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="serial-bind-modal-scroll">
-          <h3 id="serial-bind-modal-title">
-            {t('orders.detail.lineItems.bindSerialNumbers')}
-          </h3>
-          <p>
-            {t('orders.detail.lineItems.selectSerialsUpTo', {
-              count: lineItem.quantity,
-            })}
-          </p>
-          <WarehouseSelectField
-            warehouses={warehouses}
-            value={selectedWarehouseId}
-            onChange={handleWarehouseChange}
-            disabled={isLoading}
-            labelKey="orders.detail.lineItems.warehouse"
-          />
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleAutoSelectOldest}
-              disabled={isLoading || warehouseFilteredProducts.length === 0}
-            >
-              {t('orders.detail.lineItems.autoSelectOldest')}
-            </button>
-          </div>
-          <div className="create-suggestions line-item-suggestions">
-            {isLoading || warehouses.length === 0 ? (
-              <p>{t('orders.detail.lineItems.loadingAvailableSerials')}</p>
-            ) : null}
-            {!isLoading && warehouseFilteredProducts.length === 0 ? (
-              <p>{t('orders.detail.lineItems.noAvailableSerials')}</p>
-            ) : null}
-            {warehouseFilteredProducts.map((product) => {
-              const serial = normalizeSerialNumber(product.serialNumber);
-              const isSelected = selectedSerials.includes(serial);
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  className="create-suggestion-item"
-                  onClick={() => toggleSerial(serial)}
-                >
-                  <strong>
-                    {isSelected ? '[x] ' : '[ ] '}
-                    {serial}
-                  </strong>
-                  <span>
-                    {t('orders.detail.lineItems.dateLabel', {
-                      date: formatDateTime(product.purchaseDate ?? product.createdAt),
-                    })}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {selectedSerials.length > 0 ? (
-            <div className="modal-actions">
-              <span>
-                {t('orders.detail.lineItems.selectedCount', {
-                  count: selectedSerials.length,
-                })}
-              </span>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setSelectedSerials([])}
-              >
-                {t('orders.detail.lineItems.clearSelected')}
-              </button>
-            </div>
-          ) : null}
-          {selectedSerials.length > 0 ? (
-            <div className="serial-bind-selected-list">
-              {selectedSerials.map((serial) => (
-                <div key={`selected-${serial}`} className="serial-bind-selected-item">
-                  <strong>{serial}</strong>
-                  <button
-                    type="button"
-                    className="line-item-remove-button"
-                    onClick={() =>
-                      setSelectedSerials((current) =>
-                        current.filter((candidate) => candidate !== serial),
-                      )
-                    }
-                  >
-                    {t('orders.detail.lineItems.remove')}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+    <Modal
+      isOpen
+      title={t('orders.detail.lineItems.bindSerialNumbers')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      shellClassName="payment-modal payment-modal-message serial-bind-modal modal-dialog"
+      bodyClassName="serial-bind-modal-scroll payment-modal-body"
+      footer={
         <div className="modal-actions serial-bind-modal-footer">
-          <button
-            type="button"
-            className="primary-button"
+          <Button
+            variant="primary"
             onClick={onOrder}
             disabled={isSuppliersLoading}
           >
             {isSuppliersLoading
               ? t('orders.detail.lineItems.loading')
               : t('orders.detail.lineItems.order')}
-          </button>
-          <button type="button" className="secondary-button" onClick={onClose}>
+          </Button>
+          <Button variant="secondary" onClick={onClose}>
             {t('orders.detail.cancel')}
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => onSave(selectedSerials)}
-          >
+          </Button>
+          <Button variant="primary" onClick={() => onSave(selectedSerials)}>
             {t('orders.detail.lineItems.save')}
-          </button>
+          </Button>
         </div>
-      </section>
-    </div>
+      }
+    >
+      <p>
+        {t('orders.detail.lineItems.selectSerialsUpTo', {
+          count: lineItem.quantity,
+        })}
+      </p>
+      <WarehouseSelectField
+        warehouses={warehouses}
+        value={selectedWarehouseId}
+        onChange={handleWarehouseChange}
+        disabled={isLoading}
+        labelKey="orders.detail.lineItems.warehouse"
+      />
+      <div className="modal-actions">
+        <Button
+          variant="secondary"
+          onClick={handleAutoSelectOldest}
+          disabled={isLoading || warehouseFilteredProducts.length === 0}
+        >
+          {t('orders.detail.lineItems.autoSelectOldest')}
+        </Button>
+      </div>
+      <div className="create-suggestions line-item-suggestions">
+        {isLoading || warehouses.length === 0 ? (
+          <p>{t('orders.detail.lineItems.loadingAvailableSerials')}</p>
+        ) : null}
+        {!isLoading && warehouseFilteredProducts.length === 0 ? (
+          <p>{t('orders.detail.lineItems.noAvailableSerials')}</p>
+        ) : null}
+        {warehouseFilteredProducts.map((product) => {
+          const serial = normalizeSerialNumber(product.serialNumber);
+          const isSelected = selectedSerials.includes(serial);
+          return (
+            <button
+              key={product.id}
+              type="button"
+              className="create-suggestion-item"
+              onClick={() => toggleSerial(serial)}
+            >
+              <strong>
+                {isSelected ? '[x] ' : '[ ] '}
+                {serial}
+              </strong>
+              <span>
+                {t('orders.detail.lineItems.dateLabel', {
+                  date: formatDateTime(product.purchaseDate ?? product.createdAt),
+                })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {selectedSerials.length > 0 ? (
+        <div className="modal-actions">
+          <span>
+            {t('orders.detail.lineItems.selectedCount', {
+              count: selectedSerials.length,
+            })}
+          </span>
+          <Button variant="secondary" onClick={() => setSelectedSerials([])}>
+            {t('orders.detail.lineItems.clearSelected')}
+          </Button>
+        </div>
+      ) : null}
+      {selectedSerials.length > 0 ? (
+        <div className="serial-bind-selected-list">
+          {selectedSerials.map((serial) => (
+            <div key={`selected-${serial}`} className="serial-bind-selected-item">
+              <strong>{serial}</strong>
+              <button
+                type="button"
+                className="line-item-remove-button"
+                onClick={() =>
+                  setSelectedSerials((current) =>
+                    current.filter((candidate) => candidate !== serial),
+                  )
+                }
+              >
+                {t('orders.detail.lineItems.remove')}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </Modal>
   );
 };

@@ -10,6 +10,14 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
 
+## Finance report (`getFinanceReport`)
+
+- **Cashbox totals** — sum of current cashbox balances (not derived from transaction list).
+- **`transactionCount`** — `countDocuments` over all finance transactions (not capped at the transactions tab limit of 100).
+- **Today** — business day `Europe/Kiev` via `getAccountingBusinessDateKey`; excludes cancelled and reverse (`isCancellation`) rows.
+- **`todayTurnover`** — sum of amounts for active txs on that business day, per currency.
+- Transactions list UI still uses `listFinanceTransactions` with **limit 100** (newest first); report does **not** reuse that list.
+
 ## Transactions Tab (`Accounting -> Транзакції`)
 
 ### Notes column behavior

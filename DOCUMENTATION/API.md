@@ -1,5 +1,40 @@
 # API Overview
 
+## Authentication
+
+All `/api/*` routes require `Authorization: Bearer <token>` except:
+
+| Method | Path | Notes |
+|--------|------|-------|
+| `GET` | `/health` | Public health + `version` / `buildSha` |
+| `POST` | `/auth/login` | Returns session token |
+| `GET` | `/auth/invitations/:token` | Invitation lookup |
+| `POST` | `/auth/invitations/:token/register` | Invitation registration |
+
+Responses:
+
+- `401` — missing/invalid token
+- `403` — authenticated but missing permission (or dev-only route in production)
+
+### Permission matrix (summary)
+
+| Area | Read | Write |
+|------|------|-------|
+| Products | `orders.view` \| `inventory.manage` \| `supplierOrders.*` | `inventory.manage` |
+| Clients | `orders.view` \| `sales.manage` \| `clients.manage` | `clients.manage` |
+| Sales/orders | `orders.view` \| `sales.manage` \| `repairs.execute` \| `supplierOrders.*` | `orders.manage` / `sales.manage` (by `kind`) |
+| Settings `GET` | any authenticated employee | — |
+| Settings `PUT` | — | `owner` only |
+| Print forms | — | `printForms.manage` or `owner` |
+| Employees `GET` | authenticated | — |
+| Employees mutations | — | `employees.manage` or `owner` |
+| Finance | `finance.view` / cashbox permissions | per action — see [Permission_Flow.md](./Permission_Flow.md) |
+| Supplier orders | `supplierOrders.view` | `supplierOrders.manage` |
+| Demo `/demo/*` | — | `owner` (+ dev only: `NODE_ENV !== production`) |
+| Backups | — | `system.backups.manage` |
+
+Details: [SECURITY.md](./SECURITY.md), integration tests in `backend/src/routes/api.integration.test.ts`.
+
 ## Базовый URL
 
 Локальный base URL по умолчанию:
@@ -10,7 +45,7 @@ http://localhost:5000/api
 
 ## Health
 
-- `GET /health` - проверка доступности backend и состояния подключения к MongoDB
+- `GET /health` — backend status, `mongoReadyState`, `version`, `buildSha`
 
 ## Products
 

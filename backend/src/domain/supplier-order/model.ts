@@ -145,6 +145,8 @@ supplierOrderSchema.pre('validate', function updateSearchText() {
 });
 
 supplierOrderSchema.index({ orderBaseId: 1 }, { unique: true });
+supplierOrderSchema.index({ deliveryDate: 1, status: 1 });
+supplierOrderSchema.index({ createdAt: -1 });
 
 export type SupplierOrderDocument = mongoose.InferSchemaType<typeof supplierOrderSchema> & {
   _id: mongoose.Types.ObjectId;

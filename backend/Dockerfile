@@ -1,6 +1,7 @@
-FROM node:20-bookworm-slim
+FROM node:20-bookworm-slim AS base
 
 ARG MONGODB_DATABASE_TOOLS_VERSION=100.17.0
+ARG BUILD_SHA=dev
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl tar \
@@ -9,7 +10,7 @@ RUN apt-get update \
   && cp /tmp/mongodb-database-tools-*/bin/mongodump /usr/local/bin/mongodump \
   && cp /tmp/mongodb-database-tools-*/bin/mongorestore /usr/local/bin/mongorestore \
   && chmod +x /usr/local/bin/mongodump /usr/local/bin/mongorestore \
-  && rm -rf /var/lib/apt/lists/* /tmp/mongodb-database-tools* 
+  && rm -rf /var/lib/apt/lists/* /tmp/mongodb-database-tools*
 
 WORKDIR /app
 
@@ -20,6 +21,11 @@ RUN npm install && npm install --prefix backend
 COPY . .
 
 WORKDIR /app/backend
+RUN npm run build
+
+ENV NODE_ENV=production
+ENV BUILD_SHA=${BUILD_SHA}
+
 EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+CMD ["node", "dist/server.js"]

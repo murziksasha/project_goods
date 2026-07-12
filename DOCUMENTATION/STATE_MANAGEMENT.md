@@ -119,6 +119,14 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added refresh/update flow for `catalog-products` through `useDashboardPage` actions.
 - `ProductCatalogPanel` consumes `catalogProducts` and `onUpdateCatalogProduct`.
 
+## Dashboard Query Cache Update (2026-07-12)
+
+- Added React Query keys: `employees`, `suppliers`, `settings`.
+- `use-dashboard-effects.ts` loads employees, suppliers, and settings through dedicated query hooks instead of one-off `Promise.allSettled` fetch.
+- Supplier/employee/settings mutations in `dashboard-actions.ts` invalidate and refetch through `refreshSuppliers`, `refreshEmployees`, `refreshSettings`.
+- `OrdersWorkspace` order card uses `useSupplierOrdersQuery` (enabled when a sale card is open and user has supplier-order read access).
+- `DashboardPage` shell sidebar/topbar extracted to `widgets/dashboard-sidebar` and `widgets/dashboard-topbar`.
+
 ## Warehouse Query Cache Update (2026-06-03)
 
 - Added React Query keys: `supplierOrders` and `warehouseSettings`.

@@ -83,7 +83,8 @@ Backend собран по модульному практическому пат
 
 - `app.ts` настраивает Express, middleware и подключение роутеров
 - `routes/` описывает HTTP-контракты
-- `domain/*/service.ts` содержит прикладную логику и use cases
+- `domain/*/service.ts` содержит прикладную логику и use cases (или barrel re-export)
+- крупные домены `sale` / `finance` разложены на модули (`create`/`update`/`payment`…; `cashboxes`/`transactions`…)
 - `domain/*/model.ts` определяет модели хранения
 - `config/` отвечает за окружение и подключение к БД
 - `shared/` хранит общие утилиты и тестовые данные
@@ -137,17 +138,22 @@ Backend собран по модульному практическому пат
 
 ## Текущие архитектурные пробелы
 
-- нет автоматических тестов
-- нет общей схемы валидации между frontend и backend
+- нет общей схемы валидации между frontend и backend (ad-hoc parsers)
 - нет формального workspace-инструмента для монорепо
-- импорт товаров из Excel пока только зарезервирован интерфейсно
+- импорт товаров из Excel на backend частично; product import UI ещё может быть ограничен
+- multi-doc transactions: finance (cashboxes/txs), sale stock+write (`withOptionalMongoSession`), `paySupplierOrder` (finance+order), `mergeClients`; take-on-charge still compensating/sequential
+- shared helper: `shared/lib/mongo-session.ts` (no-op session when Mongo not connected — unit tests)
+- list endpoints: supplier-order list is **read-only** (derived status refresh on startup + after writes for zero-total); catalog/device usage counts batch-loaded
 
 ## Рекомендуемое развитие
 
-1. Добавить автоматические тесты для доменных сервисов и критичных UI-сценариев.
-2. Усилить валидацию входных данных на границах API.
-3. Зафиксировать общие стандарты linting, formatting и quality gates.
-4. Рассмотреть workspace-tooling, если общих скриптов и связей между пакетами станет больше.
+План: [BACKEND_IMPROVEMENT_PLAN.md](./BACKEND_IMPROVEMENT_PLAN.md).
+
+1. Correctness: `HttpError` статусы, `req.employee` без double-fetch.
+2. Декомпозиция `sale` / `finance` / `parsers` god-модулей.
+3. Perf: N+1 list endpoints, write-on-read supplier-order list, indexes.
+4. Transactions + finance report by date range.
+5. Расширение integration/unit coverage (см. [TESTING.md](./TESTING.md)).
 
 ## Shared State Consistency (2026-05-06)
 

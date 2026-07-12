@@ -22,6 +22,9 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { Button } from '../../../../shared/ui/Button';
+import { Modal } from '../../../../shared/ui/Modal';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
   CatalogProductsTable,
   ProductsTable,
@@ -561,6 +564,19 @@ export const ProductCatalogPanel = ({
 
   return (
     <section className="panel catalog-table-panel">
+      <PageHeader
+        title={t('catalog.pageTitle')}
+        subtitle={t('catalog.pageSubtitle', {
+          count:
+            isProductsTab
+              ? filteredClientDevices.length
+              : isSuppliersTab
+                ? filteredSuppliers.length
+                : isCatalogProductsTab
+                  ? filteredCatalogProducts.length
+                  : filteredServices.length,
+        })}
+      />
       <div className="catalog-tabs" role="tablist" aria-label={t('catalog.tabsAriaLabel')}>
         {tabs.map((tab) => (
           <button
@@ -901,124 +917,94 @@ export const ProductCatalogPanel = ({
       ) : null}
 
       {isCreateDeviceModalOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateDeviceModalOpen(false); }}>
-          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-            <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>{t('catalog.modals.clientDevice')}</h2></div>
-              <button type="button" className="create-order-close" onClick={() => setIsCreateDeviceModalOpen(false)} aria-label={t('catalog.modals.close')}>&times;</button>
-            </header>
-            <div className="catalog-edit-body">
-              <label className="field"><span>{t('catalog.modals.deviceName')}</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
-              <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
-            </div>
+        <Modal
+          isOpen
+          title={t('catalog.modals.clientDevice')}
+          onClose={() => setIsCreateDeviceModalOpen(false)}
+          closeLabel={t('catalog.modals.close')}
+          footer={
             <footer className="catalog-edit-footer">
-              <button type="button" className="secondary-button" onClick={() => setIsCreateDeviceModalOpen(false)}>
+              <Button variant="secondary" onClick={() => setIsCreateDeviceModalOpen(false)}>
                 {t('catalog.modals.cancel')}
-              </button>
-              <button type="button" className="primary-button" disabled={!createDeviceForm.name.trim()} onClick={async () => {
-                const ok = await onCreateClientDevice({
-                  clientId: '',
-                  clientName: '',
-                  clientPhone: '',
-                  ...createDeviceForm,
-                  serialNumber: '',
-                  source: 'clientCard',
-                  isActive: true,
-                });
-                if (ok) {
-                  setIsCreateDeviceModalOpen(false);
-                  setCreateDeviceForm({ name: '', note: '' });
-                }
-              }}>{t('catalog.modals.save')}</button>
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!createDeviceForm.name.trim()}
+                onClick={async () => {
+                  const ok = await onCreateClientDevice({
+                    clientId: '',
+                    clientName: '',
+                    clientPhone: '',
+                    ...createDeviceForm,
+                    serialNumber: '',
+                    source: 'clientCard',
+                    isActive: true,
+                  });
+                  if (ok) {
+                    setIsCreateDeviceModalOpen(false);
+                    setCreateDeviceForm({ name: '', note: '' });
+                  }
+                }}
+              >
+                {t('catalog.modals.save')}
+              </Button>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <label className="field"><span>{t('catalog.modals.deviceName')}</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
+          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
+        </Modal>
       ) : null}
 
       {isCreateSupplierModalOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateSupplierModalOpen(false); }}>
-          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-            <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>{t('catalog.modals.createSupplier')}</h2></div>
-              <button type="button" className="create-order-close" onClick={() => setIsCreateSupplierModalOpen(false)} aria-label={t('catalog.modals.close')}>&times;</button>
-            </header>
-            <div className="catalog-edit-body">
-              <label className="field"><span>{t('catalog.modals.name')}</span><input value={createSupplierForm.name} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, name: e.target.value }))} /></label>
-              <label className="field"><span>{t('catalog.modals.phone')}</span><input value={createSupplierForm.phone} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, phone: e.target.value }))} /></label>
-              <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createSupplierForm.note} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, note: e.target.value }))} /></label>
-            </div>
+        <Modal
+          isOpen
+          title={t('catalog.modals.createSupplier')}
+          onClose={() => setIsCreateSupplierModalOpen(false)}
+          closeLabel={t('catalog.modals.close')}
+          footer={
             <footer className="catalog-edit-footer">
-              <button type="button" className="primary-button" disabled={!createSupplierForm.name.trim() || !createSupplierForm.phone.trim()} onClick={async () => {
-                const ok = await onCreateSupplier({ ...createSupplierForm, isActive: true });
-                if (ok) {
-                  setIsCreateSupplierModalOpen(false);
-                  setCreateSupplierForm({ name: '', phone: '+380', note: '' });
-                }
-              }}>{t('catalog.modals.create')}</button>
+              <Button
+                variant="primary"
+                disabled={!createSupplierForm.name.trim() || !createSupplierForm.phone.trim()}
+                onClick={async () => {
+                  const ok = await onCreateSupplier({ ...createSupplierForm, isActive: true });
+                  if (ok) {
+                    setIsCreateSupplierModalOpen(false);
+                    setCreateSupplierForm({ name: '', phone: '+380', note: '' });
+                  }
+                }}
+              >
+                {t('catalog.modals.create')}
+              </Button>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <label className="field"><span>{t('catalog.modals.name')}</span><input value={createSupplierForm.name} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, name: e.target.value }))} /></label>
+          <label className="field"><span>{t('catalog.modals.phone')}</span><input value={createSupplierForm.phone} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, phone: e.target.value }))} /></label>
+          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createSupplierForm.note} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, note: e.target.value }))} /></label>
+        </Modal>
       ) : null}
 
       {isCreateCatalogProductModalOpen ? (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setIsCreateCatalogProductModalOpen(false);
-          }}
-        >
-          <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-            <header className="catalog-edit-header">
-              <div className="catalog-edit-title"><h2>{t('catalog.modals.product')}</h2></div>
-              <button
-                type="button"
-                className="create-order-close"
-                onClick={() => setIsCreateCatalogProductModalOpen(false)}
-                aria-label={t('catalog.modals.close')}
-              >
-                &times;
-              </button>
-            </header>
-            <div className="catalog-edit-body">
-              <label className="field">
-                <span>{t('catalog.modals.productName')}</span>
-                <input
-                  value={createCatalogProductForm.name}
-                  onChange={(event) =>
-                    setCreateCatalogProductForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className="field field-wide">
-                <span>{t('catalog.modals.note')}</span>
-                <textarea
-                  rows={3}
-                  value={createCatalogProductForm.note}
-                  onChange={(event) =>
-                    setCreateCatalogProductForm((current) => ({
-                      ...current,
-                      note: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
+        <Modal
+          isOpen
+          title={t('catalog.modals.product')}
+          onClose={() => setIsCreateCatalogProductModalOpen(false)}
+          closeLabel={t('catalog.modals.close')}
+          closeOnBackdrop={!isCreateCatalogProductSaving}
+          closeOnEscape={!isCreateCatalogProductSaving}
+          footer={
             <footer className="catalog-edit-footer">
-              <button
-                type="button"
-                className="secondary-button"
+              <Button
+                variant="secondary"
                 onClick={() => setIsCreateCatalogProductModalOpen(false)}
                 disabled={isCreateCatalogProductSaving}
               >
                 {t('catalog.modals.cancel')}
-              </button>
-              <button
-                type="button"
-                className="primary-button"
+              </Button>
+              <Button
+                variant="primary"
                 disabled={
                   isCreateCatalogProductSaving ||
                   createCatalogProductForm.name.trim().length < 2 ||
@@ -1045,10 +1031,36 @@ export const ProductCatalogPanel = ({
                 {isCreateCatalogProductSaving
                   ? t('catalog.modals.saving')
                   : t('catalog.modals.save')}
-              </button>
+              </Button>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <label className="field">
+            <span>{t('catalog.modals.productName')}</span>
+            <input
+              value={createCatalogProductForm.name}
+              onChange={(event) =>
+                setCreateCatalogProductForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="field field-wide">
+            <span>{t('catalog.modals.note')}</span>
+            <textarea
+              rows={3}
+              value={createCatalogProductForm.note}
+              onChange={(event) =>
+                setCreateCatalogProductForm((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+            />
+          </label>
+        </Modal>
       ) : null}
     </section>
   );

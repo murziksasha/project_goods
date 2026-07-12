@@ -6,6 +6,12 @@ backend/coverage/
 frontend/dist/
 frontend/dev-dist/
 frontend/coverage/
+frontend/*-out*.txt
+frontend/stdout.txt
+frontend/tmp-*.spec.ts
+frontend-test-out.txt
+frontend-test-output.txt
+backend/backend-test-out.txt
 backups/
 backend/backups/
 backend/backend-dev.log

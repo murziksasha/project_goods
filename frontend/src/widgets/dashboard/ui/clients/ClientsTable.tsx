@@ -7,6 +7,7 @@ import {
   getEffectiveClientStatusLogic,
 } from '../../../../entities/client/model/constants';
 import { formatDateTime } from '../../../../shared/lib/format';
+import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
 import {
   defaultClientStats,
   formatClientIncome,
@@ -54,7 +55,11 @@ export const ClientsTable = ({
           {isLoading ? (
             <tr>
               <td colSpan={8} className='orders-empty'>
-                {t('clients.table.loading')}
+                <TableSkeleton
+                  rows={6}
+                  columns={8}
+                  label={t('clients.table.loading')}
+                />
               </td>
             </tr>
           ) : filteredClientsCount === 0 ? (

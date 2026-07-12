@@ -9,6 +9,7 @@ import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
 import type { ClientPayload } from '../shared/types';
 
 const getClientSnapshot = async (client: ClientDocument) => {
@@ -217,32 +218,54 @@ export const mergeClients = async (
 
   await assertUniqueClientPhones(payload.phones, [targetClientId, sourceClientId]);
 
-  const deletedSource = await Client.findByIdAndDelete(sourceClientId).lean<ClientDocument | null>();
-  if (!deletedSource) {
-    throw new Error('Failed to delete source client.');
-  }
+  return withOptionalMongoSession(async (session) => {
+    const deleteQuery = Client.findByIdAndDelete(sourceClientId);
+    const deletedSource = await (session
+      ? deleteQuery.session(session)
+      : deleteQuery
+    ).lean<ClientDocument | null>();
+    if (!deletedSource) {
+      throw new Error('Failed to delete source client.');
+    }
 
-  const updatedTarget = await Client.findByIdAndUpdate(targetClientId, payload, {
-    returnDocument: 'after',
-    runValidators: true,
-  }).lean<ClientDocument | null>();
-  if (!updatedTarget) {
-    throw new Error('Failed to update target client.');
-  }
+    const updateQuery = Client.findByIdAndUpdate(targetClientId, payload, {
+      returnDocument: 'after',
+      runValidators: true,
+    });
+    const updatedTarget = await (session
+      ? updateQuery.session(session)
+      : updateQuery
+    ).lean<ClientDocument | null>();
+    if (!updatedTarget) {
+      throw new Error('Failed to update target client.');
+    }
 
-  const movedSalesResult = await Sale.updateMany(
-    { client: sourceClient._id },
-    {
-      $set: {
-        client: updatedTarget._id,
-        clientSnapshot: getClientSnapshot(updatedTarget),
-      },
-    },
-  );
+    const clientSnapshot = await getClientSnapshot(updatedTarget);
+    const movedSalesResult = session
+      ? await Sale.updateMany(
+          { client: sourceClient._id },
+          {
+            $set: {
+              client: updatedTarget._id,
+              clientSnapshot,
+            },
+          },
+          { session },
+        )
+      : await Sale.updateMany(
+          { client: sourceClient._id },
+          {
+            $set: {
+              client: updatedTarget._id,
+              clientSnapshot,
+            },
+          },
+        );
 
-  return {
-    client: formatClient(updatedTarget),
-    removedClientId: sourceClientId,
-    movedSalesCount: movedSalesResult.modifiedCount ?? 0,
-  };
+    return {
+      client: formatClient(updatedTarget),
+      removedClientId: sourceClientId,
+      movedSalesCount: movedSalesResult.modifiedCount ?? 0,
+    };
+  });
 };

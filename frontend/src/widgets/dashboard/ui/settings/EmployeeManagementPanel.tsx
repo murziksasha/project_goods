@@ -9,6 +9,8 @@ import {
   defaultEmployeePermissionsByRole,
   employeeRoleOptions,
 } from '../../../../entities/employee/model/types';
+import { Modal } from '../../../../shared/ui/Modal';
+import { Button } from '../../../../shared/ui/Button';
 
 const permissionGroups: Array<{
   titleKey: string;
@@ -363,26 +365,34 @@ export const EmployeeManagementPanel = ({
       </button>
 
       {employeeToDelete ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="payment-modal payment-modal-message" role="dialog" aria-modal="true">
-            <div className="payment-modal-summary">
-              <h3>{t('employees.deleteModal.title')}</h3>
-              <p>
-                {t('employees.deleteModal.message', { name: employeeToDelete.name })}
-              </p>
-            </div>
+        <Modal
+          isOpen
+          title={t('employees.deleteModal.title')}
+          onClose={() => setEmployeeToDelete(null)}
+          closeLabel={t('common.close')}
+          shellClassName="payment-modal payment-modal-message modal-dialog"
+          footer={
             <footer className="payment-modal-footer">
               <div className="payment-modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setEmployeeToDelete(null)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setEmployeeToDelete(null)}
+                >
                   {t('common.cancel')}
-                </button>
-                <button type="button" className="danger-button" onClick={confirmDelete}>
+                </Button>
+                <Button variant="danger" onClick={confirmDelete}>
                   {t('common.delete')}
-                </button>
+                </Button>
               </div>
             </footer>
-          </section>
-        </div>
+          }
+        >
+          <p>
+            {t('employees.deleteModal.message', {
+              name: employeeToDelete.name,
+            })}
+          </p>
+        </Modal>
       ) : null}
     </section>
   );

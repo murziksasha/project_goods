@@ -44,15 +44,13 @@ export {
   type DashboardLocation,
 } from './dashboard-navigation';
 
-export const getPageFromUrl = (): PageKey => {
-  const page = new URLSearchParams(window.location.search).get(
-    'page',
-  );
+export const getPageFromUrlOrNull = (): PageKey | null => {
+  const page = new URLSearchParams(window.location.search).get('page');
 
-  return pageKeys.includes(page as PageKey)
-    ? (page as PageKey)
-    : 'home';
+  return pageKeys.includes(page as PageKey) ? (page as PageKey) : null;
 };
+
+export const getPageFromUrl = (): PageKey => getPageFromUrlOrNull() ?? 'home';
 
 export const getOrdersTabFromUrl = (): OrdersTab | null => {
   const tab = new URLSearchParams(window.location.search).get(

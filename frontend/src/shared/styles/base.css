@@ -1,28 +1,200 @@
 :root {
   --bg-app: #d7dde5;
   --bg-panel: #f4f6f9;
+  --bg-panel-muted: #eef2f6;
+  --bg-panel-elevated: #f7f9fb;
+  --bg-workspace: #f1f4f8;
+  --bg-surface-subtle: #f8fafc;
   --bg-card: #ffffff;
   --bg-sidebar: #24364a;
   --bg-sidebar-soft: #2e4359;
+  --bg-zebra: #f7f7f7;
+  --bg-input: #ffffff;
+  --bg-shell-from: #d4dae2;
+  --bg-shell-to: #dce2ea;
+  --bg-soft-primary: #eef6ff;
+  --bg-soft-primary-strong: #e9f3ff;
+  --bg-soft-success: #edf8f2;
+  --bg-soft-danger: #fff0f1;
+  --bg-soft-warning: #fff8e7;
+  --bg-soft-info: #e8f1ff;
+  --bg-soft-muted: #edf2f7;
+  --bg-button-secondary: #e5edf8;
+  --bg-button-ghost: #eaf0f7;
+  --bg-button-secondary-hover: #dcecff;
   --text-main: #2b3b4f;
   --text-soft: #667992;
+  --text-button-secondary: #41566d;
+  --text-button-ghost: #4f6279;
+  --text-on-warning: #92400e;
+  --color-on-accent: #ffffff;
   --accent-blue: #2d8ae3;
   --accent-cyan: #18b8b0;
   --line-soft: #d4dbe5;
   --shadow-soft: 0 14px 34px rgba(21, 39, 59, 0.12);
-  font-family: 'Bahnschrift', 'Trebuchet MS', 'Segoe UI', sans-serif;
+
+  --color-primary: #2d8ae3;
+  --color-primary-hover: #0f6fc6;
+  --color-primary-strong: #226db5;
+  --color-danger: #dc3545;
+  --color-danger-soft: #991b1b;
+  --color-success: #10b981;
+  --color-success-strong: #16a34a;
+  --color-success-accent: #00a98f;
+  --color-warning: #f59e0b;
+  --color-warning-strong: #d97706;
+  --color-info: #3b82f6;
+  --color-muted: #6b7280;
+
+  --color-text-heading: #3f5268;
+  --color-text-label: #53677d;
+  --color-text-body: #4d637a;
+  --color-text-body-strong: #38506b;
+  --color-line: #d4dbe5;
+  --color-line-strong: #dbe3ee;
+  --color-line-panel: #cfd8e3;
+  --color-line-section: #d7dfe8;
+  --color-line-input: #cbd5e1;
+
+  --radius-panel: 10px;
+  --radius-control: 7px;
+  --radius-badge: 12px;
+  --sidebar-width: 250px;
+  --sidebar-width-collapsed: 78px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --text-xs: 0.76rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --font-ui: 'Bahnschrift', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --font-display: 'Cambria', 'Palatino Linotype', serif;
+  --focus-ring: 0 0 0 3px rgba(45, 138, 227, 0.28);
+
+  --status-new: #6b7280;
+  --status-vip: #f59e0b;
+  --status-opt: #10b981;
+  --status-blacklist: #ef4444;
+  --status-ok: #3b82f6;
+  --status-gray: #6b7280;
+
+  font-family: var(--font-ui);
   line-height: 1.5;
   font-weight: 400;
   color: var(--text-main);
   background: var(--bg-app);
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark theme — color tokens only (layout/spacing/radius unchanged) */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-app: #0f172a;
+  --bg-panel: #1a2436;
+  --bg-panel-muted: #152033;
+  --bg-panel-elevated: #1e2a3d;
+  --bg-workspace: #111827;
+  --bg-surface-subtle: #1a2332;
+  --bg-card: #1e293b;
+  --bg-sidebar: #0b1220;
+  --bg-sidebar-soft: #152033;
+  --bg-zebra: #162032;
+  --bg-input: #152033;
+  --bg-shell-from: #0f172a;
+  --bg-shell-to: #111827;
+  --bg-soft-primary: rgba(59, 154, 239, 0.14);
+  --bg-soft-primary-strong: rgba(59, 154, 239, 0.2);
+  --bg-soft-success: rgba(52, 211, 153, 0.14);
+  --bg-soft-danger: rgba(248, 113, 113, 0.14);
+  --bg-soft-warning: rgba(251, 191, 36, 0.14);
+  --bg-soft-info: rgba(96, 165, 250, 0.14);
+  --bg-soft-muted: rgba(148, 163, 184, 0.12);
+  --bg-button-secondary: #243247;
+  --bg-button-ghost: #1e2a3d;
+  --bg-button-secondary-hover: #2a3a52;
+  --text-main: #e2e8f0;
+  --text-soft: #94a3b8;
+  --text-button-secondary: #cbd5e1;
+  --text-button-ghost: #cbd5e1;
+  --text-on-warning: #fde68a;
+  --color-on-accent: #ffffff;
+  --accent-blue: #3b9aef;
+  --accent-cyan: #2dd4bf;
+  --line-soft: #334155;
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.45);
+
+  --color-primary: #3b9aef;
+  --color-primary-hover: #60b0f5;
+  --color-primary-strong: #2d8ae3;
+  --color-danger: #f87171;
+  --color-danger-soft: #fca5a5;
+  --color-success: #34d399;
+  --color-success-strong: #22c55e;
+  --color-success-accent: #2dd4bf;
+  --color-warning: #fbbf24;
+  --color-warning-strong: #f59e0b;
+  --color-info: #60a5fa;
+  --color-muted: #94a3b8;
+
+  --color-text-heading: #e2e8f0;
+  --color-text-label: #94a3b8;
+  --color-text-body: #cbd5e1;
+  --color-text-body-strong: #e2e8f0;
+  --color-line: #334155;
+  --color-line-strong: #3f4f63;
+  --color-line-panel: #3b4a5f;
+  --color-line-section: #334155;
+  --color-line-input: #475569;
+
+  --focus-ring: 0 0 0 3px rgba(59, 154, 239, 0.35);
+
+  --status-new: #94a3b8;
+  --status-vip: #fbbf24;
+  --status-opt: #34d399;
+  --status-blacklist: #f87171;
+  --status-ok: #60a5fa;
+  --status-gray: #94a3b8;
+
+  color: var(--text-main);
+  background: var(--bg-app);
+}
+
 * {
   box-sizing: border-box;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 html {
@@ -51,8 +223,8 @@ textarea {
 h1,
 h2,
 h3 {
-  font-family: 'Cambria', 'Palatino Linotype', serif;
-  color: #3f5268;
+  font-family: var(--font-display);
+  color: var(--color-text-heading);
 }
 
 p {
@@ -72,33 +244,33 @@ p {
 }
 
 .status-new {
-  background-color: #6B7280;
-  color: white;
+  background-color: var(--status-new);
+  color: var(--color-on-accent);
 }
 
 .status-vip {
-  background-color: #F59E0B;
-  color: white;
+  background-color: var(--status-vip);
+  color: var(--color-on-accent);
 }
 
 .status-opt {
-  background-color: #10B981;
-  color: white;
+  background-color: var(--status-opt);
+  color: var(--color-on-accent);
 }
 
 .status-blacklist {
-  background-color: #EF4444;
-  color: white;
+  background-color: var(--status-blacklist);
+  color: var(--color-on-accent);
 }
 
 .status-ok {
-  background-color: #3B82F6;
-  color: white;
+  background-color: var(--status-ok);
+  color: var(--color-on-accent);
 }
 
 .status-gray {
-  background-color: #6B7280;
-  color: white;
+  background-color: var(--status-gray);
+  color: var(--color-on-accent);
 }
 
 .language-switcher {
@@ -111,7 +283,7 @@ p {
 .lang-btn {
   font-size: 11px;
   padding: 1px 5px;
-  border: 1px solid #9ca3af;
+  border: 1px solid var(--color-line-panel, #9ca3af);
   background: transparent;
   cursor: pointer;
   border-radius: 2px;
@@ -121,7 +293,7 @@ p {
 
 .lang-btn-active,
 .lang-btn:hover {
-  background: #2563eb;
+  background: var(--color-primary, #2563eb);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--color-primary, #2563eb);
 }

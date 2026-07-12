@@ -18,6 +18,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BUILD_SHA: ${GIT_SHA:-dev}
     container_name: project_goods_backend
     restart: unless-stopped
     depends_on:
@@ -25,9 +27,19 @@ services:
         condition: service_healthy
     environment:
       PORT: 5000
+      NODE_ENV: production
+      BUILD_SHA: ${GIT_SHA:-dev}
       MONGO_URI: mongodb://mongo:27017/inventory?replicaSet=rs0
       CLIENT_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,http://192.168.10.55:5173
       BACKUP_DIR: /app/backups
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     volumes:
       - backup-data:/app/backups
 
@@ -40,7 +52,8 @@ services:
     container_name: project_goods_frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       API_PROXY_TARGET: http://backend:5000
     ports:

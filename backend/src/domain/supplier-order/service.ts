@@ -1,7 +1,9 @@
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
+import { HttpError } from '../../shared/lib/errors';
 import { toNonEmptyString, toNumber, toOptionalDate } from '../../shared/lib/parsers';
 import { Supplier } from '../supplier/model';
 import { createFinanceTransaction } from '../finance/service';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
 import { Product } from '../product/model';
 import { CatalogProduct } from '../catalog-product/model';
 import { WarehouseSettings } from '../warehouse-settings/model';
@@ -75,12 +77,42 @@ const applyResolvedStatusFromItems = (
   }
 };
 
+const loadSupplierNameMap = async (orders: SupplierOrderDocument[]) => {
+  const supplierIds = Array.from(
+    new Set(
+      orders
+        .map((order) => order.supplier?.toString?.() ?? String(order.supplier ?? ''))
+        .filter(Boolean),
+    ),
+  );
+  if (supplierIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const suppliers = await Supplier.find({ _id: { $in: supplierIds } })
+    .select({ name: 1 })
+    .lean<Array<{ _id: { toString: () => string }; name?: string }>>();
+
+  return new Map(
+    suppliers.map((supplier) => [supplier._id.toString(), supplier.name ?? 'Не обрано']),
+  );
+};
+
+const formatOrdersWithSupplierNames = async (orders: SupplierOrderDocument[]) => {
+  const names = await loadSupplierNameMap(orders);
+  return orders.map((order) =>
+    formatSupplierOrder({
+      ...order,
+      supplierName:
+        names.get(order.supplier?.toString?.() ?? String(order.supplier ?? '')) ??
+        'Не обрано',
+    }),
+  );
+};
+
 const withSupplierName = async (order: SupplierOrderDocument) => {
-  const supplier = await Supplier.findById(order.supplier).lean();
-  return formatSupplierOrder({
-    ...order,
-    supplierName: supplier?.name ?? 'Не обрано',
-  });
+  const [formatted] = await formatOrdersWithSupplierNames([order]);
+  return formatted!;
 };
 
 const autoMarkZeroTotalOrdersWithoutPayment = async () => {
@@ -145,13 +177,19 @@ export const autoMarkOverdueSupplierOrders = async (
   );
 };
 
-export const listSupplierOrders = async (queryValue: unknown) => {
+/** Derived status jobs — not on list GET (read path stays read-only). */
+export const refreshSupplierOrderDerivedStatuses = async (now: Date = new Date()) => {
   await autoMarkZeroTotalOrdersWithoutPayment();
   await reconcileSupplierOrderStatuses();
-  await autoMarkOverdueSupplierOrders();
+  await autoMarkOverdueSupplierOrders(now);
+};
+
+export const listSupplierOrders = async (queryValue: unknown) => {
   const query = getSearchQuery(queryValue);
-  const orders = await SupplierOrder.find(query).sort({ createdAt: -1 }).lean<SupplierOrderDocument[]>();
-  return Promise.all(orders.map((order) => withSupplierName(order)));
+  const orders = await SupplierOrder.find(query)
+    .sort({ createdAt: -1 })
+    .lean<SupplierOrderDocument[]>();
+  return formatOrdersWithSupplierNames(orders);
 };
 
 export const createSupplierOrder = async (payload: SupplierOrderPayload) => {
@@ -175,6 +213,7 @@ export const createSupplierOrder = async (payload: SupplierOrderPayload) => {
   if (order.items.length === 0) throw new Error('At least one product item is required.');
   await order.validate();
   await order.save();
+  await autoMarkZeroTotalOrdersWithoutPayment();
   return withSupplierName(order.toObject<SupplierOrderDocument>());
 };
 
@@ -239,6 +278,7 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   }
   await existing.validate();
   await existing.save();
+  await autoMarkZeroTotalOrdersWithoutPayment();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };
 
@@ -257,7 +297,6 @@ export const updateSupplierOrderFavorite = async (
 };
 
 export const listSupplierOrdersForAccounting = async () => {
-  await autoMarkZeroTotalOrdersWithoutPayment();
   const orders = await SupplierOrder.find({
     status: {
       $in: [
@@ -274,20 +313,16 @@ export const listSupplierOrdersForAccounting = async () => {
     .sort({ createdAt: -1 })
     .lean<SupplierOrderDocument[]>();
 
-  return Promise.all(
-    orders.map(async (order) => {
-      const withName = await withSupplierName(order);
-      return {
-        id: withName.id,
-        orderBaseId: withName.orderBaseId,
-        number: withName.number,
-        supplierName: withName.supplierName,
-        deliveryDate: withName.deliveryDate,
-        total: withName.total,
-        createdAt: withName.createdAt,
-      };
-    }),
-  );
+  const withNames = await formatOrdersWithSupplierNames(orders);
+  return withNames.map((order) => ({
+    id: order.id,
+    orderBaseId: order.orderBaseId,
+    number: order.number,
+    supplierName: order.supplierName,
+    deliveryDate: order.deliveryDate,
+    total: order.total,
+    createdAt: order.createdAt,
+  }));
 };
 
 export const paySupplierOrder = async (
@@ -295,42 +330,58 @@ export const paySupplierOrder = async (
   payload: { cashboxId?: unknown; note?: unknown; transactionDate?: unknown },
 ) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
-  const existing = await SupplierOrder.findById(supplierOrderId);
-  if (!existing) throw new Error('Supplier order not found.');
-  if (existing.paymentStatus === 'paid') throw new Error('Замовлення вже сплачено.');
-  if (existing.paymentStatus === 'without_payment') throw new Error('Замовлення вже видано без оплати.');
-  if (
-    existing.status !== 'approved' &&
-    existing.status !== 'overdue' &&
-    existing.status !== 'stocked' &&
-    existing.status !== 'partially_stocked' &&
-    existing.status !== 'partially_completed'
-  ) {
-    throw new Error('Оплата доступна тільки для замовлень зі статусом approved або stocked.');
-  }
-
   const cashboxId = toNonEmptyString(payload.cashboxId);
   isValidObjectIdOrThrow(cashboxId, 'cashboxId');
 
-  await createFinanceTransaction({
-    type: 'withdraw',
-    amount: existing.total,
-    currency: 'UAH',
-    fromCashboxId: cashboxId,
-    toCashboxId: '',
-    note:
-      toNonEmptyString(payload.note) ||
-      `Supplier order payment: ${getSupplierOrderDisplayNumber(existing)}`,
-    transactionDate: payload.transactionDate,
+  const paidOrder = await withOptionalMongoSession(async (session) => {
+    const existing = session
+      ? await SupplierOrder.findById(supplierOrderId).session(session)
+      : await SupplierOrder.findById(supplierOrderId);
+    if (!existing) throw new HttpError(404, 'Supplier order not found.');
+    if (existing.paymentStatus === 'paid') {
+      throw new HttpError(409, 'Замовлення вже сплачено.');
+    }
+    if (existing.paymentStatus === 'without_payment') {
+      throw new HttpError(409, 'Замовлення вже видано без оплати.');
+    }
+    if (
+      existing.status !== 'approved' &&
+      existing.status !== 'overdue' &&
+      existing.status !== 'stocked' &&
+      existing.status !== 'partially_stocked' &&
+      existing.status !== 'partially_completed'
+    ) {
+      throw new HttpError(
+        400,
+        'Оплата доступна тільки для замовлень зі статусом approved або stocked.',
+      );
+    }
+
+    await createFinanceTransaction(
+      {
+        type: 'withdraw',
+        amount: existing.total,
+        currency: 'UAH',
+        fromCashboxId: cashboxId,
+        toCashboxId: '',
+        note:
+          toNonEmptyString(payload.note) ||
+          `Supplier order payment: ${getSupplierOrderDisplayNumber(existing)}`,
+        transactionDate: payload.transactionDate,
+      },
+      { session },
+    );
+
+    existing.paymentStatus = 'paid';
+    existing.receiptStatus =
+      existing.receiptStatus === 'new' ? 'approved' : existing.receiptStatus;
+    existing.paid = existing.total;
+    await existing.validate();
+    await existing.save({ session });
+    return existing.toObject<SupplierOrderDocument>();
   });
 
-  existing.paymentStatus = 'paid';
-  existing.receiptStatus = existing.receiptStatus === 'new' ? 'approved' : existing.receiptStatus;
-  await existing.validate();
-  existing.paid = existing.total;
-  await existing.save();
-
-  return withSupplierName(existing.toObject<SupplierOrderDocument>());
+  return withSupplierName(paidOrder);
 };
 
 export const issueSupplierOrderWithoutPayment = async (
@@ -438,6 +489,7 @@ export const cancelSupplierOrderItem = async (
   applyResolvedStatusFromItems(existing);
   await existing.validate();
   await existing.save();
+  await autoMarkZeroTotalOrdersWithoutPayment();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
 };
 
@@ -617,6 +669,7 @@ export const takeOnChargeSupplierOrder = async (
   }
   await existing.validate();
   await existing.save();
+  await autoMarkZeroTotalOrdersWithoutPayment();
   return {
     ...(await withSupplierName(existing.toObject<SupplierOrderDocument>())),
     stockedProducts,

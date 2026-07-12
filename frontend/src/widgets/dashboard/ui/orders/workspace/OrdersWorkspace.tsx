@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../../shared/i18n/config';
 import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
@@ -35,22 +34,20 @@ import {
   updateSaleFavorite,
   updateSaleWorkspace,
 } from '../../../../../entities/sale/api/saleApi';
-import { getSupplierOrders } from '../../../../../entities/supplier-order/api/supplierOrderApi';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import {
+  invalidateSupplierOrderQueries,
+  useSupplierOrdersQuery,
+} from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
-import {
-  CompactPaginationPanel,
-  PaginationPanel,
-} from '../../../../../shared/ui/PaginationPanel';
+import { OrdersActiveFilterChips } from './OrdersActiveFilterChips';
+import { OrdersWorkspaceFilterPanel } from './OrdersWorkspaceFilterPanel';
+import { OrdersWorkspaceListHeader } from './OrdersWorkspaceListHeader';
+import { OrdersWorkspaceModals } from './OrdersWorkspaceModals';
+import { OrdersWorkspaceTableSection } from './OrdersWorkspaceTableSection';
 import { TruncatedTextTooltip } from '../../../../../shared/ui/TruncatedTextTooltip';
-import {
-  MessageModal,
-  PaymentModal,
-  RefundModal,
-  ReturnLineItemModal,
-  ReturnSaleModal,
-} from '../modals/OrderPaymentModals';
+
 import { OrderDetailCard } from '../order-detail/OrderDetailCard';
+import { OrderDetailCardSkeleton } from '../order-detail/OrderDetailCardSkeleton';
 import { getOrderLink } from '../create-order/create-order-card-shared';
 import {
   canRemoveLineItemAfterPayment,
@@ -72,7 +69,7 @@ import {
   emptyOrdersFilters,
   filterIconOptions,
   formatReadyDate,
-  getColumnLabel,
+
   getCreatedTime,
   getDefaultLineItems,
   getDiscount,
@@ -80,10 +77,9 @@ import {
   getLatestDepositPaymentMethod,
   getLineItemRefundableAmount,
   getLineItemsTotal,
-  getOrderBaseTotal,
+
   getOrderTotal,
-  getOrdersColumnClassName,
-  getOrdersSearchPlaceholder,
+
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
   getPrimaryItemCellContent,
@@ -98,13 +94,13 @@ import {
   buildUpdatedMainInfoTimelineMessage,
   buildUpdatedUserNoteTimelineMessage,
   getStatusLabel,
-  getStatusOptionsForSale,
+
   getWarehouseLabel,
   hasNonCashPayment,
   hasSaleReturnObligations,
   isOrderEditableStatus,
   isClosingStatus,
-  isIssueWithoutPaymentBlockedForSale,
+
   isIsoDateWithinRange,
   isPlainLeftClick,
   isRepairDevicePlaceholderLineItem,
@@ -114,7 +110,7 @@ import {
   lockedColumnsByTab,
   computeOrderStatusMenuPosition,
   normalizeOrderStatus,
-  orderTabs,
+
   type OrderStatusMenuPosition,
   ordersColumnsStorageKey,
   readActiveOrderFilters,
@@ -139,11 +135,10 @@ import {
   type PaymentMethod,
   type PaymentTargetStatus,
   type RepairStatus,
-  type RepairTypeFilter,
   type SavedOrdersFilter,
   type TimelineEntry,
 } from './orders-workspace-shared';
-import { OrderPrintDialog } from '../modals/OrderPrintDialog';
+
 import { PhoneNumber } from '../../shared/PhoneNumber';
 
 const isSaleResponse = (value: unknown): value is Sale => {
@@ -301,9 +296,6 @@ export const OrdersWorkspace = ({
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
-  const [supplierOrders, setSupplierOrders] = useState<
-    SupplierOrder[]
-  >([]);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const canManageSavedFilters = Boolean(currentEmployee?.id);
@@ -589,22 +581,27 @@ export const OrdersWorkspace = ({
     return filteredOrders.slice(start, start + currentPageSize);
   }, [currentPage, currentPageSize, filteredOrders]);
 
-  const loadSupplierOrders = useCallback(async () => {
-    if (!canViewSupplierOrders) {
-      setSupplierOrders([]);
-      return;
-    }
+  const selectedSale = useMemo(
+    () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
+    [sales, selectedSaleId],
+  );
+  const shouldLoadSupplierOrders =
+    canViewSupplierOrders && Boolean(selectedSale);
+  const supplierOrdersQuery = useSupplierOrdersQuery(shouldLoadSupplierOrders);
+  const supplierOrders = supplierOrdersQuery.data ?? [];
 
-    try {
-      setSupplierOrders(await getSupplierOrders(''));
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : t('orders.messages.errors.failedLoadSupplierOrders'),
-      );
-    }
-  }, [canViewSupplierOrders, onError, t]);
+  useEffect(() => {
+    if (!supplierOrdersQuery.error) return;
+    onError(
+      supplierOrdersQuery.error instanceof Error
+        ? supplierOrdersQuery.error.message
+        : t('orders.messages.errors.failedLoadSupplierOrders'),
+    );
+  }, [onError, supplierOrdersQuery.error, t]);
+
+  const refreshSupplierOrders = useCallback(async () => {
+    await invalidateSupplierOrderQueries();
+  }, []);
 
   useEffect(() => {
     const sanitizeFilters = (current: OrdersFilters) => {
@@ -715,6 +712,21 @@ export const OrdersWorkspace = ({
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
     setIsStatusFilterOpen(false);
   };
+
+  const applyFiltersPatch = (nextFilters: OrdersFilters) => {
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setStoredActiveFilters((current) => ({
+      ...current,
+      [activeTab]: nextFilters,
+    }));
+    setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+  };
+
+  const assigneeLabelById = useMemo(
+    () => new Map(assigneeOptions.map((item) => [item.id, item.label])),
+    [assigneeOptions],
+  );
   const saveCurrentFilter = () => {
     if (!currentEmployee?.id) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
@@ -952,15 +964,6 @@ export const OrdersWorkspace = ({
     };
   }, [activeTab, openStatusSaleId]);
 
-  const selectedSale = useMemo(
-    () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
-    [sales, selectedSaleId],
-  );
-
-  useEffect(() => {
-    if (!selectedSale || !canViewSupplierOrders) return;
-    void loadSupplierOrders();
-  }, [canViewSupplierOrders, loadSupplierOrders, selectedSale]);
   const getLineItems = (sale: Sale) => {
     const sourceItems = Array.isArray(sale.lineItems)
       ? sale.lineItems
@@ -1060,7 +1063,7 @@ export const OrdersWorkspace = ({
   const getStatus = (sale: Sale): OrderStatus =>
     normalizeOrderStatus(sale.status);
 
-  const getStatusOptions = getStatusOptionsForSale;
+
 
   const getOrderRemainingPayment = (sale: Sale) =>
     getRemainingPayment(
@@ -2329,8 +2332,9 @@ export const OrdersWorkspace = ({
   ) => {
     try {
       if (isRepairStatusChangeLockedByStock(sale, payload.status)) {
-        onError(getStockLockedRepairStatusMessage());
-        return;
+        const message = getStockLockedRepairStatusMessage();
+        onError(message);
+        throw new Error(message);
       }
       const lineItems = getLineItems(sale);
       if (
@@ -2339,10 +2343,9 @@ export const OrdersWorkspace = ({
         lineItems.some((item) => item.kind === 'product') &&
         getRemainingPayment(sale, getPaidAmount(sale), lineItems) > 0
       ) {
-        onError(
-          t('orders.messages.errors.fullPaymentBeforeIssue'),
-        );
-        return;
+        const message = t('orders.messages.errors.fullPaymentBeforeIssue');
+        onError(message);
+        throw new Error(message);
       }
       if (
         !isRepairOrder(sale) &&
@@ -2352,9 +2355,9 @@ export const OrdersWorkspace = ({
         if (lineItems.some((item) => item.kind === 'product')) {
           await openReturnSaleModal(sale);
         } else {
-          onError(
-            t('orders.messages.errors.refundBeforeReturned'),
-          );
+          const message = t('orders.messages.errors.refundBeforeReturned');
+          onError(message);
+          throw new Error(message);
         }
         return;
       }
@@ -2383,11 +2386,12 @@ export const OrdersWorkspace = ({
 
       onSuccess(t('orders.messages.success.mainInfoUpdated'));
     } catch (error) {
-      onError(
+      const message =
         error instanceof Error
           ? error.message
-          : t('orders.messages.errors.failedSaveMainInfo'),
-      );
+          : t('orders.messages.errors.failedSaveMainInfo');
+      onError(message);
+      throw error instanceof Error ? error : new Error(message);
     }
   };
 
@@ -2421,6 +2425,11 @@ export const OrdersWorkspace = ({
 
   return (
     <section className='orders-page'>
+      {selectedSaleId && !selectedSale ? (
+        <div ref={orderDetailAnchorRef}>
+          <OrderDetailCardSkeleton />
+        </div>
+      ) : null}
       {selectedSale ? (
         <div ref={orderDetailAnchorRef}>
           <OrderDetailCard
@@ -2499,7 +2508,7 @@ export const OrdersWorkspace = ({
             onOpenClientCard={() =>
               onOpenClientCard(selectedSale.client.id)
             }
-            onSupplierOrderCreated={loadSupplierOrders}
+            onSupplierOrderCreated={refreshSupplierOrders}
             onCreateClientDevice={onCreateClientDevice}
             onUpdateClientDevice={onUpdateClientDevice}
             onDeleteClientDevice={onDeleteClientDevice}
@@ -2516,636 +2525,88 @@ export const OrdersWorkspace = ({
         </div>
       ) : null}
 
-      <div
-        className='orders-tabs'
-        role='tablist'
-        aria-label={t('orders.toolbar.orderCategories')}
-      >
-        {orderTabs
-          .filter((tab) => visibleTabs.includes(tab.key))
-          .map((tab) => (
-            <button
-              key={tab.key}
-              type='button'
-              className={
-                tab.key === activeTab
-                  ? 'orders-tab orders-tab-active'
-                  : 'orders-tab'
-              }
-              onClick={() => onActiveTabChange(tab.key)}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-      </div>
-
-      <div className='orders-toolbar'>
-        <div className='orders-toolbar-left'>
-          <CompactPaginationPanel
-            totalItems={filteredOrders.length}
-            page={currentPage}
-            pageSize={currentPageSize}
-            onPageChange={(page) =>
-              setPageByTab((current) => ({
-                ...current,
-                [activeTab]: page,
-              }))
-            }
-          />
-          <button
-            type='button'
-            className='toolbar-filter-button toolbar-filter-toggle-button'
-            aria-expanded={isFilterPanelOpen}
-            onClick={toggleFilterPanel}
-          >
-            {t('orders.toolbar.filter')}
-            {activeFiltersCount > 0 ? (
-              <span className='toolbar-filter-count'>
-                {activeFiltersCount}
-              </span>
-            ) : null}
-          </button>
-          <div className='toolbar-settings' ref={columnsMenuRef}>
-            <button
-              type='button'
-              className='toolbar-square-button'
-              aria-label={t('orders.toolbar.toggleColumns')}
-              aria-expanded={isColumnsMenuOpen}
-              onClick={() =>
-                setIsColumnsMenuOpen((current) => !current)
-              }
-            >
-              <svg
-                xmlns='http://www.w3.org/2000/svg'
-                viewBox='0 0 24 24'
-                className='toolbar-square-button-icon'
-                fill='currentColor'
-              >
-                <path d='M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.38 2.65c-.63.25-1.21.57-1.75.95l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.33.68.22l2.49-1c.54.38 1.12.7 1.75.95l.38 2.65c.04.27.26.47.49.47h4c.27 0 .5-.2.54-.47l.38-2.65c.63-.25 1.21-.57 1.75-.95l2.49 1c.26.11.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z' />
-              </svg>
-            </button>
-            {isColumnsMenuOpen ? (
-              <div className='toolbar-settings-menu'>
-                {availableColumnsByTab[activeTab].map((columnKey) => (
-                  <label
-                    key={`${activeTab}-${columnKey}`}
-                    className='toolbar-settings-option'
-                  >
-                    <input
-                      type='checkbox'
-                      checked={visibleColumnKeys.includes(columnKey)}
-                      disabled={lockedColumnsByTab[
-                        activeTab
-                      ].includes(columnKey)}
-                      onChange={() =>
-                        toggleColumnVisibility(columnKey)
-                      }
-                    />
-                    <span>
-                      {getColumnLabel(columnKey, activeTab)}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <button
-            type='button'
-            className={
-              appliedFilters.favoritesOnly
-                ? 'toolbar-square-button toolbar-star-button toolbar-star-button-active'
-                : 'toolbar-square-button toolbar-star-button'
-            }
-            aria-label={
-              appliedFilters.favoritesOnly
-                ? activeTab === 'orders'
-                  ? t('orders.toolbar.showAllOrders')
-                  : t('orders.toolbar.showAllSales')
-                : activeTab === 'orders'
-                  ? t('orders.toolbar.showStarredOrders')
-                  : t('orders.toolbar.showStarredSales')
-            }
-            aria-pressed={appliedFilters.favoritesOnly}
-            onClick={toggleFavoritesOnly}
-          >
-            <span className='supplier-order-star-icon' aria-hidden='true'>
-              {appliedFilters.favoritesOnly ? '★' : '☆'}
-            </span>
-          </button>
-          <div className='orders-search-group orders-search-group-clearable'>
-            <input
-              value={searchValue}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={getOrdersSearchPlaceholder(activeTab)}
-              aria-label={t('orders.toolbar.searchOrders')}
-            />
-            {searchValue ? (
-              <span
-                role='button'
-                tabIndex={0}
-                className='orders-search-clear'
-                aria-label={t('orders.toolbar.clearSearch')}
-                onClick={() => onSearchChange('')}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onSearchChange('');
-                  }
-                }}
-              >
-                x
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className='orders-toolbar-actions'>
-          <a
-            className={
-              canCreateOrders
-                ? 'orders-create-button'
-                : 'orders-create-button orders-create-button-disabled'
-            }
-            href={canCreateOrders ? createOrderHref : '#'}
-            aria-disabled={!canCreateOrders}
-            tabIndex={canCreateOrders ? undefined : -1}
-            onClick={(event) => {
-              if (!canCreateOrders) {
-                event.preventDefault();
-                return;
-              }
-
-              if (!isPlainLeftClick(event)) return;
-              event.preventDefault();
-              onCreateOrder(activeTab);
-            }}
-            title={
-              canCreateOrders
-                ? t('orders.toolbar.createOrder')
-                : t('orders.toolbar.createOrderDenied')
-            }
-          >
-            {t('orders.toolbar.createOrder')}
-          </a>
-        </div>
-      </div>
-
-      <section
-        className={
-          isFilterPanelOpen
-            ? 'orders-filter-panel orders-filter-panel-open'
-            : 'orders-filter-panel'
+      <OrdersWorkspaceListHeader
+        activeTab={activeTab}
+        visibleTabs={visibleTabs}
+        searchValue={searchValue}
+        createOrderHref={createOrderHref}
+        canCreateOrders={canCreateOrders}
+        filteredOrdersCount={filteredOrders.length}
+        currentPage={currentPage}
+        currentPageSize={currentPageSize}
+        activeFiltersCount={activeFiltersCount}
+        isFilterPanelOpen={isFilterPanelOpen}
+        isColumnsMenuOpen={isColumnsMenuOpen}
+        favoritesOnly={appliedFilters.favoritesOnly}
+        visibleColumnKeys={visibleColumnKeys}
+        columnsMenuRef={columnsMenuRef}
+        onActiveTabChange={onActiveTabChange}
+        onSearchChange={onSearchChange}
+        onCreateOrder={onCreateOrder}
+        onPageChange={(page) =>
+          setPageByTab((current) => ({
+            ...current,
+            [activeTab]: page,
+          }))
         }
-        aria-hidden={!isFilterPanelOpen}
-      >
-        <div className='orders-filter-saved-row'>
-          <p>{t('orders.filters.savedLabel')}</p>
-          <div className='orders-filter-saved-list'>
-            {visibleSavedFilters.length > 0 ? (
-              visibleSavedFilters.map((savedFilter) => (
-                <div
-                  key={savedFilter.id}
-                  className='orders-filter-saved-item'
-                >
-                  <button
-                    type='button'
-                    className='orders-filter-saved-button'
-                    onClick={() => applySavedFilter(savedFilter)}
-                    title={savedFilter.name}
-                  >
-                    <span>{savedFilter.icon}</span>
-                    <span>{savedFilter.name}</span>
-                  </button>
-                  <button
-                    type='button'
-                    className='orders-filter-delete-button'
-                    aria-label={t('orders.filters.deleteFilter', {
-                      name: savedFilter.name,
-                    })}
-                    onClick={() => removeSavedFilter(savedFilter.id)}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              ))
-            ) : (
-              <small>{t('orders.filters.noSaved')}</small>
-            )}
-          </div>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={() => setIsSaveFilterDrawerOpen(true)}
-            disabled={!canManageSavedFilters}
-            title={
-              canManageSavedFilters
-                ? t('orders.filters.saveFilter')
-                : t('orders.filters.saveFilterDenied')
-            }
-          >
-            {t('orders.filters.saveFilter')}
-          </button>
-        </div>
+        onToggleFilterPanel={toggleFilterPanel}
+        onToggleColumnsMenu={() =>
+          setIsColumnsMenuOpen((current) => !current)
+        }
+        onToggleColumnVisibility={toggleColumnVisibility}
+        onToggleFavoritesOnly={toggleFavoritesOnly}
+      />
 
-        <div className='orders-filter-grid'>
-          <div
-            className='orders-filter-field orders-filter-status-field'
-            ref={statusFilterRef}
-          >
-            <span>{t('orders.filters.status')}</span>
-            <button
-              type='button'
-              className='orders-filter-status-toggle'
-              aria-expanded={isStatusFilterOpen}
-              onClick={() =>
-                setIsStatusFilterOpen((current) => !current)
-              }
-            >
-              {draftFilters.statuses.length > 0
-                ? t('orders.filters.selectedCount', {
-                    count: draftFilters.statuses.length,
-                  })
-                : t('orders.filters.all')}
-            </button>
-            {isStatusFilterOpen ? (
-              <div className='orders-filter-status-menu'>
-                <label className='orders-filter-status-all'>
-                  <input
-                    type='checkbox'
-                    checked={
-                      draftFilters.statuses.length ===
-                      statusOptionsForActiveTab.length
-                    }
-                    onChange={toggleAllStatuses}
-                  />
-                  <strong>{t('orders.filters.all')}</strong>
-                </label>
-                {statusOptionsForActiveTab.map((statusOption) => (
-                  <label key={statusOption.key}>
-                    <input
-                      type='checkbox'
-                      checked={draftFilters.statuses.includes(
-                        statusOption.key,
-                      )}
-                      onChange={() =>
-                        toggleStatusFilter(statusOption.key)
-                      }
-                    />
-                    <span>{t(statusOption.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </div>
+      <OrdersWorkspaceFilterPanel
+        isFilterPanelOpen={isFilterPanelOpen}
+        isStatusFilterOpen={isStatusFilterOpen}
+        isSaveFilterDrawerOpen={isSaveFilterDrawerOpen}
+        canManageSavedFilters={canManageSavedFilters}
+        visibleSavedFilters={visibleSavedFilters}
+        employeeSavedFilters={employeeSavedFilters}
+        draftFilters={draftFilters}
+        statusOptionsForActiveTab={statusOptionsForActiveTab}
+        assigneeOptions={assigneeOptions}
+        warehouseOptions={warehouseOptions}
+        newFilterName={newFilterName}
+        newFilterIcon={newFilterIcon}
+        statusFilterRef={statusFilterRef}
+        setDraftFilters={setDraftFilters}
+        setIsStatusFilterOpen={setIsStatusFilterOpen}
+        setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
+        setNewFilterName={setNewFilterName}
+        setNewFilterIcon={setNewFilterIcon}
+        onToggleStatusFilter={toggleStatusFilter}
+        onToggleAllStatuses={toggleAllStatuses}
+        onApplyFilters={applyFilters}
+        onResetFilters={resetFilters}
+        onSaveCurrentFilter={saveCurrentFilter}
+        onApplySavedFilter={applySavedFilter}
+        onRemoveSavedFilter={removeSavedFilter}
+      />
 
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.orderNumber')}</span>
-            <input
-              type='text'
-              value={draftFilters.orderNumber}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  orderNumber: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.orderNumberPlaceholder')}
-            />
-          </label>
+      <OrdersActiveFilterChips
+        filters={appliedFilters}
+        assigneeLabelById={assigneeLabelById}
+        onChangeFilters={applyFiltersPatch}
+        onClearAll={resetFilters}
+      />
 
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.client')}</span>
-            <input
-              type='text'
-              value={draftFilters.client}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  client: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.clientPlaceholder')}
-            />
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.assignee')}</span>
-            <select
-              value={draftFilters.assigneeId}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  assigneeId: event.target.value,
-                }))
-              }
-            >
-              <option value=''>{t('orders.filters.all')}</option>
-              {assigneeOptions.map((assignee) => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.warehouse')}</span>
-            <select
-              value={draftFilters.warehouse}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  warehouse: event.target.value,
-                }))
-              }
-            >
-              <option value=''>{t('orders.filters.all')}</option>
-              {warehouseOptions.map((warehouse) => (
-                <option key={warehouse} value={warehouse}>
-                  {warehouse}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.repairType')}</span>
-            <select
-              value={draftFilters.repairType}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  repairType: event.target.value as RepairTypeFilter,
-                }))
-              }
-            >
-              <option value='all'>{t('orders.filters.all')}</option>
-              <option value='paid'>{t('orders.filters.repairTypePaid')}</option>
-              <option value='warranty'>
-                {t('orders.filters.repairTypeWarranty')}
-              </option>
-            </select>
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.dateFrom')}</span>
-            <input
-              type='date'
-              value={draftFilters.dateFrom}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  dateFrom: event.target.value,
-                }))
-              }
-            />
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.dateTo')}</span>
-            <input
-              type='date'
-              value={draftFilters.dateTo}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  dateTo: event.target.value,
-                }))
-              }
-            />
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.paymentMethod')}</span>
-            <select
-              value={draftFilters.paymentMethod}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  paymentMethod: event.target.value as
-                    | ''
-                    | PaymentMethod,
-                }))
-              }
-            >
-              <option value=''>{t('orders.filters.all')}</option>
-              <option value='cash'>{t('orders.filters.paymentCash')}</option>
-              <option value='non-cash'>
-                {t('orders.filters.paymentNonCash')}
-              </option>
-            </select>
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.product')}</span>
-            <input
-              type='text'
-              value={draftFilters.product}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  product: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.productPlaceholder')}
-            />
-          </label>
-
-          <label className='orders-filter-field'>
-            <span>{t('orders.filters.service')}</span>
-            <input
-              type='text'
-              value={draftFilters.service}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  service: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.servicePlaceholder')}
-            />
-          </label>
-        </div>
-
-        <div className='orders-filter-actions'>
-          <button
-            type='button'
-            className='toolbar-filter-button orders-filter-apply'
-            onClick={applyFilters}
-          >
-            {t('orders.filters.apply')}
-          </button>
-          <button
-            type='button'
-            className='toolbar-filter-button'
-            onClick={resetFilters}
-          >
-            {t('orders.filters.clear')}
-          </button>
-        </div>
-      </section>
-
-      {isSaveFilterDrawerOpen ? (
-        <div
-          className='orders-filter-drawer-backdrop'
-          onClick={() => setIsSaveFilterDrawerOpen(false)}
-        >
-          <aside
-            className='orders-filter-drawer'
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header>
-              <h3>{t('orders.filters.drawer.title')}</h3>
-              <button
-                type='button'
-                aria-label={t('orders.filters.drawer.close')}
-                onClick={() => setIsSaveFilterDrawerOpen(false)}
-              >
-                x
-              </button>
-            </header>
-            <label className='orders-filter-field'>
-              <span>{t('orders.filters.drawer.filterName')}</span>
-              <input
-                type='text'
-                value={newFilterName}
-                onChange={(event) =>
-                  setNewFilterName(event.target.value)
-                }
-                placeholder={t('orders.filters.drawer.filterNamePlaceholder')}
-              />
-            </label>
-            <div className='orders-filter-icons'>
-              <span>{t('orders.filters.drawer.chooseIcon')}</span>
-              <div className='orders-filter-icons-grid'>
-                {filterIconOptions.map((icon, index) => (
-                  <button
-                    key={`${icon}-${index}`}
-                    type='button'
-                    className={
-                      icon === newFilterIcon
-                        ? 'orders-filter-icon-button orders-filter-icon-button-active'
-                        : 'orders-filter-icon-button'
-                    }
-                    onClick={() => setNewFilterIcon(icon)}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className='orders-filter-drawer-list'>
-              <span>{t('orders.filters.drawer.yourSaved')}</span>
-              {employeeSavedFilters.length > 0 ? (
-                employeeSavedFilters.map((savedFilter) => (
-                  <div
-                    key={savedFilter.id}
-                    className='orders-filter-drawer-item'
-                  >
-                    <button
-                      type='button'
-                      onClick={() => applySavedFilter(savedFilter)}
-                    >
-                      {`${savedFilter.icon} ${savedFilter.name}`}
-                    </button>
-                    <button
-                      type='button'
-                      className='orders-filter-delete-button'
-                      onClick={() =>
-                        removeSavedFilter(savedFilter.id)
-                      }
-                      aria-label={t('orders.filters.deleteFilter', {
-                        name: savedFilter.name,
-                      })}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <small>{t('orders.filters.drawer.noFiltersYet')}</small>
-              )}
-            </div>
-            <footer>
-              <button
-                type='button'
-                className='toolbar-filter-button orders-filter-apply'
-                onClick={saveCurrentFilter}
-                disabled={!canManageSavedFilters}
-              >
-                {t('orders.filters.drawer.save')}
-              </button>
-              <button
-                type='button'
-                className='toolbar-filter-button'
-                onClick={() => setIsSaveFilterDrawerOpen(false)}
-              >
-                {t('orders.filters.drawer.cancel')}
-              </button>
-            </footer>
-          </aside>
-        </div>
-      ) : null}
-
-      <div className='orders-table-wrap' ref={ordersTableWrapRef}>
-        <table
-          className='orders-table orders-workspace-table'
-          style={{ minWidth: tableMinWidth }}
-        >
-          <thead>
-            <tr>
-              {visibleColumnKeys.map((columnKey) => (
-                <th
-                  key={columnKey}
-                  className={getOrdersColumnClassName(columnKey)}
-                >
-                  {getColumnLabel(columnKey, activeTab)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td
-                  colSpan={visibleColumnKeys.length}
-                  className='orders-empty'
-                >
-                  {t('orders.toolbar.loading')}
-                </td>
-              </tr>
-            ) : filteredOrders.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={visibleColumnKeys.length}
-                  className='orders-empty'
-                >
-                  {activeTab === 'orders'
-                    ? t('orders.toolbar.empty.orders')
-                    : t('orders.toolbar.empty.sales')}
-                </td>
-              </tr>
-            ) : (
-              paginatedOrders.map((sale) => (
-                <tr key={sale.id}>
-                  {visibleColumnKeys.map((columnKey) => (
-                    <td
-                      key={`${sale.id}-${columnKey}`}
-                      className={getOrdersColumnClassName(columnKey)}
-                      data-label={getColumnLabel(columnKey, activeTab)}
-                    >
-                      {renderOrdersCell(sale, columnKey)}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <PaginationPanel
-        totalItems={filteredOrders.length}
-        page={currentPage}
-        pageSize={currentPageSize}
+      <OrdersWorkspaceTableSection
+        activeTab={activeTab}
+        isLoading={isLoading}
+        filteredOrders={filteredOrders}
+        paginatedOrders={paginatedOrders}
+        visibleColumnKeys={visibleColumnKeys}
+        tableMinWidth={tableMinWidth}
+        currentPage={currentPage}
+        currentPageSize={currentPageSize}
+        ordersTableWrapRef={ordersTableWrapRef}
+        openStatusSale={openStatusSale}
+        statusMenuPosition={statusMenuPosition}
+        statusMenuOptionsRef={statusMenuOptionsRef}
+        getStatus={getStatus}
+        renderOrdersCell={renderOrdersCell}
         onPageChange={(page) =>
           setPageByTab((current) => ({
             ...current,
@@ -3159,173 +2620,60 @@ export const OrdersWorkspace = ({
           }));
           setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
         }}
+        onUpdateStatus={updateStatus}
       />
-      {openStatusSale &&
-      statusMenuPosition &&
-      typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              ref={statusMenuOptionsRef}
-              className={`order-status-options order-status-options-portal order-status-options-portal-${statusMenuPosition.placement}`}
-              style={{
-                top: statusMenuPosition.top,
-                left: statusMenuPosition.left,
-                maxHeight: statusMenuPosition.maxHeight,
-              }}
-            >
-              {getStatusOptions(openStatusSale).map(
-                (statusOption) => (
-                  <button
-                    key={statusOption.key}
-                    type='button'
-                    disabled={isRepairStatusChangeLockedByStock(
-                      openStatusSale,
-                      statusOption.key,
-                    )}
-                    className={
-                      statusOption.key === getStatus(openStatusSale)
-                        ? 'order-status-option order-status-option-active'
-                        : 'order-status-option'
-                    }
-                    title={
-                      isRepairStatusChangeLockedByStock(
-                        openStatusSale,
-                        statusOption.key,
-                      )
-                        ? t('orders.payment.stockLocked')
-                        : undefined
-                    }
-                    onClick={() => {
-                      void updateStatus(
-                        openStatusSale,
-                        statusOption.key,
-                      );
-                    }}
-                  >
-                    {t(statusOption.labelKey)}
-                  </button>
-                ),
-              )}
-            </div>,
-            document.body,
-          )
-        : null}
 
-      {paymentSale
-        ? (() => {
-            const lineItems = getLineItems(paymentSale);
-            const paidAmount = getPaidAmount(paymentSale);
-            const currentPaymentRemaining = getRemainingPayment(
-              paymentSale,
-              paidAmount,
-              lineItems,
-            );
-            return (
-              <PaymentModal
-                sale={paymentSale}
-                paymentTargetStatus={paymentTargetStatus}
-                printForms={printForms}
-                cashboxes={cashboxes}
-                selectedCashboxId={selectedCashboxId}
-                paymentMethod={paymentMethod}
-                amount={paymentAmount}
-                paidAmount={paidAmount}
-                total={getOrderBaseTotal(paymentSale, lineItems)}
-                discount={getDiscount(paymentSale)}
-                currentPaymentRemaining={currentPaymentRemaining}
-                isRepairTargetStatusBlockedByStock={isRepairStatusChangeLockedByStock(
-                  paymentSale,
-                  paymentTargetStatus,
-                  lineItems,
-                )}
-                isIssueWithoutPaymentBlocked={isIssueWithoutPaymentBlockedForSale(
-                  paymentSale,
-                  paymentTargetStatus,
-                  lineItems,
-                  currentPaymentRemaining,
-                )}
-                isLoading={isPaymentModalLoading}
-                isSaving={isPaymentSaving}
-                onCashboxChange={setSelectedCashboxId}
-                onPaymentMethodChange={setPaymentMethod}
-                onAmountChange={setPaymentAmount}
-                onClose={() => setPaymentSale(null)}
-                onOpenPrint={() =>
-                  openPrintDialog(paymentSale, lineItems, paidAmount)
-                }
-                onSubmit={acceptPayment}
-              />
-            );
-          })()
-        : null}
-
-      {printRequest ? (
-        <OrderPrintDialog
-          request={printRequest}
-          printForms={printForms}
-          companySettings={printCompanySettings}
-          onClose={() => setPrintRequest(null)}
-        />
-      ) : null}
-
-      {refundSale ? (
-        <RefundModal
-          cashboxes={cashboxes}
-          selectedCashboxId={selectedRefundCashboxId}
-          amount={refundAmount}
-          paidAmount={getPaidAmount(refundSale)}
-          total={getOrderTotal(refundSale, getLineItems(refundSale))}
-          isLoading={isRefundModalLoading}
-          isSaving={isRefundSaving}
-          onCashboxChange={setSelectedRefundCashboxId}
-          onAmountChange={setRefundAmount}
-          onClose={() => setRefundSale(null)}
-          onSubmit={refundPayment}
-        />
-      ) : null}
-
-      {returnSale && returnLineItem ? (
-        <ReturnLineItemModal
-          sale={returnSale}
-          item={returnLineItem}
-          warehouse={returnWarehouse}
-          isLoading={isReturnModalLoading}
-          isSaving={isReturnSaving}
-          onWarehouseChange={setReturnWarehouse}
-          onClose={() => {
-            setReturnSale(null);
-            setReturnLineItem(null);
-          }}
-          onSubmit={returnLineItemToStock}
-        />
-      ) : null}
-
-      {fullReturnSale ? (
-        <ReturnSaleModal
-          sale={fullReturnSale}
-          lineItems={getLineItems(fullReturnSale)}
-          cashboxes={cashboxes}
-          selectedCashboxId={selectedRefundCashboxId}
-          amount={returnRefundAmount}
-          warehouse={returnWarehouse}
-          paidAmount={getPaidAmount(fullReturnSale)}
-          isLoading={isFullReturnModalLoading}
-          isSaving={isFullReturnSaving}
-          onCashboxChange={setSelectedRefundCashboxId}
-          onAmountChange={setReturnRefundAmount}
-          onWarehouseChange={setReturnWarehouse}
-          onClose={() => setFullReturnSale(null)}
-          onSubmit={returnFullSaleToStock}
-        />
-      ) : null}
-
-      {warningMessage ? (
-        <MessageModal
-          title={t('orders.payment.warningTitle')}
-          message={warningMessage}
-          onClose={() => setWarningMessage(null)}
-        />
-      ) : null}
+      <OrdersWorkspaceModals
+        printForms={printForms}
+        printCompanySettings={printCompanySettings}
+        paymentSale={paymentSale}
+        paymentTargetStatus={paymentTargetStatus}
+        cashboxes={cashboxes}
+        selectedCashboxId={selectedCashboxId}
+        paymentMethod={paymentMethod}
+        paymentAmount={paymentAmount}
+        isPaymentModalLoading={isPaymentModalLoading}
+        isPaymentSaving={isPaymentSaving}
+        refundSale={refundSale}
+        selectedRefundCashboxId={selectedRefundCashboxId}
+        refundAmount={refundAmount}
+        isRefundModalLoading={isRefundModalLoading}
+        isRefundSaving={isRefundSaving}
+        returnSale={returnSale}
+        returnLineItem={returnLineItem}
+        returnWarehouse={returnWarehouse}
+        isReturnModalLoading={isReturnModalLoading}
+        isReturnSaving={isReturnSaving}
+        fullReturnSale={fullReturnSale}
+        returnRefundAmount={returnRefundAmount}
+        isFullReturnModalLoading={isFullReturnModalLoading}
+        isFullReturnSaving={isFullReturnSaving}
+        printRequest={printRequest}
+        warningMessage={warningMessage}
+        getLineItems={getLineItems}
+        getPaidAmount={getPaidAmount}
+        onPaymentSaleClose={() => setPaymentSale(null)}
+        onRefundSaleClose={() => setRefundSale(null)}
+        onReturnClose={() => {
+          setReturnSale(null);
+          setReturnLineItem(null);
+        }}
+        onFullReturnClose={() => setFullReturnSale(null)}
+        onPrintRequestClose={() => setPrintRequest(null)}
+        onWarningClose={() => setWarningMessage(null)}
+        onCashboxChange={setSelectedCashboxId}
+        onPaymentMethodChange={setPaymentMethod}
+        onPaymentAmountChange={setPaymentAmount}
+        onRefundCashboxChange={setSelectedRefundCashboxId}
+        onRefundAmountChange={setRefundAmount}
+        onReturnWarehouseChange={setReturnWarehouse}
+        onReturnRefundAmountChange={setReturnRefundAmount}
+        onOpenPrint={openPrintDialog}
+        onAcceptPayment={acceptPayment}
+        onRefundPayment={refundPayment}
+        onReturnLineItemToStock={returnLineItemToStock}
+        onReturnFullSaleToStock={returnFullSaleToStock}
+      />
     </section>
   );
 };

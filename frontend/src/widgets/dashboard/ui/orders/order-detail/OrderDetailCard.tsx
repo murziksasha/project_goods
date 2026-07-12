@@ -146,6 +146,9 @@ export const OrderDetailCard = ({
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [mainInfoSaveError, setMainInfoSaveError] = useState<string | null>(
+    null,
+  );
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [deviceSearch, setDeviceSearch] = useState('');
   const [newDeviceName, setNewDeviceName] = useState('');
@@ -279,6 +282,9 @@ export const OrderDetailCard = ({
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
+  useEffect(() => {
+    setMainInfoSaveError(null);
+  }, [sale.id, deviceNameInput, serialNumberInput, masterIdInput, statusDraft]);
   useEffect(() => {
     setDiscountInput((current) => {
       const currentValue = parseDecimal(current);
@@ -724,7 +730,7 @@ export const OrderDetailCard = ({
           : t('orders.detail.orderCard')
       }
     >
-      <header className='order-detail-header'>
+      <header className='order-detail-header order-detail-header-sticky'>
         <div className='order-detail-title'>
           <div className='order-detail-title-label-row'>
             <span className='section-label'>
@@ -751,6 +757,14 @@ export const OrderDetailCard = ({
             </button>
           </div>
           <h2>{sale.recordNumber ?? 'r------'}</h2>
+          <p className='order-detail-header-meta'>
+            <span className='order-detail-header-meta-label'>
+              {t('orders.payment.toPay')}
+            </span>
+            <strong className='order-detail-header-remaining'>
+              {formatCurrency(remainingPayment)}
+            </strong>
+          </p>
         </div>
         <button
           type='button'
@@ -761,20 +775,27 @@ export const OrderDetailCard = ({
           &times;
         </button>
         <div className='order-detail-actions'>
-          <select
-            className='order-detail-status-select'
-            value={statusDraft}
-            onChange={(event) => {
-              setStatusDraft(event.target.value as OrderStatus);
-            }}
-            aria-label={t('orders.detail.repairStatus')}
-            disabled={isReadOnly}
-            title={
-              isStatusDraftBlocked
-                ? getStatusDraftBlockedReason()
-                : undefined
-            }
-          >
+          <div className='order-detail-status-field'>
+            <select
+              id={`order-status-${sale.id}`}
+              className='order-detail-status-select'
+              value={statusDraft}
+              onChange={(event) => {
+                setStatusDraft(event.target.value as OrderStatus);
+              }}
+              aria-label={t('orders.detail.repairStatus')}
+              aria-describedby={
+                isStatusDraftBlocked
+                  ? `order-status-hint-${sale.id}`
+                  : undefined
+              }
+              disabled={isReadOnly}
+              title={
+                isStatusDraftBlocked
+                  ? getStatusDraftBlockedReason()
+                  : undefined
+              }
+            >
             {statusOptions.map((statusOption) => {
               const blockedReason = getStatusOptionBlockedReason(
                 statusOption.key,
@@ -789,8 +810,32 @@ export const OrderDetailCard = ({
                 </option>
               );
             })}
-          </select>
+            </select>
+            {isStatusDraftBlocked ? (
+              <p
+                id={`order-status-hint-${sale.id}`}
+                className='inline-field-error'
+                role='alert'
+              >
+                {getStatusDraftBlockedReason()}
+              </p>
+            ) : null}
+          </div>
           <div className='order-detail-header-actions'>
+            <button
+              type='button'
+              className='primary-button order-detail-header-pay-button'
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAcceptPayment();
+              }}
+              disabled={remainingPayment <= 0 || isReadOnly || !canAcceptPayment}
+            >
+              {remainingPayment <= 0
+                ? t('orders.payment.paid')
+                : t('orders.payment.acceptPayment')}
+            </button>
             <a
               className={
                 canCreateOrders
@@ -928,37 +973,51 @@ export const OrderDetailCard = ({
               <div className='order-detail-notes-row'>
                 <dt>&nbsp;</dt>
                 <dd>
-                  <button
-                    type='button'
-                    className='primary-button'
-                    disabled={
-                      isSavingMainInfo ||
-                      isReadOnly ||
-                      isStatusDraftBlocked
-                    }
-                    title={
-                      isStatusDraftBlocked
-                        ? getStatusDraftBlockedReason()
-                        : undefined
-                    }
-                    onClick={async () => {
-                      setIsSavingMainInfo(true);
-                      try {
-                        await onSaveMainInfo({
-                          deviceName: deviceNameInput.trim(),
-                          serialNumber: serialNumberInput.trim().toUpperCase(),
-                          masterId: masterIdInput,
-                          status: statusDraft,
-                        });
-                      } finally {
-                        setIsSavingMainInfo(false);
+                  <div className='order-detail-save-actions'>
+                    <button
+                      type='button'
+                      className='primary-button'
+                      disabled={
+                        isSavingMainInfo ||
+                        isReadOnly ||
+                        isStatusDraftBlocked
                       }
-                    }}
-                  >
-                    {isSavingMainInfo
-                      ? t('orders.payment.saving')
-                      : t('orders.detail.saveChanges')}
-                  </button>
+                      title={
+                        isStatusDraftBlocked
+                          ? getStatusDraftBlockedReason()
+                          : undefined
+                      }
+                      onClick={async () => {
+                        setIsSavingMainInfo(true);
+                        setMainInfoSaveError(null);
+                        try {
+                          await onSaveMainInfo({
+                            deviceName: deviceNameInput.trim(),
+                            serialNumber: serialNumberInput.trim().toUpperCase(),
+                            masterId: masterIdInput,
+                            status: statusDraft,
+                          });
+                        } catch (error) {
+                          setMainInfoSaveError(
+                            error instanceof Error
+                              ? error.message
+                              : t('orders.detail.saveFailedInline'),
+                          );
+                        } finally {
+                          setIsSavingMainInfo(false);
+                        }
+                      }}
+                    >
+                      {isSavingMainInfo
+                        ? t('orders.payment.saving')
+                        : t('orders.detail.saveChanges')}
+                    </button>
+                    {mainInfoSaveError ? (
+                      <p className='inline-field-error' role='alert'>
+                        {mainInfoSaveError}
+                      </p>
+                    ) : null}
+                  </div>
                 </dd>
               </div>
             ) : null}

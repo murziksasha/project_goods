@@ -152,5 +152,5 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — frontend orchestration overview
 - [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) — tab persistence vs URL authority
 - [ORDER_FLOW.md](./ORDER_FLOW.md) — order deep-link URL shape
-- [WAREHOUSE_FLOW.MD](./WAREHOUSE_FLOW.MD) — warehouse → order links
-- [ACCOUNTING.MD](./ACCOUNTING.MD) — accounting tab URL and cross-workspace links
+- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — warehouse → order links
+- [ACCOUNTING.md](./ACCOUNTING.md) — accounting tab URL and cross-workspace links

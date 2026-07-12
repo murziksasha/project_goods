@@ -41,9 +41,22 @@ import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-ki
 import type { Sale } from '../../../entities/sale/model/types';
 import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
+import { AccessDeniedPanel } from '../../../shared/ui/AccessDeniedPanel';
+import { Button } from '../../../shared/ui/Button';
+import { InlineError } from '../../../shared/ui/InlineError';
+import { LoadingState } from '../../../shared/ui/LoadingState';
 import { useTranslation } from 'react-i18next';
 import { hardReloadApp } from '../../../shared/lib/hardReload';
-import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher';
+import {
+  DashboardSidebar,
+  type DashboardSidebarItem,
+} from '../../../widgets/dashboard-sidebar/ui/DashboardSidebar';
+import { DashboardTopbar } from '../../../widgets/dashboard-topbar/ui/DashboardTopbar';
+import {
+  CommandPalette,
+  type CommandPaletteAction,
+} from '../../../widgets/dashboard/ui/command-palette/CommandPalette';
+import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav/ui/DashboardMobileNav';
 import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
 import {
   getDashboardHref,
@@ -53,8 +66,11 @@ import {
 } from '../model/dashboard-navigation';
 import {
   getCreateOrderForOrdersTab,
+  getCreateOrderFromUrl,
+  getOrdersTabFromUrl,
+  getPageFromUrlOrNull,
+  getStoredOrdersTab,
   ordersTabs,
-  type CreateOrderTab,
   type OrdersTab,
   type PageKey,
 } from '../model/types';
@@ -92,12 +108,6 @@ const saveEmployeeSnapshot = (employee: Employee) => {
   window.localStorage.setItem(employeeSnapshotStorageKey, JSON.stringify(employee));
 };
 
-const getPageFromUrl = (): PageKey | null => {
-  const page = new URLSearchParams(window.location.search).get('page');
-
-  return pageKeys.includes(page as PageKey) ? (page as PageKey) : null;
-};
-
 const getStoredActivePage = (): PageKey => {
   const rawPage = window.localStorage.getItem(activePageStorageKey);
   return pageKeys.includes(rawPage as PageKey) ? (rawPage as PageKey) : 'home';
@@ -106,26 +116,8 @@ const getStoredActivePage = (): PageKey => {
 const getInvitationTokenFromUrl = () =>
   new URLSearchParams(window.location.search).get('inviteToken')?.trim() ?? '';
 
-const getOrdersTabFromUrl = (): OrdersTab | null => {
-  const tab = new URLSearchParams(window.location.search).get('ordersTab');
-
-  return ordersTabs.includes(tab as OrdersTab) ? (tab as OrdersTab) : null;
-};
-
-const getCreateOrderFromUrl = (): CreateOrderTab | null => {
-  const tab = new URLSearchParams(window.location.search).get('createOrder');
-
-  return tab === 'repair' || tab === 'sale' ? tab : null;
-};
-
 const getSaleIdFromUrl = () =>
   new URLSearchParams(window.location.search).get('saleId')?.trim() ?? '';
-
-const getStoredOrdersTab = (): OrdersTab => {
-  const tab = window.localStorage.getItem(ordersTabStorageKey);
-
-  return ordersTabs.includes(tab as OrdersTab) ? (tab as OrdersTab) : 'orders';
-};
 
 const getStoredSidebarCollapsed = (): boolean => {
   if (
@@ -156,7 +148,7 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
   window.localStorage.setItem(ordersTabStorageKey, tab);
 };
 
-const sidebarItems: Array<{ key: PageKey | 'other'; labelKey: string }> = [
+const sidebarItems: DashboardSidebarItem[] = [
   { key: 'home', labelKey: 'nav.home' },
   { key: 'orders', labelKey: 'nav.orders' },
   { key: 'accounting', labelKey: 'nav.accounting' },
@@ -166,17 +158,6 @@ const sidebarItems: Array<{ key: PageKey | 'other'; labelKey: string }> = [
   { key: 'employees', labelKey: 'nav.employees' },
   { key: 'settings', labelKey: 'nav.settings' },
 ];
-
-const sidebarItemIcons: Record<PageKey, string> = {
-  home: '🏠',
-  orders: '🧾',
-  clients: '📞',
-  accounting: '💰',
-  catalog: '📁',
-  warehouse: '📦',
-  settings: '⚙',
-  employees: '👥',
-};
 
 const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   event.button === 0 &&
@@ -204,6 +185,8 @@ export const DashboardPage = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState(getInvitationTokenFromUrl);
   const [inviteState, setInviteState] = useState<{
     isLoading: boolean;
@@ -224,7 +207,7 @@ export const DashboardPage = () => {
       state.settingsForm.printForms,
     ],
   );
-  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrl() ?? getStoredActivePage());
+  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrlOrNull() ?? getStoredActivePage());
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
@@ -489,13 +472,40 @@ export const DashboardPage = () => {
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
+    if (!currentEmployee) return;
+
+    const handleGlobalShortcut = (event: KeyboardEvent) => {
+      const isPaletteShortcut =
+        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k';
+      if (!isPaletteShortcut) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], .rapid-sale-modal, .command-palette',
+        ) &&
+        !isCommandPaletteOpen
+      ) {
+        // Allow Ctrl+K even from inputs — command palette is intentional.
+      }
+
+      event.preventDefault();
+      setIsCommandPaletteOpen((current) => !current);
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcut);
+    return () => window.removeEventListener('keydown', handleGlobalShortcut);
+  }, [currentEmployee, isCommandPaletteOpen]);
+
+  useEffect(() => {
     if (!currentEmployee || hasNormalizedInitialUrlRef.current) {
       return;
     }
 
     hasNormalizedInitialUrlRef.current = true;
     const parsed = parseDashboardLocationFromWindow();
-    const page = getPageFromUrl() ?? getStoredActivePage();
+    const page = getPageFromUrlOrNull() ?? getStoredActivePage();
     const initialLocation: DashboardLocation = {
       page,
       ordersTab: parsed.ordersTab ?? getStoredOrdersTab(),
@@ -565,30 +575,6 @@ export const DashboardPage = () => {
   }, [activeOrdersTab, currentEmployee, isAuthLoading, navigateTo]);
 
   useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
-
-    if (!canAccessPage(activePage)) {
-      navigateTo(
-        {
-          page: 'home',
-          createOrder: null,
-          saleId: null,
-          accountingTab: null,
-        },
-        { replace: true },
-      );
-    }
-  }, [
-    activePage,
-    canAccessPage,
-    isAuthLoading,
-    navigateTo,
-    t,
-  ]);
-
-  useEffect(() => {
     if (!canViewOrders || availableOrdersTabs.includes(activeOrdersTab)) {
       return;
     }
@@ -636,6 +622,34 @@ export const DashboardPage = () => {
     });
   };
 
+  const handleCommandPaletteAction = (action: CommandPaletteAction) => {
+    if (action.type === 'page') {
+      openPage(action.page);
+      return;
+    }
+
+    if (action.type === 'createRepair') {
+      openCreateOrder('orders');
+      return;
+    }
+
+    if (action.type === 'createSale') {
+      openCreateOrder('sales');
+      return;
+    }
+
+    if (action.type === 'openSale') {
+      navigateTo({
+        page: 'orders',
+        ordersTab: action.kind === 'sale' ? 'sales' : 'orders',
+        createOrder: null,
+        saleId: action.saleId,
+        accountingTab: null,
+      });
+      setExternalSelectedSaleId(action.saleId);
+    }
+  };
+
   const openPage = (page: PageKey) => {
     if (!canAccessPage(page)) {
       actions.showError(t('errors.permissionPage'));
@@ -648,6 +662,46 @@ export const DashboardPage = () => {
       saleId: null,
       accountingTab: null,
     });
+  };
+
+  const handleSidebarNavClick = (
+    event: ReactMouseEvent<HTMLAnchorElement>,
+    item: DashboardSidebarItem,
+  ) => {
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+
+    if (item.key === 'home') {
+      openPage('home');
+    }
+
+    if (item.key === 'orders') {
+      openOrdersPage();
+    }
+
+    if (item.key === 'employees') {
+      openPage('employees');
+    }
+
+    if (item.key === 'clients') {
+      openPage('clients');
+    }
+
+    if (item.key === 'settings') {
+      openPage('settings');
+    }
+
+    if (item.key === 'accounting') {
+      openPage('accounting');
+    }
+
+    if (item.key === 'catalog') {
+      openPage('catalog');
+    }
+
+    if (item.key === 'warehouse') {
+      openPage('warehouse');
+    }
   };
 
   const openSaleFromClientCard = (sale: { id: string; kind: 'repair' | 'sale' }) => {
@@ -817,11 +871,13 @@ export const DashboardPage = () => {
 
   if (isAuthLoading) {
     return (
-      <main className="dashboard-shell">
+      <main className="dashboard-shell auth-dashboard-shell">
         <section className="dashboard-main">
-          <div className="page-shell">
-            <section className="panel">
-              <h2>{t('common.loading')}</h2>
+          <div className="page-shell auth-page-shell">
+            <section className="panel auth-panel">
+              <LoadingState label={t('common.loading')}>
+                {t('common.loading')}
+              </LoadingState>
             </section>
           </div>
         </section>
@@ -830,21 +886,27 @@ export const DashboardPage = () => {
   }
 
   if (!currentEmployee) {
+    const submitAuth = () => {
+      void (inviteToken ? handleInvitationRegistration() : handleLogin());
+    };
+
     return (
       <main className="dashboard-shell auth-dashboard-shell">
         <section className="dashboard-main">
           <div className="page-shell auth-page-shell">
             <section className="panel auth-panel">
-              <div className="panel-header">
+              <div className="panel-header auth-panel-brand">
                 <div>
-                  <p className="section-label">{t('common.auth')}</p>
+                  <p className="section-label">{t('common.serviceCRM')}</p>
                   <h2>{inviteToken ? t('auth.registerTitle') : t('auth.loginTitle')}</h2>
                 </div>
               </div>
 
               {shouldShowInvitation ? (
                 visibleInviteState.isLoading ? (
-                  <p className="empty-state">{t('common.loadingInvitation')}</p>
+                  <LoadingState label={t('common.loadingInvitation')}>
+                    {t('common.loadingInvitation')}
+                  </LoadingState>
                 ) : (
                   <div className="form-grid">
                     <label className="field field-wide">
@@ -867,17 +929,25 @@ export const DashboardPage = () => {
                 <label className="field field-wide">
                   <span>{inviteToken ? t('auth.createLogin') : t('common.login')}</span>
                   <input
+                    autoFocus
+                    autoComplete="username"
                     value={loginForm.username}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, username: event.target.value }))
                     }
                     placeholder={t('common.username')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        submitAuth();
+                      }
+                    }}
                   />
                 </label>
-                <label className="field field-wide">
+                <label className="field field-wide auth-password-field">
                   <span>{t('common.password')}</span>
                   <input
-                    type="password"
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    autoComplete={inviteToken ? 'new-password' : 'current-password'}
                     value={loginForm.password}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, password: event.target.value }))
@@ -885,24 +955,37 @@ export const DashboardPage = () => {
                     placeholder={t('common.password')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
-                        void handleLogin();
+                        submitAuth();
                       }
                     }}
                   />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    aria-label={
+                      isPasswordVisible
+                        ? t('auth.hidePassword')
+                        : t('auth.showPassword')
+                    }
+                    onClick={() => setIsPasswordVisible((current) => !current)}
+                  >
+                    {isPasswordVisible ? t('auth.hidePasswordShort') : t('auth.showPasswordShort')}
+                  </button>
                 </label>
               </div>
 
-              {authError ? <p className="empty-state">{authError}</p> : null}
+              {authError ? <InlineError>{authError}</InlineError> : null}
 
-              <button
-                className="primary-button"
+              <Button
+                className="auth-submit"
                 type="button"
-                onClick={() => void (inviteToken ? handleInvitationRegistration() : handleLogin())}
+                onClick={submitAuth}
                 disabled={
                   (inviteToken ? isRegistering : isLoggingIn) ||
                   !loginForm.username.trim() ||
                   !loginForm.password.trim()
                 }
+                aria-busy={inviteToken ? isRegistering : isLoggingIn}
               >
                 {inviteToken
                   ? isRegistering
@@ -911,7 +994,7 @@ export const DashboardPage = () => {
                   : isLoggingIn
                     ? t('common.signingIn')
                     : t('common.signIn')}
-              </button>
+              </Button>
             </section>
           </div>
         </section>
@@ -921,137 +1004,83 @@ export const DashboardPage = () => {
 
   return (
     <main className={isSidebarCollapsed ? 'dashboard-shell dashboard-shell-collapsed' : 'dashboard-shell'}>
-      <aside className={isSidebarCollapsed ? 'app-sidebar app-sidebar-collapsed' : 'app-sidebar'}>
-        <div className="sidebar-profile">
-          <div className="sidebar-avatar">
-            {currentEmployee.name
-              .split(' ')
-              .map((part) => part[0] ?? '')
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()}
-          </div>
-          <div className={isSidebarCollapsed ? 'sidebar-profile-meta sidebar-profile-meta-hidden' : 'sidebar-profile-meta'}>
-            <p className="sidebar-user-name">{currentEmployee.name}</p>
-            <p className="sidebar-user-role">{currentEmployee.role}</p>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav" aria-label={t('common.openMenu')}>
-          {sidebarItems
-            .filter((item) => canAccessPage(item.key))
-            .map((item) => {
-            const isActive = item.key !== 'other' && item.key === activePage;
-            return (
-              <a
-                key={item.key}
-                href={item.key === 'other' ? '#' : getDashboardHref(item.key)}
-                className={isActive ? 'sidebar-nav-item sidebar-nav-item-active' : 'sidebar-nav-item'}
-                onClick={(event) => {
-                  if (!isPlainLeftClick(event)) return;
-                  event.preventDefault();
-
-                  if (item.key === 'home') {
-                    openPage('home');
-                  }
-
-                  if (item.key === 'orders') {
-                    openOrdersPage();
-                  }
-
-                  if (item.key === 'employees') {
-                    openPage('employees');
-                  }
-
-                  if (item.key === 'clients') {
-                    openPage('clients');
-                  }
-
-                  if (item.key === 'settings') {
-                    openPage('settings');
-                  }
-
-                  if (item.key === 'accounting') {
-                    openPage('accounting');
-                  }
-
-                  if (item.key === 'catalog') {
-                    openPage('catalog');
-                  }
-
-                  if (item.key === 'warehouse') {
-                    openPage('warehouse');
-                  }
-                }}
-              >
-                <span className="sidebar-nav-item-icon" aria-hidden="true">
-                  {item.key !== 'other' ? sidebarItemIcons[item.key] : '\u2022'}
-                </span>
-                <span className={isSidebarCollapsed ? 'sidebar-nav-item-label sidebar-nav-item-label-hidden' : 'sidebar-nav-item-label'}>
-                  {t(item.labelKey)}
-                </span>
-              </a>
-            );
-          })}
-
-          <div
-            className={
-              isSidebarCollapsed
-                ? 'sidebar-build-info sidebar-build-info-collapsed'
-                : 'sidebar-build-info'
-            }
-            title={buildLabel}
-          >
-            {isSidebarCollapsed ? buildSha : buildLabel}
-          </div>
-        </nav>
-      </aside>
+      <DashboardSidebar
+        sidebarItems={sidebarItems}
+        activePage={activePage}
+        isCollapsed={isSidebarCollapsed}
+        buildLabel={buildLabel}
+        buildSha={buildSha}
+        currentEmployee={currentEmployee}
+        canAccessPage={canAccessPage}
+        onNavClick={handleSidebarNavClick}
+      />
 
       <section className="dashboard-main">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button
-              type="button"
-              className="topbar-menu-button"
-              aria-label={isSidebarCollapsed ? t('common.expandMenu') : t('common.collapseMenu')}
-              onClick={() => setIsSidebarCollapsed((previousValue) => !previousValue)}
-            >
-              &#9776;
-            </button>
-            <p className="topbar-title">{state.settings?.serviceName || t('common.serviceCRM')}</p>
-          </div>
-
-          {state.lastSyncAt ? (
-            <button
-              type="button"
-              className="topbar-sync-label topbar-sync-button"
-              title={t('common.reloadData')}
-              onClick={() => void hardReloadApp()}
-            >
-              {`${t('common.lastSync')}: ${new Date(state.lastSyncAt).toLocaleTimeString(buildLocale)}`}
-            </button>
-          ) : null}
-
-          <div className="topbar-actions">
-            <LanguageSwitcher />
-            <div className="topbar-current-user" title={currentEmployee.name}>
-              <span className="topbar-current-user-name">{currentEmployee.name}</span>
-              <span className="topbar-current-user-role">{currentEmployee.role}</span>
-            </div>
-            <button type="button" className="ghost-button" onClick={() => void handleLogout()}>
-              {t('common.logout')}
-            </button>
-          </div>
-        </header>
+        <DashboardTopbar
+          serviceName={state.settings?.serviceName || t('common.serviceCRM')}
+          isSidebarCollapsed={isSidebarCollapsed}
+          lastSyncAt={state.lastSyncAt}
+          buildLocale={buildLocale}
+          currentEmployee={currentEmployee}
+          primaryActions={
+            activePage === 'orders' &&
+            canViewOrders &&
+            canCreateOrders &&
+            !isCreateOrderOpen ? (
+              <>
+                <button
+                  type="button"
+                  className="primary-button topbar-create-button"
+                  onClick={() => openCreateOrder('orders')}
+                >
+                  {t('orders.toolbar.createRepair')}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button topbar-create-button"
+                  onClick={() => openCreateOrder('sales')}
+                >
+                  {t('orders.toolbar.createSale')}
+                </button>
+              </>
+            ) : null
+          }
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onToggleSidebar={() =>
+            setIsSidebarCollapsed((previousValue) => !previousValue)
+          }
+          onReloadData={() => void hardReloadApp()}
+          onLogout={() => void handleLogout()}
+        />
 
         <div className="page-shell">
+          {isOffline ? (
+            <div className="offline-banner" role="status">
+              {t('common.notifications.offlineViewOnly')}
+            </div>
+          ) : null}
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            canAccessPage={canAccessPage}
+            canCreateOrders={canCreateOrders}
+            canViewOrders={canViewOrders}
+            sales={state.sales}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            onAction={handleCommandPaletteAction}
+          />
           <Notifications
             error={authError || state.error}
             successMessage={state.successMessage}
             isOffline={isOffline}
           />
 
-          {activePage === 'orders' && canViewOrders ? (
+          {!canAccessPage(activePage) ? (
+            <AccessDeniedPanel
+              page={activePage}
+              allowedPages={pageKeys.filter((page) => canAccessPage(page))}
+              onNavigate={openPage}
+            />
+          ) : activePage === 'orders' && canViewOrders ? (
             isCreateOrderOpen &&
             effectiveOrdersTab !== 'supplierOrders' &&
             effectiveOrdersTab !== 'supplierInformation' ? (
@@ -1310,6 +1339,26 @@ export const DashboardPage = () => {
           )}
         </div>
         <GlobalHorizontalScrollbar />
+        <DashboardMobileNav
+          items={[
+            { key: 'home', labelKey: 'nav.home' },
+            { key: 'orders', labelKey: 'nav.orders' },
+            { key: 'clients', labelKey: 'nav.clients' },
+            { key: 'warehouse', labelKey: 'nav.warehouse' },
+            { key: 'accounting', labelKey: 'nav.accounting' },
+          ]}
+          activePage={activePage}
+          canAccessPage={(page) => canAccessPage(page)}
+          onNavClick={(event, page) => {
+            if (!isPlainLeftClick(event)) return;
+            event.preventDefault();
+            if (page === 'orders') {
+              openOrdersPage();
+              return;
+            }
+            openPage(page);
+          }}
+        />
       </section>
     </main>
   );

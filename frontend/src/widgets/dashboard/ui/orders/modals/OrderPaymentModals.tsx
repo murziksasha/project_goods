@@ -10,6 +10,8 @@ import {
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { Modal } from '../../../../../shared/ui/Modal';
+import { Button } from '../../../../../shared/ui/Button';
 import {
   defaultPrintForms,
   normalizePrintFormsForView,
@@ -138,133 +140,33 @@ export const PaymentModal = ({
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('orders.payment.acceptPayment')}
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label={t('orders.payment.closePayment')}
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>{t('orders.payment.repairCost')}</dt>
-              <dd>{formatCurrency(total)}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.paid')}</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-            <div>
-              <dt>
-                <span className='payment-summary-discount-label'>
-                  {t('orders.payment.discount')}
-                  <span className='payment-summary-discount-badge'>
-                    {discount.mode === 'percent' ? '%' : '₴'}
-                  </span>
-                </span>
-              </dt>
-              <dd>
-                {discount.value > 0
-                  ? `${discount.value}${discount.mode === 'percent' ? '%' : ' ₴'}`
-                  : '-'}
-              </dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.toPay')}</dt>
-              <dd>{formatCurrency(currentPaymentRemaining)}</dd>
-            </div>
-          </dl>
+    <Modal
+      isOpen
+      title={t('orders.payment.acceptPayment')}
+      onClose={onClose}
+      closeLabel={t('orders.payment.closePayment')}
+      shellClassName="payment-modal modal-dialog"
+      bodyClassName="payment-modal-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="payment-modal-footer">
           <button
-            type='button'
-            className={
-              paymentMethod === 'non-cash'
-                ? 'payment-cash-badge payment-cash-badge-non-cash'
-                : 'payment-cash-badge'
-            }
-            onClick={() =>
-              onPaymentMethodChange(
-                paymentMethod === 'cash' ? 'non-cash' : 'cash',
-              )
-            }
-            disabled={isLoading || isSaving}
-          >
-            {paymentMethod === 'cash'
-              ? t('orders.payment.cash')
-              : t('orders.payment.nonCash')}
-          </button>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field payment-cashbox-field'>
-            <span>* {t('orders.payment.cashbox')}</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>{t('orders.payment.amount')}</span>
-            <NumberStepper
-              min={0}
-              max={currentPaymentRemaining}
-              step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field'>
-            <span>{t('orders.payment.toPay')}</span>
-            <input
-              value={String(nextPaymentRemaining)}
-              disabled
-              readOnly
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <button
-            type='button'
-            className='secondary-button print-action-button'
+            type="button"
+            className="secondary-button print-action-button"
             onClick={onOpenPrint}
             disabled={isSaving || !hasAvailablePrintForms}
           >
             <PrinterIcon />
             {t('orders.payment.print')}
           </button>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
+          <div className="payment-modal-actions">
+            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
               {t('orders.payment.cancel')}
-            </button>
+            </Button>
             <button
-              type='button'
-              className='orders-create-button'
+              type="button"
+              className="orders-create-button"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -277,8 +179,8 @@ export const PaymentModal = ({
                 : t('orders.payment.acceptToCashbox')}
             </button>
             <button
-              type='button'
-              className='payment-issue-button'
+              type="button"
+              className="payment-issue-button"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -296,8 +198,8 @@ export const PaymentModal = ({
               {submitWithStatusLabel}
             </button>
             <button
-              type='button'
-              className='payment-issue-secondary-button'
+              type="button"
+              className="payment-issue-secondary-button"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -309,8 +211,8 @@ export const PaymentModal = ({
                   ? isRepairTargetStatusBlockedByStock
                     ? t('orders.payment.stockLocked')
                     : isRepairOrder(sale)
-                    ? t('orders.payment.repairProductsNeedFullPayment')
-                    : t('orders.payment.issuedRequiresPayment')
+                      ? t('orders.payment.repairProductsNeedFullPayment')
+                      : t('orders.payment.issuedRequiresPayment')
                   : undefined
               }
             >
@@ -318,8 +220,91 @@ export const PaymentModal = ({
             </button>
           </div>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <div className="payment-modal-summary">
+        <dl>
+          <div>
+            <dt>{t('orders.payment.repairCost')}</dt>
+            <dd>{formatCurrency(total)}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.paid')}</dt>
+            <dd>{formatCurrency(paidAmount)}</dd>
+          </div>
+          <div>
+            <dt>
+              <span className="payment-summary-discount-label">
+                {t('orders.payment.discount')}
+                <span className="payment-summary-discount-badge">
+                  {discount.mode === 'percent' ? '%' : '₴'}
+                </span>
+              </span>
+            </dt>
+            <dd>
+              {discount.value > 0
+                ? `${discount.value}${discount.mode === 'percent' ? '%' : ' ₴'}`
+                : '-'}
+            </dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.toPay')}</dt>
+            <dd>{formatCurrency(currentPaymentRemaining)}</dd>
+          </div>
+        </dl>
+        <button
+          type="button"
+          className={
+            paymentMethod === 'non-cash'
+              ? 'payment-cash-badge payment-cash-badge-non-cash'
+              : 'payment-cash-badge'
+          }
+          onClick={() =>
+            onPaymentMethodChange(
+              paymentMethod === 'cash' ? 'non-cash' : 'cash',
+            )
+          }
+          disabled={isLoading || isSaving}
+        >
+          {paymentMethod === 'cash'
+            ? t('orders.payment.cash')
+            : t('orders.payment.nonCash')}
+        </button>
+      </div>
+
+      <div className="payment-modal-form">
+        <label className="field payment-cashbox-field">
+          <span>* {t('orders.payment.cashbox')}</span>
+          <select
+            value={selectedCashboxId}
+            onChange={(event) => onCashboxChange(event.target.value)}
+            disabled={isLoading || isSaving}
+          >
+            {cashboxes.map((cashbox) => (
+              <option key={cashbox.id} value={cashbox.id}>
+                {cashbox.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('orders.payment.amount')}</span>
+          <NumberStepper
+            min={0}
+            max={currentPaymentRemaining}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={amount}
+            onChange={onAmountChange}
+            disabled={isLoading || isSaving}
+          />
+        </label>
+        <label className="field">
+          <span>{t('orders.payment.toPay')}</span>
+          <input value={String(nextPaymentRemaining)} disabled readOnly />
+        </label>
+      </div>
+    </Modal>
   );
 };
 
@@ -361,95 +346,25 @@ export const RefundModal = ({
     numericAmount > paidAmount;
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('orders.payment.refundTitle')}
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label={t('orders.payment.closeRefund')}
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>{t('orders.payment.orderTotal')}</dt>
-              <dd>{formatCurrency(total)}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.paid')}</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.refundAmount')}</dt>
-              <dd>
-                {formatCurrency(
-                  Number.isFinite(numericAmount) ? numericAmount : 0,
-                )}
-              </dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>
-            {t('orders.payment.refundBadge')}
-          </span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field payment-cashbox-field'>
-            <span>* {t('orders.payment.cashbox')}</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>{t('orders.payment.amount')}</span>
-            <NumberStepper
-              min={0}
-              max={paidAmount}
-              step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field'>
-            <span>{t('orders.payment.available')}</span>
-            <input value={String(paidAmount)} disabled readOnly />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
+    <Modal
+      isOpen
+      title={t('orders.payment.refundTitle')}
+      onClose={onClose}
+      closeLabel={t('orders.payment.closeRefund')}
+      shellClassName="payment-modal modal-dialog"
+      bodyClassName="payment-modal-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="payment-modal-footer">
           <div />
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
+          <div className="payment-modal-actions">
+            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
               {t('orders.payment.cancel')}
-            </button>
+            </Button>
             <button
-              type='button'
-              className='payment-issue-secondary-button'
+              type="button"
+              className="payment-issue-secondary-button"
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
@@ -459,8 +374,65 @@ export const RefundModal = ({
             </button>
           </div>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <div className="payment-modal-summary">
+        <dl>
+          <div>
+            <dt>{t('orders.payment.orderTotal')}</dt>
+            <dd>{formatCurrency(total)}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.paid')}</dt>
+            <dd>{formatCurrency(paidAmount)}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.refundAmount')}</dt>
+            <dd>
+              {formatCurrency(
+                Number.isFinite(numericAmount) ? numericAmount : 0,
+              )}
+            </dd>
+          </div>
+        </dl>
+        <span className="payment-cash-badge">
+          {t('orders.payment.refundBadge')}
+        </span>
+      </div>
+
+      <div className="payment-modal-form">
+        <label className="field payment-cashbox-field">
+          <span>* {t('orders.payment.cashbox')}</span>
+          <select
+            value={selectedCashboxId}
+            onChange={(event) => onCashboxChange(event.target.value)}
+            disabled={isLoading || isSaving}
+          >
+            {cashboxes.map((cashbox) => (
+              <option key={cashbox.id} value={cashbox.id}>
+                {cashbox.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('orders.payment.amount')}</span>
+          <NumberStepper
+            min={0}
+            max={paidAmount}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={amount}
+            onChange={onAmountChange}
+            disabled={isLoading || isSaving}
+          />
+        </label>
+        <label className="field">
+          <span>{t('orders.payment.available')}</span>
+          <input value={String(paidAmount)} disabled readOnly />
+        </label>
+      </div>
+    </Modal>
   );
 };
 
@@ -534,109 +506,29 @@ export const ReturnSaleModal = ({
     numericAmount > maxRefund;
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('orders.payment.returnSale')}
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label={t('orders.payment.closeReturn')}
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>{t('orders.payment.order')}</dt>
-              <dd>{sale.recordNumber ?? 'r------'}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.productsToStock')}</dt>
-              <dd>
-                {productItems
-                  .map((item) => `${item.name} x${item.quantity}`)
-                  .join(', ')}
-              </dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.productTotal')}</dt>
-              <dd>{formatCurrency(productTotal)}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.paid')}</dt>
-              <dd>{formatCurrency(paidAmount)}</dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>
-            {t('orders.payment.returnBadge')}
-          </span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field'>
-            <span>{t('orders.payment.receiveToWarehouse')}</span>
-            <input
-              value={warehouse}
-              onChange={(event) =>
-                onWarehouseChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            />
-          </label>
-          <label className='field payment-cashbox-field'>
-            <span>{t('orders.payment.refundFromCashbox')}</span>
-            <select
-              value={selectedCashboxId}
-              onChange={(event) =>
-                onCashboxChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            >
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='field'>
-            <span>{t('orders.payment.refundAmount')}</span>
-            <NumberStepper
-              min={minRefund}
-              max={maxRefund}
-              step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={amount}
-              onChange={onAmountChange}
-              disabled={isLoading || isSaving}
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <p className='muted-copy'>
+    <Modal
+      isOpen
+      title={t('orders.payment.returnSale')}
+      onClose={onClose}
+      closeLabel={t('orders.payment.closeReturn')}
+      shellClassName="payment-modal modal-dialog"
+      bodyClassName="payment-modal-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="payment-modal-footer">
+          <p className="muted-copy">
             {t('orders.payment.suggestedCashbox', {
               name: suggestedCashboxName,
             })}
           </p>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
+          <div className="payment-modal-actions">
+            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
               {t('orders.payment.cancel')}
-            </button>
+            </Button>
             <button
-              type='button'
-              className='payment-issue-secondary-button'
+              type="button"
+              className="payment-issue-secondary-button"
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
@@ -646,8 +538,73 @@ export const ReturnSaleModal = ({
             </button>
           </div>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <div className="payment-modal-summary">
+        <dl>
+          <div>
+            <dt>{t('orders.payment.order')}</dt>
+            <dd>{sale.recordNumber ?? 'r------'}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.productsToStock')}</dt>
+            <dd>
+              {productItems
+                .map((item) => `${item.name} x${item.quantity}`)
+                .join(', ')}
+            </dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.productTotal')}</dt>
+            <dd>{formatCurrency(productTotal)}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.paid')}</dt>
+            <dd>{formatCurrency(paidAmount)}</dd>
+          </div>
+        </dl>
+        <span className="payment-cash-badge">
+          {t('orders.payment.returnBadge')}
+        </span>
+      </div>
+
+      <div className="payment-modal-form">
+        <label className="field">
+          <span>{t('orders.payment.receiveToWarehouse')}</span>
+          <input
+            value={warehouse}
+            onChange={(event) => onWarehouseChange(event.target.value)}
+            disabled={isLoading || isSaving}
+          />
+        </label>
+        <label className="field payment-cashbox-field">
+          <span>{t('orders.payment.refundFromCashbox')}</span>
+          <select
+            value={selectedCashboxId}
+            onChange={(event) => onCashboxChange(event.target.value)}
+            disabled={isLoading || isSaving}
+          >
+            {cashboxes.map((cashbox) => (
+              <option key={cashbox.id} value={cashbox.id}>
+                {cashbox.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('orders.payment.refundAmount')}</span>
+          <NumberStepper
+            min={minRefund}
+            max={maxRefund}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={amount}
+            onChange={onAmountChange}
+            disabled={isLoading || isSaving}
+          />
+        </label>
+      </div>
+    </Modal>
   );
 };
 
@@ -669,71 +626,27 @@ export const ReturnLineItemModal = ({
     !warehouse.trim();
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('orders.payment.returnProduct')}
-      >
-        <button
-          type='button'
-          className='payment-modal-close'
-          onClick={onClose}
-          aria-label={t('orders.payment.closeReturn')}
-        >
-          &times;
-        </button>
-
-        <div className='payment-modal-summary'>
-          <dl>
-            <div>
-              <dt>{t('orders.payment.product')}</dt>
-              <dd>{item.name}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.order')}</dt>
-              <dd>{sale.recordNumber ?? 'r------'}</dd>
-            </div>
-            <div>
-              <dt>{t('orders.payment.itemTotal')}</dt>
-              <dd>{formatCurrency(itemTotal)}</dd>
-            </div>
-          </dl>
-          <span className='payment-cash-badge'>
-            {t('orders.payment.returnBadge')}
-          </span>
-        </div>
-
-        <div className='payment-modal-form'>
-          <label className='field'>
-            <span>{t('orders.payment.receiveToWarehouse')}</span>
-            <input
-              value={warehouse}
-              onChange={(event) =>
-                onWarehouseChange(event.target.value)
-              }
-              disabled={isLoading || isSaving}
-            />
-          </label>
-        </div>
-
-        <footer className='payment-modal-footer'>
-          <p className='muted-copy'>
+    <Modal
+      isOpen
+      title={t('orders.payment.returnProduct')}
+      onClose={onClose}
+      closeLabel={t('orders.payment.closeReturn')}
+      shellClassName="payment-modal modal-dialog"
+      bodyClassName="payment-modal-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="payment-modal-footer">
+          <p className="muted-copy">
             {t('orders.payment.refundBeforeReturn')}
           </p>
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='secondary-button'
-              onClick={onClose}
-              disabled={isSaving}
-            >
+          <div className="payment-modal-actions">
+            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
               {t('orders.payment.cancel')}
-            </button>
+            </Button>
             <button
-              type='button'
-              className='payment-issue-secondary-button'
+              type="button"
+              className="payment-issue-secondary-button"
               onClick={onSubmit}
               disabled={isSubmitDisabled}
             >
@@ -743,8 +656,39 @@ export const ReturnLineItemModal = ({
             </button>
           </div>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <div className="payment-modal-summary">
+        <dl>
+          <div>
+            <dt>{t('orders.payment.product')}</dt>
+            <dd>{item.name}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.order')}</dt>
+            <dd>{sale.recordNumber ?? 'r------'}</dd>
+          </div>
+          <div>
+            <dt>{t('orders.payment.itemTotal')}</dt>
+            <dd>{formatCurrency(itemTotal)}</dd>
+          </div>
+        </dl>
+        <span className="payment-cash-badge">
+          {t('orders.payment.returnBadge')}
+        </span>
+      </div>
+
+      <div className="payment-modal-form">
+        <label className="field">
+          <span>{t('orders.payment.receiveToWarehouse')}</span>
+          <input
+            value={warehouse}
+            onChange={(event) => onWarehouseChange(event.target.value)}
+            disabled={isLoading || isSaving}
+          />
+        </label>
+      </div>
+    </Modal>
   );
 };
 
@@ -762,30 +706,25 @@ export const MessageModal = ({
   const { t } = useTranslation();
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='payment-modal payment-modal-message'
-        role='dialog'
-        aria-modal='true'
-        aria-label={title}
-      >
-        <div className='payment-modal-summary'>
-          <h3>{title}</h3>
-          <p>{message}</p>
-        </div>
-        <footer className='payment-modal-footer'>
+    <Modal
+      isOpen
+      title={title}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      shellClassName="payment-modal payment-modal-message modal-dialog"
+      bodyClassName="payment-modal-body"
+      footer={
+        <footer className="payment-modal-footer">
           <div />
-          <div className='payment-modal-actions'>
-            <button
-              type='button'
-              className='primary-button'
-              onClick={onClose}
-            >
+          <div className="payment-modal-actions">
+            <Button variant="primary" onClick={onClose}>
               {t('common.ok')}
-            </button>
+            </Button>
           </div>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <p>{message}</p>
+    </Modal>
   );
 };

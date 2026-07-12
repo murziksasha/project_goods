@@ -8,6 +8,8 @@ import type { WarehouseItem } from '../../../../../entities/warehouse-settings/m
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
+import { Modal } from '../../../../../shared/ui/Modal';
+import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
 import {
   aggregateProductModelStock,
@@ -87,8 +89,6 @@ export const ProductModelModal = ({
     setForm(getProductModelInitialForm(matchingProducts));
   }, [matchingProducts]);
 
-  useLockBodyScroll();
-
   useEffect(() => {
     if (!copyStatus) return;
 
@@ -162,79 +162,65 @@ export const ProductModelModal = ({
   };
 
   return (
-    <div
-      className='modal-backdrop'
-      role='presentation'
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        className='catalog-edit-modal product-model-modal'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('catalog.productModel.ariaLabel')}
-      >
-        <header className='catalog-edit-header'>
-          <div className='catalog-edit-title'>
-            <button
-              type='button'
-              className='product-model-copy-label'
-              onClick={() => void copyName()}
-              title={copyStatus || t('catalog.productModel.copyProductName')}
-            >
-              {t('catalog.productModel.title')}
-            </button>
-            <div className='product-model-title-row'>
-              <h2>
-                <button
-                  type='button'
-                  className='product-model-title-button'
-                  onClick={() => void copyName()}
-                  title={copyStatus || t('catalog.productModel.copyProductName')}
-                >
-                  {name}
-                </button>
-              </h2>
-              <button
-                type='button'
-                className='product-model-copy-button'
-                onClick={() => void copyName()}
-                aria-label={t('catalog.productModel.copyProductName')}
-                title={copyStatus || t('catalog.productModel.copyProductName')}
-              >
-                <span aria-hidden='true'>{t('catalog.productModel.copy')}</span>
-              </button>
-              {copyStatus ? (
-                <span className='product-model-copy-tooltip'>
-                  {copyStatus}
-                </span>
-              ) : null}
-              {printProduct ? (
-                <button
-                  type='button'
-                  className='toolbar-square-button order-print-icon-button product-model-print-button'
-                  onClick={printSelectedSerialNumber}
-                  disabled={!printProduct.serialNumber.trim()}
-                  aria-label={t('catalog.productModel.printSerialNumber')}
-                  title={t('catalog.productModel.printSerialNumber')}
-                >
-                  <PrinterIcon />
-                </button>
-              ) : null}
-            </div>
-          </div>
+    <Modal
+      isOpen
+      title={name}
+      subtitle={t('catalog.productModel.title')}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      className="product-model-modal"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      headerActions={
+        <div className="product-model-header-actions">
           <button
-            type='button'
-            className='create-order-close'
-            onClick={onClose}
-            aria-label={t('catalog.modals.close')}
+            type="button"
+            className="product-model-copy-button"
+            onClick={() => void copyName()}
+            aria-label={t('catalog.productModel.copyProductName')}
+            title={copyStatus || t('catalog.productModel.copyProductName')}
           >
-            &times;
+            <span aria-hidden="true">{t('catalog.productModel.copy')}</span>
           </button>
-        </header>
-
-        <div className='catalog-edit-body'>
+          {copyStatus ? (
+            <span className="product-model-copy-tooltip">{copyStatus}</span>
+          ) : null}
+          {printProduct ? (
+            <button
+              type="button"
+              className="toolbar-square-button order-print-icon-button product-model-print-button"
+              onClick={printSelectedSerialNumber}
+              disabled={!printProduct.serialNumber.trim()}
+              aria-label={t('catalog.productModel.printSerialNumber')}
+              title={t('catalog.productModel.printSerialNumber')}
+            >
+              <PrinterIcon />
+            </button>
+          ) : null}
+        </div>
+      }
+      footer={
+        <footer className="catalog-edit-footer">
+          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              const saved = await onSave(
+                buildProductModelSavePayload(name, form),
+              );
+              if (saved) onClose();
+            }}
+            disabled={!hasStockRows || isSaving}
+          >
+            {isSaving
+              ? t('catalog.productModel.saving')
+              : t('catalog.productModel.saveModel')}
+          </Button>
+        </footer>
+      }
+    >
           {!hasStockRows ? (
             <p className='empty-state'>
               {t('catalog.productModel.noStockRows')}
@@ -433,42 +419,6 @@ export const ProductModelModal = ({
               </table>
             </div>
           ) : null}
-        </div>
-
-        <footer className='catalog-edit-footer'>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={onClose}
-            disabled={isSaving}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={async () => {
-              const saved = await onSave(buildProductModelSavePayload(name, form));
-              if (saved) onClose();
-            }}
-            disabled={!hasStockRows || isSaving}
-          >
-            {isSaving
-              ? t('catalog.productModel.saving')
-              : t('catalog.productModel.saveModel')}
-          </button>
-        </footer>
-      </section>
-    </div>
+    </Modal>
   );
-};
-
-const useLockBodyScroll = () => {
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
 };

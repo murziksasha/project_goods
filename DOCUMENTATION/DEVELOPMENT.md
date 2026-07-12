@@ -86,7 +86,7 @@ npm run db:down
 npm run docker:up
 ```
 
-Команда собирает и поднимает MongoDB, backend и frontend. Скрипт `scripts/docker-up.mjs` передаёт текущий `git rev-parse --short HEAD` в Docker как `GIT_SHA` для метки сборки в UI.
+Команда собирает и поднимает MongoDB, backend и frontend. Скрипт `scripts/docker-up.mjs` передаёт текущий `git rev-parse --short HEAD` в Docker как `GIT_SHA` для метки сборки в UI и для `buildSha` в `GET /api/health`.
 
 Остановка:
 
@@ -95,6 +95,8 @@ npm run docker:down
 ```
 
 Подробности метки версии (сайдбар, формат, проверка после деплоя): [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
+
+Prod-деплой и env vars: [DEPLOYMENT.md](./DEPLOYMENT.md). Тесты: [TESTING.md](./TESTING.md).
 
 ## Команды по пакетам
 

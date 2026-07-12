@@ -75,6 +75,15 @@ const installSpies = () => {
   vi.spyOn(SupplierOrder, 'findById').mockImplementation(
     async () => state.supplierOrder as never,
   );
+  vi.spyOn(SupplierOrder, 'updateMany').mockResolvedValue({
+    modifiedCount: 0,
+  } as never);
+  vi.spyOn(Supplier, 'find').mockReturnValue({
+    select: () =>
+      leanResult([
+        { _id: '507f1f77bcf86cd799439012', name: 'Cable Supplier' },
+      ]),
+  } as never);
   vi.spyOn(Supplier, 'findById').mockReturnValue(
     leanResult({ _id: 'supplier-1', name: 'Cable Supplier' }) as never,
   );

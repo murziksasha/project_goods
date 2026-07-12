@@ -1,5 +1,6 @@
 import { CatalogProduct } from '../catalog-product/model';
 import { Product, type ProductDocument } from '../product/model';
+import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Sale, type SaleDocument } from './model';
 import type { SaleLineItem } from './stock';
@@ -44,7 +45,8 @@ export const assertSerialNumbersNotBoundToOtherSales = async (
     occupied.has(serial),
   );
   if (duplicates.length > 0) {
-    throw new Error(
+    throw new HttpError(
+      400,
       `Serial numbers are already bound to another order: ${duplicates.join(', ')}`,
     );
   }
@@ -66,7 +68,8 @@ export const assertSerializedLineItemsAreAtomic = async (
 
     if (serialNumbers.length > 0) {
       if (serialNumbers.length !== 1 || item.quantity !== 1) {
-        throw new Error(
+        throw new HttpError(
+          400,
           'Serialized product line items must contain exactly one serial number and quantity 1.',
         );
       }
@@ -74,12 +77,13 @@ export const assertSerializedLineItemsAreAtomic = async (
       isValidObjectIdOrThrow(item.productId.toString(), 'lineItems.productId');
       const product = await Product.findById(item.productId).lean<ProductDocument | null>();
       if (!product) {
-        throw new Error('Product not found.');
+        throw new HttpError(404, 'Product not found.');
       }
 
       const productSerial = String(product.serialNumber ?? '').trim().toUpperCase();
       if (!productSerial || productSerial !== serialNumbers[0]) {
-        throw new Error(
+        throw new HttpError(
+          400,
           'Serialized product line item must reference the matching stock product.',
         );
       }
@@ -91,7 +95,8 @@ export const assertSerializedLineItemsAreAtomic = async (
       const product = await Product.findById(item.productId).lean<ProductDocument | null>();
       const productSerial = String(product?.serialNumber ?? '').trim();
       if (productSerial) {
-        throw new Error(
+        throw new HttpError(
+          400,
           'Serialized stock products cannot be sold with quantity greater than 1.',
         );
       }
@@ -120,6 +125,6 @@ export const assertLineItemCatalogProductIds = async (
     _id: { $in: catalogProductIds },
   });
   if (count !== catalogProductIds.length) {
-    throw new Error('Catalog product not found.');
+    throw new HttpError(404, 'Catalog product not found.');
   }
 };

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Modal } from '../../../../shared/ui/Modal';
 
 export const ModalShell = ({
   title,
@@ -14,40 +16,25 @@ export const ModalShell = ({
   onSubmit: () => void;
   submitLabel: string;
   canSubmit: boolean;
-}) => (
-  <div className='modal-backdrop' role='dialog' aria-modal='true'>
-    <div className='catalog-edit-modal warehouse-settings-modal'>
-      <header className='catalog-edit-header'>
-        <h2>{title}</h2>
-        <button
-          type='button'
-          className='ghost-button'
-          onClick={onClose}
-        >
-          &times;
-        </button>
-      </header>
-      <div className='catalog-edit-body warehouse-settings-modal-body'>
-        {children}
-      </div>
-      <footer className='catalog-edit-footer warehouse-settings-modal-footer'>
-        <button
-          type='button'
-          className='secondary-button'
-          onClick={onClose}
-        >
-          cancel
-        </button>
-        <button
-          type='button'
-          className='primary-button'
-          onClick={onSubmit}
-          disabled={!canSubmit}
-        >
-          {submitLabel}
-        </button>
-      </footer>
-    </div>
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
 
+  return (
+    <Modal
+      isOpen
+      title={title}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      className="warehouse-settings-modal"
+      bodyClassName="warehouse-settings-modal-body"
+      footerClassName="warehouse-settings-modal-footer"
+      showDefaultFooter
+      cancelLabel={t('common.cancel')}
+      submitLabel={submitLabel}
+      onSubmit={onSubmit}
+      canSubmit={canSubmit}
+    >
+      {children}
+    </Modal>
+  );
+};

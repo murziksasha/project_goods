@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   Client,
@@ -6,6 +8,14 @@ import type {
   ClientImportReport,
   ClientStatus,
 } from '../model/types';
+
+export const useClientsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.clients,
+    queryFn: () => getClients(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
 export const getClients = async (
   query = '',

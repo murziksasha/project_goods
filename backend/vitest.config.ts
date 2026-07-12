@@ -5,9 +5,11 @@ const coverageInclude = [
   // Keep bootstrap, database wiring, CLI scripts, schema declarations, and static
   // seed/demo data out of this list; add domain/service files here only together
   // with behavioral tests that cover every branch.
+  // Next candidates: finance validators already unit-tested; expand services gradually.
   'src/config/env.ts',
   'src/domain/client/constants.ts',
   'src/domain/sale/stock.ts',
+  'src/domain/sequence/service.ts',
 ];
 
 export default defineConfig({

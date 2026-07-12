@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { HttpError } from './errors';
 import { normalizeClientPhone } from './parsers';
 
 export const escapeRegExp = (value: string) =>
@@ -60,6 +61,6 @@ export const getSearchQuery = (rawQuery: unknown) => {
 
 export const isValidObjectIdOrThrow = (value: string, label: string) => {
   if (!mongoose.isValidObjectId(value)) {
-    throw new Error(`Valid ${label} is required.`);
+    throw new HttpError(400, `Valid ${label} is required.`);
   }
 };

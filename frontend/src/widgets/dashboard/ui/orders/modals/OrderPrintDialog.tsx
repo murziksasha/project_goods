@@ -9,6 +9,8 @@ import {
   normalizeLabelSize,
   normalizePrintFormsForView,
 } from '../../../../../entities/settings/model/printForms';
+import { Modal } from '../../../../../shared/ui/Modal';
+import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
 import {
   buildOrderPrintBody,
@@ -196,28 +198,39 @@ export const OrderPrintDialog = ({
     });
 
   return (
-    <div className='modal-backdrop' role='presentation'>
-      <section
-        className='order-print-dialog'
-        role='dialog'
-        aria-modal='true'
-        aria-label={t('orders.print.title')}
-      >
-        <header className='order-print-dialog-header'>
-          <div>
-            <p className='section-label'>{t('orders.print.sectionPreview')}</p>
-            <h2>{request.orderNumber}</h2>
-          </div>
-          <button
-            type='button'
-            className='create-order-close'
-            onClick={onClose}
-            aria-label={t('orders.print.closePreview')}
+    <Modal
+      isOpen
+      title={request.orderNumber}
+      subtitle={t('orders.print.sectionPreview')}
+      onClose={onClose}
+      closeLabel={t('orders.print.closePreview')}
+      shellClassName="order-print-dialog modal-dialog"
+      headerClassName="order-print-dialog-header"
+      bodyClassName="order-print-dialog-body"
+      footer={
+        <footer className="order-print-dialog-footer">
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => void openPreviewWindow()}
+            disabled={!canPrint}
           >
-            &times;
+            {t('orders.print.preview')}
+          </Button>
+          <button
+            type="button"
+            className="primary-button print-action-button"
+            onClick={() => void printSelectedForms()}
+            disabled={!canPrint}
+          >
+            <PrinterIcon />
+            {t('orders.payment.print')}
           </button>
-        </header>
-
+        </footer>
+      }
+    >
         <div className='order-print-dialog-grid'>
           <aside className='order-print-settings'>
             <h3>{t('orders.print.forms')}</h3>
@@ -345,31 +358,7 @@ export const OrderPrintDialog = ({
             )}
           </main>
         </div>
-
-        <footer className='order-print-dialog-footer'>
-          <button type='button' className='secondary-button' onClick={onClose}>
-            {t('common.cancel')}
-          </button>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={() => void openPreviewWindow()}
-            disabled={!canPrint}
-          >
-            {t('orders.print.preview')}
-          </button>
-          <button
-            type='button'
-            className='primary-button print-action-button'
-            onClick={() => void printSelectedForms()}
-            disabled={!canPrint}
-          >
-            <PrinterIcon />
-            {t('orders.payment.print')}
-          </button>
-        </footer>
-      </section>
-    </div>
+    </Modal>
   );
 };
 

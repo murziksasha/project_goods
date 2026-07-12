@@ -1,8 +1,18 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
 } from '../model/types';
+
+export const useServicesQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.services,
+    queryFn: () => getServiceCatalogItems(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
 export const getServiceCatalogItems = async (query = '') => {
   try {
