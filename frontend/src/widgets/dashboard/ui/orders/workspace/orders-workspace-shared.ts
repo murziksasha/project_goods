@@ -411,19 +411,24 @@ export const allOrdersColumnKeys: OrdersColumnKey[] = [
   'readyDate',
 ];
 export const defaultVisibleColumns: OrdersColumnVisibility = {
-  orders: allOrdersColumnKeys,
+  // Lean defaults for scanability; full set remains available via column picker.
+  orders: [
+    'orderNumber',
+    'client',
+    'status',
+    'primaryItem',
+    'price',
+    'paid',
+    'term',
+    'createdAt',
+  ],
   sales: [
     'orderNumber',
     'client',
     'status',
     'price',
     'paid',
-    'warehouse',
-    'manager',
-    'master',
-    'received',
     'createdAt',
-    'readyDate',
   ],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,

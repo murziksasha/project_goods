@@ -1,8 +1,18 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import axios from 'axios';
 import type { CatalogProduct, CatalogProductFormValues } from '../model/types';
 
 let hasLoggedCatalogProducts404Warning = false;
+
+export const useCatalogProductsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.catalogProducts,
+    queryFn: () => getCatalogProducts(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
 export const getCatalogProducts = async (query = '') => {
   try {

@@ -48,6 +48,8 @@ import { useFinanceAction } from './useFinanceAction';
 import { useTransactionFilters } from './useTransactionFilters';
 import { useTransactionForm } from './useTransactionForm';
 import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils';
+import { Modal } from '../../../../shared/ui/Modal';
+import { Button } from '../../../../shared/ui/Button';
 
 type AccountingPanelProps = {
   currentEmployee: Employee | null;
@@ -109,6 +111,7 @@ export const AccountingPanel = ({
     useState<FinanceTransaction | null>(null);
   const [withoutPaymentOrder, setWithoutPaymentOrder] =
     useState<SupplierOrderPaymentQueueItem | null>(null);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [newCashboxName, setNewCashboxName] = useState('');
   const [isTransactionsFilterOpen, setIsTransactionsFilterOpen] =
     useState(false);
@@ -530,7 +533,6 @@ export const AccountingPanel = ({
       i18n.t('accounting.messages.success.orderIssuedWithoutPayment'),
       {
         afterSuccess: () => {
-          window.dispatchEvent(new Event('project-goods:finance-updated'));
           setWithoutPaymentOrder(null);
         },
         skipRefresh: true,
@@ -544,29 +546,31 @@ export const AccountingPanel = ({
     cashboxId: string,
     orderNumber: string,
   ) => {
-    if (!cashboxId) return;
+    if (!cashboxId || payingOrderId) return;
     const displayOrderNumber =
       orderNumber.trim() || getSupplierOrderDisplayNumber(order);
-    await runFinanceAction(
-      () =>
-        paySupplierOrderMutation.mutateAsync({
-          supplierOrderId: order.id,
-          payload: {
-            cashboxId,
-            note: i18n.t('accounting.orders.paymentNote', {
-              orderNumber: displayOrderNumber,
-            }),
-          },
-        }),
-      i18n.t('accounting.messages.success.orderPaid'),
-      {
-        afterSuccess: () => {
-          window.dispatchEvent(new Event('project-goods:finance-updated'));
+    setPayingOrderId(order.id);
+    try {
+      await runFinanceAction(
+        () =>
+          paySupplierOrderMutation.mutateAsync({
+            supplierOrderId: order.id,
+            payload: {
+              cashboxId,
+              note: i18n.t('accounting.orders.paymentNote', {
+                orderNumber: displayOrderNumber,
+              }),
+            },
+          }),
+        i18n.t('accounting.messages.success.orderPaid'),
+        {
+          skipRefresh: true,
+          errorFallback: i18n.t('accounting.messages.errors.failedPayOrder'),
         },
-        skipRefresh: true,
-        errorFallback: i18n.t('accounting.messages.errors.failedPayOrder'),
-      },
-    );
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
   };
 
   const openNoteEditor = useCallback((transaction: FinanceTransaction) => {
@@ -713,6 +717,7 @@ export const AccountingPanel = ({
           financeOverview={financeOverview}
           firstCashboxId={firstCashboxId}
           isSaving={isSaving}
+          payingOrderId={payingOrderId}
           supplierOrders={supplierOrders}
           supplierOrdersQueue={supplierOrdersQueue}
           transactionForm={transactionForm}
@@ -778,64 +783,46 @@ export const AccountingPanel = ({
         />
       ) : null}
       {noteTransactionToEdit ? (
-        <div
-          className='modal-backdrop'
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !isSaving) {
-              closeNoteEditor();
-            }
-          }}
-        >
-          <div
-            className='catalog-edit-modal finance-note-modal'
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='transaction-note-title'
-          >
-            <header className='catalog-edit-header'>
-              <h2 id='transaction-note-title'>{t('accounting.transactions.noteModalTitle')}</h2>
-              <button
-                type='button'
-                className='ghost-button'
-                disabled={isSaving}
-                onClick={closeNoteEditor}
-              >
-                &times;
-              </button>
-            </header>
-            <div className='catalog-edit-body'>
-              <textarea
-                className='finance-note-textarea'
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                rows={4}
-                maxLength={300}
-                placeholder={t('accounting.transactions.noteModalPlaceholder')}
-                disabled={isSaving}
-              />
-              <p className='muted-copy'>{noteDraft.length}/300</p>
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button
-                type='button'
-                className='secondary-button'
+        <Modal
+          isOpen
+          title={t('accounting.transactions.noteModalTitle')}
+          onClose={closeNoteEditor}
+          closeLabel={t('common.close')}
+          className="finance-note-modal"
+          closeOnBackdrop={!isSaving}
+          closeOnEscape={!isSaving}
+          footer={
+            <footer className="catalog-edit-footer">
+              <Button
+                variant="secondary"
                 disabled={isSaving}
                 onClick={closeNoteEditor}
               >
                 {t('common.cancel')}
-              </button>
-              <button
-                type='button'
-                className='primary-button'
+              </Button>
+              <Button
+                variant="primary"
                 disabled={isSaving}
                 onClick={() => void handleSaveNote()}
               >
-                {isSaving ? t('accounting.transactions.saving') : t('common.save')}
-              </button>
+                {isSaving
+                  ? t('accounting.transactions.saving')
+                  : t('common.save')}
+              </Button>
             </footer>
-          </div>
-        </div>
+          }
+        >
+          <textarea
+            className="finance-note-textarea"
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            rows={4}
+            maxLength={300}
+            placeholder={t('accounting.transactions.noteModalPlaceholder')}
+            disabled={isSaving}
+          />
+          <p className="muted-copy">{noteDraft.length}/300</p>
+        </Modal>
       ) : null}
     </section>
   );

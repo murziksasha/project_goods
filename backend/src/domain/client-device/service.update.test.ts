@@ -99,7 +99,8 @@ describe('updateClientDevice repair sale propagation', () => {
       isActive: true,
     });
 
-    expect(Sale.find).toHaveBeenCalledTimes(1);
+    // propagate query + usage-count projection load
+    expect(Sale.find).toHaveBeenCalledTimes(2);
     expect(Sale.find.mock.calls[0][0]).toEqual({
       client: clientId,
       kind: 'repair',

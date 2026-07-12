@@ -1,5 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { AppSettings, AppSettingsFormValues, PrintForm } from '../model/types';
+
+export const useSettingsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.settings,
+    queryFn: getSettings,
+    enabled,
+  });
 
 export const getSettings = async () => {
   try {

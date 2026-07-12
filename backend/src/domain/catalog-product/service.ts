@@ -155,30 +155,54 @@ export const propagateCatalogProductNameChange = async ({
   );
 };
 
-const getCatalogProductUsageCount = async (item: CatalogProductDocument) => {
+type SaleUsageFields = {
+  productSnapshot?: { name?: string | null } | null;
+  lineItems?: Array<{ name?: string | null }> | null;
+  note?: string | null;
+};
+
+const loadSalesForCatalogUsage = () =>
+  Sale.find({}, { productSnapshot: 1, lineItems: 1, note: 1 }).lean<SaleUsageFields[]>();
+
+const countCatalogProductUsageInSales = (
+  item: CatalogProductDocument,
+  sales: SaleUsageFields[],
+) => {
   const normalizedName = normalizeCatalogProductName(item.name);
   if (!normalizedName) return 0;
 
   const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
-  return Sale.countDocuments({
-    $or: [
-      { 'productSnapshot.name': { $regex: `^${normalizedNamePattern}$`, $options: 'i' } },
-      { 'lineItems.name': { $regex: `^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, $options: 'i' } },
-      { note: { $regex: escapeRegExp(normalizedName), $options: 'i' } },
-    ],
-  });
+  const snapshotRe = new RegExp(`^${normalizedNamePattern}$`, 'i');
+  const lineItemRe = new RegExp(`^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, 'i');
+  const noteRe = new RegExp(escapeRegExp(normalizedName), 'i');
+
+  return sales.reduce((count, sale) => {
+    if (snapshotRe.test(String(sale.productSnapshot?.name ?? ''))) {
+      return count + 1;
+    }
+    if ((sale.lineItems ?? []).some((line) => lineItemRe.test(String(line.name ?? '')))) {
+      return count + 1;
+    }
+    if (noteRe.test(String(sale.note ?? ''))) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+};
+
+const getCatalogProductUsageCount = async (item: CatalogProductDocument) => {
+  const sales = await loadSalesForCatalogUsage();
+  return countCatalogProductUsageInSales(item, sales);
 };
 
 export const listCatalogProducts = async (queryValue: unknown) => {
   const query = getSearchQuery(queryValue);
-  const items = await CatalogProduct.find(query)
-    .sort({ createdAt: -1 })
-    .lean<CatalogProductDocument[]>();
-  return Promise.all(
-    items.map(async (item) => {
-      const usageCount = await getCatalogProductUsageCount(item);
-      return formatCatalogProduct(item, usageCount);
-    }),
+  const [items, sales] = await Promise.all([
+    CatalogProduct.find(query).sort({ createdAt: -1 }).lean<CatalogProductDocument[]>(),
+    loadSalesForCatalogUsage(),
+  ]);
+  return items.map((item) =>
+    formatCatalogProduct(item, countCatalogProductUsageInSales(item, sales)),
   );
 };
 

@@ -1,5 +1,14 @@
-﻿import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
+import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Supplier, SupplierFormValues } from '../model/types';
+
+export const useSuppliersQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.suppliers,
+    queryFn: () => getSuppliers(),
+    enabled,
+  });
 
 export const getSuppliers = async (query = '') => {
   try {

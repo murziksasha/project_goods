@@ -434,6 +434,21 @@ const fetchOpenWeatherForecast = async (
   };
 };
 
+type WeatherCacheEntry = {
+  expiresAt: number;
+  forecast: WeatherForecast;
+};
+
+const WEATHER_CACHE_TTL_MS = 15 * 60 * 1000;
+const weatherCache = new Map<string, WeatherCacheEntry>();
+
+const weatherCacheKey = (
+  latitude: number,
+  longitude: number,
+  provider: WeatherProvider,
+) =>
+  `${provider}:${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+
 export const getWeatherForecast = async ({
   latitude,
   longitude,
@@ -447,13 +462,26 @@ export const getWeatherForecast = async ({
 }) => {
   const lat = parseCoordinate(latitude, 46.3013);
   const lon = parseCoordinate(longitude, 30.6531);
-
-  if (provider === 'openweather') {
-    if (!openWeatherApiKey.trim()) {
-      throw new Error('OpenWeatherMap API key is required');
-    }
-    return fetchOpenWeatherForecast(lat, lon, openWeatherApiKey.trim());
+  const cacheKey = weatherCacheKey(lat, lon, provider);
+  const cached = weatherCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.forecast;
   }
 
-  return fetchOpenMeteoForecast(lat, lon);
+  const forecast =
+    provider === 'openweather'
+      ? (() => {
+          if (!openWeatherApiKey.trim()) {
+            throw new Error('OpenWeatherMap API key is required');
+          }
+          return fetchOpenWeatherForecast(lat, lon, openWeatherApiKey.trim());
+        })()
+      : fetchOpenMeteoForecast(lat, lon);
+
+  const resolved = await forecast;
+  weatherCache.set(cacheKey, {
+    expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
+    forecast: resolved,
+  });
+  return resolved;
 };

@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProductSalePriceTier } from '../../entities/product/lib/sale-prices';
 
@@ -14,11 +15,20 @@ export const ProductSalePriceTierToggle = ({
 }: ProductSalePriceTierToggleProps) => {
   const { t } = useTranslation();
 
+  const handleGroupKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+    event.preventDefault();
+    onTierChange(activeTier === 'retail' ? 'wholesale' : 'retail');
+  };
+
   return (
     <div
       className='product-sale-price-tier-toggle'
       role='group'
       aria-label={t('product.salePrice.tierToggleAria')}
+      onKeyDown={handleGroupKeyDown}
     >
       <button
         type='button'

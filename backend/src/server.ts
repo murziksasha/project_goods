@@ -6,6 +6,7 @@ import {
   ensureProductNameIsNotUnique,
 } from './domain/product/service';
 import { startBackupScheduler } from './domain/backup/scheduler';
+import { refreshSupplierOrderDerivedStatuses } from './domain/supplier-order/service';
 
 const getStartupErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -21,6 +22,9 @@ const startServer = async () => {
     await ensureProductNameIsNotUnique();
     await ensureProductArticleIsNotUnique();
     startBackupScheduler();
+    void refreshSupplierOrderDerivedStatuses().catch((error) => {
+      console.error('Supplier order derived-status refresh failed on startup:', error);
+    });
     app.listen(env.port, () => {
       console.log(`Backend started on http://localhost:${env.port}`);
     });

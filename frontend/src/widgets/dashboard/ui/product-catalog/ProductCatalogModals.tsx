@@ -12,12 +12,13 @@ import {
   PRICE_STEPPER_STEP,
 } from '../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../shared/ui/NumberStepper';
+import { Modal } from '../../../../shared/ui/Modal';
+import { Button } from '../../../../shared/ui/Button';
 import {
   getPriceOption,
   getServicePriceOption,
   setPriceOption,
   setServicePriceOption,
-  useLockBodyScroll,
 } from './product-catalog-shared';
 export const SupplierModal = ({
   supplier,
@@ -30,7 +31,6 @@ export const SupplierModal = ({
   onSave: (payload: SupplierFormValues) => Promise<void>;
   onCreate: (payload: SupplierFormValues) => Promise<boolean>;
 }) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
   const [name, setName] = useState(supplier.name);
   const [phone, setPhone] = useState(supplier.phone);
@@ -63,33 +63,34 @@ export const SupplierModal = ({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-        <header className="catalog-edit-header">
-          <div className="catalog-edit-title">
-            <span>{t('catalog.modals.supplierId', { id: supplier.id.slice(-6) })}</span>
-            <h2>{t('catalog.modals.supplier')}</h2>
-          </div>
-          <button type="button" className="create-order-close" onClick={onClose} aria-label={t('catalog.modals.close')}>
-            &times;
-          </button>
-        </header>
-        <div className="catalog-edit-body">
-          <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label className="field"><span>{t('catalog.modals.phone')}</span><input value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
-          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <label className="field"><span>{t('catalog.modals.status')}</span><select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}><option value="active">{t('catalog.modals.active')}</option><option value="inactive">{t('catalog.modals.inactive')}</option></select></label>
-        </div>
+    <Modal
+      isOpen
+      title={t('catalog.modals.supplier')}
+      subtitle={t('catalog.modals.supplierId', { id: supplier.id.slice(-6) })}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
         <footer className="catalog-edit-footer">
-          <button type="button" className="secondary-button" onClick={createCopy} disabled={isSaving}>{t('catalog.modals.addNew')}</button>
-          <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || !name.trim() || !phone.trim()}>
+          <Button variant="secondary" onClick={createCopy} disabled={isSaving}>
+            {t('catalog.modals.addNew')}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => void save()}
+            disabled={isSaving || !name.trim() || !phone.trim()}
+          >
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </button>
+          </Button>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field"><span>{t('catalog.modals.phone')}</span><input value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+      <label className="field"><span>{t('catalog.modals.status')}</span><select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}><option value="active">{t('catalog.modals.active')}</option><option value="inactive">{t('catalog.modals.inactive')}</option></select></label>
+    </Modal>
   );
 };
 
@@ -122,7 +123,6 @@ export const CatalogProductModal = ({
   onArchive,
   onActivate,
 }: CatalogProductModalProps) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
 
   const saveAndClose = async () => {
@@ -131,25 +131,33 @@ export const CatalogProductModal = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <Modal
+      isOpen
+      title={product.name}
+      subtitle={t('catalog.modals.supplierId', { id: catalogNumber || '-' })}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="catalog-edit-footer">
+          <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
+            {t('catalog.modals.deleteDeactivate')}
+          </button>
+          <button
+            type="button"
+            className="primary-button catalog-activate-button"
+            onClick={onActivate}
+            disabled={isSaving || product.isActive}
+          >
+            {t('catalog.modals.activate')}
+          </button>
+          <Button variant="primary" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
+            {isSaving ? t('catalog.modals.saving') : t('common.save')}
+          </Button>
+        </footer>
+      }
     >
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-      <header className="catalog-edit-header">
-        <div className="catalog-edit-title">
-          <span>{t('catalog.modals.supplierId', { id: catalogNumber || '-' })}</span>
-          <h2>{product.name}</h2>
-        </div>
-        <button type="button" className="create-order-close" onClick={onClose} aria-label={t('catalog.modals.close')}>
-          &times;
-        </button>
-      </header>
-
-      <div className="catalog-edit-body">
         <h3>{t('catalog.modals.mainInformation')}</h3>
         <label className="field">
           <span>{t('catalog.modals.name')}</span>
@@ -241,26 +249,7 @@ step={PRICE_STEPPER_STEP}
           <p>{t('catalog.modals.freeStockSummary', { count: product.freeQuantity })}</p>
           <p>{t('catalog.modals.totalStockSummary', { count: product.quantity })}</p>
         </div>
-      </div>
-
-      <footer className="catalog-edit-footer">
-        <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
-          {t('catalog.modals.deleteDeactivate')}
-        </button>
-        <button
-          type="button"
-          className="primary-button catalog-activate-button"
-          onClick={onActivate}
-          disabled={isSaving || product.isActive}
-        >
-          {t('catalog.modals.activate')}
-        </button>
-        <button type="button" className="primary-button" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
-          {isSaving ? t('catalog.modals.saving') : t('common.save')}
-        </button>
-      </footer>
-      </section>
-    </div>
+    </Modal>
   );
 };
 
@@ -292,7 +281,6 @@ export const CatalogServiceModal = ({
   onArchive,
   onActivate,
 }: CatalogServiceModalProps) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
 
   const saveAndClose = async () => {
@@ -301,25 +289,33 @@ export const CatalogServiceModal = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <Modal
+      isOpen
+      title={service.name}
+      subtitle={t('catalog.modals.supplierId', { id: catalogNumber || '-' })}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className="catalog-edit-footer">
+          <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
+            {t('catalog.modals.deleteDeactivate')}
+          </button>
+          <button
+            type="button"
+            className="primary-button catalog-activate-button"
+            onClick={onActivate}
+            disabled={isSaving || service.isActive}
+          >
+            {t('catalog.modals.activate')}
+          </button>
+          <Button variant="primary" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
+            {isSaving ? t('catalog.modals.saving') : t('common.save')}
+          </Button>
+        </footer>
+      }
     >
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-      <header className="catalog-edit-header">
-        <div className="catalog-edit-title">
-          <span>{t('catalog.modals.supplierId', { id: catalogNumber || '-' })}</span>
-          <h2>{service.name}</h2>
-        </div>
-        <button type="button" className="create-order-close" onClick={onClose} aria-label={t('catalog.modals.close')}>
-          &times;
-        </button>
-      </header>
-
-      <div className="catalog-edit-body">
         <h3>{t('catalog.modals.mainInformation')}</h3>
         <label className="field">
           <span>{t('catalog.modals.name')}</span>
@@ -370,26 +366,7 @@ step={PRICE_STEPPER_STEP}
           <p>{t('catalog.modals.wholesale2Summary', { value: formatCurrency(parseDecimal(getServicePriceOption(form, 1) || 0)) })}</p>
           <p>{t('catalog.modals.statusSummary', { status: service.isActive ? t('catalog.modals.active') : t('catalog.modals.inactive') })}</p>
         </div>
-      </div>
-
-      <footer className="catalog-edit-footer">
-        <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
-          {t('catalog.modals.deleteDeactivate')}
-        </button>
-        <button
-          type="button"
-          className="primary-button catalog-activate-button"
-          onClick={onActivate}
-          disabled={isSaving || service.isActive}
-        >
-          {t('catalog.modals.activate')}
-        </button>
-        <button type="button" className="primary-button" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
-          {isSaving ? t('catalog.modals.saving') : t('common.save')}
-        </button>
-      </footer>
-      </section>
-    </div>
+    </Modal>
   );
 };
 
@@ -404,7 +381,6 @@ export const ClientDeviceModal = ({
   onSave: (payload: ClientDeviceFormValues) => Promise<void>;
   onRemove: () => Promise<void>;
 }) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
   const [name, setName] = useState(device.name);
   const [note, setNote] = useState(device.note);
@@ -428,39 +404,34 @@ export const ClientDeviceModal = ({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-        <header className="catalog-edit-header">
-          <div className="catalog-edit-title">
-            <h2>{t('catalog.modals.clientDevice')}</h2>
-          </div>
-          <button type="button" className="create-order-close" onClick={onClose} aria-label={t('catalog.modals.close')}>
-            &times;
-          </button>
-        </header>
-        <div className="catalog-edit-body">
-          <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <label className="field">
-            <span>{t('catalog.modals.status')}</span>
-            <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
-              <option value="active">{t('catalog.modals.active')}</option>
-              <option value="inactive">{t('catalog.modals.inactive')}</option>
-            </select>
-          </label>
-        </div>
+    <Modal
+      isOpen
+      title={t('catalog.modals.clientDevice')}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
         <footer className="catalog-edit-footer">
           <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={!device.canRemove || isSaving}>
             {t('catalog.modals.remove')}
           </button>
-          <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
+          <Button variant="primary" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </button>
+          </Button>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+      <label className="field">
+        <span>{t('catalog.modals.status')}</span>
+        <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
+          <option value="active">{t('catalog.modals.active')}</option>
+          <option value="inactive">{t('catalog.modals.inactive')}</option>
+        </select>
+      </label>
+    </Modal>
   );
 };
 
@@ -475,7 +446,6 @@ export const CatalogSuggestionProductModal = ({
   onSave: (payload: CatalogProductFormValues) => Promise<void>;
   onRemove: () => Promise<void>;
 }) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
   const [name, setName] = useState(product.name);
   const [note, setNote] = useState(product.note);
@@ -493,38 +463,33 @@ export const CatalogSuggestionProductModal = ({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="catalog-edit-modal" role="dialog" aria-modal="true">
-        <header className="catalog-edit-header">
-          <div className="catalog-edit-title">
-            <h2>{t('catalog.modals.product')}</h2>
-          </div>
-          <button type="button" className="create-order-close" onClick={onClose} aria-label={t('catalog.modals.close')}>
-            &times;
-          </button>
-        </header>
-        <div className="catalog-edit-body">
-          <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <label className="field">
-            <span>{t('catalog.modals.status')}</span>
-            <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
-              <option value="active">{t('catalog.modals.active')}</option>
-              <option value="inactive">{t('catalog.modals.inactive')}</option>
-            </select>
-          </label>
-        </div>
+    <Modal
+      isOpen
+      title={t('catalog.modals.product')}
+      onClose={onClose}
+      closeLabel={t('catalog.modals.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
         <footer className="catalog-edit-footer">
           <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={product.canRemove === false || isSaving}>
             {t('catalog.modals.remove')}
           </button>
-          <button type="button" className="primary-button" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
+          <Button variant="primary" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </button>
+          </Button>
         </footer>
-      </section>
-    </div>
+      }
+    >
+      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+      <label className="field">
+        <span>{t('catalog.modals.status')}</span>
+        <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
+          <option value="active">{t('catalog.modals.active')}</option>
+          <option value="inactive">{t('catalog.modals.inactive')}</option>
+        </select>
+      </label>
+    </Modal>
   );
 };

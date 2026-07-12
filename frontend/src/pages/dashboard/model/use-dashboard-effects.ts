@@ -1,22 +1,14 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getClientHistory, getClients } from '../../../entities/client/api/clientApi';
-import type { Client, ClientHistory } from '../../../entities/client/model/types';
-import { getEmployees } from '../../../entities/employee/api/employeeApi';
+import { getClientHistory } from '../../../entities/client/api/clientApi';
+import type { ClientHistory } from '../../../entities/client/model/types';
+import { useEmployeesQuery } from '../../../entities/employee/api/employeeApi';
 import type { Employee } from '../../../entities/employee/model/types';
-import { getProducts } from '../../../entities/product/api/productApi';
-import type { Product } from '../../../entities/product/model/types';
-import { getSuppliers } from '../../../entities/supplier/api/supplierApi';
+import { useSuppliersQuery } from '../../../entities/supplier/api/supplierApi';
 import type { Supplier } from '../../../entities/supplier/model/types';
 import { getClientDevices } from '../../../entities/client-device/api/clientDeviceApi';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
-import { getSales } from '../../../entities/sale/api/saleApi';
-import type { Sale } from '../../../entities/sale/model/types';
-import { getCatalogProducts } from '../../../entities/catalog-product/api/catalogProductApi';
-import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
-import { getServiceCatalogItems } from '../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
-import { getSettings } from '../../../entities/settings/api/settingsApi';
+import { useSettingsQuery } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
@@ -31,23 +23,13 @@ type DashboardEffectsParams = {
   enabled: boolean;
   employeeId: string | null;
   selectedClientId: string | null;
-  setAllProducts: Setter<Product[]>;
   setClientDevices: Setter<ClientDevice[]>;
   setSuppliers: Setter<Supplier[]>;
-  setAllClients: Setter<Client[]>;
-  setSales: Setter<Sale[]>;
-  setCatalogProducts: Setter<CatalogProduct[]>;
-  setServices: Setter<ServiceCatalogItem[]>;
   setAllEmployees: Setter<Employee[]>;
   setSettings: Setter<AppSettings | null>;
   setSettingsForm: Setter<AppSettingsFormValues>;
   setClientHistory: Setter<ClientHistory | null>;
-  setIsProductsLoading: Setter<boolean>;
   setIsSuppliersLoading: Setter<boolean>;
-  setIsClientsLoading: Setter<boolean>;
-  setIsSalesLoading: Setter<boolean>;
-  setIsCatalogProductsLoading: Setter<boolean>;
-  setIsServicesLoading: Setter<boolean>;
   setIsEmployeesLoading: Setter<boolean>;
   setIsClientHistoryLoading: Setter<boolean>;
   setError: Setter<string>;
@@ -58,225 +40,125 @@ export const useDashboardEffects = ({
   enabled,
   employeeId,
   selectedClientId,
-  setAllProducts,
   setClientDevices,
   setSuppliers,
-  setAllClients,
-  setSales,
-  setCatalogProducts,
-  setServices,
   setAllEmployees,
   setSettings,
   setSettingsForm,
   setClientHistory,
-  setIsProductsLoading,
   setIsSuppliersLoading,
-  setIsClientsLoading,
-  setIsSalesLoading,
-  setIsCatalogProductsLoading,
-  setIsServicesLoading,
   setIsEmployeesLoading,
   setIsClientHistoryLoading,
   setError,
   setLastSyncAt,
 }: DashboardEffectsParams) => {
-  useEffect(() => {
-    if (!enabled) return;
+  const suppliersQuery = useSuppliersQuery(enabled);
+  const employeesQuery = useEmployeesQuery(enabled);
+  const settingsQuery = useSettingsQuery(enabled);
 
-    let isActive = true;
-
-    const fetchWorkspaceData = async () => {
-      setIsProductsLoading(true);
-      setIsSuppliersLoading(true);
-      setIsEmployeesLoading(true);
-      setIsClientsLoading(true);
-      setIsServicesLoading(true);
-
-      try {
-        const [
-          suppliersResult,
-          employeesResult,
-          settingsResult,
-        ] =
-          await Promise.allSettled([
-            getSuppliers(),
-            getEmployees(),
-            getSettings(),
-          ]);
-        if (!isActive) return;
-
-        if (suppliersResult.status === 'fulfilled') {
-          setSuppliers(suppliersResult.value);
-        }
-        if (employeesResult.status === 'fulfilled') {
-          setAllEmployees(employeesResult.value);
-        } else {
-          setAllEmployees([]);
-        }
-        if (settingsResult.status === 'fulfilled') {
-          setSettings(settingsResult.value);
-          setSettingsForm({
-            serviceName: settingsResult.value.serviceName,
-            company: settingsResult.value.company,
-            companyAddress: settingsResult.value.companyAddress,
-            companyId: settingsResult.value.companyId,
-            companyIban: settingsResult.value.companyIban,
-            companyEmail: settingsResult.value.companyEmail,
-            companySite: settingsResult.value.companySite,
-            printForms: applyPrintFormLocalOverrides(
-              settingsResult.value.printForms,
-              employeeId,
-            ),
-            orderDefaults: settingsResult.value.orderDefaults,
-            numbering: settingsResult.value.numbering,
-            financeDefaults: settingsResult.value.financeDefaults,
-            notificationSettings: settingsResult.value.notificationSettings,
-            dashboardPreferences: normalizeDashboardPreferences(
-              settingsResult.value.dashboardPreferences,
-            ),
-          });
-        } else {
-          setSettings(null);
-          setSettingsForm(createDefaultSettingsForm());
-        }
-        setLastSyncAt(new Date().toISOString());
-      } finally {
-        if (isActive) {
-          setIsProductsLoading(false);
-          setIsSuppliersLoading(false);
-          setIsEmployeesLoading(false);
-        }
-      }
-    };
-
-    void fetchWorkspaceData();
-    return () => {
-      isActive = false;
-    };
-  }, [
-    employeeId,
-    enabled,
-    setAllClients,
-    setAllEmployees,
-    setAllProducts,
-    setClientDevices,
-    setSuppliers,
-    setError,
-    setSettings,
-    setSettingsForm,
-    setIsClientsLoading,
-    setIsEmployeesLoading,
-    setIsServicesLoading,
-    setIsProductsLoading,
-    setIsSuppliersLoading,
-    setLastSyncAt,
-    setServices,
-  ]);
-
-  const productsQuery = useQuery({
-    queryKey: queryKeys.products,
-    queryFn: () => getProducts(),
-    enabled,
-    refetchInterval: enabled ? 30000 : false,
-  });
   const clientDevicesQuery = useQuery({
     queryKey: queryKeys.clientDevices,
     queryFn: () => getClientDevices(),
     enabled,
     refetchInterval: enabled ? 30000 : false,
   });
-  const salesQuery = useQuery({
-    queryKey: queryKeys.sales,
-    queryFn: () => getSales(),
-    enabled,
-    refetchInterval: enabled ? 30000 : false,
-  });
-  const clientsQuery = useQuery({
-    queryKey: queryKeys.clients,
-    queryFn: () => getClients(),
-    enabled,
-    refetchInterval: enabled ? 30000 : false,
-  });
-  const servicesQuery = useQuery({
-    queryKey: queryKeys.services,
-    queryFn: () => getServiceCatalogItems(),
-    enabled,
-    refetchInterval: enabled ? 30000 : false,
-  });
-  const catalogProductsQuery = useQuery({
-    queryKey: queryKeys.catalogProducts,
-    queryFn: () => getCatalogProducts(),
-    enabled,
-    refetchInterval: enabled ? 30000 : false,
-  });
 
   useEffect(() => {
     if (!enabled) return;
-    const handleProductsUpdated = () => {
-      void productsQuery.refetch();
-    };
-    window.addEventListener(
-      'project-goods:products-updated',
-      handleProductsUpdated,
-    );
-    return () => {
-      window.removeEventListener(
-        'project-goods:products-updated',
-        handleProductsUpdated,
-      );
-    };
-  }, [enabled, productsQuery]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    setIsProductsLoading(productsQuery.isLoading);
-    if (productsQuery.data) {
-      setAllProducts(productsQuery.data);
+    setIsSuppliersLoading(suppliersQuery.isLoading);
+    if (suppliersQuery.data) {
+      setSuppliers(suppliersQuery.data);
       setLastSyncAt(new Date().toISOString());
     }
-    if (productsQuery.error) {
+    if (suppliersQuery.error) {
       setError(
         getRequestErrorMessage(
-          productsQuery.error,
-          i18n.t('errors.failedLoadProducts'),
+          suppliersQuery.error,
+          i18n.t('errors.failedLoadSuppliers'),
         ),
       );
     }
   }, [
     enabled,
-    productsQuery.data,
-    productsQuery.error,
-    productsQuery.isLoading,
-    setAllProducts,
     setError,
-    setIsProductsLoading,
+    setIsSuppliersLoading,
+    setLastSyncAt,
+    setSuppliers,
+    suppliersQuery.data,
+    suppliersQuery.error,
+    suppliersQuery.isLoading,
+  ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setIsEmployeesLoading(employeesQuery.isLoading);
+    if (employeesQuery.data) {
+      setAllEmployees(employeesQuery.data);
+      setLastSyncAt(new Date().toISOString());
+    } else if (employeesQuery.error) {
+      setAllEmployees([]);
+      setError(
+        getRequestErrorMessage(
+          employeesQuery.error,
+          i18n.t('errors.failedLoadEmployees'),
+        ),
+      );
+    }
+  }, [
+    enabled,
+    employeesQuery.data,
+    employeesQuery.error,
+    employeesQuery.isLoading,
+    setAllEmployees,
+    setError,
+    setIsEmployeesLoading,
     setLastSyncAt,
   ]);
 
   useEffect(() => {
     if (!enabled) return;
-    setIsCatalogProductsLoading(catalogProductsQuery.isLoading);
-    if (catalogProductsQuery.data) {
-      setCatalogProducts(catalogProductsQuery.data);
+    if (settingsQuery.data) {
+      setSettings(settingsQuery.data);
+      setSettingsForm({
+        serviceName: settingsQuery.data.serviceName,
+        company: settingsQuery.data.company,
+        companyAddress: settingsQuery.data.companyAddress,
+        companyId: settingsQuery.data.companyId,
+        companyIban: settingsQuery.data.companyIban,
+        companyEmail: settingsQuery.data.companyEmail,
+        companySite: settingsQuery.data.companySite,
+        printForms: applyPrintFormLocalOverrides(
+          settingsQuery.data.printForms,
+          employeeId,
+        ),
+        orderDefaults: settingsQuery.data.orderDefaults,
+        numbering: settingsQuery.data.numbering,
+        financeDefaults: settingsQuery.data.financeDefaults,
+        notificationSettings: settingsQuery.data.notificationSettings,
+        dashboardPreferences: normalizeDashboardPreferences(
+          settingsQuery.data.dashboardPreferences,
+        ),
+      });
       setLastSyncAt(new Date().toISOString());
-    }
-    if (catalogProductsQuery.error) {
+    } else if (settingsQuery.error) {
+      setSettings(null);
+      setSettingsForm(createDefaultSettingsForm());
       setError(
         getRequestErrorMessage(
-          catalogProductsQuery.error,
-          i18n.t('errors.failedLoadCatalogProducts'),
+          settingsQuery.error,
+          i18n.t('errors.failedLoadSettings'),
         ),
       );
     }
   }, [
+    employeeId,
     enabled,
-    catalogProductsQuery.data,
-    catalogProductsQuery.error,
-    catalogProductsQuery.isLoading,
-    setCatalogProducts,
     setError,
-    setIsCatalogProductsLoading,
     setLastSyncAt,
+    setSettings,
+    setSettingsForm,
+    settingsQuery.data,
+    settingsQuery.error,
   ]);
 
   useEffect(() => {
@@ -300,78 +182,6 @@ export const useDashboardEffects = ({
     setClientDevices,
     setError,
     setLastSyncAt,
-  ]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    setIsSalesLoading(salesQuery.isLoading);
-    if (salesQuery.data) {
-      setSales(salesQuery.data);
-      setLastSyncAt(new Date().toISOString());
-    }
-    if (salesQuery.error) {
-      setError(
-        getRequestErrorMessage(salesQuery.error, i18n.t('errors.failedLoadSales')),
-      );
-    }
-  }, [
-    enabled,
-    salesQuery.data,
-    salesQuery.error,
-    salesQuery.isLoading,
-    setError,
-    setIsSalesLoading,
-    setLastSyncAt,
-    setSales,
-  ]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    setIsClientsLoading(clientsQuery.isLoading);
-    if (clientsQuery.data) {
-      setAllClients(clientsQuery.data);
-      setLastSyncAt(new Date().toISOString());
-    }
-    if (clientsQuery.error) {
-      setError(
-        getRequestErrorMessage(clientsQuery.error, i18n.t('errors.failedLoadClients')),
-      );
-    }
-  }, [
-    enabled,
-    clientsQuery.data,
-    clientsQuery.error,
-    clientsQuery.isLoading,
-    setAllClients,
-    setError,
-    setIsClientsLoading,
-    setLastSyncAt,
-  ]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    setIsServicesLoading(servicesQuery.isLoading);
-    if (servicesQuery.data) {
-      setServices(servicesQuery.data);
-      setLastSyncAt(new Date().toISOString());
-    }
-    if (servicesQuery.error) {
-      setError(
-        getRequestErrorMessage(
-          servicesQuery.error,
-          i18n.t('errors.failedLoadServices'),
-        ),
-      );
-    }
-  }, [
-    enabled,
-    servicesQuery.data,
-    servicesQuery.error,
-    servicesQuery.isLoading,
-    setError,
-    setIsServicesLoading,
-    setLastSyncAt,
-    setServices,
   ]);
 
   useEffect(() => {

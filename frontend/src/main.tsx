@@ -6,8 +6,15 @@ import i18n from './shared/i18n/config'
 import App from './app/App.tsx'
 import { queryClient } from './shared/api/queryClient.ts'
 import { cleanupLegacyPwaStorageOnce } from './shared/browser/cleanupLegacyPwaStorage.ts'
+import {
+  applyUiDensity,
+  readUiDensity,
+} from './shared/lib/uiDensity.ts'
+import { applyUiTheme, readUiTheme } from './shared/lib/uiTheme.ts'
 
 cleanupLegacyPwaStorageOnce();
+applyUiDensity(readUiDensity());
+applyUiTheme(readUiTheme());
 
 const rootElement = document.getElementById('root');
 

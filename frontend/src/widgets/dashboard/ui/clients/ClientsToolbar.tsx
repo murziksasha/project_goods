@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
 
 type ClientsToolbarProps = {
   activeFiltersCount: number;
@@ -43,6 +44,14 @@ export const ClientsToolbar = ({
   const { t } = useTranslation();
 
   return (
+    <div className='clients-toolbar-shell'>
+      <PageHeader
+        title={t('nav.clients')}
+        subtitle={t('clients.toolbar.totalCount', {
+          count: filteredClientsCount,
+          defaultValue: '{{count}} records',
+        })}
+      />
     <div className='orders-toolbar clients-toolbar'>
       <div className='orders-toolbar-left'>
         <CompactPaginationPanel
@@ -128,6 +137,7 @@ export const ClientsToolbar = ({
           {t('clients.toolbar.createClient')}
         </button>
       </div>
+    </div>
     </div>
   );
 };

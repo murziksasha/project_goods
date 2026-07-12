@@ -5,6 +5,7 @@ import type { Sale } from '../../../../entities/sale/model/types';
 import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
 import { SelectableActionLink } from '../../../../shared/ui/SelectableActionLink';
+import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
 import { getStockSupplierLabel } from '../../model/stock-balance';
 import {
   getReceiptPaymentStatusClass,
@@ -245,9 +246,12 @@ export const StockTable = ({
 
   if (isLoading)
     return (
-      <p className='empty-state warehouse-stock-empty'>
-        {t('warehouse.tables.stock.loading')}
-      </p>
+      <TableSkeleton
+        className='warehouse-stock-empty'
+        rows={6}
+        columns={Math.max(visibleColumns.length, 4)}
+        label={t('warehouse.tables.stock.loading')}
+      />
     );
   if (products.length === 0)
     return (

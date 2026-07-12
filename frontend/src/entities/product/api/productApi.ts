@@ -1,9 +1,19 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
 } from '../model/types';
+
+export const useProductsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.products,
+    queryFn: () => getProducts(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
 export const getProducts = async (query = '') => {
   try {

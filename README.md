@@ -6,33 +6,41 @@ Project Goods - full-stack приложение для учета товаров
 
 ### Базовая документация
 - [DEVELOPMENT.md](./DOCUMENTATION/DEVELOPMENT.md) - локальный запуск, окружение, команды
-- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория (включая карту `widgets/dashboard/ui/` по тематическим папкам)
+- [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md) - Docker prod, env vars, MongoDB replica set
+- [TESTING.md](./DOCUMENTATION/TESTING.md) - команды тестов, структура, CI expectations
+- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория
 - [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
-- [API.md](./DOCUMENTATION/API.md) - backend API и маршруты
-- [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - управление состоянием и multi-user roadmap
-- [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - Back/Forward внутри SPA, History API, URL-параметры dashboard
-- [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md) - метка версии сборки в сайдбаре (SHA + время, Docker `GIT_SHA`)
+- [API.md](./DOCUMENTATION/API.md) - backend API, auth matrix per endpoint
+- [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - TanStack Query, multi-user roadmap
+- [STATE_QUERY_MIGRATION_PLAN.md](./DOCUMENTATION/STATE_QUERY_MIGRATION_PLAN.md) - план миграции query cache
+- [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - SPA History API, URL-параметры dashboard
+- [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md) - метка версии сборки (SHA + время)
+- [SECURITY.md](./DOCUMENTATION/SECURITY.md) - аутентификация, RBAC, LAN-деплой
+- [BACKEND_IMPROVEMENT_PLAN.md](./DOCUMENTATION/BACKEND_IMPROVEMENT_PLAN.md) - план улучшения backend (correctness, split, perf, tests)
+- [UI_DESIGN_SYSTEM.md](./DOCUMENTATION/UI_DESIGN_SYSTEM.md) - токены, компоненты, breakpoints
 
 ### Flow-документы
-- [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - business home page: analytics date filter, market rates, weather widget (Chornomorsk/Odesa presets, animation, LAN mode), settings
-- [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - flow заказов
-- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - flow продаж (включая **Rapid sale** — быстрый продаж без клиента)
-- [WAREHOUSE_FLOW.MD](./DOCUMENTATION/WAREHOUSE_FLOW.MD) - flow склада (артикул `A000001+`, мультипечать серийных этикеток из `Stock balances`)
-- [ACCOUNTING.MD](./DOCUMENTATION/ACCOUNTING.MD) - flow финансов/касс
-- [Permission_Flow.md](./DOCUMENTATION/Permission_Flow.md) - flow прав доступа сотрудников, ролей, supplier-order permissions и finance permissions
+- [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - analytics, market rates, weather widget
+- [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - repair orders и sales orders
+- [SUPPLIER_ORDER_FLOW.md](./DOCUMENTATION/SUPPLIER_ORDER_FLOW.md) - заказы поставщику (вкладки Supplier Order / Information)
+- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - продажи, Rapid sale
+- [WAREHOUSE_FLOW.md](./DOCUMENTATION/WAREHOUSE_FLOW.md) - склад, серийные этикетки
+- [ACCOUNTING.md](./DOCUMENTATION/ACCOUNTING.md) - финансы и кассы
+- [Permission_Flow.md](./DOCUMENTATION/Permission_Flow.md) - RBAC, роли, finance permissions
+- [EMPLOYEES_SPEC.md](./DOCUMENTATION/EMPLOYEES_SPEC.md) - сотрудники, аналитика, мастер
 
 ### Карточки и предметные спецификации
-- [ORDER_CARD.md](./DOCUMENTATION/ORDER_CARD.md) - требования к карточке заказа
-- [SALE_CARD.md](./DOCUMENTATION/SALE_CARD.md) - требования к карточке продажи
-- [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - правила по клиентам и статусам
-- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка создания товара каталога
-- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - правила последовательности серийных номеров
-- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы (конструктор блоков, жирность текста Light/Normal/Bold, `Product barcode`, batch-печать со склада)
-- [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - поведение подсказок
+- [ORDER_CARD.md](./DOCUMENTATION/ORDER_CARD.md) - карточка заказа (loading/error/mobile)
+- [SALE_CARD.md](./DOCUMENTATION/SALE_CARD.md) - карточка продажи
+- [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - клиенты и статусы CRM
+- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка каталога
+- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - серийные номера
+- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы
+- [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - подсказки
 
-### Служебная и проектная документация
-- [DEMO_DATA.MD](./DOCUMENTATION/DEMO_DATA.MD) - демо-данные
-- [AGENTS.MD](./DOCUMENTATION/AGENTS.MD) - правила/контекст для агентов
+### Служебная документация
+- [DEMO_DATA.md](./DOCUMENTATION/DEMO_DATA.md) - демо-данные
+- [AGENTS.md](./AGENTS.md) - правила для AI-агентов
 
 ## UI Infrastructure Notes
 - Global fixed horizontal scrollbar is implemented via shared component:
@@ -43,7 +51,7 @@ Project Goods - full-stack приложение для учета товаров
   - works for all table wrappers with class `.catalog-table-wrap` when horizontal overflow exists.
 
 ## Технологии
-- Frontend: React, TypeScript, Vite, Axios, Bootstrap
+- Frontend: React 19, TypeScript, Vite, Axios, TanStack Query, i18next, custom CSS design system
 - Backend: Node.js, Express, TypeScript, Mongoose
 - Database: MongoDB
 - Local infrastructure: Docker Compose

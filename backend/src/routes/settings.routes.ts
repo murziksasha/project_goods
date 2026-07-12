@@ -4,9 +4,8 @@ import {
   updatePrintForms,
   updateSettings,
 } from '../domain/settings/service';
-import { getBearerToken, requireOwnerByToken } from '../domain/auth/service';
 import type { SettingsPayload } from '../domain/shared/types';
-import { asyncHandler, requireAnyPermission } from '../shared/lib/http';
+import { asyncHandler, requireAnyPermission, requireOwner } from '../shared/lib/http';
 
 export const settingsRouter = Router();
 
@@ -22,7 +21,7 @@ settingsRouter.get('/settings', asyncHandler(async (_req, res) => {
 }));
 
 settingsRouter.put('/settings', asyncHandler(async (req, res) => {
-  await requireOwnerByToken(getBearerToken(req.headers.authorization));
+  await requireOwner(req);
   res.json(await updateSettings(req.body as SettingsPayload));
 }));
 
