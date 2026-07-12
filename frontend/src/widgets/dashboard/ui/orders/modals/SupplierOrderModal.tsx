@@ -22,6 +22,11 @@ import { defaultPrintForms } from '../../../../../entities/settings/model/printF
 import { printSerialNumbers } from '../../../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../shared/lib/decimal';
 import {
+  PRICE_STEPPER_PRECISION,
+  PRICE_STEPPER_STEP,
+} from '../../../../../shared/lib/price-stepper';
+import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import {
   getSupplierOrderDisplayNumber,
   getSupplierSuggestions,
   resolveSupplierOrderErrorMessage,
@@ -704,11 +709,31 @@ export const SupplierOrderModal = ({
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.priceUah')}</span>
-              <input value={form.price} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, price: normalizeDecimalInput(event.target.value) }))} />
+              <NumberStepper
+                className='line-item-inline-input'
+                min={0}
+                step={PRICE_STEPPER_STEP}
+                precision={PRICE_STEPPER_PRECISION}
+                value={form.price}
+                disabled={isFormDisabled}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, price: value }))
+                }
+                ariaLabel={t('orders.supplier.modal.priceUah')}
+              />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.qty')}</span>
-              <input value={form.quantity} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
+              <NumberStepper
+                className='line-item-inline-input'
+                min={1}
+                value={form.quantity}
+                disabled={isFormDisabled}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, quantity: value }))
+                }
+                ariaLabel={t('orders.supplier.modal.qty')}
+              />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.amount')}</span>
@@ -764,21 +789,27 @@ export const SupplierOrderModal = ({
                     <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'>
-                      <input
+                      <NumberStepper
+                        className='line-item-inline-input'
+                        min={0}
+                        step={PRICE_STEPPER_STEP}
+                        precision={PRICE_STEPPER_PRECISION}
                         value={String(item.price)}
                         disabled={isFormDisabled}
-                        onChange={(event) =>
-                          updateBasketItemPrice(index, event.target.value)
-                        }
+                        onChange={(value) => updateBasketItemPrice(index, value)}
+                        ariaLabel={t('orders.supplier.modal.priceUah')}
                       />
                     </div>
                     <div className='field supplier-order-product-compact'>
-                      <input
+                      <NumberStepper
+                        className='line-item-inline-input'
+                        min={1}
                         value={String(item.quantity)}
                         disabled={isFormDisabled}
-                        onChange={(event) =>
-                          updateBasketItemQuantity(index, event.target.value)
+                        onChange={(value) =>
+                          updateBasketItemQuantity(index, value)
                         }
+                        ariaLabel={t('orders.supplier.modal.qty')}
                       />
                     </div>
                     <div className='field supplier-order-product-compact'><input value={String(roundMoney(item.quantity * (parseDecimal(item.price) || 0)))} readOnly /></div>

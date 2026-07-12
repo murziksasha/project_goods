@@ -8044,6 +8044,11 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   margin: 0;
 }
 
+.supplier-order-product-compact .number-stepper.line-item-inline-input {
+  width: 100%;
+  min-width: 0;
+}
+
 .supplier-order-product-add {
   align-self: end;
 }
