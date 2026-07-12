@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../../entities/employee/model/types';
 import {
@@ -80,6 +80,22 @@ export const WarehouseSettings = ({
   const [warehouseStatusFilter, setWarehouseStatusFilter] = useState<
     'all' | 'active' | 'inactive'
   >('all');
+  const warehouseMultiselectRefs = useRef<Map<string, HTMLDetailsElement>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      warehouseMultiselectRefs.current.forEach((detailsEl) => {
+        if (detailsEl.open && !detailsEl.contains(event.target as Node)) {
+          detailsEl.open = false;
+        }
+      });
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive),
     [warehouses],
@@ -434,7 +450,21 @@ export const WarehouseSettings = ({
                     <tr key={administrator.employeeId}>
                       <td>{employee.name}</td>
                       <td>
-                        <details className='warehouse-admin-multiselect'>
+                        <details
+                          className='warehouse-admin-multiselect'
+                          ref={(element) => {
+                            if (element) {
+                              warehouseMultiselectRefs.current.set(
+                                administrator.employeeId,
+                                element,
+                              );
+                            } else {
+                              warehouseMultiselectRefs.current.delete(
+                                administrator.employeeId,
+                              );
+                            }
+                          }}
+                        >
                           <summary>
                             {isAllSelected
                               ? t(
