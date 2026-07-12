@@ -343,6 +343,16 @@
 - On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
 
+## Supplier Order Modal Price/Qty Steppers (2026-07-12)
+
+- Scope: `Orders -> Supplier Order -> Order from supplier` (`SupplierOrderModal`).
+- Active product row and already-added basket rows use shared `NumberStepper` with vertical `+`/`-` controls, matching sales-order line-item behavior (`OrderDetailLineItemsPanel`).
+- **Price (UAH):** step `1`, min `0`, integer precision (`PRICE_STEPPER_STEP` / `PRICE_STEPPER_PRECISION`).
+- **Qty:** step `1`, min `1`.
+- **Amount** and **Total** remain read-only calculated fields; no steppers.
+- Steppers are disabled when supplier-order content is locked (`isFormDisabled`) or the modal is opened read-only (`forceReadOnly`).
+- Layout: steppers reuse `.line-item-inline-input` inside the existing `supplier-order-product-row` grid; mobile breakpoint keeps single-column stack.
+
 ## Supplier Choose Picker in SupplierOrderModal (2026-07-06)
 
 - Scope: `Supplier` field in `SupplierOrderModal` (`Orders -> Supplier Order`, Warehouse receipts, linked sale/order card flows).

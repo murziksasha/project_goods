@@ -300,7 +300,8 @@ Implementation references:
 - Take-on-charge and cancel-item from any entry point (`Warehouse -> Receipts`, `Orders -> Supplier Order`, linked sale card) must invalidate/refetch the shared `supplierOrders` query cache so both tabs stay synchronized.
 
 ### 6.3) Supplier Order Modal Item List Editing
-- In `SupplierOrderModal` (`src/widgets/dashboard/ui/orders/modals/SupplierOrderModal.tsx`), already added item rows must allow editing `К-сть`.
+- In `SupplierOrderModal` (`src/widgets/dashboard/ui/orders/modals/SupplierOrderModal.tsx`), active and already-added item rows use shared `NumberStepper` for **Price (UAH)** and **Qty** (`+`/`-` step by 1 UAH / 1 unit), matching sales-order line items.
+- Already added item rows must allow editing **Qty** and **Price** while content is unlocked.
 - Each already added item row must have remove action button `-` at row end.
 - Remove action uses the same square toolbar visual style as add button `+`.
 - Remove action deletes only selected row from current order item list.
