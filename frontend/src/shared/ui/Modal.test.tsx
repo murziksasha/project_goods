@@ -69,4 +69,26 @@ describe('Modal', () => {
     fireEvent.keyDown(document, { key: 'Tab' });
     expect(document.activeElement).toBe(first);
   });
+
+  it('keeps input focus when onClose identity changes on re-render', () => {
+    const { rerender } = render(
+      <Modal isOpen title="Edit item" onClose={() => undefined}>
+        <button type="button">Tab</button>
+        <input aria-label="Name" defaultValue="A" />
+      </Modal>,
+    );
+
+    const input = screen.getByLabelText('Name');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    rerender(
+      <Modal isOpen title="Edit item" onClose={() => undefined}>
+        <button type="button">Tab</button>
+        <input aria-label="Name" defaultValue="Ab" />
+      </Modal>,
+    );
+
+    expect(document.activeElement).toBe(input);
+  });
 });

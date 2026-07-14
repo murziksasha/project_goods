@@ -77,6 +77,9 @@ export const Modal = ({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  // Keep latest onClose without re-running open/focus lifecycle when parent re-renders.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useModalBackgroundScrollLock(isOpen, {
     allowedSelectors: [
@@ -124,7 +127,7 @@ export const Modal = ({
       if (event.key === 'Escape' && closeOnEscape) {
         event.preventDefault();
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -165,7 +168,7 @@ export const Modal = ({
         previous.focus();
       }
     };
-  }, [closeOnEscape, initialFocusSelector, isOpen, onClose]);
+  }, [closeOnEscape, initialFocusSelector, isOpen]);
 
   if (!isOpen) return null;
 
