@@ -3,6 +3,8 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryKeys = {
   products: ['products'] as const,
   sales: ['sales'] as const,
+  salesList: (params: Record<string, unknown> = {}) =>
+    ['sales', params] as const,
   clientDevices: ['clientDevices'] as const,
   services: ['services'] as const,
   clients: ['clients'] as const,

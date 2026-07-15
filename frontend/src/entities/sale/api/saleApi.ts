@@ -49,17 +49,45 @@ const ensureCreateSaleResponse = (value: unknown): CreateSaleResponse => {
   throw new ApiRequestError('Unexpected create sale response from API.');
 };
 
-export const useSalesQuery = (enabled = true) =>
+export type SalesListParams = {
+  kind?: 'sale' | 'repair';
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  isFavorite?: boolean;
+  isRapidSale?: boolean;
+  clientId?: string;
+  q?: string;
+  limit?: number;
+};
+
+export const buildSalesListQuery = (params: SalesListParams = {}) => {
+  const query: Record<string, string> = {};
+  if (params.kind) query.kind = params.kind;
+  if (params.status) query.status = params.status;
+  if (params.dateFrom) query.dateFrom = params.dateFrom;
+  if (params.dateTo) query.dateTo = params.dateTo;
+  if (params.isFavorite !== undefined) query.isFavorite = String(params.isFavorite);
+  if (params.isRapidSale !== undefined) query.isRapidSale = String(params.isRapidSale);
+  if (params.clientId) query.clientId = params.clientId;
+  if (params.q) query.q = params.q;
+  if (params.limit !== undefined) query.limit = String(params.limit);
+  return query;
+};
+
+export const useSalesQuery = (enabled = true, params: SalesListParams = {}) =>
   useQuery({
-    queryKey: queryKeys.sales,
-    queryFn: () => getSales(),
+    queryKey: queryKeys.salesList(params),
+    queryFn: () => getSales(params),
     enabled,
     refetchInterval: enabled ? 30000 : false,
   });
 
-export const getSales = async () => {
+export const getSales = async (params: SalesListParams = {}) => {
   try {
-    const response = await apiClient.get<Sale[]>('/sales');
+    const response = await apiClient.get<Sale[]>('/sales', {
+      params: buildSalesListQuery(params),
+    });
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

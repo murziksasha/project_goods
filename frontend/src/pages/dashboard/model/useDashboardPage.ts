@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { initialClientForm } from '../../../entities/client/model/forms';
 import type { ClientFormValues, ClientHistory, ClientStatus } from '../../../entities/client/model/types';
@@ -89,9 +89,23 @@ const clientSearchStorageKey = 'project-goods.filter.client-search';
 const clientStatusStorageKey = 'project-goods.filter.client-status';
 
 export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<AnalyticsDateRange | null>(() =>
+    getStoredAnalyticsDateRange(),
+  );
+  const salesListParams = useMemo(() => {
+    if (!analyticsDateRange?.dateFrom && !analyticsDateRange?.dateTo) {
+      return {};
+    }
+    return {
+      ...(analyticsDateRange.dateFrom ? { dateFrom: analyticsDateRange.dateFrom } : {}),
+      ...(analyticsDateRange.dateTo ? { dateTo: analyticsDateRange.dateTo } : {}),
+    };
+  }, [analyticsDateRange]);
+
   const productsQuery = useProductsQuery(enabled);
   const clientsQuery = useClientsQuery(enabled);
-  const salesQuery = useSalesQuery(enabled);
+  const salesQuery = useSalesQuery(enabled, salesListParams);
   const catalogProductsQuery = useCatalogProductsQuery(enabled);
   const servicesQuery = useServicesQuery(enabled);
 
@@ -107,10 +121,6 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>(
     createDefaultSettingsForm,
-  );
-  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
-  const [analyticsDateRange, setAnalyticsDateRange] = useState<AnalyticsDateRange | null>(() =>
-    getStoredAnalyticsDateRange(),
   );
   const [draftAnalyticsDateRange, setDraftAnalyticsDateRange] = useState<AnalyticsDateRange>(() => ({
     dateFrom: getStoredAnalyticsDateRange()?.dateFrom ?? '',

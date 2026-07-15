@@ -7,6 +7,7 @@ import {
   toNonEmptyString,
 } from '../../shared/lib/parsers';
 import type { ClientPayload } from '../shared/types';
+import { HttpError } from '../../shared/lib/errors';
 
 const defaultSheetName = 'Клієнти';
 const registrationIdPattern = /^[0-9A-Za-z-]{8,12}$/;
@@ -223,12 +224,12 @@ export const readClientImportRowsFromBuffer = (buffer: Buffer) => {
     : workbook.SheetNames[0];
 
   if (!sheetName) {
-    throw new Error('Workbook does not contain sheets.');
+    throw new HttpError(400, 'Workbook does not contain sheets.');
   }
 
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) {
-    throw new Error(`Sheet "${sheetName}" was not found.`);
+    throw new HttpError(404, `Sheet "${sheetName}" was not found.`);
   }
   const rows = XLSX.utils.sheet_to_json<ClientImportRow>(sheet, {
     defval: '',

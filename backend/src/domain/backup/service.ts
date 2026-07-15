@@ -111,7 +111,7 @@ const clearMongoDatabase: DatabaseClearer = async (mongoUri) => {
     await connection.asPromise();
     const db = connection.db;
     if (!db) {
-      throw new Error('MongoDB database connection was not initialized.');
+      throw new HttpError(500, 'MongoDB database connection was not initialized.');
     }
     const collections = await db.listCollections().toArray();
     await Promise.all(
@@ -188,7 +188,7 @@ const readMetadata = async (metadataPath: string) => {
     !parsed.archiveFile ||
     !parsed.status
   ) {
-    throw new Error('Invalid backup metadata.');
+    throw new HttpError(500, 'Invalid backup metadata.');
   }
 
   const backupId = parsed.id;

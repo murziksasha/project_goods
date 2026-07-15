@@ -1,8 +1,10 @@
 import request from 'supertest';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../app';
+import { hashAuthToken } from '../shared/lib/auth';
 
 const TEST_AUTH_TOKEN = 'integration-test-token';
+const TEST_AUTH_TOKEN_HASH = hashAuthToken(TEST_AUTH_TOKEN);
 
 type MockEmployeeRecord = {
   role: string;
@@ -21,24 +23,35 @@ const authHeader = (token = TEST_AUTH_TOKEN) => ({
   Authorization: `Bearer ${token}`,
 });
 
-const buildEmployeeDocument = (record: MockEmployeeRecord) => ({
-  _id: { toString: () => 'employee-id' },
-  name: 'Integration Tester',
-  phone: '+380000000000',
-  email: 'tester@example.com',
-  username: record.username ?? 'tester',
-  role: record.role,
-  permissions: record.permissions,
-  isActive: true,
-  note: '',
-  createdAt: new Date('2026-06-09T12:00:00.000Z'),
-  updatedAt: new Date('2026-06-09T12:00:00.000Z'),
-  authToken: TEST_AUTH_TOKEN,
-  authTokens: [TEST_AUTH_TOKEN],
-  toObject() {
-    return this;
-  },
-});
+const buildEmployeeDocument = (record: MockEmployeeRecord) => {
+  const now = new Date('2026-06-09T12:00:00.000Z');
+  return {
+    _id: { toString: () => 'employee-id' },
+    name: 'Integration Tester',
+    phone: '+380000000000',
+    email: 'tester@example.com',
+    username: record.username ?? 'tester',
+    role: record.role,
+    permissions: record.permissions,
+    isActive: true,
+    note: '',
+    createdAt: now,
+    updatedAt: now,
+    authToken: TEST_AUTH_TOKEN_HASH,
+    authTokens: [TEST_AUTH_TOKEN_HASH],
+    authSessions: [
+      {
+        token: TEST_AUTH_TOKEN_HASH,
+        createdAt: now,
+        lastUsedAt: now,
+      },
+    ],
+    save: vi.fn().mockResolvedValue(undefined),
+    toObject() {
+      return this;
+    },
+  };
+};
 
 const mockFindChain = <T>(rows: T[]) => ({
   sort: vi.fn().mockReturnThis(),
@@ -88,18 +101,24 @@ beforeAll(async () => {
   } as never);
 });
 
+const authQueryMatchesTestToken = (query: unknown) => {
+  const tokenQuery = query as {
+    $or?: Array<Record<string, string>>;
+  };
+  for (const clause of tokenQuery.$or ?? []) {
+    const value =
+      clause['authSessions.token'] ?? clause.authTokens ?? clause.authToken;
+    if (value === TEST_AUTH_TOKEN || value === TEST_AUTH_TOKEN_HASH) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const mockEmployeeLookup = () => {
   vi.spyOn(EmployeeModel, 'findOne').mockImplementation((query: unknown) => {
-    const tokenQuery = query as {
-      $or?: Array<{ authTokens?: string; authToken?: string }>;
-    };
-    const token =
-      tokenQuery.$or?.[0]?.authTokens ??
-      tokenQuery.$or?.[1]?.authToken ??
-      '';
-
     const select = vi.fn(async () => {
-      if (!token || token !== TEST_AUTH_TOKEN) {
+      if (!authQueryMatchesTestToken(query)) {
         return null;
       }
 

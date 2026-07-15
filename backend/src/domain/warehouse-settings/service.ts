@@ -4,6 +4,7 @@ import {
 import { Product } from '../product/model';
 import { WarehouseSettings, type WarehouseSettingsDocument } from './model';
 import type { WarehouseSettingsPayload } from '../shared/types';
+import { HttpError } from '../../shared/lib/errors';
 
 const formatWarehouseSettings = (
   settings: WarehouseSettingsDocument,
@@ -61,7 +62,8 @@ export const updateWarehouseSettings = async (
         locationId: removedLocation.id,
       });
       if (hasProducts) {
-        throw new Error(
+        throw new HttpError(
+          400,
           `Location "${removedLocation.name}" cannot be deleted while products reference it.`,
         );
       }
@@ -80,7 +82,7 @@ export const updateWarehouseSettings = async (
   ).lean<WarehouseSettingsDocument | null>();
 
   if (!settings) {
-    throw new Error('Warehouse settings not found.');
+    throw new HttpError(404, 'Warehouse settings not found.');
   }
 
   return formatWarehouseSettings(settings);

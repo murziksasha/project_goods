@@ -2,9 +2,18 @@ import { formatSale } from '../../shared/lib/formatters';
 import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Sale, type SaleDocument } from './model';
+import { buildSalesFilter, parseListSalesQuery } from './list-sales-query';
 
-export const listSales = async () => {
-  const sales = await Sale.find().sort({ saleDate: -1 }).lean<SaleDocument[]>();
+export const listSales = async (query: Record<string, unknown> = {}) => {
+  const options = parseListSalesQuery(query);
+  const filter = buildSalesFilter(options);
+
+  let findQuery = Sale.find(filter).sort({ saleDate: -1 });
+  if (options.limit !== undefined) {
+    findQuery = findQuery.limit(options.limit);
+  }
+
+  const sales = await findQuery.lean<SaleDocument[]>();
   return sales.map(formatSale);
 };
 

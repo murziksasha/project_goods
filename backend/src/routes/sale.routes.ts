@@ -47,7 +47,7 @@ const saleReadPermissions = [
 
 saleRouter.get('/sales', asyncHandler(async (req, res) => {
   await requireAnyPermission(req, saleReadPermissions);
-  res.json(await listSales());
+  res.json(await listSales(req.query as Record<string, unknown>));
 }));
 
 saleRouter.post('/sales', asyncHandler(async (req, res) => {

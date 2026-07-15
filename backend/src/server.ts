@@ -25,8 +25,8 @@ const startServer = async () => {
     void refreshSupplierOrderDerivedStatuses().catch((error) => {
       console.error('Supplier order derived-status refresh failed on startup:', error);
     });
-    app.listen(env.port, () => {
-      console.log(`Backend started on http://localhost:${env.port}`);
+    app.listen(env.port, env.host, () => {
+      console.log(`Backend started on http://${env.host}:${env.port}`);
     });
   } catch (error) {
     console.error(`Failed to start backend: ${getStartupErrorMessage(error)}`);

@@ -142,7 +142,7 @@ export const getCurrencyConfigOrThrow = async (
     session,
   );
   if (!currency) {
-    throw new Error('Unsupported transaction currency.');
+    throw new HttpError(400, 'Unsupported transaction currency.');
   }
   return currency;
 };
@@ -160,7 +160,7 @@ export const getCashboxOrThrow = async (
     session,
   );
   if (!cashbox || cashbox.isArchived) {
-    throw new Error(`${field} cashbox not found.`);
+    throw new HttpError(404, `${field} cashbox not found.`);
   }
 
   return cashbox;
@@ -225,7 +225,7 @@ export const assertCashboxCanAcceptCurrency = (
   currency: FinanceCurrency,
 ) => {
   if (!isCurrencyEnabledForCashbox(cashbox, currency)) {
-    throw new Error('Cashbox currency is not enabled for receiving.');
+    throw new HttpError(400, 'Cashbox currency is not enabled for receiving.');
   }
 };
 

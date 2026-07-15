@@ -7,6 +7,7 @@ import {
 } from './model';
 import { normalizeSettingsPayload } from '../../shared/lib/parsers';
 import type { SettingsPayload } from '../shared/types';
+import { HttpError } from '../../shared/lib/errors';
 
 const defaultOrderDefaults = {
   defaultRepairTermDays: 7,
@@ -245,7 +246,7 @@ export const updateSettings = async (payload: SettingsPayload) => {
   }).lean<SettingsDocument | null>();
 
   if (!settings) {
-    throw new Error('Settings not found.');
+    throw new HttpError(404, 'Settings not found.');
   }
 
   return formatSettings(settings);
@@ -267,7 +268,7 @@ export const updatePrintForms = async (printForms: SettingsPayload['printForms']
   ).lean<SettingsDocument | null>();
 
   if (!settings) {
-    throw new Error('Settings not found.');
+    throw new HttpError(404, 'Settings not found.');
   }
 
   return formatSettings(settings);

@@ -14,6 +14,7 @@ import { demoClients } from '../../shared/data/demo-clients';
 import { demoProducts } from '../../shared/data/demo-products';
 import { demoRepairOrders, demoSales } from '../../shared/data/demo-sales';
 import { formatRecordNumber, resetRecordNumberSequence } from '../sequence/service';
+import { HttpError } from '../../shared/lib/errors';
 
 type DemoSeedKind = 'all' | 'sales' | 'repairs';
 
@@ -82,7 +83,7 @@ export const seedDemoData = async (seedKind?: unknown) => {
       const product = productMap.get(productKey);
 
       if (!client || !product) {
-        throw new Error('Failed to build demo fixtures.');
+        throw new HttpError(500, 'Failed to build demo fixtures.');
       }
 
       if (recordKind === 'sale') {

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { env } from '../config/env';
 import { getWeatherForecast, type WeatherProvider } from '../domain/weather/service';
 import { asyncHandler } from '../shared/lib/http';
 
@@ -14,7 +15,8 @@ weatherRouter.get(
     const longitude = Number(req.query.lon);
     const providerParam = String(req.query.provider ?? 'open-meteo');
     const provider = isWeatherProvider(providerParam) ? providerParam : 'open-meteo';
-    const openWeatherApiKey = String(req.query.apiKey ?? '');
+    // Prefer server env; never require API keys in query strings (logs/proxies).
+    const openWeatherApiKey = env.openWeatherApiKey ?? '';
 
     const forecast = await getWeatherForecast({
       latitude,

@@ -1,3 +1,4 @@
+import { HttpError } from '../../shared/lib/errors';
 import { normalizeProductModelName } from '../product/service';
 
 export const normalizeCatalogProductName = (value: string) =>
@@ -46,7 +47,8 @@ export const shouldPropagateCatalogProductRename = (
 export const assertCatalogProductNameFitsWarehouse = (name: string) => {
   const normalizedName = normalizeCatalogProductName(name);
   if (normalizedName.length > catalogProductNameMaxLength) {
-    throw new Error(
+    throw new HttpError(
+      400,
       `Product name must contain no more than ${catalogProductNameMaxLength} characters for warehouse stock.`,
     );
   }

@@ -17,6 +17,7 @@ import { Product } from '../product/model';
 import { getExactProductModelNameQuery } from '../product/service';
 import { Sale } from '../sale/model';
 import { SupplierOrder } from '../supplier-order/model';
+import { HttpError } from '../../shared/lib/errors';
 
 export type CatalogProductPayload = {
   name?: unknown;
@@ -232,7 +233,7 @@ export const updateCatalogProduct = async (
   try {
     const existing = await CatalogProduct.findById(catalogProductId).lean<CatalogProductDocument | null>();
     if (!existing) {
-      throw new Error('Catalog product not found.');
+      throw new HttpError(404, 'Catalog product not found.');
     }
 
     const normalizedPayload = normalizeCatalogProductPayload(payload);
@@ -250,7 +251,7 @@ export const updateCatalogProduct = async (
       { returnDocument: 'after', runValidators: true },
     ).lean<CatalogProductDocument | null>();
 
-    if (!item) throw new Error('Catalog product not found.');
+    if (!item) throw new HttpError(404, 'Catalog product not found.');
 
     if (nameChanged) {
       await propagateCatalogProductNameChange({
@@ -270,15 +271,15 @@ export const updateCatalogProduct = async (
 export const deleteCatalogProduct = async (catalogProductId: string) => {
   isValidObjectIdOrThrow(catalogProductId, 'catalogProductId');
   const existing = await CatalogProduct.findById(catalogProductId).lean<CatalogProductDocument | null>();
-  if (!existing) throw new Error('Catalog product not found.');
+  if (!existing) throw new HttpError(404, 'Catalog product not found.');
 
   const usageCount = await getCatalogProductUsageCount(existing);
   if (usageCount > 0) {
-    throw new Error('This product is used in orders or sales and cannot be removed.');
+    throw new HttpError(400, 'This product is used in orders or sales and cannot be removed.');
   }
 
   const deleted = await CatalogProduct.findByIdAndDelete(catalogProductId).lean<CatalogProductDocument | null>();
-  if (!deleted) throw new Error('Catalog product not found.');
+  if (!deleted) throw new HttpError(404, 'Catalog product not found.');
   return { id: catalogProductId };
 };
 
