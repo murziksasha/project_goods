@@ -145,15 +145,13 @@ Backend собран по модульному практическому пат
 - shared helper: `shared/lib/mongo-session.ts` (no-op session when Mongo not connected — unit tests)
 - list endpoints: supplier-order list is **read-only** (derived status refresh on startup + after writes for zero-total); catalog/device usage counts batch-loaded
 
-## Рекомендуемое развитие
+## Backend practice (LAN)
 
-План: [BACKEND_IMPROVEMENT_PLAN.md](./BACKEND_IMPROVEMENT_PLAN.md).
-
-1. Correctness: `HttpError` статусы, `req.employee` без double-fetch.
-2. Декомпозиция `sale` / `finance` / `parsers` god-модулей.
-3. Perf: N+1 list endpoints, write-on-read supplier-order list, indexes.
-4. Transactions + finance report by date range.
-5. Расширение integration/unit coverage (см. [TESTING.md](./TESTING.md)).
+- Domain services throw `HttpError` for expected 4xx; multi-doc money/stock paths use `withOptionalMongoSession` (`MONGO_REQUIRE_TRANSACTIONS` in production).
+- Large domains split: `sale/*`, `finance/*`, `supplier-order/*`, `shared/lib/parse/*`.
+- Sessions: hashed bearer tokens (`h1:` SHA-256), optional idle TTL (`AUTH_SESSION_IDLE_HOURS`).
+- `GET /sales` supports optional filters (`kind`, dates, `limit`, …); see [API.md](./API.md).
+- Security notes: [SECURITY.md](./SECURITY.md). Tests: [TESTING.md](./TESTING.md).
 
 ## Shared State Consistency (2026-05-06)
 

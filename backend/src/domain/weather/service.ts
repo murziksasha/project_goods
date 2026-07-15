@@ -1,3 +1,4 @@
+import { HttpError } from '../../shared/lib/errors';
 export type WeatherProvider = 'open-meteo' | 'openweather';
 
 export type WeatherIntensity = 'light' | 'moderate' | 'heavy';
@@ -270,7 +271,7 @@ const fetchOpenMeteoForecast = async (
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('Failed to fetch Open-Meteo forecast');
+    throw new HttpError(502, 'Failed to fetch Open-Meteo forecast');
   }
 
   const payload = (await response.json()) as {
@@ -346,7 +347,7 @@ const fetchOpenWeatherForecast = async (
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('Failed to fetch OpenWeatherMap forecast');
+    throw new HttpError(502, 'Failed to fetch OpenWeatherMap forecast');
   }
 
   const payload = (await response.json()) as {
@@ -472,7 +473,7 @@ export const getWeatherForecast = async ({
     provider === 'openweather'
       ? (() => {
           if (!openWeatherApiKey.trim()) {
-            throw new Error('OpenWeatherMap API key is required');
+            throw new HttpError(400, 'OpenWeatherMap API key is required');
           }
           return fetchOpenWeatherForecast(lat, lon, openWeatherApiKey.trim());
         })()

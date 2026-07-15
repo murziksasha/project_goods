@@ -14,6 +14,7 @@ import {
   getNextProductSerialNumberValue,
 } from '../sequence/service';
 import { Sequence } from '../sequence/model';
+import { HttpError } from '../../shared/lib/errors';
 
 const productSerialSequenceKey = 'product-serial-number';
 const productSerialPattern = /^S\d+$/;
@@ -36,7 +37,7 @@ const parseOptionalPrice = (value: unknown) => {
   if (String(value).trim() === '') return 0;
   const numeric = toNumber(value);
   if (!Number.isFinite(numeric) || numeric < 0) {
-    throw new Error('Product model prices must be valid non-negative numbers.');
+    throw new HttpError(400, 'Product model prices must be valid non-negative numbers.');
   }
   return numeric;
 };
@@ -100,7 +101,7 @@ const reserveNextUniqueProductSerialNumber = async () => {
     if (!exists) return candidate;
   }
 
-  throw new Error('Failed to generate unique product serial number.');
+  throw new HttpError(500, 'Failed to generate unique product serial number.');
 };
 
 export const listProducts = async (query: unknown) => {
@@ -136,13 +137,13 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
 
   const existingProduct = await Product.findById(productId).lean<ProductDocument | null>();
   if (!existingProduct) {
-    throw new Error('Product not found.');
+    throw new HttpError(404, 'Product not found.');
   }
   assertNotStale(payload.expectedUpdatedAt, existingProduct.updatedAt, 'Product');
 
   const normalizedPayload = normalizeProductPayload(payload);
   if (normalizedPayload.quantity - existingProduct.reservedQuantity < 0) {
-    throw new Error('Quantity cannot be less than reserved quantity.');
+    throw new HttpError(400, 'Quantity cannot be less than reserved quantity.');
   }
 
   const product = await Product.findByIdAndUpdate(productId, normalizedPayload, {
@@ -151,7 +152,7 @@ export const updateProduct = async (productId: string, payload: ProductPayload) 
   }).lean<ProductDocument | null>();
 
   if (!product) {
-    throw new Error('Product not found.');
+    throw new HttpError(404, 'Product not found.');
   }
 
   return formatProduct(product);
@@ -162,7 +163,7 @@ export const updateProductModelByName = async (
 ) => {
   const name = String(payload.name ?? '').trim();
   if (name.length < 2) {
-    throw new Error('Product name must contain at least 2 characters.');
+    throw new HttpError(400, 'Product name must contain at least 2 characters.');
   }
 
   const products = await Product.find(getExactProductModelNameQuery(name));
@@ -203,12 +204,12 @@ export const deleteProduct = async (productId: string) => {
       $or: [{ product: productId }, { 'lineItems.productId': productId }],
     })
   ) {
-    throw new Error('Cannot delete a product that has sales history.');
+    throw new HttpError(400, 'Cannot delete a product that has sales history.');
   }
 
   const deletedProduct = await Product.findByIdAndDelete(productId).lean<ProductDocument | null>();
   if (!deletedProduct) {
-    throw new Error('Product not found.');
+    throw new HttpError(404, 'Product not found.');
   }
 
   return { id: productId };
@@ -219,11 +220,11 @@ export const archiveProduct = async (productId: string) => {
 
   const product = await Product.findById(productId).lean<ProductDocument | null>();
   if (!product) {
-    throw new Error('Product not found.');
+    throw new HttpError(404, 'Product not found.');
   }
 
   if ((product.quantity ?? 0) > 0 || (product.reservedQuantity ?? 0) > 0) {
-    throw new Error('Product is in stock.');
+    throw new HttpError(400, 'Product is in stock.');
   }
 
   const wasUsed = await Sale.exists({
@@ -242,7 +243,7 @@ export const archiveProduct = async (productId: string) => {
   ).lean<ProductDocument | null>();
 
   if (!updatedProduct) {
-    throw new Error('Product not found.');
+    throw new HttpError(404, 'Product not found.');
   }
 
   return {

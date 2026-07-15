@@ -54,6 +54,19 @@ export const employeeSchema = new mongoose.Schema(
       select: false,
       index: true,
     },
+    /** Session records with lastUsedAt for idle TTL (see AUTH_SESSION_IDLE_HOURS). */
+    authSessions: {
+      type: [
+        {
+          _id: false,
+          token: { type: String, required: true },
+          createdAt: { type: Date, required: true },
+          lastUsedAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+      select: false,
+    },
     inviteToken: {
       type: String,
       default: '',
@@ -99,6 +112,8 @@ export const employeeSchema = new mongoose.Schema(
     versionKey: false,
   },
 );
+
+employeeSchema.index({ 'authSessions.token': 1 });
 
 employeeSchema.pre('validate', function updateSearchText() {
   this.searchText = [this.name, this.phone, this.email, this.username, this.role, this.note]

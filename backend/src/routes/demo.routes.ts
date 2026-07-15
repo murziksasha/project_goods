@@ -1,17 +1,19 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import {
   eraseAllDataExceptEmployees,
   seedDemoData,
 } from '../domain/demo/service';
 import { createSafetyBackup } from '../domain/backup/service';
-import { getBearerToken, getEmployeeByToken } from '../domain/auth/service';
 import { HttpError } from '../shared/lib/errors';
 import { asyncHandler, requireDevEnvironment, requireOwner } from '../shared/lib/http';
 
 export const demoRouter = Router();
 
-const requireTemporaryAdmin = async (req: Parameters<typeof getBearerToken>[0]) => {
-  const employee = await getEmployeeByToken(getBearerToken(req));
+const requireTemporaryAdmin = async (req: Request) => {
+  const employee = req.employee;
+  if (!employee) {
+    throw new HttpError(401, 'Authorization token is required.');
+  }
   if (employee.role !== 'owner' || employee.username !== 'admin') {
     throw new HttpError(403, 'Only Temporary Admin can erase all data.');
   }
@@ -35,7 +37,7 @@ demoRouter.post('/demo/seed', asyncHandler(async (req, res) => {
   requireDevEnvironment();
 
   if (req.query.kind === 'erase') {
-    const employee = await requireTemporaryAdmin(req.headers.authorization);
+    const employee = await requireTemporaryAdmin(req);
     res.status(200).json(await eraseWithSafetyBackup(employee.name));
     return;
   }
@@ -58,6 +60,6 @@ demoRouter.post('/demo/seed/repairs', asyncHandler(async (req, res) => {
 
 demoRouter.post('/demo/erase', asyncHandler(async (req, res) => {
   requireDevEnvironment();
-  const employee = await requireTemporaryAdmin(req.headers.authorization);
+  const employee = await requireTemporaryAdmin(req);
   res.status(200).json(await eraseWithSafetyBackup(employee.name));
 }));

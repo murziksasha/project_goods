@@ -3,6 +3,7 @@ import { Sale } from '../sale/model';
 import { getSearchQuery } from '../../shared/lib/query';
 import { toNumber } from '../../shared/lib/parsers';
 import type { ServiceCatalogPayload } from '../shared/types';
+import { HttpError } from '../../shared/lib/errors';
 
 const defaultServices: Array<{ name: string; price: number; note: string }> = [
   { name: 'Діагностика', price: 250, note: 'Стандартна діагностика приладу' },
@@ -17,7 +18,7 @@ const normalizeName = (value: unknown) => String(value ?? '').trim();
 const normalizePrice = (value: unknown) => {
   const price = toNumber(value);
   if (!Number.isFinite(price) || price < 0) {
-    throw new Error('Service price cannot be negative.');
+    throw new HttpError(400, 'Service price cannot be negative.');
   }
   return price;
 };
@@ -97,7 +98,7 @@ export const updateServiceCatalogItem = async (
 ) => {
   const service = await ServiceCatalog.findById(serviceId);
   if (!service) {
-    throw new Error('Service not found.');
+    throw new HttpError(404, 'Service not found.');
   }
 
   service.name = normalizeName(payload.name);
@@ -121,7 +122,7 @@ export const updateServiceCatalogItem = async (
 export const deleteServiceCatalogItem = async (serviceId: string) => {
   const service = await ServiceCatalog.findByIdAndDelete(serviceId).lean<ServiceCatalogDocument | null>();
   if (!service) {
-    throw new Error('Service not found.');
+    throw new HttpError(404, 'Service not found.');
   }
 
   return { id: serviceId };
@@ -130,7 +131,7 @@ export const deleteServiceCatalogItem = async (serviceId: string) => {
 export const archiveServiceCatalogItem = async (serviceId: string) => {
   const service = await ServiceCatalog.findById(serviceId).lean<ServiceCatalogDocument | null>();
   if (!service) {
-    throw new Error('Service not found.');
+    throw new HttpError(404, 'Service not found.');
   }
 
   const wasUsed = await Sale.exists({
@@ -154,7 +155,7 @@ export const archiveServiceCatalogItem = async (serviceId: string) => {
   ).lean<ServiceCatalogDocument | null>();
 
   if (!updatedService) {
-    throw new Error('Service not found.');
+    throw new HttpError(404, 'Service not found.');
   }
 
   return {

@@ -20,6 +20,7 @@ import {
   mapLikeToRecord,
   updateWithOptionalSession,
 } from './internal';
+import { HttpError } from '../../shared/lib/errors';
 
 const defaultCashboxName = 'Основная';
 
@@ -63,7 +64,7 @@ export const ensureDefaultCashbox = async (session?: mongoose.ClientSession) => 
   const created = await createdOp.lean<CashboxDocument | null>();
 
   if (!created) {
-    throw new Error('Failed to create default cashbox.');
+    throw new HttpError(500, 'Failed to create default cashbox.');
   }
 
   return created;
@@ -88,7 +89,7 @@ export const createCashbox = async (payload: CashboxPayload) => {
   const currencyDefaults = buildCurrencyDefaults(currencyCodes);
   const name = normalizeName(payload.name);
   if (name.length < 2) {
-    throw new Error('Cashbox name must contain at least 2 characters.');
+    throw new HttpError(400, 'Cashbox name must contain at least 2 characters.');
   }
 
   const cashbox = new Cashbox({
@@ -111,21 +112,21 @@ export const updateCashbox = async (
   const currencyCodes = await getCurrencyCodes({ includeArchived: true });
   const existing = await Cashbox.findById(cashboxId).lean<CashboxDocument | null>();
   if (!existing) {
-    throw new Error('Cashbox not found.');
+    throw new HttpError(404, 'Cashbox not found.');
   }
 
   const patch: Record<string, unknown> = {};
   if (payload.name !== undefined) {
     const nextName = normalizeName(payload.name);
     if (nextName.length < 2) {
-      throw new Error('Cashbox name must contain at least 2 characters.');
+      throw new HttpError(400, 'Cashbox name must contain at least 2 characters.');
     }
     patch.name = nextName;
   }
   if (payload.isArchived !== undefined) {
     const nextArchived = Boolean(payload.isArchived);
     if (existing.isDefault && nextArchived) {
-      throw new Error('Default cashbox cannot be deactivated.');
+      throw new HttpError(400, 'Default cashbox cannot be deactivated.');
     }
     patch.isArchived = nextArchived;
   }
@@ -134,7 +135,7 @@ export const updateCashbox = async (
     const existingEnabled = mapLikeToRecord<boolean>(existing.enabledCurrencies);
     Object.keys(normalized).forEach((currency) => {
       if (!currencyCodes.includes(currency)) {
-        throw new Error('Unsupported cashbox currency setting.');
+        throw new HttpError(400, 'Unsupported cashbox currency setting.');
       }
     });
     patch.enabledCurrencies = {
@@ -154,7 +155,7 @@ export const updateCashbox = async (
     { returnDocument: 'after', runValidators: true },
   ).lean<CashboxDocument | null>();
   if (!updated) {
-    throw new Error('Cashbox not found.');
+    throw new HttpError(404, 'Cashbox not found.');
   }
 
   return formatCashbox(updated, currencyCodes);

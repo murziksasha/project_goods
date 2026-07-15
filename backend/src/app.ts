@@ -27,11 +27,21 @@ import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/er
 export const app = express();
 
 app.use(helmet());
+
+const resolvedCorsOrigin = env.clientOrigin
+  ? env.clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : null;
+
+if (!resolvedCorsOrigin && process.env.NODE_ENV === 'production') {
+  console.warn(
+    'CLIENT_ORIGIN is not set; browser cross-origin requests will be blocked in production.',
+  );
+}
+
 app.use(
   cors({
-    origin: env.clientOrigin
-      ? env.clientOrigin.split(',').map((origin) => origin.trim())
-      : true,
+    // Production without CLIENT_ORIGIN: deny reflected origins. Dev: allow all.
+    origin: resolvedCorsOrigin ?? (process.env.NODE_ENV === 'production' ? false : true),
   }),
 );
 app.use(express.json({ limit: '1mb' }));

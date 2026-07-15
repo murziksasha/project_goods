@@ -35,8 +35,6 @@
 - Sequence formatters + counters: `domain/sequence/service.test.ts`
 - Demo erase + seed(sales): `domain/demo/service.test.ts`
 
-Backend roadmap: [BACKEND_IMPROVEMENT_PLAN.md](./BACKEND_IMPROVEMENT_PLAN.md).
-
 ## Coverage policy
 
 `backend/vitest.config.ts` enforces 100% lines on an explicit allow-list (`env`, `client/constants`, `sale/stock`, `sequence/service`). Expand gradually: add a module to `coverageInclude` only together with full branch tests.

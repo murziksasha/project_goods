@@ -10,6 +10,7 @@ import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
+import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
 import type { ClientPayload } from '../shared/types';
 
 const getClientSnapshot = async (client: ClientDocument) => {
@@ -28,12 +29,6 @@ const getClientSnapshot = async (client: ClientDocument) => {
 };
 
 const duplicatePhoneMessage = 'Client phone already exists.';
-
-const isDuplicateKeyError = (error: unknown) =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  (error as { code?: unknown }).code === 11000;
 
 const normalizeExceptClientIds = (exceptClientIds?: string | string[]) => {
   const list = Array.isArray(exceptClientIds)
@@ -67,7 +62,7 @@ const assertUniqueClientPhones = async (
   const existing = await Client.findOne(query).lean<Pick<ClientDocument, '_id' | 'phone' | 'phones'> | null>();
   if (!existing) return;
 
-  throw new Error(duplicatePhoneMessage);
+  throw new HttpError(409, duplicatePhoneMessage);
 };
 
 export const listClients = async (queryValue: unknown, statusValue: unknown) => {
@@ -96,7 +91,7 @@ export const createClient = async (payload: ClientPayload) => {
     await client.save();
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new Error(duplicatePhoneMessage, { cause: error });
+      throw new HttpError(409, duplicatePhoneMessage);
     }
     throw error;
   }
@@ -114,7 +109,7 @@ export const updateClient = async (clientId: string, payload: ClientPayload) => 
   }).lean<ClientDocument | null>();
 
   if (!client) {
-    throw new Error('Client not found.');
+    throw new HttpError(404, 'Client not found.');
   }
 
   await Sale.updateMany(
@@ -129,12 +124,12 @@ export const deleteClient = async (clientId: string) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
 
   if (await Sale.exists({ client: clientId })) {
-    throw new Error('Cannot delete a client that has sales history.');
+    throw new HttpError(400, 'Cannot delete a client that has sales history.');
   }
 
   const deletedClient = await Client.findByIdAndDelete(clientId).lean<ClientDocument | null>();
   if (!deletedClient) {
-    throw new Error('Client not found.');
+    throw new HttpError(404, 'Client not found.');
   }
 
   return { id: clientId };
@@ -145,7 +140,7 @@ export const getClientHistory = async (clientId: string) => {
 
   const client = await Client.findById(clientId).lean<ClientDocument | null>();
   if (!client) {
-    throw new Error('Client not found.');
+    throw new HttpError(404, 'Client not found.');
   }
 
   const sales = await Sale.find({ client: clientId })
@@ -169,10 +164,10 @@ export const mergeClients = async (
       : '';
 
   if (!targetClientId || !sourceClientId) {
-    throw new Error('Both targetClientId and sourceClientId are required.');
+    throw new HttpError(400, 'Both targetClientId and sourceClientId are required.');
   }
   if (targetClientId === sourceClientId) {
-    throw new Error('Select two different clients.');
+    throw new HttpError(400, 'Select two different clients.');
   }
 
   isValidObjectIdOrThrow(targetClientId, 'targetClientId');
@@ -184,10 +179,10 @@ export const mergeClients = async (
   ]);
 
   if (!targetClient) {
-    throw new Error('Target client not found.');
+    throw new HttpError(404, 'Target client not found.');
   }
   if (!sourceClient) {
-    throw new Error('Source client not found.');
+    throw new HttpError(404, 'Source client not found.');
   }
 
   const mergedNote = [targetClient.note?.trim(), sourceClient.note?.trim()]
@@ -225,7 +220,7 @@ export const mergeClients = async (
       : deleteQuery
     ).lean<ClientDocument | null>();
     if (!deletedSource) {
-      throw new Error('Failed to delete source client.');
+      throw new HttpError(500, 'Failed to delete source client.');
     }
 
     const updateQuery = Client.findByIdAndUpdate(targetClientId, payload, {
@@ -237,7 +232,7 @@ export const mergeClients = async (
       : updateQuery
     ).lean<ClientDocument | null>();
     if (!updatedTarget) {
-      throw new Error('Failed to update target client.');
+      throw new HttpError(500, 'Failed to update target client.');
     }
 
     const clientSnapshot = await getClientSnapshot(updatedTarget);

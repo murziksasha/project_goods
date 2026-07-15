@@ -72,7 +72,14 @@ http://localhost:5000/api
   - Body: `{ "isFavorite": boolean }`.
   - Updates only the persistent favorite/star state and returns the formatted sale/order.
 
-- `GET /sales` - список продаж и заказов
+- `GET /sales` - список продаж и заказов (массив, sort `saleDate` desc). Опциональные query:
+  - `kind` — `sale` | `repair`
+  - `status` — точное совпадение статуса
+  - `dateFrom` / `dateTo` — `YYYY-MM-DD` (UTC day bounds по `saleDate`)
+  - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
+  - `clientId` — ObjectId клиента
+  - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
+  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше)
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).
@@ -115,7 +122,7 @@ http://localhost:5000/api
 
 ## Weather Forecast (Business Dashboard)
 
-- `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather&apiKey=<optional>`
+- `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather` — OpenWeather key from server env `OPENWEATHER_API_KEY` (not query)
   - Proxies Open-Meteo (default) or OpenWeatherMap (requires API key)
   - Returns current conditions plus up to 5 daily forecast entries
   - Frontend passes coordinates from the selected weather preset (`chornomorsk` or `odesa`); device geolocation is not used
