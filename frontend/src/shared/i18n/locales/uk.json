@@ -58,6 +58,7 @@
       "nextPage": "Наступна сторінка",
       "rowsPerPage": "Рядків на сторінку",
       "totalRecords": "Всього: {{count}} записів",
+      "pageOf": "{{current}} / {{total}}",
       "prev": "< Назад",
       "next": "Далі >"
     },

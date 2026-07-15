@@ -26,6 +26,15 @@ import {
   withOptionalFinanceSession,
 } from './internal';
 import { ensureDefaultCashbox, listCashboxes } from './cashboxes';
+import { computeBalanceAfterByTransactionId } from './balance-after';
+import {
+  buildFinanceTransactionsFilter,
+  FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT,
+  getFinanceTransactionsSort,
+  hasFinanceTransactionsDateFilter,
+  parseListFinanceTransactionsQuery,
+  type ListFinanceTransactionsOptions,
+} from './list-transactions-query';
 
 const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
@@ -434,14 +443,81 @@ export const updateFinanceTransactionNote = async (
 };
 
 
-export const listFinanceTransactions = async () => {
-  await ensureDefaultCashbox();
-  const transactions = await FinanceTransaction.find()
-    .sort({ transactionDate: -1, createdAt: -1 })
-    .limit(100)
-    .lean<FinanceTransactionDocument[]>();
+export {
+  FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
+  FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT,
+  FINANCE_TRANSACTIONS_MAX_PAGE_SIZE,
+  parseListFinanceTransactionsQuery,
+  type ListFinanceTransactionsOptions,
+} from './list-transactions-query';
 
-  return transactions.map(formatTransaction);
+const resolveEffectiveTransactionsFilter = async (
+  options: ListFinanceTransactionsOptions,
+) => {
+  const filter = buildFinanceTransactionsFilter(options);
+
+  if (hasFinanceTransactionsDateFilter(options)) {
+    return filter;
+  }
+
+  const recentRows = await FinanceTransaction.find(filter)
+    .sort({ transactionDate: -1, createdAt: -1 })
+    .limit(FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT)
+    .select({ _id: 1 })
+    .lean<Array<{ _id: FinanceTransactionDocument['_id'] }>>();
+
+  if (recentRows.length === 0) {
+    return { _id: { $in: [] } };
+  }
+
+  return {
+    ...filter,
+    _id: { $in: recentRows.map((row) => row._id) },
+  };
+};
+
+export const listFinanceTransactions = async (
+  rawQuery: Record<string, unknown> = {},
+) => {
+  await ensureDefaultCashbox();
+  const options = parseListFinanceTransactionsQuery(rawQuery);
+  const effectiveFilter = await resolveEffectiveTransactionsFilter(options);
+  const sort = getFinanceTransactionsSort(options);
+  const skip = (options.page - 1) * options.pageSize;
+
+  const [total, pageRows, allTransactions, cashboxes] = await Promise.all([
+    FinanceTransaction.countDocuments(effectiveFilter),
+    FinanceTransaction.find(effectiveFilter)
+      .sort(sort)
+      .skip(skip)
+      .limit(options.pageSize)
+      .lean<FinanceTransactionDocument[]>(),
+    FinanceTransaction.find()
+      .sort({ transactionDate: -1, createdAt: -1 })
+      .lean<FinanceTransactionDocument[]>(),
+    listCashboxes(),
+  ]);
+
+  const balanceAfterByTransactionId = computeBalanceAfterByTransactionId({
+    cashboxes: cashboxes.map((cashbox) => ({
+      id: cashbox.id,
+      balances: cashbox.balances,
+    })),
+    transactions: allTransactions,
+  });
+
+  return {
+    items: pageRows.map((transaction) => {
+      const formatted = formatTransaction(transaction);
+      return {
+        ...formatted,
+        balanceAfter: balanceAfterByTransactionId[formatted.id] ?? null,
+      };
+    }),
+    total,
+    page: options.page,
+    pageSize: options.pageSize,
+  };
 };
 
 

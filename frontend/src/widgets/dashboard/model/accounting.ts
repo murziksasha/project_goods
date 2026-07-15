@@ -4,6 +4,7 @@ import type {
   FinanceCurrency,
   FinanceReport,
   FinanceTransaction,
+  FinanceTransactionsListParams,
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
 } from '../../../entities/finance/model/types';
@@ -508,6 +509,33 @@ export const initialTransactionFilters: TransactionFilters = {
   sortBy: 'date',
   sortDirection: 'desc',
 };
+
+export const FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE = 30;
+
+export const toFinanceTransactionsListParams = ({
+  filters,
+  page,
+  pageSize,
+  selectedCashboxId,
+}: {
+  filters: TransactionFilters;
+  page: number;
+  pageSize: number;
+  selectedCashboxId: string;
+}): FinanceTransactionsListParams => ({
+  page,
+  pageSize,
+  dateFrom: filters.dateFrom || undefined,
+  dateTo: filters.dateTo || undefined,
+  type: filters.type || undefined,
+  currency: filters.currency || undefined,
+  fromCashboxId: filters.fromCashboxId || undefined,
+  toCashboxId: filters.toCashboxId || undefined,
+  cashboxId: selectedCashboxId || undefined,
+  note: filters.note.trim() || undefined,
+  sortBy: filters.sortBy,
+  sortDirection: filters.sortDirection,
+});
 
 export const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   if (orderedIds.length === 0) return items;

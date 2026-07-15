@@ -16,6 +16,7 @@ import {
   getBalanceAfterByTransactionId,
   getFinanceOverview,
   initialTransactionFilters,
+  toFinanceTransactionsListParams,
   normalizeCurrencyActivity,
   findSupplierOrderByTransactionToken,
   isAccountingOrderLinkedNote,
@@ -158,6 +159,39 @@ describe('accounting model helpers', () => {
       }),
     ).toEqual([matching]);
     expect(getActiveTransactionFiltersCount(filters)).toBe(2);
+  });
+
+  it('maps transaction filters to finance transactions API params', () => {
+    expect(
+      toFinanceTransactionsListParams({
+        filters: {
+          ...initialTransactionFilters,
+          dateFrom: '2026-01-01',
+          dateTo: '2026-01-31',
+          type: 'transfer',
+          currency: 'USD',
+          fromCashboxId: 'from-1',
+          toCashboxId: 'to-1',
+          note: '  manual ',
+        },
+        page: 2,
+        pageSize: 30,
+        selectedCashboxId: 'cash-1',
+      }),
+    ).toEqual({
+      page: 2,
+      pageSize: 30,
+      dateFrom: '2026-01-01',
+      dateTo: '2026-01-31',
+      type: 'transfer',
+      currency: 'USD',
+      fromCashboxId: 'from-1',
+      toCashboxId: 'to-1',
+      cashboxId: 'cash-1',
+      note: 'manual',
+      sortBy: 'date',
+      sortDirection: 'desc',
+    });
   });
 
   it('normalizes currency activity maps without dropping required defaults', () => {

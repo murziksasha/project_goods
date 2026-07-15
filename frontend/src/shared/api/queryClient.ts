@@ -16,6 +16,8 @@ export const queryKeys = {
   financeAllCashboxes: ['financeCashboxes', 'all'] as const,
   financeCurrencies: ['financeCurrencies'] as const,
   financeTransactions: ['financeTransactions'] as const,
+  financeTransactionsList: (params: Record<string, unknown> = {}) =>
+    ['financeTransactions', params] as const,
   financeReport: ['financeReport'] as const,
   financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
   financeSettings: ['financeSettings'] as const,

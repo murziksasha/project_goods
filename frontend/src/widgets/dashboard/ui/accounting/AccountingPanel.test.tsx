@@ -6,9 +6,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import * as financeApi from '../../../../entities/finance/api/financeApi';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingPanel } from './AccountingPanel';
-import * as useAccountingFinanceDataModule from './useAccountingFinanceData';
-import * as useAccountingPreferencesModule from './useAccountingPreferences';
-
 import type {
   Cashbox,
   CreateFinanceTransactionPayload,
@@ -37,6 +34,8 @@ const {
   updateFinanceTransactionMock,
   useAccountingFinanceDataMock,
   useAccountingPreferencesMock,
+  useFinanceTransactionsQueryMock,
+  useTransactionFiltersMock,
 } = vi.hoisted(() => ({
   cancelFinanceTransactionMock: vi.fn(),
   createCashboxMock: vi.fn(),
@@ -49,6 +48,8 @@ const {
   updateFinanceTransactionMock: vi.fn(),
   useAccountingFinanceDataMock: vi.fn(),
   useAccountingPreferencesMock: vi.fn(),
+  useFinanceTransactionsQueryMock: vi.fn(),
+  useTransactionFiltersMock: vi.fn(),
 }));
 
 vi.mock('../../../../entities/finance/api/financeApi', async (importOriginal) => {
@@ -122,6 +123,10 @@ vi.mock('./useAccountingFinanceData', async (importOriginal) => {
     useAccountingFinanceData: useAccountingFinanceDataMock,
   };
 });
+
+vi.mock('./useTransactionFilters', () => ({
+  useTransactionFilters: useTransactionFiltersMock,
+}));
 
 vi.mock('./useAccountingPreferences', async (importOriginal) => {
   const actual = await importOriginal<
@@ -257,41 +262,71 @@ const buildFinanceDataState = (
     setCashboxes: vi.fn(),
     supplierOrders: [supplierOrder()],
     supplierOrdersQueue: [queueItem()],
-    transactions: [transfer()],
+    recentTransactions: [transfer()],
     ...patch,
   };
 };
 
-type Procedure = (...args: any[]) => any;
-type ModuleMethod<T extends object> = keyof {
-  [K in keyof T as T[K] extends Procedure ? K : never]: T[K];
-};
-
-const wireHookMock = <
-  TModule extends Record<string, Procedure>,
-  TKey extends ModuleMethod<Required<TModule>>,
->(
-  module: TModule,
-  exportName: TKey,
-  mockFn: TModule[TKey],
-) => {
-  const current = module[exportName];
-  if (vi.isMockFunction(current)) {
-    current.mockImplementation(mockFn as Procedure);
-    return;
-  }
-  vi.spyOn(module, exportName).mockImplementation(mockFn as never);
-};
+const buildTransactionFiltersState = (
+  items: FinanceTransaction[] = [transfer()],
+  total = items.length,
+) => ({
+  draftTransactionFilters: {
+    type: '',
+    currency: '',
+    fromCashboxId: '',
+    toCashboxId: '',
+    note: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'date' as const,
+    sortDirection: 'desc' as const,
+  },
+  setDraftTransactionFilters: vi.fn(),
+  appliedTransactionFilters: {
+    type: '',
+    currency: '',
+    fromCashboxId: '',
+    toCashboxId: '',
+    note: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'date' as const,
+    sortDirection: 'desc' as const,
+  },
+  setAppliedTransactionFilters: vi.fn(),
+  transactionsPage: 1,
+  setTransactionsPage: vi.fn(),
+  transactionsPageSize: 30,
+  setTransactionsPageSize: vi.fn(),
+  selectedTransactionCashboxId: '',
+  setSelectedTransactionCashboxId: vi.fn(),
+  transactions: items,
+  transactionsTotal: total,
+  balanceAfterByTransactionId: Object.fromEntries(
+    items.map((item) => [item.id, item.balanceAfter ?? null]),
+  ),
+  activeTransactionFiltersCount: 0,
+  isTransactionsLoading: false,
+  isTransactionsFetching: false,
+});
 
 const setupHooks = (
-  patch: Partial<ReturnType<typeof useAccountingFinanceDataMock>> = {},
+  patch: Partial<
+    ReturnType<typeof useAccountingFinanceDataMock> & {
+      transactions?: FinanceTransaction[];
+      transactionsTotal?: number;
+    }
+  > = {},
 ) => {
-  const state = buildFinanceDataState(patch);
+  const { transactions, transactionsTotal, ...financePatch } = patch;
+  const state = buildFinanceDataState(financePatch);
   useAccountingFinanceDataMock.mockImplementation(() => state);
-  wireHookMock(
-    useAccountingFinanceDataModule,
-    'useAccountingFinanceData',
-    useAccountingFinanceDataMock,
+  useTransactionFiltersMock.mockReturnValue(
+    buildTransactionFiltersState(
+      transactions ?? state.recentTransactions,
+      transactionsTotal ?? transactions?.length ?? state.recentTransactions.length,
+    ),
   );
 };
 
@@ -338,11 +373,6 @@ const setupPreferences = (
     ...patch,
   });
   useAccountingPreferencesMock.mockImplementation(implementation);
-  wireHookMock(
-    useAccountingPreferencesModule,
-    'useAccountingPreferences',
-    useAccountingPreferencesMock,
-  );
 };
 
 const restoreApiMocks = () => {
@@ -566,6 +596,8 @@ const resetHoistedMocks = () => {
   updateFinanceTransactionMock.mockReset();
   useAccountingFinanceDataMock.mockReset();
   useAccountingPreferencesMock.mockReset();
+  useFinanceTransactionsQueryMock.mockReset();
+  useTransactionFiltersMock.mockReset();
 };
 
 const preparePanelTest = async () => {
@@ -1324,12 +1356,12 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     balanceAfterByTransactionId: {},
     cashboxes: [],
     draftFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
-    filteredTransactions: [baseTx(txNote) as any],
     isDateFilterOpen: false,
     isFilterOpen: false,
     page: 1,
     pageSize: 10,
-    paginatedTransactions: [baseTx(txNote) as any],
+    totalItems: 1,
+    transactions: [baseTx(txNote) as any],
     sales: salesList,
     selectedCashboxId: 'cb1',
     supplierOrders: suppliersList,
@@ -1428,8 +1460,8 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     };
     const props = {
       ...minimalProps('Payment for order SO-1', [], [supplierOne, supplierFive]),
-      filteredTransactions: [txOne, txFive] as any[],
-      paginatedTransactions: [txOne, txFive] as any[],
+      totalItems: 2,
+      transactions: [txOne, txFive] as any[],
       onSelectedSupplierOrderChange: onSelect,
     };
     renderWithProviders(<RealAccountingTransactionsView {...props} />);
@@ -1526,8 +1558,8 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 
     const propsToday = {
       ...minimalProps('', [], []),
-      paginatedTransactions: [txToday],
-      filteredTransactions: [txToday],
+      totalItems: 1,
+      transactions: [txToday],
       canCancelTransaction: (t: any) => t.id === 'tx-today',
       onSetTransactionToCancel: vi.fn(),
     };
@@ -1539,8 +1571,8 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
 
     const propsOld = {
       ...propsToday,
-      paginatedTransactions: [txOld],
-      filteredTransactions: [txOld],
+      totalItems: 1,
+      transactions: [txOld],
       canCancelTransaction: (t: any) => t.id === 'tx-today',
     };
     const { container: c2 } = renderWithProviders(

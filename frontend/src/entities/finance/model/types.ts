@@ -38,6 +38,37 @@ export type FinanceTransaction = {
   cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
+  balanceAfter?: number | null;
+};
+
+export type FinanceTransactionSortField =
+  | 'date'
+  | 'type'
+  | 'amount'
+  | 'currency'
+  | 'from'
+  | 'to';
+
+export type FinanceTransactionsListParams = {
+  page?: number;
+  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  type?: FinanceTransactionType;
+  currency?: string;
+  fromCashboxId?: string;
+  toCashboxId?: string;
+  cashboxId?: string;
+  note?: string;
+  sortBy?: FinanceTransactionSortField;
+  sortDirection?: 'asc' | 'desc';
+};
+
+export type FinanceTransactionsPage = {
+  items: FinanceTransaction[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type FinanceReport = {
