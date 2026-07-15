@@ -99,6 +99,7 @@ import {
   hasNonCashPayment,
   hasSaleReturnObligations,
   isOrderEditableStatus,
+  getReopenedSaleStatusForLineItems,
   isClosingStatus,
 
   isIsoDateWithinRange,
@@ -1586,14 +1587,15 @@ export const OrdersWorkspace = ({
     );
 
     const lineItems = getLineItems(sale);
+    const nextDiscount = {
+      mode: discount.mode,
+      value: normalizedValue,
+    } as const;
     const discountedTotal = Math.max(
       getOrderTotal(
         {
           ...sale,
-          discount: {
-            mode: discount.mode,
-            value: normalizedValue,
-          },
+          discount: nextDiscount,
         },
         lineItems,
       ),
@@ -1603,12 +1605,16 @@ export const OrdersWorkspace = ({
       getPaidAmount(sale),
       discountedTotal,
     );
+    const reopenedStatus = getReopenedSaleStatusForLineItems(
+      sale,
+      lineItems,
+      nextPaidAmount,
+      nextDiscount,
+    );
     queueSaleWorkspaceUpdate(sale, {
+      ...(reopenedStatus ? { status: reopenedStatus } : {}),
       paidAmount: nextPaidAmount,
-      discount: {
-        mode: discount.mode,
-        value: normalizedValue,
-      },
+      discount: nextDiscount,
     });
   };
 
@@ -1852,8 +1858,14 @@ export const OrdersWorkspace = ({
           : item.quantity,
       id: createRuntimeId(),
     };
+    const nextLineItems = [...getLineItems(sale), nextItem];
+    const reopenedStatus = getReopenedSaleStatusForLineItems(
+      sale,
+      nextLineItems,
+    );
     queueSaleWorkspaceUpdate(sale, {
-      lineItems: [...getLineItems(sale), nextItem],
+      ...(reopenedStatus ? { status: reopenedStatus } : {}),
+      lineItems: nextLineItems,
       timeline: [
         appendTimelineEntry(
           buildAddedItemTimelineMessage(currentEmployeeName, item.kind, item.name),
@@ -1948,7 +1960,9 @@ export const OrdersWorkspace = ({
       }));
     });
 
+    const reopenedStatus = getReopenedSaleStatusForLineItems(sale, nextItems);
     queueSaleWorkspaceUpdate(sale, {
+      ...(reopenedStatus ? { status: reopenedStatus } : {}),
       lineItems: nextItems,
       timeline: [
         appendTimelineEntry(
@@ -1998,8 +2012,10 @@ export const OrdersWorkspace = ({
       itemIndex,
       patch,
     );
+    const reopenedStatus = getReopenedSaleStatusForLineItems(sale, nextItems);
 
     queueSaleWorkspaceUpdate(sale, {
+      ...(reopenedStatus ? { status: reopenedStatus } : {}),
       lineItems: nextItems,
     });
   };

@@ -26,6 +26,7 @@ import {
   getFallbackLineItems,
   normalizeDiscount,
   resolveActiveEmployee,
+  resolveEditableSaleStatus,
   resolveEmployee,
   syncCatalogProductsFromSale,
 } from './internal';
@@ -98,6 +99,13 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     nextLineItems.find((item) => item.kind === 'product')?.name?.trim() ??
     nextLineItems.find((item) => item.kind === 'service')?.name?.trim() ??
     '';
+  const nextStatus = resolveEditableSaleStatus(
+    normalizedKind,
+    payload.status || existingSale.status || 'new',
+    payload.paidAmount || 0,
+    nextLineItems,
+    payload.discount,
+  );
   const stockDeltas =
     normalizedKind === 'sale' && !product
       ? []
@@ -111,7 +119,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           ),
           getStockLines(
             normalizedKind,
-            payload.status || existingSale.status || 'new',
+            nextStatus,
             nextLineItems,
             payload.quantity,
             product?._id ?? payload.productId,
@@ -121,7 +129,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
   await assertLineItemCatalogProductIds(nextLineItems);
   assertWorkspaceState(
     normalizedKind,
-    payload.status || existingSale.status || 'new',
+    nextStatus,
     payload.paidAmount || 0,
     nextLineItems,
     payload.discount,
@@ -145,7 +153,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           quantity: payload.quantity,
           salePrice: payload.salePrice,
           kind: normalizedKind,
-          status: payload.status || existingSale.status || 'new',
+          status: nextStatus,
           paidAmount: payload.paidAmount || 0,
           note: payload.note,
           userNote: payload.userNote,
@@ -239,7 +247,6 @@ export const updateSaleWorkspace = async (
     payload.kind === 'sale' || existingSale.kind === 'sale'
       ? 'sale'
       : 'repair';
-  const nextStatus = payload.status || existingSale.status || 'new';
   const nextPaidAmount =
     payloadInput.paidAmount === undefined
       ? existingSale.paidAmount ?? 0
@@ -285,6 +292,13 @@ export const updateSaleWorkspace = async (
     payloadInput.discount === undefined
       ? normalizeDiscount(existingSale.discount)
       : normalizeDiscount(payload.discount);
+  const nextStatus = resolveEditableSaleStatus(
+    nextKind,
+    payload.status || existingSale.status || 'new',
+    nextPaidAmount,
+    normalizedLineItems,
+    nextDiscount,
+  );
   const master = await resolveEmployee(
     payload.masterId,
     'masterId',

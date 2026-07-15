@@ -7,6 +7,7 @@
 - In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`.
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
+- Post-create edit from the sales list (including after **Accept to cashbox** without issue) follows normal sale-card field rules; see [SALE_FLOW.md → Opened Rapid Sale Card](./SALE_FLOW.md#opened-rapid-sale-card-post-create-edit).
 
 ## Service-Only Sales
 
@@ -148,6 +149,7 @@
 - If `issued` is selected while `To pay > 0`, payment must be accepted first; accepting money without issuing leaves the status as `paid`.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
+- While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.
 
 ## Read-Only Lock For Sales Card
 

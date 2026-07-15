@@ -192,6 +192,35 @@ export const calculateTotalAfterDiscount = (
   const discountAmount = calculateDiscountAmount(total, discount);
   return Math.max(Math.round((total - discountAmount) * 100) / 100, 0);
 };
+
+/**
+ * Paid sale cards stay editable, but paid cannot persist with unpaid product
+ * balance. Reopen to `new` so line-item edits can proceed without shipping
+ * unpaid stock (issued is not reopened — card is read-only / return flow).
+ */
+export const resolveEditableSaleStatus = (
+  kind: 'repair' | 'sale',
+  status: string,
+  paidAmount: number,
+  lineItems: Array<{ kind: string; price: number; quantity: number }>,
+  discount?: { mode?: string; value?: number } | null,
+) => {
+  if (kind !== 'sale' || status !== 'paid') {
+    return status;
+  }
+
+  const hasAttachedProducts = lineItems.some((item) => item.kind === 'product');
+  if (!hasAttachedProducts) {
+    return status;
+  }
+
+  const total = calculateTotalAfterDiscount(lineItems, discount);
+  if (paidAmount < total) {
+    return 'new';
+  }
+
+  return status;
+};
 export const calculateLineItemRefundableAmount = (
   sale: SaleDocument,
   lineItem: { price: number; quantity: number },

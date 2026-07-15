@@ -8,6 +8,7 @@ import {
   buildSupplierOrderLinkNote,
   computeOrderStatusMenuPosition,
   getPrintTemplateData,
+  getReopenedSaleStatusForLineItems,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
@@ -148,6 +149,91 @@ describe('repair stock status guards', () => {
         500,
       ),
     ).toBe(true);
+  });
+});
+
+describe('getReopenedSaleStatusForLineItems', () => {
+  const saleBase = (overrides: Partial<Sale> = {}): Sale => ({
+    id: 'sale-1',
+    recordNumber: 's000001',
+    saleDate: '2026-07-15T00:00:00.000Z',
+    quantity: 1,
+    salePrice: 100,
+    kind: 'sale',
+    status: 'paid',
+    paidAmount: 100,
+    note: '',
+    timeline: [],
+    paymentHistory: [],
+    lineItems: [
+      {
+        id: 'svc-1',
+        kind: 'service',
+        name: 'Diagnostics',
+        price: 100,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ],
+    client: {
+      id: 'client-1',
+      name: 'Rapid',
+      phone: '',
+      status: 'new',
+    },
+    product: null,
+    manager: null,
+    master: null,
+    issuedBy: null,
+    createdAt: '2026-07-15T00:00:00.000Z',
+    updatedAt: '2026-07-15T00:00:00.000Z',
+    ...overrides,
+  });
+
+  it('reopens paid sale to new when products leave unpaid balance', () => {
+    const sale = saleBase();
+    const nextItems: OrderLineItem[] = [
+      ...sale.lineItems,
+      {
+        id: 'prod-1',
+        kind: 'product',
+        name: 'Asko',
+        price: 200,
+        quantity: 2,
+        warrantyPeriod: 0,
+      },
+    ];
+    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBe('new');
+  });
+
+  it('keeps paid when product total is fully covered', () => {
+    const sale = saleBase({ paidAmount: 500 });
+    const nextItems: OrderLineItem[] = [
+      {
+        id: 'prod-1',
+        kind: 'product',
+        name: 'Asko',
+        price: 250,
+        quantity: 2,
+        warrantyPeriod: 0,
+      },
+    ];
+    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBeUndefined();
+  });
+
+  it('does not reopen issued sales', () => {
+    const sale = saleBase({ status: 'issued', paidAmount: 100 });
+    const nextItems: OrderLineItem[] = [
+      {
+        id: 'prod-1',
+        kind: 'product',
+        name: 'Asko',
+        price: 200,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBeUndefined();
   });
 });
 
