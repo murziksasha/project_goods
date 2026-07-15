@@ -5,6 +5,7 @@ export const saleSchema = new mongoose.Schema(
     saleDate: {
       type: Date,
       default: Date.now,
+      index: true,
     },
     recordNumber: {
       type: String,
@@ -63,6 +64,7 @@ export const saleSchema = new mongoose.Schema(
       enum: ['repair', 'sale'],
       default: 'repair',
       required: true,
+      index: true,
     },
     status: {
       type: String,

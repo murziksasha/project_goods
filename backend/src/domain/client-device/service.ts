@@ -153,36 +153,69 @@ const propagateDeviceChangesToRepairSales = async (
   );
 };
 
-const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
+type SaleDeviceUsageFields = {
+  client?: { toString: () => string } | string | null;
+  productSnapshot?: { name?: string | null; serialNumber?: string | null } | null;
+  lineItems?: Array<{ name?: string | null }> | null;
+  note?: string | null;
+};
+
+const loadSalesForDeviceUsage = () =>
+  Sale.find({}, { client: 1, productSnapshot: 1, lineItems: 1, note: 1 }).lean<
+    SaleDeviceUsageFields[]
+  >();
+
+const countDeviceUsageInSales = (
+  device: ClientDeviceDocument,
+  sales: SaleDeviceUsageFields[],
+) => {
   const normalizedName = device.name.trim().replace(/\s+/g, ' ');
   const normalizedSerial = device.serialNumber.trim();
+  const clientId = device.client?.toString() ?? '';
 
-  const usageQuery: Record<string, unknown> = {
-    client: device.client,
-  };
+  const namePattern = normalizedName
+    ? escapeRegExp(normalizedName).replace(/\s+/g, '\\s+')
+    : '';
+  const snapshotRe = namePattern ? new RegExp(`^${namePattern}$`, 'i') : null;
+  const lineItemRe = namePattern
+    ? new RegExp(`^${namePattern}(?:\\s*\\(.*\\))?$`, 'i')
+    : null;
+  const nameNoteRe = namePattern ? new RegExp(escapeRegExp(normalizedName), 'i') : null;
+  const serialNoteRe = normalizedSerial
+    ? new RegExp(escapeRegExp(normalizedSerial), 'i')
+    : null;
 
-  const orConditions: Array<Record<string, unknown>> = [];
-  if (normalizedName) {
-    const normalizedNamePattern = escapeRegExp(normalizedName).replace(/\s+/g, '\\s+');
-    orConditions.push({ 'productSnapshot.name': { $regex: `^${normalizedNamePattern}$`, $options: 'i' } });
-    orConditions.push({ 'lineItems.name': { $regex: `^${normalizedNamePattern}(?:\\s*\\(.*\\))?$`, $options: 'i' } });
-    orConditions.push({ note: { $regex: escapeRegExp(normalizedName), $options: 'i' } });
-  }
-  if (normalizedSerial) {
-    orConditions.push({ 'productSnapshot.serialNumber': normalizedSerial });
-    orConditions.push({ note: { $regex: escapeRegExp(normalizedSerial), $options: 'i' } });
-  }
+  return sales.reduce((count, sale) => {
+    if ((sale.client?.toString() ?? '') !== clientId) {
+      return count;
+    }
 
-  if (orConditions.length > 0) {
-    usageQuery.$or = orConditions;
-  }
+    const snapshotName = String(sale.productSnapshot?.name ?? '');
+    const snapshotSerial = String(sale.productSnapshot?.serialNumber ?? '');
+    const note = String(sale.note ?? '');
 
-  return Sale.countDocuments(usageQuery);
+    if (snapshotRe?.test(snapshotName)) return count + 1;
+    if ((sale.lineItems ?? []).some((line) => lineItemRe?.test(String(line.name ?? '')))) {
+      return count + 1;
+    }
+    if (nameNoteRe?.test(note)) return count + 1;
+    if (normalizedSerial && snapshotSerial === normalizedSerial) return count + 1;
+    if (serialNoteRe?.test(note)) return count + 1;
+    return count;
+  }, 0);
+};
+
+const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
+  const sales = await loadSalesForDeviceUsage();
+  return countDeviceUsageInSales(device, sales);
 };
 
 export const listClientDevices = async (queryValue: unknown) => {
   const query = getSearchQuery(queryValue);
-  const devices = await ClientDevice.find(query).sort({ createdAt: -1 }).lean<ClientDeviceDocument[]>();
+  const [devices, sales] = await Promise.all([
+    ClientDevice.find(query).sort({ createdAt: -1 }).lean<ClientDeviceDocument[]>(),
+    loadSalesForDeviceUsage(),
+  ]);
   const deduped = new Map<string, ClientDeviceDocument>();
   devices.forEach((device) => {
     const clientKey = device.client ? device.client.toString() : 'no-client';
@@ -193,11 +226,8 @@ export const listClientDevices = async (queryValue: unknown) => {
   });
   const uniqueDevices = Array.from(deduped.values());
 
-  return Promise.all(
-    uniqueDevices.map(async (device) => {
-      const usageCount = await getDeviceUsageCount(device);
-      return formatClientDevice(device, usageCount);
-    }),
+  return uniqueDevices.map((device) =>
+    formatClientDevice(device, countDeviceUsageInSales(device, sales)),
   );
 };
 

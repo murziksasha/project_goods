@@ -14,125 +14,66 @@ import {
   updateSale,
 } from '../domain/sale/service';
 import { Sale } from '../domain/sale/model';
-import { getBearerToken, requirePermissionByToken } from '../domain/auth/service';
+import {
+  getSaleFavoritePermission,
+  getSaleManagePermission,
+  isManualCommentWorkspacePatch,
+} from '../domain/sale/workspace-permissions';
 import type { SalePayload } from '../domain/shared/types';
-import { normalizeSalePayload } from '../shared/lib/parsers';
-import { asyncHandler, routeParam } from '../shared/lib/http';
+import { HttpError } from '../shared/lib/errors';
+import {
+  asyncHandler,
+  requireAnyPermission,
+  requirePermission,
+  routeParam,
+} from '../shared/lib/http';
 
 export const saleRouter = Router();
 
-export const getSaleFavoritePermission = (kind: unknown) =>
-  kind === 'sale' ? 'sales.manage' : 'orders.manage';
-
-type WorkspaceComparableSale = {
-  kind?: string;
-  status?: string;
-  paidAmount?: number;
-  master?: { toString: () => string } | string | null;
-  issuedBy?: { toString: () => string } | string | null;
-  productSnapshot?: {
-    name?: string;
-    serialNumber?: string | null;
-  } | null;
-  discount?: unknown;
-  paymentHistory?: unknown[];
-  lineItems?: unknown[];
-  timeline?: unknown[];
+/** Re-export for tests that import helpers from the route module. */
+export {
+  getSaleFavoritePermission,
+  getSaleManagePermission,
+  isManualCommentWorkspacePatch,
 };
 
-const toComparableWorkspaceState = (
-  sale: WorkspaceComparableSale,
-  payloadInput: SalePayload,
-) => {
-  const payload = normalizeSalePayload(payloadInput);
-  const current = {
-    kind: sale.kind === 'sale' ? 'sale' : 'repair',
-    status: String(sale.status ?? ''),
-    paidAmount: sale.paidAmount ?? 0,
-    masterId: sale.master ? String(sale.master) : '',
-    issuedById: sale.issuedBy ? String(sale.issuedBy) : '',
-    deviceName: sale.productSnapshot?.name ?? '',
-    serialNumber: sale.productSnapshot?.serialNumber ?? '',
-    discount: sale.discount ?? { mode: 'amount', value: 0 },
-    paymentHistory: sale.paymentHistory ?? [],
-    lineItems: sale.lineItems ?? [],
-    timeline: sale.timeline ?? [],
-  };
+const saleReadPermissions = [
+  'orders.view',
+  'sales.manage',
+  'repairs.execute',
+  'supplierOrders.view',
+  'supplierOrders.manage',
+] as const;
 
-  return {
-    current,
-    next: {
-      kind: payloadInput.kind === undefined ? current.kind : payload.kind,
-      status: payloadInput.status === undefined ? current.status : payload.status,
-      paidAmount:
-        payloadInput.paidAmount === undefined ? current.paidAmount : payload.paidAmount,
-      masterId:
-        payloadInput.masterId === undefined ? current.masterId : payload.masterId,
-      issuedById:
-        payloadInput.issuedById === undefined ? current.issuedById : payload.issuedById,
-      deviceName:
-        payloadInput.deviceName === undefined ? current.deviceName : payload.deviceName,
-      serialNumber:
-        payloadInput.serialNumber === undefined
-          ? current.serialNumber
-          : payload.serialNumber,
-      discount:
-        payloadInput.discount === undefined ? current.discount : payload.discount,
-      paymentHistory:
-        payloadInput.paymentHistory === undefined
-          ? current.paymentHistory
-          : payload.paymentHistory,
-      lineItems:
-        payloadInput.lineItems === undefined ? current.lineItems : payload.lineItems,
-      timeline: payload.timeline,
-    },
-  };
-};
-
-export const isManualCommentWorkspacePatch = (
-  sale: WorkspaceComparableSale,
-  payloadInput: SalePayload,
-) => {
-  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
-  if (JSON.stringify(current.timeline) === JSON.stringify(next.timeline)) {
-    return false;
-  }
-
-  return (
-    current.kind === next.kind &&
-    current.status === next.status &&
-    current.paidAmount === next.paidAmount &&
-    current.masterId === next.masterId &&
-    current.issuedById === next.issuedById &&
-    current.deviceName === next.deviceName &&
-    current.serialNumber === next.serialNumber &&
-    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
-    JSON.stringify(current.paymentHistory) ===
-      JSON.stringify(next.paymentHistory) &&
-    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
-  );
-};
-
-saleRouter.get('/sales', asyncHandler(async (_req, res) => {
+saleRouter.get('/sales', asyncHandler(async (req, res) => {
+  await requireAnyPermission(req, saleReadPermissions);
   res.json(await listSales());
 }));
 
 saleRouter.post('/sales', asyncHandler(async (req, res) => {
-  res.status(201).json(await createSale(req.body as SalePayload));
+  const payload = req.body as SalePayload;
+  await requirePermission(req, getSaleManagePermission(payload.kind));
+  res.status(201).json(await createSale(payload));
 }));
 
 saleRouter.put('/sales/:saleId', asyncHandler(async (req, res) => {
-  res.json(await updateSale(routeParam(req, 'saleId'), req.body as SalePayload));
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new HttpError(404, 'Sale not found.');
+  }
+  await requirePermission(req, getSaleManagePermission(existingSale.kind));
+  res.json(await updateSale(saleId, req.body as SalePayload));
 }));
 
 saleRouter.patch('/sales/:saleId/favorite', asyncHandler(async (req, res) => {
   const saleId = routeParam(req, 'saleId');
   const existingSale = await Sale.findById(saleId).lean();
   if (!existingSale) {
-    throw new Error('Sale not found.');
+    throw new HttpError(404, 'Sale not found.');
   }
-  await requirePermissionByToken(
-    getBearerToken(req.headers.authorization),
+  await requirePermission(
+    req,
     getSaleFavoritePermission(existingSale.kind),
     existingSale.kind === 'sale'
       ? 'Current employee does not have permission to manage sales.'
@@ -145,52 +86,59 @@ saleRouter.patch('/sales/:saleId/workspace', asyncHandler(async (req, res) => {
   const saleId = routeParam(req, 'saleId');
   const existingSale = await Sale.findById(saleId).lean();
   if (!existingSale) {
-    throw new Error('Sale not found.');
+    throw new HttpError(404, 'Sale not found.');
   }
-  if (isManualCommentWorkspacePatch(existingSale, req.body as SalePayload)) {
-    await requirePermissionByToken(
-      getBearerToken(req.headers.authorization),
+  const payload = req.body as SalePayload;
+  if (isManualCommentWorkspacePatch(existingSale, payload)) {
+    await requirePermission(
+      req,
       'orders.chat',
       'Current employee does not have permission to add live feed comments.',
     );
+  } else {
+    await requirePermission(req, getSaleManagePermission(existingSale.kind));
   }
-  res.json(await updateSaleWorkspace(routeParam(req, 'saleId'), req.body as SalePayload));
+  res.json(await updateSaleWorkspace(saleId, payload));
 }));
 
 saleRouter.patch('/sales/:saleId/payment', asyncHandler(async (req, res) => {
   if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
-    await requirePermissionByToken(
-      getBearerToken(req.headers.authorization),
-      'finance.transactions.deposit',
-    );
+    await requirePermission(req, 'finance.transactions.deposit');
   }
   res.json(await acceptSalePayment(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/refund', asyncHandler(async (req, res) => {
-  await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
+  await requirePermission(req, 'finance.transactions.withdraw');
   res.json(await refundSalePayment(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/return-line-item', asyncHandler(async (req, res) => {
-  await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
+  await requirePermission(req, 'finance.transactions.withdraw');
   res.json(await returnSaleLineItem(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/return-line-item-serials', asyncHandler(async (req, res) => {
-  await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
+  await requirePermission(req, 'finance.transactions.withdraw');
   res.json(await returnSaleLineItemBySerials(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/return-line-item-stock', asyncHandler(async (req, res) => {
+  await requireAnyPermission(req, ['orders.manage', 'inventory.manage']);
   res.json(await returnSaleLineItemToStock(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.patch('/sales/:saleId/return', asyncHandler(async (req, res) => {
-  await requirePermissionByToken(getBearerToken(req.headers.authorization), 'finance.transactions.withdraw');
+  await requirePermission(req, 'finance.transactions.withdraw');
   res.json(await returnSale(routeParam(req, 'saleId'), req.body));
 }));
 
 saleRouter.delete('/sales/:saleId', asyncHandler(async (req, res) => {
-  res.json(await deleteSale(routeParam(req, 'saleId')));
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new HttpError(404, 'Sale not found.');
+  }
+  await requirePermission(req, getSaleManagePermission(existingSale.kind));
+  res.json(await deleteSale(saleId));
 }));

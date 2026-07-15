@@ -23,6 +23,7 @@ type AccountingSupplierOrdersQueueProps = {
   financeOverview: FinanceOverview;
   firstCashboxId: string;
   isSaving: boolean;
+  payingOrderId: string | null;
   supplierOrders: SupplierOrder[];
   supplierOrdersQueue: SupplierOrderPaymentQueueItem[];
   transactionForm: CreateFinanceTransactionPayload;
@@ -45,6 +46,7 @@ export const AccountingSupplierOrdersQueue = ({
   financeOverview,
   firstCashboxId,
   isSaving,
+  payingOrderId,
   supplierOrders,
   supplierOrdersQueue,
   transactionForm,
@@ -221,12 +223,16 @@ export const AccountingSupplierOrdersQueue = ({
                             <button
                               type='button'
                               className='primary-button'
-                              disabled={isSaving || !cashboxId}
+                              disabled={
+                                isSaving || payingOrderId !== null || !cashboxId
+                              }
                               onClick={() =>
                                 onPaySupplierOrder(order, cashboxId, orderNumber)
                               }
                             >
-                              {t('accounting.orders.pay')}
+                              {payingOrderId === order.id
+                                ? t('accounting.orders.paying')
+                                : t('accounting.orders.pay')}
                             </button>
                           </>
                         ) : null}

@@ -62,14 +62,32 @@ Resolution order for SHA at **Vite config load** (dev server start or `vite buil
 1. resolves `GIT_SHA` via `git rev-parse --short HEAD` (fallback `unknown`)
 2. passes it to `docker compose up -d --build`
 
-`docker-compose.yml` forwards the build arg to `frontend/Dockerfile`:
+`docker-compose.yml` forwards `GIT_SHA` to both images:
+
+| Service | Build arg | Runtime env |
+|---------|-----------|-------------|
+| `frontend` | `GIT_SHA` | `VITE_BUILD_SHA` (baked at `npm run build`) |
+| `backend` | `BUILD_SHA` | `BUILD_SHA` / `NODE_ENV=production` |
+
+Frontend fragment:
 
 ```yaml
 args:
   GIT_SHA: ${GIT_SHA:-unknown}
 ```
 
-Inside the image: `ENV VITE_BUILD_SHA=$GIT_SHA` before `npm run build`.
+Inside the frontend image: `ENV VITE_BUILD_SHA=$GIT_SHA` before `npm run build`.
+
+Backend fragment:
+
+```yaml
+args:
+  BUILD_SHA: ${GIT_SHA:-dev}
+environment:
+  BUILD_SHA: ${GIT_SHA:-dev}
+```
+
+Backend exposes the same SHA via public `GET /api/health` (`buildSha`, `version`) — see [Backend health](#backend-health) below.
 
 `.git` is excluded by `.dockerignore`, so Docker builds rely on `GIT_SHA` from the host — not `git` inside the container.
 
@@ -87,6 +105,36 @@ The production static server (`frontend/scripts/serve-with-api-proxy.mjs`) serve
 | `scripts/docker-up.mjs` | pass `GIT_SHA` into compose build |
 | `frontend/Dockerfile` | `ARG GIT_SHA`, `ENV VITE_BUILD_SHA` |
 | `docker-compose.yml` | `GIT_SHA` build arg for frontend service |
+| `backend/src/routes/health.routes.ts` | `version` + `buildSha` in `/api/health` |
+| `backend/Dockerfile` | `ARG BUILD_SHA`, production `node dist/server.js` |
+
+## Backend health
+
+Public endpoint (no auth): `GET /api/health`
+
+```json
+{
+  "status": "ok",
+  "mongoReadyState": 1,
+  "version": "1.0.0",
+  "buildSha": "fbf5c78"
+}
+```
+
+Resolution order for `buildSha`:
+
+1. `BUILD_SHA`
+2. `GIT_SHA`
+3. `VITE_BUILD_SHA` (shared compose convention)
+4. fallback `dev`
+
+Use after Docker deploy:
+
+```bash
+curl -fsS http://localhost:5000/api/health
+```
+
+Compose runs a backend healthcheck on this URL; frontend starts only after backend is healthy.
 
 ## Verification Checklist
 
@@ -95,10 +143,11 @@ The production static server (`frontend/scripts/serve-with-api-proxy.mjs`) serve
 3. **Docker:** `npm run docker:up` → console prints `Building with GIT_SHA=...`; sidebar shows that SHA after hard refresh (`Ctrl+Shift+R`).
 4. **Collapsed menu:** only SHA visible; hover shows full label.
 5. **Language switch:** date/time portion updates locale without rebuild.
+6. **Backend health:** `curl http://localhost:5000/api/health` returns `buildSha` matching `GIT_SHA` from `npm run docker:up`.
 
 ## Out of Scope
 
-- Backend API version endpoint
+- Build SHA in the frontend UI (backend-only via `/api/health`)
 - Semantic versioning (`package.json` version) in the UI
 - Auto-refresh label without rebuild
 - Build label on unauthenticated pages

@@ -1,5 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Employee, EmployeeFormValues } from '../model/types';
+
+export const useEmployeesQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.employees,
+    queryFn: () => getEmployees(),
+    enabled,
+  });
 
 export const getEmployees = async (query = '', role = 'all') => {
   try {

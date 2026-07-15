@@ -27,18 +27,19 @@ expanded panels, and active tabs.
   `allProducts`, `clientDevices`, `suppliers`, `allClients`, `sales`,
   `catalogProducts`, `services`, `allEmployees`, and `settings`.
 - `dashboard-actions.ts` performs many manual local patches after mutations and
-  then refreshes server data. This is useful during migration, but the target is
-  mutation hooks plus query invalidation/refetch as the single consistency path.
-- `OrdersWorkspace.tsx` still loads supplier orders manually for the orders tab,
-  even though a `useSupplierOrdersQuery` hook exists elsewhere.
+  then refreshes server data. Supplier/employee mutations now use
+  `refreshSuppliers` / `refreshEmployees` query invalidation.
+- `OrdersWorkspace.tsx` now uses `useSupplierOrdersQuery` for order card
+  supplier-order context (enabled when a sale card is open).
 - `AccountingPanel.tsx` still calls `refreshFinance` after mutation success to
   preserve current UI timing, but the mutations themselves now invalidate finance
   query keys through `financeApi.ts`.
 
 ### Still Manual
 
-- `employees`, `suppliers`, and app `settings` are still primarily handled as
-  dashboard local state.
+- `employees`, `suppliers`, and app `settings` use query hooks in
+  `use-dashboard-effects.ts`, but results are still mirrored into dashboard
+  local state. Next step: read query data directly in consumers.
 - Order workspace UI stores saved filters, active filters, pagination, visible
   columns, status menu state, and modal state locally. These are UI state and
   should remain local or persisted in `localStorage`.

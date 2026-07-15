@@ -1,7 +1,9 @@
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { env } from './config/env';
+import { requireAuthUnlessPublic } from './shared/middleware/auth';
 import { clientRouter } from './routes/client.routes';
 import { authRouter } from './routes/auth.routes';
 import { backupRouter } from './routes/backup.routes';
@@ -24,6 +26,7 @@ import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/er
 
 export const app = express();
 
+app.use(helmet());
 app.use(
   cors({
     origin: env.clientOrigin
@@ -31,8 +34,9 @@ app.use(
       : true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
+app.use('/api', requireAuthUnlessPublic);
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
 app.use('/api', backupRouter);

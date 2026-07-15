@@ -112,13 +112,40 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
   2. App navigates to `Orders -> Sales` list (`saleId` stays unset — no sale card opens).
   3. `pendingPaymentSale` opens the existing **Accept payment** modal with `targetStatus: issued`.
 - After payment/issue/refusal, operator remains on the sales list; sale card opens only if chosen manually later.
+- Payment modal actions after rapid-sale create:
+  - **Accept to cashbox** — deposit only; if remaining becomes `0`, status may auto-change to **`paid`** (sale is not issued).
+  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules).
+  - Closing or partial deposit without full pay leaves a non-final editable status (`new` / partial pay) as for any sale.
+
+### Opened Rapid Sale Card (Post-Create Edit)
+
+After the rapid-sale modal and payment handoff, opening the record from **`Orders -> Sales`** must use the **standard sale card** rules ([SALE_CARD.md](./SALE_CARD.md)). Creation-time rapid-sale constraints (stock-only products, no client form, draft table UX) apply **only** inside `RapidSaleModal`, not on the opened card.
+
+- List label **`Rapid sale`** does not apply inside the card (system-client snapshot is shown).
+- Line-item sections, product/service entry, qty, serials, payment, discount, notes, and live feed behave like any other sale card.
+- Editable statuses remain `new`, `reserved`, `paid` (same as normal sales).
+- **`issued` / `returned`** → card read-only (same as normal sales).
+
+#### Paid after Accept to cashbox + adding products
+
+Typical path: rapid sale created (often service-only or already paid lines) → operator uses **Accept to cashbox** for the full amount → status becomes **`paid`** without issue → later opens the card from the sales list and adds product lines (e.g. name search + qty `2`).
+
+Rules:
+
+- Sale card UI must allow product/service add/edit in status **`paid`** (editable set above).
+- Backend must **not** keep status **`paid`** when the update would leave **product** lines with unpaid balance (`paidAmount < order total` after discount). That combination is invalid (“product shipped but payment has not been received”) because `paid` is stock-committed for sales.
+- On workspace (and full sale) update, if `kind = sale`, status would be **`paid`**, line items include at least one **product**, and `paidAmount < total`, the server **reopens** status to **`new`** (`resolveEditableSaleStatus`) and then applies stock/assert rules for `new`.
+- Frontend mirrors the same when queueing line-item or discount workspace patches (`getReopenedSaleStatusForLineItems`) so the status badge and payload stay aligned.
+- **`issued` is never auto-reopened** this way; unpaid products under `issued` still reject. Issue/return flows stay unchanged.
+- After reopen to `new`, `To pay` reflects the new balance; stock for product lines is not committed until the sale is paid/issued again.
+- The same reopen rule applies to **any** sale card (not only `isRapidSale`); rapid sale is the common path that lands on `paid` via deposit-only after create.
 
 ### Sales List Display And Search
 
 - Client column shows label **`Rapid sale`** (`orders.rapidSale.clientLabel`) instead of the system client name.
 - Client card link is disabled for rapid sales; phone column shows `-`.
 - Top search and client filter match aliases: `Rapid sale`, `rapid sale` (see `getSaleClientSearchValues`).
-- Opened sale card later behaves like a normal sale card (see [SALE_CARD.md](./SALE_CARD.md)); list label override does not apply inside the card.
+- Opened sale card later behaves like a normal sale card (see [SALE_CARD.md](./SALE_CARD.md) and **Opened Rapid Sale Card** above); list label override does not apply inside the card.
 
 ### Backend Validation (`isRapidSale: true`)
 
@@ -146,7 +173,11 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 | Create + payment | `frontend/src/pages/dashboard/ui/DashboardPage.tsx` | `handleRapidSaleCreated`, `pendingPaymentSale` |
 | Save action | `frontend/src/pages/dashboard/model/dashboard-actions.ts` | `saveRapidSale` |
 | System client | `backend/src/domain/client/rapid-sale-client.ts` | `getOrCreateRapidSaleClient()` |
-| Create rules | `backend/src/domain/sale/service.ts` | `assertRapidSaleLineItems` |
+| Create rules | `backend/src/domain/sale/service.ts` / `create.ts` | `assertRapidSaleLineItems` |
+| Paid reopen on edit | `backend/src/domain/sale/internal.ts` | `resolveEditableSaleStatus` (`paid` + unpaid products → `new`) |
+| Workspace update | `backend/src/domain/sale/update.ts` | Applies reopen before assert/stock |
+| FE status mirror | `frontend/.../orders-workspace-shared.ts` | `getReopenedSaleStatusForLineItems` |
+| FE line-item patches | `frontend/.../OrdersWorkspace.tsx` | Sends `status: new` when reopen applies |
 
 Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.md](./API.md) (`POST /sales` payload), [SALE_CARD.md](./SALE_CARD.md) (opened card rules), [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) (lookup + serial dedup).
 
@@ -333,6 +364,7 @@ Suggestion rows may show the resolved retail price before click when matching st
   - `issued` is not allowed when `To pay > 0`
   - exception: `issued` is allowed when final order total is `0`
 - Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid` with unpaid product amount.
+- Exception for **workspace/line-item edits** on an already-`paid` sale: if the new total leaves product lines underpaid, status is auto-reopened to **`new`** instead of rejecting the edit (see Rapid Sale → **Opened Rapid Sale Card** / `resolveEditableSaleStatus`). Explicit issue paths and `issued` status still reject unpaid products.
 
 ## Status Dropdown UX
 

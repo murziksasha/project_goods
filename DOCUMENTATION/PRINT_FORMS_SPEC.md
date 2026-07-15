@@ -75,7 +75,7 @@ labels for **warehouse stock units** by serial number. It is used from:
 - product model modal print action (opened from `Serial #`)
 - optional print after supplier-order take-on-charge
 
-Warehouse flow rules: [WAREHOUSE_FLOW.MD](./WAREHOUSE_FLOW.MD#45-serial-label-printing-stock-balances).
+Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-printing-stock-balances).
 
 ### Relationship To `Barcode`
 

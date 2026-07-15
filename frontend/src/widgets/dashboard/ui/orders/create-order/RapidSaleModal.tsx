@@ -15,6 +15,8 @@ import {
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
+import { Modal } from '../../../../../shared/ui/Modal';
+import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import {
   buildMissingServicePayload,
@@ -36,7 +38,6 @@ import {
   getDefaultWarehouseId,
 } from '../../../model/warehouse-serial-filter';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
-import { useLockBodyScroll } from '../../product-catalog/product-catalog-shared';
 
 type RapidSaleModalProps = {
   products: Product[];
@@ -55,7 +56,6 @@ export const RapidSaleModal = ({
   onSubmit,
   onError,
 }: RapidSaleModalProps) => {
-  useLockBodyScroll();
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const [draftItems, setDraftItems] = useState<RapidSaleDraftItem[]>([]);
@@ -93,6 +93,13 @@ export const RapidSaleModal = ({
       setSelectedWarehouseId(getDefaultWarehouseId(warehouses));
     }
   }, [selectedWarehouseId, warehouses]);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      productSearchInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
 
   const warehouseFilteredProducts = useMemo(
     () => filterProductsByWarehouse(products, selectedWarehouseId, warehouses),
@@ -337,29 +344,151 @@ export const RapidSaleModal = ({
     await onSubmit(draftItems);
   };
 
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <section
-        className="rapid-sale-modal catalog-edit-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="rapid-sale-title"
-      >
-        <header className="catalog-edit-header">
-          <div className="catalog-edit-title">
-            <h2 id="rapid-sale-title">{t('orders.rapidSale.title')}</h2>
-          </div>
-          <button
-            type="button"
-            className="create-order-close"
-            onClick={onClose}
-            aria-label={t('common.close')}
-          >
-            &times;
-          </button>
-        </header>
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (
+          productQuery ||
+          selectedProductId ||
+          serviceQuery ||
+          selectedServiceId
+        ) {
+          resetProductEntry();
+          resetServiceEntry();
+          productSearchInputRef.current?.focus();
+          return;
+        }
+        if (draftItems.length > 0) {
+          setDraftItems([]);
+          productSearchInputRef.current?.focus();
+          return;
+        }
+        onClose();
+        return;
+      }
 
-        <div className="rapid-sale-body">
+      if (event.key === 'F4' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        if (!isSaving && !validationErrorKey) {
+          void handleIssued();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [
+    draftItems.length,
+    isSaving,
+    onClose,
+    productQuery,
+    selectedProductId,
+    selectedServiceId,
+    serviceQuery,
+    validationErrorKey,
+  ]);
+
+  return (
+    <Modal
+      isOpen
+      title={t('orders.rapidSale.title')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      className="rapid-sale-modal"
+      bodyClassName="rapid-sale-body"
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={false}
+      initialFocusSelector=".rapid-sale-field-search input"
+      footer={
+        <>
+          {draftItems.length > 0 ? (
+            <section className="rapid-sale-items">
+              <table className="rapid-sale-items-table">
+                <thead>
+                  <tr>
+                    <th>{t('common.name')}</th>
+                    <th>{t('orders.create.price')}</th>
+                    <th>{t('orders.create.qty')}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {draftItems.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        {item.name}
+                        {item.kind === 'product' && item.serialNumbers?.length
+                          ? ` (${item.serialNumbers.join(', ')})`
+                          : ''}
+                      </td>
+                      <td className="rapid-sale-draft-price-cell">
+                        <NumberStepper
+                          min={0}
+                          step={PRICE_STEPPER_STEP}
+                          precision={PRICE_STEPPER_PRECISION}
+                          value={item.price}
+                          onChange={(nextPrice) =>
+                            updateDraftItemPrice(item.id, nextPrice)
+                          }
+                          ariaLabel={`${item.name} ${t('orders.create.price')}`}
+                          placeholder="0"
+                          disabled={isSaving}
+                          className="line-item-inline-input rapid-sale-draft-price"
+                        />
+                      </td>
+                      <td>{item.quantity}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() =>
+                            setDraftItems((current) =>
+                              current.filter((draft) => draft.id !== item.id),
+                            )
+                          }
+                        >
+                          {t('orders.detail.lineItems.remove')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="rapid-sale-total">
+                {t('orders.rapidSale.total', {
+                  amount: Math.round(draftTotal * 100) / 100,
+                })}
+              </p>
+            </section>
+          ) : null}
+          <footer className="rapid-sale-footer catalog-edit-footer">
+            <p
+              className="rapid-sale-shortcuts"
+              aria-label={t('orders.rapidSale.shortcutsLabel')}
+            >
+              {t('orders.rapidSale.shortcuts')}
+            </p>
+            <div className="rapid-sale-footer-actions">
+              <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                className="rapid-sale-issued-button"
+                disabled={isSaving || Boolean(validationErrorKey)}
+                onClick={() => void handleIssued()}
+              >
+                {isSaving
+                  ? t('orders.create.saving')
+                  : t('orders.rapidSale.issued')}
+              </Button>
+            </div>
+          </footer>
+        </>
+      }
+    >
           <section className="rapid-sale-section">
             <h3>{t('orders.rapidSale.products')}</h3>
             <WarehouseSelectField
@@ -380,6 +509,20 @@ export const RapidSaleModal = ({
                     setSelectedProductId('');
                     setSelectedProductName('');
                     setSelectedSerialNumbers([]);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    if (selectedProductId) {
+                      handleAddProduct();
+                      return;
+                    }
+                    const firstSelectable = visibleProductSuggestions.find(
+                      (suggestion) => suggestion.selectable,
+                    );
+                    if (firstSelectable) {
+                      applyProductSuggestion(firstSelectable);
+                    }
                   }}
                   placeholder={t('orders.create.productSearchPlaceholder')}
                 />
@@ -471,6 +614,17 @@ export const RapidSaleModal = ({
                     setServiceQuery(event.target.value);
                     setSelectedServiceId('');
                   }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    if (selectedServiceId || serviceQuery.trim().length >= 2) {
+                      void handleAddService();
+                      return;
+                    }
+                    if (visibleServiceSuggestions[0]) {
+                      applyServiceSuggestion(visibleServiceSuggestions[0]);
+                    }
+                  }}
                   placeholder={t('orders.rapidSale.serviceSearch')}
                 />
               </label>
@@ -533,79 +687,6 @@ export const RapidSaleModal = ({
               </div>
             ) : null}
           </section>
-        </div>
-
-        {draftItems.length > 0 ? (
-          <section className="rapid-sale-items">
-            <table className="rapid-sale-items-table">
-              <thead>
-                <tr>
-                  <th>{t('common.name')}</th>
-                  <th>{t('orders.create.price')}</th>
-                  <th>{t('orders.create.qty')}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {draftItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      {item.name}
-                      {item.kind === 'product' && item.serialNumbers?.length
-                        ? ` (${item.serialNumbers.join(', ')})`
-                        : ''}
-                    </td>
-                    <td className="rapid-sale-draft-price-cell">
-                      <NumberStepper
-                        min={0}
-                        step={PRICE_STEPPER_STEP}
-                        precision={PRICE_STEPPER_PRECISION}
-                        value={item.price}
-                        onChange={(nextPrice) => updateDraftItemPrice(item.id, nextPrice)}
-                        ariaLabel={`${item.name} ${t('orders.create.price')}`}
-                        placeholder="0"
-                        disabled={isSaving}
-                        className="line-item-inline-input rapid-sale-draft-price"
-                      />
-                    </td>
-                    <td>{item.quantity}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="ghost-button"
-                        onClick={() =>
-                          setDraftItems((current) =>
-                            current.filter((draft) => draft.id !== item.id),
-                          )
-                        }
-                      >
-                        {t('orders.detail.lineItems.remove')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="rapid-sale-total">
-              {t('orders.rapidSale.total', { amount: Math.round(draftTotal * 100) / 100 })}
-            </p>
-          </section>
-        ) : null}
-
-        <footer className="rapid-sale-footer catalog-edit-footer">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={isSaving}>
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className="primary-button rapid-sale-issued-button"
-            disabled={isSaving || Boolean(validationErrorKey)}
-            onClick={() => void handleIssued()}
-          >
-            {isSaving ? t('orders.create.saving') : t('orders.rapidSale.issued')}
-          </button>
-        </footer>
-      </section>
-    </div>
+    </Modal>
   );
 };

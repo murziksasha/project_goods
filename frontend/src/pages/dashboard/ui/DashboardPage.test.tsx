@@ -86,7 +86,6 @@ vi.mock('../../../shared/lib/hardReload', async (importOriginal) => {
 
 import type { DashboardPage as DashboardPageComponent } from './DashboardPage';
 import * as hardReload from '../../../shared/lib/hardReload';
-import * as useDashboardPageModule from '../model/useDashboardPage';
 import { useDashboardPage as useDashboardPageMockImpl } from '../model/__mocks__/useDashboardPage';
 
 let DashboardPage: typeof DashboardPageComponent;
@@ -111,14 +110,13 @@ const restoreAuthMock = () => {
 };
 
 beforeEach(async () => {
-  vi.restoreAllMocks();
   getCurrentEmployeeMock.mockReset();
   hardReloadAppMock.mockReset();
   getCurrentEmployeeMock.mockResolvedValue(employee);
   restoreAuthMock();
-  vi.spyOn(useDashboardPageModule, 'useDashboardPage').mockImplementation(
-    useDashboardPageMockImpl as unknown as typeof useDashboardPageModule.useDashboardPage,
-  );
+  // useDashboardPage is already replaced by vi.mock → __mocks__/useDashboardPage.
+  // Do not spyOn that same vi.fn — it can recurse (spy → self).
+  useDashboardPageMockImpl.mockClear();
   vi.spyOn(hardReload, 'hardReloadApp').mockImplementation(hardReloadAppMock);
   Object.defineProperty(window.navigator, 'onLine', {
     configurable: true,
@@ -174,7 +172,7 @@ describe('DashboardPage auth recovery', () => {
     renderDashboardPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Business performance')).toBeInTheDocument();
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
 
     expect(screen.queryByText('Sign in')).not.toBeInTheDocument();
@@ -199,14 +197,23 @@ describe('DashboardPage browser history', () => {
     renderDashboardPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Business performance')).toBeInTheDocument();
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
-    expect(screen.getByRole('link', { name: /Main/i })).toHaveClass('sidebar-nav-item-active');
+    const sidebarMain = () =>
+      screen
+        .getAllByRole('link', { name: /Main/i })
+        .find((link) => link.classList.contains('sidebar-nav-item'));
+    const sidebarOrders = () =>
+      screen
+        .getAllByRole('link', { name: /Orders/i })
+        .find((link) => link.classList.contains('sidebar-nav-item'));
+
+    expect(sidebarMain()).toHaveClass('sidebar-nav-item-active');
 
     pushState.mockClear();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('link', { name: /Orders/i }), { button: 0 });
+      fireEvent.click(sidebarOrders()!, { button: 0 });
     });
 
     expect(pushState).toHaveBeenCalledTimes(1);
@@ -217,7 +224,7 @@ describe('DashboardPage browser history', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: /Orders/i })).toHaveClass('sidebar-nav-item-active');
+      expect(sidebarOrders()).toHaveClass('sidebar-nav-item-active');
     });
 
     window.history.replaceState(null, '', '/');
@@ -226,8 +233,8 @@ describe('DashboardPage browser history', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: /Main/i })).toHaveClass('sidebar-nav-item-active');
-      expect(screen.getByText('Business performance')).toBeInTheDocument();
+      expect(sidebarMain()).toHaveClass('sidebar-nav-item-active');
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
 
     pushState.mockRestore();

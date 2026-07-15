@@ -1725,6 +1725,19 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeDisabled();
   });
 
+  it('exposes keyboard focus path for repair status select', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'new' },
+      status: 'new',
+    });
+
+    const statusSelect = screen.getByLabelText(/repair status/i);
+    statusSelect.focus();
+    expect(statusSelect).toHaveFocus();
+    fireEvent.keyDown(statusSelect, { key: 'ArrowDown' });
+    expect(statusSelect).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
   it('keeps order card products collapsed by default even with existing product items', () => {
     renderCard({
       saleOverride: { kind: 'repair', status: 'clientApproved' },

@@ -40,7 +40,7 @@ const createEmployeeRecord = (
     note: '',
     createdAt: now,
     updatedAt: now,
-    passwordHash: hashPassword('secret'),
+    passwordHash: hashPassword('secretpass'),
     authToken: '',
     authTokens: [] as string[],
     save: vi.fn().mockResolvedValue(undefined),
@@ -103,12 +103,38 @@ describe('auth permission helpers', () => {
 });
 
 describe('auth sessions', () => {
+  it('allows login with existing short passwords (length policy is not on login)', async () => {
+    const shortPassword = 'pass123'; // 7 chars — below MIN_PASSWORD_LENGTH on set
+    const employee = createEmployeeRecord({
+      passwordHash: hashPassword(shortPassword),
+    });
+    mockEmployeeFindOne(employee);
+
+    const session = await loginEmployee('employee', shortPassword);
+
+    expect(session.token).toBeTruthy();
+    expect(session.employee).toMatchObject({ id: 'employee-id', username: 'employee' });
+    expect(employee.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects wrong password regardless of length', async () => {
+    const employee = createEmployeeRecord({
+      passwordHash: hashPassword('pass123'),
+    });
+    mockEmployeeFindOne(employee);
+
+    await expect(loginEmployee('employee', 'wrong12')).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Invalid username or password.',
+    });
+  });
+
   it('keeps multiple active tokens for repeated logins', async () => {
     const employee = createEmployeeRecord({ authToken: 'legacy-token' });
     mockEmployeeFindOne(employee);
 
-    const firstSession = await loginEmployee('employee', 'secret');
-    const secondSession = await loginEmployee('employee', 'secret');
+    const firstSession = await loginEmployee('employee', 'secretpass');
+    const secondSession = await loginEmployee('employee', 'secretpass');
 
     expect(firstSession.token).not.toBe(secondSession.token);
     expect(employee.authTokens).toEqual([

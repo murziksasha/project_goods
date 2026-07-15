@@ -1,5 +1,9 @@
 @import './shared/styles/base.css';
 @import './shared/styles/layout.css';
+@import './shared/styles/domains/sidebar.css';
+@import './shared/styles/domains/orders.css';
+@import './shared/styles/domains/warehouse.css';
+@import './shared/styles/domains/accounting.css';
 @import './shared/styles/forms.css';
 @import './shared/styles/lists.css';
 @import './shared/styles/responsive.css';

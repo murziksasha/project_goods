@@ -47,19 +47,20 @@ backend/
 - `src/routes/` - HTTP-маршруты
 - `src/domain/` - бизнес-модули по доменам
 - `src/domain/*/model.ts` - модели Mongoose
-- `src/domain/*/service.ts` - прикладная и доменная логика
+- `src/domain/*/service.ts` - прикладная и доменная логика (для `sale` — barrel re-export)
+- `src/domain/sale/` — split: `internal`, `list`, `create`, `update`, `payment`, `return`, `workspace-permissions`, `stock`, `validators`
+- `src/domain/finance/` — split: `internal`, `cashboxes`, `currencies`, `transactions`, `formatters`, `normalizers`, `validators`
 - `src/shared/` - общие утилиты, demo data, парсинг, форматирование и обработка ошибок
 
 ### Домены backend
 
-- `product`
-- `client`
-- `sale`
-- `employee`
-- `settings`
-- `finance`
-- `demo`
-- `sequence`
+- `auth`, `employee`, `settings`
+- `product`, `catalog-product`, `service-catalog`, `warehouse-settings`
+- `client`, `client-device`, `supplier`, `supplier-order`
+- `sale` (repair + product sales), `finance`, `sequence`
+- `backup`, `demo`, `market`, `weather`
+
+План эволюции backend: [BACKEND_IMPROVEMENT_PLAN.md](./BACKEND_IMPROVEMENT_PLAN.md).
 
 ## Структура frontend
 
@@ -102,6 +103,8 @@ frontend/
 - `src/widgets/` - крупные секции интерфейса
 - `src/widgets/dashboard/model/` - бизнес-логика dashboard: аналитика, заказы, склад, клиенты, печать
 - `src/widgets/dashboard/ui/` - UI dashboard, разбитый по тематическим подпапкам (см. раздел ниже)
+- `src/widgets/dashboard-sidebar/ui/DashboardSidebar.tsx` - sidebar shell (nav, profile, build label)
+- `src/widgets/dashboard-topbar/ui/DashboardTopbar.tsx` - topbar shell (menu toggle, sync, language, logout)
 - `src/widgets/dashboard/ui/index.ts` - barrel-экспорт верхнеуровневых панелей для `DashboardPage`
 - `src/features/` - пользовательские сценарии и интерактивные потоки
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
@@ -160,6 +163,9 @@ Spec: [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
 - `useAccountingPreferences` — accounting tab changes delegate URL updates to `DashboardPage`
 - `WarehouseTables` / `WarehousePanel` — stock `Client order` links call `onOpenSaleCard`
 - `frontend/src/widgets/dashboard/ui/orders/create-order/create-order-card-shared.ts` — re-exports `getOrderLink` from `dashboard-navigation`
+- `frontend/src/widgets/dashboard/ui/orders/workspace/OrdersWorkspaceListHeader.tsx` — tabs + toolbar
+- `frontend/src/widgets/dashboard/ui/orders/workspace/OrdersWorkspaceTableSection.tsx` — orders/sales table + pagination + status menu
+- `frontend/src/widgets/dashboard/ui/orders/workspace/OrdersWorkspaceModals.tsx` — payment/refund/return/print modals
 
 Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 

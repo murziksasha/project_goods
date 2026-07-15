@@ -3,6 +3,7 @@ import { employeeRoles, type EmployeeRole } from './constants';
 import { Employee, type EmployeeDocument } from './model';
 import { Sale } from '../sale/model';
 import { WarehouseSettings } from '../warehouse-settings/model';
+import { MIN_PASSWORD_LENGTH } from '../auth/service';
 import { hashPassword } from '../../shared/lib/auth';
 import { formatEmployee } from '../../shared/lib/formatters';
 import { normalizeEmployeePayload } from '../../shared/lib/parsers';
@@ -81,8 +82,8 @@ export const createEmployee = async (payload: EmployeePayload, actor?: EmployeeA
   if (!normalizedPayload.username) {
     throw new HttpError(400, 'Username is required.');
   }
-  if (normalizedPayload.password.length < 3) {
-    throw new HttpError(400, 'Password must contain at least 3 characters.');
+  if (normalizedPayload.password.length < MIN_PASSWORD_LENGTH) {
+    throw new HttpError(400, `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
   }
 
   const employee = new Employee({
@@ -139,8 +140,8 @@ export const updateEmployee = async (
   };
 
   if (normalizedPayload.password) {
-    if (normalizedPayload.password.length < 3) {
-      throw new HttpError(400, 'Password must contain at least 3 characters.');
+    if (normalizedPayload.password.length < MIN_PASSWORD_LENGTH) {
+      throw new HttpError(400, `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
     }
     updatePayload.passwordHash = hashPassword(normalizedPayload.password);
   }

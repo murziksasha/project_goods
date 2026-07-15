@@ -92,8 +92,15 @@ export const getBlobApiErrorMessage = async (
 
 export const getApiErrorMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
+    if (error.code === 'ECONNABORTED') {
+      return i18n.t('errors.requestTimeout');
+    }
     return error.message;
   }
 
-  return createApiRequestError(error).message;
+  const apiError = createApiRequestError(error);
+  if (apiError.code === 'ECONNABORTED') {
+    return i18n.t('errors.requestTimeout');
+  }
+  return apiError.message;
 };

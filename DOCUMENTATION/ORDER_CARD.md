@@ -145,3 +145,31 @@
 ### Empty state
 
 - If both system `note` and `userNote` are empty, show `No notes for this order yet.`
+
+## Loading, Error, And Mobile States
+
+### Loading skeleton
+
+- When `saleId` is selected but the sale record is not yet in the workspace list, render `OrderDetailCardSkeleton` instead of an empty gap.
+- Skeleton mirrors header (title, status, action) and two main panels; `aria-busy="true"` with `orders.detail.loadingCard`.
+- Shimmer uses design tokens (`--bg-panel-muted`, `--bg-panel-elevated`).
+
+### Save failure
+
+- `Save changes` failures show **both** a toast (existing `onError`) and an inline `.inline-field-error` under the save button.
+- Status validation blocks show inline hint under the status `<select>` via `aria-describedby` + `role="alert"`.
+- Inline text clears when the operator edits main-info draft fields.
+
+### Mobile QA breakpoints
+
+- **1024px:** collapse toggles for Main information and Live feed; `aria-expanded` on section headers.
+- **720px:** header stacks; status select full width; Create order + close share one row.
+- **480px:** tighter spacing; long action labels may wrap inside buttons.
+- Reference capture list: [`frontend/screenshots/README.md`](../frontend/screenshots/README.md).
+
+### Accessibility
+
+- Status `<select>`: `aria-label`, `aria-describedby` when blocked.
+- Collapse section buttons: `aria-expanded`; icon marked `aria-hidden`.
+- Tier toggle (`ProductSalePriceTierToggle`): `aria-pressed`; Arrow Left/Right switches R/W inside the group.
+- Design tokens and component catalog: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md).

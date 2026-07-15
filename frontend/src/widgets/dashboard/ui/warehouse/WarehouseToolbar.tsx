@@ -1,6 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
   availableWarehouseColumns,
   getWarehouseColumnLabelKey,
@@ -87,6 +88,11 @@ export const WarehouseToolbar = ({
   };
 
   return (
+    <div className='warehouse-toolbar-shell'>
+      <PageHeader
+        title={t('nav.warehouse')}
+        subtitle={stockSummaryText}
+      />
     <div className='warehouse-toolbar'>
       <CompactPaginationPanel
         totalItems={totalItems}
@@ -253,6 +259,7 @@ export const WarehouseToolbar = ({
           </button>
         ))}
       </div>
+    </div>
     </div>
   );
 };

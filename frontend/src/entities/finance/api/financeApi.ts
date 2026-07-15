@@ -16,8 +16,8 @@ import type {
   UpdateFinanceTransactionPayload,
 } from '../model/types';
 
-const invalidateFinanceQueries = async () => {
-  await Promise.all([
+const invalidateFinanceQueries = () => {
+  void Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.financeCashboxes }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeCurrencies }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions }),
@@ -248,7 +248,9 @@ export const useSupplierOrdersForPaymentQuery = (
 export const useCreateCashboxMutation = () =>
   useMutation({
     mutationFn: createCashbox,
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useUpdateCashboxMutation = () =>
@@ -260,25 +262,33 @@ export const useUpdateCashboxMutation = () =>
       cashboxId: string;
       payload: UpdateCashboxPayload;
     }) => updateCashbox(cashboxId, payload),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useCreateFinanceTransactionMutation = () =>
   useMutation({
     mutationFn: createFinanceTransaction,
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useCancelFinanceTransactionMutation = () =>
   useMutation({
     mutationFn: cancelFinanceTransaction,
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useCreateFinanceCurrencyMutation = () =>
   useMutation({
     mutationFn: createFinanceCurrency,
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useUpdateFinanceCurrencyMutation = () =>
@@ -290,7 +300,9 @@ export const useUpdateFinanceCurrencyMutation = () =>
       currencyCode: string;
       payload: UpdateFinanceCurrencyPayload;
     }) => updateFinanceCurrency(currencyCode, payload),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const usePaySupplierOrderMutation = () =>
@@ -302,13 +314,17 @@ export const usePaySupplierOrderMutation = () =>
       supplierOrderId: string;
       payload: { cashboxId: string; note?: string };
     }) => paySupplierOrder(supplierOrderId, payload),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useIssueSupplierOrderWithoutPaymentMutation = () =>
   useMutation({
     mutationFn: issueSupplierOrderWithoutPayment,
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });
 
 export const useUpdateFinanceTransactionMutation = () =>
@@ -320,5 +336,7 @@ export const useUpdateFinanceTransactionMutation = () =>
       transactionId: string;
       payload: UpdateFinanceTransactionPayload;
     }) => updateFinanceTransaction(transactionId, payload),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => {
+      invalidateFinanceQueries();
+    },
   });

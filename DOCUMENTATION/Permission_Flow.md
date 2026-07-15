@@ -83,6 +83,42 @@ Defaults are applied by backend when an employee is created or updated with an e
 
 ## Backend Authorization Matrix
 
+### Global Authentication
+
+All `/api/*` routes except health, login, and invitation flows require a valid Bearer session. Middleware: `backend/src/shared/middleware/auth.ts`.
+
+### Products
+| Endpoint | Required access |
+| --- | --- |
+| `GET /products`, `GET /products/export` | `orders.view`, `inventory.manage`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| All other `/products/*` mutations | `inventory.manage`. |
+
+### Clients
+| Endpoint | Required access |
+| --- | --- |
+| `GET /clients`, `GET /clients/:clientId/history` | `clients.manage`, `orders.view`, or `sales.manage`. |
+| All other `/clients/*` mutations | `clients.manage`. |
+
+### Sales / Orders
+| Endpoint | Required access |
+| --- | --- |
+| `GET /sales` | `orders.view`, `sales.manage`, `repairs.execute`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| `POST /sales`, `PUT /sales/:saleId`, `DELETE /sales/:saleId` | `orders.manage` for repair orders; `sales.manage` for product sales. |
+| `PATCH /sales/:saleId/workspace` (comment-only) | `orders.chat`. |
+| `PATCH /sales/:saleId/workspace` (other changes) | `orders.manage` or `sales.manage` by sale kind. |
+| `PATCH /sales/:saleId/return-line-item-stock` | `orders.manage` or `inventory.manage`. |
+
+### Warehouse Settings
+| Endpoint | Required access |
+| --- | --- |
+| `GET /warehouse-settings` | Authenticated session. |
+| `PUT /warehouse-settings` | `inventory.manage`. |
+
+### Demo Data
+| Endpoint | Required access |
+| --- | --- |
+| `POST /demo/seed`, `/demo/seed/sales`, `/demo/seed/repairs` | `owner`; disabled when `NODE_ENV=production`. |
+
 ### Employees
 | Endpoint | Required access |
 | --- | --- |
@@ -140,9 +176,11 @@ Defaults are applied by backend when an employee is created or updated with an e
 ### Settings
 | Endpoint | Required access |
 | --- | --- |
-| `GET /settings` | Authenticated session (read-only for all active employees). |
+| `GET /settings` | Authenticated session (all active employees). |
 | `PUT /settings` | `owner` only. |
 | `PUT /settings/print-forms` | `owner` or `printForms.manage`. |
+
+See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.

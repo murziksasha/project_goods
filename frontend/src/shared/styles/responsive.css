@@ -208,7 +208,7 @@
 
   .create-order-right {
     border-left: 0;
-    border-top: 1px solid #d5dde7;
+    border-top: 1px solid var(--color-line);
     padding-left: 0;
     padding-top: 12px;
   }
@@ -282,6 +282,65 @@
 }
 
 @media (max-width: 720px) {
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-sidebar);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 -8px 24px rgba(15, 28, 42, 0.28);
+  }
+
+  .mobile-bottom-nav-item {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 8px;
+    color: rgba(226, 232, 240, 0.72);
+    text-decoration: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .mobile-bottom-nav-item-active {
+    background: rgba(45, 138, 227, 0.22);
+    color: var(--color-on-accent);
+  }
+
+  .mobile-bottom-nav-icon {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-bottom-nav-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-bottom-nav-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-main {
+    padding-bottom: 72px;
+  }
+
+  .app-sidebar .sidebar-nav {
+    display: none;
+  }
+
   .topbar {
     padding: 10px 12px;
   }
@@ -598,9 +657,9 @@
   .catalog-card-table tr {
     display: grid;
     gap: 0;
-    border: 1px solid #d7e0eb;
+    border: 1px solid var(--color-line-panel);
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
     overflow: hidden;
   }
@@ -644,7 +703,7 @@
   .finance-orders-table td::before,
   .catalog-card-table td::before {
     content: attr(data-label);
-    color: #6c7f94;
+    color: var(--color-text-label);
     font-size: 0.76rem;
     font-weight: 900;
     letter-spacing: 0.04em;
@@ -715,7 +774,7 @@
 
   .finance-transactions-table .finance-day-separator-cell {
     display: block;
-    border: 1px solid #d9e8fa;
+    border: 1px solid var(--color-line-panel);
     border-radius: 7px;
     text-align: center;
   }
@@ -1071,9 +1130,9 @@
     display: grid;
     gap: 0;
     grid-column: 1;
-    border: 1px solid #d7e0eb;
+    border: 1px solid var(--color-line-panel);
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
     overflow: hidden;
   }
@@ -1090,15 +1149,15 @@
     overflow: visible;
     white-space: normal;
     text-align: left;
-    background: #fff;
-    color: #53677d;
+    background: var(--bg-card);
+    color: var(--color-text-label);
     font-weight: 400;
     justify-content: stretch;
   }
 
   .order-detail-table-entry-cell::before {
     content: attr(data-label);
-    color: #6c7f94;
+    color: var(--color-text-label);
     font-size: 0.76rem;
     font-weight: 900;
     letter-spacing: 0.04em;
@@ -1164,9 +1223,9 @@
   .order-detail-table-entry-row {
     display: grid;
     gap: 0;
-    border: 1px solid #d7e0eb;
+    border: 1px solid var(--color-line-panel);
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
     overflow: hidden;
   }
@@ -1184,8 +1243,8 @@
     overflow: visible;
     white-space: normal;
     text-align: left;
-    background: #fff;
-    color: #53677d;
+    background: var(--bg-card);
+    color: var(--color-text-label);
     font-weight: 400;
   }
 
@@ -1211,7 +1270,7 @@
   .order-detail-table-row > div::before,
   .order-detail-table-entry-row > div::before {
     content: attr(data-label);
-    color: #6c7f94;
+    color: var(--color-text-label);
     font-size: 0.76rem;
     font-weight: 900;
     letter-spacing: 0.04em;
@@ -1222,9 +1281,9 @@
   .order-line-items-empty {
     display: block;
     grid-column: auto;
-    border: 1px solid #d7e0eb;
+    border: 1px solid var(--color-line-panel);
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     padding: 12px;
     text-align: center;
   }
@@ -1399,7 +1458,7 @@
   .order-print-settings {
     max-height: 300px;
     border-right: 0;
-    border-bottom: 1px solid #dbe3ec;
+    border-bottom: 1px solid var(--color-line-strong);
   }
 
   .order-print-dialog-footer {

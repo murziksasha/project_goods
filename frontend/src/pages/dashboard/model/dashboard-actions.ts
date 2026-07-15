@@ -30,7 +30,6 @@ import type {
   ProductFormValues,
   ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
-import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
 import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
@@ -61,7 +60,7 @@ import {
   mergeSuppliers as mergeSuppliersApi,
   updateSupplier,
 } from '../../../entities/supplier/api/supplierApi';
-import type { Supplier, SupplierFormValues } from '../../../entities/supplier/model/types';
+import type { SupplierFormValues } from '../../../entities/supplier/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
 import type {
@@ -73,6 +72,7 @@ import {
   seedDemoData,
   type DemoSeedKind,
 } from '../../../features/demo-data/api/demoApi';
+import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
@@ -119,13 +119,6 @@ type DashboardActionParams = {
   editingSaleId: string | null;
   editingEmployeeId: string | null;
   selectedClientId: string | null;
-  setAllProducts: Setter<Product[]>;
-  setCatalogProducts: Setter<CatalogProduct[]>;
-  setAllClients: Setter<Client[]>;
-  setAllEmployees: Setter<Employee[]>;
-  setSuppliers: Setter<Supplier[]>;
-  setSales: Setter<Sale[]>;
-  setServices: Setter<ServiceCatalogItem[]>;
   setSettings: Setter<AppSettings | null>;
   setSelectedClientId: Setter<string | null>;
   setClientHistory: Setter<ClientHistory | null>;
@@ -160,6 +153,10 @@ type DashboardActionParams = {
   refreshProducts: () => Promise<void>;
   refreshClientDevices: () => Promise<void>;
   refreshClients: () => Promise<void>;
+  refreshServices: () => Promise<void>;
+  refreshSuppliers: () => Promise<void>;
+  refreshEmployees: () => Promise<void>;
+  refreshSettings: () => Promise<void>;
   mutateCreateProduct: (payload: ProductFormValues) => Promise<Product>;
   mutateUpdateProduct: (
     productId: string,
@@ -232,13 +229,6 @@ export const createDashboardActions = ({
   editingSaleId,
   editingEmployeeId,
   selectedClientId,
-  setAllProducts,
-  setCatalogProducts,
-  setAllClients,
-  setAllEmployees,
-  setSuppliers,
-  setSales,
-  setServices,
   setSettings,
   setSelectedClientId,
   setClientHistory,
@@ -273,6 +263,10 @@ export const createDashboardActions = ({
   refreshProducts,
   refreshClientDevices,
   refreshClients,
+  refreshServices,
+  refreshSuppliers,
+  refreshEmployees,
+  refreshSettings,
   mutateCreateProduct,
   mutateUpdateProduct,
   mutateUpdateProductModel,
@@ -397,8 +391,8 @@ export const createDashboardActions = ({
 
   return {
     replaceSaleInState: (sale: Sale) => {
-      setSales((current) =>
-        current.map((item) => (item.id === sale.id ? sale : item)),
+      queryClient.setQueryData<Sale[]>(queryKeys.sales, (current) =>
+        (current ?? []).map((item) => (item.id === sale.id ? sale : item)),
       );
     },
     setProductSearchQuery,
@@ -561,22 +555,21 @@ export const createDashboardActions = ({
           const editingService = allServices.find(
             (service) => service.id === editingServiceId,
           );
-          const updatedService = await mutateUpdateService(
-            editingServiceId,
-            {
-              ...serviceForm,
-              isActive: editingService?.isActive,
-            },
-          );
-          setServices((current) =>
-            current.map((item) =>
-              item.id === updatedService.id ? updatedService : item,
-            ),
+          await mutateUpdateService(editingServiceId, {
+            ...serviceForm,
+            isActive: editingService?.isActive,
+          });
+          await safeRefresh(
+            refreshServices,
+            i18n.t('errors.failedLoadServices'),
           );
           setSuccessMessage(i18n.t('success.serviceUpdated'));
         } else {
-          const createdService = await mutateCreateService(serviceForm);
-          setServices((current) => [createdService, ...current]);
+          await mutateCreateService(serviceForm);
+          await safeRefresh(
+            refreshServices,
+            i18n.t('errors.failedLoadServices'),
+          );
           setSuccessMessage(i18n.t('success.serviceSaved'));
         }
 
@@ -594,16 +587,20 @@ export const createDashboardActions = ({
       try {
         if (editingClientId) {
           const updatedClient = await mutateUpdateClient(editingClientId, clientForm);
-          setAllClients((current) =>
-            current.map((item) => (item.id === updatedClient.id ? updatedClient : item)),
+          await safeRefresh(
+            refreshClients,
+            i18n.t('dashboard.actions.errors.failedRefreshClients'),
           );
           if (selectedClientId === updatedClient.id) {
             setSelectedClientId(updatedClient.id);
           }
           setSuccessMessage(i18n.t('success.clientUpdated'));
         } else {
-          const createdClient = await mutateCreateClient(clientForm);
-          setAllClients((current) => [createdClient, ...current]);
+          await mutateCreateClient(clientForm);
+          await safeRefresh(
+            refreshClients,
+            i18n.t('dashboard.actions.errors.failedRefreshClients'),
+          );
           setSuccessMessage(i18n.t('success.clientCreated'));
         }
 
@@ -624,8 +621,11 @@ export const createDashboardActions = ({
       clearNotifications();
 
       try {
-        const createdClient = await mutateCreateClient(payload);
-        setAllClients((current) => [createdClient, ...current]);
+        await mutateCreateClient(payload);
+        await safeRefresh(
+          refreshClients,
+          i18n.t('dashboard.actions.errors.failedRefreshClients'),
+        );
         setSuccessMessage(i18n.t('success.clientCreated'));
         return true;
       } catch (requestError) {
@@ -644,8 +644,11 @@ export const createDashboardActions = ({
       setIsClientSaving(true);
       clearNotifications();
       try {
-        const createdSupplier = await createSupplier(payload);
-        setSuppliers((current) => [createdSupplier, ...current]);
+        await createSupplier(payload);
+        await safeRefresh(
+          refreshSuppliers,
+          i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
+        );
         setSuccessMessage(i18n.t('dashboard.actions.success.supplierCreated'));
         return true;
       } catch (requestError) {
@@ -687,9 +690,10 @@ export const createDashboardActions = ({
       setIsClientSaving(true);
       clearNotifications();
       try {
-        const updatedSupplier = await updateSupplier(supplierId, payload);
-        setSuppliers((current) =>
-          current.map((item) => (item.id === updatedSupplier.id ? updatedSupplier : item)),
+        await updateSupplier(supplierId, payload);
+        await safeRefresh(
+          refreshSuppliers,
+          i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
         );
         setSuccessMessage(i18n.t('dashboard.actions.success.supplierUpdated'));
         return true;
@@ -711,28 +715,13 @@ export const createDashboardActions = ({
 
       try {
         const result = await mergeClientsApi(targetClientId, sourceClientId);
-        setAllClients((current) =>
-          current
-            .filter((client) => client.id !== result.removedClientId)
-            .map((client) =>
-              client.id === result.client.id ? result.client : client,
-            ),
+        await safeRefresh(
+          refreshClients,
+          i18n.t('dashboard.actions.errors.failedRefreshClients'),
         );
-        setSales((current) =>
-          current.map((sale) =>
-            sale.client.id === result.removedClientId
-              ? {
-                  ...sale,
-                  client: {
-                    ...sale.client,
-                    id: result.client.id,
-                    name: result.client.name,
-                    phone: result.client.phone,
-                    status: result.client.status,
-                  },
-                }
-              : sale,
-          ),
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
 
         if (
@@ -773,14 +762,9 @@ export const createDashboardActions = ({
           targetSupplierId,
           sourceSupplierId,
         );
-        setSuppliers((current) =>
-          current
-            .filter((supplier) => supplier.id !== result.removedSupplierId)
-            .map((supplier) =>
-              supplier.id === result.supplier.id
-                ? result.supplier
-                : supplier,
-            ),
+        await safeRefresh(
+          refreshSuppliers,
+          i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
         );
         setSuccessMessage(
           i18n.t('dashboard.actions.success.suppliersMerged', {
@@ -806,10 +790,9 @@ export const createDashboardActions = ({
 
       try {
         const updatedClient = await mutateUpdateClient(clientId, payload);
-        setAllClients((current) =>
-          current.map((item) =>
-            item.id === updatedClient.id ? updatedClient : item,
-          ),
+        await safeRefresh(
+          refreshClients,
+          i18n.t('dashboard.actions.errors.failedRefreshClients'),
         );
         if (selectedClientId === updatedClient.id) {
           setSelectedClientId(updatedClient.id);
@@ -891,18 +874,16 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         if (editingEmployeeId) {
-          const updatedEmployee = await updateEmployee(editingEmployeeId, employeeForm);
-          setAllEmployees((current) =>
-            current.map((item) =>
-              item.id === updatedEmployee.id ? updatedEmployee : item,
-            ),
-          );
+          await updateEmployee(editingEmployeeId, employeeForm);
           setSuccessMessage(i18n.t('dashboard.actions.success.employeeUpdated'));
         } else {
-          const createdEmployee = await createEmployee(employeeForm);
-          setAllEmployees((current) => [createdEmployee, ...current]);
+          await createEmployee(employeeForm);
           setSuccessMessage(i18n.t('dashboard.actions.success.employeeCreated'));
         }
+        await safeRefresh(
+          refreshEmployees,
+          i18n.t('dashboard.actions.errors.failedRefreshEmployees'),
+        );
         resetEmployeeEditor();
       } catch (requestError) {
         setError(
@@ -959,6 +940,10 @@ export const createDashboardActions = ({
                 printForms: printFormsWithLocalOverrides,
               }),
         }));
+        await safeRefresh(
+          refreshSettings,
+          i18n.t('dashboard.actions.errors.failedRefreshSettings'),
+        );
         setSuccessMessage(i18n.t('dashboard.actions.success.settingsSaved'));
       } catch (requestError) {
         setError(
@@ -983,7 +968,6 @@ export const createDashboardActions = ({
 
       try {
         await mutateDeleteProduct(product.id);
-        setAllProducts((current) => current.filter((item) => item.id !== product.id));
         await safeRefresh(
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
@@ -1012,7 +996,6 @@ export const createDashboardActions = ({
       try {
         const result = await mutateArchiveProduct(product.id);
         if (result.action === 'deleted') {
-          setAllProducts((current) => current.filter((item) => item.id !== product.id));
           await safeRefresh(
             refreshProducts,
             i18n.t('dashboard.actions.errors.failedRefreshProducts'),
@@ -1022,11 +1005,6 @@ export const createDashboardActions = ({
           return;
         }
 
-        setAllProducts((current) =>
-          current.map((item) =>
-            item.id === result.product.id ? result.product : item,
-          ),
-        );
         await safeRefresh(
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
@@ -1055,11 +1033,6 @@ export const createDashboardActions = ({
           ...updatedProductResponse,
           isActive: true,
         };
-        setAllProducts((current) =>
-          current.map((item) =>
-            item.id === updatedProduct.id ? updatedProduct : item,
-          ),
-        );
         await safeRefresh(
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
@@ -1091,7 +1064,10 @@ export const createDashboardActions = ({
 
       try {
         await mutateDeleteService(service.id);
-        setServices((current) => current.filter((item) => item.id !== service.id));
+        await safeRefresh(
+          refreshServices,
+          i18n.t('errors.failedLoadServices'),
+        );
         if (editingServiceId === service.id) resetServiceEditor();
         setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
       } catch (requestError) {
@@ -1116,16 +1092,18 @@ export const createDashboardActions = ({
       try {
         const result = await mutateArchiveService(service.id);
         if (result.action === 'deleted') {
-          setServices((current) => current.filter((item) => item.id !== service.id));
+          await safeRefresh(
+            refreshServices,
+            i18n.t('errors.failedLoadServices'),
+          );
           if (editingServiceId === service.id) resetServiceEditor();
           setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
           return;
         }
 
-        setServices((current) =>
-          current.map((item) =>
-            item.id === result.service.id ? result.service : item,
-          ),
+        await safeRefresh(
+          refreshServices,
+          i18n.t('errors.failedLoadServices'),
         );
         setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeactivated'));
       } catch (requestError) {
@@ -1151,10 +1129,9 @@ export const createDashboardActions = ({
           ...updatedServiceResponse,
           isActive: true,
         };
-        setServices((current) =>
-          current.map((item) =>
-            item.id === updatedService.id ? updatedService : item,
-          ),
+        await safeRefresh(
+          refreshServices,
+          i18n.t('errors.failedLoadServices'),
         );
         if (editingServiceId === updatedService.id) {
           setServiceForm(toServiceCatalogForm(updatedService));
@@ -1188,7 +1165,10 @@ export const createDashboardActions = ({
 
       try {
         await mutateDeleteClient(client.id);
-        setAllClients((current) => current.filter((item) => item.id !== client.id));
+        await safeRefresh(
+          refreshClients,
+          i18n.t('dashboard.actions.errors.failedRefreshClients'),
+        );
         if (selectedClientId === client.id) {
           setSelectedClientId(null);
           setClientHistory(null);
@@ -1221,7 +1201,6 @@ export const createDashboardActions = ({
 
       try {
         await mutateDeleteSale(sale.id);
-        setSales((current) => current.filter((item) => item.id !== sale.id));
         await safeRefresh(
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
@@ -1252,8 +1231,11 @@ export const createDashboardActions = ({
 
       try {
         await deleteEmployee(employee.id);
-        setAllEmployees((current) => current.filter((item) => item.id !== employee.id));
         if (editingEmployeeId === employee.id) resetEmployeeEditor();
+        await safeRefresh(
+          refreshEmployees,
+          i18n.t('dashboard.actions.errors.failedRefreshEmployees'),
+        );
         await safeRefresh(
           refreshSales,
           i18n.t('dashboard.actions.errors.failedRefreshSales'),
@@ -1320,10 +1302,10 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         const result = await seedDemoData(kind);
-        setAllProducts(result.products);
-        setCatalogProducts([]);
-        setAllClients(result.clients);
-        setSales(result.sales);
+        queryClient.setQueryData(queryKeys.products, result.products);
+        queryClient.setQueryData(queryKeys.catalogProducts, []);
+        queryClient.setQueryData(queryKeys.clients, result.clients);
+        queryClient.setQueryData(queryKeys.sales, result.sales);
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();
@@ -1415,10 +1397,10 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         const result = await eraseAllData();
-        setAllProducts(result.products);
-        setCatalogProducts([]);
-        setAllClients(result.clients);
-        setSales(result.sales);
+        queryClient.setQueryData(queryKeys.products, result.products);
+        queryClient.setQueryData(queryKeys.catalogProducts, []);
+        queryClient.setQueryData(queryKeys.clients, result.clients);
+        queryClient.setQueryData(queryKeys.sales, result.sales);
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();
@@ -1560,7 +1542,10 @@ export const createDashboardActions = ({
           }));
 
         if (!existingClient) {
-          setAllClients((current) => [client, ...current]);
+          await safeRefresh(
+            refreshClients,
+            i18n.t('dashboard.actions.errors.failedRefreshClients'),
+          );
         }
 
         const { serialNumber: fallbackSerialNumber } = buildProductIdentity(payload);
@@ -1652,7 +1637,6 @@ export const createDashboardActions = ({
         if (!isSaleResponse(createdSaleResult.sale)) {
           throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
         }
-        setSales((current) => [createdSaleResult.sale, ...current]);
 
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
@@ -1743,7 +1727,6 @@ export const createDashboardActions = ({
           throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
         }
 
-        setSales((current) => [createdSaleResult.sale, ...current]);
         await safeRefresh(
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),

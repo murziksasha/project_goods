@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../shared/api/queryClient';
 import { ApiRequestError, apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Product } from '../../product/model/types';
 import type {
@@ -46,6 +48,14 @@ const ensureCreateSaleResponse = (value: unknown): CreateSaleResponse => {
 
   throw new ApiRequestError('Unexpected create sale response from API.');
 };
+
+export const useSalesQuery = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.sales,
+    queryFn: () => getSales(),
+    enabled,
+    refetchInterval: enabled ? 30000 : false,
+  });
 
 export const getSales = async () => {
   try {

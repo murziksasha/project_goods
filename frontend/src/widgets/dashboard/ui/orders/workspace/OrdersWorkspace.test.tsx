@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
@@ -11,7 +12,7 @@ import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { OrdersWorkspace } from './OrdersWorkspace';
 
 const {
-  getSupplierOrdersMock,
+  useSupplierOrdersQueryMock,
   acceptSalePaymentMock,
   refundSalePaymentMock,
   updateSaleFavoriteMock,
@@ -19,7 +20,19 @@ const {
   createFinanceTransactionMock,
   getCashboxesMock,
 } = vi.hoisted(() => ({
-  getSupplierOrdersMock: vi.fn(async (_query?: string) => []),
+  useSupplierOrdersQueryMock: vi.fn(() => ({
+    data: [],
+    isLoading: false,
+    error: null,
+    isError: false,
+    isPending: false,
+    isLoadingError: false,
+    isRefetchError: false,
+    isSuccess: true,
+    status: 'success',
+    fetchStatus: 'idle',
+    refetch: vi.fn(),
+  })),
   acceptSalePaymentMock: vi.fn(),
   refundSalePaymentMock: vi.fn(),
   updateSaleFavoriteMock: vi.fn(),
@@ -30,12 +43,6 @@ const {
   ),
 }));
 
-vi.mock('../../../../../entities/supplier-order/api/supplierOrderApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../../entities/supplier-order/api/supplierOrderApi')
-  >();
-  return { ...actual, getSupplierOrders: getSupplierOrdersMock };
-});
 vi.mock('../../../../../entities/sale/api/saleApi', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../../entities/sale/api/saleApi')
@@ -60,10 +67,27 @@ vi.mock('../../../../../entities/finance/api/financeApi', async (importOriginal)
 });
 
 const restoreApiMocks = () => {
-  getSupplierOrdersMock.mockImplementation(async () => []);
+  useSupplierOrdersQueryMock.mockImplementation(() => ({
+    data: [],
+    isLoading: false,
+    error: null,
+    isError: false,
+    isPending: false,
+    isLoadingError: false,
+    isRefetchError: false,
+    isSuccess: true,
+    status: 'success',
+    fetchStatus: 'idle',
+    refetch: vi.fn(),
+  }));
   getCashboxesMock.mockImplementation(async (): Promise<Cashbox[]> => []);
 
-  vi.spyOn(supplierOrderApi, 'getSupplierOrders').mockImplementation(getSupplierOrdersMock);
+  vi.spyOn(supplierOrderApi, 'useSupplierOrdersQuery').mockImplementation(
+    useSupplierOrdersQueryMock as unknown as typeof supplierOrderApi.useSupplierOrdersQuery,
+  );
+  vi.spyOn(supplierOrderApi, 'invalidateSupplierOrderQueries').mockResolvedValue(
+    undefined,
+  );
   vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation(acceptSalePaymentMock);
   vi.spyOn(saleApi, 'refundSalePayment').mockImplementation(refundSalePaymentMock);
   vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation(updateSaleFavoriteMock);
@@ -79,7 +103,7 @@ beforeEach(() => {
   updateSaleFavoriteMock.mockReset();
   updateSaleWorkspaceMock.mockReset();
   createFinanceTransactionMock.mockReset();
-  getSupplierOrdersMock.mockReset();
+  useSupplierOrdersQueryMock.mockReset();
   getCashboxesMock.mockReset();
   restoreApiMocks();
 });
@@ -159,11 +183,20 @@ const printForm: PrintForm = {
   sortOrder: 10,
 };
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
 const renderWorkspace = (
   props: Partial<ComponentProps<typeof OrdersWorkspace>> = {},
-) =>
-  render(
-    <OrdersWorkspace
+) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <OrdersWorkspace
       sales={[]}
       employees={[]}
       isLoading={false}
@@ -201,8 +234,10 @@ const renderWorkspace = (
       onDeleteClientDevice={vi.fn(async () => true)}
       onUpdateProductModel={vi.fn(async () => true)}
       {...props}
-    />,
+    />
+    </QueryClientProvider>,
   );
+};
 
 describe('OrdersWorkspace', () => {
   afterEach(() => {
@@ -210,11 +245,16 @@ describe('OrdersWorkspace', () => {
     window.localStorage.clear();
     vi.clearAllMocks();
   });
-  it('does not load supplier orders when mounting the regular orders tab', async () => {
-    renderWorkspace();
+  it('does not enable supplier orders query when no order card is open', async () => {
+    renderWorkspace({
+      currentEmployee: {
+        ...employee,
+        permissions: [...employee.permissions, 'supplierOrders.view'],
+      },
+    });
 
     await waitFor(() => {
-      expect(getSupplierOrdersMock).not.toHaveBeenCalled();
+      expect(useSupplierOrdersQueryMock).toHaveBeenCalledWith(false);
     });
   });
 
@@ -466,45 +506,48 @@ describe('OrdersWorkspace', () => {
       expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
     });
 
+    const queryClient = createTestQueryClient();
     rerender(
-      <OrdersWorkspace
-        sales={[updatedSale]}
-        employees={[]}
-        isLoading={false}
-        activeTab="orders"
-        visibleTabs={['orders', 'sales']}
-        searchValue=""
-        currentEmployee={employee}
-        canCreateOrders={true}
-        onActiveTabChange={vi.fn()}
-        onSearchChange={vi.fn()}
-        onCreateOrder={vi.fn()}
-        createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
-        getCreateOrderHref={(tab) =>
-          `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
-        }
-        onSaleUpdate={onSaleUpdate}
-        onError={vi.fn()}
-        onSuccess={vi.fn()}
-        onOpenClientCard={vi.fn()}
-        products={[]}
-        clientDevices={[]}
-        catalogProducts={[]}
-        printForms={[]}
-        printCompanySettings={{
-          serviceName: 'Service CRM',
-          company: 'Service CRM',
-          companyAddress: '',
-          companyId: '',
-          companyIban: '',
-          companyEmail: '',
-          companySite: '',
-        }}
-        onCreateClientDevice={vi.fn(async () => true)}
-        onUpdateClientDevice={vi.fn(async () => true)}
-        onDeleteClientDevice={vi.fn(async () => true)}
-        onUpdateProductModel={vi.fn(async () => true)}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <OrdersWorkspace
+          sales={[updatedSale]}
+          employees={[]}
+          isLoading={false}
+          activeTab="orders"
+          visibleTabs={['orders', 'sales']}
+          searchValue=""
+          currentEmployee={employee}
+          canCreateOrders={true}
+          onActiveTabChange={vi.fn()}
+          onSearchChange={vi.fn()}
+          onCreateOrder={vi.fn()}
+          createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+          getCreateOrderHref={(tab) =>
+            `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
+          }
+          onSaleUpdate={onSaleUpdate}
+          onError={vi.fn()}
+          onSuccess={vi.fn()}
+          onOpenClientCard={vi.fn()}
+          products={[]}
+          clientDevices={[]}
+          catalogProducts={[]}
+          printForms={[]}
+          printCompanySettings={{
+            serviceName: 'Service CRM',
+            company: 'Service CRM',
+            companyAddress: '',
+            companyId: '',
+            companyIban: '',
+            companyEmail: '',
+            companySite: '',
+          }}
+          onCreateClientDevice={vi.fn(async () => true)}
+          onUpdateClientDevice={vi.fn(async () => true)}
+          onDeleteClientDevice={vi.fn(async () => true)}
+          onUpdateProductModel={vi.fn(async () => true)}
+        />
+      </QueryClientProvider>,
     );
 
     expect(screen.getByRole('button', { name: 'Diagnostics' })).toBeInTheDocument();

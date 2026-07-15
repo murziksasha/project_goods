@@ -411,19 +411,24 @@ export const allOrdersColumnKeys: OrdersColumnKey[] = [
   'readyDate',
 ];
 export const defaultVisibleColumns: OrdersColumnVisibility = {
-  orders: allOrdersColumnKeys,
+  // Lean defaults for scanability; full set remains available via column picker.
+  orders: [
+    'orderNumber',
+    'client',
+    'status',
+    'primaryItem',
+    'price',
+    'paid',
+    'term',
+    'createdAt',
+  ],
   sales: [
     'orderNumber',
     'client',
     'status',
     'price',
     'paid',
-    'warehouse',
-    'manager',
-    'master',
-    'received',
     'createdAt',
-    'readyDate',
   ],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
@@ -995,6 +1000,35 @@ export const isOrderEditableStatus = (
   isRepairOrder(sale)
     ? repairEditableStatuses.has(status as RepairStatus)
     : saleEditableStatuses.has(status);
+
+/**
+ * Paid sales stay editable, but cannot keep `paid` with unpaid products.
+ * Returns `new` so workspace patches reopen the sale (mirrors backend
+ * `resolveEditableSaleStatus`); otherwise undefined (leave status unchanged).
+ */
+export const getReopenedSaleStatusForLineItems = (
+  sale: Sale,
+  nextLineItems: OrderLineItem[],
+  paidAmount: number = getSalePaidAmount(sale),
+  discount: Sale['discount'] = getDiscount(sale),
+): OrderStatus | undefined => {
+  if (isRepairOrder(sale)) return undefined;
+  const status = normalizeOrderStatus(sale.status);
+  if (status !== 'paid') return undefined;
+  if (!nextLineItems.some((item) => item.kind === 'product')) return undefined;
+
+  const total = getOrderTotal(
+    {
+      ...sale,
+      discount: discount ?? { mode: 'amount', value: 0 },
+    },
+    nextLineItems,
+  );
+  if (paidAmount < total) {
+    return 'new';
+  }
+  return undefined;
+};
 
 export const escapeHtml = (value: string) =>
   value

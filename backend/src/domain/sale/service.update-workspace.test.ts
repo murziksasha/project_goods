@@ -179,6 +179,80 @@ describe('updateSaleWorkspace line items', () => {
     expect(updateCalls[0].lineItems[0].name).toBe('Wireless Mouse');
   });
 
+  it('reopens paid sale to new when adding products that leave unpaid balance', async () => {
+    const serviceOnlyLine = {
+      id: 'li-svc',
+      kind: 'service',
+      name: 'Diagnostics',
+      price: 100,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: [],
+    };
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('sale'),
+      status: 'paid',
+      paidAmount: 100,
+      lineItems: [serviceOnlyLine],
+    });
+    const nextItems = [serviceOnlyLine, lineItem];
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'sale',
+      status: 'paid',
+      paidAmount: 100,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: nextItems,
+      masterId: '',
+      issuedById: '',
+    } as never);
+
+    await updateSaleWorkspace(currentSale._id, {
+      kind: 'sale',
+      status: 'paid',
+      paidAmount: 100,
+      lineItems: nextItems,
+    });
+
+    expect(updateCalls[0].status).toBe('new');
+    expect(updateCalls[0].lineItems).toHaveLength(2);
+    expect(updateCalls[0].lineItems[1].name).toBe('Wireless Mouse');
+  });
+
+  it('rejects issued sale workspace update with unpaid product balance', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('sale'),
+      status: 'issued',
+      paidAmount: 100,
+      lineItems: [],
+    });
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'sale',
+      status: 'issued',
+      paidAmount: 100,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [lineItem],
+      masterId: '',
+      issuedById: '',
+    } as never);
+
+    await expect(
+      updateSaleWorkspace(currentSale._id, {
+        kind: 'sale',
+        status: 'issued',
+        paidAmount: 100,
+        lineItems: [lineItem],
+      }),
+    ).rejects.toThrow('Product shipped but payment has not been received.');
+  });
+
   it('keeps names for multiple product line items', async () => {
     currentSale = buildExistingSale('repair');
     const nextItems = [lineItem, secondLineItem];

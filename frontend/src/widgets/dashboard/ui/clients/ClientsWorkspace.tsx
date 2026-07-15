@@ -1,4 +1,5 @@
 ﻿import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -514,13 +515,13 @@ export const ClientsWorkspace = ({
     setIsClientCardOpen(true);
   };
 
-  const closeClientCard = () => {
+  const closeClientCard = useCallback(() => {
     setIsClientCardOpen(false);
     onSelectClient(null);
     isMainTabDirtyRef.current = false;
     hydratedClientIdRef.current = null;
     hydratedUpdatedAtRef.current = null;
-  };
+  }, [onSelectClient]);
 
   const handleMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>> = (
     value,

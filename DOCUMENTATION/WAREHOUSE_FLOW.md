@@ -5,7 +5,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ## Navigation
 - Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Settings`
-- Related flow docs: [ORDER_FLOW.md](./ORDER_FLOW.md), [SALE_FLOW.md](./SALE_FLOW.md), [ACCOUNTING.MD](./ACCOUNTING.MD), [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md), [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md)
+- Related flow docs: [ORDER_FLOW.md](./ORDER_FLOW.md), [SALE_FLOW.md](./SALE_FLOW.md), [ACCOUNTING.md](./ACCOUNTING.md), [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md), [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md)
 
 ### Client order links (Stock balances)
 - Column `Client order` renders linked sale/order numbers with a shareable `href` built via `getOrderLink(saleId, kind)`.

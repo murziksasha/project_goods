@@ -7,7 +7,14 @@
     "catalog": "Products & Services",
     "clients": "Clients & suppliers",
     "employees": "Employees",
-    "settings": "Settings"
+    "settings": "Settings",
+    "groups": {
+      "overview": "Overview",
+      "work": "Work",
+      "stock": "Stock",
+      "money": "Money",
+      "admin": "Admin"
+    }
   },
   "common": {
     "logout": "Logout",
@@ -71,15 +78,29 @@
     "noNotes": "No notes.",
     "notSpecified": "Not specified",
     "months": "{{count}} months",
-    "serial": "Serial: {{value}}"
+    "serial": "Serial: {{value}}",
+    "theme": {
+      "label": "Color theme",
+      "light": "Light",
+      "dark": "Dark",
+      "lightShort": "Light",
+      "darkShort": "Dark",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme"
+    }
   },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Complete registration",
-    "createLogin": "Create login"
+    "createLogin": "Create login",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "showPasswordShort": "Show",
+    "hidePasswordShort": "Hide"
   },
   "errors": {
     "noInternet": "No internet connection. Read-only mode is active until connection is restored.",
+    "requestTimeout": "Request timed out. Check your connection and try again.",
     "sessionCheckFailed": "Session check failed. Workspace stayed open; please retry the action.",
     "sessionExpired": "Session expired. Please sign in again.",
     "noInternetShort": "No internet connection. Sign in requires network access.",
@@ -98,6 +119,9 @@
     "failedLoadSales": "Failed to load sales.",
     "failedLoadClients": "Failed to load clients.",
     "failedLoadServices": "Failed to load services.",
+    "failedLoadSuppliers": "Failed to load suppliers.",
+    "failedLoadEmployees": "Failed to load employees.",
+    "failedLoadSettings": "Failed to load settings.",
     "failedLoadClientHistory": "Failed to load client history.",
     "unexpectedRequestError": "Unexpected request error."
   },
@@ -371,6 +395,13 @@
         "failedRestore": "Failed to restore backup.",
         "failedRestoreFromFile": "Failed to restore backup from file."
       }
+    },
+    "ui": {
+      "appearance": "Interface appearance",
+      "density": "Table density",
+      "densityComfortable": "Comfortable",
+      "densityCompact": "Compact",
+      "densityHint": "Applies to tables and toolbars in this browser."
     }
   },
   "product": {
@@ -555,7 +586,9 @@
         "serviceName": "Enter a service name with at least 2 characters.",
         "failedCreateService": "Failed to create service.",
         "duplicateSerial": "This serial is already in the rapid sale draft."
-      }
+      },
+      "shortcuts": "Enter add · Esc clear · F4 issue",
+      "shortcutsLabel": "Keyboard shortcuts"
     },
     "toolbar": {
       "filter": "Filter",
@@ -589,7 +622,9 @@
       "assignee": {
         "master": "{{name}} (Master)",
         "manager": "{{name}} (Manager)"
-      }
+      },
+      "createRepair": "New repair",
+      "createSale": "New sale"
     },
     "filters": {
       "savedLabel": "Saved filters:",
@@ -631,7 +666,10 @@
         "preview": "Preview",
         "save": "Save",
         "cancel": "Cancel"
-      }
+      },
+      "clearAll": "Clear all",
+      "clearChip": "Remove filter: {{label}}",
+      "favoritesOnly": "Favorites only"
     },
     "payment": {
       "stockLocked": "Refund client payment for bound products and return them to stock first.",
@@ -835,6 +873,9 @@
       "cancelNoteEdit": "Cancel",
       "userNotePlaceholder": "Add your note...",
       "saveChanges": "Save changes",
+      "saveFailedInline": "Could not save changes. Check the message and try again.",
+      "loadingCard": "Loading order card",
+      "statusBlockedHint": "Status change blocked",
       "liveFeed": "Live feed",
       "comment": "Comment",
       "add": "Add",
@@ -2105,6 +2146,7 @@
       "paymentRequired": "Payment required",
       "cashbox": "Cashbox",
       "pay": "Pay",
+      "paying": "Paying...",
       "issueWithoutPayment": "Issue without payment",
       "openSupplierOrderAriaLabel": "Open supplier order {{orderNumber}}",
       "paymentNote": "Payment for order {{orderNumber}}"
@@ -2361,7 +2403,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Default description or internal note",
       "updateService": "Update service"
-    }
+    },
+    "pageTitle": "Products & services",
+    "pageSubtitle": "{{count}} records"
   },
   "employees": {
     "tabs": {
@@ -2570,6 +2614,9 @@
         "failedRefreshSales": "Failed to refresh sales.",
         "failedRefreshClientDevices": "Failed to refresh client devices.",
         "failedRefreshClients": "Failed to refresh clients.",
+        "failedRefreshSuppliers": "Failed to refresh suppliers.",
+        "failedRefreshEmployees": "Failed to refresh employees.",
+        "failedRefreshSettings": "Failed to refresh settings.",
         "failedSaveProduct": "Failed to save product.",
         "failedUpdateProductModel": "Failed to update product model.",
         "duplicateService": "This service already exists in the catalog.",
@@ -2889,5 +2936,20 @@
       "sectionLabel": "Sales",
       "title": "Sales history"
     }
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "placeholder": "Go to page, create order, open by number…",
+    "hint": "↑↓ navigate · Enter open · Esc close · Ctrl/⌘K toggle",
+    "empty": "No matches",
+    "openOrder": "Open order",
+    "openSale": "Open sale"
+  },
+  "accessDenied": {
+    "label": "Access",
+    "title": "No access",
+    "message": "You do not have permission to open \"{{page}}\".",
+    "hint": "Contact the workspace owner to get access, or open one of the available sections.",
+    "goHome": "Go to main"
   }
 }

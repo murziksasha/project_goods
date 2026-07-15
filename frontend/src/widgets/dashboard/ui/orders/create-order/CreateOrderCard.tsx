@@ -161,6 +161,7 @@ export const CreateOrderCard = ({
   const [managerId, setManagerId] = useState('');
   const [masterId, setMasterId] = useState('');
   const [selectedFlags, setSelectedFlags] = useState<string[]>([]);
+  const [isExtraOptionsOpen, setIsExtraOptionsOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
@@ -1364,32 +1365,57 @@ export const CreateOrderCard = ({
               </label>
             </div>
 
-            <h4 className="create-subtitle">{t('orders.create.additionalInformation')}</h4>
-            <div className="create-checks-grid">
-              <div className="create-checks-col">
-                {(activeTab === 'sale' ? saleExtraOptionsLeft : extraOptionsLeft).map((option) => (
-                  <label key={option.key} className="create-inline-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedFlags.includes(option.key)}
-                      onChange={() => toggleFlag(option.key)}
-                    />
-                    <span>{t(option.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="create-checks-col">
-                {(activeTab === 'sale' ? saleExtraOptionsRight : extraOptionsRight).map((option) => (
-                  <label key={option.key} className="create-inline-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedFlags.includes(option.key)}
-                      onChange={() => toggleFlag(option.key)}
-                    />
-                    <span>{t(option.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
+            <div className="create-extra-options">
+              <button
+                type="button"
+                className="create-extra-options-toggle"
+                aria-expanded={isExtraOptionsOpen || selectedFlags.length > 0}
+                onClick={() => setIsExtraOptionsOpen((current) => !current)}
+              >
+                <span>
+                  {t('orders.create.additionalInformation')}
+                  {selectedFlags.length > 0
+                    ? ` (${selectedFlags.length})`
+                    : ''}
+                </span>
+                <span aria-hidden="true">
+                  {isExtraOptionsOpen || selectedFlags.length > 0 ? '▾' : '▸'}
+                </span>
+              </button>
+              {isExtraOptionsOpen || selectedFlags.length > 0 ? (
+                <div className="create-checks-grid">
+                  <div className="create-checks-col">
+                    {(activeTab === 'sale'
+                      ? saleExtraOptionsLeft
+                      : extraOptionsLeft
+                    ).map((option) => (
+                      <label key={option.key} className="create-inline-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedFlags.includes(option.key)}
+                          onChange={() => toggleFlag(option.key)}
+                        />
+                        <span>{t(option.labelKey)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="create-checks-col">
+                    {(activeTab === 'sale'
+                      ? saleExtraOptionsRight
+                      : extraOptionsRight
+                    ).map((option) => (
+                      <label key={option.key} className="create-inline-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedFlags.includes(option.key)}
+                          onChange={() => toggleFlag(option.key)}
+                        />
+                        <span>{t(option.labelKey)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <h3 className="create-section-title">{t('orders.create.responsible')}</h3>

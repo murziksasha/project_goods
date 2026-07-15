@@ -7,7 +7,14 @@
     "catalog": "Товари та послуги",
     "clients": "Клієнти та постачальники",
     "employees": "Співробітники",
-    "settings": "Налаштування"
+    "settings": "Налаштування",
+    "groups": {
+      "overview": "Огляд",
+      "work": "Робота",
+      "stock": "Склад",
+      "money": "Гроші",
+      "admin": "Адмін"
+    }
   },
   "common": {
     "logout": "Вийти",
@@ -71,15 +78,29 @@
     "noNotes": "Примітки відсутні.",
     "notSpecified": "Не вказано",
     "months": "{{count}} міс.",
-    "serial": "Серійний: {{value}}"
+    "serial": "Серійний: {{value}}",
+    "theme": {
+      "label": "Тема оформлення",
+      "light": "Світла",
+      "dark": "Темна",
+      "lightShort": "Light",
+      "darkShort": "Dark",
+      "switchToLight": "Увімкнути світлу тему",
+      "switchToDark": "Увімкнути темну тему"
+    }
   },
   "auth": {
     "loginTitle": "Вхід",
     "registerTitle": "Завершити реєстрацію",
-    "createLogin": "Створити логін"
+    "createLogin": "Створити логін",
+    "showPassword": "Показати пароль",
+    "hidePassword": "Сховати пароль",
+    "showPasswordShort": "Показ.",
+    "hidePasswordShort": "Схов."
   },
   "errors": {
     "noInternet": "Немає з'єднання з інтернетом. Режим перегляду активний до відновлення зв'язку.",
+    "requestTimeout": "Час очікування вичерпано. Перевірте з'єднання та спробуйте ще раз.",
     "sessionCheckFailed": "Не вдалося перевірити сесію. Робочий простір залишився відкритим; повторіть дію.",
     "sessionExpired": "Сесія закінчилась. Будь ласка, увійдіть знову.",
     "noInternetShort": "Немає з'єднання з інтернетом. Для входу потрібен доступ до мережі.",
@@ -98,6 +119,9 @@
     "failedLoadSales": "Не вдалося завантажити продажі.",
     "failedLoadClients": "Не вдалося завантажити клієнтів.",
     "failedLoadServices": "Не вдалося завантажити послуги.",
+    "failedLoadSuppliers": "Не вдалося завантажити постачальників.",
+    "failedLoadEmployees": "Не вдалося завантажити співробітників.",
+    "failedLoadSettings": "Не вдалося завантажити налаштування.",
     "failedLoadClientHistory": "Не вдалося завантажити історію клієнта.",
     "unexpectedRequestError": "Несподівана помилка запиту."
   },
@@ -371,6 +395,13 @@
         "failedRestore": "Не вдалося відновити резервну копію.",
         "failedRestoreFromFile": "Не вдалося відновити резервну копію з файлу."
       }
+    },
+    "ui": {
+      "appearance": "Вигляд інтерфейсу",
+      "density": "Щільність таблиць",
+      "densityComfortable": "Звичайна",
+      "densityCompact": "Компактна",
+      "densityHint": "Застосовується до таблиць і панелей у цьому браузері."
     }
   },
   "product": {
@@ -555,7 +586,9 @@
         "serviceName": "Введіть назву послуги щонайменше з 2 символів.",
         "failedCreateService": "Не вдалося створити послугу.",
         "duplicateSerial": "Цей серійний номер уже додано до чернетки швидкого продажу."
-      }
+      },
+      "shortcuts": "Enter додати · Esc очистити · F4 видати",
+      "shortcutsLabel": "Гарячі клавіші"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -589,7 +622,9 @@
       "assignee": {
         "master": "{{name}} (Майстер)",
         "manager": "{{name}} (Менеджер)"
-      }
+      },
+      "createRepair": "Новий ремонт",
+      "createSale": "Новий продаж"
     },
     "filters": {
       "savedLabel": "Збережені фільтри:",
@@ -631,7 +666,10 @@
         "preview": "Попередній перегляд",
         "save": "Зберегти",
         "cancel": "Скасувати"
-      }
+      },
+      "clearAll": "Очистити все",
+      "clearChip": "Прибрати фільтр: {{label}}",
+      "favoritesOnly": "Лише обрані"
     },
     "payment": {
       "stockLocked": "Спочатку поверніть оплату клієнту за привʼязані товари та поверніть їх на склад.",
@@ -835,6 +873,9 @@
       "cancelNoteEdit": "Скасувати",
       "userNotePlaceholder": "Додайте свою примітку...",
       "saveChanges": "Зберегти зміни",
+      "saveFailedInline": "Не вдалося зберегти зміни. Перевірте повідомлення та спробуйте ще раз.",
+      "loadingCard": "Завантаження картки замовлення",
+      "statusBlockedHint": "Зміну статусу заблоковано",
       "liveFeed": "Стрічка подій",
       "comment": "Коментар",
       "add": "Додати",
@@ -2105,6 +2146,7 @@
       "paymentRequired": "Потрібна оплата",
       "cashbox": "Каса",
       "pay": "Оплатити",
+      "paying": "Оплата...",
       "issueWithoutPayment": "Видати без оплати",
       "openSupplierOrderAriaLabel": "Відкрити замовлення постачальнику {{orderNumber}}",
       "paymentNote": "Оплата за замовлення {{orderNumber}}"
@@ -2361,7 +2403,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Типовий опис або внутрішня примітка",
       "updateService": "Оновити послугу"
-    }
+    },
+    "pageTitle": "Товари та послуги",
+    "pageSubtitle": "{{count}} записів"
   },
   "employees": {
     "tabs": {
@@ -2570,6 +2614,9 @@
         "failedRefreshSales": "Не вдалося оновити продажі.",
         "failedRefreshClientDevices": "Не вдалося оновити пристрої клієнтів.",
         "failedRefreshClients": "Не вдалося оновити клієнтів.",
+        "failedRefreshSuppliers": "Не вдалося оновити постачальників.",
+        "failedRefreshEmployees": "Не вдалося оновити співробітників.",
+        "failedRefreshSettings": "Не вдалося оновити налаштування.",
         "failedSaveProduct": "Не вдалося зберегти товар.",
         "failedUpdateProductModel": "Не вдалося оновити модель товару.",
         "duplicateService": "Така послуга вже є в каталозі.",
@@ -2889,5 +2936,20 @@
       "sectionLabel": "Продажі",
       "title": "Історія продажів"
     }
+  },
+  "commandPalette": {
+    "title": "Командна палітра",
+    "placeholder": "Перейти, створити, відкрити за номером…",
+    "hint": "↑↓ навігація · Enter відкрити · Esc закрити · Ctrl/⌘K",
+    "empty": "Нічого не знайдено",
+    "openOrder": "Відкрити замовлення",
+    "openSale": "Відкрити продаж"
+  },
+  "accessDenied": {
+    "label": "Доступ",
+    "title": "Немає доступу",
+    "message": "У вас немає дозволу відкрити «{{page}}».",
+    "hint": "Зверніться до власника сервісу за доступом або відкрийте доступний розділ.",
+    "goHome": "На головну"
   }
 }

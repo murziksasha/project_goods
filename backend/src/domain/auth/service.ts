@@ -11,6 +11,8 @@ import { HttpError } from '../../shared/lib/errors';
 const authProjection =
   '+passwordHash +authToken +authTokens +inviteToken +inviteExpiresAt';
 const maxActiveAuthTokens = 10;
+export const MIN_PASSWORD_LENGTH = 8;
+const MIN_USERNAME_LENGTH = 3;
 
 type EmployeeRecord = EmployeeDocument & {
   save: () => Promise<unknown>;
@@ -40,12 +42,8 @@ export const loginEmployee = async (usernameValue: unknown, passwordValue: unkno
   const username = toNonEmptyString(usernameValue).toLowerCase();
   const password = toNonEmptyString(passwordValue);
 
-  if (username.length < 3) {
-    throw new HttpError(400, 'Username must contain at least 3 characters.');
-  }
-
-  if (password.length < 3) {
-    throw new HttpError(400, 'Password must contain at least 3 characters.');
+  if (username.length < MIN_USERNAME_LENGTH) {
+    throw new HttpError(400, `Username must contain at least ${MIN_USERNAME_LENGTH} characters.`);
   }
 
   const employee = await Employee.findOne({
@@ -194,12 +192,12 @@ export const acceptInvitation = async (
   const username = toNonEmptyString(usernameValue).toLowerCase();
   const password = toNonEmptyString(passwordValue);
 
-  if (username.length < 3) {
-    throw new HttpError(400, 'Username must contain at least 3 characters.');
+  if (username.length < MIN_USERNAME_LENGTH) {
+    throw new HttpError(400, `Username must contain at least ${MIN_USERNAME_LENGTH} characters.`);
   }
 
-  if (password.length < 3) {
-    throw new HttpError(400, 'Password must contain at least 3 characters.');
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new HttpError(400, `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
   }
 
   employee.username = username;

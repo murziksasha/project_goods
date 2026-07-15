@@ -4,6 +4,8 @@ import type { CatalogProduct } from '../../../../entities/catalog-product/model/
 import type { Supplier } from '../../../../entities/supplier/model/types';
 import type { ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import { EmptyState } from '../../../../shared/ui/EmptyState';
+import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
 
 export const SuppliersTable = ({
   suppliers,
@@ -78,13 +80,21 @@ export const ProductsTable = ({
 }: ProductsTableProps) => {
   const { t } = useTranslation();
 
-  if (isLoading) return <p className="empty-state">{t('catalog.tables.loadingProducts')}</p>;
+  if (isLoading) {
+    return (
+      <TableSkeleton
+        rows={6}
+        columns={4}
+        label={t('catalog.tables.loadingProducts')}
+      />
+    );
+  }
 
   if (products.length === 0) {
     return (
-      <p className="empty-state">
+      <EmptyState>
         {searchQuery ? t('catalog.tables.noProductsFound') : t('catalog.tables.noProductsYet')}
-      </p>
+      </EmptyState>
     );
   }
 
@@ -136,13 +146,21 @@ export const CatalogProductsTable = ({
   const { t } = useTranslation();
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  if (isLoading) return <p className="empty-state">{t('catalog.tables.loadingProducts')}</p>;
+  if (isLoading) {
+    return (
+      <TableSkeleton
+        rows={6}
+        columns={4}
+        label={t('catalog.tables.loadingProducts')}
+      />
+    );
+  }
 
   if (products.length === 0) {
     return (
-      <p className="empty-state">
+      <EmptyState>
         {normalizedQuery ? t('catalog.tables.noProductsFound') : t('catalog.tables.noProductsYet')}
-      </p>
+      </EmptyState>
     );
   }
 
@@ -199,13 +217,21 @@ export const ServicesTable = ({
 }: ServicesTableProps) => {
   const { t } = useTranslation();
 
-  if (isLoading) return <p className="empty-state">{t('catalog.tables.loadingServices')}</p>;
+  if (isLoading) {
+    return (
+      <TableSkeleton
+        rows={6}
+        columns={4}
+        label={t('catalog.tables.loadingServices')}
+      />
+    );
+  }
 
   if (services.length === 0) {
     return (
-      <p className="empty-state">
+      <EmptyState>
         {searchQuery ? t('catalog.tables.noServicesFound') : t('catalog.tables.noServicesYet')}
-      </p>
+      </EmptyState>
     );
   }
 

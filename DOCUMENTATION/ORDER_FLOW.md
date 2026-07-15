@@ -252,6 +252,8 @@
 - Only explicit product line items (`lineItems.kind = product`) participate in `Products` catalog upsert.
 - The list supports activity status (`active`/`inactive`) and editing via modal.
 
+> Supplier-order specifics are maintained in [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md). The sections below remain the canonical detailed spec.
+
 ## Supplier Order Toolbar and Date Panel (2026-05-26)
 
 - `Orders -> Supplier Order` toolbar follows `Order Flow` visual pattern:

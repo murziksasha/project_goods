@@ -288,10 +288,10 @@ export const SerialNumberModal = ({
   );
 };
 
-// Add CSS styles for the modal
+// Theme-aware styles via design tokens (light + dark)
 const styles = `
   .sale-info {
-    background: #f8fafc;
+    background: var(--bg-surface-subtle);
     padding: 16px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -299,13 +299,13 @@ const styles = `
 
   .sale-info h3 {
     margin: 0 0 8px 0;
-    color: #2d3748;
+    color: var(--color-text-heading);
     font-size: 1.1rem;
   }
 
   .sale-info p {
     margin: 4px 0;
-    color: #4a5568;
+    color: var(--color-text-body);
     font-size: 0.9rem;
   }
 
@@ -315,7 +315,7 @@ const styles = `
     align-items: center;
     margin-bottom: 16px;
     padding: 12px;
-    background: #f7f9fb;
+    background: var(--bg-panel-elevated);
     border-radius: 6px;
   }
 
@@ -326,8 +326,8 @@ const styles = `
   }
 
   .select-all-button {
-    background: #e5edf8;
-    color: #2d8ae3;
+    background: var(--bg-button-secondary);
+    color: var(--color-primary);
     border: none;
     padding: 6px 12px;
     border-radius: 4px;
@@ -337,7 +337,7 @@ const styles = `
   }
 
   .select-all-button:hover {
-    background: #dcecff;
+    background: var(--bg-button-secondary-hover);
   }
 
   .serial-list {
@@ -353,21 +353,21 @@ const styles = `
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-line-strong);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: #fff;
+    background: var(--bg-card);
   }
 
   .serial-item:hover {
-    border-color: #cbd5e1;
-    background: #f8fafc;
+    border-color: var(--color-line-input);
+    background: var(--bg-surface-subtle);
   }
 
   .serial-item.selected {
-    border-color: #2d8ae3;
-    background: #eef6ff;
+    border-color: var(--color-primary);
+    background: var(--bg-soft-primary);
   }
 
   .serial-info {
@@ -378,16 +378,16 @@ const styles = `
 
   .serial-number {
     font-weight: 600;
-    color: #2d3748;
+    color: var(--color-text-heading);
   }
 
   .serial-warehouse {
     font-size: 0.85rem;
-    color: #718096;
+    color: var(--text-soft);
   }
 
   .checkmark {
-    color: #2d8ae3;
+    color: var(--color-primary);
     font-weight: bold;
     font-size: 1.1rem;
   }
@@ -398,7 +398,7 @@ const styles = `
     right: 12px;
     background: none;
     border: none;
-    color: #a0aec0;
+    color: var(--text-soft);
     font-size: 1.5rem;
     cursor: pointer;
     padding: 4px;
@@ -406,7 +406,7 @@ const styles = `
   }
 
   .catalog-edit-close:hover {
-    color: #4a5568;
+    color: var(--color-text-body);
   }
 
   .serial-item-header {
@@ -419,7 +419,7 @@ const styles = `
 
   .serial-item-number {
     font-weight: 600;
-    color: #2d3748;
+    color: var(--color-text-heading);
     font-size: 0.9rem;
     min-width: 60px;
   }
@@ -427,14 +427,14 @@ const styles = `
   .selected-summary {
     margin-top: 24px;
     padding: 16px;
-    background: #f0f7ff;
+    background: var(--bg-soft-primary);
     border-radius: 8px;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--color-line-panel);
   }
 
   .selected-summary h4 {
     margin: 0 0 12px 0;
-    color: #1e40af;
+    color: var(--color-primary-strong);
     font-size: 1rem;
     font-weight: 600;
   }
@@ -450,52 +450,52 @@ const styles = `
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    background: #fff;
+    background: var(--bg-card);
     border-radius: 6px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-line-strong);
   }
 
   .selected-item-number {
     font-weight: 600;
-    color: #2d3748;
+    color: var(--color-text-heading);
     min-width: 20px;
   }
 
   .selected-serial {
     font-family: 'Courier New', monospace;
-    color: #1f2937;
+    color: var(--color-text-heading);
     font-size: 0.9rem;
   }
 
   .success-message {
     text-align: center;
     padding: 40px 20px;
-    background: #f0fdf4;
+    background: var(--bg-soft-success);
     border-radius: 8px;
-    border: 1px solid #bbf7d0;
+    border: 1px solid var(--color-line-panel);
   }
 
   .success-icon {
     font-size: 3rem;
-    color: #16a34a;
+    color: var(--color-success-strong);
     margin-bottom: 16px;
   }
 
   .success-message h3 {
-    color: #15803d;
+    color: var(--color-success-strong);
     margin: 0 0 12px 0;
     font-size: 1.3rem;
   }
 
   .success-message p {
-    color: #166534;
+    color: var(--color-success-strong);
     margin: 0;
     font-size: 1rem;
   }
 
   .error-message {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--bg-soft-danger);
+    border: 1px solid var(--color-line-panel);
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 20px;
@@ -506,12 +506,12 @@ const styles = `
 
   .error-icon {
     font-size: 1.5rem;
-    color: #dc2626;
+    color: var(--color-danger);
     flex-shrink: 0;
   }
 
   .error-message p {
-    color: #991b1b;
+    color: var(--color-danger-soft);
     margin: 0;
     font-size: 0.95rem;
   }
