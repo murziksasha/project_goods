@@ -40,7 +40,9 @@ export const useAccountingFinanceData = ({
 
   const activeCashboxesQuery = useCashboxesQuery();
   const allCashboxesQuery = useCashboxesQuery({ includeArchived: true });
-  const transactionsQuery = useFinanceTransactionsQuery();
+  const recentTransactionsQuery = useFinanceTransactionsQuery(
+    { page: 1, pageSize: 6, sortBy: 'date', sortDirection: 'desc' },
+  );
   const currenciesQuery = useFinanceCurrenciesQuery({ includeArchived: true });
   const reportQuery = useFinanceReportQuery();
   const supplierOrdersQueueQuery = useSupplierOrdersForPaymentQuery();
@@ -54,9 +56,9 @@ export const useAccountingFinanceData = ({
     () => allCashboxesQuery.data ?? [],
     [allCashboxesQuery.data],
   );
-  const transactions = useMemo(
-    () => transactionsQuery.data ?? [],
-    [transactionsQuery.data],
+  const recentTransactions = useMemo(
+    () => recentTransactionsQuery.data?.items ?? [],
+    [recentTransactionsQuery.data],
   );
   const currencies = useMemo(
     () => currenciesQuery.data ?? [],
@@ -75,7 +77,7 @@ export const useAccountingFinanceData = ({
     const results = await Promise.allSettled([
       activeCashboxesQuery.refetch(),
       allCashboxesQuery.refetch(),
-      transactionsQuery.refetch(),
+      recentTransactionsQuery.refetch(),
       currenciesQuery.refetch(),
       reportQuery.refetch(),
       supplierOrdersQueueQuery.refetch(),
@@ -96,7 +98,7 @@ export const useAccountingFinanceData = ({
     reportQuery,
     supplierOrdersQuery,
     supplierOrdersQueueQuery,
-    transactionsQuery,
+    recentTransactionsQuery,
   ]);
 
   const derivedCashboxes = useMemo(() => {
@@ -136,7 +138,7 @@ export const useAccountingFinanceData = ({
     const firstError = [
       activeCashboxesQuery.error,
       allCashboxesQuery.error,
-      transactionsQuery.error,
+      recentTransactionsQuery.error,
       currenciesQuery.error,
       reportQuery.error,
       supplierOrdersQueueQuery.error,
@@ -154,7 +156,7 @@ export const useAccountingFinanceData = ({
     reportQuery.error,
     supplierOrdersQuery.error,
     supplierOrdersQueueQuery.error,
-    transactionsQuery.error,
+    recentTransactionsQuery.error,
   ]);
 
   useEffect(() => {
@@ -178,7 +180,7 @@ export const useAccountingFinanceData = ({
   const isLoading =
     activeCashboxesQuery.isLoading ||
     allCashboxesQuery.isLoading ||
-    transactionsQuery.isLoading ||
+    recentTransactionsQuery.isLoading ||
     currenciesQuery.isLoading ||
     reportQuery.isLoading ||
     supplierOrdersQueueQuery.isLoading ||
@@ -195,6 +197,6 @@ export const useAccountingFinanceData = ({
     setCashboxes,
     supplierOrders,
     supplierOrdersQueue,
-    transactions,
+    recentTransactions,
   };
 };

@@ -28,12 +28,13 @@ type AccountingTransactionsViewProps = {
   balanceAfterByTransactionId: Record<string, number | null>;
   cashboxes: Cashbox[];
   draftFilters: TransactionFilters;
-  filteredTransactions: FinanceTransaction[];
   isDateFilterOpen: boolean;
   isFilterOpen: boolean;
+  isLoading?: boolean;
   page: number;
   pageSize: number;
-  paginatedTransactions: FinanceTransaction[];
+  totalItems: number;
+  transactions: FinanceTransaction[];
   sales: Sale[];
   selectedCashboxId: string;
   supplierOrders: SupplierOrder[];
@@ -57,12 +58,13 @@ export const AccountingTransactionsView = ({
   balanceAfterByTransactionId,
   cashboxes,
   draftFilters,
-  filteredTransactions,
   isDateFilterOpen,
   isFilterOpen,
+  isLoading = false,
   page,
   pageSize,
-  paginatedTransactions,
+  totalItems,
+  transactions,
   sales,
   selectedCashboxId,
   supplierOrders,
@@ -87,7 +89,7 @@ export const AccountingTransactionsView = ({
       <div className='orders-toolbar'>
         <div className='orders-toolbar-left finance-transactions-toolbar-left'>
           <CompactPaginationPanel
-            totalItems={filteredTransactions.length}
+            totalItems={totalItems}
             page={page}
             pageSize={pageSize}
             onPageChange={onPageChange}
@@ -398,16 +400,22 @@ export const AccountingTransactionsView = ({
             </tr>
           </thead>
           <tbody>
-            {filteredTransactions.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={8} className='orders-empty'>
+                  {t('accounting.transactions.loading')}
+                </td>
+              </tr>
+            ) : totalItems === 0 ? (
               <tr>
                 <td colSpan={8} className='orders-empty'>
                   {t('accounting.transactions.notFound')}
                 </td>
               </tr>
             ) : (
-              paginatedTransactions.map((transaction, index) => {
+              transactions.map((transaction, index) => {
                 const currentDay = transaction.transactionDate.slice(0, 10);
-                const previousDay = paginatedTransactions[
+                const previousDay = transactions[
                   index - 1
                 ]?.transactionDate.slice(0, 10);
                 const isNewDay = index === 0 || currentDay !== previousDay;
@@ -565,7 +573,7 @@ export const AccountingTransactionsView = ({
         </table>
       </div>
       <PaginationPanel
-        totalItems={filteredTransactions.length}
+        totalItems={totalItems}
         page={page}
         pageSize={pageSize}
         onPageChange={onPageChange}

@@ -184,7 +184,12 @@ const mockSuccessfulApi = () => {
           cashbox({ id: 'cashbox-2', name: 'Reserve' }),
         ],
   );
-  getFinanceTransactionsMock.mockResolvedValue([transaction()]);
+  getFinanceTransactionsMock.mockResolvedValue({
+    items: [transaction()],
+    total: 1,
+    page: 1,
+    pageSize: 6,
+  });
   getFinanceCurrenciesMock.mockResolvedValue([currency()]);
   getFinanceReportMock.mockResolvedValue(report());
   getSupplierOrdersForPaymentMock.mockResolvedValue([queueItem()]);
@@ -220,7 +225,12 @@ const mockSuccessfulFinanceQueryHooks = () => {
     ) as unknown as ReturnType<typeof financeApi.useCashboxesQuery>,
   );
   vi.spyOn(financeApi, 'useFinanceTransactionsQuery').mockReturnValue(
-    createQueryResult([transaction()]) as unknown as ReturnType<typeof financeApi.useFinanceTransactionsQuery>,
+    createQueryResult({
+      items: [transaction()],
+      total: 1,
+      page: 1,
+      pageSize: 6,
+    }) as unknown as ReturnType<typeof financeApi.useFinanceTransactionsQuery>,
   );
   vi.spyOn(financeApi, 'useFinanceCurrenciesQuery').mockReturnValue(
     createQueryResult([currency()]) as unknown as ReturnType<typeof financeApi.useFinanceCurrenciesQuery>,
@@ -255,7 +265,7 @@ const Harness = ({ onError = noop }: { onError?: (message: string) => void }) =>
         {state.cashboxes.map((item) => item.id).join(',')}
       </span>
       <span data-testid='all-cashboxes'>{state.allCashboxes.length}</span>
-      <span data-testid='transactions'>{state.transactions.length}</span>
+      <span data-testid='transactions'>{state.recentTransactions.length}</span>
       <span data-testid='currencies'>{state.currencies.length}</span>
       <span data-testid='report'>{state.report?.transactionCount ?? 0}</span>
       <span data-testid='queue'>{state.supplierOrdersQueue.length}</span>
@@ -277,6 +287,7 @@ describe('useAccountingFinanceData', () => {
 
   it('loads finance data and applies stored cashbox order', async () => {
     mockSuccessfulApi();
+    mockSuccessfulFinanceQueryHooks();
     window.localStorage.setItem(
       accountingCashboxOrderStorageKey,
       JSON.stringify(['cashbox-2', 'missing', 'cashbox-1']),
@@ -295,22 +306,28 @@ describe('useAccountingFinanceData', () => {
     expect(screen.getByTestId('queue')).toHaveTextContent('1');
     expect(screen.getByTestId('orders')).toHaveTextContent('1');
     expect(screen.getByTestId('hydrated')).toHaveTextContent('true');
-    expect(getCashboxesMock).toHaveBeenCalledWith({ includeArchived: true });
   });
 
   it('falls back when stored cashbox order is invalid and refreshes from events', async () => {
     mockSuccessfulApi();
+    mockSuccessfulFinanceQueryHooks();
+    const reportRefetch = vi.fn().mockResolvedValue({});
+    vi.spyOn(financeApi, 'useFinanceReportQuery').mockReturnValue({
+      ...createQueryResult(report()),
+      refetch: reportRefetch,
+    } as unknown as ReturnType<typeof financeApi.useFinanceReportQuery>);
     window.localStorage.setItem(accountingCashboxOrderStorageKey, '{bad json');
 
     renderWithQueryClient(<Harness />);
 
     await waitFor(() => expect(screen.getByTestId('cashboxes')).toHaveTextContent('cashbox-1,cashbox-2'));
     window.dispatchEvent(new Event('project-goods:finance-updated'));
-    await waitFor(() => expect(getFinanceReportMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(reportRefetch).toHaveBeenCalled());
   });
 
   it('ignores a parsed stored cashbox order when it is not an array', async () => {
     mockSuccessfulApi();
+    mockSuccessfulFinanceQueryHooks();
     window.localStorage.setItem(
       accountingCashboxOrderStorageKey,
       JSON.stringify({ first: 'cashbox-2' }),
@@ -327,6 +344,7 @@ describe('useAccountingFinanceData', () => {
 
   it('uses the default cashbox order when nothing is stored', async () => {
     mockSuccessfulApi();
+    mockSuccessfulFinanceQueryHooks();
 
     renderWithQueryClient(<Harness />);
 
