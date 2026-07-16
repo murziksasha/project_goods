@@ -68,7 +68,18 @@ export const CompactPaginationPanel = ({
       >
         &lsaquo;
       </button>
-      <span className='pagination-compact-page'>{currentPage}</span>
+      <span
+        className='pagination-compact-page'
+        aria-label={t('common.pagination.pageOf', {
+          current: currentPage,
+          total: pageCount,
+        })}
+      >
+        {t('common.pagination.pageOf', {
+          current: currentPage,
+          total: pageCount,
+        })}
+      </span>
       <button
         type='button'
         className='pagination-compact-button'

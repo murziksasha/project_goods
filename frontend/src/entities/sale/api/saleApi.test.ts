@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as http from '../../../shared/api/http';
 import type { Sale, SaleFormValues, SaleWorkspacePayload } from '../model/types';
 
-const { postMock, patchMock } = vi.hoisted(() => ({
+const { postMock, patchMock, getMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
   patchMock: vi.fn(),
+  getMock: vi.fn(),
 }));
 
 vi.mock('../../../shared/api/http', async (importOriginal) => {
@@ -15,17 +16,21 @@ vi.mock('../../../shared/api/http', async (importOriginal) => {
 const restoreHttpMocks = () => {
   vi.spyOn(http.apiClient, 'post').mockImplementation(postMock);
   vi.spyOn(http.apiClient, 'patch').mockImplementation(patchMock);
+  vi.spyOn(http.apiClient, 'get').mockImplementation(getMock);
 };
 
 let createSale: typeof import('./saleApi').createSale;
 let updateSaleWorkspace: typeof import('./saleApi').updateSaleWorkspace;
+let getSales: typeof import('./saleApi').getSales;
+let buildSalesListQuery: typeof import('./saleApi').buildSalesListQuery;
 
 beforeEach(async () => {
   vi.restoreAllMocks();
   postMock.mockReset();
   patchMock.mockReset();
+  getMock.mockReset();
   restoreHttpMocks();
-  ({ createSale, updateSaleWorkspace } = await import('./saleApi'));
+  ({ createSale, updateSaleWorkspace, getSales, buildSalesListQuery } = await import('./saleApi'));
 });
 
 const sale: Sale = {
@@ -67,6 +72,42 @@ const createPayload: SaleFormValues = {
 const workspacePayload: SaleWorkspacePayload = {
   status: 'issued',
 };
+
+describe('saleApi list params', () => {
+  it('builds query params for list filters', () => {
+    expect(
+      buildSalesListQuery({
+        kind: 'repair',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31',
+        limit: 100,
+        isFavorite: true,
+      }),
+    ).toEqual({
+      kind: 'repair',
+      dateFrom: '2026-01-01',
+      dateTo: '2026-01-31',
+      limit: '100',
+      isFavorite: 'true',
+    });
+  });
+
+  it('passes list filters to GET /sales', async () => {
+    getMock.mockResolvedValueOnce({ data: [sale] });
+
+    await expect(
+      getSales({ kind: 'sale', dateFrom: '2026-06-01', limit: 50 }),
+    ).resolves.toEqual([sale]);
+
+    expect(getMock).toHaveBeenCalledWith('/sales', {
+      params: {
+        kind: 'sale',
+        dateFrom: '2026-06-01',
+        limit: '50',
+      },
+    });
+  });
+});
 
 describe('saleApi response validation', () => {
   it('accepts a create sale response with sale and product', async () => {

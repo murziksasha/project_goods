@@ -60,8 +60,6 @@ backend/
 - `sale` (repair + product sales), `finance`, `sequence`
 - `backup`, `demo`, `market`, `weather`
 
-План эволюции backend: [BACKEND_IMPROVEMENT_PLAN.md](./BACKEND_IMPROVEMENT_PLAN.md).
-
 ## Структура frontend
 
 ```text

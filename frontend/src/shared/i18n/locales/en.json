@@ -58,6 +58,7 @@
       "nextPage": "Next page",
       "rowsPerPage": "Rows per page",
       "totalRecords": "Total: {{count}} records",
+      "pageOf": "{{current}} / {{total}}",
       "prev": "< Prev",
       "next": "Next >"
     },

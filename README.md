@@ -16,7 +16,6 @@ Project Goods - full-stack приложение для учета товаров
 - [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - SPA History API, URL-параметры dashboard
 - [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md) - метка версии сборки (SHA + время)
 - [SECURITY.md](./DOCUMENTATION/SECURITY.md) - аутентификация, RBAC, LAN-деплой
-- [BACKEND_IMPROVEMENT_PLAN.md](./DOCUMENTATION/BACKEND_IMPROVEMENT_PLAN.md) - план улучшения backend (correctness, split, perf, tests)
 - [UI_DESIGN_SYSTEM.md](./DOCUMENTATION/UI_DESIGN_SYSTEM.md) - токены, компоненты, breakpoints
 
 ### Flow-документы

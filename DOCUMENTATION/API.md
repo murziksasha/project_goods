@@ -72,7 +72,14 @@ http://localhost:5000/api
   - Body: `{ "isFavorite": boolean }`.
   - Updates only the persistent favorite/star state and returns the formatted sale/order.
 
-- `GET /sales` - список продаж и заказов
+- `GET /sales` - список продаж и заказов (массив, sort `saleDate` desc). Опциональные query:
+  - `kind` — `sale` | `repair`
+  - `status` — точное совпадение статуса
+  - `dateFrom` / `dateTo` — `YYYY-MM-DD` (UTC day bounds по `saleDate`)
+  - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
+  - `clientId` — ObjectId клиента
+  - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
+  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше)
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).
@@ -115,7 +122,7 @@ http://localhost:5000/api
 
 ## Weather Forecast (Business Dashboard)
 
-- `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather&apiKey=<optional>`
+- `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather` — OpenWeather key from server env `OPENWEATHER_API_KEY` (not query)
   - Proxies Open-Meteo (default) or OpenWeatherMap (requires API key)
   - Returns current conditions plus up to 5 daily forecast entries
   - Frontend passes coordinates from the selected weather preset (`chornomorsk` or `odesa`); device geolocation is not used
@@ -137,7 +144,13 @@ http://localhost:5000/api
 - `GET /finance/currencies` - list finance currencies. Currency responses include `code`, `isSystem`, and `isArchived`.
 - `POST /finance/currencies` - create or restore a finance currency. New currencies are full transaction currencies and are backfilled into every cashbox as disabled with zero balance.
 - `PATCH /finance/currencies/:currencyCode` - archive or restore a currency with `{ "isArchived": boolean }`; `UAH` cannot be archived.
-- `GET /finance/transactions` - список финансовых операций
+- `GET /finance/transactions` - paginated finance transactions list. Query params (all optional):
+  - `page` (default `1`), `pageSize` (default `30`, max `200`)
+  - `dateFrom`, `dateTo` — `YYYY-MM-DD`; when either is set, all DB rows in range are queryable (no recent-window cap)
+  - without date params: only the **200** newest matching rows are in scope
+  - `type` (`deposit` | `withdraw` | `transfer`), `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId`, `note`
+  - `sortBy` (`date` | `type` | `amount` | `currency` | `from` | `to`), `sortDirection` (`asc` | `desc`)
+  - Response: `{ items: FinanceTransaction[], total: number, page: number, pageSize: number }`; each item may include `balanceAfter` (post-tx cashbox balance for the affected side)
 - `POST /finance/transactions` - создать финансовую операцию; optional `idempotencyKey` deduplicates repeated manual submissions.
 - `PATCH /finance/transactions/:transactionId` - update a finance transaction. Currently supports updating the `note` field (`{ "note": "..." }`). Trims the value; max 300 characters. Not allowed on cancelled transactions.
 - `POST /finance/transactions/:transactionId/cancel` - cancel an active manual finance transaction (`deposit`, `withdraw`, or `transfer`) during the same business day (`Europe/Kiev`). Creates a linked reverse transaction and marks the original as `cancelled`. Rejects order-linked notes (payment/refund/supplier-order payment patterns). Permission is checked by the original transaction type.

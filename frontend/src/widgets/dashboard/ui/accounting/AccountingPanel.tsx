@@ -27,7 +27,7 @@ import {
   canCancelAccountingTransaction,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
-  getBalanceAfterByTransactionId,
+
   getFinanceOverview,
   type AccountingTab,
 } from '../../model/accounting';
@@ -84,7 +84,7 @@ export const AccountingPanel = ({
     setCashboxes,
     supplierOrders,
     supplierOrdersQueue,
-    transactions,
+    recentTransactions,
   } = useAccountingFinanceData({ onError });
   const {
     activeTab,
@@ -230,10 +230,12 @@ export const AccountingPanel = ({
     setTransactionsPageSize,
     selectedTransactionCashboxId,
     setSelectedTransactionCashboxId,
-    filteredTransactions,
-    paginatedTransactions,
+    transactions,
+    transactionsTotal,
+    balanceAfterByTransactionId,
     activeTransactionFiltersCount,
-  } = useTransactionFilters({ transactions });
+    isTransactionsLoading,
+  } = useTransactionFilters({ enabled: activeTab === 'transactions' });
 
   const {
     transactionForm,
@@ -272,7 +274,7 @@ export const AccountingPanel = ({
         isGlobalCurrencyActive,
         report,
         supplierOrdersQueue,
-        transactions,
+        transactions: recentTransactions,
       }),
     [
       allCashboxes,
@@ -281,13 +283,9 @@ export const AccountingPanel = ({
       getCurrencyBalance,
       isGlobalCurrencyActive,
       report,
+      recentTransactions,
       supplierOrdersQueue,
-      transactions,
     ],
-  );
-  const balanceAfterByTransactionId = useMemo(
-    () => getBalanceAfterByTransactionId({ cashboxes, transactions }),
-    [cashboxes, transactions],
   );
   // Transaction form + filters (incl. filteredTransactions, paginated, active count) now provided by useTransactionFilters hook
   // Transaction form + filters now provided by hooks (useTransactionForm / useTransactionFilters)
@@ -683,12 +681,13 @@ export const AccountingPanel = ({
           balanceAfterByTransactionId={balanceAfterByTransactionId}
           cashboxes={cashboxes}
           draftFilters={draftTransactionFilters}
-          filteredTransactions={filteredTransactions}
           isDateFilterOpen={isTransactionsDateFilterOpen}
           isFilterOpen={isTransactionsFilterOpen}
+          isLoading={isTransactionsLoading}
           page={transactionsPage}
           pageSize={transactionsPageSize}
-          paginatedTransactions={paginatedTransactions}
+          totalItems={transactionsTotal}
+          transactions={transactions}
           sales={sales}
           selectedCashboxId={selectedTransactionCashboxId}
           supplierOrders={supplierOrders}

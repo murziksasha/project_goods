@@ -5621,10 +5621,11 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 }
 
 .pagination-compact-page {
-  min-width: 20px;
+  min-width: 52px;
   color: #244160;
   text-align: center;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .pagination-compact-button:disabled {

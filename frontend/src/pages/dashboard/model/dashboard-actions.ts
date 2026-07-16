@@ -391,8 +391,9 @@ export const createDashboardActions = ({
 
   return {
     replaceSaleInState: (sale: Sale) => {
-      queryClient.setQueryData<Sale[]>(queryKeys.sales, (current) =>
-        (current ?? []).map((item) => (item.id === sale.id ? sale : item)),
+      queryClient.setQueriesData<Sale[]>(
+        { queryKey: queryKeys.sales },
+        (current) => (current ?? []).map((item) => (item.id === sale.id ? sale : item)),
       );
     },
     setProductSearchQuery,
@@ -1305,7 +1306,7 @@ export const createDashboardActions = ({
         queryClient.setQueryData(queryKeys.products, result.products);
         queryClient.setQueryData(queryKeys.catalogProducts, []);
         queryClient.setQueryData(queryKeys.clients, result.clients);
-        queryClient.setQueryData(queryKeys.sales, result.sales);
+        queryClient.setQueriesData({ queryKey: queryKeys.sales }, result.sales);
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();
@@ -1400,7 +1401,7 @@ export const createDashboardActions = ({
         queryClient.setQueryData(queryKeys.products, result.products);
         queryClient.setQueryData(queryKeys.catalogProducts, []);
         queryClient.setQueryData(queryKeys.clients, result.clients);
-        queryClient.setQueryData(queryKeys.sales, result.sales);
+        queryClient.setQueriesData({ queryKey: queryKeys.sales }, result.sales);
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();

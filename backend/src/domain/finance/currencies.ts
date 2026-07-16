@@ -17,6 +17,7 @@ import {
   updateWithOptionalSession,
   withOptionalFinanceSession,
 } from './internal';
+import { HttpError } from '../../shared/lib/errors';
 
 export const listFinanceCurrencies = async (options: { includeArchived?: boolean } = {}) => {
   const currencies = await listCurrencyDocuments(options);
@@ -27,7 +28,7 @@ export const listFinanceCurrencies = async (options: { includeArchived?: boolean
 export const createFinanceCurrency = async (payload: CurrencyPayload) => {
   const code = normalizeCurrencyCode(payload.code);
   if (code === baseFinanceCurrency) {
-    throw new Error('Currency already exists.');
+    throw new HttpError(409, 'Currency already exists.');
   }
 
   return withOptionalFinanceSession(async (session) => {
@@ -37,7 +38,7 @@ export const createFinanceCurrency = async (payload: CurrencyPayload) => {
       session,
     );
     if (existing && !existing.isArchived) {
-      throw new Error('Currency already exists.');
+      throw new HttpError(409, 'Currency already exists.');
     }
 
     const currency = existing
@@ -78,7 +79,7 @@ export const createFinanceCurrency = async (payload: CurrencyPayload) => {
     );
 
     if (!currency) {
-      throw new Error('Failed to create currency.');
+      throw new HttpError(500, 'Failed to create currency.');
     }
     return formatCurrencyConfig(currency);
   });
@@ -91,7 +92,7 @@ export const updateFinanceCurrency = async (
 ) => {
   const code = normalizeCurrencyCode(codePayload);
   if (code === baseFinanceCurrency) {
-    throw new Error('UAH currency cannot be archived.');
+    throw new HttpError(400, 'UAH currency cannot be archived.');
   }
 
   const patch: Record<string, unknown> = {};
@@ -101,7 +102,7 @@ export const updateFinanceCurrency = async (
   if (Object.keys(patch).length === 0) {
     const existing = await FinanceCurrencyConfig.findOne({ code })
       .lean<FinanceCurrencyConfigDocument | null>();
-    if (!existing) throw new Error('Currency not found.');
+    if (!existing) throw new HttpError(404, 'Currency not found.');
     return formatCurrencyConfig(existing);
   }
 
@@ -111,7 +112,7 @@ export const updateFinanceCurrency = async (
     { returnDocument: 'after', runValidators: true },
   ).lean<FinanceCurrencyConfigDocument | null>();
   if (!updated) {
-    throw new Error('Currency not found.');
+    throw new HttpError(404, 'Currency not found.');
   }
   return formatCurrencyConfig(updated);
 };

@@ -71,6 +71,7 @@ export const saleSchema = new mongoose.Schema(
       trim: true,
       default: 'new',
       required: true,
+      index: true,
     },
     paidAmount: {
       type: Number,

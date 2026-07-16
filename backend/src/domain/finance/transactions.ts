@@ -26,6 +26,16 @@ import {
   withOptionalFinanceSession,
 } from './internal';
 import { ensureDefaultCashbox, listCashboxes } from './cashboxes';
+import { computeBalanceAfterByTransactionId } from './balance-after';
+import {
+  buildFinanceTransactionsFilter,
+  FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT,
+  getFinanceTransactionsSort,
+  hasFinanceTransactionsDateFilter,
+  parseListFinanceTransactionsQuery,
+  type ListFinanceTransactionsOptions,
+} from './list-transactions-query';
+import { HttpError } from '../../shared/lib/errors';
 
 const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
@@ -54,7 +64,7 @@ export const getFinanceTransactionTypeForCancel = async (
     FinanceTransactionDocument | null
   >();
   if (!transaction) {
-    throw new Error('Transaction not found.');
+    throw new HttpError(404, 'Transaction not found.');
   }
   return transaction.type;
 };
@@ -83,7 +93,7 @@ const runCreateFinanceTransaction = async (
 
   const currencyConfig = await getCurrencyConfigOrThrow(currency, session);
   if (currencyConfig.isArchived && type !== 'withdraw') {
-    throw new Error('Archived currency cannot be used for this operation.');
+    throw new HttpError(400, 'Archived currency cannot be used for this operation.');
   }
 
   const fromCashbox =
@@ -96,7 +106,7 @@ const runCreateFinanceTransaction = async (
       : null;
 
   if (type === 'transfer' && fromCashbox?._id.toString() === toCashbox?._id.toString()) {
-    throw new Error('Transfer cashboxes must be different.');
+    throw new HttpError(400, 'Transfer cashboxes must be different.');
   }
   if (fromCashbox) {
     assertCashboxCanWithdrawCurrency(fromCashbox, currency);
@@ -180,38 +190,38 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       session,
     );
     if (!transaction) {
-      throw new Error('Transaction not found.');
+      throw new HttpError(404, 'Transaction not found.');
     }
 
     if (!['deposit', 'withdraw', 'transfer'].includes(transaction.type)) {
-      throw new Error('Only manual finance transactions can be cancelled.');
+      throw new HttpError(400, 'Only manual finance transactions can be cancelled.');
     }
     if (transaction.type === 'deposit' && !transaction.toCashbox) {
-      throw new Error('Deposit transaction cashbox not found.');
+      throw new HttpError(404, 'Deposit transaction cashbox not found.');
     }
     if (transaction.type === 'withdraw' && !transaction.fromCashbox) {
-      throw new Error('Withdraw transaction cashbox not found.');
+      throw new HttpError(404, 'Withdraw transaction cashbox not found.');
     }
     if (
       transaction.type === 'transfer' &&
       (!transaction.fromCashbox || !transaction.toCashbox)
     ) {
-      throw new Error('Transfer transaction cashboxes not found.');
+      throw new HttpError(404, 'Transfer transaction cashboxes not found.');
     }
     if ((transaction.status ?? 'active') === 'cancelled') {
-      throw new Error('Transaction is already cancelled.');
+      throw new HttpError(409, 'Transaction is already cancelled.');
     }
     if (transaction.isCancellation || transaction.cancelsTransaction) {
-      throw new Error('Cancellation transactions cannot be cancelled.');
+      throw new HttpError(400, 'Cancellation transactions cannot be cancelled.');
     }
     if (isOrderLinkedFinanceTransactionNote(transaction.note)) {
-      throw new Error('Order-linked finance transactions cannot be cancelled.');
+      throw new HttpError(400, 'Order-linked finance transactions cannot be cancelled.');
     }
     if (
       getAccountingBusinessDateKey(transaction.transactionDate) !==
       getAccountingBusinessDateKey(new Date())
     ) {
-      throw new Error(transactionCancellationDayError);
+      throw new HttpError(400, transactionCancellationDayError);
     }
 
     const fromCashbox =
@@ -228,13 +238,13 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       ));
 
     if (transaction.type === 'transfer' && (!fromCashbox || !toCashbox)) {
-      throw new Error('Transaction cashbox not found.');
+      throw new HttpError(404, 'Transaction cashbox not found.');
     }
     if (transaction.type === 'deposit' && !toCashbox) {
-      throw new Error('Transaction cashbox not found.');
+      throw new HttpError(404, 'Transaction cashbox not found.');
     }
     if (transaction.type === 'withdraw' && !fromCashbox) {
-      throw new Error('Transaction cashbox not found.');
+      throw new HttpError(404, 'Transaction cashbox not found.');
     }
 
     const cancellationNote = `Cancellation of ${transaction.type} ${transaction._id.toString()}${transaction.note ? `: ${transaction.note}` : ''}`;
@@ -390,7 +400,7 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
         if (!session) {
           await FinanceTransaction.findByIdAndDelete(cancellation._id);
         }
-        throw new Error('Transaction is already cancelled.');
+        throw new HttpError(409, 'Transaction is already cancelled.');
       }
 
       return formatTransaction(cancelled);
@@ -411,20 +421,20 @@ export const updateFinanceTransactionNote = async (
   const note = String(payload.note ?? '').trim();
 
   if (note.length > 300) {
-    throw new Error('Transaction note must contain no more than 300 characters');
+    throw new HttpError(400, 'Transaction note must contain no more than 300 characters');
   }
 
   const transaction = await FinanceTransaction.findById(transactionId);
   if (!transaction) {
-    throw new Error('Transaction not found.');
+    throw new HttpError(404, 'Transaction not found.');
   }
 
   if ((transaction.status ?? 'active') === 'cancelled' || transaction.isCancellation) {
-    throw new Error('Cannot edit note for a cancelled transaction.');
+    throw new HttpError(400, 'Cannot edit note for a cancelled transaction.');
   }
 
   if (isOrderLinkedFinanceTransactionNote(transaction.note)) {
-    throw new Error('Order-linked finance transaction notes cannot be edited.');
+    throw new HttpError(400, 'Order-linked finance transaction notes cannot be edited.');
   }
 
   transaction.note = note;
@@ -434,14 +444,81 @@ export const updateFinanceTransactionNote = async (
 };
 
 
-export const listFinanceTransactions = async () => {
-  await ensureDefaultCashbox();
-  const transactions = await FinanceTransaction.find()
-    .sort({ transactionDate: -1, createdAt: -1 })
-    .limit(100)
-    .lean<FinanceTransactionDocument[]>();
+export {
+  FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
+  FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT,
+  FINANCE_TRANSACTIONS_MAX_PAGE_SIZE,
+  parseListFinanceTransactionsQuery,
+  type ListFinanceTransactionsOptions,
+} from './list-transactions-query';
 
-  return transactions.map(formatTransaction);
+const resolveEffectiveTransactionsFilter = async (
+  options: ListFinanceTransactionsOptions,
+) => {
+  const filter = buildFinanceTransactionsFilter(options);
+
+  if (hasFinanceTransactionsDateFilter(options)) {
+    return filter;
+  }
+
+  const recentRows = await FinanceTransaction.find(filter)
+    .sort({ transactionDate: -1, createdAt: -1 })
+    .limit(FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT)
+    .select({ _id: 1 })
+    .lean<Array<{ _id: FinanceTransactionDocument['_id'] }>>();
+
+  if (recentRows.length === 0) {
+    return { _id: { $in: [] } };
+  }
+
+  return {
+    ...filter,
+    _id: { $in: recentRows.map((row) => row._id) },
+  };
+};
+
+export const listFinanceTransactions = async (
+  rawQuery: Record<string, unknown> = {},
+) => {
+  await ensureDefaultCashbox();
+  const options = parseListFinanceTransactionsQuery(rawQuery);
+  const effectiveFilter = await resolveEffectiveTransactionsFilter(options);
+  const sort = getFinanceTransactionsSort(options);
+  const skip = (options.page - 1) * options.pageSize;
+
+  const [total, pageRows, allTransactions, cashboxes] = await Promise.all([
+    FinanceTransaction.countDocuments(effectiveFilter),
+    FinanceTransaction.find(effectiveFilter)
+      .sort(sort)
+      .skip(skip)
+      .limit(options.pageSize)
+      .lean<FinanceTransactionDocument[]>(),
+    FinanceTransaction.find()
+      .sort({ transactionDate: -1, createdAt: -1 })
+      .lean<FinanceTransactionDocument[]>(),
+    listCashboxes(),
+  ]);
+
+  const balanceAfterByTransactionId = computeBalanceAfterByTransactionId({
+    cashboxes: cashboxes.map((cashbox) => ({
+      id: cashbox.id,
+      balances: cashbox.balances,
+    })),
+    transactions: allTransactions,
+  });
+
+  return {
+    items: pageRows.map((transaction) => {
+      const formatted = formatTransaction(transaction);
+      return {
+        ...formatted,
+        balanceAfter: balanceAfterByTransactionId[formatted.id] ?? null,
+      };
+    }),
+    total,
+    page: options.page,
+    pageSize: options.pageSize,
+  };
 };
 
 

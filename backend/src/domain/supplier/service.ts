@@ -5,14 +5,9 @@ import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
 import { SupplierOrder } from '../supplier-order/model';
 import type { SupplierPayload } from '../shared/types';
+import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
 
 const duplicatePhoneMessage = 'Supplier with this phone already exists.';
-
-const isDuplicateKeyError = (error: unknown) =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  (error as { code?: unknown }).code === 11000;
 
 const normalizeExceptSupplierIds = (exceptSupplierIds?: string | string[]) => {
   const list = Array.isArray(exceptSupplierIds)
@@ -44,7 +39,7 @@ const assertUniqueSupplierPhones = async (
   const existing = await Supplier.findOne(query).lean<Pick<SupplierDocument, '_id'> | null>();
   if (!existing) return;
 
-  throw new Error(duplicatePhoneMessage);
+  throw new HttpError(409, duplicatePhoneMessage);
 };
 
 const mapSupplierError = (error: unknown) => {
@@ -118,7 +113,7 @@ export const updateSupplier = async (supplierId: string, payload: SupplierPayloa
       { returnDocument: 'after', runValidators: true },
     ).lean<SupplierDocument | null>();
 
-    if (!supplier) throw new Error('Supplier not found.');
+    if (!supplier) throw new HttpError(404, 'Supplier not found.');
 
     return formatSupplier(supplier);
   } catch (error) {
@@ -129,7 +124,7 @@ export const updateSupplier = async (supplierId: string, payload: SupplierPayloa
 export const deleteSupplier = async (supplierId: string) => {
   isValidObjectIdOrThrow(supplierId, 'supplierId');
   const deleted = await Supplier.findByIdAndDelete(supplierId).lean<SupplierDocument | null>();
-  if (!deleted) throw new Error('Supplier not found.');
+  if (!deleted) throw new HttpError(404, 'Supplier not found.');
   return { id: supplierId };
 };
 
@@ -147,10 +142,10 @@ export const mergeSuppliers = async (
       : '';
 
   if (!targetSupplierId || !sourceSupplierId) {
-    throw new Error('Both targetSupplierId and sourceSupplierId are required.');
+    throw new HttpError(400, 'Both targetSupplierId and sourceSupplierId are required.');
   }
   if (targetSupplierId === sourceSupplierId) {
-    throw new Error('Select two different suppliers.');
+    throw new HttpError(400, 'Select two different suppliers.');
   }
 
   isValidObjectIdOrThrow(targetSupplierId, 'targetSupplierId');
@@ -161,8 +156,8 @@ export const mergeSuppliers = async (
     Supplier.findById(sourceSupplierId).lean<SupplierDocument | null>(),
   ]);
 
-  if (!targetSupplier) throw new Error('Target supplier not found.');
-  if (!sourceSupplier) throw new Error('Source supplier not found.');
+  if (!targetSupplier) throw new HttpError(404, 'Target supplier not found.');
+  if (!sourceSupplier) throw new HttpError(404, 'Source supplier not found.');
 
   const mergedNote = [targetSupplier.note?.trim(), sourceSupplier.note?.trim()]
     .filter(Boolean)
@@ -190,7 +185,7 @@ export const mergeSuppliers = async (
     { returnDocument: 'after', runValidators: true },
   ).lean<SupplierDocument | null>();
 
-  if (!updatedTarget) throw new Error('Failed to update target supplier.');
+  if (!updatedTarget) throw new HttpError(500, 'Failed to update target supplier.');
 
   const movedSupplierOrdersResult = await SupplierOrder.updateMany(
     { supplier: sourceSupplier._id },
@@ -202,7 +197,7 @@ export const mergeSuppliers = async (
   );
 
   const deletedSource = await Supplier.findByIdAndDelete(sourceSupplierId).lean<SupplierDocument | null>();
-  if (!deletedSource) throw new Error('Failed to delete source supplier.');
+  if (!deletedSource) throw new HttpError(500, 'Failed to delete source supplier.');
 
   return {
     supplier: formatSupplier(updatedTarget),

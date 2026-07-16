@@ -1,3 +1,4 @@
+import { HttpError } from '../../shared/lib/errors';
 export type RateProvider = 'nbu' | 'privat' | 'mono';
 
 export type ExchangeRateQuote = {
@@ -29,7 +30,7 @@ const fetchNbuRates = async (currencies: string[]): Promise<ExchangeRateQuote[]>
     'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json',
   );
   if (!response.ok) {
-    throw new Error('Failed to fetch NBU rates');
+    throw new HttpError(502, 'Failed to fetch NBU rates');
   }
   const payload = (await response.json()) as Array<{
     cc: string;
@@ -52,7 +53,7 @@ const fetchPrivatRates = async (currencies: string[]): Promise<ExchangeRateQuote
     'https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5',
   );
   if (!response.ok) {
-    throw new Error('Failed to fetch PrivatBank rates');
+    throw new HttpError(502, 'Failed to fetch PrivatBank rates');
   }
   const payload = (await response.json()) as Array<{
     ccy: string;
@@ -76,7 +77,7 @@ const fetchPrivatRates = async (currencies: string[]): Promise<ExchangeRateQuote
 const fetchMonoRates = async (currencies: string[]): Promise<ExchangeRateQuote[]> => {
   const response = await fetch('https://api.monobank.ua/bank/currency');
   if (!response.ok) {
-    throw new Error('Failed to fetch Monobank rates');
+    throw new HttpError(502, 'Failed to fetch Monobank rates');
   }
   const payload = (await response.json()) as Array<{
     currencyCodeA: number;

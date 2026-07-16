@@ -1442,6 +1442,12 @@
     gap: 8px;
   }
 
+  .pagination-nav {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .payment-print-options {
     width: min(100vw - 56px, 280px);
   }

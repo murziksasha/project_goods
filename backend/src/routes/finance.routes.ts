@@ -70,7 +70,7 @@ financeRouter.patch('/finance/currencies/:currencyCode', asyncHandler(async (req
 
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.view');
-  res.json(await listFinanceTransactions());
+  res.json(await listFinanceTransactions(req.query as Record<string, unknown>));
 }));
 
 financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {

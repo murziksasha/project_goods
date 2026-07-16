@@ -5,6 +5,7 @@ import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { ClientDevice, type ClientDeviceDocument } from './model';
 import { Sale } from '../sale/model';
 import { assertNotStale } from '../../shared/lib/errors';
+import { HttpError } from '../../shared/lib/errors';
 
 const normalizeClientDevicePayload = (payload: ClientDevicePayload) => ({
   clientId: toNonEmptyString(payload.clientId),
@@ -251,7 +252,7 @@ export const createClientDevice = async (payload: ClientDevicePayload) => {
       const usageCount = await getDeviceUsageCount(existingDevice);
       return formatClientDevice(existingDevice, usageCount);
     }
-    throw new Error('Device name already exists for this client.');
+    throw new HttpError(409, 'Device name already exists for this client.');
   }
 
   const device = new ClientDevice({
@@ -280,7 +281,7 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
   }
   const normalizedNameKey = toNameKey(normalized.name);
   const existingDevice = await ClientDevice.findById(deviceId).lean<ClientDeviceDocument | null>();
-  if (!existingDevice) throw new Error('Client device not found.');
+  if (!existingDevice) throw new HttpError(404, 'Client device not found.');
   assertNotStale(payload.expectedUpdatedAt, existingDevice.updatedAt, 'Client device');
   const duplicateByName = await ClientDevice.exists({
     _id: { $ne: deviceId },
@@ -288,7 +289,7 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
     nameKey: normalizedNameKey,
   });
   if (duplicateByName) {
-    throw new Error('Device name already exists for this client.');
+    throw new HttpError(409, 'Device name already exists for this client.');
   }
 
   const device = await ClientDevice.findByIdAndUpdate(
@@ -306,7 +307,7 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
     { returnDocument: 'after', runValidators: true },
   ).lean<ClientDeviceDocument | null>();
 
-  if (!device) throw new Error('Client device not found.');
+  if (!device) throw new HttpError(404, 'Client device not found.');
   await propagateDeviceChangesToRepairSales(existingDevice, device);
   const usageCount = await getDeviceUsageCount(device);
   return formatClientDevice(device, usageCount);
@@ -315,14 +316,14 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
 export const deleteClientDevice = async (deviceId: string) => {
   isValidObjectIdOrThrow(deviceId, 'deviceId');
   const existing = await ClientDevice.findById(deviceId).lean<ClientDeviceDocument | null>();
-  if (!existing) throw new Error('Client device not found.');
+  if (!existing) throw new HttpError(404, 'Client device not found.');
 
   const usageCount = await getDeviceUsageCount(existing);
   if (usageCount > 0) {
-    throw new Error('This device is used in orders or sales and cannot be removed.');
+    throw new HttpError(400, 'This device is used in orders or sales and cannot be removed.');
   }
 
   const deleted = await ClientDevice.findByIdAndDelete(deviceId).lean<ClientDeviceDocument | null>();
-  if (!deleted) throw new Error('Client device not found.');
+  if (!deleted) throw new HttpError(404, 'Client device not found.');
   return { id: deviceId };
 };

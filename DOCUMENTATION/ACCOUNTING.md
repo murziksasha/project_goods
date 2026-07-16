@@ -13,12 +13,23 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Finance report (`getFinanceReport`)
 
 - **Cashbox totals** — sum of current cashbox balances (not derived from transaction list).
-- **`transactionCount`** — `countDocuments` over all finance transactions (not capped at the transactions tab limit of 100).
+- **`transactionCount`** — `countDocuments` over all finance transactions (not capped at the transactions tab recent window).
 - **Today** — business day `Europe/Kiev` via `getAccountingBusinessDateKey`; excludes cancelled and reverse (`isCancellation`) rows.
 - **`todayTurnover`** — sum of amounts for active txs on that business day, per currency.
-- Transactions list UI still uses `listFinanceTransactions` with **limit 100** (newest first); report does **not** reuse that list.
+- Transactions list UI uses paginated `GET /finance/transactions`; report does **not** reuse that list.
 
 ## Transactions Tab (`Accounting -> Транзакції`)
+
+### List loading, filters, and pagination (2026-07-15)
+
+- `GET /finance/transactions` returns a paginated payload: `{ items, total, page, pageSize }`.
+- **Default scope (no `dateFrom` / `dateTo`)** — only the **200 most recent** transactions are considered (`FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT`). UI page size defaults to **30** rows and can be changed (10 / 30 / 50 / 100 / 200).
+- **Date / period filter** — when `dateFrom` and/or `dateTo` is set, the backend queries **all matching rows in MongoDB** for that period (no 200 cap). Pagination applies to the full filtered set.
+- **Server-side filters** — `type`, `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId` (toolbar cashbox: from or to), `note` (case-insensitive substring), `sortBy`, `sortDirection`, `page`, `pageSize`.
+- **Date comparison** — `transactionDate` compared by calendar `YYYY-MM-DD` (UTC date part of stored ISO timestamp), same as the previous client filter.
+- **`balanceAfter`** — each list item includes post-transaction balance for the affected cashbox side; computed on the server from current cashbox balances and full transaction history.
+- **Information tab recent list** — loads `page=1&pageSize=6` separately; not tied to the Transactions tab query.
+- Compact toolbar pagination shows `current / total` pages; full pagination panel scrolls horizontally on narrow screens when page count grows.
 
 ### Notes column behavior
 - The **Note** column shows the transaction note (or `-` if empty).

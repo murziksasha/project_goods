@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FinanceTransaction } from '../../../../entities/finance/model/types';
+import { useFinanceTransactionsQuery } from '../../../../entities/finance/api/financeApi';
 import {
-  filterFinanceTransactions,
+  FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
   getActiveTransactionFiltersCount,
   initialTransactionFilters,
-  paginateAccountingItems,
+  toFinanceTransactionsListParams,
   type TransactionFilters,
 } from '../../model/accounting';
 
 type UseTransactionFiltersOptions = {
-  transactions: FinanceTransaction[];
+  enabled?: boolean;
 };
 
-export const useTransactionFilters = ({ transactions }: UseTransactionFiltersOptions) => {
+export const useTransactionFilters = ({
+  enabled = true,
+}: UseTransactionFiltersOptions = {}) => {
   const [draftTransactionFilters, setDraftTransactionFilters] = useState<TransactionFilters>(
     initialTransactionFilters,
   );
@@ -20,27 +22,39 @@ export const useTransactionFilters = ({ transactions }: UseTransactionFiltersOpt
     initialTransactionFilters,
   );
   const [transactionsPage, setTransactionsPage] = useState(1);
-  const [transactionsPageSize, setTransactionsPageSize] = useState(30);
+  const [transactionsPageSize, setTransactionsPageSize] = useState(
+    FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
+  );
   const [selectedTransactionCashboxId, setSelectedTransactionCashboxId] = useState('');
 
-  const filteredTransactions = useMemo(
+  const listParams = useMemo(
     () =>
-      filterFinanceTransactions({
+      toFinanceTransactionsListParams({
         filters: appliedTransactionFilters,
+        page: transactionsPage,
+        pageSize: transactionsPageSize,
         selectedCashboxId: selectedTransactionCashboxId,
-        transactions,
       }),
-    [appliedTransactionFilters, selectedTransactionCashboxId, transactions],
+    [
+      appliedTransactionFilters,
+      selectedTransactionCashboxId,
+      transactionsPage,
+      transactionsPageSize,
+    ],
   );
 
-  const paginatedTransactions = useMemo(
+  const transactionsQuery = useFinanceTransactionsQuery(listParams, { enabled });
+
+  const transactions = transactionsQuery.data?.items ?? [];
+  const transactionsTotal = transactionsQuery.data?.total ?? 0;
+
+  const balanceAfterByTransactionId = useMemo(
     () =>
-      paginateAccountingItems(
-        filteredTransactions,
-        transactionsPage,
-        transactionsPageSize,
-      ),
-    [filteredTransactions, transactionsPage, transactionsPageSize],
+      transactions.reduce<Record<string, number | null>>((acc, transaction) => {
+        acc[transaction.id] = transaction.balanceAfter ?? null;
+        return acc;
+      }, {}),
+    [transactions],
   );
 
   const activeTransactionFiltersCount = useMemo(
@@ -48,16 +62,15 @@ export const useTransactionFilters = ({ transactions }: UseTransactionFiltersOpt
     [appliedTransactionFilters],
   );
 
-  // Clamp page when filtered set shrinks
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(filteredTransactions.length / transactionsPageSize),
+      Math.ceil(transactionsTotal / transactionsPageSize),
     );
     if (transactionsPage > pageCount) {
       setTransactionsPage(pageCount);
     }
-  }, [filteredTransactions.length, transactionsPage, transactionsPageSize]);
+  }, [transactionsPage, transactionsPageSize, transactionsTotal]);
 
   const handleSetPageSize = (nextPageSize: number) => {
     setTransactionsPageSize(nextPageSize);
@@ -84,8 +97,11 @@ export const useTransactionFilters = ({ transactions }: UseTransactionFiltersOpt
     setTransactionsPageSize: handleSetPageSize,
     selectedTransactionCashboxId,
     setSelectedTransactionCashboxId: handleSetSelectedCashboxId,
-    filteredTransactions,
-    paginatedTransactions,
+    transactions,
+    transactionsTotal,
+    balanceAfterByTransactionId,
     activeTransactionFiltersCount,
+    isTransactionsLoading: transactionsQuery.isLoading,
+    isTransactionsFetching: transactionsQuery.isFetching,
   };
 };

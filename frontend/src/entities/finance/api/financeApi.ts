@@ -10,6 +10,8 @@ import type {
   FinanceCurrencyConfig,
   FinanceReport,
   FinanceTransaction,
+  FinanceTransactionsListParams,
+  FinanceTransactionsPage,
   SupplierOrderPaymentQueueItem,
   UpdateCashboxPayload,
   UpdateFinanceCurrencyPayload,
@@ -102,9 +104,35 @@ export const updateFinanceCurrency = async (
   }
 };
 
-export const getFinanceTransactions = async () => {
+const buildFinanceTransactionsQueryParams = (
+  params: FinanceTransactionsListParams = {},
+) => {
+  const query: Record<string, string | number> = {};
+
+  if (params.page) query.page = params.page;
+  if (params.pageSize) query.pageSize = params.pageSize;
+  if (params.dateFrom) query.dateFrom = params.dateFrom;
+  if (params.dateTo) query.dateTo = params.dateTo;
+  if (params.type) query.type = params.type;
+  if (params.currency) query.currency = params.currency;
+  if (params.fromCashboxId) query.fromCashboxId = params.fromCashboxId;
+  if (params.toCashboxId) query.toCashboxId = params.toCashboxId;
+  if (params.cashboxId) query.cashboxId = params.cashboxId;
+  if (params.note) query.note = params.note;
+  if (params.sortBy) query.sortBy = params.sortBy;
+  if (params.sortDirection) query.sortDirection = params.sortDirection;
+
+  return query;
+};
+
+export const getFinanceTransactions = async (
+  params: FinanceTransactionsListParams = {},
+) => {
   try {
-    const response = await apiClient.get<FinanceTransaction[]>('/finance/transactions');
+    const response = await apiClient.get<FinanceTransactionsPage>(
+      '/finance/transactions',
+      { params: buildFinanceTransactionsQueryParams(params) },
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
@@ -219,12 +247,16 @@ export const useFinanceCurrenciesQuery = (
   });
 
 export const useFinanceTransactionsQuery = (
+  params: FinanceTransactionsListParams = {},
   options: { enabled?: boolean } = {},
 ) =>
   useQuery({
     enabled: options.enabled,
-    queryFn: getFinanceTransactions,
-    queryKey: queryKeys.financeTransactions,
+    queryFn: () => getFinanceTransactions(params),
+    queryKey: queryKeys.financeTransactionsList(
+      buildFinanceTransactionsQueryParams(params),
+    ),
+    placeholderData: (previousData) => previousData,
   });
 
 export const useFinanceReportQuery = (
