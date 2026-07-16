@@ -476,7 +476,7 @@ export const DashboardPage = () => {
 
     const handleGlobalShortcut = (event: KeyboardEvent) => {
       const isPaletteShortcut =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k';
+        (event.ctrlKey || event.metaKey) && event.code === 'KeyK';
       if (!isPaletteShortcut) return;
 
       const target = event.target;
