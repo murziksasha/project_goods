@@ -43,6 +43,17 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+const MODAL_SCROLL_LOCK_SELECTORS = [
+  '.catalog-edit-modal',
+  '.modal-dialog',
+  '.payment-modal',
+  '.order-print-dialog',
+  '.clients-card-modal',
+  '.supplier-order-modal',
+  '.serial-bind-modal',
+  '.product-model-modal',
+] as const;
+
 const getFocusableElements = (container: HTMLElement) =>
   Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (element) =>
@@ -82,16 +93,7 @@ export const Modal = ({
   onCloseRef.current = onClose;
 
   useModalBackgroundScrollLock(isOpen, {
-    allowedSelectors: [
-      '.catalog-edit-modal',
-      '.modal-dialog',
-      '.payment-modal',
-      '.order-print-dialog',
-      '.clients-card-modal',
-      '.supplier-order-modal',
-      '.serial-bind-modal',
-      '.product-model-modal',
-    ],
+    allowedSelectors: [...MODAL_SCROLL_LOCK_SELECTORS],
   });
 
   useEffect(() => {

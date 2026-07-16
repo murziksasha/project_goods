@@ -875,12 +875,39 @@
 }
 
 .order-related-item-supplier {
-  grid-template-columns: 110px minmax(0, 1fr) 140px 90px 160px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  cursor: default;
+}
+
+.order-related-supplier-open {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 140px 90px;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-related-supplier-open:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.order-related-supplier-open strong {
+  min-width: 0;
+  color: var(--color-primary-hover);
 }
 
 .order-related-supplier-status {
   font-weight: 700;
   color: #4c6077;
+  justify-self: end;
 }
 
 .order-detail-table {

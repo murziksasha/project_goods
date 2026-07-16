@@ -387,14 +387,16 @@ export const OrderDetailLineItemsPanel = ({
 
   const openSupplierOrderModalForSerialItem = async () => {
     if (!serialsEditingItem) return;
+    const productName = serialsEditingItem.name.trim();
+    const quantity = Math.max(1, Math.floor(serialsEditingItem.quantity));
+    // Close serial bind first so nested scroll locks cannot leave table overflow stuck.
+    setSerialsEditingItem(null);
     setIsSuppliersLoading(true);
     try {
       const supplierData = await getSuppliers('');
       setSuppliers(supplierData);
-      setSupplierOrderProductName(serialsEditingItem.name.trim());
-      setSupplierOrderInitialQuantity(
-        Math.max(1, Math.floor(serialsEditingItem.quantity)),
-      );
+      setSupplierOrderProductName(productName);
+      setSupplierOrderInitialQuantity(quantity);
       setIsSupplierOrderModalOpen(true);
     } catch (error) {
       onError(
