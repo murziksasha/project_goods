@@ -2473,6 +2473,10 @@ export const OrdersWorkspace = ({
             canAcceptPayment={canAcceptFinanceDeposit}
             canRefundPayment={canCreateFinanceWithdraw}
             canCreateOrders={canCreateOrders}
+            canManageSupplierOrders={hasEmployeePermission(
+              currentEmployee,
+              'supplierOrders.manage',
+            )}
             onCreateOrder={() =>
               onCreateOrder(
                 isRepairOrder(selectedSale) ? 'orders' : 'sales',

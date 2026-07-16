@@ -24,6 +24,7 @@ import type {
   SupplierPaymentStatus,
 } from '../../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderAnalytics,
   resolveSupplierOrderErrorMessage,
@@ -31,8 +32,6 @@ import {
 import {
   computeSupplierOrderStatusMenuPosition,
   filterSupplierOrders,
-  getActiveSupplierOrderItems,
-  isMultiItemSupplierOrder,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
   parseSupplierOrdersFilters,
@@ -45,14 +44,6 @@ import {
   type OrdersTab,
   type SupplierOrdersColumnKey,
 } from '../../model/supplier-orders-workspace';
-
-const financeVisibilityStatuses: SupplierOrderStatus[] = [
-  'approved',
-  'partially_stocked',
-  'partially_completed',
-  'stocked',
-  'cancelled',
-];
 
 const notifyFinanceUpdated = () => {
   window.dispatchEvent(new Event('project-goods:finance-updated'));
@@ -453,109 +444,56 @@ export const SupplierOrdersWorkspace = ({
     order: SupplierOrder,
     nextStatus: SupplierOrderStatus,
   ) => {
-    try {
-      if (nextStatus === order.status) {
-        setOpenStatusOrder(null);
-        return;
-      }
-
-      if (nextStatus === 'stocked') {
-        if (!defaultTakeOnChargeWarehouse) {
-          onError(t('orders.supplier.messages.errors.defaultWarehouseNotFound'));
-          return;
-        }
-
-        const takeOnChargePayload = {
-          autoGenerateSerialNumbers: true,
-          serialNumbers: [] as string[],
-          autoGenerateArticles: false,
-          articleBase: '',
-          warehouseId: defaultTakeOnChargeWarehouse.warehouseId,
-          locationId: defaultTakeOnChargeWarehouse.locationId,
-        };
-
-        const requestedItemIndex = openStatusOrder?.itemIndex ?? undefined;
-        const isBulkParent =
-          requestedItemIndex === undefined &&
-          openStatusOrder?.itemIndex === null &&
-          isMultiItemSupplierOrder(order);
-
-        const runTakeOnCharge = (itemIndex?: number) =>
-          takeOnChargeSupplierOrderMutation.mutateAsync({
-            supplierOrderId: order.id,
-            payload: {
-              ...takeOnChargePayload,
-              ...(itemIndex === undefined ? {} : { itemIndex }),
-            },
-          });
-
-        let takeOnChargeResult: SupplierOrder;
-        if (isBulkParent) {
-          const activeItems = getActiveSupplierOrderItems(order);
-          if (activeItems.length === 0) {
-            onError(t('orders.supplier.messages.errors.failedUpdateStatus'));
-            return;
-          }
-
-          const hasReceivedItems = order.items.some(
-            (item) => item.receiptStatus === 'received',
-          );
-
-          if (!hasReceivedItems && activeItems.length > 1) {
-            takeOnChargeResult = await runTakeOnCharge();
-          } else {
-            let lastResult: SupplierOrder | undefined;
-            for (const item of activeItems) {
-              lastResult = await runTakeOnCharge(item.itemIndex);
-            }
-            if (!lastResult) {
-              onError(t('orders.supplier.messages.errors.failedUpdateStatus'));
-              return;
-            }
-            takeOnChargeResult = lastResult;
-          }
-        } else {
-          takeOnChargeResult = await runTakeOnCharge(requestedItemIndex);
-        }
-
-        notifyFinanceUpdated();
-        setOpenStatusOrder(null);
-        onSuccess(
-          takeOnChargeResult.status === 'partially_stocked'
-            ? t('orders.supplier.messages.success.partiallyStocked')
-            : t('orders.supplier.messages.success.stocked'),
-        );
-        return;
-      } else {
-        await updateSupplierOrderMutation.mutateAsync({
-          supplierOrderId: order.id,
+    await applySupplierOrderStatusChange({
+      order,
+      nextStatus,
+      // Keep `null` for multi-item parent rows (bulk take-on-charge).
+      itemIndex: openStatusOrder ? openStatusOrder.itemIndex : undefined,
+      defaultWarehouse: defaultTakeOnChargeWarehouse,
+      takeOnCharge: async ({
+        supplierOrderId,
+        autoGenerateSerialNumbers,
+        serialNumbers,
+        autoGenerateArticles,
+        articleBase,
+        warehouseId,
+        locationId,
+        itemIndex,
+      }) =>
+        takeOnChargeSupplierOrderMutation.mutateAsync({
+          supplierOrderId,
           payload: {
-            orderBaseId: order.orderBaseId,
-            supplierId: order.supplierId,
-            deliveryDate: order.deliveryDate.slice(0, 10),
-            supplyType: order.supplyType,
-            number: order.number,
-            note: order.note,
-            createdBy: order.createdBy,
-            status: nextStatus,
-            items: order.items,
+            autoGenerateSerialNumbers,
+            serialNumbers,
+            autoGenerateArticles,
+            articleBase,
+            warehouseId,
+            locationId,
+            ...(itemIndex === undefined ? {} : { itemIndex }),
+          },
+        }),
+      updateOrder: async ({ supplierOrderId, order: source, nextStatus: status }) => {
+        await updateSupplierOrderMutation.mutateAsync({
+          supplierOrderId,
+          payload: {
+            orderBaseId: source.orderBaseId,
+            supplierId: source.supplierId,
+            deliveryDate: source.deliveryDate.slice(0, 10),
+            supplyType: source.supplyType,
+            number: source.number,
+            note: source.note,
+            createdBy: source.createdBy,
+            status,
+            items: source.items,
           },
         });
-        if (financeVisibilityStatuses.includes(nextStatus)) {
-          notifyFinanceUpdated();
-        }
-      }
-      setOpenStatusOrder(null);
-      onSuccess(t('orders.supplier.messages.success.statusUpdated'));
-    } catch (error) {
-      onError(
-        resolveSupplierOrderErrorMessage(
-          error,
-          t,
-          'orders.supplier.messages.errors.failedUpdateStatus',
-        ),
-      );
-    }
+      },
+      translate: t,
+      onSuccess,
+      onError,
+      notifyFinanceUpdated,
+    });
+    setOpenStatusOrder(null);
   };
 
   const toggleSupplierOrderFavorite = async (order: SupplierOrder) => {

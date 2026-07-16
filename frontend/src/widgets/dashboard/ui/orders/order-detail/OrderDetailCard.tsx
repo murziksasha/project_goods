@@ -11,7 +11,10 @@ import {
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
 } from '../../../../../entities/supplier-order/api/supplierOrderApi';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderStatus,
+} from '../../../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { createSupplier, getSuppliers } from '../../../../../entities/supplier/api/supplierApi';
 import type { Supplier } from '../../../../../entities/supplier/model/types';
@@ -27,7 +30,20 @@ import {
   getOrderLink,
   toNameKey,
 } from '../create-order/create-order-card-shared';
-import { buildSupplierOrderItemNumber, mergeSupplierOrderItemUpdate } from '../../../model/supplier-order-utils';
+import {
+  applySupplierOrderStatusChange,
+  isSupplierOrderModalForceReadOnly,
+  isSupplierOrderStatusControlDisabled,
+} from '../../../model/apply-supplier-order-status-change';
+import {
+  buildSupplierOrderItemNumber,
+  mergeSupplierOrderItemUpdate,
+} from '../../../model/supplier-order-utils';
+import {
+  computeSupplierOrderStatusMenuPosition,
+  getSupplierOrderStatusClass,
+} from '../../../model/supplier-orders-workspace';
+import { SupplierOrderStatusMenuPortal } from '../../supplier-orders/SupplierOrdersWorkspaceSections';
 import {
   buildOrderNumber,
   canRefundFromStatus,
@@ -101,6 +117,7 @@ export const OrderDetailCard = ({
   canAcceptPayment,
   canRefundPayment: canRefundPaymentPermission,
   canCreateOrders,
+  canManageSupplierOrders = false,
   onCreateOrder,
   createOrderHref,
   onClose,
@@ -174,6 +191,19 @@ export const OrderDetailCard = ({
   );
   const [isRelatedSupplierOrderOpening, setIsRelatedSupplierOrderOpening] =
     useState(false);
+  const [relatedDefaultTakeOnChargeWarehouse, setRelatedDefaultTakeOnChargeWarehouse] =
+    useState<{ warehouseId: string; locationId: string } | null>(null);
+  const [openRelatedStatusOrder, setOpenRelatedStatusOrder] = useState<{
+    key: string;
+    order: SupplierOrder;
+    itemIndex: number;
+  } | null>(null);
+  const [relatedStatusMenuPosition, setRelatedStatusMenuPosition] = useState<{
+    top: number;
+    left: number;
+    maxHeight: number;
+    placement: 'below' | 'above';
+  } | null>(null);
   const [relatedWarehouseOptions, setRelatedWarehouseOptions] = useState<
     Array<{
       id: string;
@@ -684,29 +714,44 @@ export const OrderDetailCard = ({
         }
       : null;
 
+  const loadRelatedSupplierOrderContext = async () => {
+    const [suppliersData, warehouseSettings] = await Promise.all([
+      getSuppliers(''),
+      getWarehouseSettings(),
+    ]);
+    setRelatedSuppliers(suppliersData);
+    const activeWarehouses = warehouseSettings.warehouses.filter(
+      (warehouse) => warehouse.isActive,
+    );
+    setRelatedWarehouseOptions(
+      activeWarehouses.map((warehouse) => ({
+        id: warehouse.id,
+        name: warehouse.name,
+        locations: warehouse.locations.map((location) => ({
+          id: location.id,
+          name: location.name,
+        })),
+      })),
+    );
+    const defaultWarehouse = activeWarehouses[0];
+    const defaultLocation = defaultWarehouse?.locations[0];
+    setRelatedDefaultTakeOnChargeWarehouse(
+      defaultWarehouse?.id && defaultLocation?.id
+        ? {
+            warehouseId: defaultWarehouse.id,
+            locationId: defaultLocation.id,
+          }
+        : null,
+    );
+  };
+
   const openRelatedSupplierOrderTakeOnCharge = async (
     order: SupplierOrder,
     itemIndex: number,
   ) => {
     setIsRelatedSupplierOrderOpening(true);
     try {
-      const [suppliersData, warehouseSettings] = await Promise.all([
-        getSuppliers(''),
-        getWarehouseSettings(),
-      ]);
-      setRelatedSuppliers(suppliersData);
-      setRelatedWarehouseOptions(
-        warehouseSettings.warehouses
-          .filter((warehouse) => warehouse.isActive)
-          .map((warehouse) => ({
-            id: warehouse.id,
-            name: warehouse.name,
-            locations: warehouse.locations.map((location) => ({
-              id: location.id,
-              name: location.name,
-            })),
-          })),
-      );
+      await loadRelatedSupplierOrderContext();
       setRelatedSupplierOrderSource(order);
       setRelatedSupplierOrderItemIndex(itemIndex);
       setIsRelatedSupplierOrderModalOpen(true);
@@ -720,6 +765,121 @@ export const OrderDetailCard = ({
       setIsRelatedSupplierOrderOpening(false);
     }
   };
+
+  const openRelatedSupplierOrderStatusMenu = async (
+    key: string,
+    order: SupplierOrder,
+    itemIndex: number,
+    rect: DOMRect,
+  ) => {
+    if (!canManageSupplierOrders) {
+      onError(t('orders.supplier.messages.errors.noManagePermission'));
+      return;
+    }
+    if (isSupplierOrderStatusControlDisabled(order, canManageSupplierOrders)) {
+      return;
+    }
+    if (openRelatedStatusOrder?.key === key) {
+      setOpenRelatedStatusOrder(null);
+      setRelatedStatusMenuPosition(null);
+      return;
+    }
+    try {
+      if (!relatedDefaultTakeOnChargeWarehouse) {
+        await loadRelatedSupplierOrderContext();
+      }
+    } catch {
+      // status update will report missing warehouse if still unavailable
+    }
+    setRelatedStatusMenuPosition(computeSupplierOrderStatusMenuPosition(rect));
+    setOpenRelatedStatusOrder({ key, order, itemIndex });
+  };
+
+  const updateRelatedSupplierOrderStatus = async (
+    order: SupplierOrder,
+    nextStatus: SupplierOrderStatus,
+  ) => {
+    await applySupplierOrderStatusChange({
+      order,
+      nextStatus,
+      itemIndex: openRelatedStatusOrder?.itemIndex,
+      defaultWarehouse: relatedDefaultTakeOnChargeWarehouse,
+      takeOnCharge: async ({
+        supplierOrderId,
+        autoGenerateSerialNumbers,
+        serialNumbers,
+        autoGenerateArticles,
+        articleBase,
+        warehouseId,
+        locationId,
+        itemIndex,
+      }) => {
+        const result = await takeOnChargeSupplierOrder(supplierOrderId, {
+          autoGenerateSerialNumbers,
+          serialNumbers,
+          autoGenerateArticles,
+          articleBase,
+          warehouseId,
+          locationId,
+          ...(itemIndex === undefined ? {} : { itemIndex }),
+        });
+        window.dispatchEvent(new Event('project-goods:finance-updated'));
+        window.dispatchEvent(new Event('project-goods:products-updated'));
+        await onSupplierOrderCreated();
+        return result;
+      },
+      updateOrder: async ({
+        supplierOrderId,
+        order: source,
+        nextStatus: status,
+      }) => {
+        await updateSupplierOrder(supplierOrderId, {
+          orderBaseId: source.orderBaseId,
+          supplierId: source.supplierId,
+          deliveryDate: source.deliveryDate.slice(0, 10),
+          supplyType: source.supplyType,
+          number: source.number,
+          note: source.note,
+          createdBy: source.createdBy,
+          status,
+          items: source.items,
+        });
+        await onSupplierOrderCreated();
+      },
+      translate: t,
+      onSuccess,
+      onError,
+      notifyFinanceUpdated: () => {
+        window.dispatchEvent(new Event('project-goods:finance-updated'));
+      },
+    });
+    setOpenRelatedStatusOrder(null);
+    setRelatedStatusMenuPosition(null);
+  };
+
+  useEffect(() => {
+    if (!openRelatedStatusOrder) return;
+
+    const closeOnOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('.supplier-order-status-menu-portal')) return;
+      if (target.closest('[data-related-supplier-order-status-trigger]')) return;
+      setOpenRelatedStatusOrder(null);
+      setRelatedStatusMenuPosition(null);
+    };
+    const closeOnResize = () => {
+      setOpenRelatedStatusOrder(null);
+      setRelatedStatusMenuPosition(null);
+    };
+
+    document.addEventListener('mousedown', closeOnOutside);
+    window.addEventListener('resize', closeOnResize);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      window.removeEventListener('resize', closeOnResize);
+    };
+  }, [openRelatedStatusOrder]);
 
   return (
     <article
@@ -1325,34 +1485,65 @@ export const OrderDetailCard = ({
                 <p>{t('orders.detail.noSupplierOrdersLinked')}</p>
               ) : (
                 relatedSupplierOrderItems.map(({ order, item }) => {
+                  const rowKey = `${order.id}-${item.itemIndex}`;
+                  const statusDisabled = isSupplierOrderStatusControlDisabled(
+                    order,
+                    canManageSupplierOrders,
+                  );
                   return (
-                  <button
-                    key={`${order.id}-${item.itemIndex}`}
-                    className='order-related-item order-related-item-supplier'
-                    type='button'
-                    onClick={() =>
-                      void openRelatedSupplierOrderTakeOnCharge(
-                        order,
-                        item.itemIndex,
-                      )
-                    }
-                    disabled={isRelatedSupplierOrderOpening}
-                  >
-                    <span>
-                      {buildSupplierOrderItemNumber(
-                        order,
-                        item.itemIndex,
-                      )}
-                    </span>
-                    <strong>
-                      {item.productName.trim() || '-'}
-                    </strong>
-                    <span>{formatCurrency(item.quantity * item.price)}</span>
-                    <span>{formatReadyDate(order.createdAt)}</span>
-                    <span className='order-related-supplier-status'>
-                      {getSupplierOrderStatusLabel(order.status)}
-                    </span>
-                  </button>
+                    <div
+                      key={rowKey}
+                      className='order-related-item order-related-item-supplier'
+                    >
+                      <button
+                        type='button'
+                        className='order-related-supplier-open'
+                        onClick={() =>
+                          void openRelatedSupplierOrderTakeOnCharge(
+                            order,
+                            item.itemIndex,
+                          )
+                        }
+                        disabled={isRelatedSupplierOrderOpening}
+                      >
+                        <span>
+                          {buildSupplierOrderItemNumber(
+                            order,
+                            item.itemIndex,
+                          )}
+                        </span>
+                        <strong>
+                          {item.productName.trim() || '-'}
+                        </strong>
+                        <span>
+                          {formatCurrency(item.quantity * item.price)}
+                        </span>
+                        <span>{formatReadyDate(order.createdAt)}</span>
+                      </button>
+                      <div className='supplier-order-status-picker order-related-supplier-status'>
+                        <button
+                          type='button'
+                          className={getSupplierOrderStatusClass(order.status)}
+                          data-related-supplier-order-status-trigger={rowKey}
+                          disabled={statusDisabled}
+                          aria-expanded={
+                            openRelatedStatusOrder?.key === rowKey
+                          }
+                          aria-haspopup='listbox'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void openRelatedSupplierOrderStatusMenu(
+                              rowKey,
+                              order,
+                              item.itemIndex,
+                              event.currentTarget.getBoundingClientRect(),
+                            );
+                          }}
+                        >
+                          {getSupplierOrderStatusLabel(order.status)}
+                        </button>
+                      </div>
+                    </div>
                   );
                 })
               )
@@ -1448,11 +1639,28 @@ export const OrderDetailCard = ({
           onCreateAndApply={() => void createAndApplyDevice()}
         />
       ) : null}
+      <SupplierOrderStatusMenuPortal
+        openStatusOrder={
+          openRelatedStatusOrder
+            ? {
+                key: openRelatedStatusOrder.key,
+                order: openRelatedStatusOrder.order,
+              }
+            : null
+        }
+        statusMenuPosition={relatedStatusMenuPosition}
+        onUpdateStatus={(order, status) =>
+          void updateRelatedSupplierOrderStatus(order, status)
+        }
+      />
       <SupplierOrderModal
         isOpen={isRelatedSupplierOrderModalOpen}
         suppliers={relatedSuppliers}
         editingOrder={selectedRelatedSupplierOrder}
         warehouseOptions={relatedWarehouseOptions}
+        forceReadOnly={isSupplierOrderModalForceReadOnly(
+          canManageSupplierOrders,
+        )}
         onClose={() => {
           setIsRelatedSupplierOrderModalOpen(false);
           setRelatedSupplierOrderSource(null);
