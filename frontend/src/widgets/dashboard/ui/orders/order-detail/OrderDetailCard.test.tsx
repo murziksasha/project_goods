@@ -97,6 +97,7 @@ vi.mock(
   '../../../../../entities/supplier-order/api/supplierOrderApi',
   () => ({
     cancelSupplierOrder: vi.fn(),
+    cancelSupplierOrderItem: vi.fn(),
     createSupplierOrder: vi.fn(),
     takeOnChargeSupplierOrder: vi.fn(),
     updateSupplierOrder: vi.fn(),
@@ -254,6 +255,7 @@ const buildCardElement = ({
   canAddComment = true,
   isReadOnly = false,
   canCreateOrders = true,
+  canManageSupplierOrders = true,
   onCreateOrder = vi.fn(),
   comments = [],
   saleOverride,
@@ -303,6 +305,7 @@ const buildCardElement = ({
   canAddComment?: boolean;
   isReadOnly?: boolean;
   canCreateOrders?: boolean;
+  canManageSupplierOrders?: boolean;
   onCreateOrder?: () => void;
   comments?: Array<{
     id: string;
@@ -343,6 +346,7 @@ const buildCardElement = ({
       canAcceptPayment={true}
       canRefundPayment={true}
       canCreateOrders={canCreateOrders}
+      canManageSupplierOrders={canManageSupplierOrders}
       onCreateOrder={onCreateOrder}
       createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
       onClose={vi.fn()}
@@ -466,6 +470,8 @@ afterEach(() => {
   getWarehouseSettingsMock.mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
 });
 
 const waitForSerialBindModal = async () => {
@@ -1595,9 +1601,11 @@ describe('OrderDetailCard product entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'R0035752' }));
 
-    expect(
-      await screen.findByRole('dialog', { name: 'Product model' }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Serialized part',
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Product model')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Print serial number' }),
     ).toBeInTheDocument();
@@ -1630,9 +1638,11 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Existing part' }),
     );
 
-    expect(
-      await screen.findByRole('dialog', { name: 'Product model' }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Existing part',
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Product model')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Print serial number' }),
     ).not.toBeInTheDocument();
@@ -2176,6 +2186,53 @@ describe('OrderDetailCard product entry', () => {
     expect(linkedItem).toBeInTheDocument();
     expect(
       within(linkedItem).getByText('USB Cable'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Purchase request|Заявка/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens supplier order status menu from related tab badge', async () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'USB Cable',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'request',
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      lineItems: currentSale.lineItems ?? [],
+      canManageSupplierOrders: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Purchase request|Заявка/i }),
+    );
+
+    expect(
+      await screen.findByRole('listbox'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: /Ordered|Замовлено/i }),
     ).toBeInTheDocument();
   });
 

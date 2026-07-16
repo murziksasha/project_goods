@@ -38,6 +38,7 @@ export type OrderDetailCardProps = {
   canAcceptPayment: boolean;
   canRefundPayment: boolean;
   canCreateOrders: boolean;
+  canManageSupplierOrders?: boolean;
   onCreateOrder: () => void;
   createOrderHref: string;
   onClose: () => void;

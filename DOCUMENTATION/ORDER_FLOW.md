@@ -212,12 +212,14 @@
 - In sale card product line, `Serials x/y` action opens serial binding modal.
 - In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter and pick the oldest dated stock inside it only.
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
+- Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).
 - Product name is prefilled from current product line item.
 - On submit, system creates supplier order with:
   - order status `request` (new request),
   - payment status `pending`,
   - selected supplier/date/line items from modal.
-- Created request appears in `Orders -> Supplier Order`.
+- Created request appears in `Orders -> Supplier Order` and in the source card related tab when the sale link markers are present.
 
 ## Sales Card: Related Supplier Orders Link (2026-05-23)
 
@@ -232,13 +234,28 @@
   - product-name or client-only matches without `LINKED_SALE_ID` must not appear in this tab.
 - Purpose:
   - quick jump context for receiving (`Оприбуткувати`) from same workflow window,
-  - historical visibility of supplier procurement done for a specific client sale.
-- Clicking a linked supplier-order item in `Sales` card bottom tab `Supplier Order` opens `SupplierOrderModal` for that exact item.
-- Take-on-charge action from this modal is item-scoped (`itemIndex` is passed), so receiving affects only the selected product line.
-- Opening behavior:
-  - before modal open, system loads suppliers and warehouse settings,
-  - modal opens in context of a single supplier-order line (`<orderNumber>-<itemIndex+1>`),
-  - action `Оприбуткувати` from this modal triggers `takeOnChargeSupplierOrder` for the same supplier order id with selected `itemIndex`.
+  - historical visibility of supplier procurement done for a specific client sale,
+  - status changes and cancel/delete/take-on-charge without leaving the order/sale card.
+
+### Related row actions (2026-07-16)
+
+- Each linked line is a two-control row:
+  - main open control (number / product / amount / date) opens `SupplierOrderModal` for that item,
+  - status badge uses the same interactive control as `Orders -> Supplier Order` (manual statuses only).
+- Status badge rules match **Supplier Order Row Status Window**:
+  - requires `supplierOrders.manage`,
+  - disabled when `paymentStatus = cancelled` or `status` is `cancelled` / `unavailable`,
+  - menu lists manual statuses only (`request`, `ordered`, `approved`, `stocked`, `cancelled`, `unavailable`),
+  - selecting `stocked` runs item-scoped take-on-charge via shared `applySupplierOrderStatusChange` (default warehouse/location pair),
+  - other status values call `updateSupplierOrder` with the selected status.
+- Clicking the main open control:
+  - loads suppliers and warehouse settings,
+  - opens `SupplierOrderModal` in item-scoped context (`<orderNumber>-<itemIndex+1>`),
+  - exposes cancel order / cancel item / take-on-charge when locks and permissions allow (same `resolveSupplierOrderModalLocks` + `SupplierOrderModal` rules as SO list and Warehouse),
+  - sets `forceReadOnly` when the employee lacks `supplierOrders.manage`.
+- After take-on-charge, cancel, or status change, the card refreshes linked supplier orders (`onSupplierOrderCreated`); reopening a received/cancelled/unavailable locked order follows content lock / read-only modal behavior from Supplier Order Lock Rules.
+- Item-scoped take-on-charge passes `itemIndex` so only the selected product line is received.
+
 ## Products Suggestions Source (2026-05-09)
 
 - `Products & Services` now contains a dedicated tab `Products` (suggestion catalog in DB).

@@ -1,11 +1,13 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { useModalBackgroundScrollLock } from './useModalBackgroundScrollLock';
+import {
+  resetModalBackgroundScrollLockForTests,
+  useModalBackgroundScrollLock,
+} from './useModalBackgroundScrollLock';
 
 describe('useModalBackgroundScrollLock', () => {
   afterEach(() => {
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
+    resetModalBackgroundScrollLockForTests();
     document.body.innerHTML = '';
   });
 
@@ -43,6 +45,63 @@ describe('useModalBackgroundScrollLock', () => {
     expect(tableWrap?.style.overflow).toBe('hidden');
 
     unmount();
+    expect(tableWrap?.style.overflow).toBe('auto');
+  });
+
+  it('restores original overflow after nested locks close in reverse order', () => {
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'scroll';
+    document.body.innerHTML =
+      '<div class="orders-table-wrap" style="overflow:auto"></div>';
+    const tableWrap = document.querySelector<HTMLElement>('.orders-table-wrap');
+
+    const outer = renderHook(() =>
+      useModalBackgroundScrollLock(true, {
+        allowedSelectors: ['.outer-modal'],
+      }),
+    );
+    const inner = renderHook(() =>
+      useModalBackgroundScrollLock(true, {
+        allowedSelectors: ['.inner-modal'],
+      }),
+    );
+
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(tableWrap?.style.overflow).toBe('hidden');
+
+    inner.unmount();
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(tableWrap?.style.overflow).toBe('hidden');
+
+    outer.unmount();
+    expect(document.body.style.overflow).toBe('auto');
+    expect(document.documentElement.style.overflow).toBe('scroll');
+    expect(tableWrap?.style.overflow).toBe('auto');
+  });
+
+  it('restores original overflow when inner closes after outer already closed', () => {
+    document.body.style.overflow = 'auto';
+    document.body.innerHTML =
+      '<div class="orders-table-wrap" style="overflow:auto"></div>';
+    const tableWrap = document.querySelector<HTMLElement>('.orders-table-wrap');
+
+    const outer = renderHook(() =>
+      useModalBackgroundScrollLock(true, {
+        allowedSelectors: ['.outer-modal'],
+      }),
+    );
+    const inner = renderHook(() =>
+      useModalBackgroundScrollLock(true, {
+        allowedSelectors: ['.inner-modal'],
+      }),
+    );
+
+    outer.unmount();
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(tableWrap?.style.overflow).toBe('hidden');
+
+    inner.unmount();
+    expect(document.body.style.overflow).toBe('auto');
     expect(tableWrap?.style.overflow).toBe('auto');
   });
 
