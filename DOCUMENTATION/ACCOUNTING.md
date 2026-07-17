@@ -10,6 +10,14 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
 
+## Mobile layout (phone, e.g. ~400px / Xiaomi-class)
+
+- Target: no horizontal page overflow in Accounting (topbar service name, tab strip, cashboxes content).
+- **Topbar** — long service names truncate with ellipsis; left cluster may shrink (`min-width: 0`).
+- **Tabs** (≤720px) — `.finance-tabs-row` wraps; tab strip scrolls horizontally when needed; gear stays usable. Slightly tighter tab padding/font at ≤530/≤480.
+- **Cashboxes** (≤720px) — toolbar stacks; totals wrap; add-cashbox input/button full width; cash cards single column with wrapping names/balances and full-width actions.
+- Styles: `frontend/src/shared/styles/responsive.css`, `domains/accounting.css`. See also [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) breakpoints.
+
 ## Finance report (`getFinanceReport`)
 
 - **Cashbox totals** — sum of current cashbox balances (not derived from transaction list).

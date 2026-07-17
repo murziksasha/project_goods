@@ -89,6 +89,18 @@ describe('supplier-orders-workspace', () => {
     );
   });
 
+  it('keeps createdAt before deliveryDate in canonical column order', () => {
+    const createdAtIndex = supplierOrdersAllColumns.indexOf('createdAt');
+    const deliveryDateIndex = supplierOrdersAllColumns.indexOf('deliveryDate');
+    expect(createdAtIndex).toBeGreaterThan(-1);
+    expect(deliveryDateIndex).toBeGreaterThan(createdAtIndex);
+    expect(
+      normalizeSupplierOrdersColumns(
+        JSON.stringify(['deliveryDate', 'createdAt', 'number']),
+      ),
+    ).toEqual(['number', 'createdAt', 'deliveryDate']);
+  });
+
   it('filters by query, status, payment status, and date range', () => {
     const orders = [
       makeOrder(),

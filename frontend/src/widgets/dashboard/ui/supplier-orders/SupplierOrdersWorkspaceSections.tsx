@@ -760,6 +760,9 @@ export const SupplierOrdersTable = ({
             {visibleColumns.includes('supplier') ? (
               <th className='supplier-orders-col-supplier'>{t('orders.supplier.columns.supplier')}</th>
             ) : null}
+            {visibleColumns.includes('createdAt') ? (
+              <th className='supplier-orders-col-date'>{t('orders.supplier.columns.createdAt')}</th>
+            ) : null}
             {visibleColumns.includes('deliveryDate') ? (
               <th className='supplier-orders-col-date'>{t('orders.supplier.columns.deliveryDate')}</th>
             ) : null}
@@ -992,6 +995,13 @@ export const SupplierOrdersTable = ({
                           {order.supplierName}
                         </button>
                       )}
+                    </td>
+                  ) : null}
+                  {visibleColumns.includes('createdAt') ? (
+                    <td data-label={t('orders.supplier.columns.createdAt')}>
+                      {isChild
+                        ? notApplicableLabel
+                        : formatSupplierOrderDate(order.createdAt)}
                     </td>
                   ) : null}
                   {visibleColumns.includes('deliveryDate') ? (

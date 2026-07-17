@@ -112,6 +112,7 @@ export type SupplierOrdersColumnKey =
   | 'total'
   | 'paid'
   | 'supplier'
+  | 'createdAt'
   | 'deliveryDate'
   | 'status'
   | 'paymentStatus';
@@ -124,6 +125,7 @@ export const supplierOrdersAllColumns: SupplierOrdersColumnKey[] = [
   'total',
   'paid',
   'supplier',
+  'createdAt',
   'deliveryDate',
   'status',
   'paymentStatus',
