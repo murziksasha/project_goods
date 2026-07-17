@@ -105,6 +105,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `total > 0`
 - `overdue` rows remain payable when `total > 0` and receipt is not fully closed; auto-`overdue` must not remove them from the queue after operator status advancement.
 - Supplier orders with zero total (free-of-charge receipts) are allowed in Warehouse flows, but must not appear in this payment queue.
+- Opening a queue row resolves the full supplier order by Mongo `id`, then non-empty `orderBaseId`, then non-empty custom `number` — never by blank `number` (`'' === ''`).
 
 ## Payment Actions in Accounting
 - `Оплатити`:
