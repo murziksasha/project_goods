@@ -343,14 +343,19 @@
 
   .topbar {
     padding: 10px 12px;
+    min-width: 0;
   }
 
   .topbar-left {
     flex-basis: calc(100% - 48px);
+    min-width: 0;
+    flex-shrink: 1;
   }
 
   .topbar-title {
     font-size: 1.1rem;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .topbar-actions {
@@ -358,6 +363,7 @@
     justify-content: stretch;
     flex-wrap: wrap;
     gap: 6px;
+    min-width: 0;
   }
 
   .topbar-current-user {
@@ -920,11 +926,53 @@
     padding: 8px;
   }
 
-  .finance-toolbar {
+  .finance-page {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .finance-tabs-row {
+    flex-wrap: wrap;
     align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .finance-tabs-row .orders-tabs {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .finance-tabs-row .toolbar-settings {
+    flex: 0 0 auto;
+  }
+
+  .finance-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-total-strip {
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
+    gap: 8px 14px;
+  }
+
+  .finance-total-strip strong,
+  .finance-total-strip span {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .finance-add-cashbox {
+    flex-direction: column;
     width: 100%;
     min-width: 0;
     align-items: stretch;
@@ -932,14 +980,14 @@
 
   .finance-add-cashbox input {
     flex: 1 1 auto;
-    width: auto;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
   }
 
   .finance-add-cashbox button {
     flex: 0 1 auto;
-    width: auto;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
   }
@@ -967,16 +1015,20 @@
   .finance-cashbox-heading {
     justify-content: flex-start;
     flex-wrap: wrap;
+    min-width: 0;
   }
 
   .finance-cashbox-heading h3 {
     min-width: 0;
+    max-width: 100%;
     text-align: left;
     overflow-wrap: anywhere;
   }
 
   .finance-cashbox-balances {
     justify-items: stretch;
+    min-width: 0;
+    width: 100%;
   }
 
   .finance-cashbox-balance-row {
@@ -984,12 +1036,22 @@
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 4px 8px;
+    min-width: 0;
   }
 
   .finance-cashbox-card strong,
   .finance-cashbox-card p,
   .finance-cashbox-balance-row strong {
     text-align: left;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .finance-cashbox-balance-value,
+  .finance-cashbox-balance-amount,
+  .finance-cashbox-balance-currency-code {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .finance-cashbox-actions,
@@ -1543,6 +1605,11 @@
     overflow-x: auto;
   }
 
+  .finance-tabs-row .orders-tab {
+    padding: 10px 12px;
+    font-size: 0.92rem;
+  }
+
   .finance-settings-body input,
   .finance-settings-body select,
   .finance-settings-body button,
@@ -1606,6 +1673,21 @@
 
   .topbar-left {
     flex-basis: calc(100% - 48px);
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .topbar-title {
+    font-size: 1rem;
+  }
+
+  .finance-tabs-row .orders-tab {
+    padding: 10px 10px;
+    font-size: 0.88rem;
+  }
+
+  .finance-total-strip strong {
+    font-size: 1.1rem;
   }
 
   .orders-search-group {

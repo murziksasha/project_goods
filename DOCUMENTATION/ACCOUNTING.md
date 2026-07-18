@@ -10,6 +10,14 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
 
+## Mobile layout (phone, e.g. ~400px / Xiaomi-class)
+
+- Target: no horizontal page overflow in Accounting (topbar service name, tab strip, cashboxes content).
+- **Topbar** — long service names truncate with ellipsis; left cluster may shrink (`min-width: 0`).
+- **Tabs** (≤720px) — `.finance-tabs-row` wraps; tab strip scrolls horizontally when needed; gear stays usable. Slightly tighter tab padding/font at ≤530/≤480.
+- **Cashboxes** (≤720px) — toolbar stacks; totals wrap; add-cashbox input/button full width; cash cards single column with wrapping names/balances and full-width actions.
+- Styles: `frontend/src/shared/styles/responsive.css`, `domains/accounting.css`. See also [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) breakpoints.
+
 ## Finance report (`getFinanceReport`)
 
 - **Cashbox totals** — sum of current cashbox balances (not derived from transaction list).
@@ -105,6 +113,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `total > 0`
 - `overdue` rows remain payable when `total > 0` and receipt is not fully closed; auto-`overdue` must not remove them from the queue after operator status advancement.
 - Supplier orders with zero total (free-of-charge receipts) are allowed in Warehouse flows, but must not appear in this payment queue.
+- Opening a queue row resolves the full supplier order by Mongo `id`, then non-empty `orderBaseId`, then non-empty custom `number` — never by blank `number` (`'' === ''`).
 
 ## Payment Actions in Accounting
 - `Оплатити`:

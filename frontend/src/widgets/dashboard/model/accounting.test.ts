@@ -19,6 +19,7 @@ import {
   toFinanceTransactionsListParams,
   normalizeCurrencyActivity,
   findSupplierOrderByTransactionToken,
+  findSupplierOrderForQueueItem,
   isAccountingOrderLinkedNote,
   normalizeTransactionOrderToken,
   parseTransactionOrderToken,
@@ -542,5 +543,92 @@ describe('accounting model helpers', () => {
       kind: 'supplier',
       supplierOrder: supplierOrders[2],
     });
+  });
+
+  it('resolves queue item to the matching full order by stable ids, never blank number', () => {
+    const first = {
+      id: 'mongo-1',
+      orderBaseId: 'SO-1784219169682',
+      number: '',
+      supplierName: 'Supplier A',
+    };
+    const second = {
+      id: 'mongo-2',
+      orderBaseId: 'SO-1784271326271',
+      number: '',
+      supplierName: 'Supplier B',
+    };
+    const supplierOrders = [first, second] as any[];
+
+    const queueSecond: Pick<
+      SupplierOrderPaymentQueueItem,
+      'id' | 'orderBaseId' | 'number'
+    > = {
+      id: 'mongo-2',
+      orderBaseId: 'SO-1784271326271',
+      number: '',
+    };
+
+    expect(findSupplierOrderForQueueItem(queueSecond, supplierOrders)?.id).toBe(
+      'mongo-2',
+    );
+    expect(
+      findSupplierOrderForQueueItem(queueSecond, supplierOrders)?.supplierName,
+    ).toBe('Supplier B');
+
+    // id wins even when orderBaseId / number would point elsewhere
+    expect(
+      findSupplierOrderForQueueItem(
+        {
+          id: 'mongo-2',
+          orderBaseId: 'SO-1784219169682',
+          number: 'CUSTOM-A',
+        },
+        [
+          {
+            id: 'mongo-1',
+            orderBaseId: 'SO-1784219169682',
+            number: 'CUSTOM-A',
+            supplierName: 'Supplier A',
+          },
+          {
+            id: 'mongo-2',
+            orderBaseId: 'SO-1784271326271',
+            number: 'CUSTOM-B',
+            supplierName: 'Supplier B',
+          },
+        ] as any[],
+      )?.id,
+    ).toBe('mongo-2');
+
+    // non-empty custom number is valid fallback when id / base miss
+    expect(
+      findSupplierOrderForQueueItem(
+        { id: 'missing-id', orderBaseId: '', number: 'INV-77' },
+        [
+          { id: 'other', orderBaseId: 'SO-1', number: '' },
+          { id: 'target', orderBaseId: 'SO-2', number: 'INV-77' },
+        ] as any[],
+      )?.id,
+    ).toBe('target');
+
+    // empty number never steals the first empty-number order
+    expect(
+      findSupplierOrderForQueueItem(
+        { id: 'missing', orderBaseId: '', number: '' },
+        supplierOrders,
+      ),
+    ).toBeUndefined();
+
+    expect(
+      findSupplierOrderForQueueItem(
+        {
+          id: 'missing',
+          orderBaseId: 'SO-1784271326271',
+          number: '',
+        },
+        supplierOrders,
+      )?.id,
+    ).toBe('mongo-2');
   });
 });

@@ -7,6 +7,7 @@ import type {
 } from '../../../../entities/finance/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import {
+  findSupplierOrderForQueueItem,
   formatDateDdMmYyyy,
   formatMoney,
   truncateLabel,
@@ -129,11 +130,9 @@ export const AccountingSupplierOrdersQueue = ({
               supplierOrdersQueue.map((order) => {
                 const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
                 const orderNumber = getSupplierOrderDisplayNumber(order);
-                const fullOrder = supplierOrders.find(
-                  (supplierOrder) =>
-                    supplierOrder.id === order.id ||
-                    supplierOrder.orderBaseId === order.orderBaseId ||
-                    supplierOrder.number === order.number,
+                const fullOrder = findSupplierOrderForQueueItem(
+                  order,
+                  supplierOrders,
                 );
                 return (
                   <tr key={order.id} className='finance-orders-row'>

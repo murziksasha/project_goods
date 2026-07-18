@@ -449,26 +449,33 @@
 .finance-total-strip {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 14px;
+  min-width: 0;
   color: #425a73;
 }
 
 .finance-total-strip strong {
   color: var(--color-success-accent);
   font-size: 1.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .finance-add-cashbox {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .finance-add-cashbox input {
   border: 1px solid #cad4e0;
   border-radius: 6px;
   padding: 9px 12px;
-  min-width: min(220px, 100%);
+  min-width: 0;
+  flex: 1 1 160px;
+  max-width: 100%;
 }
 
 .finance-cashbox-grid {
@@ -833,6 +840,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.finance-tabs-row .orders-tabs {
+  min-width: 0;
 }
 
 .finance-settings-panel {

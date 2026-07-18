@@ -17,6 +17,15 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - `Data` panel: inclusive `Date from` / `Date to` / `Clear dates` filter on `deliveryDate`.
 - Column visibility + starred-only filter persist in local storage.
 
+## Table columns (gear)
+
+Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid`, `supplier`, **`createdAt` (Order date)**, `deliveryDate`, `status`, `paymentStatus`.
+
+- **`createdAt` / Order date** — order creation timestamp (`SupplierOrder.createdAt` from API); shown left of **Delivery date**.
+- Labels: EN `Order date`, UK `Дата замовлення` (`orders.supplier.columns.createdAt`).
+- Locked column: `number` only.
+- Existing saved column prefs omit new keys until the user enables them in the gear; empty/invalid prefs default to all columns.
+
 ## Row status window
 
 - Status is a badge button (not native `<select>`); edit requires `supplierOrders.manage`.

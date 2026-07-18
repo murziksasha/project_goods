@@ -168,6 +168,28 @@ export const findSupplierOrderByTransactionToken = (
   );
 };
 
+/** Resolve full supplier order for an Accounting queue row. Never match blank numbers. */
+export const findSupplierOrderForQueueItem = (
+  queueItem: Pick<SupplierOrderPaymentQueueItem, 'id' | 'orderBaseId' | 'number'>,
+  supplierOrders: SupplierOrder[],
+): SupplierOrder | undefined => {
+  const byId = supplierOrders.find((order) => order.id === queueItem.id);
+  if (byId) return byId;
+
+  const baseId = queueItem.orderBaseId?.trim();
+  if (baseId) {
+    const byBase = supplierOrders.find((order) => order.orderBaseId === baseId);
+    if (byBase) return byBase;
+  }
+
+  const number = queueItem.number?.trim();
+  if (number) {
+    return supplierOrders.find((order) => order.number?.trim() === number);
+  }
+
+  return undefined;
+};
+
 export type TransactionNoteLinkResolution =
   | { kind: 'sale'; sale: Sale }
   | { kind: 'supplier'; supplierOrder: SupplierOrder }
