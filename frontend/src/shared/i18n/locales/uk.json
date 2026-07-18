@@ -976,6 +976,7 @@
         "total": "Сума",
         "paid": "Оплачено",
         "supplier": "Постачальник",
+        "createdAt": "Дата замовлення",
         "deliveryDate": "Дата поставки",
         "status": "Статус",
         "paymentStatus": "Статус оплати"

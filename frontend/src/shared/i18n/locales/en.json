@@ -976,6 +976,7 @@
         "total": "Total",
         "paid": "Paid",
         "supplier": "Supplier",
+        "createdAt": "Order date",
         "deliveryDate": "Delivery date",
         "status": "Status",
         "paymentStatus": "Payment status"

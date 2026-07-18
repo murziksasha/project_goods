@@ -90,8 +90,9 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 |------|-----------|-------|
 | Desktop | > 1024px | Default dashboard grid |
 | Tablet | 1024px | Order detail sections collapse |
-| Mobile | 720px | Stacked toolbars |
-| Phone | 480px | Tighter spacing, full-width controls |
+| Mobile | 720px | Stacked toolbars; Accounting tabs scroll/wrap; cashboxes stack; topbar title shrinks |
+| Finance refine | 530px | Extra full-width finance controls / tab padding |
+| Phone | 480px | Tighter spacing, full-width controls, smaller finance tabs/title |
 
 ## Tier toggle (R / W)
 
