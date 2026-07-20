@@ -1,13 +1,6 @@
 import type { EmployeeDocument } from '../domain/employee/model';
 
-declare global {
-  namespace Express {
-    interface Request {
-      employee?: EmployeeDocument;
-    }
-  }
-}
-
+/** Augments Express Request for authenticated employee (must be imported from app entry). */
 declare module 'express-serve-static-core' {
   interface Request {
     employee?: EmployeeDocument;

@@ -369,14 +369,14 @@ export const ClientsWorkspace = ({
 
   const selectedHistorySales =
     history?.client.id === selectedClientId ? history.sales : [];
-  const servicesHistory = selectedHistorySales.filter(
+  const ordersHistory = selectedHistorySales.filter(
     (sale) => sale.kind === 'repair',
   );
   const salesHistory = selectedHistorySales.filter(
     (sale) => sale.kind === 'sale',
   );
   const activeHistoryRows =
-    clientCardTab === 'services' ? servicesHistory : salesHistory;
+    clientCardTab === 'orders' ? ordersHistory : salesHistory;
 
   const mergeTargetOptions = useMemo(() => {
     const query = mergeTargetQuery.trim();
@@ -766,6 +766,7 @@ export const ClientsWorkspace = ({
       {isClientCardOpen ? (
         <ClientCardModal
           activeHistoryRows={activeHistoryRows}
+          historySales={selectedHistorySales}
           clientCardTab={clientCardTab}
           historyClient={history?.client ?? null}
           isHistoryLoading={isHistoryLoading}
@@ -774,10 +775,22 @@ export const ClientsWorkspace = ({
             statsByClient.get(selectedClientId ?? '')?.visits
             ?? selectedHistorySales.length
           }
-          clientTotalRevenue={selectedHistorySales.reduce(
-            (sum, sale) => sum + getClientSaleIncome(sale),
-            0,
-          )}
+          clientTotalRevenue={
+            clientCardTab === 'orders'
+              ? ordersHistory.reduce(
+                  (sum, sale) => sum + getClientSaleIncome(sale),
+                  0,
+                )
+              : clientCardTab === 'sales'
+                ? salesHistory.reduce(
+                    (sum, sale) => sum + getClientSaleIncome(sale),
+                    0,
+                  )
+                : selectedHistorySales.reduce(
+                    (sum, sale) => sum + getClientSaleIncome(sale),
+                    0,
+                  )
+          }
           mainTabForm={mainTabForm}
           mainTabPhoneError={mainTabPhoneError}
           selectedClient={selectedClient}

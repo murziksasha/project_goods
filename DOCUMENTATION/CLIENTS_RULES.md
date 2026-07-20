@@ -26,11 +26,26 @@
 - When viewing a concrete client's history/card, a total Revenue / profit summary must be shown for the visible rows (in addition to per-row amounts).
 - The server-side `/clients/:id/history` returns `stats.totalRevenue` for the full lifetime; the UI may filter by period and recompute for the selection.
 
-## Client Card: Client Devices Tab
+## Client Card Tabs
 
-- In `Clients & suppliers -> Clients`, opening a client card shows tabs: `Main`, `Services`, `Sales`, `Client devices`.
+- In `Clients & suppliers -> Clients`, opening a client card shows **5 header tabs** (always visible under the title row):
+  1. `Main` — editable client form (name, phones, status, IBAN, note, save).
+  2. `Orders` — repair orders for this client (`sale.kind === 'repair'`).
+  3. `Sales` — sales for this client (`sale.kind === 'sale'`).
+  4. `Client devices` — active client devices + Unbind.
+  5. `Information` — aggregate stats (orders/sales counts and amounts, total, first/last contact).
+- Tab strip uses dedicated `clients-card-tabs` styles (sale-card related-tabs pattern), not body-only scroll content.
+- Layout shell is always 2 rows (`header` + scrollable `body`); tabs live in the header extra row so they stay visible while the body scrolls.
+- Responsive:
+  - tabs scroll horizontally on narrow widths;
+  - phone + “total for client” share one meta row (desktop/tablet); stack vertically under ~530px;
+  - history table becomes label/value cards under ~720px (same pattern as other orders tables);
+  - modal uses `100dvh` / full-width near phone widths so content is not clipped.
+- Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
+- On `Orders` / `Sales`, row click or order number opens that sale/order card for the client.
+- On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.
 - `Client devices` lists active `Clients goods` records for the selected client only.
-- Each row shows device name, note, activity, and an `Unbind` action.
+- Each device row shows device name, note, activity, and an `Unbind` action.
 - `Unbind` follows the same rules as `Clients goods`:
   - unused device (`canRemove = true`) is deleted after confirmation;
   - device used in orders/sales is deactivated (`isActive = false`) after confirmation;

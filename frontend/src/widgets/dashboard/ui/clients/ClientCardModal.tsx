@@ -39,6 +39,7 @@ import { Modal } from '../../../../shared/ui/Modal';
 
 type ClientCardModalProps = {
   activeHistoryRows: Sale[];
+  historySales?: Sale[];
   clientCardTab: ClientCardTab;
   historyClient: Client | null;
   isHistoryLoading: boolean;
@@ -66,13 +67,15 @@ type ClientCardModalProps = {
 
 const clientCardTabs: Array<{ key: ClientCardTab; labelKey: string }> = [
   { key: 'main', labelKey: 'clients.tabs.main' },
-  { key: 'services', labelKey: 'clients.tabs.services' },
+  { key: 'orders', labelKey: 'clients.tabs.orders' },
   { key: 'sales', labelKey: 'clients.tabs.sales' },
   { key: 'devices', labelKey: 'clients.tabs.devices' },
+  { key: 'information', labelKey: 'clients.tabs.information' },
 ];
 
 export const ClientCardModal = ({
   activeHistoryRows,
+  historySales = [],
   clientCardTab,
   historyClient,
   isHistoryLoading,
@@ -105,6 +108,53 @@ export const ClientCardModal = ({
         : [],
     [clientDevices, selectedClientId],
   );
+  const clientInfoStats = useMemo(() => {
+    const stats = historySales.reduce(
+      (accumulator, sale) => {
+        const total = getClientSaleIncome(sale);
+        if (sale.kind === 'repair') {
+          accumulator.ordersCount += 1;
+          accumulator.ordersAmount += total;
+        } else {
+          accumulator.salesCount += 1;
+          accumulator.salesAmount += total;
+        }
+        return accumulator;
+      },
+      {
+        ordersCount: 0,
+        ordersAmount: 0,
+        salesCount: 0,
+        salesAmount: 0,
+      },
+    );
+    const times = historySales
+      .map((sale) => {
+        const raw = sale.saleDate || sale.createdAt;
+        const time = new Date(raw).getTime();
+        return { value: raw, time };
+      })
+      .filter((item) => Number.isFinite(item.time));
+    const firstContactAt =
+      times.length > 0
+        ? times.reduce((prev, curr) =>
+            curr.time < prev.time ? curr : prev,
+          ).value
+        : null;
+    const lastContactAt =
+      times.length > 0
+        ? times.reduce((prev, curr) =>
+            curr.time > prev.time ? curr : prev,
+          ).value
+        : null;
+    return {
+      ...stats,
+      totalCount: stats.ordersCount + stats.salesCount,
+      totalAmount: stats.ordersAmount + stats.salesAmount,
+      firstContactAt,
+      lastContactAt,
+    };
+  }, [historySales]);
   const handleUnbindDevice = async (device: ClientDevice) => {
     if (!device.isActive || unbindingDeviceId) return;
 
@@ -143,11 +193,40 @@ export const ClientCardModal = ({
     historyClient?.name ??
     t('clients.card.titleFallback');
   const clientPhone = selectedClient?.phone ?? historyClient?.phone ?? '';
-  const visits = clientVisitCount ?? activeHistoryRows.length;
+  const visits = clientVisitCount ?? historySales.length;
   const stored = (selectedClient?.status ??
     historyClient?.status ??
     '') as ClientStatus | '';
   const effectiveStatus = getEffectiveClientStatusLogic(stored || '', visits);
+  const needsHistory =
+    clientCardTab === 'orders' ||
+    clientCardTab === 'sales' ||
+    clientCardTab === 'information';
+  const isHistoryListTab =
+    clientCardTab === 'orders' || clientCardTab === 'sales';
+  const historyListTotal =
+    clientTotalRevenue ??
+    activeHistoryRows.reduce(
+      (sum, sale) => sum + getClientSaleIncome(sale),
+      0,
+    );
+
+  const tablist = (
+    <div
+      className="clients-card-tabs"
+      role="tablist"
+      aria-label={t('clients.card.tablistAriaLabel')}
+    >
+      {clientCardTabs.map((tab) => (
+        <ClientCardTabButton
+          key={tab.key}
+          isActive={clientCardTab === tab.key}
+          label={t(tab.labelKey)}
+          onClick={() => onTabChange(tab.key)}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <Modal
@@ -159,6 +238,7 @@ export const ClientCardModal = ({
       shellClassName="clients-card-modal modal-dialog"
       headerClassName="clients-card-header"
       bodyClassName="clients-card-body"
+      headerExtra={tablist}
       headerActions={
         effectiveStatus ? (
           <span
@@ -175,85 +255,66 @@ export const ClientCardModal = ({
         ) : null
       }
     >
-      {clientPhone ? <p className="panel-subtitle">{clientPhone}</p> : null}
-        <div
-          className='orders-tabs clients-card-tabs'
-          role='tablist'
-          aria-label={t('clients.card.tablistAriaLabel')}
-        >
-          {clientCardTabs.map((tab) => (
-            <ClientCardTabButton
-              key={tab.key}
-              isActive={clientCardTab === tab.key}
-              label={t(tab.labelKey)}
-              onClick={() => onTabChange(tab.key)}
-            />
-          ))}
-        </div>
-
-          {isHistoryLoading &&
-          clientCardTab !== 'main' &&
-          clientCardTab !== 'devices' ? (
-            <p className='empty-state'>
-              {t('clients.card.loadingHistory')}
-            </p>
-          ) : !selectedClientId ? (
-            <p className='empty-state'>
-              {t('clients.card.selectClient')}
-            </p>
-          ) : clientCardTab === 'devices' ? (
-            clientDeviceRows.length === 0 ? (
-              <p className='empty-state'>{t('clients.card.noDevices')}</p>
-            ) : (
-              <ClientDevicesTable
-                devices={clientDeviceRows}
-                unbindingDeviceId={unbindingDeviceId}
-                onUnbind={(device) => {
-                  void handleUnbindDevice(device);
-                }}
-              />
-            )
-          ) : clientCardTab === 'main' ? (
-            <ClientMainFormFields
-              form={mainTabForm}
-              isSaving={isSaving}
-              phoneError={mainTabPhoneError}
-              clientVisitCount={clientVisitCount ?? activeHistoryRows.length}
-              onChange={updateForm}
-              onFormChange={onMainTabFormChange}
-              onClearPhoneError={onClearPhoneError}
-              onSave={onSaveMainTab}
-              onValidatePhone={onValidatePhone}
-            />
-          ) : activeHistoryRows.length === 0 ? (
-            <p className='empty-state'>
-              {clientCardTab === 'services'
-                ? t('clients.card.noServices')
-                : t('clients.card.noSales')}
-            </p>
+      {clientPhone || isHistoryListTab ? (
+        <div className="clients-card-meta-row">
+          {clientPhone ? (
+            <p className="panel-subtitle clients-card-phone">{clientPhone}</p>
           ) : (
-            <>
-              <div className="history-stats" style={{ marginBottom: 8 }}>
-                <div className="metric-card compact">
-                  <span className="metric-label">Total for client</span>
-                  <strong>
-                    {formatClientIncome(
-                      clientTotalRevenue ??
-                        activeHistoryRows.reduce(
-                          (sum, sale) => sum + getClientSaleIncome(sale),
-                          0,
-                        ),
-                    )}
-                  </strong>
-                </div>
-              </div>
-              <ClientHistoryTable
-                rows={activeHistoryRows}
-                tab={clientCardTab}
-                onOpenSaleCard={onOpenSaleCard}
-              />
-            </>
+            <span className="clients-card-phone" />
           )}
+          {isHistoryListTab && selectedClientId && !isHistoryLoading ? (
+            <p className="clients-card-total-inline">
+              <span>{t('clients.card.totalForClient')}</span>
+              <span aria-hidden="true"> — </span>
+              <strong>{formatClientIncome(historyListTotal)}</strong>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isHistoryLoading && needsHistory ? (
+        <p className="empty-state">{t('clients.card.loadingHistory')}</p>
+      ) : !selectedClientId ? (
+        <p className="empty-state">{t('clients.card.selectClient')}</p>
+      ) : clientCardTab === 'devices' ? (
+        clientDeviceRows.length === 0 ? (
+          <p className="empty-state">{t('clients.card.noDevices')}</p>
+        ) : (
+          <ClientDevicesTable
+            devices={clientDeviceRows}
+            unbindingDeviceId={unbindingDeviceId}
+            onUnbind={(device) => {
+              void handleUnbindDevice(device);
+            }}
+          />
+        )
+      ) : clientCardTab === 'main' ? (
+        <ClientMainFormFields
+          form={mainTabForm}
+          isSaving={isSaving}
+          phoneError={mainTabPhoneError}
+          clientVisitCount={clientVisitCount ?? historySales.length}
+          onChange={updateForm}
+          onFormChange={onMainTabFormChange}
+          onClearPhoneError={onClearPhoneError}
+          onSave={onSaveMainTab}
+          onValidatePhone={onValidatePhone}
+        />
+      ) : clientCardTab === 'information' ? (
+        <ClientInformationPanel stats={clientInfoStats} />
+      ) : activeHistoryRows.length === 0 ? (
+        <p className="empty-state">
+          {clientCardTab === 'orders'
+            ? t('clients.card.noOrders')
+            : t('clients.card.noSales')}
+        </p>
+      ) : (
+        <ClientHistoryTable
+          rows={activeHistoryRows}
+          tab={clientCardTab}
+          onOpenSaleCard={onOpenSaleCard}
+        />
+      )}
     </Modal>
   );
 };
@@ -268,15 +329,71 @@ const ClientCardTabButton = ({
   onClick: () => void;
 }) => (
   <button
-    type='button'
+    type="button"
+    role="tab"
+    aria-selected={isActive}
     className={
-      isActive ? 'orders-tab orders-tab-active' : 'orders-tab'
+      isActive ? 'clients-card-tab clients-card-tab-active' : 'clients-card-tab'
     }
     onClick={onClick}
   >
     {label}
   </button>
 );
+
+const ClientInformationPanel = ({
+  stats,
+}: {
+  stats: {
+    ordersCount: number;
+    ordersAmount: number;
+    salesCount: number;
+    salesAmount: number;
+    totalCount: number;
+    totalAmount: number;
+    firstContactAt: string | null;
+    lastContactAt: string | null;
+  };
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <dl className="clients-card-info-list">
+      <div>
+        <dt>{t('clients.card.info.orders')}</dt>
+        <dd>
+          {stats.ordersCount} | {formatClientIncome(stats.ordersAmount)}
+        </dd>
+      </div>
+      <div>
+        <dt>{t('clients.card.info.sales')}</dt>
+        <dd>
+          {stats.salesCount} | {formatClientIncome(stats.salesAmount)}
+        </dd>
+      </div>
+      <div>
+        <dt>{t('clients.card.info.total')}</dt>
+        <dd>
+          {stats.totalCount} | {formatClientIncome(stats.totalAmount)}
+        </dd>
+      </div>
+      <div>
+        <dt>{t('clients.card.info.firstContact')}</dt>
+        <dd>
+          {stats.firstContactAt
+            ? formatDateTime(stats.firstContactAt)
+            : '-'}
+        </dd>
+      </div>
+      <div>
+        <dt>{t('clients.card.info.lastContact')}</dt>
+        <dd>
+          {stats.lastContactAt ? formatDateTime(stats.lastContactAt) : '-'}
+        </dd>
+      </div>
+    </dl>
+  );
+};
 
 const ClientMainFormFields = ({
   form,
@@ -506,7 +623,7 @@ const ClientHistoryTable = ({
 }) => {
   const { t } = useTranslation();
   const itemColumnLabel =
-    tab === 'services'
+    tab === 'orders'
       ? t('clients.card.history.columns.service')
       : t('clients.card.history.columns.sale');
 

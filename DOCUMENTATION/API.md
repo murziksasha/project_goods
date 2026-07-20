@@ -206,7 +206,7 @@ Client status localization rule: keep client status values in original English (
 - UI entry points for unbind/remove:
   - `Products & Services -> Clients goods` device modal (`Remove`);
   - `Order card -> Change device` modal (`Unbind`);
-  - `Clients & suppliers -> Client card -> Client devices` tab (`Unbind`).
+  - `Clients & suppliers -> Client card -> Client devices` header tab (`Unbind`).
 - Unbind semantics in UI:
   - `DELETE /client-devices/:deviceId` when `canRemove = true` (device not used in orders/sales);
   - `PUT /client-devices/:deviceId` with `isActive = false` when device is used in orders/sales.

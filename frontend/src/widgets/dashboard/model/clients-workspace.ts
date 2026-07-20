@@ -30,7 +30,12 @@ export type ClientFilters = {
   status: ClientStatus | '' | 'all';
 };
 
-export type ClientCardTab = 'main' | 'services' | 'sales' | 'devices';
+export type ClientCardTab =
+  | 'main'
+  | 'orders'
+  | 'sales'
+  | 'devices'
+  | 'information';
 
 export type ClientStats = {
   visits: number;
@@ -175,10 +180,12 @@ export const formatClientIncome = (value: number) =>
 export const getStoredClientCardTab = (): ClientCardTab => {
   try {
     const storedTab = window.localStorage.getItem(clientCardTabStorageKey);
+    if (storedTab === 'services') return 'orders';
     return storedTab === 'main' ||
-      storedTab === 'services' ||
+      storedTab === 'orders' ||
       storedTab === 'sales' ||
-      storedTab === 'devices'
+      storedTab === 'devices' ||
+      storedTab === 'information'
       ? storedTab
       : 'main';
   } catch {
@@ -225,7 +232,7 @@ export const getLegacyClientAddress = (client: Client) =>
   getMetaFieldFromNoteLegacy(client.note, 'Address');
 
 export const formatItemList = (sale: Sale, tab: ClientCardTab) => {
-  const targetKind = tab === 'services' ? 'service' : 'product';
+  const targetKind = tab === 'orders' ? 'service' : 'product';
   const lineItems = (sale.lineItems ?? []).filter(
     (item) => item.kind === targetKind,
   );

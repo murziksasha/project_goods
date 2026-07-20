@@ -1,8 +1,11 @@
 {
   "tabs": {
     "main": "Основне",
+    "orders": "Замовлення",
     "services": "Послуги",
     "sales": "Продажі",
+    "devices": "Пристрої клієнта",
+    "information": "Інформація",
     "clientsAndSuppliers": "Клієнти та постачальники",
     "clients": "Клієнти",
     "suppliers": "Постачальники"
