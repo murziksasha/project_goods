@@ -1,3 +1,4 @@
+import '../../types/express-augment';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { getBearerToken, getEmployeeByToken } from '../../domain/auth/service';
 

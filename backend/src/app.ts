@@ -1,3 +1,4 @@
+import './types/express-augment';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';

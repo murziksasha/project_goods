@@ -198,7 +198,7 @@
 - `Remove` action asks for confirmation.
 - The same unbind rules are also available outside `Clients goods`:
   - `Order card -> Change device` modal: each active client device row has `Unbind`;
-  - `Clients & suppliers -> Client card -> Client devices` tab: each active client device row has `Unbind`.
+  - `Clients & suppliers -> Client card -> Client devices` header tab: each active client device row has `Unbind`.
 - In both entry points, `Unbind` means delete when unused and deactivate when used; confirmation is required in both cases.
 
 ## Sales Flow: Product Add Action

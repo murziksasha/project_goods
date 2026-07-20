@@ -12,6 +12,9 @@
     "forceConsistentCasingInFileNames": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["server.ts", "src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["server.ts", "src/**/*.ts", "src/**/*.d.ts"],
+  "exclude": ["src/**/*.test.ts"],
+  "ts-node": {
+    "files": true
+  }
 }

@@ -13,6 +13,8 @@ export type ModalProps = {
   title: string;
   subtitle?: ReactNode;
   headerActions?: ReactNode;
+  /** Optional block under the title row (e.g. client card tabs). */
+  headerExtra?: ReactNode;
   children: ReactNode;
   onClose: () => void;
   closeLabel?: string;
@@ -67,6 +69,7 @@ export const Modal = ({
   title,
   subtitle,
   headerActions,
+  headerExtra,
   children,
   onClose,
   closeLabel = 'Close',
@@ -196,21 +199,44 @@ export const Modal = ({
         tabIndex={-1}
       >
         <header
-          className={`catalog-edit-header ${headerClassName}`.trim()}
+          className={`catalog-edit-header ${headerExtra ? 'catalog-edit-header-stacked' : ''} ${headerClassName}`.trim()}
         >
-          <div className="catalog-edit-title">
-            {subtitle ? <span>{subtitle}</span> : null}
-            <h2 id={titleId}>{title}</h2>
-          </div>
-          {headerActions}
-          <Button
-            variant="ghost"
-            className="modal-close-button"
-            onClick={onClose}
-            aria-label={closeLabel}
-          >
-            &times;
-          </Button>
+          {headerExtra ? (
+            <>
+              <div className="catalog-edit-header-main">
+                <div className="catalog-edit-title">
+                  {subtitle ? <span>{subtitle}</span> : null}
+                  <h2 id={titleId}>{title}</h2>
+                </div>
+                {headerActions}
+                <Button
+                  variant="ghost"
+                  className="modal-close-button"
+                  onClick={onClose}
+                  aria-label={closeLabel}
+                >
+                  &times;
+                </Button>
+              </div>
+              <div className="catalog-edit-header-extra">{headerExtra}</div>
+            </>
+          ) : (
+            <>
+              <div className="catalog-edit-title">
+                {subtitle ? <span>{subtitle}</span> : null}
+                <h2 id={titleId}>{title}</h2>
+              </div>
+              {headerActions}
+              <Button
+                variant="ghost"
+                className="modal-close-button"
+                onClick={onClose}
+                aria-label={closeLabel}
+              >
+                &times;
+              </Button>
+            </>
+          )}
         </header>
         <div className={`catalog-edit-body ${bodyClassName}`.trim()}>
           {children}

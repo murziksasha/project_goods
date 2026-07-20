@@ -837,7 +837,48 @@
 
   .clients-card-modal {
     width: min(100vw - 16px, 940px);
-    height: min(760px, calc(100vh - 16px));
+    max-width: calc(100vw - 16px);
+    height: min(760px, calc(100dvh - 16px), calc(100vh - 16px));
+    max-height: min(calc(100dvh - 16px), calc(100vh - 16px));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .clients-card-header .catalog-edit-header-main {
+    padding: 12px 12px;
+    gap: 8px;
+  }
+
+  .clients-card-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .clients-card-tabs .clients-card-tab {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+
+  .clients-card-body {
+    padding: 12px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .clients-card-meta-row {
+    gap: 6px 12px;
+  }
+
+  .clients-card-total-inline {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .clients-card-body .clients-main-save {
+    max-width: none;
+    width: 100%;
   }
 
   .catalog-edit-modal,
@@ -855,7 +896,6 @@
   .product-model-modal,
   .payment-modal,
   .clients-modal,
-  .clients-card-modal,
   .supplier-order-modal,
   .order-print-dialog {
     display: grid;
@@ -870,7 +910,6 @@
   .payment-modal-summary,
   .payment-modal-form,
   .clients-modal-body,
-  .clients-card-body,
   .supplier-order-modal-body {
     min-height: 0;
     overflow-y: auto;
@@ -1547,6 +1586,57 @@
 }
 
 @media (max-width: 530px) {
+  .clients-card-modal {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    height: min(calc(100dvh - 12px), calc(100vh - 12px));
+    max-height: min(calc(100dvh - 12px), calc(100vh - 12px));
+    border-radius: 8px;
+  }
+
+  .clients-card-header .catalog-edit-header-main {
+    padding: 10px 10px;
+  }
+
+  .clients-card-header h2 {
+    font-size: 1rem;
+  }
+
+  .clients-card-tabs .clients-card-tab {
+    padding: 9px 10px;
+    font-size: 0.88rem;
+  }
+
+  .clients-card-body {
+    padding: 10px;
+  }
+
+  .clients-card-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .clients-card-total-inline {
+    margin-left: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .clients-card-info-list > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .clients-card-info-list dd {
+    text-align: left;
+  }
+
+  .clients-card-devices-table .clients-device-unbind {
+    width: 100%;
+  }
+
   .finance-page {
     min-width: 0;
   }
@@ -1667,6 +1757,19 @@
 }
 
 @media (max-width: 480px) {
+  .clients-card-modal {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .clients-card-tabs .clients-card-tab {
+    padding: 10px 12px;
+    min-height: 40px;
+  }
+
   .topbar-menu-button {
     flex: 0 0 36px;
   }
