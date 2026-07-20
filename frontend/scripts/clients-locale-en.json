@@ -1,8 +1,11 @@
 {
   "tabs": {
     "main": "Main",
+    "orders": "Orders",
     "services": "Services",
     "sales": "Sales",
+    "devices": "Client devices",
+    "information": "Information",
     "clientsAndSuppliers": "Clients and suppliers",
     "clients": "Clients",
     "suppliers": "Suppliers"

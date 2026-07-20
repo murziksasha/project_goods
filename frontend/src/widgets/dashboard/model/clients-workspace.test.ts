@@ -52,6 +52,16 @@ describe('getStoredClientCardTab', () => {
     window.localStorage.setItem('project-goods.client-card-tab', 'devices');
     expect(getStoredClientCardTab()).toBe('devices');
   });
+
+  it('migrates legacy services tab to orders', () => {
+    window.localStorage.setItem('project-goods.client-card-tab', 'services');
+    expect(getStoredClientCardTab()).toBe('orders');
+  });
+
+  it('restores information tab from local storage', () => {
+    window.localStorage.setItem('project-goods.client-card-tab', 'information');
+    expect(getStoredClientCardTab()).toBe('information');
+  });
 });
 
 describe('getClientStatsMap', () => {

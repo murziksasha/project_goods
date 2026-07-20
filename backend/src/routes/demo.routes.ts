@@ -1,3 +1,4 @@
+import '../types/express-augment';
 import { Router, type Request } from 'express';
 import {
   eraseAllDataExceptEmployees,

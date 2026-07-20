@@ -1287,9 +1287,11 @@
   "clients": {
     "tabs": {
       "main": "Main",
+      "orders": "Orders",
       "services": "Services",
       "sales": "Sales",
       "devices": "Client devices",
+      "information": "Information",
       "clientsAndSuppliers": "Clients and suppliers",
       "clients": "Clients",
       "suppliers": "Suppliers"
@@ -1356,9 +1358,18 @@
       "tablistAriaLabel": "Client card",
       "loadingHistory": "Loading client history...",
       "selectClient": "Select a client from the list.",
+      "noOrders": "No orders found for this client.",
       "noServices": "No services found for this client.",
       "noSales": "No sales found for this client.",
       "noDevices": "No active client devices found for this client.",
+      "totalForClient": "Total for client",
+      "info": {
+        "orders": "Orders",
+        "sales": "Sales",
+        "total": "Total",
+        "firstContact": "First contact",
+        "lastContact": "Last contact"
+      },
       "devices": {
         "unbind": "Unbind",
         "unbinding": "Unbinding...",

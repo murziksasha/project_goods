@@ -405,7 +405,7 @@ describe('ClientsWorkspace', () => {
     });
 
     fireEvent.click(screen.getByText('Ivan Petrenko'));
-    fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
     fireEvent.click(screen.getByRole('button', { name: 'r000001' }));
 
     expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
@@ -440,7 +440,7 @@ describe('ClientsWorkspace', () => {
     });
 
     fireEvent.click(screen.getByText('Ivan Petrenko'));
-    fireEvent.click(screen.getByRole('button', { name: 'Client devices' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Client devices' }));
     fireEvent.click(screen.getByRole('button', { name: 'Unbind' }));
 
     await vi.waitFor(() => {
