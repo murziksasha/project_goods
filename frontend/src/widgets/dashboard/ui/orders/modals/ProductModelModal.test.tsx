@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
@@ -51,13 +51,18 @@ const serialPurchaseProducts = () => {
   };
 };
 
+const getPrintButton = () =>
+  screen.getByRole('button', {
+    name: /print|друк|select serial|оберіть серійні/i,
+  });
+
 afterEach(async () => {
   vi.clearAllMocks();
   await i18n.changeLanguage('en');
 });
 
 describe('ProductModelModal serial printing', () => {
-  it('prints only the clicked serial product', () => {
+  it('pre-selects the clicked serial and prints it by default', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
       .mockResolvedValue();
@@ -84,11 +89,23 @@ describe('ProductModelModal serial printing', () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: i18n.t('catalog.productModel.printSerialNumber'),
+    expect(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'R0035759',
+        }),
       }),
-    );
+    ).toBeChecked();
+    expect(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'R0035758',
+        }),
+      }),
+    ).not.toBeChecked();
+    expect(screen.getByText('1')).toBeInTheDocument();
+
+    fireEvent.click(getPrintButton());
 
     expect(printSpy).toHaveBeenCalledWith(
       [
@@ -103,6 +120,138 @@ describe('ProductModelModal serial printing', () => {
     );
 
     printSpy.mockRestore();
+  });
+
+  it('prints all checked serials and updates badge count', () => {
+    const printSpy = vi
+      .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
+      .mockResolvedValue();
+
+    const first = createProduct({
+      id: 'product-a',
+      serialNumber: 'SN-A',
+      article: 'ART-A',
+    });
+    const second = createProduct({
+      id: 'product-b',
+      serialNumber: 'SN-B',
+      article: 'ART-B',
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[first, second]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const printButton = getPrintButton();
+    expect(printButton).toBeDisabled();
+    expect(
+      document.querySelector('.product-model-print-badge'),
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'SN-A',
+        }),
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'SN-B',
+        }),
+      }),
+    );
+
+    const badge = document.querySelector('.product-model-print-badge');
+    expect(badge).not.toBeNull();
+    expect(badge).toHaveTextContent('2');
+    expect(printButton).toBeEnabled();
+
+    fireEvent.click(printButton);
+
+    expect(printSpy).toHaveBeenCalledWith(
+      [
+        {
+          name: first.name,
+          article: first.article,
+          serialNumber: first.serialNumber,
+        },
+        {
+          name: second.name,
+          article: second.article,
+          serialNumber: second.serialNumber,
+        },
+      ],
+      defaultPrintForms,
+      i18n.t('catalog.productModel.printSerialTitle'),
+    );
+
+    printSpy.mockRestore();
+  });
+
+  it('select-all checkbox toggles every printable serial', () => {
+    const first = createProduct({
+      id: 'product-a',
+      serialNumber: 'SN-A',
+    });
+    const second = createProduct({
+      id: 'product-b',
+      serialNumber: 'SN-B',
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[first, second]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selectAll = screen.getByRole('checkbox', {
+      name: i18n.t('catalog.productModel.selectAllSerials'),
+    });
+
+    fireEvent.click(selectAll);
+
+    expect(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'SN-A',
+        }),
+      }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'SN-B',
+        }),
+      }),
+    ).toBeChecked();
+    expect(
+      within(getPrintButton()).getByText('2'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(selectAll);
+
+    expect(
+      screen.getByRole('checkbox', {
+        name: i18n.t('catalog.productModel.selectSerialRow', {
+          serial: 'SN-A',
+        }),
+      }),
+    ).not.toBeChecked();
+    expect(getPrintButton()).toBeDisabled();
   });
 
   it('shows per-serial purchase rows and highlights the clicked serial', () => {
@@ -175,7 +324,7 @@ describe('ProductModelModal serial printing', () => {
     ).toBeInTheDocument();
   });
 
-  it('hides the serial print action without a clicked product', () => {
+  it('shows the serial print action without a clicked product when serials exist', () => {
     render(
       <ProductModelModal
         name='БЖ Meanwell 9V 1.66A'
@@ -187,9 +336,26 @@ describe('ProductModelModal serial printing', () => {
       />,
     );
 
+    const printButton = getPrintButton();
+    expect(printButton).toBeInTheDocument();
+    expect(printButton).toBeDisabled();
+  });
+
+  it('hides the serial print action when there are no printable serials', () => {
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[createProduct({ serialNumber: '   ' })]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
     expect(
       screen.queryByRole('button', {
-        name: i18n.t('catalog.productModel.printSerialNumber'),
+        name: /print|друк|select serial|оберіть серійні/i,
       }),
     ).not.toBeInTheDocument();
   });

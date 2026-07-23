@@ -1,4 +1,10 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   ClientDevice,
@@ -32,10 +38,20 @@ import {
   type ClientCardTab,
   type ClientMainForm,
 } from '../../model/clients-workspace';
+import {
+  CLIENT_CARD_PAGE_SIZE,
+  collectHistoryStatuses,
+  filterClientDeviceRows,
+  filterClientHistoryRows,
+  paginateItems,
+  type ClientDeviceListFilters,
+  type ClientHistoryListFilters,
+} from '../../model/client-card-list';
 import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { hasDuplicatePhones } from '../../../../shared/lib/phones';
 import { PhonesField } from '../../../../shared/ui/PhonesField';
 import { Modal } from '../../../../shared/ui/Modal';
+import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
 
 type ClientCardModalProps = {
   activeHistoryRows: Sale[];
@@ -101,6 +117,35 @@ export const ClientCardModal = ({
   const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
     null,
   );
+  const [listPage, setListPage] = useState(1);
+  const [listQuery, setListQuery] = useState('');
+  const [isListFilterOpen, setIsListFilterOpen] = useState(false);
+  const [historyFilters, setHistoryFilters] =
+    useState<ClientHistoryListFilters>({
+      query: '',
+      status: 'all',
+      dateFrom: '',
+      dateTo: '',
+    });
+  const [deviceFilters, setDeviceFilters] =
+    useState<ClientDeviceListFilters>({
+      query: '',
+      activity: 'all',
+    });
+
+  useEffect(() => {
+    setListPage(1);
+    setListQuery('');
+    setIsListFilterOpen(false);
+    setHistoryFilters({
+      query: '',
+      status: 'all',
+      dateFrom: '',
+      dateTo: '',
+    });
+    setDeviceFilters({ query: '', activity: 'all' });
+  }, [clientCardTab, selectedClientId]);
+
   const clientDeviceRows = useMemo(
     () =>
       selectedClientId
@@ -108,6 +153,70 @@ export const ClientCardModal = ({
         : [],
     [clientDevices, selectedClientId],
   );
+
+  const historyStatusOptions = useMemo(
+    () => collectHistoryStatuses(activeHistoryRows),
+    [activeHistoryRows],
+  );
+
+  const filteredHistoryRows = useMemo(
+    () =>
+      filterClientHistoryRows(
+        activeHistoryRows,
+        { ...historyFilters, query: listQuery },
+        clientCardTab,
+      ),
+    [activeHistoryRows, historyFilters, listQuery, clientCardTab],
+  );
+
+  const filteredDeviceRows = useMemo(
+    () =>
+      filterClientDeviceRows(
+        clientDeviceRows,
+        { ...deviceFilters, query: listQuery },
+        {
+          active: t('catalog.modals.active'),
+          inactive: t('catalog.modals.inactive'),
+        },
+      ),
+    [clientDeviceRows, deviceFilters, listQuery, t],
+  );
+
+  const paginatedHistory = useMemo(
+    () => paginateItems(filteredHistoryRows, listPage, CLIENT_CARD_PAGE_SIZE),
+    [filteredHistoryRows, listPage],
+  );
+
+  const paginatedDevices = useMemo(
+    () => paginateItems(filteredDeviceRows, listPage, CLIENT_CARD_PAGE_SIZE),
+    [filteredDeviceRows, listPage],
+  );
+
+  const historyActiveFilterCount =
+    (historyFilters.status !== 'all' ? 1 : 0) +
+    (historyFilters.dateFrom ? 1 : 0) +
+    (historyFilters.dateTo ? 1 : 0);
+  const deviceActiveFilterCount =
+    deviceFilters.activity !== 'all' ? 1 : 0;
+
+  const handleListQueryChange = (value: string) => {
+    setListQuery(value);
+    setListPage(1);
+  };
+
+  const handleHistoryFilterChange = (
+    patch: Partial<ClientHistoryListFilters>,
+  ) => {
+    setHistoryFilters((prev) => ({ ...prev, ...patch }));
+    setListPage(1);
+  };
+
+  const handleDeviceFilterChange = (
+    patch: Partial<ClientDeviceListFilters>,
+  ) => {
+    setDeviceFilters((prev) => ({ ...prev, ...patch }));
+    setListPage(1);
+  };
   const clientInfoStats = useMemo(() => {
     const stats = historySales.reduce(
       (accumulator, sale) => {
@@ -280,13 +389,38 @@ export const ClientCardModal = ({
         clientDeviceRows.length === 0 ? (
           <p className="empty-state">{t('clients.card.noDevices')}</p>
         ) : (
-          <ClientDevicesTable
-            devices={clientDeviceRows}
-            unbindingDeviceId={unbindingDeviceId}
-            onUnbind={(device) => {
-              void handleUnbindDevice(device);
-            }}
-          />
+          <div className="clients-card-list">
+            <ClientCardListToolbar
+              totalItems={paginatedDevices.total}
+              page={paginatedDevices.page}
+              pageSize={CLIENT_CARD_PAGE_SIZE}
+              query={listQuery}
+              isFilterOpen={isListFilterOpen}
+              activeFilterCount={deviceActiveFilterCount}
+              searchPlaceholder={t('clients.card.searchPlaceholder.devices')}
+              searchAriaLabel={t('clients.card.searchAriaLabel')}
+              onPageChange={setListPage}
+              onQueryChange={handleListQueryChange}
+              onToggleFilter={() => setIsListFilterOpen((open) => !open)}
+            />
+            {isListFilterOpen ? (
+              <ClientDeviceFiltersPanel
+                filters={deviceFilters}
+                onChange={handleDeviceFilterChange}
+              />
+            ) : null}
+            {paginatedDevices.total === 0 ? (
+              <p className="empty-state">{t('clients.card.noMatches')}</p>
+            ) : (
+              <ClientDevicesTable
+                devices={paginatedDevices.pageItems}
+                unbindingDeviceId={unbindingDeviceId}
+                onUnbind={(device) => {
+                  void handleUnbindDevice(device);
+                }}
+              />
+            )}
+          </div>
         )
       ) : clientCardTab === 'main' ? (
         <ClientMainFormFields
@@ -309,11 +443,41 @@ export const ClientCardModal = ({
             : t('clients.card.noSales')}
         </p>
       ) : (
-        <ClientHistoryTable
-          rows={activeHistoryRows}
-          tab={clientCardTab}
-          onOpenSaleCard={onOpenSaleCard}
-        />
+        <div className="clients-card-list">
+          <ClientCardListToolbar
+            totalItems={paginatedHistory.total}
+            page={paginatedHistory.page}
+            pageSize={CLIENT_CARD_PAGE_SIZE}
+            query={listQuery}
+            isFilterOpen={isListFilterOpen}
+            activeFilterCount={historyActiveFilterCount}
+            searchPlaceholder={t(
+              clientCardTab === 'orders'
+                ? 'clients.card.searchPlaceholder.orders'
+                : 'clients.card.searchPlaceholder.sales',
+            )}
+            searchAriaLabel={t('clients.card.searchAriaLabel')}
+            onPageChange={setListPage}
+            onQueryChange={handleListQueryChange}
+            onToggleFilter={() => setIsListFilterOpen((open) => !open)}
+          />
+          {isListFilterOpen ? (
+            <ClientHistoryFiltersPanel
+              filters={historyFilters}
+              statusOptions={historyStatusOptions}
+              onChange={handleHistoryFilterChange}
+            />
+          ) : null}
+          {paginatedHistory.total === 0 ? (
+            <p className="empty-state">{t('clients.card.noMatches')}</p>
+          ) : (
+            <ClientHistoryTable
+              rows={paginatedHistory.pageItems}
+              tab={clientCardTab}
+              onOpenSaleCard={onOpenSaleCard}
+            />
+          )}
+        </div>
       )}
     </Modal>
   );
@@ -340,6 +504,151 @@ const ClientCardTabButton = ({
     {label}
   </button>
 );
+
+const ClientCardListToolbar = ({
+  totalItems,
+  page,
+  pageSize,
+  query,
+  isFilterOpen,
+  activeFilterCount,
+  searchPlaceholder,
+  searchAriaLabel,
+  onPageChange,
+  onQueryChange,
+  onToggleFilter,
+}: {
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  query: string;
+  isFilterOpen: boolean;
+  activeFilterCount: number;
+  searchPlaceholder: string;
+  searchAriaLabel: string;
+  onPageChange: (page: number) => void;
+  onQueryChange: (value: string) => void;
+  onToggleFilter: () => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="clients-card-list-toolbar">
+      <CompactPaginationPanel
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+      />
+      <button
+        type="button"
+        className="toolbar-filter-button toolbar-filter-toggle-button"
+        aria-expanded={isFilterOpen}
+        onClick={onToggleFilter}
+      >
+        {t('clients.card.filter')}
+        {activeFilterCount > 0 ? (
+          <span className="toolbar-filter-count">{activeFilterCount}</span>
+        ) : null}
+      </button>
+      <div className="orders-search-group orders-search-group-clearable clients-card-list-search">
+        <input
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={searchPlaceholder}
+          aria-label={searchAriaLabel}
+        />
+        {query ? (
+          <button
+            type="button"
+            className="orders-search-clear"
+            aria-label={t('clients.card.clearSearchAriaLabel')}
+            onClick={() => onQueryChange('')}
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+const ClientHistoryFiltersPanel = ({
+  filters,
+  statusOptions,
+  onChange,
+}: {
+  filters: ClientHistoryListFilters;
+  statusOptions: string[];
+  onChange: (patch: Partial<ClientHistoryListFilters>) => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="clients-card-list-filters">
+      <label className="clients-card-list-filter-field">
+        <span>{t('clients.card.filters.status')}</span>
+        <select
+          value={filters.status}
+          onChange={(event) => onChange({ status: event.target.value })}
+        >
+          <option value="all">{t('clients.card.filters.statusAll')}</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="clients-card-list-filter-field">
+        <span>{t('clients.card.filters.dateFrom')}</span>
+        <input
+          type="date"
+          value={filters.dateFrom}
+          onChange={(event) => onChange({ dateFrom: event.target.value })}
+        />
+      </label>
+      <label className="clients-card-list-filter-field">
+        <span>{t('clients.card.filters.dateTo')}</span>
+        <input
+          type="date"
+          value={filters.dateTo}
+          onChange={(event) => onChange({ dateTo: event.target.value })}
+        />
+      </label>
+    </div>
+  );
+};
+
+const ClientDeviceFiltersPanel = ({
+  filters,
+  onChange,
+}: {
+  filters: ClientDeviceListFilters;
+  onChange: (patch: Partial<ClientDeviceListFilters>) => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="clients-card-list-filters">
+      <label className="clients-card-list-filter-field">
+        <span>{t('clients.card.filters.activity')}</span>
+        <select
+          value={filters.activity}
+          onChange={(event) =>
+            onChange({
+              activity: event.target.value as ClientDeviceListFilters['activity'],
+            })
+          }
+        >
+          <option value="all">{t('clients.card.filters.activityAll')}</option>
+          <option value="active">{t('clients.card.filters.active')}</option>
+          <option value="inactive">{t('clients.card.filters.inactive')}</option>
+        </select>
+      </label>
+    </div>
+  );
+};
 
 const ClientInformationPanel = ({
   stats,
