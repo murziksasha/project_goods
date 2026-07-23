@@ -1362,6 +1362,25 @@
       "noServices": "No services found for this client.",
       "noSales": "No sales found for this client.",
       "noDevices": "No active client devices found for this client.",
+      "noMatches": "No records match the current search or filters.",
+      "filter": "Filter",
+      "searchAriaLabel": "Search in client list",
+      "clearSearchAriaLabel": "Clear search text",
+      "searchPlaceholder": {
+        "orders": "Search by number, service, status",
+        "sales": "Search by number, product, status",
+        "devices": "Search by name, note"
+      },
+      "filters": {
+        "status": "Status",
+        "statusAll": "All",
+        "dateFrom": "Date from",
+        "dateTo": "Date to",
+        "activity": "Activity",
+        "activityAll": "All",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
       "totalForClient": "Total for client",
       "info": {
         "orders": "Orders",

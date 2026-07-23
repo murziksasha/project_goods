@@ -881,6 +881,22 @@
     width: 100%;
   }
 
+  .clients-card-list-toolbar {
+    gap: 6px;
+  }
+
+  .clients-card-list-search {
+    flex: 1 1 100%;
+  }
+
+  .clients-card-list-filters {
+    padding: 8px;
+  }
+
+  .clients-card-list-filter-field {
+    flex: 1 1 100%;
+  }
+
   .catalog-edit-modal,
   .warehouse-settings-modal,
   .product-model-modal,

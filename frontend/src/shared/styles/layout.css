@@ -4186,6 +4186,77 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   font-weight: 800;
 }
 
+.clients-card-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+
+.clients-card-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.clients-card-list-search {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clients-card-list-search.orders-search-group-clearable {
+  display: block;
+}
+
+.clients-card-list-search input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.clients-card-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line-section);
+  border-radius: 8px;
+  background: var(--bg-panel-elevated);
+}
+
+.clients-card-list-filter-field {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #5b6f86;
+}
+
+.clients-card-list-filter-field span {
+  line-height: 1.2;
+}
+
+.clients-card-list-filter-field input,
+.clients-card-list-filter-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #cbd7e5;
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
 .clients-card-body > .orders-table-wrap {
   margin-top: 2px;
   min-width: 0;
