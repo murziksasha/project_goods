@@ -2397,6 +2397,10 @@
       "copyFailed": "Copy failed",
       "printSerialNumber": "Print serial number",
       "printSerialTitle": "Warehouse serial number",
+      "printSelectedCount": "Print {{count}} selected serial numbers",
+      "selectSerialsToPrint": "Select serial numbers to print",
+      "selectAllSerials": "Select all serial numbers for print",
+      "selectSerialRow": "Select serial {{serial}} for print",
       "noStockRows": "No stock rows exist for this exact product name.",
       "sections": {
         "main": "MAIN INFORMATION",

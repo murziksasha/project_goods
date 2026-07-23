@@ -2397,6 +2397,10 @@
       "copyFailed": "Не вдалося скопіювати",
       "printSerialNumber": "Друкувати серійний номер",
       "printSerialTitle": "Серійний номер складу",
+      "printSelectedCount": "Друк {{count}} обраних серійних номерів",
+      "selectSerialsToPrint": "Оберіть серійні номери для друку",
+      "selectAllSerials": "Обрати всі серійні номери для друку",
+      "selectSerialRow": "Обрати серійний номер {{serial}} для друку",
       "noStockRows": "Немає складських рядків для цієї точної назви товару.",
       "sections": {
         "main": "ОСНОВНА ІНФОРМАЦІЯ",
