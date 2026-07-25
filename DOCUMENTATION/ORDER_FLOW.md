@@ -7,10 +7,18 @@
   - Orders/Sales toolbar `Create order`;
   - Order/sale detail card header `Create order` (after status dropdown, before close).
 - `Client phone` + `Client name` perform lookup in clients.
+- On blur, client phone is masked (`+380 …`). For a **new** client draft (not found in DB), if digit length is not a full UA mobile (`+380` + 9 digits), the phone field shows a soft red border and hint. **Phone length alone does not block Save** (soft only).
+- **Hard Save validation** (order is not created; error toast):
+  - **Client required:** non-empty phone (not bare country code) + name ≥ 2 characters.
+  - **Repair order:** device name ≥ 2 characters (in addition to client).
+  - Manager required (existing rule).
+- Soft length hint ≠ skipping required fields: empty client or missing device still rejects Save.
 - If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the repair order.
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
-- If client is not found and valid phone+name are entered, a new client is created automatically when user focuses `Device #1` (to bind `clientId` before device actions).
+- If client is not found, phone+name remain draft fields until save. A new client is created only when the operator presses `Save order` (repair or sale) and hard validation passes.
+- Focusing `Device #1` only looks up and applies an **existing** client (by phone); it must not call create-client.
+- Mid-form `Create new` for a client device requires an already existing/selected client. For a brand-new client, the client device is created on save together with the order when needed.
 - Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
 - Clicking request number opens a new browser tab/window (`target="_blank"`).

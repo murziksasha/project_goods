@@ -213,6 +213,12 @@ export const DashboardPage = () => {
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getStoredSidebarCollapsed);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isNarrowLayout, setIsNarrowLayout] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 1024px)').matches,
+  );
   const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(
     () => getSaleIdFromUrl() || null,
   );
@@ -472,6 +478,36 @@ export const DashboardPage = () => {
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 1024px)');
+    const syncNarrowLayout = () => {
+      const matches = mediaQuery.matches;
+      setIsNarrowLayout(matches);
+      if (!matches) {
+        setIsMobileNavOpen(false);
+      }
+    };
+
+    syncNarrowLayout();
+    mediaQuery.addEventListener('change', syncNarrowLayout);
+    return () => mediaQuery.removeEventListener('change', syncNarrowLayout);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileNavOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isMobileNavOpen]);
+
+  useEffect(() => {
     if (!currentEmployee) return;
 
     const handleGlobalShortcut = (event: KeyboardEvent) => {
@@ -702,6 +738,19 @@ export const DashboardPage = () => {
     if (item.key === 'warehouse') {
       openPage('warehouse');
     }
+
+    if (isNarrowLayout) {
+      setIsMobileNavOpen(false);
+    }
+  };
+
+  const handleToggleSidebar = () => {
+    if (isNarrowLayout) {
+      setIsMobileNavOpen((previousValue) => !previousValue);
+      return;
+    }
+
+    setIsSidebarCollapsed((previousValue) => !previousValue);
   };
 
   const openSaleFromClientCard = (sale: { id: string; kind: 'repair' | 'sale' }) => {
@@ -871,15 +920,11 @@ export const DashboardPage = () => {
 
   if (isAuthLoading) {
     return (
-      <main className="dashboard-shell auth-dashboard-shell">
-        <section className="dashboard-main">
-          <div className="page-shell auth-page-shell">
-            <section className="panel auth-panel">
-              <LoadingState label={t('common.loading')}>
-                {t('common.loading')}
-              </LoadingState>
-            </section>
-          </div>
+      <main className="auth-screen">
+        <section className="panel auth-panel">
+          <LoadingState label={t('common.loading')}>
+            {t('common.loading')}
+          </LoadingState>
         </section>
       </main>
     );
@@ -891,134 +936,148 @@ export const DashboardPage = () => {
     };
 
     return (
-      <main className="dashboard-shell auth-dashboard-shell">
-        <section className="dashboard-main">
-          <div className="page-shell auth-page-shell">
-            <section className="panel auth-panel">
-              <div className="panel-header auth-panel-brand">
-                <div>
-                  <p className="section-label">{t('common.serviceCRM')}</p>
-                  <h2>{inviteToken ? t('auth.registerTitle') : t('auth.loginTitle')}</h2>
-                </div>
-              </div>
+      <main className="auth-screen">
+        <section className="panel auth-panel">
+          <div className="panel-header auth-panel-brand">
+            <div>
+              <p className="section-label">{t('common.serviceCRM')}</p>
+              <h2>{inviteToken ? t('auth.registerTitle') : t('auth.loginTitle')}</h2>
+            </div>
+          </div>
 
-              {shouldShowInvitation ? (
-                visibleInviteState.isLoading ? (
-                  <LoadingState label={t('common.loadingInvitation')}>
-                    {t('common.loadingInvitation')}
-                  </LoadingState>
-                ) : (
-                  <div className="form-grid">
-                    <label className="field field-wide">
-                      <span>{t('common.name')}</span>
-                      <input value={visibleInviteState.name} disabled />
-                    </label>
-                    <label className="field field-wide">
-                      <span>{t('common.email')}</span>
-                      <input value={visibleInviteState.email} disabled />
-                    </label>
-                    <label className="field field-wide">
-                      <span>{t('common.role')}</span>
-                      <input value={visibleInviteState.role} disabled />
-                    </label>
-                  </div>
-                )
-              ) : null}
-
+          {shouldShowInvitation ? (
+            visibleInviteState.isLoading ? (
+              <LoadingState label={t('common.loadingInvitation')}>
+                {t('common.loadingInvitation')}
+              </LoadingState>
+            ) : (
               <div className="form-grid">
                 <label className="field field-wide">
-                  <span>{inviteToken ? t('auth.createLogin') : t('common.login')}</span>
-                  <input
-                    autoFocus
-                    autoComplete="username"
-                    value={loginForm.username}
-                    onChange={(event) =>
-                      setLoginForm((current) => ({ ...current, username: event.target.value }))
-                    }
-                    placeholder={t('common.username')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        submitAuth();
-                      }
-                    }}
-                  />
+                  <span>{t('common.name')}</span>
+                  <input value={visibleInviteState.name} disabled />
                 </label>
-                <label className="field field-wide auth-password-field">
-                  <span>{t('common.password')}</span>
-                  <input
-                    type={isPasswordVisible ? 'text' : 'password'}
-                    autoComplete={inviteToken ? 'new-password' : 'current-password'}
-                    value={loginForm.password}
-                    onChange={(event) =>
-                      setLoginForm((current) => ({ ...current, password: event.target.value }))
-                    }
-                    placeholder={t('common.password')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        submitAuth();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="auth-password-toggle"
-                    aria-label={
-                      isPasswordVisible
-                        ? t('auth.hidePassword')
-                        : t('auth.showPassword')
-                    }
-                    onClick={() => setIsPasswordVisible((current) => !current)}
-                  >
-                    {isPasswordVisible ? t('auth.hidePasswordShort') : t('auth.showPasswordShort')}
-                  </button>
+                <label className="field field-wide">
+                  <span>{t('common.email')}</span>
+                  <input value={visibleInviteState.email} disabled />
+                </label>
+                <label className="field field-wide">
+                  <span>{t('common.role')}</span>
+                  <input value={visibleInviteState.role} disabled />
                 </label>
               </div>
+            )
+          ) : null}
 
-              {authError ? <InlineError>{authError}</InlineError> : null}
-
-              <Button
-                className="auth-submit"
-                type="button"
-                onClick={submitAuth}
-                disabled={
-                  (inviteToken ? isRegistering : isLoggingIn) ||
-                  !loginForm.username.trim() ||
-                  !loginForm.password.trim()
+          <div className="form-grid">
+            <label className="field field-wide">
+              <span>{inviteToken ? t('auth.createLogin') : t('common.login')}</span>
+              <input
+                autoFocus
+                autoComplete="username"
+                value={loginForm.username}
+                onChange={(event) =>
+                  setLoginForm((current) => ({ ...current, username: event.target.value }))
                 }
-                aria-busy={inviteToken ? isRegistering : isLoggingIn}
+                placeholder={t('common.username')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    submitAuth();
+                  }
+                }}
+              />
+            </label>
+            <label className="field field-wide auth-password-field">
+              <span>{t('common.password')}</span>
+              <input
+                type={isPasswordVisible ? 'text' : 'password'}
+                autoComplete={inviteToken ? 'new-password' : 'current-password'}
+                value={loginForm.password}
+                onChange={(event) =>
+                  setLoginForm((current) => ({ ...current, password: event.target.value }))
+                }
+                placeholder={t('common.password')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    submitAuth();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                aria-label={
+                  isPasswordVisible
+                    ? t('auth.hidePassword')
+                    : t('auth.showPassword')
+                }
+                onClick={() => setIsPasswordVisible((current) => !current)}
               >
-                {inviteToken
-                  ? isRegistering
-                    ? t('common.completingRegistration')
-                    : t('common.completeRegistration')
-                  : isLoggingIn
-                    ? t('common.signingIn')
-                    : t('common.signIn')}
-              </Button>
-            </section>
+                {isPasswordVisible ? t('auth.hidePasswordShort') : t('auth.showPasswordShort')}
+              </button>
+            </label>
           </div>
+
+          {authError ? <InlineError>{authError}</InlineError> : null}
+
+          <Button
+            className="auth-submit"
+            type="button"
+            onClick={submitAuth}
+            disabled={
+              (inviteToken ? isRegistering : isLoggingIn) ||
+              !loginForm.username.trim() ||
+              !loginForm.password.trim()
+            }
+            aria-busy={inviteToken ? isRegistering : isLoggingIn}
+          >
+            {inviteToken
+              ? isRegistering
+                ? t('common.completingRegistration')
+                : t('common.completeRegistration')
+              : isLoggingIn
+                ? t('common.signingIn')
+                : t('common.signIn')}
+          </Button>
         </section>
       </main>
     );
   }
 
+  const shellClassName = [
+    'dashboard-shell',
+    !isNarrowLayout && isSidebarCollapsed ? 'dashboard-shell-collapsed' : '',
+    isNarrowLayout && isMobileNavOpen ? 'dashboard-shell-mobile-nav-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <main className={isSidebarCollapsed ? 'dashboard-shell dashboard-shell-collapsed' : 'dashboard-shell'}>
+    <main className={shellClassName}>
       <DashboardSidebar
         sidebarItems={sidebarItems}
         activePage={activePage}
-        isCollapsed={isSidebarCollapsed}
+        isCollapsed={!isNarrowLayout && isSidebarCollapsed}
         buildLabel={buildLabel}
         buildSha={buildSha}
         currentEmployee={currentEmployee}
         canAccessPage={canAccessPage}
         onNavClick={handleSidebarNavClick}
       />
+      {isNarrowLayout && isMobileNavOpen ? (
+        <button
+          type="button"
+          className="mobile-nav-backdrop"
+          aria-label={t('common.close')}
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      ) : null}
 
       <section className="dashboard-main">
         <DashboardTopbar
           serviceName={state.settings?.serviceName || t('common.serviceCRM')}
           isSidebarCollapsed={isSidebarCollapsed}
+          isMobileNavOpen={isMobileNavOpen}
+          isNarrowLayout={isNarrowLayout}
           lastSyncAt={state.lastSyncAt}
           buildLocale={buildLocale}
           currentEmployee={currentEmployee}
@@ -1046,9 +1105,7 @@ export const DashboardPage = () => {
             ) : null
           }
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-          onToggleSidebar={() =>
-            setIsSidebarCollapsed((previousValue) => !previousValue)
-          }
+          onToggleSidebar={handleToggleSidebar}
           onReloadData={() => void hardReloadApp()}
           onLogout={() => void handleLogout()}
         />
@@ -1352,6 +1409,7 @@ export const DashboardPage = () => {
           onNavClick={(event, page) => {
             if (!isPlainLeftClick(event)) return;
             event.preventDefault();
+            setIsMobileNavOpen(false);
             if (page === 'orders') {
               openOrdersPage();
               return;

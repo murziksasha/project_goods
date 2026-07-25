@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createClient, getClients, getClientHistory } from '../../../../../entities/client/api/clientApi';
+import { getClients, getClientHistory } from '../../../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../../../entities/client/model/types';
 import { getClientPhones, getPrimaryClientPhone } from '../../../../../entities/client/model/forms';
 import {
@@ -66,6 +66,7 @@ import {
   phoneDigitsOnly,
   saleExtraOptionsLeft,
   saleExtraOptionsRight,
+  shouldWarnNewClientPhoneLength,
   toApiPhone,
   toNameKey,
   topTabs,
@@ -296,6 +297,10 @@ export const CreateOrderCard = ({
 
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
+  const showPhoneLengthWarning = shouldWarnNewClientPhoneLength({
+    phone: clientPhone,
+    hasExistingClient: Boolean(selectedClientId || resolvedClientForDeviceCreate),
+  });
   const visibleClientHistory = selectedClientId ? clientHistory : null;
   const repairClientRequests = useMemo(
     () => visibleClientHistory?.sales.filter((sale) => sale.kind === 'repair') ?? [],
@@ -1038,19 +1043,8 @@ export const CreateOrderCard = ({
         return existingClient;
       }
 
-      const createdClient = await createClient({
-        phone: normalizedPhone,
-        phones: [normalizedPhone],
-        name: normalizedName,
-        email: '',
-        address: '',
-        registrationId: '',
-        iban: '',
-        note: '',
-        status: '',
-      });
-      applyClient(createdClient);
-      return createdClient;
+      // New clients are created only on Save order (dashboard saveOrder).
+      return null;
     } catch {
       return null;
     } finally {
@@ -1201,10 +1195,15 @@ export const CreateOrderCard = ({
               <label className="field">
                 <span>{t('orders.create.clientData')}</span>
                 <input
+                  className="create-order-phone-input"
                   value={clientPhone}
                   onChange={(event) => onClientPhoneChange(event.target.value)}
                   onBlur={onClientPhoneBlur}
                   placeholder={t('orders.create.phonePlaceholder')}
+                  aria-invalid={showPhoneLengthWarning}
+                  aria-describedby={
+                    showPhoneLengthWarning ? 'create-order-phone-length-hint' : undefined
+                  }
                 />
               </label>
               <label className="field">
@@ -1215,6 +1214,15 @@ export const CreateOrderCard = ({
                   placeholder={t('orders.create.fullName')}
                 />
               </label>
+              {showPhoneLengthWarning ? (
+                <p
+                  id="create-order-phone-length-hint"
+                  className="inline-field-error create-order-phone-length-hint"
+                  role="status"
+                >
+                  {t('orders.create.phoneLengthHint')}
+                </p>
+              ) : null}
             </div>
             {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
               <div className="create-suggestions">
