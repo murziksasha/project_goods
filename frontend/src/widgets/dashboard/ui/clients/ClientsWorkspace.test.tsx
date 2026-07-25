@@ -448,6 +448,166 @@ describe('ClientsWorkspace', () => {
     });
     confirmSpy.mockRestore();
   });
+
+  it('paginates client sales history by 10 items', () => {
+    const client = createClient({ id: 'client-ivan' });
+    const sales = Array.from({ length: 12 }, (_, index) =>
+      createSale(client, {
+        id: `sale-${index + 1}`,
+        recordNumber: `r${String(index + 1).padStart(6, '0')}`,
+        saleDate: `2026-07-${String(index + 1).padStart(2, '0')}T10:00:00.000Z`,
+        kind: 'sale',
+      }),
+    );
+
+    renderWorkspace({
+      clients: [client],
+      selectedClientId: client.id,
+      sales,
+      history: {
+        client,
+        sales,
+        stats: {
+          totalItemsSold: 12,
+          totalRevenue: 1200,
+          totalSales: 12,
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
+
+    const dialog = screen.getByRole('dialog');
+    const card = within(dialog);
+
+    expect(card.getByRole('button', { name: 'r000001' })).toBeInTheDocument();
+    expect(card.getByRole('button', { name: 'r000010' })).toBeInTheDocument();
+    expect(card.queryByRole('button', { name: 'r000011' })).not.toBeInTheDocument();
+    expect(card.getByLabelText('1 / 2')).toBeInTheDocument();
+
+    fireEvent.click(card.getByRole('button', { name: 'Next page' }));
+
+    expect(card.queryByRole('button', { name: 'r000001' })).not.toBeInTheDocument();
+    expect(card.getByRole('button', { name: 'r000011' })).toBeInTheDocument();
+    expect(card.getByRole('button', { name: 'r000012' })).toBeInTheDocument();
+  });
+
+  it('filters client sales history by search query', () => {
+    const client = createClient({ id: 'client-ivan' });
+    const sales = [
+      createSale(client, {
+        id: 'sale-a',
+        recordNumber: 'r000010',
+        kind: 'sale',
+        lineItems: [
+          {
+            id: 'line-a',
+            kind: 'product',
+            name: 'Phone case',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ],
+      }),
+      createSale(client, {
+        id: 'sale-b',
+        recordNumber: 'r000020',
+        kind: 'sale',
+        lineItems: [
+          {
+            id: 'line-b',
+            kind: 'product',
+            name: 'Battery pack',
+            price: 50,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ],
+      }),
+    ];
+
+    renderWorkspace({
+      clients: [client],
+      selectedClientId: client.id,
+      sales,
+      history: {
+        client,
+        sales,
+        stats: {
+          totalItemsSold: 2,
+          totalRevenue: 150,
+          totalSales: 2,
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
+
+    fireEvent.change(screen.getByLabelText('Search in client list'), {
+      target: { value: 'Battery' },
+    });
+
+    expect(screen.queryByRole('button', { name: 'r000010' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'r000020' })).toBeInTheDocument();
+  });
+
+  it('filters client devices by search query', () => {
+    const client = createClient({ id: 'client-ivan' });
+    const devices: ClientDevice[] = [
+      {
+        id: 'device-1',
+        clientId: client.id,
+        clientName: client.name,
+        clientPhone: client.phone,
+        name: 'Coffee machine',
+        serialNumber: '',
+        note: 'Kitchen',
+        source: 'repairOrder',
+        isActive: true,
+        canRemove: true,
+        usageCount: 0,
+        createdAt: '2026-01-01T10:00:00.000Z',
+        updatedAt: '2026-01-02T10:00:00.000Z',
+      },
+      {
+        id: 'device-2',
+        clientId: client.id,
+        clientName: client.name,
+        clientPhone: client.phone,
+        name: 'TV set',
+        serialNumber: '',
+        note: 'Living room',
+        source: 'clientCard',
+        isActive: true,
+        canRemove: true,
+        usageCount: 0,
+        createdAt: '2026-01-01T10:00:00.000Z',
+        updatedAt: '2026-01-02T10:00:00.000Z',
+      },
+    ];
+
+    renderWorkspace({
+      clients: [client],
+      selectedClientId: client.id,
+      clientDevices: devices,
+    });
+
+    fireEvent.click(screen.getByText('Ivan Petrenko'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Client devices' }));
+
+    expect(screen.getByText('Coffee machine')).toBeInTheDocument();
+    expect(screen.getByText('TV set')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search in client list'), {
+      target: { value: 'Living' },
+    });
+
+    expect(screen.queryByText('Coffee machine')).not.toBeInTheDocument();
+    expect(screen.getByText('TV set')).toBeInTheDocument();
+  });
 });
 
 describe('client phones model helpers', () => {

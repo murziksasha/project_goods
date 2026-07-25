@@ -56,6 +56,7 @@ export const DashboardSidebar = ({
 
   return (
     <aside
+      id="dashboard-mobile-sidebar"
       className={
         isCollapsed ? 'app-sidebar app-sidebar-collapsed' : 'app-sidebar'
       }

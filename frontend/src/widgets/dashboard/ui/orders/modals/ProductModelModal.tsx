@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
@@ -36,6 +36,21 @@ type ProductModelModalProps = {
   onSave: (payload: ProductModelUpdatePayload) => Promise<boolean>;
 };
 
+const getInitialSelectedPrintIds = (
+  serialPurchases: { productId: string; serialNumber: string }[],
+  printProduct: Product | null,
+) => {
+  const printableIds = new Set(
+    serialPurchases
+      .filter((row) => row.serialNumber.trim())
+      .map((row) => row.productId),
+  );
+  if (printProduct?.id && printableIds.has(printProduct.id)) {
+    return [printProduct.id];
+  }
+  return [];
+};
+
 export const ProductModelModal = ({
   name,
   products,
@@ -67,8 +82,24 @@ export const ProductModelModal = ({
     () => buildProductModelSerialPurchases(matchingProducts),
     [matchingProducts],
   );
+  const printableSerialRows = useMemo(
+    () => serialPurchases.filter((row) => row.serialNumber.trim()),
+    [serialPurchases],
+  );
+  const printableSerialIdSet = useMemo(
+    () => new Set(printableSerialRows.map((row) => row.productId)),
+    [printableSerialRows],
+  );
+  const [selectedPrintProductIds, setSelectedPrintProductIds] = useState<
+    string[]
+  >(() => getInitialSelectedPrintIds(serialPurchases, printProduct));
+  const selectAllCheckboxRef = useRef<HTMLInputElement | null>(null);
   const latestBatchProduct = useMemo(
     () => getLatestBatchProduct(matchingProducts),
+    [matchingProducts],
+  );
+  const matchingProductsById = useMemo(
+    () => new Map(matchingProducts.map((product) => [product.id, product])),
     [matchingProducts],
   );
   const hasStockRows = matchingProducts.length > 0;
@@ -84,10 +115,29 @@ export const ProductModelModal = ({
     (total, product) => total + product.reservedQuantity,
     0,
   );
+  const selectedPrintableCount = selectedPrintProductIds.filter((id) =>
+    printableSerialIdSet.has(id),
+  ).length;
+  const allPrintableSelected =
+    printableSerialRows.length > 0 &&
+    selectedPrintableCount === printableSerialRows.length;
+  const somePrintableSelected =
+    selectedPrintableCount > 0 && !allPrintableSelected;
 
   useEffect(() => {
     setForm(getProductModelInitialForm(matchingProducts));
   }, [matchingProducts]);
+
+  useEffect(() => {
+    setSelectedPrintProductIds(
+      getInitialSelectedPrintIds(serialPurchases, printProduct),
+    );
+  }, [serialPurchases, printProduct]);
+
+  useEffect(() => {
+    if (!selectAllCheckboxRef.current) return;
+    selectAllCheckboxRef.current.indeterminate = somePrintableSelected;
+  }, [somePrintableSelected]);
 
   useEffect(() => {
     if (!copyStatus) return;
@@ -104,6 +154,27 @@ export const ProductModelModal = ({
       current.includes(section)
         ? current.filter((item) => item !== section)
         : [...current, section],
+    );
+  };
+
+  const togglePrintProduct = (productId: string) => {
+    if (!printableSerialIdSet.has(productId)) return;
+
+    setSelectedPrintProductIds((current) =>
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId],
+    );
+  };
+
+  const toggleAllPrintProducts = () => {
+    if (allPrintableSelected) {
+      setSelectedPrintProductIds([]);
+      return;
+    }
+
+    setSelectedPrintProductIds(
+      printableSerialRows.map((row) => row.productId),
     );
   };
 
@@ -129,17 +200,22 @@ export const ProductModelModal = ({
     }
   };
 
-  const printSelectedSerialNumber = () => {
-    if (!printProduct?.serialNumber.trim()) return;
+  const printSelectedSerialNumbers = () => {
+    if (selectedPrintableCount === 0) return;
+
+    const items = selectedPrintProductIds
+      .map((productId) => matchingProductsById.get(productId))
+      .filter((product): product is Product => Boolean(product?.serialNumber.trim()))
+      .map((product) => ({
+        name: product.name,
+        article: product.article,
+        serialNumber: product.serialNumber,
+      }));
+
+    if (items.length === 0) return;
 
     void printWarehouseSerialLabels(
-      [
-        {
-          name: printProduct.name,
-          article: printProduct.article,
-          serialNumber: printProduct.serialNumber,
-        },
-      ],
+      items,
       printForms,
       t('catalog.productModel.printSerialTitle'),
     );
@@ -160,6 +236,13 @@ export const ProductModelModal = ({
       </button>
     );
   };
+
+  const printButtonTitle =
+    selectedPrintableCount > 0
+      ? t('catalog.productModel.printSelectedCount', {
+          count: selectedPrintableCount,
+        })
+      : t('catalog.productModel.selectSerialsToPrint');
 
   return (
     <Modal
@@ -185,16 +268,21 @@ export const ProductModelModal = ({
           {copyStatus ? (
             <span className="product-model-copy-tooltip">{copyStatus}</span>
           ) : null}
-          {printProduct ? (
+          {printableSerialRows.length > 0 ? (
             <button
               type="button"
-              className="toolbar-square-button order-print-icon-button product-model-print-button"
-              onClick={printSelectedSerialNumber}
-              disabled={!printProduct.serialNumber.trim()}
-              aria-label={t('catalog.productModel.printSerialNumber')}
-              title={t('catalog.productModel.printSerialNumber')}
+              className="product-model-print-button"
+              onClick={printSelectedSerialNumbers}
+              disabled={selectedPrintableCount === 0}
+              aria-label={printButtonTitle}
+              title={printButtonTitle}
             >
               <PrinterIcon />
+              {selectedPrintableCount > 0 ? (
+                <span className="product-model-print-badge" aria-hidden="true">
+                  {selectedPrintableCount}
+                </span>
+              ) : null}
             </button>
           ) : null}
         </div>
@@ -315,6 +403,18 @@ export const ProductModelModal = ({
                     <table className='catalog-table product-model-serial-purchases-table'>
                       <thead>
                         <tr>
+                          <th className='product-model-serial-select-col'>
+                            <input
+                              ref={selectAllCheckboxRef}
+                              type='checkbox'
+                              checked={allPrintableSelected}
+                              disabled={printableSerialRows.length === 0}
+                              onChange={toggleAllPrintProducts}
+                              aria-label={t(
+                                'catalog.productModel.selectAllSerials',
+                              )}
+                            />
+                          </th>
                           <th>{t('catalog.productModel.serialNumber')}</th>
                           <th>{t('catalog.productModel.purchasePrice')}</th>
                           <th>{t('catalog.productModel.purchaseDate')}</th>
@@ -322,12 +422,19 @@ export const ProductModelModal = ({
                       </thead>
                       <tbody>
                         {serialPurchases.map((row) => {
-                          const isSelected = printProduct?.id === row.productId;
+                          const isPrintable = Boolean(row.serialNumber.trim());
+                          const isChecked =
+                            isPrintable &&
+                            selectedPrintProductIds.includes(row.productId);
+                          const isOpenedSerial =
+                            printProduct?.id === row.productId;
                           const rowClassName = [
                             row.isLatestBatch
                               ? 'product-model-serial-row-latest'
                               : '',
-                            isSelected ? 'product-model-serial-row-selected' : '',
+                            isChecked || isOpenedSerial
+                              ? 'product-model-serial-row-selected'
+                              : '',
                           ]
                             .filter(Boolean)
                             .join(' ');
@@ -337,6 +444,24 @@ export const ProductModelModal = ({
                               key={row.productId}
                               className={rowClassName || undefined}
                             >
+                              <td className='product-model-serial-select-col'>
+                                <input
+                                  type='checkbox'
+                                  checked={isChecked}
+                                  disabled={!isPrintable}
+                                  onChange={() =>
+                                    togglePrintProduct(row.productId)
+                                  }
+                                  aria-label={t(
+                                    'catalog.productModel.selectSerialRow',
+                                    {
+                                      serial:
+                                        row.serialNumber ||
+                                        t('catalog.productModel.serialMissing'),
+                                    },
+                                  )}
+                                />
+                              </td>
                               <td>
                                 <span className='product-model-serial-cell'>
                                   {row.serialNumber ||

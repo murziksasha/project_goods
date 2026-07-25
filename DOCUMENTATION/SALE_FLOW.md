@@ -5,10 +5,16 @@
 - Tab `Sales order` is used to create sale requests.
 - Sale detail card header also exposes `Create order` (same permission and navigation rules as the toolbar button; responsive layout is documented in `ORDER_CARD.md` -> `Header`).
 - Client lookup is performed by `Client phone` + `Client name`.
+- Soft phone-length hint for **new** client drafts matches repair create-order (red border + hint; length alone does not block Save).
+- **Hard Save validation** for sales order:
+  - **Client required:** non-empty phone + name ≥ 2 characters.
+  - **At least one product or one service** line (`saleLineItemsRequired`).
+  - Manager required (existing rule).
+- Soft length hint does not skip client or line-item requirements.
 - If the entered phone or exact client name matches a client with status `blacklist`, the sales order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
-- If client does not exist and valid phone+name are provided, client can be created automatically in the same flow.
+- If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
 
 ## Rapid Sale (2026-06-24, UX updates 2026-06-30)
 

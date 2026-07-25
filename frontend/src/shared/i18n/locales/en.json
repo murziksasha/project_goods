@@ -39,6 +39,7 @@
     "expandMenu": "Expand menu",
     "collapseMenu": "Collapse menu",
     "openMenu": "Open menu",
+    "moreActions": "More actions",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -478,6 +479,7 @@
       "clientData": "Client data *",
       "phonePlaceholder": "+380",
       "fullName": "Full name",
+      "phoneLengthHint": "Phone number length may be incorrect. Expected full number: +380 and 9 digits.",
       "searchingClients": "Searching clients...",
       "blacklist": {
         "clientInBlacklist": "Client is in blacklist",
@@ -1362,6 +1364,25 @@
       "noServices": "No services found for this client.",
       "noSales": "No sales found for this client.",
       "noDevices": "No active client devices found for this client.",
+      "noMatches": "No records match the current search or filters.",
+      "filter": "Filter",
+      "searchAriaLabel": "Search in client list",
+      "clearSearchAriaLabel": "Clear search text",
+      "searchPlaceholder": {
+        "orders": "Search by number, service, status",
+        "sales": "Search by number, product, status",
+        "devices": "Search by name, note"
+      },
+      "filters": {
+        "status": "Status",
+        "statusAll": "All",
+        "dateFrom": "Date from",
+        "dateTo": "Date to",
+        "activity": "Activity",
+        "activityAll": "All",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
       "totalForClient": "Total for client",
       "info": {
         "orders": "Orders",
@@ -2378,6 +2399,10 @@
       "copyFailed": "Copy failed",
       "printSerialNumber": "Print serial number",
       "printSerialTitle": "Warehouse serial number",
+      "printSelectedCount": "Print {{count}} selected serial numbers",
+      "selectSerialsToPrint": "Select serial numbers to print",
+      "selectAllSerials": "Select all serial numbers for print",
+      "selectSerialRow": "Select serial {{serial}} for print",
       "noStockRows": "No stock rows exist for this exact product name.",
       "sections": {
         "main": "MAIN INFORMATION",
@@ -2661,7 +2686,7 @@
         "failedRemoveClientDevice": "Failed to remove client device.",
         "failedEraseData": "Failed to erase data.",
         "failedSaveOrder": "Failed to save order.",
-        "clientPhoneRequired": "Client phone must include full +380 number.",
+        "clientPhoneRequired": "Client phone is required.",
         "clientNameMinLength": "Client name must contain at least 2 characters.",
         "deviceNameMinLength": "Device name must contain at least 2 characters.",
         "saleLineItemsRequired": "Add at least one product or service.",

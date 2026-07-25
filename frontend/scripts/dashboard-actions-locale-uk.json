@@ -76,7 +76,7 @@
     "failedRemoveClientDevice": "Не вдалося видалити пристрій клієнта.",
     "failedEraseData": "Не вдалося очистити дані.",
     "failedSaveOrder": "Не вдалося зберегти замовлення.",
-    "clientPhoneRequired": "Телефон клієнта має містити повний номер +380.",
+    "clientPhoneRequired": "Вкажіть телефон клієнта.",
     "clientNameMinLength": "Ім'я клієнта має містити щонайменше 2 символи.",
     "deviceNameMinLength": "Назва пристрою має містити щонайменше 2 символи.",
     "saleLineItemsRequired": "Додайте хоча б один товар або послугу.",

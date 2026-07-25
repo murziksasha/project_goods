@@ -151,6 +151,33 @@ export const toApiPhone = (input: string) => {
   return '';
 };
 
+/** Full UA mobile identity: 12 digits starting with 380 (+380 + 9 local). */
+export const isCompleteUaPhone = (input: string) => {
+  const apiPhone = toApiPhone(input);
+  if (apiPhone) {
+    return phoneDigitsOnly(apiPhone).length === 12;
+  }
+  const digits = phoneDigitsOnly(input);
+  return digits.startsWith('380') && digits.length === 12;
+};
+
+/**
+ * Soft warning for create-order: new-client draft phone with non-empty digits
+ * that are not a complete UA mobile length. Never blocks save/flow.
+ */
+export const shouldWarnNewClientPhoneLength = ({
+  phone,
+  hasExistingClient,
+}: {
+  phone: string;
+  hasExistingClient: boolean;
+}) => {
+  if (hasExistingClient) return false;
+  const digits = phoneDigitsOnly(phone);
+  if (!digits || digits === '380') return false;
+  return !isCompleteUaPhone(phone);
+};
+
 export const extractDeviceKit = (note: string) =>
   note
     .split('|')

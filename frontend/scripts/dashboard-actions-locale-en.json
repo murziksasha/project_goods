@@ -76,7 +76,7 @@
     "failedRemoveClientDevice": "Failed to remove client device.",
     "failedEraseData": "Failed to erase data.",
     "failedSaveOrder": "Failed to save order.",
-    "clientPhoneRequired": "Client phone must include full +380 number.",
+    "clientPhoneRequired": "Client phone is required.",
     "clientNameMinLength": "Client name must contain at least 2 characters.",
     "deviceNameMinLength": "Device name must contain at least 2 characters.",
     "saleLineItemsRequired": "Add at least one product or service.",
