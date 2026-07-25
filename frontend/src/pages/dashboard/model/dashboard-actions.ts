@@ -1493,13 +1493,19 @@ export const createDashboardActions = ({
             ? saleProductsTotal + saleServicesTotal
             : parseDecimal(payload.estimatedCost || '0');
 
-        if (normalizedPhone.replace(/\D/g, '').length < 12) {
-          throw new Error(i18n.t('dashboard.actions.errors.clientPhoneRequired'));
+        // Hard required fields (Save must fail if missing).
+        // Soft phone-length UI hint is separate and does not replace these checks.
+        {
+          const phoneDigits = normalizedPhone.replace(/\D/g, '');
+          if (!phoneDigits || phoneDigits === '380') {
+            throw new Error(i18n.t('dashboard.actions.errors.clientPhoneRequired'));
+          }
         }
         if (clientName.length < 2) {
           throw new Error(i18n.t('dashboard.actions.errors.clientNameMinLength'));
         }
         if (payload.sourceTab === 'sale') {
+          // Sale: at least one product or service line.
           const saleLineItemsErrorKey = validateCreateOrderSaleLineItems(
             saleItems,
             saleServiceItems,
@@ -1508,6 +1514,7 @@ export const createDashboardActions = ({
             throw new Error(i18n.t(saleLineItemsErrorKey));
           }
         } else if (deviceName.length < 2) {
+          // Repair: device required in addition to client.
           throw new Error(i18n.t('dashboard.actions.errors.deviceNameMinLength'));
         }
         if (!payload.managerId.trim()) {

@@ -938,6 +938,88 @@ describe('CreateOrderCard', () => {
     expect(createClientMock).not.toHaveBeenCalled();
   });
 
+  it('shows a soft phone length hint for a new client incomplete phone without blocking save', async () => {
+    const onSave = vi.fn(async () => null);
+    renderCreateOrderCard('repair', onSave);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '06355' },
+    });
+    fireEvent.blur(screen.getByPlaceholderText('+380'));
+
+    expect(
+      await screen.findByText(
+        /Phone number length may be incorrect/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('+380')).toHaveAttribute('aria-invalid', 'true');
+
+    fireEvent.click(screen.getByText('Save order'));
+    // Card still invokes save; incomplete phone is soft-only in the form.
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+  });
+
+  it('does not show phone length hint when an existing client is selected by phone', async () => {
+    const existingClient = {
+      id: 'client-existing',
+      name: 'Existing Client',
+      phone: '+380635567090',
+      phones: ['+380635567090'],
+      email: '',
+      address: '',
+      registrationId: '',
+      iban: '',
+      note: '',
+      status: 'new' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    getClientsMock.mockResolvedValue([existingClient]);
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Another Name' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Existing Client');
+    });
+
+    expect(
+      screen.queryByText(/Phone number length may be incorrect/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('+380')).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('does not create a new client when focusing Device #1 with a new phone and name', async () => {
+    getClientsMock.mockResolvedValue([]);
+    createClientMock.mockClear();
+
+    renderCreateOrderCard('repair');
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Brand New Client' },
+    });
+    fireEvent.focus(screen.getByPlaceholderText('Enter device name'));
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 500);
+      });
+    });
+
+    expect(createClientMock).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('Brand New Client');
+  });
+
   it('uses an existing exact phone client instead of creating a duplicate for another name', async () => {
     const existingClient = {
       id: 'client-existing',

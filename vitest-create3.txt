@@ -1,0 +1,126 @@
+﻿
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90mF:/SSD PROJECT/project_goods/frontend[39m
+
+[90mstdout[2m | src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.test.tsx
+[22m[39mi18next: languageChanged en
+i18next: initialized {
+  debug: [33mtrue[39m,
+  initAsync: [33mtrue[39m,
+  ns: [ [32m'translation'[39m ],
+  defaultNS: [ [32m'translation'[39m ],
+  fallbackLng: [ [32m'uk'[39m ],
+  fallbackNS: [33mfalse[39m,
+  supportedLngs: [ [32m'en'[39m, [32m'uk'[39m, [32m'cimode'[39m ],
+  nonExplicitSupportedLngs: [33mtrue[39m,
+  load: [32m'all'[39m,
+  preload: [33mfalse[39m,
+  keySeparator: [32m'.'[39m,
+  nsSeparator: [32m':'[39m,
+  pluralSeparator: [32m'_'[39m,
+  contextSeparator: [32m'_'[39m,
+  enableSelector: [33mfalse[39m,
+  partialBundledLanguages: [33mfalse[39m,
+  saveMissing: [33mfalse[39m,
+  updateMissing: [33mfalse[39m,
+  saveMissingTo: [32m'fallback'[39m,
+  saveMissingPlurals: [33mtrue[39m,
+  missingKeyHandler: [33mfalse[39m,
+  missingInterpolationHandler: [33mfalse[39m,
+  postProcess: [33mfalse[39m,
+  postProcessPassResolved: [33mfalse[39m,
+  returnNull: [33mfalse[39m,
+  returnEmptyString: [33mtrue[39m,
+  returnObjects: [33mfalse[39m,
+  joinArrays: [33mfalse[39m,
+  returnedObjectHandler: [33mfalse[39m,
+  parseMissingKeyHandler: [33mfalse[39m,
+  appendNamespaceToMissingKey: [33mfalse[39m,
+  appendNamespaceToCIMode: [33mfalse[39m,
+  overloadTranslationOptionHandler: [36m[Function: overloadTranslationOptionHandler][39m,
+  interpolation: {
+    escapeValue: [33mfalse[39m,
+    prefix: [32m'{{'[39m,
+    suffix: [32m'}}'[39m,
+    formatSeparator: [32m','[39m,
+    unescapePrefix: [32m'-'[39m,
+    nestingPrefix: [32m'$t('[39m,
+    nestingSuffix: [32m')'[39m,
+    nestingOptionsSeparator: [32m','[39m,
+    maxReplaces: [33m1000[39m,
+    skipOnVariables: [33mtrue[39m,
+    format: [36m[Function: bound format][39m
+  },
+  cacheInBuiltFormats: [33mtrue[39m,
+  resources: { en: { translation: [36m[Object][39m }, uk: { translation: [36m[Object][39m } },
+  lng: [32m'en'[39m,
+  react: {
+    useSuspense: [33mfalse[39m,
+    bindI18n: [32m'languageChanged'[39m,
+    bindI18nStore: [32m'added removed'[39m
+  },
+  ignoreJSONStructure: [33mtrue[39m
+}
+
+[90mstdout[2m | src/widgets/dashboard/ui/orders/create-order/CreateOrderCard.test.tsx
+[22m[39mi18next: languageChanged en
+
+.\node_modules\.bin\vitest.cmd : 
+At line:1 char:45
++ ... \frontend"; .\node_modules\.bin\vitest.cmd run --testTimeout=15000 sr ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+<--- Last few GCs --->
+
+[19088:000001F0710D3000]  7141153 ms: Scavenge (during sweeping) 4087.3 (4099.3) -> 4083.4 (4099.3) MB, pooled: 0.0 MB,
+ 11.92 / 0.00 ms (average mu = 0.208, current mu = 0.194) allocation failure; 
+[19088:000001F0710D3000]  7142565 ms: Mark-Compact (reduce) 4091.4 (4103.3) -> 4084.0 (4093.3) MB, pooled: 0.0 MB, 621.
+74 / 0.00 ms (+ 633.3 ms in 126 steps since start of marking, biggest step 5.9 ms, walltime since start of marking 1411
+ ms) (average mu 
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF70B142846 node::OnFatalError+1318
+ 2: 00007FF70BCE2627 v8::Function::NewInstance+423
+ 3: 00007FF70BAF0A37 v8::base::AddressSpaceReservation::AddressSpaceReservation+328087
+ 4: 00007FF70BAF4947 v8::base::AddressSpaceReservation::AddressSpaceReservation+344231
+ 5: 00007FF70BB06548 v8::internal::StrongRootAllocatorBase::deallocate_impl+19176
+ 6: 00007FF70BB05D7B v8::internal::StrongRootAllocatorBase::deallocate_impl+17179
+ 7: 00007FF70D2891ED v8::platform::DelayedTaskQueue::Terminate+10478861
+ 8: 00007FF70BAEE368 v8::base::AddressSpaceReservation::AddressSpaceReservation+318152
+ 9: 00007FF70BB0BFA0 X509_STORE_set_cleanup+5664
+10: 00007FF70BB0ACCE X509_STORE_set_cleanup+846
+11: 00007FF70BB1891B SSL_CTX_set_cookie_generate_cb+21131
+12: 00007FF70B71871E v8::String::Utf8Value::~Utf8Value+152798
+13: 000001F02FE7B4FA 
+[31mтОптОптОптОптОптОп[39m[1m[41m Unhandled Errors [49m[22m[31mтОптОптОптОптОптОп[39m
+[31m[1m
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31mтОптОптОптОптОптОп[39m[1m[41m Unhandled Error [49m[22m[31mтОптОптОптОптОптОптОп[39m
+[31m[1mError[22m: [vitest-pool]: Worker vmForks emitted error.[39m
+[90m [2mтЭп[22m EventEmitter.<anonymous> ../../../SSD%20PROJECT/project_goods/frontend/node_modules/vitest/dist/chun
+ks/cli-api.Cjt90eJu.js:[2m3445:22[22m[39m
+[90m [2mтЭп[22m EventEmitter.emit node:events:[2m508:20[22m[39m
+[90m [2mтЭп[22m ChildProcess.emitUnexpectedExit ../../../SSD%20PROJECT/project_goods/frontend/node_modules/vitest/di
+st/chunks/cli-api.Cjt90eJu.js:[2m3012:22[22m[39m
+[90m [2mтЭп[22m ChildProcess.emit node:events:[2m508:20[22m[39m
+[90m [2mтЭп[22m Process.ChildProcess._handle.onexit node:internal/child_process:[2m294:12[22m[39m
+
+[31m[1mCaused by: Error[22m: Worker exited unexpectedly[39m
+[90m [2mтЭп[22m ChildProcess.emitUnexpectedExit ../../../SSD%20PROJECT/project_goods/frontend/node_modules/vitest/di
+st/chunks/cli-api.Cjt90eJu.js:[2m3011:33[22m[39m
+[90m [2mтЭп[22m ChildProcess.emit node:events:[2m508:20[22m[39m
+[90m [2mтЭп[22m Process.ChildProcess._handle.onexit node:internal/child_process:[2m294:12[22m[39m
+
+[31mтОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[39m
+
+
+[2m Test Files [22m [90m (1)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (29)[39m
+[2m     Errors [22m [1m[31m1 error[39m[22m
+[2m   Start at [22m 11:05:23
+[2m   Duration [22m 7142.97s[2m (transform 426ms, setup 333ms, import 634ms, tests 0ms, environment 807ms)[22m
+

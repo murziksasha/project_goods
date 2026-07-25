@@ -19,7 +19,7 @@ type DashboardMobileNavProps = {
   ) => void;
 };
 
-/** Bottom tab bar for phone widths (≤720px). */
+/** Bottom tab bar for narrow layouts (≤1024px, shown via CSS). */
 export const DashboardMobileNav = ({
   items,
   activePage,
