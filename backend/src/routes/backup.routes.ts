@@ -8,6 +8,7 @@ import {
   restoreBackup,
   restoreBackupFromUploadedArchive,
 } from '../domain/backup/service';
+import { getDatabaseStorageStats } from '../domain/system/db-stats';
 import { asyncHandler, requirePermission, routeParam } from '../shared/lib/http';
 
 export const backupRouter = Router();
@@ -22,6 +23,12 @@ const requireBackupPermission = (req: Parameters<typeof requirePermission>[0]) =
 backupRouter.get('/backups', asyncHandler(async (req, res) => {
   await requireBackupPermission(req);
   res.json(await listBackups());
+}));
+
+/** MongoDB collection sizes for ops planning (admin / backup permission). */
+backupRouter.get('/system/db-stats', asyncHandler(async (req, res) => {
+  await requireBackupPermission(req);
+  res.json(await getDatabaseStorageStats());
 }));
 
 backupRouter.post('/backups', asyncHandler(async (req, res) => {

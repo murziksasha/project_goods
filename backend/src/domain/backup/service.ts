@@ -378,6 +378,15 @@ const createBackup = async (
       durationMs: Math.max(finishedAt.getTime() - startedAt.getTime(), 0),
     };
     await writeMetadata(resolvedOptions.backupDir, metadata);
+    // Disk policy after successful create (age / count / size). Failures are non-fatal.
+    try {
+      await enforceBackupRetention(getDefaultBackupRetentionPolicy(), {
+        backupDir: resolvedOptions.backupDir,
+        now: resolvedOptions.now,
+      });
+    } catch (retentionError) {
+      console.error('Backup retention failed after create:', retentionError);
+    }
     return metadata;
   } catch (error) {
     const finishedAt = resolvedOptions.now();
@@ -483,25 +492,118 @@ export const deleteBackup = async (
   return { id: backupId, deleted: true };
 };
 
-export const deleteOldScheduledBackups = async (
-  maxAgeDays: number,
+export type BackupRetentionPolicy = {
+  scheduledRetentionDays: number;
+  scheduledMaxCount: number;
+  safetyMaxCount: number;
+  /** 0 = disabled. */
+  maxTotalBytes: number;
+};
+
+export const getDefaultBackupRetentionPolicy = (): BackupRetentionPolicy => ({
+  scheduledRetentionDays: env.backupScheduledRetentionDays,
+  scheduledMaxCount: env.backupScheduledMaxCount,
+  safetyMaxCount: env.backupSafetyMaxCount,
+  maxTotalBytes: env.backupMaxTotalBytes,
+});
+
+const sortOldestFirst = (backups: BackupMetadata[]) =>
+  [...backups].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+/**
+ * Enforce backup disk policy:
+ * 1) age-based scheduled prune
+ * 2) max count for scheduled / safety
+ * 3) optional total size cap (drops oldest scheduled, then safety; never auto-deletes manual)
+ */
+export const enforceBackupRetention = async (
+  policy: BackupRetentionPolicy = getDefaultBackupRetentionPolicy(),
   options: BackupServiceOptions = {},
 ) => {
   const { backupDir, now } = getOptions(options);
-  const cutoffTime = now().getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
-  const backups = await listBackups({ backupDir });
-  const expiredScheduledBackups = backups.filter((backup) => {
-    if (backup.type !== 'scheduled' || backup.status === 'running') return false;
-    const createdAt = new Date(backup.createdAt).getTime();
-    return Number.isFinite(createdAt) && createdAt < cutoffTime;
-  });
+  const deletedIds: string[] = [];
+  const deleteOne = async (backupId: string) => {
+    if (deletedIds.includes(backupId)) return;
+    await deleteBackup(backupId, { backupDir });
+    deletedIds.push(backupId);
+  };
 
-  await Promise.all(
-    expiredScheduledBackups.map((backup) => deleteBackup(backup.id, { backupDir })),
-  );
+  let backups = await listBackups({ backupDir });
 
-  return expiredScheduledBackups.map((backup) => backup.id);
+  if (policy.scheduledRetentionDays > 0) {
+    const cutoffTime =
+      now().getTime() - policy.scheduledRetentionDays * 24 * 60 * 60 * 1000;
+    const expiredScheduled = backups.filter((backup) => {
+      if (backup.type !== 'scheduled' || backup.status === 'running') return false;
+      const createdAt = new Date(backup.createdAt).getTime();
+      return Number.isFinite(createdAt) && createdAt < cutoffTime;
+    });
+    for (const backup of expiredScheduled) {
+      await deleteOne(backup.id);
+    }
+    if (expiredScheduled.length > 0) {
+      backups = await listBackups({ backupDir });
+    }
+  }
+
+  const pruneByMaxCount = async (type: BackupType, maxCount: number) => {
+    if (maxCount <= 0) return;
+    const candidates = sortOldestFirst(
+      backups.filter(
+        (backup) =>
+          backup.type === type &&
+          backup.status !== 'running' &&
+          !deletedIds.includes(backup.id),
+      ),
+    );
+    const excess = candidates.length - maxCount;
+    if (excess <= 0) return;
+    for (const backup of candidates.slice(0, excess)) {
+      await deleteOne(backup.id);
+    }
+  };
+
+  await pruneByMaxCount('scheduled', policy.scheduledMaxCount);
+  await pruneByMaxCount('safety', policy.safetyMaxCount);
+
+  if (policy.maxTotalBytes > 0) {
+    backups = await listBackups({ backupDir });
+    const completed = backups.filter(
+      (backup) => backup.status === 'completed' && !deletedIds.includes(backup.id),
+    );
+    let totalBytes = completed.reduce((sum, backup) => sum + backup.sizeBytes, 0);
+
+    const dropOrder = [
+      ...sortOldestFirst(completed.filter((backup) => backup.type === 'scheduled')),
+      ...sortOldestFirst(completed.filter((backup) => backup.type === 'safety')),
+    ];
+
+    for (const backup of dropOrder) {
+      if (totalBytes <= policy.maxTotalBytes) break;
+      await deleteOne(backup.id);
+      totalBytes -= backup.sizeBytes;
+    }
+  }
+
+  return deletedIds;
 };
+
+/** @deprecated Prefer enforceBackupRetention; kept for callers/tests. */
+export const deleteOldScheduledBackups = async (
+  maxAgeDays: number,
+  options: BackupServiceOptions = {},
+) =>
+  enforceBackupRetention(
+    {
+      ...getDefaultBackupRetentionPolicy(),
+      scheduledRetentionDays: maxAgeDays,
+      // Age-only mode: do not also apply count/size defaults from env for this helper.
+      scheduledMaxCount: Number.MAX_SAFE_INTEGER,
+      safetyMaxCount: Number.MAX_SAFE_INTEGER,
+      maxTotalBytes: 0,
+    },
+    options,
+  );
 
 export const restoreBackup = async (
   backupId: string,

@@ -268,6 +268,38 @@ describe('auth sessions', () => {
     });
   });
 
+  it('prunes other idle-expired sessions while accepting the current one', async () => {
+    env.authSessionIdleHours = 1;
+    const now = new Date('2026-06-09T12:00:00.000Z');
+    const rawFresh = 'fresh-token-raw-value-32bytes-ffffff';
+    const rawStale = 'stale-token-raw-value-32bytes-gggggg';
+    const employee = createEmployeeRecord({
+      authSessions: [
+        {
+          token: hashAuthToken(rawStale),
+          createdAt: new Date('2026-06-09T09:00:00.000Z'),
+          lastUsedAt: new Date('2026-06-09T09:00:00.000Z'),
+        },
+        {
+          token: hashAuthToken(rawFresh),
+          createdAt: new Date('2026-06-09T11:30:00.000Z'),
+          lastUsedAt: new Date('2026-06-09T11:30:00.000Z'),
+        },
+      ],
+      authTokens: [hashAuthToken(rawStale), hashAuthToken(rawFresh)],
+      authToken: hashAuthToken(rawFresh),
+    });
+    mockEmployeeFindOne(employee);
+
+    await expect(getEmployeeByToken(rawFresh, now)).resolves.toMatchObject({
+      username: 'employee',
+    });
+    expect(employee.authSessions.map((s) => s.token)).toEqual([
+      hashAuthToken(rawFresh),
+    ]);
+    expect(employee.save).toHaveBeenCalled();
+  });
+
   it('resolveAuthSessions falls back to legacy token arrays', () => {
     const now = new Date('2026-06-09T12:00:00.000Z');
     expect(

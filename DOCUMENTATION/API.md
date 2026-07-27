@@ -31,7 +31,7 @@ Responses:
 | Finance | `finance.view` / cashbox permissions | per action — see [Permission_Flow.md](./Permission_Flow.md) |
 | Supplier orders | `supplierOrders.view` | `supplierOrders.manage` |
 | Demo `/demo/*` | — | `owner` (+ dev only: `NODE_ENV !== production`) |
-| Backups | — | `system.backups.manage` |
+| Backups / db-stats | — | `system.backups.manage` |
 
 Details: [SECURITY.md](./SECURITY.md), integration tests in `backend/src/routes/api.integration.test.ts`.
 
@@ -51,6 +51,33 @@ http://localhost:5000/api
   - `mongoOk` — boolean ping result
   - `mongoLatencyMs` — ping RTT in ms, or `null` if not connected
   - `version`, `buildSha`
+
+## System / ops
+
+- `GET /system/db-stats` — Mongo collection sizes (`count`, data/storage/index bytes, `avgObjSize`)
+  - Permission: `system.backups.manage`
+  - CLI equivalent: `npm run db:stats --prefix backend`
+  - Retention policy for backup files: [DATA_RETENTION.md](./DATA_RETENTION.md)
+
+## Analytics
+
+- `GET /analytics/dashboard` — server KPIs + chart series for business home
+  - Permission: any of `orders.view` \| `sales.manage` \| `finance.view`
+  - Query: `period` (`whole`\|`today`\|`currentMonth`\|`lastMonth`\|`currentYear`\|`lastYear`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`)
+  - Response: snapshots, metrics, stock aggregates (lean sale projection; not full sale documents)
+
+## Archive / cold storage
+
+Permission: `system.backups.manage` (except finance snapshot read).
+
+- `GET /archive/yearly` — eligible sales years, yearly archives, finance snapshots
+- `POST /archive/yearly/sales/:year` — body optional `{ "purge": true }`
+- `POST /archive/yearly/finance/:year` — offline dump; purge optional
+- `POST /archive/yearly/run` — process eligible sales years (scheduler equivalent)
+- `POST /archive/finance/seal` — body optional `{ "periodEnd": ISO }`; default = now − 2 years
+- `POST /archive/finance/seal/auto` — seal if cutoff ahead of active snapshot
+- `POST /archive/finance/purge` — body `{ "confirmation": "PURGE_FINANCE" }`
+- `GET /finance/period-snapshots` — permission `finance.view`
 
 ## Products
 
@@ -84,7 +111,9 @@ http://localhost:5000/api
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
   - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
-  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше)
+  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше; не режем по умолчанию — analytics/orders)
+  - `compact` — `1`/`true`: list projection без `timeline` и `paymentHistory` (меньше payload; не включать в main dashboard fetch, пока UI не грузит эти поля отдельно)
+  - См. политику размера БД: [DATA_RETENTION.md](./DATA_RETENTION.md)
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).

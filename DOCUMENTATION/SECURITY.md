@@ -12,7 +12,7 @@ Project Goods targets **LAN / trusted-office** deployments. API endpoints requir
 | Session | Bearer token in `Authorization` header |
 | Storage | Token in `localStorage` (`project-goods.auth-token`) on frontend |
 | Password policy | Minimum **8 characters** (username minimum 3) |
-| Sessions | Up to 10 active tokens per employee; tokens stored as SHA-256 (`h1:…`) only; optional idle TTL via `AUTH_SESSION_IDLE_HOURS` (0 = off) |
+| Sessions | Up to 10 active tokens per employee; tokens stored as SHA-256 (`h1:…`) only; optional idle TTL via `AUTH_SESSION_IDLE_HOURS` (0 = off); on each auth check, all idle-expired sessions for that employee are pruned |
 
 ### Public Endpoints (no auth)
 

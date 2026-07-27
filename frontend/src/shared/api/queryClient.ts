@@ -25,6 +25,8 @@ export const queryKeys = {
   financeSettings: ['financeSettings'] as const,
   marketRates: ['marketRates'] as const,
   weatherForecast: ['weatherForecast'] as const,
+  dashboardAnalytics: (params: Record<string, unknown> = {}) =>
+    ['dashboardAnalytics', params] as const,
 };
 
 export const queryClient = new QueryClient({
