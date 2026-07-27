@@ -22,9 +22,13 @@ marketRouter.get(
       .map((value) => value.trim().toUpperCase())
       .filter(Boolean);
 
+    const forceParam = String(req.query.force ?? '').toLowerCase();
+    const force = forceParam === '1' || forceParam === 'true';
+
     const quotes = await getMarketRates({
       providers: providers.length > 0 ? providers : ['nbu', 'privat'],
       currencies: currencies.length > 0 ? currencies : ['USD', 'EUR'],
+      force,
     });
 
     res.json({ quotes });

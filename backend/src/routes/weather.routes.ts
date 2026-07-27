@@ -18,11 +18,15 @@ weatherRouter.get(
     // Prefer server env; never require API keys in query strings (logs/proxies).
     const openWeatherApiKey = env.openWeatherApiKey ?? '';
 
+    const forceParam = String(req.query.force ?? '').toLowerCase();
+    const force = forceParam === '1' || forceParam === 'true';
+
     const forecast = await getWeatherForecast({
       latitude,
       longitude,
       provider,
       openWeatherApiKey,
+      force,
     });
 
     res.json(forecast);

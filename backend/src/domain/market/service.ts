@@ -119,9 +119,11 @@ const providerFetchers: Record<
 export const getMarketRates = async ({
   providers,
   currencies,
+  force = false,
 }: {
   providers: RateProvider[];
   currencies: string[];
+  force?: boolean;
 }) => {
   const normalizedProviders = providers.filter((provider) => provider in providerFetchers);
   const normalizedCurrencies = currencies
@@ -130,7 +132,7 @@ export const getMarketRates = async ({
 
   const cacheKey = `${normalizedProviders.join(',')}|${normalizedCurrencies.join(',')}`;
   const cached = cache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!force && cached && cached.expiresAt > Date.now()) {
     return cached.quotes;
   }
 

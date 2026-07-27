@@ -144,4 +144,26 @@ describe('MarketWeatherWidget', () => {
 
     expect(screen.getAllByText('Refreshing data...').length).toBeGreaterThan(0);
   });
+
+  it('force-refreshes market rates and weather on Refresh click', async () => {
+    const getMarketRates = vi
+      .spyOn(marketApi, 'getMarketRates')
+      .mockResolvedValue(marketRatesFixture as never);
+    const getWeatherForecast = vi
+      .spyOn(weatherApi, 'getWeatherForecast')
+      .mockResolvedValue(weatherFixture as never);
+
+    renderWidget();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await vi.waitFor(() => {
+      expect(getMarketRates).toHaveBeenCalledWith(
+        expect.objectContaining({ force: true }),
+      );
+      expect(getWeatherForecast).toHaveBeenCalledWith(
+        expect.objectContaining({ force: true }),
+      );
+    });
+  });
 });
