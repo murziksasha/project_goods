@@ -54,4 +54,39 @@ describe('market service', () => {
       ]),
     );
   });
+
+  it('returns cached rates until force bypasses the cache', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('bank.gov.ua')) {
+        const call = (fetchMock as Mock).mock.calls.filter((args) =>
+          String(args[0]).includes('bank.gov.ua'),
+        ).length;
+        return {
+          ok: true,
+          json: async () => [{ cc: 'USD', rate: call === 1 ? 41.2 : 42.0 }],
+        };
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await getMarketRates({
+      providers: ['nbu'],
+      currencies: ['USD'],
+    });
+    const cached = await getMarketRates({
+      providers: ['nbu'],
+      currencies: ['USD'],
+    });
+    const forced = await getMarketRates({
+      providers: ['nbu'],
+      currencies: ['USD'],
+      force: true,
+    });
+
+    expect(first[0]?.official).toBe(41.2);
+    expect(cached[0]?.official).toBe(41.2);
+    expect(forced[0]?.official).toBe(42.0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

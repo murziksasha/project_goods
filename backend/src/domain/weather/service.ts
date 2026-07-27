@@ -455,17 +455,19 @@ export const getWeatherForecast = async ({
   longitude,
   provider = 'open-meteo',
   openWeatherApiKey = '',
+  force = false,
 }: {
   latitude: number;
   longitude: number;
   provider?: WeatherProvider;
   openWeatherApiKey?: string;
+  force?: boolean;
 }) => {
   const lat = parseCoordinate(latitude, 46.3013);
   const lon = parseCoordinate(longitude, 30.6531);
   const cacheKey = weatherCacheKey(lat, lon, provider);
   const cached = weatherCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!force && cached && cached.expiresAt > Date.now()) {
     return cached.forecast;
   }
 
@@ -485,4 +487,8 @@ export const getWeatherForecast = async ({
     forecast: resolved,
   });
   return resolved;
+};
+
+export const clearWeatherForecastCacheForTests = () => {
+  weatherCache.clear();
 };
