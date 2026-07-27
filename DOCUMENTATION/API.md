@@ -119,11 +119,13 @@ http://localhost:5000/api
   - Proxies NBU / PrivatBank / Monobank exchange APIs
   - Normalizes quotes to `{ currency, provider, official?, buy?, sell?, fetchedAt }`
   - In-memory cache TTL: 15 minutes
+  - Optional `force=1` / `force=true` — skip cache read and re-fetch providers (cache is rewritten)
 
 ## Weather Forecast (Business Dashboard)
 
 - `GET /weather/forecast?lat=<number>&lon=<number>&provider=open-meteo|openweather` — OpenWeather key from server env `OPENWEATHER_API_KEY` (not query)
   - Proxies Open-Meteo (default) or OpenWeatherMap (requires API key)
+  - Optional `force=1` / `force=true` — skip in-memory cache and re-fetch provider (cache is rewritten)
   - Returns current conditions plus up to 5 daily forecast entries
   - Frontend passes coordinates from the selected weather preset (`chornomorsk` or `odesa`); device geolocation is not used
   - Invalid/missing coordinates fall back to Chornomorsk (46.3013, 30.6531)

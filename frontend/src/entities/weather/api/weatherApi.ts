@@ -35,11 +35,13 @@ export const getWeatherForecast = async ({
   longitude,
   provider,
   openWeatherApiKey,
+  force = false,
 }: {
   latitude: number;
   longitude: number;
   provider: WeatherProvider;
   openWeatherApiKey?: string;
+  force?: boolean;
 }) => {
   try {
     const response = await apiClient.get<WeatherForecast>('/weather/forecast', {
@@ -48,6 +50,7 @@ export const getWeatherForecast = async ({
         lon: longitude,
         provider,
         apiKey: openWeatherApiKey ?? '',
+        ...(force ? { force: '1' } : {}),
       },
     });
     return response.data;
