@@ -1,5 +1,7 @@
+import type { ClientSession } from 'mongoose';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { HttpError } from '../../shared/lib/errors';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
 import { toNonEmptyString, toNumber } from '../../shared/lib/parsers';
 import { Supplier } from '../supplier/model';
 import { Product } from '../product/model';
@@ -25,12 +27,16 @@ import {
   withSupplierName,
 } from './internal';
 
-const reserveNextUniqueProductSerialNumber = async () => {
+const reserveNextUniqueProductSerialNumber = async (session?: ClientSession) => {
   for (let attempts = 0; attempts < 2000; attempts += 1) {
     const candidate = formatProductSerialNumber(
       await getNextProductSerialNumberValue(),
     );
-    const exists = await Product.exists({ serialNumber: candidate });
+    const existsQuery = Product.exists({ serialNumber: candidate });
+    if (session) {
+      existsQuery.session(session);
+    }
+    const exists = await existsQuery;
     if (!exists) return candidate;
   }
 
@@ -155,68 +161,79 @@ export const takeOnChargeSupplierOrder = async (
   if (!matchedLocation) {
     throw new HttpError(400, 'Selected warehouse has no locations.');
   }
-  let serialCursor = 0;
-  const stockedProducts: StockedProductSummary[] = [];
 
-  for (const item of targetItems) {
-    const catalogName = item.catalogProductId
-      ? (
-          await CatalogProduct.findById(item.catalogProductId)
-            .select({ name: 1 })
-            .lean<{ name?: string } | null>()
-        )?.name
-      : undefined;
-    const normalizedName = toNonEmptyString(catalogName || item.productName);
-    if (!normalizedName) continue;
-    const articleForItem = useManualArticle
-      ? manualArticleBase
-      : await reserveNextProductArticle();
+  // Product creates + order status update must be atomic when RS is available.
+  const stockedProducts = await withOptionalMongoSession(async (session) => {
+    let serialCursor = 0;
+    const created: StockedProductSummary[] = [];
 
-    const quantity = Math.max(0, Math.floor(item.quantity));
-    for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
-      const serialNumber = autoGenerateSerialNumbers
-        ? await reserveNextUniqueProductSerialNumber()
-        : manualSerialNumbers[serialCursor] ?? '';
-      serialCursor += 1;
+    for (const item of targetItems) {
+      const catalogQuery = item.catalogProductId
+        ? CatalogProduct.findById(item.catalogProductId).select({ name: 1 })
+        : null;
+      if (catalogQuery && session) {
+        catalogQuery.session(session);
+      }
+      const catalogName = catalogQuery
+        ? (await catalogQuery.lean<{ name?: string } | null>())?.name
+        : undefined;
+      const normalizedName = toNonEmptyString(catalogName || item.productName);
+      if (!normalizedName) continue;
+      const articleForItem = useManualArticle
+        ? manualArticleBase
+        : await reserveNextProductArticle();
 
-      const newProduct = new Product({
-        name: normalizedName,
-        article: articleForItem,
-        serialNumber,
-        price: item.price,
-        salePriceOptions: [],
-        note: existing.note ?? '',
-        quantity: 1,
-        reservedQuantity: 0,
-        purchasePlace: matchedWarehouse?.name ?? supplier?.name ?? '',
-        warehouseId: matchedWarehouse?.id ?? '',
-        locationId: matchedLocation?.id ?? '',
-        supplierOrderId: supplierOrderId,
-        supplierOrderItemIndex: item.itemIndex,
-        purchaseDate: new Date(),
-        warrantyPeriod: 0,
-        isActive: true,
-      });
-      await newProduct.validate();
-      await newProduct.save();
-      stockedProducts.push({
-        id: String(newProduct._id),
-        name: newProduct.name ?? '',
-        article: newProduct.article ?? '',
-        serialNumber: newProduct.serialNumber ?? '',
-      });
+      const quantity = Math.max(0, Math.floor(item.quantity));
+      for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
+        const serialNumber = autoGenerateSerialNumbers
+          ? await reserveNextUniqueProductSerialNumber(session)
+          : manualSerialNumbers[serialCursor] ?? '';
+        serialCursor += 1;
+
+        const newProduct = new Product({
+          name: normalizedName,
+          article: articleForItem,
+          serialNumber,
+          price: item.price,
+          salePriceOptions: [],
+          note: existing.note ?? '',
+          quantity: 1,
+          reservedQuantity: 0,
+          purchasePlace: matchedWarehouse?.name ?? supplier?.name ?? '',
+          warehouseId: matchedWarehouse?.id ?? '',
+          locationId: matchedLocation?.id ?? '',
+          supplierOrderId: supplierOrderId,
+          supplierOrderItemIndex: item.itemIndex,
+          purchaseDate: new Date(),
+          warrantyPeriod: 0,
+          isActive: true,
+        });
+        await newProduct.validate();
+        await newProduct.save(session ? { session } : undefined);
+        created.push({
+          id: String(newProduct._id),
+          name: newProduct.name ?? '',
+          article: newProduct.article ?? '',
+          serialNumber: newProduct.serialNumber ?? '',
+        });
+      }
+      item.receiptStatus = 'received';
     }
-    item.receiptStatus = 'received';
-  }
 
-  applyResolvedStatusFromItems(existing);
-  if (existing.total <= 0) {
-    existing.paymentStatus = 'without_payment';
-  } else if (existing.paymentStatus !== 'paid' && existing.paymentStatus !== 'without_payment') {
-    existing.paymentStatus = 'pending';
-  }
-  await existing.validate();
-  await existing.save();
+    applyResolvedStatusFromItems(existing);
+    if (existing.total <= 0) {
+      existing.paymentStatus = 'without_payment';
+    } else if (
+      existing.paymentStatus !== 'paid' &&
+      existing.paymentStatus !== 'without_payment'
+    ) {
+      existing.paymentStatus = 'pending';
+    }
+    await existing.validate();
+    await existing.save(session ? { session } : undefined);
+    return created;
+  });
+
   await autoMarkZeroTotalOrdersWithoutPayment();
   return {
     ...(await withSupplierName(existing.toObject<SupplierOrderDocument>())),

@@ -6,7 +6,7 @@ All `/api/*` routes require `Authorization: Bearer <token>` except:
 
 | Method | Path | Notes |
 |--------|------|-------|
-| `GET` | `/health` | Public health + `version` / `buildSha` |
+| `GET` | `/health` | Public health + Mongo ping + `version` / `buildSha` |
 | `POST` | `/auth/login` | Returns session token |
 | `GET` | `/auth/invitations/:token` | Invitation lookup |
 | `POST` | `/auth/invitations/:token/register` | Invitation registration |
@@ -45,7 +45,12 @@ http://localhost:5000/api
 
 ## Health
 
-- `GET /health` — backend status, `mongoReadyState`, `version`, `buildSha`
+- `GET /health` — public; always HTTP 200
+  - `status`: `ok` | `degraded` (Mongo ping failed / not connected)
+  - `mongoReadyState` — mongoose readyState (0–3)
+  - `mongoOk` — boolean ping result
+  - `mongoLatencyMs` — ping RTT in ms, or `null` if not connected
+  - `version`, `buildSha`
 
 ## Products
 
@@ -108,7 +113,8 @@ http://localhost:5000/api
   - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
   - `defaultWeatherLocation` (`chornomorsk` | `odesa`, default `chornomorsk`)
   - `weatherProvider` (`open-meteo` | `openweather`)
-  - `openWeatherApiKey`
+  - `hasOpenWeatherApiKey` (boolean; true when backend `OPENWEATHER_API_KEY` is set; secret itself is never returned)
+  - ~~`openWeatherApiKey`~~ — removed from API responses; always empty if present in legacy payloads
   - `currencies` (for example `["USD","EUR"]`)
   - `rateProviders` (`nbu`, `privat`, `mono`)
   - `defaultForecastView` (`today` | `tomorrow` | `fiveDay`)

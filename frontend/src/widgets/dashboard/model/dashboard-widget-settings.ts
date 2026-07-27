@@ -47,7 +47,6 @@ export type EffectiveDashboardWidgetSettings = {
   weatherAnimationEnabled: boolean;
   weatherLocation: WeatherLocationPreset;
   weatherProvider: DashboardPreferences['weatherProvider'];
-  openWeatherApiKey: string;
   currencies: string[];
   rateProviders: DashboardPreferences['rateProviders'];
   forecastView: DashboardPreferences['defaultForecastView'];
@@ -75,7 +74,6 @@ export const getEffectiveDashboardWidgetSettings = (
       overrides.weatherLocation ?? preferences.defaultWeatherLocation,
     ),
     weatherProvider: preferences.weatherProvider,
-    openWeatherApiKey: preferences.openWeatherApiKey,
     currencies: preferences.currencies.filter(
       (currency) => !hiddenCurrencies.has(currency.toUpperCase()),
     ),

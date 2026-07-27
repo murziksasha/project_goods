@@ -162,6 +162,8 @@
       },
       "openWeatherApiKey": "API-ключ OpenWeatherMap",
       "openWeatherApiKeyPlaceholder": "Потрібен при виборі OpenWeatherMap",
+      "openWeatherApiKeyConfigured": "Налаштовано на сервері (OPENWEATHER_API_KEY).",
+      "openWeatherApiKeyServerOnly": "Вкажіть OPENWEATHER_API_KEY на backend-хості. Ключі не зберігаються в налаштуваннях.",
       "providers": {
         "openMeteo": "Open-Meteo (без ключа)",
         "openWeather": "OpenWeatherMap"
@@ -2609,6 +2611,7 @@
       "entities": {
         "product": "Товар",
         "sale": "Продаж",
+        "client": "Клієнт",
         "clientDevice": "Пристрій клієнта"
       },
       "success": {

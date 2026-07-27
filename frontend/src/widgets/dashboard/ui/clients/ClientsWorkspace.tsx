@@ -611,7 +611,10 @@ export const ClientsWorkspace = ({
       iban: mainTabForm.iban,
       note: mainTabForm.note,
     };
-    const payload = mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | '');
+    const payload = {
+      ...mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | ''),
+      expectedUpdatedAt: selectedClient?.updatedAt,
+    };
     const isSuccess = await onUpdateClient(selectedClientId, payload);
     if (isSuccess) {
       isMainTabDirtyRef.current = false;

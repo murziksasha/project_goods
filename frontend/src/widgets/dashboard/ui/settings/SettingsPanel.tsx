@@ -228,17 +228,14 @@ const DashboardSettingsSection = ({
             <option value="fiveDay">{t('analytics.marketWeather.views.fiveDay')}</option>
           </select>
         </label>
-        <label className="field field-wide">
+        <div className="field field-wide">
           <span>{t('settings.dashboard.openWeatherApiKey')}</span>
-          <input
-            type="password"
-            value={preferences.openWeatherApiKey}
-            onChange={(event) =>
-              onChange({ ...preferences, openWeatherApiKey: event.target.value })
-            }
-            placeholder={t('settings.dashboard.openWeatherApiKeyPlaceholder')}
-          />
-        </label>
+          <p className="empty-state" style={{ margin: 0, textAlign: 'left' }}>
+            {preferences.hasOpenWeatherApiKey
+              ? t('settings.dashboard.openWeatherApiKeyConfigured')
+              : t('settings.dashboard.openWeatherApiKeyServerOnly')}
+          </p>
+        </div>
       </div>
     </section>
   );

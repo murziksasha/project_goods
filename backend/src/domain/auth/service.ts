@@ -143,10 +143,6 @@ const buildTokenLookupQuery = (presentedToken: string) => {
       { 'authSessions.token': hashed },
       { authTokens: hashed },
       { authToken: hashed },
-      // legacy plaintext sessions
-      { 'authSessions.token': presentedToken },
-      { authTokens: presentedToken },
-      { authToken: presentedToken },
     ],
   };
 };

@@ -22,6 +22,7 @@ import {
   renderPrintTemplate,
 } from '../../../../entities/settings/model/printForms';
 import type { PrintContentMargins } from '../../../../entities/settings/model/types';
+import { sanitizePrintHtml } from '../../../../shared/lib/sanitizeHtml';
 
 type PrintFormBuilderProps = {
   forms: PrintForm[];
@@ -140,7 +141,7 @@ const PrintPreview = ({ html, form }: { html: string; form: PrintForm }) => {
           : 'settings-print-preview-page'
       }
       style={getPreviewStyle(form)}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizePrintHtml(html) }}
     />
   );
 };

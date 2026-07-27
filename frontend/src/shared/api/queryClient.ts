@@ -30,7 +30,8 @@ export const queryKeys = {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 15000,
+      // Base default; entity hooks override (settings/catalog longer, stock shorter).
+      staleTime: 60_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: 1,

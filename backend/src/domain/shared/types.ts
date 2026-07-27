@@ -34,6 +34,7 @@ export type ClientPayload = {
   iban?: unknown;
   note?: unknown;
   status?: unknown;
+  expectedUpdatedAt?: unknown;
 };
 
 export type MergeClientsPayload = {

@@ -80,11 +80,47 @@ const defaultRunCommand: CommandRunner = (command, args) =>
     });
   });
 
+/** Dangerous shell metacharacters — custom backup templates must not include these. */
+const BACKUP_SHELL_UNSAFE = /[;&|`$<>\\!\n\r]/
+
+/**
+ * Validate custom BACKUP_*_COMMAND templates before shell execution.
+ * Only `{mongoUri}` and `{archivePath}` placeholders are expanded.
+ */
+export const assertSafeBackupCommandTemplate = (template: string, label: string) => {
+  const trimmed = template.trim();
+  if (!trimmed) {
+    throw new HttpError(500, `${label} is empty.`);
+  }
+  if (BACKUP_SHELL_UNSAFE.test(trimmed)) {
+    throw new HttpError(
+      500,
+      `${label} contains disallowed shell characters. Use only {mongoUri} and {archivePath} placeholders.`,
+    );
+  }
+  // After stripping known placeholders, reject any remaining braces (unexpected expansion).
+  const withoutPlaceholders = trimmed
+    .replaceAll('{mongoUri}', '')
+    .replaceAll('{archivePath}', '');
+  if (withoutPlaceholders.includes('{') || withoutPlaceholders.includes('}')) {
+    throw new HttpError(
+      500,
+      `${label} has unknown placeholders. Only {mongoUri} and {archivePath} are allowed.`,
+    );
+  }
+};
+
 const runShellCommand = (template: string, context: CommandContext) =>
   new Promise<void>((resolve, reject) => {
+    assertSafeBackupCommandTemplate(template, 'Backup command');
     const command = template
       .replaceAll('{mongoUri}', context.mongoUri)
       .replaceAll('{archivePath}', context.archivePath);
+    // Re-check expansion result for injection via path/uri content (should already be trusted env).
+    if (BACKUP_SHELL_UNSAFE.test(command.replaceAll(context.mongoUri, '').replaceAll(context.archivePath, ''))) {
+      reject(new Error('Expanded backup command failed safety check.'));
+      return;
+    }
     const child = spawn(command, { shell: true });
     let stderr = '';
 

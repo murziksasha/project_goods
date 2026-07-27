@@ -203,7 +203,7 @@ describe('auth sessions', () => {
     expect(employee.save).toHaveBeenCalled();
   });
 
-  it('migrates legacy plaintext sessions to hashed form', async () => {
+  it('rejects legacy plaintext sessions (re-login required)', async () => {
     const employee = createEmployeeRecord({
       authToken: 'legacy-token',
       authTokens: [],
@@ -211,11 +211,11 @@ describe('auth sessions', () => {
     });
     mockEmployeeFindOne(employee);
 
-    await expect(getCurrentEmployee('legacy-token')).resolves.toMatchObject({
-      id: 'employee-id',
+    await expect(getCurrentEmployee('legacy-token')).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Session not found.',
     });
-    expect(employee.authSessions[0]?.token).toBe(hashAuthToken('legacy-token'));
-    expect(employee.save).toHaveBeenCalled();
+    expect(employee.save).not.toHaveBeenCalled();
   });
 
   it('rejects idle-expired sessions when AUTH_SESSION_IDLE_HOURS is set', async () => {

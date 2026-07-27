@@ -8,12 +8,17 @@ import {
   logoutEmployee,
 } from '../domain/auth/service';
 import { asyncHandler } from '../shared/lib/http';
+import { loginRateLimit } from '../shared/middleware/login-rate-limit';
 
 export const authRouter = Router();
 
-authRouter.post('/auth/login', asyncHandler(async (req, res) => {
-  res.json(await loginEmployee(req.body?.username, req.body?.password));
-}));
+authRouter.post(
+  '/auth/login',
+  loginRateLimit,
+  asyncHandler(async (req, res) => {
+    res.json(await loginEmployee(req.body?.username, req.body?.password));
+  }),
+);
 
 authRouter.get('/auth/me', asyncHandler(async (req, res) => {
   res.json(await getCurrentEmployee(getBearerToken(req.headers.authorization)));

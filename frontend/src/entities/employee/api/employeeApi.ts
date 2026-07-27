@@ -8,6 +8,7 @@ export const useEmployeesQuery = (enabled = true) =>
     queryKey: queryKeys.employees,
     queryFn: () => getEmployees(),
     enabled,
+    staleTime: 2 * 60_000,
   });
 
 export const getEmployees = async (query = '', role = 'all') => {

@@ -162,6 +162,8 @@
       },
       "openWeatherApiKey": "OpenWeatherMap API key",
       "openWeatherApiKeyPlaceholder": "Required when OpenWeatherMap is selected",
+      "openWeatherApiKeyConfigured": "Configured on the server (OPENWEATHER_API_KEY).",
+      "openWeatherApiKeyServerOnly": "Set OPENWEATHER_API_KEY on the backend host. Keys are not stored in settings.",
       "providers": {
         "openMeteo": "Open-Meteo (no key)",
         "openWeather": "OpenWeatherMap"
@@ -2609,6 +2611,7 @@
       "entities": {
         "product": "Product",
         "sale": "Sale",
+        "client": "Client",
         "clientDevice": "Client device"
       },
       "success": {

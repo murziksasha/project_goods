@@ -69,11 +69,9 @@ Frontend использует слоистую структуру, близку�
 
 Метка версии frontend-сборки (короткий git SHA + время сборки) показывается в левом сайдбаре под пунктом Settings только для авторизованных пользователей. Значения вшиваются при старте Vite / `vite build`; в Docker `GIT_SHA` передаётся через `npm run docker:up`. Подробности: [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
 
-На вкладке заказов номер заказа и серийный номер устройства являются точками входа в карточку заказа. Карточка показывает основную информацию, live feed, услуги, оплату и заметки. Статус ремонта кликабельный в таблице и карточке; сейчас он хранится на frontend в `localStorage`, потому что отдельного backend-поля статуса ремонта пока нет.
+На вкладке заказов номер заказа и серийный номер устройства — точки входа в карточку заказа. Карточка показывает основную информацию, live feed (`timeline`), услуги, оплату и заметки. **Статус ремонта/продажи**, **timeline**, **paidAmount** и **paymentHistory** хранятся в MongoDB на документе `Sale` (не в localStorage). Optimistic concurrency: `expectedUpdatedAt` → 409 при конфликте.
 
-Комментарии в live feed карточки заказа на текущем этапе также сохраняются локально в `localStorage`. Прием оплаты уже подключен к backend finance API: пользователь открывает модальное окно, выбирает кассу и создает `deposit`-операцию, которая сохраняется в MongoDB и меняет баланс выбранной кассы. UI карточки дополнительно хранит локальную сумму оплат по заказу и пересчитывает `Paid` / `To pay`; полноценную связь платежей с заказом нужно вынести в backend отдельной моделью или полем.
-
-Модальное окно оплаты поддерживает три сценария: принять деньги в кассу без смены статуса, принять деньги и выдать заказ со статусом `Issued`, либо выдать заказ без оплаты. Статус выдачи пока хранится в `localStorage` вместе с остальными frontend-managed статусами.
+Прием оплаты через finance API (`deposit`/`refund`) пишет в кассу и обновляет `paidAmount` / `paymentHistory` заказа. localStorage на orders UI используется только для UI-preferences (фильтры, колонки, свёрнутые секции), не для бизнес-статусов.
 
 Печатные формы заказа выбираются из dropdown в модальном окне оплаты. Их шаблоны редактируются в разделе `Settings`, который расположен внизу основного меню. Содержимое шаблонов (блоки, заголовки, встроенные формы) хранится в MongoDB через `PUT /api/settings`. Персональная настройка layout (отступы, размер страницы/этикетки, ориентация) сохраняется по кнопке **Save settings** в `localStorage` per employee (`project-goods.print-form-overrides.{employeeId}`) и не пишется при каждом изменении поля. Подробнее: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#content-margins-and-per-user-layout-storage).
 
@@ -141,7 +139,8 @@ Backend собран по модульному практическому пат
 - нет общей схемы валидации между frontend и backend (ad-hoc parsers)
 - нет формального workspace-инструмента для монорепо
 - импорт товаров из Excel на backend частично; product import UI ещё может быть ограничен
-- multi-doc transactions: finance (cashboxes/txs), sale stock+write (`withOptionalMongoSession`), `paySupplierOrder` (finance+order), `mergeClients`; take-on-charge still compensating/sequential
+- multi-doc transactions: finance (cashboxes/txs), sale stock+write (`withOptionalMongoSession`), `paySupplierOrder` (finance+order), `mergeClients`, `takeOnChargeSupplierOrder` (products + supplier-order receipt status)
+- list indexes: sale `{kind,saleDate}`, `{kind,status,saleDate}`, `{client,saleDate}`; product `{warehouseId,isActive}`, `{article}`; client `{createdAt}`, `{name}`
 - shared helper: `shared/lib/mongo-session.ts` (no-op session when Mongo not connected — unit tests)
 - list endpoints: supplier-order list is **read-only** (derived status refresh on startup + after writes for zero-total); catalog/device usage counts batch-loaded
 
