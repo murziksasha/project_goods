@@ -25,12 +25,15 @@ export const queryKeys = {
   financeSettings: ['financeSettings'] as const,
   marketRates: ['marketRates'] as const,
   weatherForecast: ['weatherForecast'] as const,
+  dashboardAnalytics: (params: Record<string, unknown> = {}) =>
+    ['dashboardAnalytics', params] as const,
 };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 15000,
+      // Base default; entity hooks override (settings/catalog longer, stock shorter).
+      staleTime: 60_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: 1,

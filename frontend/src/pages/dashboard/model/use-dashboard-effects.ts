@@ -60,7 +60,8 @@ export const useDashboardEffects = ({
     queryKey: queryKeys.clientDevices,
     queryFn: () => getClientDevices(),
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    staleTime: 30_000,
+    refetchInterval: enabled ? 60_000 : false,
   });
 
   useEffect(() => {

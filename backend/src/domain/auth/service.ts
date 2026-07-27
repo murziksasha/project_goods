@@ -143,10 +143,6 @@ const buildTokenLookupQuery = (presentedToken: string) => {
       { 'authSessions.token': hashed },
       { authTokens: hashed },
       { authToken: hashed },
-      // legacy plaintext sessions
-      { 'authSessions.token': presentedToken },
-      { authTokens: presentedToken },
-      { authToken: presentedToken },
     ],
   };
 };
@@ -196,12 +192,17 @@ export const getEmployeeByToken = async (
 
   if (isSessionExpired(session, now)) {
     const remaining = sessions.filter(
-      (item) => !authTokenMatches(token, item.token),
+      (item) =>
+        !authTokenMatches(token, item.token) && !isSessionExpired(item, now),
     );
     syncLegacyAuthFields(employee, remaining);
     await employee.save();
     throw new HttpError(401, 'Session expired. Please sign in again.');
   }
+
+  // Drop other idle-expired sessions even when current token is still valid.
+  const activeSessions = sessions.filter((item) => !isSessionExpired(item, now));
+  const prunedExpired = activeSessions.length !== sessions.length;
 
   const shouldTouch =
     now.getTime() - session.lastUsedAt.getTime() >= AUTH_SESSION_TOUCH_INTERVAL_MS;
@@ -211,8 +212,8 @@ export const getEmployeeByToken = async (
     employee.authSessions.length === 0 ||
     !employee.authSessions.some((item) => authTokenMatches(token, item.token));
 
-  if (shouldTouch || needsRehash || needsLegacySync) {
-    const nextSessions = sessions.map((item) => {
+  if (shouldTouch || needsRehash || needsLegacySync || prunedExpired) {
+    const nextSessions = activeSessions.map((item) => {
       if (!authTokenMatches(token, item.token)) return item;
       return {
         token: hashAuthToken(token),

@@ -38,17 +38,15 @@ export const isHashedAuthToken = (value: string) =>
 export const authTokenMatches = (presented: string, stored: string) => {
   if (!presented || !stored) return false;
 
-  if (isHashedAuthToken(stored)) {
-    const expected = hashAuthToken(presented);
-    const expectedBuf = Buffer.from(expected, 'utf8');
-    const storedBuf = Buffer.from(stored, 'utf8');
-    if (expectedBuf.length !== storedBuf.length) return false;
-    return crypto.timingSafeEqual(expectedBuf, storedBuf);
+  // Only hashed (`h1:…`) session records are accepted. Plaintext legacy sessions
+  // require a fresh login so DB never compares raw bearer tokens long-term.
+  if (!isHashedAuthToken(stored)) {
+    return false;
   }
 
-  // Legacy plaintext sessions (pre-hash migration)
-  const presentedBuf = Buffer.from(presented, 'utf8');
+  const expected = hashAuthToken(presented);
+  const expectedBuf = Buffer.from(expected, 'utf8');
   const storedBuf = Buffer.from(stored, 'utf8');
-  if (presentedBuf.length !== storedBuf.length) return false;
-  return crypto.timingSafeEqual(presentedBuf, storedBuf);
+  if (expectedBuf.length !== storedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, storedBuf);
 };

@@ -802,6 +802,15 @@ export const createDashboardActions = ({
         setSuccessMessage(i18n.t('success.clientUpdated'));
         return true;
       } catch (requestError) {
+        if (
+          await handleOptimisticConflict(
+            requestError,
+            refreshClients,
+            'dashboard.actions.entities.client',
+          )
+        ) {
+          return false;
+        }
         setError(
           getRequestErrorMessage(
             requestError,

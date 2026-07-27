@@ -110,7 +110,7 @@ The production static server (`frontend/scripts/serve-with-api-proxy.mjs`) serve
 
 ## Backend health
 
-Public endpoint (no auth): `GET /api/health`
+Public endpoint (no auth): `GET /api/health` (includes Mongo ping: `mongoOk`, `mongoLatencyMs`, `status`)
 
 ```json
 {

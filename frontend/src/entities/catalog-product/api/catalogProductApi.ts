@@ -11,7 +11,8 @@ export const useCatalogProductsQuery = (enabled = true) =>
     queryKey: queryKeys.catalogProducts,
     queryFn: () => getCatalogProducts(),
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    staleTime: 2 * 60_000,
+    refetchInterval: enabled ? 60_000 : false,
   });
 
 export const getCatalogProducts = async (query = '') => {

@@ -5,6 +5,7 @@ import {
   legacyDefaultPrintFormTitles,
   type SettingsDocument,
 } from './model';
+import { env } from '../../config/env';
 import { normalizeSettingsPayload } from '../../shared/lib/parsers';
 import type { SettingsPayload } from '../shared/types';
 import { HttpError } from '../../shared/lib/errors';
@@ -193,6 +194,9 @@ const formatSettings = (settings: SettingsDocument) => {
     dashboardPreferences: {
       ...defaultDashboardPreferences,
       ...(settings.dashboardPreferences ?? {}),
+      // Never expose stored keys over the API; OpenWeather uses server env only.
+      openWeatherApiKey: '',
+      hasOpenWeatherApiKey: Boolean(env.openWeatherApiKey),
       rateProviders: Array.isArray(settings.dashboardPreferences?.rateProviders)
         ? settings.dashboardPreferences.rateProviders.filter(
             (provider): provider is 'nbu' | 'privat' | 'mono' =>

@@ -39,7 +39,8 @@ export const normalizeDashboardPreferences = (
       source.weatherAnimationEnabled ?? defaults.weatherAnimationEnabled,
     weatherProvider:
       source.weatherProvider === 'openweather' ? 'openweather' : 'open-meteo',
-    openWeatherApiKey: source.openWeatherApiKey ?? defaults.openWeatherApiKey,
+    openWeatherApiKey: '',
+    hasOpenWeatherApiKey: Boolean(source.hasOpenWeatherApiKey),
     defaultWeatherLocation: getWeatherLocationPreset(
       source.defaultWeatherLocation ?? legacyDefaultWeatherLocation,
     ),

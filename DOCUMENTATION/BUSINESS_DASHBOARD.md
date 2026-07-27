@@ -277,7 +277,8 @@ flowchart LR
 | `weatherAnimationEnabled` | Default weather animation |
 | `defaultWeatherLocation` | `chornomorsk` or `odesa` |
 | `weatherProvider` | `open-meteo` or `openweather` |
-| `openWeatherApiKey` | Required when OpenWeatherMap is selected |
+| `hasOpenWeatherApiKey` | Read-only flag: backend has `OPENWEATHER_API_KEY` |
+| ~~`openWeatherApiKey`~~ | Not stored/returned; configure on server env only |
 | `currencies` | Enabled currency codes (`USD`, `EUR`, `GBP`, `PLN`) |
 | `rateProviders` | Enabled rate providers (`nbu`, `privat`, `mono`) |
 | `defaultForecastView` | `today`, `tomorrow`, or `fiveDay` |
@@ -360,7 +361,7 @@ Response:
 
 ### Weather forecast
 
-`GET /api/weather/forecast?lat=46.3013&lon=30.6531&provider=open-meteo&apiKey=`
+`GET /api/weather/forecast?lat=46.3013&lon=30.6531&provider=open-meteo`
 
 The frontend passes coordinates from the selected location preset. Backend fallback coordinates (when `lat`/`lon` are invalid): Chornomorsk.
 

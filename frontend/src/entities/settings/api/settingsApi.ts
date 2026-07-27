@@ -8,6 +8,7 @@ export const useSettingsQuery = (enabled = true) =>
     queryKey: queryKeys.settings,
     queryFn: getSettings,
     enabled,
+    staleTime: 5 * 60_000,
   });
 
 export const getSettings = async () => {

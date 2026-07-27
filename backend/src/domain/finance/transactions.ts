@@ -36,6 +36,7 @@ import {
   type ListFinanceTransactionsOptions,
 } from './list-transactions-query';
 import { HttpError } from '../../shared/lib/errors';
+import { loadTransactionsForBalanceAfter } from './period-snapshot';
 
 const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
@@ -486,16 +487,15 @@ export const listFinanceTransactions = async (
   const sort = getFinanceTransactionsSort(options);
   const skip = (options.page - 1) * options.pageSize;
 
-  const [total, pageRows, allTransactions, cashboxes] = await Promise.all([
+  const [total, pageRows, balanceTransactions, cashboxes] = await Promise.all([
     FinanceTransaction.countDocuments(effectiveFilter),
     FinanceTransaction.find(effectiveFilter)
       .sort(sort)
       .skip(skip)
       .limit(options.pageSize)
       .lean<FinanceTransactionDocument[]>(),
-    FinanceTransaction.find()
-      .sort({ transactionDate: -1, createdAt: -1 })
-      .lean<FinanceTransactionDocument[]>(),
+    // After period seal, only txs after seal are needed (current balances + reverse walk).
+    loadTransactionsForBalanceAfter(),
     listCashboxes(),
   ]);
 
@@ -504,7 +504,7 @@ export const listFinanceTransactions = async (
       id: cashbox.id,
       balances: cashbox.balances,
     })),
-    transactions: allTransactions,
+    transactions: balanceTransactions,
   });
 
   return {

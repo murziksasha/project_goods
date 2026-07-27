@@ -147,7 +147,10 @@ describe('API auth matrix', () => {
     const response = await request(app).get('/api/health');
 
     expect(response.status).toBe(200);
-    expect(response.body.status).toBe('ok');
+    expect(['ok', 'degraded']).toContain(response.body.status);
+    expect(response.body).toHaveProperty('mongoOk');
+    expect(response.body).toHaveProperty('mongoReadyState');
+    expect(response.body).toHaveProperty('mongoLatencyMs');
     expect(response.body).toHaveProperty('version');
     expect(response.body).toHaveProperty('buildSha');
   });
