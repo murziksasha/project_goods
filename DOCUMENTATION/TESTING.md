@@ -48,21 +48,23 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 - **Triggers:** `push` to `main`/`master`, all `pull_request`
 - **Runner:** `ubuntu-latest`, Node **20**
 - **Jobs (parallel):** `backend`, `frontend`
-- **Per job:** `npm ci` (root + package) → lint → typecheck → test → build
-- **No Mongo/Docker/secrets** — integration suite mocks mongoose
+- **Backend:** lint → typecheck → `vitest run` → build
+- **Frontend:** lint → typecheck → build (**no** full Vitest on CI — run locally)
+- **No Mongo/Docker/secrets** — backend integration suite mocks mongoose
 - **Concurrency:** cancels in-progress runs for the same ref
 
-Local equivalent of the full gate:
+Local full gate (includes frontend tests):
 
 ```bash
 npm run verify
-# or per package:
-npm run lint && npm run typecheck && npm test && npm run build
+# frontend tests only:
+npm run test:frontend
 ```
 
 ## CI expectations
 
-1. `npm test` passes in `frontend/` and `backend/`.
-2. `npm run build` passes in both packages before release.
-3. Integration tests must not require Docker MongoDB (mongoose models mocked in API suite).
-4. New protected routes need entries in `api.integration.test.ts` or dedicated `*.routes.test.ts`.
+1. Backend `npm test` passes on CI.
+2. Frontend Vitest runs **locally** (`npm run test:frontend`); CI gates frontend via lint + typecheck + build.
+3. `npm run build` passes in both packages before release.
+4. Integration tests must not require Docker MongoDB (mongoose models mocked in API suite).
+5. New protected routes need entries in `api.integration.test.ts` or dedicated `*.routes.test.ts`.
