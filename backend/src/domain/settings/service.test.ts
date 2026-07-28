@@ -200,24 +200,6 @@ describe('settings service', () => {
   });
 
   it('migrates recognizable standard print forms and keeps custom forms', async () => {
-    const migratedPrintForms = [
-      {
-        id: 'receipt',
-        title: 'Receipt',
-        type: 'receipt',
-        content: 'Order {{orderNumber}} {{products_table}} {{services_table}}',
-        isActive: true,
-        sortOrder: 10,
-      },
-      {
-        id: 'custom',
-        title: 'Custom',
-        type: 'custom',
-        content: 'Custom {{orderNumber}}',
-        isActive: true,
-        sortOrder: 20,
-      },
-    ];
     const legacyReceipt = defaultPrintForms.find((form) => form.id === 'receipt');
     storedSettings = makeSettingsDocument({
       printForms: [

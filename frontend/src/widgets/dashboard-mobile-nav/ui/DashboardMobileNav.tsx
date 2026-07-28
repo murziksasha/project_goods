@@ -2,7 +2,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PageKey } from '../../../pages/dashboard/model/types';
 import { getDashboardHref } from '../../../pages/dashboard/model/types';
-import { sidebarNavIcons } from '../../../shared/ui/NavIcons';
+import { sidebarNavIcons } from '../../../shared/ui/sidebarNavIcons';
 
 export type MobileNavItem = {
   key: PageKey;

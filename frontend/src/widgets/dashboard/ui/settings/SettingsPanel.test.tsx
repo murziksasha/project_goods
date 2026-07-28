@@ -5,7 +5,7 @@ import type { AppSettingsFormValues } from '../../../../entities/settings/model/
 import * as backupApi from '../../../../entities/backup/api/backupApi';
 import { persistPrintFormLayoutOverrides } from '../../model/print-form-local-overrides';
 import { SettingsPanel } from './SettingsPanel';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cleanup } from '@testing-library/react';
 
 const defaultBackups = [
@@ -57,7 +57,9 @@ const SettingsPanelHarness = () => {
     createDefaultSettingsForm,
   );
   const latestFormRef = useRef(form);
-  latestFormRef.current = form;
+  useEffect(() => {
+    latestFormRef.current = form;
+  }, [form]);
 
   return (
     <SettingsPanel

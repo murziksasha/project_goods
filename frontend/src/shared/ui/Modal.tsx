@@ -93,10 +93,12 @@ export const Modal = ({
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   // Keep latest onClose without re-running open/focus lifecycle when parent re-renders.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useModalBackgroundScrollLock(isOpen, {
-    allowedSelectors: [...MODAL_SCROLL_LOCK_SELECTORS],
+    allowedSelectors: MODAL_SCROLL_LOCK_SELECTORS,
   });
 
   useEffect(() => {

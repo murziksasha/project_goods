@@ -44,7 +44,7 @@ const installSpies = () => {
   });
 
   vi.spyOn(SupplierOrder, 'find').mockImplementation(
-    (query: unknown) =>
+    (_query: unknown) =>
       ({
         sort: (sortArgs: unknown) => {
           state.sortArgs = sortArgs;
