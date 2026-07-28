@@ -41,6 +41,25 @@
 
 Planned next domains: finance `validators`/`normalizers` (near-ready), thin route matrices.
 
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+
+- **Triggers:** `push` to `main`/`master`, all `pull_request`
+- **Runner:** `ubuntu-latest`, Node **20**
+- **Jobs (parallel):** `backend`, `frontend`
+- **Per job:** `npm ci` (root + package) → lint → typecheck → test → build
+- **No Mongo/Docker/secrets** — integration suite mocks mongoose
+- **Concurrency:** cancels in-progress runs for the same ref
+
+Local equivalent of the full gate:
+
+```bash
+npm run verify
+# or per package:
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
 ## CI expectations
 
 1. `npm test` passes in `frontend/` and `backend/`.
