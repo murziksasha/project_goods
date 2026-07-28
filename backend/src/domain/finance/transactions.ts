@@ -5,6 +5,7 @@ import {
   type CashboxDocument,
   type FinanceTransactionDocument,
 } from './model';
+import { isDuplicateKeyError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { formatTransaction } from './formatters';
 import {
@@ -141,8 +142,8 @@ const runCreateFinanceTransaction = async (
     await transaction.save({ session });
 
     return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
-  } catch (error: any) {
-    if (idempotencyKey && error?.code === 11000) {
+  } catch (error: unknown) {
+    if (idempotencyKey && isDuplicateKeyError(error)) {
       const existing = await leanWithOptionalSession<FinanceTransactionDocument | null>(
         FinanceTransaction.findOne({ idempotencyKey }),
         session,
@@ -364,8 +365,8 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       await cancellation.validate();
       try {
         await cancellation.save({ session });
-      } catch (err: any) {
-        if (err?.code === 11000 && transaction._id) {
+      } catch (err: unknown) {
+        if (isDuplicateKeyError(err) && transaction._id) {
           const existingReverse = await leanWithOptionalSession<FinanceTransactionDocument | null>(
             FinanceTransaction.findOne({ cancelsTransaction: transaction._id }),
             session,

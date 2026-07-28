@@ -108,6 +108,17 @@ beforeEach(() => {
   restoreApiMocks();
 });
 
+/** Card shows Accept payment in header + payment panel; prefer header CTA. */
+const clickHeaderAcceptPayment = async () => {
+  const buttons = await screen.findAllByRole('button', {
+    name: 'Accept payment',
+  });
+  const header = buttons.find((button) =>
+    button.classList.contains('order-detail-header-pay-button'),
+  );
+  fireEvent.click(header ?? buttons[0]);
+};
+
 const employee: Employee = {
   id: 'manager-1',
   name: 'Manager',
@@ -679,7 +690,7 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    await clickHeaderAcceptPayment();
     let cashboxSelect: HTMLElement | undefined;
     await waitFor(() => {
       cashboxSelect = screen
@@ -774,7 +785,7 @@ describe('OrdersWorkspace', () => {
       '/?page=orders&ordersTab=orders&saleId=sale-1',
     );
     fireEvent.click(orderLink);
-    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    await clickHeaderAcceptPayment();
     expect(
       await screen.findByRole('button', { name: 'Accept and issue' }),
     ).toBeInTheDocument();
@@ -841,7 +852,7 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
+    await clickHeaderAcceptPayment();
     fireEvent.click(
       await screen.findByRole('button', { name: 'Issue without payment' }),
     );
@@ -958,10 +969,16 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Accept payment' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Print' }));
+    await clickHeaderAcceptPayment();
+    // Prefer payment-modal Print (text), not header icon "Print order".
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Print$/i }),
+    );
 
-    expect(await screen.findByRole('dialog', { name: 'Print order' })).toBeInTheDocument();
+    // Print dialog title is the order number (OrderPrintDialog).
+    expect(
+      await screen.findByRole('dialog', { name: 'R000001' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Accept to cashbox' }),
     ).toBeInTheDocument();

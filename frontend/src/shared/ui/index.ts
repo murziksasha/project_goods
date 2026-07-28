@@ -9,4 +9,4 @@ export { TableSkeleton, type TableSkeletonProps } from './TableSkeleton';
 export { AccessDeniedPanel } from './AccessDeniedPanel';
 export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { ThemeSwitcher } from './ThemeSwitcher';
-export { sidebarNavIcons } from './NavIcons';
+export { sidebarNavIcons } from './sidebarNavIcons';

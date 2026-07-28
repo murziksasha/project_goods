@@ -1,5 +1,4 @@
-import type { ReactElement, SVGProps } from 'react';
-import type { PageKey } from '../../pages/dashboard/model/types';
+import type { SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement> & {
   title?: string;
@@ -83,17 +82,3 @@ export const EmployeesIcon = (props: IconProps) => (
     <path d="M9 3.5V2.75A1.25 1.25 0 0 1 10.25 1.5h3.5A1.25 1.25 0 0 1 15 2.75V3.5" />
   </IconShell>
 );
-
-export const sidebarNavIcons: Record<
-  PageKey,
-  (props: IconProps) => ReactElement
-> = {
-  home: HomeIcon,
-  orders: OrdersIcon,
-  clients: ClientsIcon,
-  accounting: AccountingIcon,
-  catalog: CatalogIcon,
-  warehouse: WarehouseIcon,
-  settings: SettingsIcon,
-  employees: EmployeesIcon,
-};

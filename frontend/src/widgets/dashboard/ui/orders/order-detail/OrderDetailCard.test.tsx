@@ -1606,8 +1606,11 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    // Serial click pre-selects that serial for print (printSelectedCount, not printSerialNumber).
     expect(
-      screen.getByRole('button', { name: 'Print serial number' }),
+      within(dialog).getByRole('button', {
+        name: 'Print 1 selected serial numbers',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -1643,9 +1646,17 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    // Name click does not pre-select a serial for print.
     expect(
-      screen.queryByRole('button', { name: 'Print serial number' }),
+      within(dialog).queryByRole('button', {
+        name: 'Print 1 selected serial numbers',
+      }),
     ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Select serial numbers to print',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('toggles discount mode from label badge and field control', () => {

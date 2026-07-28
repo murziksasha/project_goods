@@ -8,10 +8,7 @@ import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { upsertCatalogProducts } from '../catalog-product/service';
-import {
-  getStockLines,
-  type StockLine,
-} from './stock';
+import { type StockLine } from './stock';
 
 export const buildClientSnapshot = (
   client: Pick<

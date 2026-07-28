@@ -104,14 +104,21 @@ export const createClient = async (payload: ClientPayload) => {
 
 export const updateClient = async (clientId: string, payload: ClientPayload) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
-  const existingClient = await Client.findById(clientId).lean<ClientDocument | null>();
-  if (!existingClient) {
-    throw new HttpError(404, 'Client not found.');
-  }
-  assertNotStale(payload.expectedUpdatedAt, existingClient.updatedAt, 'Client');
 
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone], clientId);
+  await assertUniqueClientPhones(
+    normalizedPayload.phones || [normalizedPayload.phone],
+    clientId,
+  );
+
+  // Staleness needs the current row; skip the extra read when callers omit expectedUpdatedAt.
+  if (payload.expectedUpdatedAt) {
+    const existingClient = await Client.findById(clientId).lean<ClientDocument | null>();
+    if (!existingClient) {
+      throw new HttpError(404, 'Client not found.');
+    }
+    assertNotStale(payload.expectedUpdatedAt, existingClient.updatedAt, 'Client');
+  }
 
   const client = await Client.findByIdAndUpdate(clientId, normalizedPayload, {
     returnDocument: 'after',
