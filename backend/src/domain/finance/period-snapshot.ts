@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { env } from '../../config/env';
 import { HttpError } from '../../shared/lib/errors';
+import { createSafetyBackup } from '../backup/service';
 import { listCashboxes } from './cashboxes';
 import {
   FinancePeriodSnapshot,
@@ -12,8 +13,11 @@ import {
   type FinanceTransactionDocument,
 } from './model';
 
-/** Raw finance txs older than this many years may be sealed + purged. */
-export const FINANCE_RAW_TX_RETENTION_YEARS = 2;
+/** Raw finance txs older than this many months may be sealed + purged. */
+export const FINANCE_RAW_TX_RETENTION_MONTHS = 36;
+
+/** @deprecated Prefer FINANCE_RAW_TX_RETENTION_MONTHS. Derived years for API compat. */
+export const FINANCE_RAW_TX_RETENTION_YEARS = FINANCE_RAW_TX_RETENTION_MONTHS / 12;
 
 export type SnapshotBalanceRow = {
   cashboxId: string;
@@ -35,11 +39,12 @@ const getCashboxId = (value: unknown) => {
   return String(value);
 };
 
-/** Exclusive periodEnd cutoff: start of day UTC N years ago. */
+/** Exclusive periodEnd cutoff: start of day UTC, now − 36 months. */
 export const getFinanceRawTxCutoff = (now = new Date()) => {
   const cutoff = new Date(
-    Date.UTC(now.getUTCFullYear() - FINANCE_RAW_TX_RETENTION_YEARS, now.getUTCMonth(), now.getUTCDate()),
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - FINANCE_RAW_TX_RETENTION_MONTHS);
   cutoff.setUTCHours(0, 0, 0, 0);
   return cutoff;
 };
@@ -71,6 +76,7 @@ export const getActiveFinancePeriodSnapshot = async () => {
 /**
  * Reverse-walk current cashbox balances through txs strictly after periodEnd
  * → balances as of periodEnd (exclusive end of sealed history).
+ * Amounts are raw rounded (may be negative for audit honesty).
  */
 export const computeBalancesAtPeriodEnd = (
   cashboxes: Array<{ id: string; balances: Record<string, number> }>,
@@ -114,7 +120,7 @@ export const computeBalancesAtPeriodEnd = (
     return {
       cashboxId: cashboxId!,
       currency: currency!,
-      amount: Math.max(Math.round(amount * 100) / 100, 0),
+      amount: Math.round(amount * 100) / 100,
     };
   });
 };
@@ -136,6 +142,7 @@ export const sealFinancePeriodSnapshot = async (
       snapshot: formatFinancePeriodSnapshot(existingActive),
       created: false,
       message: 'Active snapshot already covers this period.',
+      warnings: [] as string[],
     };
   }
 
@@ -150,6 +157,15 @@ export const sealFinancePeriodSnapshot = async (
     cashboxes.map((cashbox) => ({ id: cashbox.id, balances: cashbox.balances })),
     txsAfter,
   );
+
+  const warnings: string[] = [];
+  if (balances.some((row) => row.amount < 0)) {
+    console.warn(
+      '[finance-seal] negative_balance_at_period_end',
+      balances.filter((row) => row.amount < 0),
+    );
+    warnings.push('negative_balance_at_period_end');
+  }
 
   const sourceTxCount = await FinanceTransaction.countDocuments({
     transactionDate: { $lte: periodEnd },
@@ -180,6 +196,7 @@ export const sealFinancePeriodSnapshot = async (
     snapshot: formatFinancePeriodSnapshot(created.toObject() as FinancePeriodSnapshotDocument),
     created: true,
     message: 'Finance period sealed.',
+    warnings,
   };
 };
 
@@ -194,6 +211,10 @@ export const purgeFinanceTransactionsBeforeActiveSnapshot = async (
   const active = await getActiveFinancePeriodSnapshot();
   if (!active) {
     throw new HttpError(400, 'No active finance period snapshot. Seal first.');
+  }
+
+  if (env.financePurgeRequireSafetyBackup) {
+    await createSafetyBackup(author);
   }
 
   const result = await FinanceTransaction.deleteMany({

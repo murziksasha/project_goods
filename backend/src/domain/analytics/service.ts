@@ -1,3 +1,4 @@
+import { coldSalesPurgedExist } from '../archive/yearly-dump';
 import { Product } from '../product/model';
 import { Sale, type SaleDocument } from '../sale/model';
 import { getSaleDocumentTotal } from '../../shared/lib/saleTotals';
@@ -456,6 +457,15 @@ const buildResult = (
   };
 };
 
+const withAnalyticsMeta = async <T extends Record<string, unknown>>(result: T) => {
+  const coldPurged = await coldSalesPurgedExist();
+  return {
+    ...result,
+    dataScope: 'live_sales_only' as const,
+    coldSalesPurgedExist: coldPurged,
+  };
+};
+
 export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
   const currentDate = new Date();
   const period = parsePeriod(query.period);
@@ -475,40 +485,44 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
     );
     if (!config) {
       const todayConfig = getPeriodConfig('today', currentDate);
-      return buildResult(
+      return withAnalyticsMeta(
+        buildResult(
+          productSales,
+          repairOrders,
+          filteredSales,
+          filteredOrders,
+          [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], (s) => getSaleDocumentTotal(s as SaleDocument))],
+          [buildSnapshot(filteredOrders, todayConfig, 0, comparisonColors[0], () => 1)],
+          [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], () => 1)],
+          todayConfig.detailLabel,
+          todayConfig.axisLabels,
+          stock,
+          currentDate,
+        ),
+      );
+    }
+    return withAnalyticsMeta(
+      buildResult(
         productSales,
         repairOrders,
         filteredSales,
         filteredOrders,
-        [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], (s) => getSaleDocumentTotal(s as SaleDocument))],
-        [buildSnapshot(filteredOrders, todayConfig, 0, comparisonColors[0], () => 1)],
-        [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], () => 1)],
-        todayConfig.detailLabel,
-        todayConfig.axisLabels,
+        [
+          buildCustomSnapshot(
+            filteredSales,
+            config,
+            comparisonColors[0],
+            'current',
+            (s) => getSaleDocumentTotal(s as SaleDocument),
+          ),
+        ],
+        [buildCustomSnapshot(filteredOrders, config, comparisonColors[0], 'current', () => 1)],
+        [buildCustomSnapshot(filteredSales, config, comparisonColors[0], 'current', () => 1)],
+        config.detailLabel,
+        config.axisLabels,
         stock,
         currentDate,
-      );
-    }
-    return buildResult(
-      productSales,
-      repairOrders,
-      filteredSales,
-      filteredOrders,
-      [
-        buildCustomSnapshot(
-          filteredSales,
-          config,
-          comparisonColors[0],
-          'current',
-          (s) => getSaleDocumentTotal(s as SaleDocument),
-        ),
-      ],
-      [buildCustomSnapshot(filteredOrders, config, comparisonColors[0], 'current', () => 1)],
-      [buildCustomSnapshot(filteredSales, config, comparisonColors[0], 'current', () => 1)],
-      config.detailLabel,
-      config.axisLabels,
-      stock,
-      currentDate,
+      ),
     );
   }
 
@@ -521,45 +535,47 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
     const sortedYears = [...years].sort((a, b) => a - b);
     const detailLabel = 'whole';
     const axisLabels = sortedYears.map(String);
-    return buildResult(
-      productSales,
-      repairOrders,
-      productSales,
-      repairOrders,
-      [
-        buildYearlySnapshot(
-          productSales,
-          sortedYears,
-          comparisonColors[0],
-          'current',
-          (s) => getSaleDocumentTotal(s as SaleDocument),
-          detailLabel,
-        ),
-      ],
-      [
-        buildYearlySnapshot(
-          repairOrders,
-          sortedYears,
-          comparisonColors[0],
-          'current',
-          () => 1,
-          detailLabel,
-        ),
-      ],
-      [
-        buildYearlySnapshot(
-          productSales,
-          sortedYears,
-          comparisonColors[0],
-          'current',
-          () => 1,
-          detailLabel,
-        ),
-      ],
-      detailLabel,
-      axisLabels,
-      stock,
-      currentDate,
+    return withAnalyticsMeta(
+      buildResult(
+        productSales,
+        repairOrders,
+        productSales,
+        repairOrders,
+        [
+          buildYearlySnapshot(
+            productSales,
+            sortedYears,
+            comparisonColors[0],
+            'current',
+            (s) => getSaleDocumentTotal(s as SaleDocument),
+            detailLabel,
+          ),
+        ],
+        [
+          buildYearlySnapshot(
+            repairOrders,
+            sortedYears,
+            comparisonColors[0],
+            'current',
+            () => 1,
+            detailLabel,
+          ),
+        ],
+        [
+          buildYearlySnapshot(
+            productSales,
+            sortedYears,
+            comparisonColors[0],
+            'current',
+            () => 1,
+            detailLabel,
+          ),
+        ],
+        detailLabel,
+        axisLabels,
+        stock,
+        currentDate,
+      ),
     );
   }
 
@@ -587,17 +603,19 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
     matchesPeriod(new Date(sale.saleDate), config, currentRevenue.year),
   );
 
-  return buildResult(
-    productSales,
-    repairOrders,
-    selectedSales,
-    selectedOrders,
-    revenueSnapshots,
-    orderSnapshots,
-    salesCountSnapshots,
-    config.detailLabel,
-    config.axisLabels,
-    stock,
-    currentDate,
+  return withAnalyticsMeta(
+    buildResult(
+      productSales,
+      repairOrders,
+      selectedSales,
+      selectedOrders,
+      revenueSnapshots,
+      orderSnapshots,
+      salesCountSnapshots,
+      config.detailLabel,
+      config.axisLabels,
+      stock,
+      currentDate,
+    ),
   );
 };

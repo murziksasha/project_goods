@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import {
+  countStaleOpenSales,
   createYearlyFinanceDump,
   createYearlySalesDump,
+  listEligibleFinanceArchiveYears,
   listEligibleSalesArchiveYears,
   listYearlyArchives,
   runScheduledYearlyArchives,
   SALES_HOT_MONTHS,
+  SALES_PURGE_CONFIRMATION,
 } from '../domain/archive/yearly-dump';
 import {
   ensureFinancePeriodSealed,
@@ -13,6 +16,7 @@ import {
   listFinancePeriodSnapshots,
   purgeFinanceTransactionsBeforeActiveSnapshot,
   sealFinancePeriodSnapshot,
+  FINANCE_RAW_TX_RETENTION_MONTHS,
   FINANCE_RAW_TX_RETENTION_YEARS,
 } from '../domain/finance/period-snapshot';
 import { asyncHandler, requirePermission, routeParam } from '../shared/lib/http';
@@ -33,11 +37,14 @@ archiveRouter.get(
     await requireArchivePermission(req);
     res.json({
       hotMonths: SALES_HOT_MONTHS,
+      financeRetentionMonths: FINANCE_RAW_TX_RETENTION_MONTHS,
       financeRetentionYears: FINANCE_RAW_TX_RETENTION_YEARS,
       financeCutoff: getFinanceRawTxCutoff().toISOString(),
       eligibleSalesYears: listEligibleSalesArchiveYears(),
+      eligibleFinanceYears: listEligibleFinanceArchiveYears(),
       archives: await listYearlyArchives(),
       financeSnapshots: await listFinancePeriodSnapshots(),
+      staleOpenSales: await countStaleOpenSales(),
     });
   }),
 );
@@ -50,10 +57,18 @@ archiveRouter.post(
     if (!Number.isFinite(year)) {
       throw new HttpError(400, 'Invalid year.');
     }
+    const body = (req.body ?? {}) as { purge?: unknown; confirmation?: unknown };
     const purge =
-      String((req.body as { purge?: unknown })?.purge ?? '').toLowerCase() === 'true' ||
-      (req.body as { purge?: unknown })?.purge === true;
-    res.status(201).json(await createYearlySalesDump(year, employee.name, { purge }));
+      String(body.purge ?? '').toLowerCase() === 'true' || body.purge === true;
+    if (purge && String(body.confirmation ?? '') !== SALES_PURGE_CONFIRMATION) {
+      throw new HttpError(400, `Confirmation phrase must be ${SALES_PURGE_CONFIRMATION}.`);
+    }
+    res.status(201).json(
+      await createYearlySalesDump(year, employee.name, {
+        purge,
+        confirmation: purge ? body.confirmation : undefined,
+      }),
+    );
   }),
 );
 
@@ -65,10 +80,16 @@ archiveRouter.post(
     if (!Number.isFinite(year)) {
       throw new HttpError(400, 'Invalid year.');
     }
+    const body = (req.body ?? {}) as { purge?: unknown };
     const purge =
-      String((req.body as { purge?: unknown })?.purge ?? '').toLowerCase() === 'true' ||
-      (req.body as { purge?: unknown })?.purge === true;
-    res.status(201).json(await createYearlyFinanceDump(year, employee.name, { purge }));
+      String(body.purge ?? '').toLowerCase() === 'true' || body.purge === true;
+    if (purge) {
+      throw new HttpError(
+        400,
+        'Finance live purge is only allowed via period seal + PURGE_FINANCE. Yearly finance dump is offline-only.',
+      );
+    }
+    res.status(201).json(await createYearlyFinanceDump(year, employee.name, { purge: false }));
   }),
 );
 

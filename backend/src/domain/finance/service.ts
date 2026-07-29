@@ -25,5 +25,6 @@ export {
   ensureFinancePeriodSealed,
   autoPurgeSealedFinanceTransactions,
   getFinanceRawTxCutoff,
+  FINANCE_RAW_TX_RETENTION_MONTHS,
   FINANCE_RAW_TX_RETENTION_YEARS,
 } from './period-snapshot';

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Product } from '../product/model';
 import { Sale } from '../sale/model';
+import * as yearlyDump from '../archive/yearly-dump';
 import { getDashboardAnalytics } from './service';
 
 describe('getDashboardAnalytics', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(yearlyDump, 'coldSalesPurgedExist').mockResolvedValue(false);
   });
 
   it('aggregates sales and repair metrics for today period', async () => {
@@ -54,5 +56,7 @@ describe('getDashboardAnalytics', () => {
     expect(result.stock.freeStock).toBe(4);
     expect(result.hasRevenueData).toBe(true);
     expect(result.revenueSnapshots[0]?.values.length).toBe(24);
+    expect(result.dataScope).toBe('live_sales_only');
+    expect(result.coldSalesPurgedExist).toBe(false);
   });
 });
