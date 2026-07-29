@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:stats": "node -r ts-node/register src/scripts/db-stats.ts",
+    "db:health": "node -r ts-node/register src/scripts/db-health.ts",
     "clear:sales": "node -r ts-node/register src/scripts/clear-sales.ts",
     "import:clients:dry-run": "node -r ts-node/register src/scripts/import-clients.ts --dry-run",
     "import:clients": "node -r ts-node/register src/scripts/import-clients.ts",

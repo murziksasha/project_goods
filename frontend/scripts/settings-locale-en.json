@@ -2,7 +2,8 @@
   "tabs": {
     "company": "Company",
     "print": "Print forms",
-    "backups": "Backups"
+    "backups": "Backups",
+    "database": "Database"
   },
   "tabsAriaLabel": "Settings sections",
   "panel": {
@@ -224,6 +225,68 @@
       "failedDelete": "Failed to delete backup.",
       "failedRestore": "Failed to restore backup.",
       "failedRestoreFromFile": "Failed to restore backup from file."
+    }
+  },
+  "database": {
+    "noPermission": "Current employee cannot view database reports.",
+    "sectionLabel": "Database status",
+    "title": "Live MongoDB report",
+    "subtitle": "Connection health and collection sizes for ops planning. Read-only.",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "loading": "Loading database report...",
+    "failedLoad": "Failed to load database report.",
+    "valueUnavailable": "n/a",
+    "healthAriaLabel": "Database connection health",
+    "kpisAriaLabel": "Database storage totals",
+    "latency": "Latency",
+    "latencyValue": "{{ms}} ms",
+    "readyState": "Ready state",
+    "version": "MongoDB",
+    "uptime": "Uptime",
+    "uptimeDaysHours": "{{days}}d {{hours}}h",
+    "uptimeHoursMinutes": "{{hours}}h {{minutes}}m",
+    "uptimeMinutes": "{{minutes}}m",
+    "connections": "Connections",
+    "connectionsValue": "{{current}} / {{available}}",
+    "dbName": "Database",
+    "collectedAt": "Collected at",
+    "status": {
+      "ok": "Healthy",
+      "degraded": "Degraded"
+    },
+    "readyStateLabels": {
+      "disconnected": "Disconnected",
+      "connected": "Connected",
+      "connecting": "Connecting",
+      "disconnecting": "Disconnecting",
+      "unknown": "Unknown"
+    },
+    "kpis": {
+      "documents": "Documents",
+      "dataSize": "Data size",
+      "storageSize": "Storage",
+      "indexSize": "Indexes",
+      "collections": "Collections"
+    },
+    "attention": {
+      "title": "Attention",
+      "noIndexes": "{{count}} collection(s) without indexes: {{names}}",
+      "highStorageRatio": "High storage/data ratio (possible fragmentation): {{names}}",
+      "largestCollections": "Largest by storage: {{names}}",
+      "emptyCollections": "{{count}} empty collection(s)"
+    },
+    "collectionsTitle": "Collections",
+    "collectionsEmpty": "No user collections found.",
+    "table": {
+      "name": "Name",
+      "documents": "Docs",
+      "data": "Data",
+      "storage": "Storage",
+      "indexes": "Indexes",
+      "avgObj": "Avg obj",
+      "indexCount": "# idx",
+      "share": "Share"
     }
   }
 }

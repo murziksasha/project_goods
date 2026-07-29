@@ -233,6 +233,27 @@ describe('API auth matrix', () => {
     expect(response.status).toBe(403);
   });
 
+  it('returns 403 for db-health without system.backups.manage', async () => {
+    activeEmployee = { role: 'manager', permissions: ['inventory.manage'] };
+
+    const response = await request(app)
+      .get('/api/system/db-health')
+      .set(authHeader());
+
+    expect(response.status).toBe(403);
+  });
+
+  it('returns 403 for db-stats without system.backups.manage', async () => {
+    activeEmployee = { role: 'manager', permissions: ['inventory.manage'] };
+
+    const response = await request(app)
+      .get('/api/system/db-stats')
+      .set(authHeader());
+
+    expect(response.status).toBe(403);
+  });
+
+
   it('returns 404 for missing sale update target', async () => {
     activeEmployee = { role: 'manager', permissions: ['orders.manage'] };
     const { Sale } = await import('../domain/sale/model');
