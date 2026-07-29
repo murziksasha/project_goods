@@ -1176,6 +1176,7 @@
           "duplicateProductsInOrder": "An order cannot contain duplicate products.",
           "failedCreateProduct": "Failed to create product.",
           "failedTakeOnCharge": "Failed to take order on charge.",
+          "saveBeforeTakeOnCharge": "Save the order before taking it on charge. Unsaved line items are not stocked.",
           "failedCreateSupplier": "Failed to create supplier.",
           "paidNotEditable": "Paid supplier orders cannot be edited.",
           "paidNotCancellable": "Paid supplier orders cannot be cancelled from the modal.",

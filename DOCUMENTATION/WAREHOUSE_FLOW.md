@@ -173,6 +173,10 @@ Warehouse serial labels use the dedicated print form **`Product barcode`** (`for
 2. **Single print from product model modal** — click `Serial #` in the stock table to open the modal with a print action for that exact stock row.
 3. **Optional print after take-on-charge** — `SupplierOrderModal` checkbox `Print serial numbers after receipt` (uses the same print pipeline).
 
+Take-on-charge stocks and prints **saved** order lines only. If the modal has unsaved item changes, the operator must **Save** first; the UI blocks take-on-charge with `saveBeforeTakeOnCharge`.
+
+Print HTML keeps barcode `<svg data-barcode-value>` placeholders through `sanitizePrintHtml` (HTML + SVG profile) so JsBarcode can fill CODE128 on each label.
+
 #### Selection Rules (Bulk Print)
 
 1. Operator selects stock rows with the `Select` checkbox. Selection persists across pagination and filters until cleared.
