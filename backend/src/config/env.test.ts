@@ -23,6 +23,8 @@ describe('parseEnv', () => {
       financeAutoPurgeEnabled: false,
       archiveYearlyDumpsEnabled: true,
       archiveAutoPurgeSales: false,
+      archivePurgeRequireSafetyBackup: true,
+      financePurgeRequireSafetyBackup: true,
     });
   });
 
@@ -48,6 +50,8 @@ describe('parseEnv', () => {
         FINANCE_AUTO_PURGE: 'true',
         ARCHIVE_YEARLY_DUMPS: 'false',
         ARCHIVE_AUTO_PURGE_SALES: 'true',
+        ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
+        FINANCE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
       }),
     ).toEqual({
       port: 7000,
@@ -69,6 +73,8 @@ describe('parseEnv', () => {
       financeAutoPurgeEnabled: true,
       archiveYearlyDumpsEnabled: false,
       archiveAutoPurgeSales: true,
+      archivePurgeRequireSafetyBackup: false,
+      financePurgeRequireSafetyBackup: false,
     });
   });
 

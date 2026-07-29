@@ -65,14 +65,16 @@ describe('settings panel model', () => {
     expect(Object.values(getSettingsPreviewValues(form)).join(' ')).not.toContain('Р');
   });
 
-  it('exposes company, print form, dashboard and backup tabs', () => {
+  it('exposes company, print form, dashboard, backup and database tabs', () => {
     expect(settingsTabs.map((tab) => tab.labelKey)).toEqual([
       'settings.tabs.company',
       'settings.tabs.print',
       'settings.tabs.dashboard',
       'settings.tabs.backups',
+      'settings.tabs.database',
     ]);
   });
+
 
   it('reads a stored visible tab and falls back for hidden or invalid values', () => {
     window.localStorage.setItem(settingsTabStorageKey, 'print');

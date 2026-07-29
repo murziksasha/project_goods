@@ -65,16 +65,17 @@ http://localhost:5000/api
   - Permission: any of `orders.view` \| `sales.manage` \| `finance.view`
   - Query: `period` (`whole`\|`today`\|`currentMonth`\|`lastMonth`\|`currentYear`\|`lastYear`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`)
   - Response: snapshots, metrics, stock aggregates (lean sale projection; not full sale documents)
+  - Meta: `dataScope: "live_sales_only"`, `coldSalesPurgedExist: boolean` (history incomplete if true)
 
 ## Archive / cold storage
 
 Permission: `system.backups.manage` (except finance snapshot read).
 
-- `GET /archive/yearly` — eligible sales years, yearly archives, finance snapshots
-- `POST /archive/yearly/sales/:year` — body optional `{ "purge": true }`
-- `POST /archive/yearly/finance/:year` — offline dump; purge optional
-- `POST /archive/yearly/run` — process eligible sales years (scheduler equivalent)
-- `POST /archive/finance/seal` — body optional `{ "periodEnd": ISO }`; default = now − 2 years
+- `GET /archive/yearly` — eligible sales/finance years, archives, finance snapshots, `staleOpenSales`, retention (`hotMonths: 36`, `financeRetentionMonths: 36`)
+- `POST /archive/yearly/sales/:year` — dump; purge requires `{ "purge": true, "confirmation": "PURGE_SALES_YEAR" }` (verify+checksum+count gate)
+- `POST /archive/yearly/finance/:year` — offline dump only; `{ "purge": true }` → 400 (use seal path)
+- `POST /archive/yearly/run` — process eligible sales + finance years (scheduler equivalent)
+- `POST /archive/finance/seal` — body optional `{ "periodEnd": ISO }`; default = now − **36 months**; may return `warnings: ["negative_balance_at_period_end"]`
 - `POST /archive/finance/seal/auto` — seal if cutoff ahead of active snapshot
 - `POST /archive/finance/purge` — body `{ "confirmation": "PURGE_FINANCE" }`
 - `GET /finance/period-snapshots` — permission `finance.view`
@@ -93,8 +94,8 @@ Permission: `system.backups.manage` (except finance snapshot read).
 - `GET /clients` - список клиентов, поддерживает `query` и `status`
 - `POST /clients` - создать клиента
 - `PUT /clients/:clientId` - обновить клиента
-- `DELETE /clients/:clientId` - удалить клиента
-- `GET /clients/:clientId/history` - получить историю клиента
+- `DELETE /clients/:clientId` - удалить клиента (blocked if live sales exist **or** any cold sales year was purged)
+- `GET /clients/:clientId/history` - live sales only; additive flags `liveHistoryOnly`, `coldSalesPurgedExist`, `historyMayBeIncomplete`
 
 ## Sales
 

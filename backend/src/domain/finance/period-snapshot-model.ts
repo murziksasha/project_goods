@@ -24,7 +24,7 @@ export const financePeriodSnapshotSchema = new mongoose.Schema(
         amount: {
           type: Number,
           required: true,
-          min: 0,
+          // Raw audit amount at period end; may be negative if ledger walked inconsistent.
         },
       },
     ],

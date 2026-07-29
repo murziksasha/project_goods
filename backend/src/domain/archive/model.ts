@@ -42,6 +42,27 @@ export const yearlyArchiveSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    /** Count frozen at dump time (same as documentCount when verified). */
+    prePurgeCount: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    checksumSha256: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    verified: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
     deletedFromLive: {
       type: Boolean,
       required: true,

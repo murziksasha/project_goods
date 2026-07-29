@@ -26,7 +26,7 @@ export type BackendEnv = {
   backupSafetyMaxCount: number;
   /** 0 = disabled. Total completed backup archive size cap in bytes. */
   backupMaxTotalBytes: number;
-  /** Auto-seal finance period at 2y cutoff (default true). */
+  /** Auto-seal finance period at 36-month cutoff (default true). */
   financeAutoSealEnabled: boolean;
   /** Auto-purge finance txs covered by active seal (default false). */
   financeAutoPurgeEnabled: boolean;
@@ -34,6 +34,10 @@ export type BackendEnv = {
   archiveYearlyDumpsEnabled: boolean;
   /** After successful yearly sales dump, delete matching live docs (default false). */
   archiveAutoPurgeSales: boolean;
+  /** Require safety mongodump before sales auto/manual purge (default true). */
+  archivePurgeRequireSafetyBackup: boolean;
+  /** Require safety mongodump before PURGE_FINANCE (default true). */
+  financePurgeRequireSafetyBackup: boolean;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean) => {
@@ -75,6 +79,8 @@ export const parseEnv = (
       | 'FINANCE_AUTO_PURGE'
       | 'ARCHIVE_YEARLY_DUMPS'
       | 'ARCHIVE_AUTO_PURGE_SALES'
+      | 'ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP'
+      | 'FINANCE_PURGE_REQUIRE_SAFETY_BACKUP'
     >
   >,
 ): BackendEnv => {
@@ -111,6 +117,14 @@ export const parseEnv = (
     financeAutoPurgeEnabled: parseBoolean(rawEnv.FINANCE_AUTO_PURGE, false),
     archiveYearlyDumpsEnabled: parseBoolean(rawEnv.ARCHIVE_YEARLY_DUMPS, true),
     archiveAutoPurgeSales: parseBoolean(rawEnv.ARCHIVE_AUTO_PURGE_SALES, false),
+    archivePurgeRequireSafetyBackup: parseBoolean(
+      rawEnv.ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP,
+      true,
+    ),
+    financePurgeRequireSafetyBackup: parseBoolean(
+      rawEnv.FINANCE_PURGE_REQUIRE_SAFETY_BACKUP,
+      true,
+    ),
   };
 };
 
