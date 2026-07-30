@@ -65,7 +65,11 @@
 ## Products Section
 
 - `Products` section contains only attached products/parts/services used for the order work.
-- `Products` is collapsed by default in order card; saved expanded/collapsed state may override that default on later opens.
+- **Expand rules (repair order card, all users):**
+  - No product line items → **collapsed** by default (localStorage `productsOpen` may open when empty).
+  - ≥1 product line item → **expanded for every user** (overrides localStorage `productsOpen: false`).
+  - When the first product line is added while the card is open, Products opens immediately.
+- Sale cards keep Products open by default (see [SALE_CARD.md](./SALE_CARD.md)).
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
 - Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
 - Lookup must **never** match `note` on stock or catalog rows.

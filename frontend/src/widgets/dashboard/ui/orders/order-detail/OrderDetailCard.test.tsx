@@ -1735,9 +1735,10 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(
+    // Products auto-open when product lines exist — do not toggle closed.
+    expect(
       screen.getByRole('button', { name: /Products/i }),
-    );
+    ).toHaveAttribute('aria-expanded', 'true');
     expect(
       screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).not.toBeDisabled();
@@ -1759,7 +1760,7 @@ describe('OrderDetailCard product entry', () => {
     expect(statusSelect).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('keeps order card products collapsed by default even with existing product items', () => {
+  it('opens order card products when product lines exist', () => {
     renderCard({
       saleOverride: { kind: 'repair', status: 'clientApproved' },
       status: 'clientApproved',
@@ -1777,10 +1778,56 @@ describe('OrderDetailCard product entry', () => {
 
     expect(
       screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps order card products collapsed when there are no product lines', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).not.toBeInTheDocument();
+  });
+
+  it('opens order card products even when localStorage has productsOpen false', () => {
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': { productsOpen: false },
+      }),
+    );
+    renderCard({
+      saleOverride: {
+        id: 'sale-1',
+        kind: 'repair',
+        status: 'clientApproved',
+      },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('keeps sale card products open by default', () => {
@@ -1792,6 +1839,45 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).toBeInTheDocument();
+  });
+
+  it('keeps sale card services collapsed when there are no service lines', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Phone',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Services/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens sale card services when service lines exist', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Services/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Setup')).toBeInTheDocument();
   });
 
   it('restores saved section state from localStorage', () => {

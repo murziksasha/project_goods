@@ -8,6 +8,7 @@ export type SavedFilter<TFilters, TTab extends string> = {
   createdAt: string;
 };
 
+/** Legacy localStorage reader — used only for one-time migrate-to-server. */
 export const readSavedFilters = <TFilters, TTab extends string>(
   storageKey: string,
   tabs: readonly TTab[],
@@ -27,6 +28,14 @@ export const readSavedFilters = <TFilters, TTab extends string>(
     );
   } catch {
     return [];
+  }
+};
+
+export const clearSavedFiltersStorage = (storageKey: string) => {
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    // ignore
   }
 };
 

@@ -21,8 +21,9 @@
   - `Services`
 - Default state for sale card:
   - `Products`: open
-  - `Services`: hidden
-- Saved expanded/collapsed state may override those defaults on later opens.
+  - `Services`: collapsed when there are no service lines
+- **Services expand (all users):** ≥1 service line item → Services **expanded for every user** (overrides localStorage `servicesOpen: false`). Opens live when the first service is added.
+- Manual expand/collapse still writes localStorage (`project-goods.order-detail-sections`); empty-section defaults use stored preference when no force-open rule applies.
 
 ## Collapse Headers
 
