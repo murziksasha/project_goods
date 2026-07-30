@@ -115,8 +115,9 @@
 
 ## Notes
 
-- Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`).
+- Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`). Full expand rules: [ORDER_CARD.md → Notes](./ORDER_CARD.md#notes).
 - Default state: **collapsed** and **empty** (no system auto-text on sale creation).
+- Non-empty `userNote` → Notes **expanded for all users** (overrides localStorage collapsed preference).
 - `Notes` is **not** shown inside `Main information` (removed from that block).
 - Only `userNote` is displayed in the sale card; legacy system `note` values from older records are hidden in UI.
 - User note styling and edit flow match repair cards: light blue text, pencil button when expanded, inline Save / Cancel.

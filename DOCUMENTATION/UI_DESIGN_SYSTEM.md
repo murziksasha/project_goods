@@ -63,6 +63,9 @@ React wrappers: [`frontend/src/shared/ui/Button.tsx`](../frontend/src/shared/ui/
 - `.panel`, `.panel-header`, `.panel-subtitle` — workspace sections
 - React: `Panel`, `PanelHeader`
 - Modals: `.modal-backdrop` + `.catalog-edit-modal`; React `Modal` component
+- **Save-filter drawer** (orders / warehouse / clients shared classes in `domains/orders.css`):
+  - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header
+  - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI
 
 ## Status badges
 

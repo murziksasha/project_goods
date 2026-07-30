@@ -2421,4 +2421,63 @@ describe('OrderDetailCard notes section', () => {
       expect(onSaveUserNote).toHaveBeenCalledWith('Call before pickup');
     });
   });
+
+  it('keeps notes collapsed when only system note exists', () => {
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          note: '(kits: charger)\nType: repair',
+          userNote: '',
+        },
+      }),
+    );
+
+    expect(screen.queryByText(/\(kits: charger\)/)).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens notes for all users when userNote is non-empty', () => {
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          note: '(kits: charger)\nType: repair',
+          userNote: 'Call before pickup',
+        },
+      }),
+    );
+
+    expect(screen.getByText('Call before pickup')).toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('opens notes when userNote is set even if localStorage has noteOpen false', () => {
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': { noteOpen: false },
+      }),
+    );
+
+    render(
+      buildCardElement({
+        saleOverride: {
+          id: 'sale-1',
+          kind: 'repair',
+          note: 'Type: repair',
+          userNote: 'Shared note',
+        },
+      }),
+    );
+
+    expect(screen.getByText('Shared note')).toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
 });

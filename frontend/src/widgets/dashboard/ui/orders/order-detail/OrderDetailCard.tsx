@@ -235,6 +235,7 @@ export const OrderDetailCard = ({
     const storedState = readOrderDetailSectionsState()[sale.id];
     const productsOpenByDefault = isSaleCard;
     const servicesOpenByDefault = !isSaleCard;
+    const noteHasUserContent = (sale.userNote ?? '').trim().length > 0;
     setIsProductsOpen(
       storedState?.productsOpen ?? productsOpenByDefault,
     );
@@ -242,11 +243,19 @@ export const OrderDetailCard = ({
       storedState?.servicesOpen ?? servicesOpenByDefault,
     );
     setIsMainInfoOpen(storedState?.mainInfoOpen ?? true);
-    setIsNoteOpen(storedState?.noteOpen ?? false);
+    // Non-empty userNote forces open for all users (not system note alone).
+    setIsNoteOpen(
+      noteHasUserContent ? true : (storedState?.noteOpen ?? false),
+    );
     setIsLiveFeedOpen(
       storedState?.liveFeedOpen ?? !getIsCompactLayout(),
     );
+    // sale.userNote: read on sale.id change only; live open handled below.
   }, [sale.id, isSaleCard]);
+  useEffect(() => {
+    if ((sale.userNote ?? '').trim().length === 0) return;
+    setIsNoteOpen(true);
+  }, [sale.userNote]);
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
 

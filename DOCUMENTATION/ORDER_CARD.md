@@ -115,7 +115,11 @@
 ## Notes
 
 - Repair order cards and sale cards share the same collapsible `Notes` panel (`order-detail-note`).
-- Default state: **collapsed** (`noteOpen: false`). Saved expand/collapse state may override on later opens (localStorage key `project-goods.order-detail-sections`).
+- **Default expand rules (all users, data-driven):**
+  - Empty `userNote` → **collapsed** by default (system `note` alone does **not** force open).
+  - Non-empty `userNote` (any operator wrote text) → **expanded for every user** who opens the card. Overrides localStorage `noteOpen: false`.
+  - When `userNote` becomes non-empty while the card is open (save/sync), the panel opens immediately.
+  - Manual toggle still works; with empty `userNote`, later opens may restore `noteOpen` from localStorage key `project-goods.order-detail-sections`.
 - Section header uses compact collapse indicators (`⌃` / `⌄`), same as `Products` / `Services`.
 - When expanded, a pencil button (`toolbar-square-button`) appears on the right; it is shown only when the card is editable (`isOrderEditableStatus` and not `isReadOnly`).
 
@@ -132,6 +136,7 @@
   - `Type: repair`
 - Rendered in **gray** (`#5e7188`), read-only in the card.
 - Must not be edited from the card UI.
+- Presence of system note alone never auto-expands the Notes panel.
 
 ### User note (`userNote`)
 
@@ -141,6 +146,7 @@
 - Max length: 500 characters.
 - Persisted with `PATCH /sales/:saleId/workspace` (`userNote` field only); successful save appends a system timeline entry (`{{author}} updated note.`).
 - Editable only in repair statuses allowed by `isOrderEditableStatus` (same rule as other card edits).
+- Any non-empty value forces Notes open globally (shared sale field; not per-browser preference).
 
 ### Empty state
 

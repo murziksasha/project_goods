@@ -1601,7 +1601,8 @@
 .orders-filter-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 12;
+  /* Above sticky .topbar (z-index: 90) so filter name input is not clipped */
+  z-index: 120;
   display: flex;
   justify-content: flex-end;
   background: rgba(35, 50, 69, 0.38);
