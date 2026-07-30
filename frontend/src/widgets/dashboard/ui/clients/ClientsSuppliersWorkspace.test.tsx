@@ -1,8 +1,42 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { Supplier } from '../../../../entities/supplier/model/types';
 import { ClientsSuppliersWorkspace } from './ClientsSuppliersWorkspace';
+
+const savedFiltersStore: Array<Record<string, unknown>> = [];
+
+vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+  listSavedFilters: vi.fn(async () =>
+    savedFiltersStore.filter((item) => item.scope === 'clients'),
+  ),
+  createSavedFilter: vi.fn(async (payload: Record<string, unknown>) => {
+    const created = {
+      id: `sf-${savedFiltersStore.length + 1}`,
+      employeeId: 'employee-1',
+      scope: payload.scope,
+      tab: payload.tab,
+      name: payload.name,
+      icon: payload.icon,
+      filters: payload.filters,
+      createdAt: new Date().toISOString(),
+    };
+    savedFiltersStore.unshift(created);
+    return created;
+  }),
+  deleteSavedFilter: vi.fn(async (filterId: string) => {
+    const index = savedFiltersStore.findIndex((item) => item.id === filterId);
+    if (index >= 0) savedFiltersStore.splice(index, 1);
+    return { id: filterId, deleted: true as const };
+  }),
+}));
 
 const employee: Employee = {
   id: 'employee-1',
@@ -66,6 +100,7 @@ const renderWorkspace = (suppliers: Supplier[]) =>
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  savedFiltersStore.length = 0;
 });
 
 describe('ClientsSuppliersWorkspace suppliers filters', () => {
@@ -158,7 +193,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     expect(screen.getByText('Additional phone')).toBeInTheDocument();
   });
 
-  it('keeps saved supplier filters on the suppliers tab', () => {
+  it('keeps saved supplier filters on the suppliers tab', async () => {
     renderWorkspace([
       supplier({ id: 'supplier-main', name: 'Main Parts' }),
       supplier({ id: 'supplier-alt', name: 'Alt Parts' }),
@@ -176,11 +211,13 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(
-      screen
-        .getAllByRole('button', { name: /Alt suppliers/ })
-        .some((button) => button.className === 'orders-filter-saved-button'),
-    ).toBe(true);
+    await waitFor(() => {
+      expect(
+        screen
+          .getAllByRole('button', { name: /Alt suppliers/ })
+          .some((button) => button.className === 'orders-filter-saved-button'),
+      ).toBe(true);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));

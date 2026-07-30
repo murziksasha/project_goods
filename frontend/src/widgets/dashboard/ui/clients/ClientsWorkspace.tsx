@@ -57,7 +57,11 @@ import {
 } from '../../model/clients-workspace';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
-  createSavedFilterId,
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../entities/saved-filter/api/savedFilterApi';
+import {
   readSavedFilters,
   type SavedFilter,
 } from '../../model/saved-filters';
@@ -227,12 +231,7 @@ export const ClientsWorkspace = ({
   });
   const [savedFilters, setSavedFilters] = useState<
     Array<SavedFilter<ClientFilters, 'clients' | 'suppliers'>>
-  >(() =>
-    readSavedFilters<ClientFilters, 'clients' | 'suppliers'>(
-      clientsSuppliersSavedFiltersStorageKey,
-      ['clients', 'suppliers'],
-    ),
-  );
+  >([]);
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -441,21 +440,122 @@ export const ClientsWorkspace = ({
     setAppliedFilters(emptyFilters);
     setClientsPage(1);
   };
+  useEffect(() => {
+    if (!currentEmployee?.id) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    const employeeId = currentEmployee.id;
+    void (async () => {
+      try {
+        let remote = await listSavedFilters<ClientFilters>('clients');
+        if (remote.length === 0) {
+          const legacy = readSavedFilters<
+            ClientFilters,
+            'clients' | 'suppliers'
+          >(clientsSuppliersSavedFiltersStorageKey, [
+            'clients',
+            'suppliers',
+          ]).filter((item) => item.employeeId === employeeId);
+          const migrated: Array<
+            SavedFilter<ClientFilters, 'clients' | 'suppliers'>
+          > = [];
+          for (const item of legacy) {
+            try {
+              const created = await createSavedFilterRequest({
+                scope: 'clients',
+                tab: item.tab,
+                name: item.name,
+                icon: item.icon,
+                filters: item.filters,
+              });
+              migrated.push({
+                id: created.id,
+                employeeId: created.employeeId,
+                name: created.name,
+                icon: created.icon,
+                tab: created.tab as 'clients' | 'suppliers',
+                filters: created.filters as ClientFilters,
+                createdAt: created.createdAt,
+              });
+            } catch {
+              // skip
+            }
+          }
+          if (migrated.length > 0) {
+            remote = migrated.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              scope: 'clients' as const,
+              tab: item.tab,
+              name: item.name,
+              icon: item.icon,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            }));
+            try {
+              window.localStorage.removeItem(
+                clientsSuppliersSavedFiltersStorageKey,
+              );
+            } catch {
+              // ignore
+            }
+          }
+        }
+        if (!cancelled) {
+          setSavedFilters(
+            remote.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              name: item.name,
+              icon: item.icon,
+              tab: item.tab as 'clients' | 'suppliers',
+              filters: item.filters as ClientFilters,
+              createdAt: item.createdAt,
+            })),
+          );
+        }
+      } catch {
+        // keep empty on load failure
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployee?.id]);
+
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
     if (!currentEmployee?.id || !filterName) return;
-    const nextFilter: SavedFilter<ClientFilters, 'clients' | 'suppliers'> = {
-      id: createSavedFilterId('client-filter'),
-      employeeId: currentEmployee.id,
-      name: filterName,
-      icon: newFilterIcon,
-      tab: 'clients',
-      filters: normalizeClientFiltersForApply(appliedFilters),
-      createdAt: new Date().toISOString(),
-    };
-    setSavedFilters((current) => [nextFilter, ...current]);
-    setNewFilterName('');
-    setNewFilterIcon(filterIconOptions[0]);
+    const filters = normalizeClientFiltersForApply(appliedFilters);
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'clients',
+          tab: 'clients',
+          name: filterName,
+          icon: newFilterIcon,
+          filters,
+        });
+        setSavedFilters((current) => [
+          {
+            id: created.id,
+            employeeId: created.employeeId,
+            name: created.name,
+            icon: created.icon,
+            tab: 'clients',
+            filters: created.filters as ClientFilters,
+            createdAt: created.createdAt,
+          },
+          ...current,
+        ]);
+        setNewFilterName('');
+        setNewFilterIcon(filterIconOptions[0]);
+      } catch {
+        // ignore UI toast if parent has no handler
+      }
+    })();
   };
   const applySavedFilter = (filterId: string) => {
     const savedFilter = savedFilters.find((item) => item.id === filterId);
@@ -467,9 +567,16 @@ export const ClientsWorkspace = ({
     setClientsPage(1);
   };
   const removeSavedFilter = (filterId: string) => {
-    setSavedFilters((current) =>
-      current.filter((item) => item.id !== filterId),
-    );
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   useEffect(() => {
@@ -493,13 +600,6 @@ export const ClientsWorkspace = ({
       }),
     );
   }, [appliedFilters, draftFilters, isFilterOpen, searchValue]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      clientsSuppliersSavedFiltersStorageKey,
-      JSON.stringify(savedFilters),
-    );
-  }, [savedFilters]);
 
   useEffect(() => {
     try {

@@ -21,8 +21,9 @@
   - `Services`
 - Default state for sale card:
   - `Products`: open
-  - `Services`: hidden
-- Saved expanded/collapsed state may override those defaults on later opens.
+  - `Services`: collapsed when there are no service lines
+- **Services expand (all users):** ≥1 service line item → Services **expanded for every user** (overrides localStorage `servicesOpen: false`). Opens live when the first service is added.
+- Manual expand/collapse still writes localStorage (`project-goods.order-detail-sections`); empty-section defaults use stored preference when no force-open rule applies.
 
 ## Collapse Headers
 
@@ -115,8 +116,9 @@
 
 ## Notes
 
-- Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`).
+- Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`). Full expand rules: [ORDER_CARD.md → Notes](./ORDER_CARD.md#notes).
 - Default state: **collapsed** and **empty** (no system auto-text on sale creation).
+- Non-empty `userNote` → Notes **expanded for all users** (overrides localStorage collapsed preference).
 - `Notes` is **not** shown inside `Main information` (removed from that block).
 - Only `userNote` is displayed in the sale card; legacy system `note` values from older records are hidden in UI.
 - User note styling and edit flow match repair cards: light blue text, pencil button when expanded, inline Save / Cancel.

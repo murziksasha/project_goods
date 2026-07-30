@@ -1407,6 +1407,7 @@ export const DashboardPage = () => {
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
               onUpdateProductModel={actions.updateProductModelCard}
+              currentEmployeeId={currentEmployee.id}
               currentEmployeeName={currentEmployee.name}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}

@@ -133,6 +133,22 @@ Permission: `system.backups.manage` (except finance snapshot read).
 - `PUT /employees/:employeeId` - обновить сотрудника
 - `DELETE /employees/:employeeId` - удалить сотрудника; перед удалением снимает привязки `manager` / `master` / `issuedBy` со всех заказов и удаляет запись из warehouse administrators (метрики сотрудника не сохраняются). Подробнее: [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md#employee-deletion-and-metrics-retention)
 
+## Saved filters (per employee)
+
+Named filter presets for workspaces (orders, warehouse, clients/suppliers, product catalog). Stored in MongoDB collection `saved_filters`, **owned by the creating employee** (not browser `localStorage`).
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| `GET` | `/saved-filters?scope=` | List current employee’s filters for scope |
+| `POST` | `/saved-filters` | Create filter for current employee |
+| `DELETE` | `/saved-filters/:filterId` | Delete own filter only (`403` if other creator) |
+
+- **Auth:** any authenticated employee (`req.employee`).
+- **`scope`:** `orders` \| `warehouse` \| `clients` \| `catalog` (required on list/create).
+- **Create body:** `{ scope, tab, name, icon, filters }` — `filters` is an opaque JSON object (shape depends on workspace); `name` max 80; `tab` identifies list tab (e.g. `orders`, `sales`, `stock`, `suppliers`).
+- **Response item:** `{ id, employeeId, scope, tab, name, icon, filters, createdAt, updatedAt }`.
+- Frontend migrates legacy localStorage lists once when server list is empty, then clears the old key.
+
 ## Settings
 
 - `GET /settings` - получить текущие настройки компании или системы

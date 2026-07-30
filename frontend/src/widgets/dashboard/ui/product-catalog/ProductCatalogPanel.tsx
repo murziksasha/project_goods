@@ -53,10 +53,14 @@ import {
 } from './product-catalog-shared';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
-  createSavedFilterId,
   readSavedFilters,
   type SavedFilter,
 } from '../../model/saved-filters';
+import {
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../entities/saved-filter/api/savedFilterApi';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 export { CatalogProductModal } from './ProductCatalogModals';
@@ -195,12 +199,7 @@ export const ProductCatalogPanel = ({
   >(readCatalogActiveFilters);
   const [savedFilters, setSavedFilters] = useState<
     Array<SavedFilter<CatalogFilters, CatalogTab>>
-  >(() =>
-    readSavedFilters<CatalogFilters, CatalogTab>(
-      catalogSavedFiltersStorageKey,
-      tabs.map((tab) => tab.key),
-    ),
-  );
+  >([]);
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
@@ -289,21 +288,116 @@ export const ProductCatalogPanel = ({
     }));
     resetActivePage();
   };
+  useEffect(() => {
+    if (!currentEmployee?.id) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    const employeeId = currentEmployee.id;
+    const catalogTabs = tabs.map((tab) => tab.key);
+    void (async () => {
+      try {
+        let remote = await listSavedFilters<CatalogFilters>('catalog');
+        if (remote.length === 0) {
+          const legacy = readSavedFilters<CatalogFilters, CatalogTab>(
+            catalogSavedFiltersStorageKey,
+            catalogTabs,
+          ).filter((item) => item.employeeId === employeeId);
+          const migrated: Array<SavedFilter<CatalogFilters, CatalogTab>> = [];
+          for (const item of legacy) {
+            try {
+              const created = await createSavedFilterRequest({
+                scope: 'catalog',
+                tab: item.tab,
+                name: item.name,
+                icon: item.icon,
+                filters: item.filters,
+              });
+              migrated.push({
+                id: created.id,
+                employeeId: created.employeeId,
+                name: created.name,
+                icon: created.icon,
+                tab: created.tab as CatalogTab,
+                filters: created.filters,
+                createdAt: created.createdAt,
+              });
+            } catch {
+              // skip
+            }
+          }
+          if (migrated.length > 0) {
+            remote = migrated.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              scope: 'catalog' as const,
+              tab: item.tab,
+              name: item.name,
+              icon: item.icon,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            }));
+            try {
+              window.localStorage.removeItem(catalogSavedFiltersStorageKey);
+            } catch {
+              // ignore
+            }
+          }
+        }
+        if (!cancelled) {
+          setSavedFilters(
+            remote.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              name: item.name,
+              icon: item.icon,
+              tab: item.tab as CatalogTab,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            })),
+          );
+        }
+      } catch {
+        // keep empty
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployee?.id]);
+
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
     if (!currentEmployee?.id || !filterName) return;
-    const nextFilter: SavedFilter<CatalogFilters, CatalogTab> = {
-      id: createSavedFilterId('catalog-filter'),
-      employeeId: currentEmployee.id,
-      name: filterName,
-      icon: newFilterIcon,
-      tab: activeTab,
-      filters: normalizeCatalogFilters(appliedFilters),
-      createdAt: new Date().toISOString(),
-    };
-    setSavedFilters((current) => [nextFilter, ...current]);
-    setNewFilterName('');
-    setNewFilterIcon(filterIconOptions[0]);
+    const filters = normalizeCatalogFilters(appliedFilters);
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'catalog',
+          tab: activeTab,
+          name: filterName,
+          icon: newFilterIcon,
+          filters,
+        });
+        setSavedFilters((current) => [
+          {
+            id: created.id,
+            employeeId: created.employeeId,
+            name: created.name,
+            icon: created.icon,
+            tab: created.tab as CatalogTab,
+            filters: created.filters,
+            createdAt: created.createdAt,
+          },
+          ...current,
+        ]);
+        setNewFilterName('');
+        setNewFilterIcon(filterIconOptions[0]);
+      } catch {
+        // ignore
+      }
+    })();
   };
   const applySavedFilter = (filterId: string) => {
     const savedFilter = savedFilters.find((item) => item.id === filterId);
@@ -320,9 +414,16 @@ export const ProductCatalogPanel = ({
     resetActivePage();
   };
   const removeSavedFilter = (filterId: string) => {
-    setSavedFilters((current) =>
-      current.filter((item) => item.id !== filterId),
-    );
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch {
+        // ignore
+      }
+    })();
   };
   const filteredClientDevices = useMemo(() => {
     const uniqueByName = new Map<string, ClientDevice>();
@@ -548,13 +649,6 @@ export const ProductCatalogPanel = ({
       JSON.stringify(appliedFiltersByTab),
     );
   }, [appliedFiltersByTab]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      catalogSavedFiltersStorageKey,
-      JSON.stringify(savedFilters),
-    );
-  }, [savedFilters]);
 
   useEffect(() => {
     if (!selectedService) return;

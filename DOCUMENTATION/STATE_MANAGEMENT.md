@@ -137,3 +137,11 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.
 - Receipt rows from supplier orders are derived from query data; manually created local receipt rows remain local UI/session state.
 - Warehouse receipt filters include a multi-select receipt status filter (`statuses: ReceiptStatus[]`; empty array means all statuses) and a starred-supplier-orders-only option with toolbar quick star toggle. The starred filter shows only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active. Legacy saved filters with a single `status` field are migrated to `statuses` on load.
+
+## Saved named filters (server, per creator)
+
+- **Named** saved filters (orders workspace, warehouse, clients/suppliers, product catalog) persist in MongoDB via `GET/POST/DELETE /api/saved-filters` and belong to the **creating employee**.
+- Same employee sees their filters on any browser/device after login; other employees never see them.
+- Scopes: `orders` | `warehouse` | `clients` | `catalog`; `tab` selects list sub-tab.
+- **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.
+- One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.
