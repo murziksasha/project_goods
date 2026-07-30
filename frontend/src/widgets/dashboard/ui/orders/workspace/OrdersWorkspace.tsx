@@ -742,7 +742,7 @@ export const OrdersWorkspace = ({
     const employeeId = currentEmployee.id;
     void (async () => {
       try {
-        let remote = await listSavedFilters<OrdersFilters>('orders');
+        const remote = await listSavedFilters<OrdersFilters>('orders');
         if (remote.length === 0) {
           const legacy = readSavedOrderFilters().filter(
             (item) => item.employeeId === employeeId,

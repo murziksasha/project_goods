@@ -913,7 +913,7 @@ export const WarehousePanel = ({
     let cancelled = false;
     void (async () => {
       try {
-        let remote = await listSavedFilters<WarehouseFilters>('warehouse');
+        const remote = await listSavedFilters<WarehouseFilters>('warehouse');
         if (remote.length === 0) {
           try {
             const legacy = (
