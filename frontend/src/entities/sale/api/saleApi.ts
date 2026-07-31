@@ -80,7 +80,8 @@ export const useSalesQuery = (enabled = true, params: SalesListParams = {}) =>
     queryKey: queryKeys.salesList(params),
     queryFn: () => getSales(params),
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    staleTime: 15_000,
+    refetchInterval: enabled ? 60_000 : false,
   });
 
 export const getSales = async (params: SalesListParams = {}) => {

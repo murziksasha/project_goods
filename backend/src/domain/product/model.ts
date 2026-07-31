@@ -108,6 +108,9 @@ export const productSchema = new mongoose.Schema(
   },
 );
 
+productSchema.index({ warehouseId: 1, isActive: 1 });
+productSchema.index({ article: 1 });
+
 productSchema.pre('validate', function updateSearchText() {
   this.searchText = [
     this.name,

@@ -5,6 +5,7 @@ import {
   type CashboxDocument,
   type FinanceTransactionDocument,
 } from './model';
+import { isDuplicateKeyError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { formatTransaction } from './formatters';
 import {
@@ -36,6 +37,7 @@ import {
   type ListFinanceTransactionsOptions,
 } from './list-transactions-query';
 import { HttpError } from '../../shared/lib/errors';
+import { loadTransactionsForBalanceAfter } from './period-snapshot';
 
 const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
@@ -140,8 +142,8 @@ const runCreateFinanceTransaction = async (
     await transaction.save({ session });
 
     return formatTransaction(transaction.toObject<FinanceTransactionDocument>());
-  } catch (error: any) {
-    if (idempotencyKey && error?.code === 11000) {
+  } catch (error: unknown) {
+    if (idempotencyKey && isDuplicateKeyError(error)) {
       const existing = await leanWithOptionalSession<FinanceTransactionDocument | null>(
         FinanceTransaction.findOne({ idempotencyKey }),
         session,
@@ -363,8 +365,8 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       await cancellation.validate();
       try {
         await cancellation.save({ session });
-      } catch (err: any) {
-        if (err?.code === 11000 && transaction._id) {
+      } catch (err: unknown) {
+        if (isDuplicateKeyError(err) && transaction._id) {
           const existingReverse = await leanWithOptionalSession<FinanceTransactionDocument | null>(
             FinanceTransaction.findOne({ cancelsTransaction: transaction._id }),
             session,
@@ -486,16 +488,15 @@ export const listFinanceTransactions = async (
   const sort = getFinanceTransactionsSort(options);
   const skip = (options.page - 1) * options.pageSize;
 
-  const [total, pageRows, allTransactions, cashboxes] = await Promise.all([
+  const [total, pageRows, balanceTransactions, cashboxes] = await Promise.all([
     FinanceTransaction.countDocuments(effectiveFilter),
     FinanceTransaction.find(effectiveFilter)
       .sort(sort)
       .skip(skip)
       .limit(options.pageSize)
       .lean<FinanceTransactionDocument[]>(),
-    FinanceTransaction.find()
-      .sort({ transactionDate: -1, createdAt: -1 })
-      .lean<FinanceTransactionDocument[]>(),
+    // After period seal, only txs after seal are needed (current balances + reverse walk).
+    loadTransactionsForBalanceAfter(),
     listCashboxes(),
   ]);
 
@@ -504,7 +505,7 @@ export const listFinanceTransactions = async (
       id: cashbox.id,
       balances: cashbox.balances,
     })),
-    transactions: allTransactions,
+    transactions: balanceTransactions,
   });
 
   return {

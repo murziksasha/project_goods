@@ -14,7 +14,8 @@ export const useClientsQuery = (enabled = true) =>
     queryKey: queryKeys.clients,
     queryFn: () => getClients(),
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    staleTime: 30_000,
+    refetchInterval: enabled ? 60_000 : false,
   });
 
 export const getClients = async (

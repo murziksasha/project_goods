@@ -21,6 +21,7 @@ export const useWarehouseSettingsQuery = () =>
   useQuery({
     queryKey: queryKeys.warehouseSettings,
     queryFn: getWarehouseSettings,
+    staleTime: 5 * 60_000,
   });
 
 export const useUpdateWarehouseSettingsMutation = () =>

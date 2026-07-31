@@ -15,6 +15,16 @@ describe('parseEnv', () => {
       backupCreateCommand: undefined,
       backupRestoreCommand: undefined,
       backupRestoreUploadLimit: '2gb',
+      backupScheduledRetentionDays: 14,
+      backupScheduledMaxCount: 14,
+      backupSafetyMaxCount: 5,
+      backupMaxTotalBytes: 0,
+      financeAutoSealEnabled: true,
+      financeAutoPurgeEnabled: false,
+      archiveYearlyDumpsEnabled: true,
+      archiveAutoPurgeSales: false,
+      archivePurgeRequireSafetyBackup: true,
+      financePurgeRequireSafetyBackup: true,
     });
   });
 
@@ -32,6 +42,16 @@ describe('parseEnv', () => {
         BACKUP_CREATE_COMMAND: 'custom-create',
         BACKUP_RESTORE_COMMAND: 'custom-restore',
         BACKUP_RESTORE_UPLOAD_LIMIT: '5gb',
+        BACKUP_SCHEDULED_RETENTION_DAYS: '30',
+        BACKUP_SCHEDULED_MAX_COUNT: '10',
+        BACKUP_SAFETY_MAX_COUNT: '3',
+        BACKUP_MAX_TOTAL_BYTES: '10737418240',
+        FINANCE_AUTO_SEAL: 'false',
+        FINANCE_AUTO_PURGE: 'true',
+        ARCHIVE_YEARLY_DUMPS: 'false',
+        ARCHIVE_AUTO_PURGE_SALES: 'true',
+        ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
+        FINANCE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
       }),
     ).toEqual({
       port: 7000,
@@ -45,6 +65,16 @@ describe('parseEnv', () => {
       backupCreateCommand: 'custom-create',
       backupRestoreCommand: 'custom-restore',
       backupRestoreUploadLimit: '5gb',
+      backupScheduledRetentionDays: 30,
+      backupScheduledMaxCount: 10,
+      backupSafetyMaxCount: 3,
+      backupMaxTotalBytes: 10737418240,
+      financeAutoSealEnabled: false,
+      financeAutoPurgeEnabled: true,
+      archiveYearlyDumpsEnabled: false,
+      archiveAutoPurgeSales: true,
+      archivePurgeRequireSafetyBackup: false,
+      financePurgeRequireSafetyBackup: false,
     });
   });
 

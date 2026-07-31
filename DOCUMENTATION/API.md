@@ -6,7 +6,7 @@ All `/api/*` routes require `Authorization: Bearer <token>` except:
 
 | Method | Path | Notes |
 |--------|------|-------|
-| `GET` | `/health` | Public health + `version` / `buildSha` |
+| `GET` | `/health` | Public health + Mongo ping + `version` / `buildSha` |
 | `POST` | `/auth/login` | Returns session token |
 | `GET` | `/auth/invitations/:token` | Invitation lookup |
 | `POST` | `/auth/invitations/:token/register` | Invitation registration |
@@ -31,7 +31,7 @@ Responses:
 | Finance | `finance.view` / cashbox permissions | per action — see [Permission_Flow.md](./Permission_Flow.md) |
 | Supplier orders | `supplierOrders.view` | `supplierOrders.manage` |
 | Demo `/demo/*` | — | `owner` (+ dev only: `NODE_ENV !== production`) |
-| Backups | — | `system.backups.manage` |
+| Backups / db-stats | — | `system.backups.manage` |
 
 Details: [SECURITY.md](./SECURITY.md), integration tests in `backend/src/routes/api.integration.test.ts`.
 
@@ -45,7 +45,40 @@ http://localhost:5000/api
 
 ## Health
 
-- `GET /health` — backend status, `mongoReadyState`, `version`, `buildSha`
+- `GET /health` — public; always HTTP 200
+  - `status`: `ok` | `degraded` (Mongo ping failed / not connected)
+  - `mongoReadyState` — mongoose readyState (0–3)
+  - `mongoOk` — boolean ping result
+  - `mongoLatencyMs` — ping RTT in ms, or `null` if not connected
+  - `version`, `buildSha`
+
+## System / ops
+
+- `GET /system/db-stats` — Mongo collection sizes (`count`, data/storage/index bytes, `avgObjSize`)
+  - Permission: `system.backups.manage`
+  - CLI equivalent: `npm run db:stats --prefix backend`
+  - Retention policy for backup files: [DATA_RETENTION.md](./DATA_RETENTION.md)
+
+## Analytics
+
+- `GET /analytics/dashboard` — server KPIs + chart series for business home
+  - Permission: any of `orders.view` \| `sales.manage` \| `finance.view`
+  - Query: `period` (`whole`\|`today`\|`currentMonth`\|`lastMonth`\|`currentYear`\|`lastYear`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`)
+  - Response: snapshots, metrics, stock aggregates (lean sale projection; not full sale documents)
+  - Meta: `dataScope: "live_sales_only"`, `coldSalesPurgedExist: boolean` (history incomplete if true)
+
+## Archive / cold storage
+
+Permission: `system.backups.manage` (except finance snapshot read).
+
+- `GET /archive/yearly` — eligible sales/finance years, archives, finance snapshots, `staleOpenSales`, retention (`hotMonths: 36`, `financeRetentionMonths: 36`)
+- `POST /archive/yearly/sales/:year` — dump; purge requires `{ "purge": true, "confirmation": "PURGE_SALES_YEAR" }` (verify+checksum+count gate)
+- `POST /archive/yearly/finance/:year` — offline dump only; `{ "purge": true }` → 400 (use seal path)
+- `POST /archive/yearly/run` — process eligible sales + finance years (scheduler equivalent)
+- `POST /archive/finance/seal` — body optional `{ "periodEnd": ISO }`; default = now − **36 months**; may return `warnings: ["negative_balance_at_period_end"]`
+- `POST /archive/finance/seal/auto` — seal if cutoff ahead of active snapshot
+- `POST /archive/finance/purge` — body `{ "confirmation": "PURGE_FINANCE" }`
+- `GET /finance/period-snapshots` — permission `finance.view`
 
 ## Products
 
@@ -61,8 +94,8 @@ http://localhost:5000/api
 - `GET /clients` - список клиентов, поддерживает `query` и `status`
 - `POST /clients` - создать клиента
 - `PUT /clients/:clientId` - обновить клиента
-- `DELETE /clients/:clientId` - удалить клиента
-- `GET /clients/:clientId/history` - получить историю клиента
+- `DELETE /clients/:clientId` - удалить клиента (blocked if live sales exist **or** any cold sales year was purged)
+- `GET /clients/:clientId/history` - live sales only; additive flags `liveHistoryOnly`, `coldSalesPurgedExist`, `historyMayBeIncomplete`
 
 ## Sales
 
@@ -79,7 +112,9 @@ http://localhost:5000/api
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
   - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
-  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше)
+  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше; не режем по умолчанию — analytics/orders)
+  - `compact` — `1`/`true`: list projection без `timeline` и `paymentHistory` (меньше payload; не включать в main dashboard fetch, пока UI не грузит эти поля отдельно)
+  - См. политику размера БД: [DATA_RETENTION.md](./DATA_RETENTION.md)
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).
@@ -98,6 +133,22 @@ http://localhost:5000/api
 - `PUT /employees/:employeeId` - обновить сотрудника
 - `DELETE /employees/:employeeId` - удалить сотрудника; перед удалением снимает привязки `manager` / `master` / `issuedBy` со всех заказов и удаляет запись из warehouse administrators (метрики сотрудника не сохраняются). Подробнее: [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md#employee-deletion-and-metrics-retention)
 
+## Saved filters (per employee)
+
+Named filter presets for workspaces (orders, warehouse, clients/suppliers, product catalog). Stored in MongoDB collection `saved_filters`, **owned by the creating employee** (not browser `localStorage`).
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| `GET` | `/saved-filters?scope=` | List current employee’s filters for scope |
+| `POST` | `/saved-filters` | Create filter for current employee |
+| `DELETE` | `/saved-filters/:filterId` | Delete own filter only (`403` if other creator) |
+
+- **Auth:** any authenticated employee (`req.employee`).
+- **`scope`:** `orders` \| `warehouse` \| `clients` \| `catalog` (required on list/create).
+- **Create body:** `{ scope, tab, name, icon, filters }` — `filters` is an opaque JSON object (shape depends on workspace); `name` max 80; `tab` identifies list tab (e.g. `orders`, `sales`, `stock`, `suppliers`).
+- **Response item:** `{ id, employeeId, scope, tab, name, icon, filters, createdAt, updatedAt }`.
+- Frontend migrates legacy localStorage lists once when server list is empty, then clears the old key.
+
 ## Settings
 
 - `GET /settings` - получить текущие настройки компании или системы
@@ -108,7 +159,8 @@ http://localhost:5000/api
   - `marketWeatherEnabled`, `exchangeRatesEnabled`, `weatherEnabled`, `weatherAnimationEnabled`
   - `defaultWeatherLocation` (`chornomorsk` | `odesa`, default `chornomorsk`)
   - `weatherProvider` (`open-meteo` | `openweather`)
-  - `openWeatherApiKey`
+  - `hasOpenWeatherApiKey` (boolean; true when backend `OPENWEATHER_API_KEY` is set; secret itself is never returned)
+  - ~~`openWeatherApiKey`~~ — removed from API responses; always empty if present in legacy payloads
   - `currencies` (for example `["USD","EUR"]`)
   - `rateProviders` (`nbu`, `privat`, `mono`)
   - `defaultForecastView` (`today` | `tomorrow` | `fiveDay`)

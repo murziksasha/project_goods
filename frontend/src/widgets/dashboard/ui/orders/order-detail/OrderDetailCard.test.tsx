@@ -1606,8 +1606,11 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    // Serial click pre-selects that serial for print (printSelectedCount, not printSerialNumber).
     expect(
-      screen.getByRole('button', { name: 'Print serial number' }),
+      within(dialog).getByRole('button', {
+        name: 'Print 1 selected serial numbers',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -1643,9 +1646,17 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    // Name click does not pre-select a serial for print.
     expect(
-      screen.queryByRole('button', { name: 'Print serial number' }),
+      within(dialog).queryByRole('button', {
+        name: 'Print 1 selected serial numbers',
+      }),
     ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Select serial numbers to print',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('toggles discount mode from label badge and field control', () => {
@@ -1724,9 +1735,10 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    fireEvent.click(
+    // Products auto-open when product lines exist — do not toggle closed.
+    expect(
       screen.getByRole('button', { name: /Products/i }),
-    );
+    ).toHaveAttribute('aria-expanded', 'true');
     expect(
       screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).not.toBeDisabled();
@@ -1748,7 +1760,7 @@ describe('OrderDetailCard product entry', () => {
     expect(statusSelect).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('keeps order card products collapsed by default even with existing product items', () => {
+  it('opens order card products when product lines exist', () => {
     renderCard({
       saleOverride: { kind: 'repair', status: 'clientApproved' },
       status: 'clientApproved',
@@ -1766,10 +1778,56 @@ describe('OrderDetailCard product entry', () => {
 
     expect(
       screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps order card products collapsed when there are no product lines', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
     ).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).not.toBeInTheDocument();
+  });
+
+  it('opens order card products even when localStorage has productsOpen false', () => {
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': { productsOpen: false },
+      }),
+    );
+    renderCard({
+      saleOverride: {
+        id: 'sale-1',
+        kind: 'repair',
+        status: 'clientApproved',
+      },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Products/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('keeps sale card products open by default', () => {
@@ -1781,6 +1839,45 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
     ).toBeInTheDocument();
+  });
+
+  it('keeps sale card services collapsed when there are no service lines', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Phone',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Services/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens sale card services when service lines exist', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Services/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Setup')).toBeInTheDocument();
   });
 
   it('restores saved section state from localStorage', () => {
@@ -2409,5 +2506,64 @@ describe('OrderDetailCard notes section', () => {
     await waitFor(() => {
       expect(onSaveUserNote).toHaveBeenCalledWith('Call before pickup');
     });
+  });
+
+  it('keeps notes collapsed when only system note exists', () => {
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          note: '(kits: charger)\nType: repair',
+          userNote: '',
+        },
+      }),
+    );
+
+    expect(screen.queryByText(/\(kits: charger\)/)).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens notes for all users when userNote is non-empty', () => {
+    render(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          note: '(kits: charger)\nType: repair',
+          userNote: 'Call before pickup',
+        },
+      }),
+    );
+
+    expect(screen.getByText('Call before pickup')).toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('opens notes when userNote is set even if localStorage has noteOpen false', () => {
+    window.localStorage.setItem(
+      orderDetailSectionsStorageKey,
+      JSON.stringify({
+        'sale-1': { noteOpen: false },
+      }),
+    );
+
+    render(
+      buildCardElement({
+        saleOverride: {
+          id: 'sale-1',
+          kind: 'repair',
+          note: 'Type: repair',
+          userNote: 'Shared note',
+        },
+      }),
+    );
+
+    expect(screen.getByText('Shared note')).toBeInTheDocument();
+    expect(
+      document.querySelector('.order-detail-note-toggle'),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 });

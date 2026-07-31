@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { CommandPalette } from './CommandPalette';
 import {
-  CommandPalette,
-  filterCommandPaletteItems,
   buildCommandPaletteItems,
-} from './CommandPalette';
+  filterCommandPaletteItems,
+} from './command-palette-items';
 import type { Sale } from '../../../../entities/sale/model/types';
 
 const sale = (patch: Partial<Sale> = {}): Sale =>

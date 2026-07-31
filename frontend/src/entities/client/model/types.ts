@@ -27,6 +27,8 @@ export type ClientFormValues = {
   iban: string;
   note: string;
   status: ClientStatus | '';
+  /** Optimistic concurrency token from last load. */
+  expectedUpdatedAt?: string;
 };
 
 export type ClientHistory = {

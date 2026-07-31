@@ -4,6 +4,15 @@ import { escapeRegExp } from '../../shared/lib/query';
 /** Hard cap when `limit` query is provided (LAN safety). */
 export const SALES_LIST_MAX_LIMIT = 5000;
 
+/**
+ * Fields omitted from list responses when `compact=1`.
+ * Full card/history still loads heavy arrays via document reads that need them
+ * (client history, mutations). Dashboard list currently needs timeline/paymentHistory —
+ * do not enable compact on the main dashboard fetch until those UIs re-fetch by id.
+ */
+export const SALES_LIST_COMPACT_EXCLUDE =
+  '-timeline -paymentHistory' as const;
+
 export const saleKinds = ['sale', 'repair'] as const;
 export type SaleKind = (typeof saleKinds)[number];
 
@@ -18,6 +27,11 @@ export type ListSalesOptions = {
   q?: string;
   /** When set, caps result size (newest first). Omit = no limit (legacy full list). */
   limit?: number;
+  /**
+   * When true, Mongo projection drops timeline + paymentHistory to shrink payload.
+   * Only safe for callers that do not render those arrays from the list response.
+   */
+  compact?: boolean;
 };
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -71,6 +85,7 @@ export const parseListSalesQuery = (
     clientId: parseObjectId(query.clientId),
     q: q || undefined,
     limit: parseLimit(query.limit),
+    compact: parseOptionalBoolean(query.compact) === true ? true : undefined,
   };
 };
 

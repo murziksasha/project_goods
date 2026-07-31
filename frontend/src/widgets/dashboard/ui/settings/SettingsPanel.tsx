@@ -36,6 +36,8 @@ import {
   type UiDensity,
 } from '../../../../shared/lib/uiDensity';
 import { PrintFormBuilder } from './PrintFormBuilder';
+import { DatabaseReportSection } from './DatabaseReportSection';
+
 
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
@@ -228,17 +230,14 @@ const DashboardSettingsSection = ({
             <option value="fiveDay">{t('analytics.marketWeather.views.fiveDay')}</option>
           </select>
         </label>
-        <label className="field field-wide">
+        <div className="field field-wide">
           <span>{t('settings.dashboard.openWeatherApiKey')}</span>
-          <input
-            type="password"
-            value={preferences.openWeatherApiKey}
-            onChange={(event) =>
-              onChange({ ...preferences, openWeatherApiKey: event.target.value })
-            }
-            placeholder={t('settings.dashboard.openWeatherApiKeyPlaceholder')}
-          />
-        </label>
+          <p className="empty-state" style={{ margin: 0, textAlign: 'left' }}>
+            {preferences.hasOpenWeatherApiKey
+              ? t('settings.dashboard.openWeatherApiKeyConfigured')
+              : t('settings.dashboard.openWeatherApiKeyServerOnly')}
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -931,12 +930,13 @@ export const SettingsPanel = ({
   const visibleSettingsTabs = useMemo(
     () =>
       settingsTabs.filter((tab) => {
-        if (tab.key === 'backups') return canManageBackups;
+        if (tab.key === 'backups' || tab.key === 'database') return canManageBackups;
         if (tab.key === 'print') return canEditPrintForms;
         return canEditSettings;
       }),
     [canEditPrintForms, canEditSettings, canManageBackups],
   );
+
   const printForms = useMemo(
     () => normalizePrintFormsForView(form.printForms),
     [form.printForms],
@@ -961,9 +961,10 @@ export const SettingsPanel = ({
   const canSaveActiveTab =
     activeTab === 'print'
       ? canEditPrintForms
-      : activeTab === 'backups'
+      : activeTab === 'backups' || activeTab === 'database'
         ? false
         : canEditSettings;
+
   const isSaveDisabled =
     !canSaveActiveTab ||
     isSaving ||
@@ -1102,6 +1103,10 @@ export const SettingsPanel = ({
 
       {activeTab === 'backups' ? (
         <BackupsSection canManageBackups={canManageBackups} />
+      ) : null}
+
+      {activeTab === 'database' ? (
+        <DatabaseReportSection canManageBackups={canManageBackups} />
       ) : null}
 
     </section>

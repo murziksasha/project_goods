@@ -87,7 +87,9 @@ export type WarehouseFilters = {
 };
 export type SavedWarehouseFilter = {
   id: string;
-  employeeName: string;
+  employeeId: string;
+  /** @deprecated legacy localStorage field; prefer employeeId */
+  employeeName?: string;
   name: string;
   icon: string;
   tab: WarehouseTab;
@@ -222,6 +224,7 @@ export type WarehousePanelProps = {
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
   onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  currentEmployeeId: string;
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;

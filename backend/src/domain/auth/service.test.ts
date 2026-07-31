@@ -203,7 +203,7 @@ describe('auth sessions', () => {
     expect(employee.save).toHaveBeenCalled();
   });
 
-  it('migrates legacy plaintext sessions to hashed form', async () => {
+  it('rejects legacy plaintext sessions (re-login required)', async () => {
     const employee = createEmployeeRecord({
       authToken: 'legacy-token',
       authTokens: [],
@@ -211,11 +211,11 @@ describe('auth sessions', () => {
     });
     mockEmployeeFindOne(employee);
 
-    await expect(getCurrentEmployee('legacy-token')).resolves.toMatchObject({
-      id: 'employee-id',
+    await expect(getCurrentEmployee('legacy-token')).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Session not found.',
     });
-    expect(employee.authSessions[0]?.token).toBe(hashAuthToken('legacy-token'));
-    expect(employee.save).toHaveBeenCalled();
+    expect(employee.save).not.toHaveBeenCalled();
   });
 
   it('rejects idle-expired sessions when AUTH_SESSION_IDLE_HOURS is set', async () => {
@@ -266,6 +266,38 @@ describe('auth sessions', () => {
     await expect(getEmployeeByToken(raw, now)).resolves.toMatchObject({
       username: 'employee',
     });
+  });
+
+  it('prunes other idle-expired sessions while accepting the current one', async () => {
+    env.authSessionIdleHours = 1;
+    const now = new Date('2026-06-09T12:00:00.000Z');
+    const rawFresh = 'fresh-token-raw-value-32bytes-ffffff';
+    const rawStale = 'stale-token-raw-value-32bytes-gggggg';
+    const employee = createEmployeeRecord({
+      authSessions: [
+        {
+          token: hashAuthToken(rawStale),
+          createdAt: new Date('2026-06-09T09:00:00.000Z'),
+          lastUsedAt: new Date('2026-06-09T09:00:00.000Z'),
+        },
+        {
+          token: hashAuthToken(rawFresh),
+          createdAt: new Date('2026-06-09T11:30:00.000Z'),
+          lastUsedAt: new Date('2026-06-09T11:30:00.000Z'),
+        },
+      ],
+      authTokens: [hashAuthToken(rawStale), hashAuthToken(rawFresh)],
+      authToken: hashAuthToken(rawFresh),
+    });
+    mockEmployeeFindOne(employee);
+
+    await expect(getEmployeeByToken(rawFresh, now)).resolves.toMatchObject({
+      username: 'employee',
+    });
+    expect(employee.authSessions.map((s) => s.token)).toEqual([
+      hashAuthToken(rawFresh),
+    ]);
+    expect(employee.save).toHaveBeenCalled();
   });
 
   it('resolveAuthSessions falls back to legacy token arrays', () => {

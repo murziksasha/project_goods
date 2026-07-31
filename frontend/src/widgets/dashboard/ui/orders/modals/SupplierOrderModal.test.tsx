@@ -1,6 +1,14 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
 import type { Supplier } from '../../../../../entities/supplier/model/types';
 import { SupplierOrderModal } from './SupplierOrderModal';
 
@@ -18,7 +26,7 @@ const { getWarehouseSettingsMock, getCatalogProductsMock } = vi.hoisted(() => ({
       },
     ],
   })),
-  getCatalogProductsMock: vi.fn(async () => []),
+  getCatalogProductsMock: vi.fn(async (): Promise<CatalogProduct[]> => []),
 }));
 
 vi.mock(
@@ -59,9 +67,18 @@ const supplier = (): Supplier => ({
   updatedAt: '2026-01-01T00:00:00.000Z',
 });
 
+const warehouseOptions = [
+  {
+    id: 'wh-main',
+    name: 'Main warehouse',
+    locations: [{ id: 'loc-1', name: 'Shelf A' }],
+  },
+];
+
 const baseProps = () => ({
   isOpen: true,
   suppliers: [supplier()],
+  warehouseOptions,
   onClose: vi.fn(),
   onCreateSupplier: vi.fn(async () => true),
   onSubmit: vi.fn(),
@@ -179,17 +196,157 @@ describe('SupplierOrderModal price/qty steppers', () => {
       />,
     );
 
-    const basketRow = container.querySelector(
+    const basketRows = container.querySelectorAll(
       '.supplier-order-basket-row',
-    ) as HTMLElement;
+    );
+    expect(basketRows).toHaveLength(2);
 
-    expect(basketRow.querySelectorAll('.number-stepper')).toHaveLength(2);
+    const secondBasketRow = basketRows[1] as HTMLElement;
+    expect(secondBasketRow.querySelectorAll('.number-stepper')).toHaveLength(2);
 
-    const qtyInput = getStepperInput(basketRow, 'Qty');
+    const qtyInput = getStepperInput(secondBasketRow, 'Qty');
 
     clickStepperIncrement(qtyInput);
 
     expect(qtyInput).toHaveValue('4');
+  });
+
+  it('keeps existing lines when adding another product while editing', async () => {
+    getCatalogProductsMock.mockResolvedValue([
+      {
+        id: 'catalog-3',
+        name: 'USB Hub 4 ports',
+        note: '',
+        isActive: true,
+        sourceTags: [],
+        lastSeenAt: '2026-01-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    const { container } = renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        editingOrder={{
+          id: 'order-1',
+          orderBaseId: 'SO-1',
+          number: 'SO-1',
+          supplierId: 'supplier-1',
+          supplierName: 'Aliexpress',
+          deliveryDate: '2026-11-19',
+          supplyType: 'Локально',
+          createdBy: 'employee-1',
+          status: 'approved',
+          paymentStatus: 'pending',
+          receiptStatus: 'new',
+          note: '',
+          total: 100,
+          paid: 0,
+          isFavorite: false,
+          items: [
+            {
+              lineId: 'line-1',
+              itemIndex: 0,
+              catalogProductId: 'catalog-1',
+              productName: 'Android TV box',
+              quantity: 1,
+              price: 100,
+              receiptStatus: 'new',
+            },
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        }}
+      />,
+    );
+
+    expect(container.querySelectorAll('.supplier-order-basket-row')).toHaveLength(
+      1,
+    );
+    expect(screen.getByDisplayValue('Android TV box')).toBeInTheDocument();
+
+    const productInput = screen.getByPlaceholderText('Type to search and add');
+    fireEvent.focus(productInput);
+    fireEvent.change(productInput, { target: { value: 'USB Hub 4 ports' } });
+
+    await waitFor(() => {
+      expect(getCatalogProductsMock).toHaveBeenCalled();
+    });
+
+    const suggestion = await screen.findByText('USB Hub 4 ports');
+    fireEvent.mouseDown(suggestion.closest('button') ?? suggestion);
+    fireEvent.click(suggestion.closest('button') ?? suggestion);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add product to order list' }),
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.supplier-order-basket-row')).toHaveLength(
+        2,
+      );
+    });
+    expect(screen.getByDisplayValue('Android TV box')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('USB Hub 4 ports')).toBeInTheDocument();
+  });
+
+  it('blocks take-on-charge when items are dirty vs saved order', () => {
+    const onError = vi.fn();
+    const onTakeOnCharge = vi.fn();
+    const { container } = renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        onError={onError}
+        onTakeOnCharge={onTakeOnCharge}
+        editingOrder={{
+          id: 'order-1',
+          orderBaseId: 'SO-1',
+          number: 'SO-1',
+          supplierId: 'supplier-1',
+          supplierName: 'Aliexpress',
+          deliveryDate: '2026-11-19',
+          supplyType: 'Локально',
+          createdBy: 'employee-1',
+          status: 'approved',
+          paymentStatus: 'pending',
+          receiptStatus: 'new',
+          note: '',
+          total: 100,
+          paid: 0,
+          isFavorite: false,
+          items: [
+            {
+              lineId: 'line-1',
+              itemIndex: 0,
+              catalogProductId: 'catalog-1',
+              productName: 'Android TV box',
+              quantity: 1,
+              price: 100,
+              receiptStatus: 'new',
+            },
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        }}
+      />,
+    );
+
+    const basketRow = container.querySelector(
+      '.supplier-order-basket-row',
+    ) as HTMLElement;
+    const qtyInput = getStepperInput(basketRow, 'Qty');
+    clickStepperIncrement(qtyInput);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    expect(onError).toHaveBeenCalledWith(
+      'Save the order before taking it on charge. Unsaved line items are not stocked.',
+    );
+    expect(onTakeOnCharge).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/print serial numbers after receipt/i),
+    ).not.toBeInTheDocument();
   });
 
   it('shows amount label for computed line total', () => {

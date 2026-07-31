@@ -59,8 +59,12 @@ export const ensureDefaultCashbox = async (session?: mongoose.ClientSession) => 
       },
     },
     { upsert: true, returnDocument: 'after', runValidators: true },
-  );
-  if (session) (createdOp as any).session?.(session);
+  ) as mongoose.Query<CashboxDocument | null, CashboxDocument>;
+
+  if (session) {
+    createdOp.session(session);
+  }
+
   const created = await createdOp.lean<CashboxDocument | null>();
 
   if (!created) {

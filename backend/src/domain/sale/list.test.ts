@@ -50,4 +50,15 @@ describe('listSales', () => {
     );
     expect(limit).toHaveBeenCalledWith(10);
   });
+
+  it('applies compact projection when compact=1', async () => {
+    const lean = vi.fn().mockResolvedValue([]);
+    const select = vi.fn().mockReturnValue({ lean });
+    const sort = vi.fn().mockReturnValue({ select });
+    vi.spyOn(Sale, 'find').mockReturnValue({ sort } as never);
+
+    await listSales({ compact: '1' });
+
+    expect(select).toHaveBeenCalledWith('-timeline -paymentHistory');
+  });
 });

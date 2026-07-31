@@ -10,6 +10,7 @@ import {
   getSaleProductSerialNumber,
 } from '../../../../../entities/sale/lib/sale-product';
 import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
+import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
@@ -1553,7 +1554,7 @@ export const openOrderPrintWindow = async ({
   printWindow.document.write(
     buildOrderPrintHtml({
       title,
-      body,
+      body: sanitizePrintHtml(body),
       pageSize,
       labelSize,
       orientation,

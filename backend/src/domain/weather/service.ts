@@ -194,6 +194,9 @@ export const mapWeatherCodeToScene = (code: number): WeatherSceneDescriptor => {
     if (lightIntensityCodes.has(code)) {
       return { condition, intensity: 'light' };
     }
+    if (moderateIntensityCodes.has(code)) {
+      return { condition, intensity: 'moderate' };
+    }
     if (heavyIntensityCodes.has(code)) {
       return { condition, intensity: 'heavy' };
     }

@@ -8,6 +8,7 @@ import {
   createScheduledBackup,
   deleteBackup,
   deleteOldScheduledBackups,
+  enforceBackupRetention,
   getBackupPaths,
   isSafeBackupId,
   listBackups,
@@ -230,6 +231,57 @@ describe('backup service', () => {
       'Running backup cannot be deleted.',
     );
     await expect(fs.access(path.join(backupDir, `${backupId}.json`))).resolves.toBeUndefined();
+  });
+
+  it('enforces scheduled max count and keeps manual backups under size pressure', async () => {
+    const backupDir = await makeTempDir();
+    const scheduledOld = 'project-goods-20260501-150000-scheduled';
+    const scheduledMid = 'project-goods-20260515-150000-scheduled';
+    const scheduledNew = 'project-goods-20260601-150000-scheduled';
+    const safetyOld = 'project-goods-20260501-150000-safety';
+    const safetyNew = 'project-goods-20260601-150000-safety';
+    const manual = 'project-goods-20260501-150000';
+    await writeBackupPair(backupDir, scheduledOld, {
+      createdAt: '2026-05-01T15:00:00.000Z',
+      type: 'scheduled',
+    });
+    await writeBackupPair(backupDir, scheduledMid, {
+      createdAt: '2026-05-15T15:00:00.000Z',
+      type: 'scheduled',
+    });
+    await writeBackupPair(backupDir, scheduledNew, {
+      createdAt: '2026-06-01T15:00:00.000Z',
+      type: 'scheduled',
+    });
+    await writeBackupPair(backupDir, safetyOld, {
+      createdAt: '2026-05-01T15:00:00.000Z',
+      type: 'safety',
+    });
+    await writeBackupPair(backupDir, safetyNew, {
+      createdAt: '2026-06-01T15:00:00.000Z',
+      type: 'safety',
+    });
+    await writeBackupPair(backupDir, manual, {
+      createdAt: '2026-05-01T15:00:00.000Z',
+      type: 'manual',
+    });
+
+    await expect(
+      enforceBackupRetention(
+        {
+          scheduledRetentionDays: 0,
+          scheduledMaxCount: 2,
+          safetyMaxCount: 1,
+          maxTotalBytes: 0,
+        },
+        { backupDir },
+      ),
+    ).resolves.toEqual(expect.arrayContaining([scheduledOld, safetyOld]));
+
+    const remaining = await listBackups({ backupDir });
+    expect(remaining.map((item) => item.id).sort()).toEqual(
+      [manual, scheduledMid, scheduledNew, safetyNew].sort(),
+    );
   });
 
   it('deletes only scheduled backups older than the retention window', async () => {

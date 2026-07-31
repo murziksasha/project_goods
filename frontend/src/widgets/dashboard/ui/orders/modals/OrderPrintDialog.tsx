@@ -12,6 +12,7 @@ import {
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
+import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import {
   buildOrderPrintBody,
   getPrintTemplateData,
@@ -61,7 +62,7 @@ export const OrderPrintPreview = ({
           : 'order-print-preview-page settings-print-preview-page'
       }
       style={previewStyle}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizePrintHtml(html) }}
     />
   );
 };

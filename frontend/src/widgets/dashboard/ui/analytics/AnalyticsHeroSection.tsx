@@ -1,7 +1,12 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DashboardPreferences } from '../../../../entities/settings/model/types';
 import type { Product } from '../../../../entities/product/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
+import {
+  useDashboardAnalyticsQuery,
+  type DashboardAnalyticsResponse,
+} from '../../../../entities/analytics/api/analyticsApi';
 import {
   getAnalyticsDateRangeFilterCount,
   type AnalyticsDateRange,
@@ -16,6 +21,7 @@ import type { StatsPeriod } from '../../model/stats-period';
 import { AnalyticsDateFilterPanel } from './AnalyticsDateFilterPanel';
 import { StatsPeriodToggle } from './StatsPeriodToggle';
 import { MarketWeatherWidget } from '../weather/MarketWeatherWidget';
+import i18n from '../../../../shared/i18n/config';
 
 type AnalyticsHeroSectionProps = {
   sales: Sale[];
@@ -36,6 +42,127 @@ type AnalyticsHeroSectionProps = {
   onApplyAnalyticsDateRange: () => void;
   onClearAnalyticsDateRange: () => void;
   onSeed: () => void;
+};
+
+const mapServerAnalytics = (payload: DashboardAnalyticsResponse) => {
+  const m = payload.metrics;
+  const stock = payload.stock;
+  const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
+  const detailLabel =
+    payload.detailLabel === 'whole'
+      ? i18n.t('analytics.periods.whole')
+      : payload.detailLabel;
+
+  return {
+    detailLabel,
+    axisLabels: payload.axisLabels,
+    revenueSnapshots: payload.revenueSnapshots,
+    orderSnapshots: payload.orderSnapshots,
+    salesCountSnapshots: payload.salesCountSnapshots,
+    revenueChartMax: payload.revenueChartMax,
+    ordersChartMax: payload.ordersChartMax,
+    hasRevenueData: payload.hasRevenueData,
+    hasOrdersData: payload.hasOrdersData,
+    currentYearLabel: payload.revenueSnapshots[0]?.label ?? '',
+    comparisonLabel: payload.revenueSnapshots.map((s) => s.label).join(', '),
+    summaryCards: [
+      {
+        labelKey: 'analytics.summary.sales',
+        value: formatMetric(m.salesCount),
+        accent: comparisonColors[0],
+      },
+      {
+        labelKey: 'analytics.summary.repairOrders',
+        value: formatMetric(m.ordersCount),
+        accent: '#14b8a6',
+      },
+      {
+        labelKey: 'analytics.summary.revenue',
+        value: formatCurrencyMetric(m.revenue),
+        accent: '#f97316',
+      },
+      {
+        labelKey: 'analytics.summary.averageTicket',
+        value: formatCurrencyMetric(m.averageTicket),
+        accent: '#64748b',
+      },
+      {
+        labelKey: 'analytics.summary.paid',
+        value: formatCurrencyMetric(m.paidAmount),
+        accent: '#0ea47d',
+      },
+      {
+        labelKey: 'analytics.summary.receivables',
+        value: formatCurrencyMetric(m.remainingAmount),
+        accent: '#dc2626',
+      },
+    ],
+    conversionCards: [
+      {
+        label: i18n.t('analytics.conversion.repairOrdersPerSales'),
+        value:
+          m.salesCount > 0
+            ? `${formatMetric((m.ordersCount / m.salesCount) * 100)}%`
+            : '0%',
+      },
+      {
+        label: i18n.t('analytics.conversion.salesPerRepairOrders'),
+        value:
+          m.ordersCount > 0
+            ? `${formatMetric((m.salesCount / m.ordersCount) * 100)}%`
+            : '0%',
+      },
+      {
+        label: i18n.t('analytics.conversion.paymentCoverage'),
+        value: `${formatMetric(m.paymentCoverage)}%`,
+      },
+    ],
+    operations: {
+      openOrders: m.openOrders,
+      closedOrders: m.closedOrders,
+      unpaidOrders: m.unpaidOrders,
+      paidAmount: m.paidAmount,
+      remainingAmount: m.remainingAmount,
+      paymentCoverage: m.paymentCoverage,
+      todaySales: m.todaySales,
+      todayOrders: m.todayOrders,
+      todayRevenue: m.todayRevenue,
+    },
+    stock: {
+      productCount: stock.productCount,
+      totalStock: stock.totalStock,
+      freeStock: stock.freeStock,
+      reservedStock: stock.reservedStock,
+      stockValue: stock.stockValue,
+      outOfStockProducts: stock.outOfStockProducts,
+      lowStockProducts: stock.lowStockProducts,
+    },
+    signals: [
+      {
+        labelKey: 'analytics.signalsLabels.unpaidOrders',
+        value: formatMetric(m.unpaidOrders),
+        tone: m.unpaidOrders > 0 ? 'risk' : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.openWorkflow',
+        value: formatMetric(m.openOrders),
+        tone: m.openOrders > 0 ? 'watch' : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.lowStockItems',
+        value: formatMetric(stock.lowStockProducts + stock.outOfStockProducts),
+        tone:
+          stock.lowStockProducts + stock.outOfStockProducts > 0
+            ? 'risk'
+            : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.todayActivity',
+        value: formatMetric(m.todaySales + m.todayOrders),
+        tone: m.todaySales + m.todayOrders > 0 ? 'good' : ('muted' as const),
+      },
+    ],
+  };
 };
 
 const chartWidth = 720;
@@ -193,14 +320,23 @@ export const AnalyticsHeroSection = ({
   onSeed,
 }: AnalyticsHeroSectionProps) => {
   const { t } = useTranslation();
-  const analytics = buildDashboardAnalytics(
-    sales,
-    orders,
-    statsPeriod,
-    products,
-    new Date(),
-    analyticsDateRange,
+  const serverQuery = useDashboardAnalyticsQuery(true, statsPeriod, analyticsDateRange);
+  const localAnalytics = useMemo(
+    () =>
+      buildDashboardAnalytics(
+        sales,
+        orders,
+        statsPeriod,
+        products,
+        new Date(),
+        analyticsDateRange,
+      ),
+    [sales, orders, statsPeriod, products, analyticsDateRange],
   );
+  const analytics = serverQuery.data
+    ? mapServerAnalytics(serverQuery.data)
+    : localAnalytics;
+  const isAnalyticsLoading = serverQuery.isLoading || (isSalesLoading && !serverQuery.data);
   const dateFilterCount = getAnalyticsDateRangeFilterCount(analyticsDateRange);
 
   return (
@@ -360,7 +496,7 @@ export const AnalyticsHeroSection = ({
             title={t('analytics.revenue')}
             valueLabel={t('analytics.productSales')}
             emptyText={t('analytics.noSalesForPeriod')}
-            isLoading={isSalesLoading}
+            isLoading={isAnalyticsLoading}
             hasData={analytics.hasRevenueData}
             snapshots={analytics.revenueSnapshots}
             maxValue={analytics.revenueChartMax}
@@ -372,7 +508,7 @@ export const AnalyticsHeroSection = ({
             title={t('analytics.repairOrders')}
             valueLabel={t('analytics.orderVolume')}
             emptyText={t('analytics.noOrdersForPeriod')}
-            isLoading={isSalesLoading}
+            isLoading={isAnalyticsLoading}
             hasData={analytics.hasOrdersData}
             snapshots={analytics.orderSnapshots}
             maxValue={analytics.ordersChartMax}

@@ -147,7 +147,10 @@ describe('API auth matrix', () => {
     const response = await request(app).get('/api/health');
 
     expect(response.status).toBe(200);
-    expect(response.body.status).toBe('ok');
+    expect(['ok', 'degraded']).toContain(response.body.status);
+    expect(response.body).toHaveProperty('mongoOk');
+    expect(response.body).toHaveProperty('mongoReadyState');
+    expect(response.body).toHaveProperty('mongoLatencyMs');
     expect(response.body).toHaveProperty('version');
     expect(response.body).toHaveProperty('buildSha');
   });
@@ -229,6 +232,27 @@ describe('API auth matrix', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('returns 403 for db-health without system.backups.manage', async () => {
+    activeEmployee = { role: 'manager', permissions: ['inventory.manage'] };
+
+    const response = await request(app)
+      .get('/api/system/db-health')
+      .set(authHeader());
+
+    expect(response.status).toBe(403);
+  });
+
+  it('returns 403 for db-stats without system.backups.manage', async () => {
+    activeEmployee = { role: 'manager', permissions: ['inventory.manage'] };
+
+    const response = await request(app)
+      .get('/api/system/db-stats')
+      .set(authHeader());
+
+    expect(response.status).toBe(403);
+  });
+
 
   it('returns 404 for missing sale update target', async () => {
     activeEmployee = { role: 'manager', permissions: ['orders.manage'] };

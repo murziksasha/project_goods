@@ -171,7 +171,10 @@ export type DashboardPreferences = {
   weatherEnabled: boolean;
   weatherAnimationEnabled: boolean;
   weatherProvider: WeatherProvider;
+  /** Always empty from API; kept for form shape / legacy. Key is server env only. */
   openWeatherApiKey: string;
+  /** True when backend has OPENWEATHER_API_KEY configured. */
+  hasOpenWeatherApiKey?: boolean;
   defaultWeatherLocation: WeatherLocationPreset;
   currencies: string[];
   rateProviders: RateProvider[];

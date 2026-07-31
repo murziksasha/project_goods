@@ -71,10 +71,8 @@ export const MarketWeatherWidget = ({
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
     provider: settings.weatherProvider,
-    openWeatherApiKey: settings.openWeatherApiKey,
-    enabled:
-      settings.weatherEnabled &&
-      (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)),
+    // OpenWeather key is server-side only (OPENWEATHER_API_KEY).
+    enabled: settings.weatherEnabled,
   });
 
   const ratesData = ratesQuery.data;
@@ -113,11 +111,7 @@ export const MarketWeatherWidget = ({
       );
     }
 
-    if (
-      settings.weatherEnabled &&
-      (settings.weatherProvider !== 'openweather' ||
-        Boolean(settings.openWeatherApiKey))
-    ) {
+    if (settings.weatherEnabled) {
       tasks.push(
         queryClient.fetchQuery({
           queryKey: [
@@ -125,14 +119,12 @@ export const MarketWeatherWidget = ({
             coordinates.latitude,
             coordinates.longitude,
             settings.weatherProvider,
-            settings.openWeatherApiKey ?? '',
           ],
           queryFn: () =>
             getWeatherForecast({
               latitude: coordinates.latitude,
               longitude: coordinates.longitude,
               provider: settings.weatherProvider,
-              openWeatherApiKey: settings.openWeatherApiKey,
               force: true,
             }),
         }),
@@ -155,17 +147,12 @@ export const MarketWeatherWidget = ({
   const isRatesFetching =
     settings.exchangeRatesEnabled && (ratesQuery.isFetching || ratesQuery.isLoading);
   const isWeatherFetching =
-    settings.weatherEnabled &&
-    (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)) &&
-    (weatherQuery.isFetching || weatherQuery.isLoading);
+    settings.weatherEnabled && (weatherQuery.isFetching || weatherQuery.isLoading);
   const isRefreshing = isRatesFetching || isWeatherFetching;
   const showInitialRatesLoader =
     settings.exchangeRatesEnabled && ratesQuery.isLoading && !ratesQuery.data;
   const showInitialWeatherLoader =
-    settings.weatherEnabled &&
-    (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)) &&
-    weatherQuery.isLoading &&
-    !weatherQuery.data;
+    settings.weatherEnabled && weatherQuery.isLoading && !weatherQuery.data;
   const showRefreshOverlay =
     isRefreshing && !showInitialRatesLoader && !showInitialWeatherLoader;
   const isContentVisible = settings.contentVisible;

@@ -69,7 +69,7 @@
 - Customer device name is stored in `Clients goods`; serial is stored only in order context/history.
 - Field `Kit` from `Create order` is order-scoped and must not be written to `Clients goods.note`.
 - On **repair** order creation, `Kit` is prepended to system order `note` in format `(kits: ...)` as the first line (together with other create-order fields: issue text, external view, service, flags, manager, master, `Type: repair`).
-- **Sales** created from `Create order -> Sales order` persist `note: ''` and `userNote: ''` (no auto note lines). Operator notes are added later in the sale card `Notes` panel.
+- **Sales** created from `Create order -> Sales order` persist `note: ''` and `userNote: ''` (no auto note lines). Operator notes are added later in the sale card `Notes` panel. Non-empty `userNote` auto-expands Notes for all users (see [ORDER_CARD.md](./ORDER_CARD.md#notes)).
 - No automatic `Repair` service line item is injected into new repair orders.
 - Removing service line items from order card is allowed and persisted.
 

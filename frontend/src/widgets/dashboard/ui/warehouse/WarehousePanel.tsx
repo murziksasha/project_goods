@@ -36,6 +36,11 @@ import {
   useWarehouseSettingsQuery,
 } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import {
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../entities/saved-filter/api/savedFilterApi';
+import {
   buildSupplierOrderItemNumber,
   mergeSupplierOrderItemUpdate,
 } from '../../model/supplier-order-utils';
@@ -115,6 +120,7 @@ export const WarehousePanel = ({
   onUpdateSupplier,
   onUpdateCatalogProduct,
   onUpdateProductModel,
+  currentEmployeeId,
   currentEmployeeName,
   onSuccess,
   onError,
@@ -267,19 +273,9 @@ export const WarehousePanel = ({
   const [appliedFilters, setAppliedFilters] = useState<WarehouseFilters>(
     normalizeWarehouseFilters(),
   );
-  const [savedFilters, setSavedFilters] = useState<
-    SavedWarehouseFilter[]
-  >(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(savedWarehouseFiltersStorageKey) ??
-          '[]',
-      ) as SavedWarehouseFilter[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [savedFilters, setSavedFilters] = useState<SavedWarehouseFilter[]>(
+    [],
+  );
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(
     warehouseFilterIconOptions[0],
@@ -747,10 +743,10 @@ export const WarehousePanel = ({
     () =>
       savedFilters.filter(
         (savedFilter) =>
-          savedFilter.employeeName === currentEmployeeName &&
+          savedFilter.employeeId === currentEmployeeId &&
           savedFilter.tab === activeTab,
       ),
-    [activeTab, currentEmployeeName, savedFilters],
+    [activeTab, currentEmployeeId, savedFilters],
   );
   const totalItems =
     activeTab === 'receipts'
@@ -910,11 +906,97 @@ export const WarehousePanel = ({
     draftFilters.warehouse,
   ]);
   useEffect(() => {
-    window.localStorage.setItem(
-      savedWarehouseFiltersStorageKey,
-      JSON.stringify(savedFilters),
-    );
-  }, [savedFilters]);
+    if (!currentEmployeeId) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await listSavedFilters<WarehouseFilters>('warehouse');
+        if (remote.length === 0) {
+          try {
+            const legacy = (
+              JSON.parse(
+                window.localStorage.getItem(
+                  savedWarehouseFiltersStorageKey,
+                ) ?? '[]',
+              ) as SavedWarehouseFilter[]
+            ).filter(
+              (item) =>
+                item?.employeeId === currentEmployeeId ||
+                (!item?.employeeId &&
+                  item?.employeeName === currentEmployeeName),
+            );
+            const migrated: SavedWarehouseFilter[] = [];
+            for (const item of legacy) {
+              try {
+                const created = await createSavedFilterRequest({
+                  scope: 'warehouse',
+                  tab: item.tab,
+                  name: item.name,
+                  icon: item.icon,
+                  filters: item.filters,
+                });
+                migrated.push({
+                  id: created.id,
+                  employeeId: created.employeeId,
+                  name: created.name,
+                  icon: created.icon,
+                  tab: created.tab as WarehouseTab,
+                  filters: created.filters,
+                  createdAt: created.createdAt,
+                });
+              } catch {
+                // skip
+              }
+            }
+            if (migrated.length > 0) {
+              try {
+                window.localStorage.removeItem(
+                  savedWarehouseFiltersStorageKey,
+                );
+              } catch {
+                // ignore
+              }
+              if (!cancelled) {
+                setSavedFilters(migrated);
+              }
+              return;
+            }
+          } catch {
+            // ignore legacy parse
+          }
+        }
+        if (!cancelled) {
+          setSavedFilters(
+            remote.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              name: item.name,
+              icon: item.icon,
+              tab: item.tab as WarehouseTab,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            })),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('warehouse.messages.errors.loadFailed', {
+                  defaultValue: 'Failed to load saved filters.',
+                }),
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployeeId, currentEmployeeName, onError, t]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1209,29 +1291,56 @@ export const WarehousePanel = ({
   };
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
-    if (!filterName || !currentEmployeeName.trim()) return;
-    const nextFilter: SavedWarehouseFilter = {
-      id: `wf-${Date.now()}`,
-      employeeName: currentEmployeeName.trim(),
-      name: filterName,
-      icon: newFilterIcon,
-      tab: activeTab,
-      filters: {
-        ...draftFilters,
-        name: draftFilters.name.trim(),
-        serial: draftFilters.serial.trim(),
-        article: draftFilters.article.trim(),
-        warehouse: draftFilters.warehouse.trim(),
-        supplier: draftFilters.supplier.trim(),
-        buyer: draftFilters.buyer.trim(),
-        favoritesOnly: draftFilters.favoritesOnly,
-      },
-      createdAt: new Date().toISOString(),
+    if (!filterName || !currentEmployeeId) return;
+    const filters: WarehouseFilters = {
+      ...draftFilters,
+      name: draftFilters.name.trim(),
+      serial: draftFilters.serial.trim(),
+      article: draftFilters.article.trim(),
+      warehouse: draftFilters.warehouse.trim(),
+      supplier: draftFilters.supplier.trim(),
+      buyer: draftFilters.buyer.trim(),
+      favoritesOnly: draftFilters.favoritesOnly,
     };
-    setSavedFilters((current) => [nextFilter, ...current]);
-    setIsSaveFilterDrawerOpen(false);
-    setNewFilterName('');
-    setNewFilterIcon(warehouseFilterIconOptions[0]);
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'warehouse',
+          tab: activeTab,
+          name: filterName,
+          icon: newFilterIcon,
+          filters,
+        });
+        setSavedFilters((current) => [
+          {
+            id: created.id,
+            employeeId: created.employeeId,
+            name: created.name,
+            icon: created.icon,
+            tab: created.tab as WarehouseTab,
+            filters: created.filters,
+            createdAt: created.createdAt,
+          },
+          ...current,
+        ]);
+        setIsSaveFilterDrawerOpen(false);
+        setNewFilterName('');
+        setNewFilterIcon(warehouseFilterIconOptions[0]);
+        onSuccess(
+          t('warehouse.messages.success.filterSaved', {
+            defaultValue: 'Filter saved.',
+          }),
+        );
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('warehouse.messages.errors.saveFailed', {
+                defaultValue: 'Failed to save filter.',
+              }),
+        );
+      }
+    })();
   };
   const applySavedFilter = (savedFilter: SavedWarehouseFilter) => {
     const nextFilters = normalizeWarehouseFilters(savedFilter.filters);
@@ -1242,9 +1351,22 @@ export const WarehousePanel = ({
     setIsFilterPanelOpen(false);
   };
   const removeSavedFilter = (filterId: string) => {
-    setSavedFilters((current) =>
-      current.filter((item) => item.id !== filterId),
-    );
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('warehouse.messages.errors.saveFailed', {
+                defaultValue: 'Failed to delete filter.',
+              }),
+        );
+      }
+    })();
   };
   const toggleReceiptStatusFilter = (status: ReceiptStatus) => {
     setDraftFilters((current) => {

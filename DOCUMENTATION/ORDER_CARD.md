@@ -65,7 +65,11 @@
 ## Products Section
 
 - `Products` section contains only attached products/parts/services used for the order work.
-- `Products` is collapsed by default in order card; saved expanded/collapsed state may override that default on later opens.
+- **Expand rules (repair order card, all users):**
+  - No product line items → **collapsed** by default (localStorage `productsOpen` may open when empty).
+  - ≥1 product line item → **expanded for every user** (overrides localStorage `productsOpen: false`).
+  - When the first product line is added while the card is open, Products opens immediately.
+- Sale cards keep Products open by default (see [SALE_CARD.md](./SALE_CARD.md)).
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
 - Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
 - Lookup must **never** match `note` on stock or catalog rows.
@@ -115,7 +119,11 @@
 ## Notes
 
 - Repair order cards and sale cards share the same collapsible `Notes` panel (`order-detail-note`).
-- Default state: **collapsed** (`noteOpen: false`). Saved expand/collapse state may override on later opens (localStorage key `project-goods.order-detail-sections`).
+- **Default expand rules (all users, data-driven):**
+  - Empty `userNote` → **collapsed** by default (system `note` alone does **not** force open).
+  - Non-empty `userNote` (any operator wrote text) → **expanded for every user** who opens the card. Overrides localStorage `noteOpen: false`.
+  - When `userNote` becomes non-empty while the card is open (save/sync), the panel opens immediately.
+  - Manual toggle still works; with empty `userNote`, later opens may restore `noteOpen` from localStorage key `project-goods.order-detail-sections`.
 - Section header uses compact collapse indicators (`⌃` / `⌄`), same as `Products` / `Services`.
 - When expanded, a pencil button (`toolbar-square-button`) appears on the right; it is shown only when the card is editable (`isOrderEditableStatus` and not `isReadOnly`).
 
@@ -132,6 +140,7 @@
   - `Type: repair`
 - Rendered in **gray** (`#5e7188`), read-only in the card.
 - Must not be edited from the card UI.
+- Presence of system note alone never auto-expands the Notes panel.
 
 ### User note (`userNote`)
 
@@ -141,6 +150,7 @@
 - Max length: 500 characters.
 - Persisted with `PATCH /sales/:saleId/workspace` (`userNote` field only); successful save appends a system timeline entry (`{{author}} updated note.`).
 - Editable only in repair statuses allowed by `isOrderEditableStatus` (same rule as other card edits).
+- Any non-empty value forces Notes open globally (shared sale field; not per-browser preference).
 
 ### Empty state
 
