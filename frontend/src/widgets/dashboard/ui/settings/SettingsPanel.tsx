@@ -40,6 +40,8 @@ import { PrintFormBuilder } from './PrintFormBuilder';
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
   isSaving: boolean;
+  /** False until /settings has loaded — avoids flashing default company fields. */
+  isSettingsReady?: boolean;
   canEditSettings: boolean;
   canEditPrintForms: boolean;
   canManageBackups: boolean;
@@ -470,8 +472,8 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
   const [backupsPage, setBackupsPage] = useState(1);
   const [backupsPageSize, setBackupsPageSize] = useState(30);
 
-  const refreshBackups = useCallback(async () => {
-    setIsLoading(true);
+  const refreshBackups = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true);
     setError('');
     try {
       setBackups(await listBackups());
@@ -482,7 +484,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
           : t('settings.backups.messages.failedLoad'),
       );
     } finally {
-      setIsLoading(false);
+      if (!opts?.silent) setIsLoading(false);
     }
   }, [t]);
 
@@ -509,7 +511,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     setError('');
     try {
       const backup = await createBackup();
-      await refreshBackups();
+      await refreshBackups({ silent: true });
       setMessage(
         backup.status === 'completed'
           ? t('settings.backups.messages.created')
@@ -552,14 +554,16 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
 
   const handleDeleteBackup = async () => {
     if (!deleteTarget) return;
-    setDeletingBackupId(deleteTarget.id);
+    const deletedId = deleteTarget.id;
+    setDeletingBackupId(deletedId);
     setMessage('');
     setError('');
     try {
-      await deleteBackup(deleteTarget.id);
+      await deleteBackup(deletedId);
+      setBackups((prev) => prev.filter((backup) => backup.id !== deletedId));
       setDeleteTarget(null);
-      await refreshBackups();
       setMessage(t('settings.backups.messages.deleted'));
+      void refreshBackups({ silent: true });
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -580,7 +584,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       const result = await restoreBackup(restoreTarget.id, restoreConfirmation);
       setRestoreTarget(null);
       setRestoreConfirmation('');
-      await refreshBackups();
+      await refreshBackups({ silent: true });
       setMessage(
         t('settings.backups.messages.restored', {
           safetyBackupId: result.safetyBackupId,
@@ -614,7 +618,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         restoreFileConfirmation,
       );
       closeRestoreFileModal();
-      await refreshBackups();
+      await refreshBackups({ silent: true });
       setMessage(
         t('settings.backups.messages.restoredFromFile', {
           safetyBackupId: result.safetyBackupId,
@@ -920,6 +924,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
 export const SettingsPanel = ({
   form,
   isSaving,
+  isSettingsReady = true,
   canEditSettings,
   canEditPrintForms,
   canManageBackups,
@@ -928,6 +933,9 @@ export const SettingsPanel = ({
 }: SettingsPanelProps) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(getStoredSettingsTab);
+  const hasCachedCompanyFields =
+    form.serviceName.trim().length > 0 || form.company.trim().length > 0;
+  const showCompanyLoading = !isSettingsReady && !hasCachedCompanyFields;
   const visibleSettingsTabs = useMemo(
     () =>
       settingsTabs.filter((tab) => {
@@ -1072,18 +1080,36 @@ export const SettingsPanel = ({
       </div>
 
       {activeTab === 'company' && canEditSettings ? (
-        <CompanySettingsSection
-          form={form}
-          validation={companyValidation}
-          onChange={onChange}
-        />
+        showCompanyLoading ? (
+          <section className="settings-section">
+            <p className="empty-state" role="status" aria-live="polite">
+              {t('settings.panel.loading')}
+            </p>
+          </section>
+        ) : (
+          <CompanySettingsSection
+            form={form}
+            validation={companyValidation}
+            onChange={onChange}
+          />
+        )
       ) : null}
 
       {activeTab === 'dashboard' && canEditSettings ? (
-        <DashboardSettingsSection
-          preferences={form.dashboardPreferences}
-          onChange={(dashboardPreferences) => onChange('dashboardPreferences', dashboardPreferences)}
-        />
+        isSettingsReady ? (
+          <DashboardSettingsSection
+            preferences={form.dashboardPreferences}
+            onChange={(dashboardPreferences) =>
+              onChange('dashboardPreferences', dashboardPreferences)
+            }
+          />
+        ) : (
+          <section className="settings-section">
+            <p className="empty-state" role="status" aria-live="polite">
+              {t('settings.panel.loading')}
+            </p>
+          </section>
+        )
       ) : null}
 
       {activeTab === 'print' && canEditPrintForms ? (

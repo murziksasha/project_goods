@@ -351,6 +351,36 @@ describe('SettingsPanel', () => {
     expect(await screen.findByText('Backup deleted.')).toBeInTheDocument();
   });
 
+  it('removes deleted backup from the list without showing loading state', async () => {
+    let resolveList: ((value: typeof defaultBackups) => void) | undefined;
+    vi.spyOn(backupApi, 'listBackups')
+      .mockResolvedValueOnce(defaultBackups)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveList = resolve;
+          }),
+      );
+
+    render(<BackupOnlySettingsPanelHarness />);
+
+    expect(
+      await screen.findByText('project-goods-20260607-100000'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!);
+
+    expect(await screen.findByText('Backup deleted.')).toBeInTheDocument();
+    expect(screen.queryByText('Loading backups...')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('project-goods-20260607-100000'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('No backups yet.')).toBeInTheDocument();
+
+    resolveList?.([]);
+  });
+
   it('requires RESTORE before enabling restore confirmation', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 

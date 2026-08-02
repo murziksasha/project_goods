@@ -47,6 +47,7 @@ import { InlineError } from '../../../shared/ui/InlineError';
 import { LoadingState } from '../../../shared/ui/LoadingState';
 import { useTranslation } from 'react-i18next';
 import { hardReloadApp } from '../../../shared/lib/hardReload';
+import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
 import {
   DashboardSidebar,
   type DashboardSidebarItem,
@@ -195,6 +196,7 @@ export const DashboardPage = () => {
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
+  const [cachedServiceName] = useState(() => readCachedServiceName() ?? '');
   const effectivePrintForms = useMemo(
     () =>
       applyPrintFormLocalOverrides(
@@ -1074,7 +1076,11 @@ export const DashboardPage = () => {
 
       <section className="dashboard-main">
         <DashboardTopbar
-          serviceName={state.settings?.serviceName || t('common.serviceCRM')}
+          serviceName={
+            state.settings?.serviceName ||
+            cachedServiceName ||
+            t('common.serviceCRM')
+          }
           isSidebarCollapsed={isSidebarCollapsed}
           isMobileNavOpen={isMobileNavOpen}
           isNarrowLayout={isNarrowLayout}
@@ -1284,6 +1290,7 @@ export const DashboardPage = () => {
             <SettingsPanel
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
+              isSettingsReady={state.isSettingsReady}
               canEditSettings={canEditSettings}
               canEditPrintForms={canEditPrintForms}
               canManageBackups={canManageBackups}
