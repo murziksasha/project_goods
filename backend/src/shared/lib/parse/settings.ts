@@ -122,7 +122,8 @@ const normalizeDashboardPreferences = (value: unknown) => {
     weatherEnabled: toBoolean(source.weatherEnabled, true),
     weatherAnimationEnabled: toBoolean(source.weatherAnimationEnabled, true),
     weatherProvider,
-    openWeatherApiKey: toNonEmptyString(source.openWeatherApiKey),
+    // Never persist client-supplied OpenWeather keys; use OPENWEATHER_API_KEY on the server.
+    openWeatherApiKey: '',
     defaultWeatherLocation,
     currencies: currencies.length > 0 ? currencies : ['USD', 'EUR'],
     rateProviders: rateProviders.length > 0 ? rateProviders : ['nbu', 'privat'],

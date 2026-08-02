@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
 import type { AppSettingsFormValues } from '../../../../entities/settings/model/types';
 import * as backupApi from '../../../../entities/backup/api/backupApi';
+import * as systemDbApi from '../../../../entities/backup/api/systemDbApi';
 import { persistPrintFormLayoutOverrides } from '../../model/print-form-local-overrides';
 import { SettingsPanel } from './SettingsPanel';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cleanup } from '@testing-library/react';
 
 const defaultBackups = [
@@ -22,6 +23,43 @@ const defaultBackups = [
     error: '',
   },
 ];
+
+const defaultDbHealth = {
+  status: 'ok' as const,
+  ok: true,
+  readyState: 1,
+  latencyMs: 12,
+  dbName: 'inventory',
+  mongoVersion: '7.0.14',
+  uptimeSeconds: 86400,
+  connections: { current: 8, available: 92 },
+  collectedAt: '2026-07-28T12:00:00.000Z',
+};
+
+const defaultDbStats = {
+  dbName: 'inventory',
+  collectedAt: '2026-07-28T12:00:00.000Z',
+  dataSizeBytes: 1200,
+  storageSizeBytes: 2400,
+  indexSizeBytes: 350,
+  collections: [
+    {
+      name: 'sales',
+      count: 10,
+      sizeBytes: 1000,
+      storageSizeBytes: 2000,
+      totalIndexSizeBytes: 300,
+      avgObjSizeBytes: 100,
+      nindexes: 4,
+    },
+  ],
+  totals: {
+    documents: 10,
+    dataSizeBytes: 1000,
+    storageSizeBytes: 2000,
+    totalIndexSizeBytes: 300,
+  },
+};
 
 beforeEach(() => {
   vi.spyOn(backupApi, 'listBackups').mockResolvedValue(defaultBackups);
@@ -44,7 +82,10 @@ beforeEach(() => {
     safetyBackupId: 'project-goods-20260607-100100-safety',
     success: true,
   });
+  vi.spyOn(systemDbApi, 'getDbHealth').mockResolvedValue(defaultDbHealth);
+  vi.spyOn(systemDbApi, 'getDbStats').mockResolvedValue(defaultDbStats);
 });
+
 
 afterEach(() => {
   cleanup();
@@ -57,7 +98,9 @@ const SettingsPanelHarness = () => {
     createDefaultSettingsForm,
   );
   const latestFormRef = useRef(form);
-  latestFormRef.current = form;
+  useEffect(() => {
+    latestFormRef.current = form;
+  }, [form]);
 
   return (
     <SettingsPanel
@@ -120,17 +163,19 @@ const PrintOnlySettingsPanelHarness = () => {
 };
 
 describe('SettingsPanel', () => {
-  it('shows company, print form and backup settings tabs', async () => {
+  it('shows company, print form, backup and database settings tabs', async () => {
     render(<SettingsPanelHarness />);
 
     expect(screen.getByRole('button', { name: 'Company' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Backups' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Database' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Orders' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Numbering' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Finance' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
   });
+
 
   it('allows saving default optional company print fields', async () => {
     render(<SettingsPanelHarness />);
@@ -273,12 +318,13 @@ describe('SettingsPanel', () => {
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
   });
 
-  it('shows only backups to a backup-only employee', async () => {
+  it('shows only backups and database to a backup-only employee', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
     expect(screen.queryByRole('button', { name: 'Company' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Print forms' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Backups' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Database' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
     expect(await screen.findByText('project-goods-20260607-100000')).toBeInTheDocument();
   });
@@ -289,8 +335,22 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: 'Company' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Backups' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Database' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeInTheDocument();
   });
+
+  it('loads database report when Database tab is opened', async () => {
+    render(<BackupOnlySettingsPanelHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Database' }));
+
+    expect(await screen.findByText('Healthy')).toBeInTheDocument();
+    expect(screen.getByText('sales')).toBeInTheDocument();
+    expect(systemDbApi.getDbHealth).toHaveBeenCalled();
+    expect(systemDbApi.getDbStats).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
+  });
+
 
   it('shows backup restore, restore from file, and delete actions', async () => {
     render(<BackupOnlySettingsPanelHarness />);

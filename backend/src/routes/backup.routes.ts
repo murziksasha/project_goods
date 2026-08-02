@@ -8,6 +8,8 @@ import {
   restoreBackup,
   restoreBackupFromUploadedArchive,
 } from '../domain/backup/service';
+import { getDatabaseHealth } from '../domain/system/db-health';
+import { getDatabaseStorageStats } from '../domain/system/db-stats';
 import { asyncHandler, requirePermission, routeParam } from '../shared/lib/http';
 
 export const backupRouter = Router();
@@ -23,6 +25,19 @@ backupRouter.get('/backups', asyncHandler(async (req, res) => {
   await requireBackupPermission(req);
   res.json(await listBackups());
 }));
+
+/** MongoDB collection sizes for ops planning (admin / backup permission). */
+backupRouter.get('/system/db-stats', asyncHandler(async (req, res) => {
+  await requireBackupPermission(req);
+  res.json(await getDatabaseStorageStats());
+}));
+
+/** MongoDB connection health for ops monitoring (admin / backup permission). */
+backupRouter.get('/system/db-health', asyncHandler(async (req, res) => {
+  await requireBackupPermission(req);
+  res.json(await getDatabaseHealth());
+}));
+
 
 backupRouter.post('/backups', asyncHandler(async (req, res) => {
   const employee = await requireBackupPermission(req);

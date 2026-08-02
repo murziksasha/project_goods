@@ -8,6 +8,15 @@ import {
   startBackupScheduler,
 } from './scheduler';
 
+vi.mock('../finance/period-snapshot', () => ({
+  ensureFinancePeriodSealed: vi.fn().mockResolvedValue({ skipped: true, reason: 'test' }),
+  autoPurgeSealedFinanceTransactions: vi.fn().mockResolvedValue({ skipped: true, reason: 'test' }),
+}));
+
+vi.mock('../archive/yearly-dump', () => ({
+  runScheduledYearlyArchives: vi.fn().mockResolvedValue({ skipped: true, reason: 'test' }),
+}));
+
 const makeBackup = (
   status: BackupMetadata['status'],
   error = '',
@@ -27,7 +36,7 @@ const makeBackup = (
 describe('backup scheduler', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(backupService, 'deleteOldScheduledBackups').mockResolvedValue([]);
+    vi.spyOn(backupService, 'enforceBackupRetention').mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -57,7 +66,7 @@ describe('backup scheduler', () => {
 
       await runDailyBackupCycle();
 
-      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.enforceBackupRetention).toHaveBeenCalled();
     });
 
     it('runs retention when scheduled backup throws', async () => {
@@ -67,7 +76,7 @@ describe('backup scheduler', () => {
 
       await runDailyBackupCycle();
 
-      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.enforceBackupRetention).toHaveBeenCalled();
     });
 
     it('runs retention when scheduled backup succeeds', async () => {
@@ -77,7 +86,7 @@ describe('backup scheduler', () => {
 
       await runDailyBackupCycle();
 
-      expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+      expect(backupService.enforceBackupRetention).toHaveBeenCalled();
     });
   });
 
@@ -86,7 +95,7 @@ describe('backup scheduler', () => {
       const timer = startBackupScheduler();
 
       await vi.waitFor(() => {
-        expect(backupService.deleteOldScheduledBackups).toHaveBeenCalledWith(14);
+        expect(backupService.enforceBackupRetention).toHaveBeenCalled();
       });
 
       clearInterval(timer);

@@ -5,12 +5,17 @@ import {
 } from './constants';
 import { Client, type ClientDocument } from './model';
 import { Sale, type SaleDocument } from '../sale/model';
+import { coldSalesPurgedExist } from '../archive/yearly-dump';
 import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
 import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
-import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
+import {
+  assertNotStale,
+  HttpError,
+  isDuplicateKeyError,
+} from '../../shared/lib/errors';
 import type { ClientPayload } from '../shared/types';
 
 const getClientSnapshot = async (client: ClientDocument) => {
@@ -100,8 +105,21 @@ export const createClient = async (payload: ClientPayload) => {
 
 export const updateClient = async (clientId: string, payload: ClientPayload) => {
   isValidObjectIdOrThrow(clientId, 'clientId');
+
   const normalizedPayload = normalizeClientPayload(payload);
-  await assertUniqueClientPhones(normalizedPayload.phones || [normalizedPayload.phone], clientId);
+  await assertUniqueClientPhones(
+    normalizedPayload.phones || [normalizedPayload.phone],
+    clientId,
+  );
+
+  // Staleness needs the current row; skip the extra read when callers omit expectedUpdatedAt.
+  if (payload.expectedUpdatedAt) {
+    const existingClient = await Client.findById(clientId).lean<ClientDocument | null>();
+    if (!existingClient) {
+      throw new HttpError(404, 'Client not found.');
+    }
+    assertNotStale(payload.expectedUpdatedAt, existingClient.updatedAt, 'Client');
+  }
 
   const client = await Client.findByIdAndUpdate(clientId, normalizedPayload, {
     returnDocument: 'after',
@@ -127,6 +145,13 @@ export const deleteClient = async (clientId: string) => {
     throw new HttpError(400, 'Cannot delete a client that has sales history.');
   }
 
+  if (await coldSalesPurgedExist()) {
+    throw new HttpError(
+      400,
+      'Cannot delete client while cold sales archives exist (history may still reference this client offline).',
+    );
+  }
+
   const deletedClient = await Client.findByIdAndDelete(clientId).lean<ClientDocument | null>();
   if (!deletedClient) {
     throw new HttpError(404, 'Client not found.');
@@ -147,7 +172,13 @@ export const getClientHistory = async (clientId: string) => {
     .sort({ saleDate: -1 })
     .lean<SaleDocument[]>();
 
-  return formatClientHistory(client, sales);
+  const coldPurged = await coldSalesPurgedExist();
+  return {
+    ...formatClientHistory(client, sales),
+    liveHistoryOnly: true,
+    coldSalesPurgedExist: coldPurged,
+    historyMayBeIncomplete: coldPurged,
+  };
 };
 
 export const mergeClients = async (

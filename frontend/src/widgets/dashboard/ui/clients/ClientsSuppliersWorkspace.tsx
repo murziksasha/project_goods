@@ -44,10 +44,14 @@ import {
   type ClientFilters,
 } from '../../model/clients-workspace';
 import {
-  createSavedFilterId,
   readSavedFilters,
   type SavedFilter,
 } from '../../model/saved-filters';
+import {
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../entities/saved-filter/api/savedFilterApi';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
@@ -289,12 +293,7 @@ export const ClientsSuppliersWorkspace = ({
     useState<SupplierFilters>(readSupplierFilters);
   const [savedFilters, setSavedFilters] = useState<
     Array<SavedFilter<ClientFilters | SupplierFilters, TabKey>>
-  >(() =>
-    readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
-      clientsSuppliersSavedFiltersStorageKey,
-      ['clients', 'suppliers'],
-    ),
-  );
+  >([]);
   const [newSupplierFilterName, setNewSupplierFilterName] = useState('');
   const [newSupplierFilterIcon, setNewSupplierFilterIcon] = useState(
     filterIconOptions[0],
@@ -490,26 +489,124 @@ export const ClientsSuppliersWorkspace = ({
     setSuppliersPage(1);
   };
 
+  useEffect(() => {
+    if (!currentEmployee?.id) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    const employeeId = currentEmployee.id;
+    void (async () => {
+      try {
+        let remote = await listSavedFilters<
+          ClientFilters | SupplierFilters
+        >('clients');
+        if (remote.length === 0) {
+          const legacy = readSavedFilters<
+            ClientFilters | SupplierFilters,
+            TabKey
+          >(clientsSuppliersSavedFiltersStorageKey, [
+            'clients',
+            'suppliers',
+          ]).filter((item) => item.employeeId === employeeId);
+          const migrated: Array<
+            SavedFilter<ClientFilters | SupplierFilters, TabKey>
+          > = [];
+          for (const item of legacy) {
+            try {
+              const created = await createSavedFilterRequest({
+                scope: 'clients',
+                tab: item.tab,
+                name: item.name,
+                icon: item.icon,
+                filters: item.filters,
+              });
+              migrated.push({
+                id: created.id,
+                employeeId: created.employeeId,
+                name: created.name,
+                icon: created.icon,
+                tab: created.tab as TabKey,
+                filters: created.filters as ClientFilters | SupplierFilters,
+                createdAt: created.createdAt,
+              });
+            } catch {
+              // skip
+            }
+          }
+          if (migrated.length > 0) {
+            remote = migrated.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              scope: 'clients' as const,
+              tab: item.tab,
+              name: item.name,
+              icon: item.icon,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            }));
+            try {
+              window.localStorage.removeItem(
+                clientsSuppliersSavedFiltersStorageKey,
+              );
+            } catch {
+              // ignore
+            }
+          }
+        }
+        if (!cancelled) {
+          setSavedFilters(
+            remote.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              name: item.name,
+              icon: item.icon,
+              tab: item.tab as TabKey,
+              filters: item.filters as ClientFilters | SupplierFilters,
+              createdAt: item.createdAt,
+            })),
+          );
+        }
+      } catch {
+        // keep empty
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployee?.id]);
+
   const saveSupplierFilter = () => {
     const filterName = newSupplierFilterName.trim();
     if (!currentEmployee?.id || !filterName) return;
-    const latestSavedFilters =
-      readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
-        clientsSuppliersSavedFiltersStorageKey,
-        ['clients', 'suppliers'],
-      );
-    const nextFilter: SavedFilter<ClientFilters | SupplierFilters, TabKey> = {
-      id: createSavedFilterId('supplier-filter'),
-      employeeId: currentEmployee.id,
-      name: filterName,
-      icon: newSupplierFilterIcon,
-      tab: 'suppliers',
-      filters: normalizeSupplierFilters(appliedSupplierFilters),
-      createdAt: new Date().toISOString(),
-    };
-    setSavedFilters([nextFilter, ...latestSavedFilters]);
-    setNewSupplierFilterName('');
-    setNewSupplierFilterIcon(filterIconOptions[0]);
+    const filters = normalizeSupplierFilters(appliedSupplierFilters);
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'clients',
+          tab: 'suppliers',
+          name: filterName,
+          icon: newSupplierFilterIcon,
+          filters,
+        });
+        setSavedFilters((current) => [
+          {
+            id: created.id,
+            employeeId: created.employeeId,
+            name: created.name,
+            icon: created.icon,
+            tab: 'suppliers',
+            filters: created.filters as SupplierFilters,
+            createdAt: created.createdAt,
+          },
+          ...current,
+        ]);
+        setNewSupplierFilterName('');
+        setNewSupplierFilterIcon(filterIconOptions[0]);
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   const applySupplierSavedFilter = (filterId: string) => {
@@ -524,14 +621,16 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   const removeSupplierSavedFilter = (filterId: string) => {
-    const latestSavedFilters =
-      readSavedFilters<ClientFilters | SupplierFilters, TabKey>(
-        clientsSuppliersSavedFiltersStorageKey,
-        ['clients', 'suppliers'],
-      );
-    setSavedFilters(
-      latestSavedFilters.filter((item) => item.id !== filterId),
-    );
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   useEffect(() => {
@@ -558,13 +657,6 @@ export const ClientsSuppliersWorkspace = ({
       JSON.stringify(appliedSupplierFilters),
     );
   }, [appliedSupplierFilters]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      clientsSuppliersSavedFiltersStorageKey,
-      JSON.stringify(savedFilters),
-    );
-  }, [savedFilters]);
 
   return (
     <section className='panel clients-workspace'>

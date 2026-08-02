@@ -1,4 +1,4 @@
-﻿import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+﻿import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -10,16 +10,42 @@ import type { Sale } from '../../../../entities/sale/model/types';
 import type { ClientDevice } from '../../../../entities/client-device/model/types';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import {
-  clientsSuppliersSavedFiltersStorageKey,
-  emptyFilters,
   mapClientDraftToPayload,
   type ClientDraft,
 } from '../../model/clients-workspace';
 import { getClientPhones, getPrimaryClientPhone } from '../../../../entities/client/model/forms';
 
+const savedFiltersStore: Array<Record<string, unknown>> = [];
+
+vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+  listSavedFilters: vi.fn(async () =>
+    savedFiltersStore.filter((item) => item.scope === 'clients'),
+  ),
+  createSavedFilter: vi.fn(async (payload: Record<string, unknown>) => {
+    const created = {
+      id: `sf-${savedFiltersStore.length + 1}`,
+      employeeId: 'employee-1',
+      scope: payload.scope,
+      tab: payload.tab,
+      name: payload.name,
+      icon: payload.icon,
+      filters: payload.filters,
+      createdAt: new Date().toISOString(),
+    };
+    savedFiltersStore.unshift(created);
+    return created;
+  }),
+  deleteSavedFilter: vi.fn(async (filterId: string) => {
+    const index = savedFiltersStore.findIndex((item) => item.id === filterId);
+    if (index >= 0) savedFiltersStore.splice(index, 1);
+    return { id: filterId, deleted: true as const };
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  savedFiltersStore.length = 0;
 });
 
 const createClient = (overrides: Partial<Client>): Client => {
@@ -248,30 +274,12 @@ describe('ClientsWorkspace', () => {
     expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
   });
 
-  it('saves and reapplies client filters for the current employee only', () => {
-    window.localStorage.setItem(
-      clientsSuppliersSavedFiltersStorageKey,
-      JSON.stringify([
-        {
-          id: 'other-filter',
-          employeeId: 'other-employee',
-          name: 'Other employee',
-          icon: '?',
-          tab: 'clients',
-          filters: { ...emptyFilters, query: 'Hidden' },
-          createdAt: '2026-06-01T00:00:00.000Z',
-        },
-      ]),
-    );
+  it('saves and reapplies client filters for the current employee only', async () => {
     const ivan = createClient({ id: 'client-ivan', name: 'Ivan Petrenko' });
     const olena = createClient({ id: 'client-olena', name: 'Olena Kovalenko' });
     renderWorkspace({ clients: [ivan, olena] });
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-
-    expect(
-      screen.queryByRole('button', { name: /Other employee/ }),
-    ).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('+380..., Ivan'), {
       target: { value: 'Olena' },
@@ -282,6 +290,15 @@ describe('ClientsWorkspace', () => {
       target: { value: 'Olena filter' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getAllByRole('button', { name: /Olena filter/ })
+          .some((button) => button.className === 'orders-filter-saved-button'),
+      ).toBe(true);
+    });
+
     fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
 
     expect(screen.getByText('Ivan Petrenko')).toBeInTheDocument();

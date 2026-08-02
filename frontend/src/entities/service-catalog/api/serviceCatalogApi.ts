@@ -11,7 +11,8 @@ export const useServicesQuery = (enabled = true) =>
     queryKey: queryKeys.services,
     queryFn: () => getServiceCatalogItems(),
     enabled,
-    refetchInterval: enabled ? 30000 : false,
+    staleTime: 2 * 60_000,
+    refetchInterval: enabled ? 60_000 : false,
   });
 
 export const getServiceCatalogItems = async (query = '') => {

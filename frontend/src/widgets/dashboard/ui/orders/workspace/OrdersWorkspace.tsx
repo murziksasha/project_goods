@@ -35,6 +35,11 @@ import {
   updateSaleWorkspace,
 } from '../../../../../entities/sale/api/saleApi';
 import {
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../../entities/saved-filter/api/savedFilterApi';
+import {
   invalidateSupplierOrderQueries,
   useSupplierOrdersQuery,
 } from '../../../../../entities/supplier-order/api/supplierOrderApi';
@@ -262,9 +267,9 @@ export const OrdersWorkspace = ({
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
-  const [savedFilters, setSavedFilters] = useState<
-    SavedOrdersFilter[]
-  >(readSavedOrderFilters);
+  const [savedFilters, setSavedFilters] = useState<SavedOrdersFilter[]>(
+    [],
+  );
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(
     filterIconOptions[0],
@@ -728,6 +733,85 @@ export const OrdersWorkspace = ({
     () => new Map(assigneeOptions.map((item) => [item.id, item.label])),
     [assigneeOptions],
   );
+  useEffect(() => {
+    if (!currentEmployee?.id) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    const employeeId = currentEmployee.id;
+    void (async () => {
+      try {
+        const remote = await listSavedFilters<OrdersFilters>('orders');
+        if (remote.length === 0) {
+          const legacy = readSavedOrderFilters().filter(
+            (item) => item.employeeId === employeeId,
+          );
+          if (legacy.length > 0) {
+            const migrated: SavedOrdersFilter[] = [];
+            for (const item of legacy) {
+              try {
+                const created = await createSavedFilterRequest({
+                  scope: 'orders',
+                  tab: item.tab,
+                  name: item.name,
+                  icon: item.icon,
+                  filters: item.filters,
+                });
+                migrated.push({
+                  id: created.id,
+                  employeeId: created.employeeId,
+                  name: created.name,
+                  icon: created.icon,
+                  tab: created.tab as OrdersTab,
+                  filters: created.filters,
+                  createdAt: created.createdAt,
+                });
+              } catch {
+                // skip single migrate failure
+              }
+            }
+            if (migrated.length > 0) {
+              try {
+                window.localStorage.removeItem(savedOrdersFiltersStorageKey);
+              } catch {
+                // ignore
+              }
+              if (!cancelled) {
+                setSavedFilters(migrated);
+              }
+              return;
+            }
+          }
+        }
+        if (!cancelled) {
+          setSavedFilters(
+            remote.map((item) => ({
+              id: item.id,
+              employeeId: item.employeeId,
+              name: item.name,
+              icon: item.icon,
+              tab: item.tab as OrdersTab,
+              filters: item.filters,
+              createdAt: item.createdAt,
+            })),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.loadFailed'),
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployee?.id, onError, t]);
+
   const saveCurrentFilter = () => {
     if (!currentEmployee?.id) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
@@ -738,26 +822,44 @@ export const OrdersWorkspace = ({
       onError(t('orders.messages.errors.enterFilterName'));
       return;
     }
-    const nextFilter: SavedOrdersFilter = {
-      id: createRuntimeId(),
-      employeeId: currentEmployee.id,
-      name,
-      icon: newFilterIcon,
-      tab: activeTab,
-      filters: {
-        ...draftFilters,
-        orderNumber: draftFilters.orderNumber.trim(),
-        client: draftFilters.client.trim(),
-        product: draftFilters.product.trim(),
-        service: draftFilters.service.trim(),
-      },
-      createdAt: new Date().toISOString(),
+    const filters: OrdersFilters = {
+      ...draftFilters,
+      orderNumber: draftFilters.orderNumber.trim(),
+      client: draftFilters.client.trim(),
+      product: draftFilters.product.trim(),
+      service: draftFilters.service.trim(),
     };
-    setSavedFilters((current) => [nextFilter, ...current]);
-    setIsSaveFilterDrawerOpen(false);
-    setNewFilterName('');
-    setNewFilterIcon(filterIconOptions[0]);
-    onSuccess(t('orders.messages.success.filterSaved'));
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'orders',
+          tab: activeTab,
+          name,
+          icon: newFilterIcon,
+          filters,
+        });
+        const nextFilter: SavedOrdersFilter = {
+          id: created.id,
+          employeeId: created.employeeId,
+          name: created.name,
+          icon: created.icon,
+          tab: created.tab as OrdersTab,
+          filters: created.filters,
+          createdAt: created.createdAt,
+        };
+        setSavedFilters((current) => [nextFilter, ...current]);
+        setIsSaveFilterDrawerOpen(false);
+        setNewFilterName('');
+        setNewFilterIcon(filterIconOptions[0]);
+        onSuccess(t('orders.messages.success.filterSaved'));
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.saveFailed'),
+        );
+      }
+    })();
   };
   const applySavedFilter = (savedFilter: SavedOrdersFilter) => {
     onActiveTabChange(savedFilter.tab);
@@ -771,17 +873,21 @@ export const OrdersWorkspace = ({
     setIsStatusFilterOpen(false);
   };
   const removeSavedFilter = (filterId: string) => {
-    setSavedFilters((current) =>
-      current.filter((item) => item.id !== filterId),
-    );
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.saveFailed'),
+        );
+      }
+    })();
   };
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      savedOrdersFiltersStorageKey,
-      JSON.stringify(savedFilters),
-    );
-  }, [savedFilters]);
 
   useEffect(() => {
     window.localStorage.setItem(

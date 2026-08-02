@@ -143,8 +143,10 @@
       "company": "Компанія",
       "print": "Друковані форми",
       "dashboard": "Головна",
-      "backups": "Резервні копії"
+      "backups": "Резервні копії",
+      "database": "База даних"
     },
+
     "dashboard": {
       "marketWeatherEnabled": "Показувати блок курсу та погоди",
       "exchangeRatesEnabled": "Показувати курси валют",
@@ -162,6 +164,8 @@
       },
       "openWeatherApiKey": "API-ключ OpenWeatherMap",
       "openWeatherApiKeyPlaceholder": "Потрібен при виборі OpenWeatherMap",
+      "openWeatherApiKeyConfigured": "Налаштовано на сервері (OPENWEATHER_API_KEY).",
+      "openWeatherApiKeyServerOnly": "Вкажіть OPENWEATHER_API_KEY на backend-хості. Ключі не зберігаються в налаштуваннях.",
       "providers": {
         "openMeteo": "Open-Meteo (без ключа)",
         "openWeather": "OpenWeatherMap"
@@ -397,6 +401,68 @@
         "failedDelete": "Не вдалося видалити резервну копію.",
         "failedRestore": "Не вдалося відновити резервну копію.",
         "failedRestoreFromFile": "Не вдалося відновити резервну копію з файлу."
+      }
+    },
+    "database": {
+      "noPermission": "Поточний співробітник не може переглядати звіт по БД.",
+      "sectionLabel": "Стан бази даних",
+      "title": "Звіт по живій MongoDB",
+      "subtitle": "Стан підключення та розміри колекцій для операційного контролю. Тільки читання.",
+      "refresh": "Оновити",
+      "refreshing": "Оновлення...",
+      "loading": "Завантаження звіту по БД...",
+      "failedLoad": "Не вдалося завантажити звіт по БД.",
+      "valueUnavailable": "н/д",
+      "healthAriaLabel": "Стан підключення до БД",
+      "kpisAriaLabel": "Підсумки сховища БД",
+      "latency": "Затримка",
+      "latencyValue": "{{ms}} мс",
+      "readyState": "Стан",
+      "version": "MongoDB",
+      "uptime": "Аптайм",
+      "uptimeDaysHours": "{{days}}д {{hours}}г",
+      "uptimeHoursMinutes": "{{hours}}г {{minutes}}хв",
+      "uptimeMinutes": "{{minutes}}хв",
+      "connections": "З'єднання",
+      "connectionsValue": "{{current}} / {{available}}",
+      "dbName": "База",
+      "collectedAt": "Зібрано",
+      "status": {
+        "ok": "Здорова",
+        "degraded": "Погіршена"
+      },
+      "readyStateLabels": {
+        "disconnected": "Відключена",
+        "connected": "Підключена",
+        "connecting": "Підключення",
+        "disconnecting": "Відключення",
+        "unknown": "Невідомо"
+      },
+      "kpis": {
+        "documents": "Документи",
+        "dataSize": "Дані",
+        "storageSize": "Сховище",
+        "indexSize": "Індекси",
+        "collections": "Колекції"
+      },
+      "attention": {
+        "title": "Увага",
+        "noIndexes": "{{count}} колекці(й) без індексів: {{names}}",
+        "highStorageRatio": "Високе співвідношення storage/data (можлива фрагментація): {{names}}",
+        "largestCollections": "Найбільші за storage: {{names}}",
+        "emptyCollections": "{{count}} порожніх колекці(й)"
+      },
+      "collectionsTitle": "Колекції",
+      "collectionsEmpty": "Користувацьких колекцій не знайдено.",
+      "table": {
+        "name": "Назва",
+        "documents": "Док.",
+        "data": "Дані",
+        "storage": "Сховище",
+        "indexes": "Індекси",
+        "avgObj": "Сер. об'єкт",
+        "indexCount": "Індексів",
+        "share": "Частка"
       }
     },
     "ui": {
@@ -1111,6 +1177,7 @@
           "duplicateProductsInOrder": "В замовленні не може бути двох однакових товарів.",
           "failedCreateProduct": "Не вдалося створити товар.",
           "failedTakeOnCharge": "Не вдалося оприбуткувати замовлення.",
+          "saveBeforeTakeOnCharge": "Спочатку збережіть замовлення. Незбережені позиції не оприбутковуються.",
           "failedCreateSupplier": "Не вдалося створити постачальника.",
           "paidNotEditable": "Оплачений заказ не можна редагувати.",
           "paidNotCancellable": "Оплачений заказ не можна скасувати.",
@@ -2610,6 +2677,7 @@
       "entities": {
         "product": "Товар",
         "sale": "Продаж",
+        "client": "Клієнт",
         "clientDevice": "Пристрій клієнта"
       },
       "success": {

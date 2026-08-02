@@ -2,8 +2,14 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { DashboardPreferences } from '../../../../entities/settings/model/types';
-import { useMarketRatesQuery } from '../../../../entities/market/api/marketApi';
-import { useWeatherForecastQuery } from '../../../../entities/weather/api/weatherApi';
+import {
+  getMarketRates,
+  useMarketRatesQuery,
+} from '../../../../entities/market/api/marketApi';
+import {
+  getWeatherForecast,
+  useWeatherForecastQuery,
+} from '../../../../entities/weather/api/weatherApi';
 import { queryKeys } from '../../../../shared/api/queryClient';
 import {
   getEffectiveDashboardWidgetSettings,
@@ -65,10 +71,8 @@ export const MarketWeatherWidget = ({
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
     provider: settings.weatherProvider,
-    openWeatherApiKey: settings.openWeatherApiKey,
-    enabled:
-      settings.weatherEnabled &&
-      (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)),
+    // OpenWeather key is server-side only (OPENWEATHER_API_KEY).
+    enabled: settings.weatherEnabled,
   });
 
   const ratesData = ratesQuery.data;
@@ -83,10 +87,51 @@ export const MarketWeatherWidget = ({
   }, [ratesData]);
 
   const handleRefresh = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.marketRates }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.weatherForecast }),
-    ]);
+    const tasks: Promise<unknown>[] = [];
+
+    if (
+      settings.exchangeRatesEnabled &&
+      settings.rateProviders.length > 0 &&
+      settings.currencies.length > 0
+    ) {
+      tasks.push(
+        queryClient.fetchQuery({
+          queryKey: [
+            ...queryKeys.marketRates,
+            settings.rateProviders,
+            settings.currencies,
+          ],
+          queryFn: () =>
+            getMarketRates({
+              providers: settings.rateProviders,
+              currencies: settings.currencies,
+              force: true,
+            }),
+        }),
+      );
+    }
+
+    if (settings.weatherEnabled) {
+      tasks.push(
+        queryClient.fetchQuery({
+          queryKey: [
+            ...queryKeys.weatherForecast,
+            coordinates.latitude,
+            coordinates.longitude,
+            settings.weatherProvider,
+          ],
+          queryFn: () =>
+            getWeatherForecast({
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+              provider: settings.weatherProvider,
+              force: true,
+            }),
+        }),
+      );
+    }
+
+    await Promise.all(tasks);
   };
 
   const dayFormatter = new Intl.DateTimeFormat(
@@ -102,17 +147,12 @@ export const MarketWeatherWidget = ({
   const isRatesFetching =
     settings.exchangeRatesEnabled && (ratesQuery.isFetching || ratesQuery.isLoading);
   const isWeatherFetching =
-    settings.weatherEnabled &&
-    (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)) &&
-    (weatherQuery.isFetching || weatherQuery.isLoading);
+    settings.weatherEnabled && (weatherQuery.isFetching || weatherQuery.isLoading);
   const isRefreshing = isRatesFetching || isWeatherFetching;
   const showInitialRatesLoader =
     settings.exchangeRatesEnabled && ratesQuery.isLoading && !ratesQuery.data;
   const showInitialWeatherLoader =
-    settings.weatherEnabled &&
-    (settings.weatherProvider !== 'openweather' || Boolean(settings.openWeatherApiKey)) &&
-    weatherQuery.isLoading &&
-    !weatherQuery.data;
+    settings.weatherEnabled && weatherQuery.isLoading && !weatherQuery.data;
   const showRefreshOverlay =
     isRefreshing && !showInitialRatesLoader && !showInitialWeatherLoader;
   const isContentVisible = settings.contentVisible;

@@ -23,6 +23,7 @@ describe('list-sales-query', () => {
       clientId: '507f1f77bcf86cd799439011',
       q: 'iPhone',
       limit: '99999',
+      compact: '1',
     });
 
     expect(options).toEqual({
@@ -35,6 +36,7 @@ describe('list-sales-query', () => {
       clientId: '507f1f77bcf86cd799439011',
       q: 'iPhone',
       limit: SALES_LIST_MAX_LIMIT,
+      compact: true,
     });
     expect(hasSalesListFilters(options)).toBe(true);
   });

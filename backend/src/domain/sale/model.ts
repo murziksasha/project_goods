@@ -213,6 +213,11 @@ export const saleSchema = new mongoose.Schema(
   },
 );
 
+// Hot list paths: filter by kind (+ status) and sort by saleDate/created recency.
+saleSchema.index({ kind: 1, saleDate: -1 });
+saleSchema.index({ kind: 1, status: 1, saleDate: -1 });
+saleSchema.index({ client: 1, saleDate: -1 });
+
 export type SaleDocument = mongoose.InferSchemaType<typeof saleSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;

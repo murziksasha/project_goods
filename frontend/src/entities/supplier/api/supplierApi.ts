@@ -8,6 +8,7 @@ export const useSuppliersQuery = (enabled = true) =>
     queryKey: queryKeys.suppliers,
     queryFn: () => getSuppliers(),
     enabled,
+    staleTime: 2 * 60_000,
   });
 
 export const getSuppliers = async (query = '') => {

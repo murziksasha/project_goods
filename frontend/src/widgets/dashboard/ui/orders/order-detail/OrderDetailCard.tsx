@@ -233,20 +233,45 @@ export const OrderDetailCard = ({
       : !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   useEffect(() => {
     const storedState = readOrderDetailSectionsState()[sale.id];
-    const productsOpenByDefault = isSaleCard;
-    const servicesOpenByDefault = !isSaleCard;
+    const hasProductLines = lineItems.some((item) => item.kind === 'product');
+    const hasServiceLines = lineItems.some((item) => item.kind === 'service');
+    const noteHasUserContent = (sale.userNote ?? '').trim().length > 0;
+    // Repair: products open when any product line exists (all users).
+    // Sale: products default open.
     setIsProductsOpen(
-      storedState?.productsOpen ?? productsOpenByDefault,
+      !isSaleCard && hasProductLines
+        ? true
+        : (storedState?.productsOpen ?? isSaleCard),
     );
+    // Sale: services open when any service line exists (all users).
+    // Repair: services default open.
     setIsServicesOpen(
-      storedState?.servicesOpen ?? servicesOpenByDefault,
+      isSaleCard && hasServiceLines
+        ? true
+        : (storedState?.servicesOpen ?? !isSaleCard),
     );
     setIsMainInfoOpen(storedState?.mainInfoOpen ?? true);
-    setIsNoteOpen(storedState?.noteOpen ?? false);
+    // Non-empty userNote forces open for all users (not system note alone).
+    setIsNoteOpen(
+      noteHasUserContent ? true : (storedState?.noteOpen ?? false),
+    );
     setIsLiveFeedOpen(
       storedState?.liveFeedOpen ?? !getIsCompactLayout(),
     );
+    // lineItems/userNote: read on sale.id change only; live open handled below.
   }, [sale.id, isSaleCard]);
+  useEffect(() => {
+    if ((sale.userNote ?? '').trim().length === 0) return;
+    setIsNoteOpen(true);
+  }, [sale.userNote]);
+  useEffect(() => {
+    if (isSaleCard || productItems.length === 0) return;
+    setIsProductsOpen(true);
+  }, [isSaleCard, productItems.length]);
+  useEffect(() => {
+    if (!isSaleCard || serviceItems.length === 0) return;
+    setIsServicesOpen(true);
+  }, [isSaleCard, serviceItems.length]);
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
 

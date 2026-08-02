@@ -19,15 +19,18 @@ type MarketRatesResponse = {
 export const getMarketRates = async ({
   providers,
   currencies,
+  force = false,
 }: {
   providers: RateProvider[];
   currencies: string[];
+  force?: boolean;
 }) => {
   try {
     const response = await apiClient.get<MarketRatesResponse>('/market/rates', {
       params: {
         providers: providers.join(','),
         currencies: currencies.join(','),
+        ...(force ? { force: '1' } : {}),
       },
     });
     return response.data.quotes;

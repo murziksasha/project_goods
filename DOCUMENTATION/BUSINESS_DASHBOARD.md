@@ -209,9 +209,9 @@ Related files:
 
 The widget refreshes data in these cases:
 
-1. Initial page load (`refetchOnMount: 'always'`)
-2. Topbar **Last sync** (full page reload)
-3. Widget **Refresh** button (soft invalidation via React Query)
+1. Initial page load (`refetchOnMount: 'always'`) — uses backend in-memory cache when present
+2. Topbar **Last sync** (full page reload) — still subject to backend 15‑minute cache
+3. Widget **Refresh** button — **force** re-fetch: frontend `fetchQuery` calls APIs with `force=1`, backend skips its in-memory cache and re-hits external providers, then rewrites cache
 
 During refresh:
 
@@ -224,7 +224,7 @@ Loader component:
 
 - `frontend/src/widgets/dashboard/ui/weather/MarketWeatherLoader.tsx`
 
-Query cache TTL on frontend and backend proxy cache: **15 minutes**.
+Query cache TTL on frontend and backend proxy cache: **15 minutes** for normal loads. Widget **Refresh** bypasses the backend proxy cache via `force=1`.
 
 ## Settings storage (Dashboard tab vs widget drawer)
 
@@ -277,7 +277,8 @@ flowchart LR
 | `weatherAnimationEnabled` | Default weather animation |
 | `defaultWeatherLocation` | `chornomorsk` or `odesa` |
 | `weatherProvider` | `open-meteo` or `openweather` |
-| `openWeatherApiKey` | Required when OpenWeatherMap is selected |
+| `hasOpenWeatherApiKey` | Read-only flag: backend has `OPENWEATHER_API_KEY` |
+| ~~`openWeatherApiKey`~~ | Not stored/returned; configure on server env only |
 | `currencies` | Enabled currency codes (`USD`, `EUR`, `GBP`, `PLN`) |
 | `rateProviders` | Enabled rate providers (`nbu`, `privat`, `mono`) |
 | `defaultForecastView` | `today`, `tomorrow`, or `fiveDay` |
@@ -360,7 +361,7 @@ Response:
 
 ### Weather forecast
 
-`GET /api/weather/forecast?lat=46.3013&lon=30.6531&provider=open-meteo&apiKey=`
+`GET /api/weather/forecast?lat=46.3013&lon=30.6531&provider=open-meteo`
 
 The frontend passes coordinates from the selected location preset. Backend fallback coordinates (when `lat`/`lon` are invalid): Chornomorsk.
 

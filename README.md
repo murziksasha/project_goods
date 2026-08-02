@@ -7,7 +7,7 @@ Project Goods - full-stack приложение для учета товаров
 ### Базовая документация
 - [DEVELOPMENT.md](./DOCUMENTATION/DEVELOPMENT.md) - локальный запуск, окружение, команды
 - [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md) - Docker prod, env vars, MongoDB replica set
-- [TESTING.md](./DOCUMENTATION/TESTING.md) - команды тестов, структура, CI expectations
+- [TESTING.md](./DOCUMENTATION/TESTING.md) - команды тестов, структура, CI (GitHub Actions)
 - [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория
 - [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
 - [API.md](./DOCUMENTATION/API.md) - backend API, auth matrix per endpoint

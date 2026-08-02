@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -28,18 +30,9 @@ import { getBuildLabel, getBuildSha } from '../../../shared/lib/buildInfo';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
-import { OrdersWorkspace } from '../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace';
-import { CreateOrderCard } from '../../../widgets/dashboard/ui/orders/create-order/CreateOrderCard';
-import { EmployeesPanel } from '../../../widgets/dashboard/ui/settings/EmployeesPanel';
-import { SettingsPanel } from '../../../widgets/dashboard/ui/settings/SettingsPanel';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
-import { AccountingPanel } from '../../../widgets/dashboard/ui/accounting/AccountingPanel';
-import { ProductCatalogPanel } from '../../../widgets/dashboard/ui/product-catalog/ProductCatalogPanel';
-import { WarehousePanel } from '../../../widgets/dashboard/ui/warehouse/WarehousePanel';
-import { ClientsSuppliersWorkspace } from '../../../widgets/dashboard/ui/clients/ClientsSuppliersWorkspace';
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import type { Sale } from '../../../entities/sale/model/types';
-import { SupplierOrdersWorkspace } from '../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { AccessDeniedPanel } from '../../../shared/ui/AccessDeniedPanel';
 import { Button } from '../../../shared/ui/Button';
@@ -47,7 +40,6 @@ import { InlineError } from '../../../shared/ui/InlineError';
 import { LoadingState } from '../../../shared/ui/LoadingState';
 import { useTranslation } from 'react-i18next';
 import { hardReloadApp } from '../../../shared/lib/hardReload';
-import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
 import {
   DashboardSidebar,
   type DashboardSidebarItem,
@@ -75,6 +67,55 @@ import {
   type OrdersTab,
   type PageKey,
 } from '../model/types';
+import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
+=======
+
+const OrdersWorkspace = lazy(() =>
+  import('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace').then(
+    (module) => ({ default: module.OrdersWorkspace }),
+  ),
+);
+const CreateOrderCard = lazy(() =>
+  import('../../../widgets/dashboard/ui/orders/create-order/CreateOrderCard').then(
+    (module) => ({ default: module.CreateOrderCard }),
+  ),
+);
+const EmployeesPanel = lazy(() =>
+  import('../../../widgets/dashboard/ui/settings/EmployeesPanel').then(
+    (module) => ({ default: module.EmployeesPanel }),
+  ),
+);
+const SettingsPanel = lazy(() =>
+  import('../../../widgets/dashboard/ui/settings/SettingsPanel').then((module) => ({
+    default: module.SettingsPanel,
+  })),
+);
+const AccountingPanel = lazy(() =>
+  import('../../../widgets/dashboard/ui/accounting/AccountingPanel').then(
+    (module) => ({ default: module.AccountingPanel }),
+  ),
+);
+const ProductCatalogPanel = lazy(() =>
+  import('../../../widgets/dashboard/ui/product-catalog/ProductCatalogPanel').then(
+    (module) => ({ default: module.ProductCatalogPanel }),
+  ),
+);
+const WarehousePanel = lazy(() =>
+  import('../../../widgets/dashboard/ui/warehouse/WarehousePanel').then(
+    (module) => ({ default: module.WarehousePanel }),
+  ),
+);
+const ClientsSuppliersWorkspace = lazy(() =>
+  import('../../../widgets/dashboard/ui/clients/ClientsSuppliersWorkspace').then(
+    (module) => ({ default: module.ClientsSuppliersWorkspace }),
+  ),
+);
+const SupplierOrdersWorkspace = lazy(() =>
+  import(
+    '../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace'
+  ).then((module) => ({ default: module.SupplierOrdersWorkspace })),
+);
+
 
 const pageKeys: PageKey[] = [
   'home',
@@ -1137,6 +1178,7 @@ export const DashboardPage = () => {
             isOffline={isOffline}
           />
 
+          <Suspense fallback={<LoadingState>{t('common.loading')}</LoadingState>}>
           {!canAccessPage(activePage) ? (
             <AccessDeniedPanel
               page={activePage}
@@ -1374,6 +1416,7 @@ export const DashboardPage = () => {
               onUpdateSupplier={actions.updateSupplierCard}
               onUpdateCatalogProduct={actions.updateCatalogProductCard}
               onUpdateProductModel={actions.updateProductModelCard}
+              currentEmployeeId={currentEmployee.id}
               currentEmployeeName={currentEmployee.name}
               onError={actions.showError}
               onSuccess={actions.showSuccessMessage}
@@ -1401,6 +1444,7 @@ export const DashboardPage = () => {
               onSeed={actions.eraseAllData}
             />
           )}
+          </Suspense>
         </div>
         <GlobalHorizontalScrollbar />
         <DashboardMobileNav

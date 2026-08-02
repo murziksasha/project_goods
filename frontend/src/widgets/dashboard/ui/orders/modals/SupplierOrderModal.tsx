@@ -96,6 +96,28 @@ const EMPTY_WAREHOUSE_OPTIONS: Array<{
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase();
 
+const areSupplierOrderDraftItemsEqual = (
+  draftItems: DraftItem[],
+  orderItems: SupplierOrderItem[],
+) => {
+  if (draftItems.length !== orderItems.length) return false;
+  return draftItems.every((item, index) => {
+    const orderItem = orderItems[index];
+    if (!orderItem) return false;
+    const draftCatalogId = item.catalogProductId ?? '';
+    const orderCatalogId = orderItem.catalogProductId ?? '';
+    return (
+      draftCatalogId === orderCatalogId &&
+      normalizeProductName(item.productName) ===
+        normalizeProductName(orderItem.productName) &&
+      Math.max(0, Math.floor(item.quantity)) ===
+        Math.max(0, Math.floor(orderItem.quantity)) &&
+      roundMoney(parseDecimal(item.price) || 0) ===
+        roundMoney(orderItem.price)
+    );
+  });
+};
+
 export const SupplierOrderModal = ({
   isOpen,
   printForms = defaultPrintForms,
@@ -228,7 +250,6 @@ export const SupplierOrderModal = ({
     if (!isOpen) return;
 
     const editingItems = editingOrder?.items ?? [];
-    const firstItem = editingItems[0];
 
     setSupplierSearch(editingOrder?.supplierName ?? '');
     setDebouncedSupplierSearch(editingOrder?.supplierName ?? '');
@@ -239,30 +260,36 @@ export const SupplierOrderModal = ({
     setIsCreateSupplierModalOpen(false);
     setCreateSupplierForm({ name: '', phone: '+380', note: '' });
 
-    setProductSearch(firstItem?.productName ?? initialProductName);
-    setDebouncedProductSearch(firstItem?.productName ?? initialProductName);
-    setSelectedCatalogProductId(firstItem?.catalogProductId ?? '');
+    // Edit: all lines live in the basket; draft fields are only for adding the next line.
+    // Create: draft can start from initial product name; basket starts empty.
+    if (editingOrder) {
+      setProductSearch('');
+      setDebouncedProductSearch('');
+      setSelectedCatalogProductId('');
+      setBasketItems(
+        editingItems.map((item) => ({
+          catalogProductId: item.catalogProductId,
+          productName: item.productName,
+          quantity: item.quantity,
+          price: String(item.price),
+        })),
+      );
+    } else {
+      setProductSearch(initialProductName);
+      setDebouncedProductSearch(initialProductName);
+      setSelectedCatalogProductId('');
+      setBasketItems([]);
+    }
     setShowProductSuggestions(false);
     setProductSuggestions([]);
     setProductTouched(false);
-
-    setBasketItems(
-      editingItems.slice(1).map((item) => ({
-        catalogProductId: item.catalogProductId,
-        productName: item.productName,
-        quantity: item.quantity,
-        price: String(item.price),
-      })),
-    );
 
     setForm({
       deliveryDate: (editingOrder?.deliveryDate ?? '').slice(0, 10),
       supplyType: editingOrder?.supplyType ?? 'Локально',
       number: editingOrder ? getSupplierOrderDisplayNumber(editingOrder) : '',
-      quantity: String(
-        firstItem?.quantity ?? Math.max(1, Math.floor(initialQuantity)),
-      ),
-      price: String(firstItem?.price ?? 0),
+      quantity: String(Math.max(1, Math.floor(initialQuantity))),
+      price: '0',
       note: editingOrder?.note ?? '',
     });
     setIsSerialModalOpen(false);
@@ -351,12 +378,12 @@ export const SupplierOrderModal = ({
     : null;
 
   const canAddBasketItem = Boolean(productSearch.trim()) && currentQuantity > 0 && currentProductMatched;
-  const submitItems: DraftItem[] = isEditing
-    ? [...(currentDraftItem ? [currentDraftItem] : []), ...basketItems]
-    : basketItems;
-  const basketSummaryItems: DraftItem[] = isEditing
-    ? basketItems
-    : submitItems;
+  // Basket holds committed lines; matched draft is optional extra line on save.
+  const submitItems: DraftItem[] = [
+    ...basketItems,
+    ...(currentDraftItem && currentProductMatched ? [currentDraftItem] : []),
+  ];
+  const basketSummaryItems = basketItems;
   const hasDuplicateSubmitItems =
     new Set(
       submitItems.map((item) =>
@@ -364,6 +391,12 @@ export const SupplierOrderModal = ({
       ),
     )
       .size !== submitItems.length;
+
+  const isItemsDirtyVsSavedOrder = Boolean(
+    isEditing &&
+      editingOrder &&
+      !areSupplierOrderDraftItemsEqual(submitItems, editingOrder.items),
+  );
 
   const totalAmount = roundMoney(
     submitItems.reduce(
@@ -651,7 +684,7 @@ export const SupplierOrderModal = ({
           </label>
 
           <div className='supplier-order-product-row field-wide'>
-            <div className='supplier-order-product-index'>{isEditing ? 1 : basketItems.length + 1}</div>
+            <div className='supplier-order-product-index'>{basketItems.length + 1}</div>
             <label className='field supplier-order-product-name modal-suggestions-anchor'>
               <span>{t('orders.supplier.modal.product')}</span>
               <span className='supplier-search-input-wrap'>
@@ -786,7 +819,7 @@ export const SupplierOrderModal = ({
               <div className='supplier-order-basket-table'>
                 {basketSummaryItems.map((item, index) => (
                   <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
-                    <div className='supplier-order-product-index'>{isEditing ? index + 2 : index + 1}</div>
+                    <div className='supplier-order-product-index'>{index + 1}</div>
                     <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
                     <div className='field supplier-order-product-compact'>
                       <NumberStepper
@@ -841,9 +874,23 @@ export const SupplierOrderModal = ({
               className='primary-button'
               disabled={isSubmitting || isActionSubmitting}
               onClick={() => {
+                if (isItemsDirtyVsSavedOrder) {
+                  onError(
+                    t(
+                      'orders.supplier.messages.errors.saveBeforeTakeOnCharge',
+                    ),
+                  );
+                  return;
+                }
+                const chargeUnits = (editingOrder?.items ?? []).reduce(
+                  (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
+                  0,
+                );
                 setIsSerialModalOpen(true);
                 setIsAutoSerialEnabled(true);
-                setManualSerialNumbers(Array.from({ length: totalUnits }, () => ''));
+                setManualSerialNumbers(
+                  Array.from({ length: chargeUnits }, () => ''),
+                );
                 setIsAutoArticleEnabled(false);
                 setManualArticleBase('');
               }}

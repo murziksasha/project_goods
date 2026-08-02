@@ -81,6 +81,8 @@ export const clientSchema = new mongoose.Schema(
 );
 
 clientSchema.index({ phoneIdentities: 1 }, { unique: true });
+clientSchema.index({ createdAt: -1 });
+clientSchema.index({ name: 1 });
 
 clientSchema.pre('validate', function ensurePhonesConsistency() {
   const currentPhones: string[] = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];

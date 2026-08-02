@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 type ModalBackgroundScrollLockOptions = {
-  allowedSelectors: string[];
+  allowedSelectors: readonly string[];
   lockTableWrap?: boolean;
 };
 
@@ -19,7 +19,7 @@ let isBaseCaptured = false;
 
 const isInsideAllowedRegion = (
   target: EventTarget | null,
-  allowedSelectors: string[],
+  allowedSelectors: readonly string[],
 ) => {
   if (!(target instanceof HTMLElement)) return false;
   return allowedSelectors.some((selector) => target.closest(selector));
@@ -77,7 +77,7 @@ const restoreOverflowIfIdle = () => {
 };
 
 const acquireModalBackgroundScrollLock = (options: {
-  allowedSelectors: string[];
+  allowedSelectors: readonly string[];
   lockTableWrap: boolean;
 }) => {
   const { allowedSelectors, lockTableWrap } = options;

@@ -61,3 +61,20 @@ Health check response includes `version` and `buildSha` (see [BUILD_VERSION_SPEC
 ## Backups
 
 Scheduled backups use `mongodump` when available in the container. Configure `BACKUP_CREATE_COMMAND` / `BACKUP_RESTORE_COMMAND` for custom paths.
+
+On-disk retention (scheduled age/count, safety count, optional total size) is enforced after each successful create and on the backup scheduler tick. See [DATA_RETENTION.md](./DATA_RETENTION.md).
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `BACKUP_SCHEDULED_RETENTION_DAYS` | `14` | Drop scheduled archives older than N days |
+| `BACKUP_SCHEDULED_MAX_COUNT` | `14` | Keep at most N scheduled archives |
+| `BACKUP_SAFETY_MAX_COUNT` | `5` | Keep at most N safety archives |
+| `BACKUP_MAX_TOTAL_BYTES` | `0` (off) | Cap total completed archive bytes; drops oldest scheduled then safety; **never** auto-deletes manual |
+
+### DB size baseline
+
+```bash
+npm run db:stats --prefix backend
+# or authenticated:
+# GET /api/system/db-stats  (system.backups.manage)
+```

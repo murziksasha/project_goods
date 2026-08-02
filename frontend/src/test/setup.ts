@@ -47,8 +47,16 @@ if (typeof window !== 'undefined') {
   // A minimal no-op implementation is sufficient because consuming tests
   // that need layout detection manually patch scrollWidth/clientWidth and/or
   // dispatch 'resize' events to trigger recompute.
-  if (!(window as any).ResizeObserver) {
-    (window as any).ResizeObserver = class ResizeObserver {
+  if (!('ResizeObserver' in window)) {
+    (
+      window as Window & {
+        ResizeObserver: new () => {
+          observe: () => void;
+          unobserve: () => void;
+          disconnect: () => void;
+        };
+      }
+    ).ResizeObserver = class ResizeObserver {
       observe() {}
       unobserve() {}
       disconnect() {}

@@ -29,9 +29,9 @@ describe('auth crypto', () => {
     expect(authTokenMatches('other', hashed)).toBe(false);
   });
 
-  it('matches legacy plaintext tokens', () => {
+  it('rejects legacy plaintext stored tokens', () => {
     const token = 'legacy-plaintext-token-value';
-    expect(authTokenMatches(token, token)).toBe(true);
+    expect(authTokenMatches(token, token)).toBe(false);
     expect(authTokenMatches(token, 'other')).toBe(false);
   });
 });

@@ -18,6 +18,26 @@ export type BackendEnv = {
   backupCreateCommand?: string;
   backupRestoreCommand?: string;
   backupRestoreUploadLimit: string;
+  /** Scheduled backup max age in days (default 14). */
+  backupScheduledRetentionDays: number;
+  /** Keep at most this many completed scheduled backups (default 14). */
+  backupScheduledMaxCount: number;
+  /** Keep at most this many completed safety backups (default 5). */
+  backupSafetyMaxCount: number;
+  /** 0 = disabled. Total completed backup archive size cap in bytes. */
+  backupMaxTotalBytes: number;
+  /** Auto-seal finance period at 36-month cutoff (default true). */
+  financeAutoSealEnabled: boolean;
+  /** Auto-purge finance txs covered by active seal (default false). */
+  financeAutoPurgeEnabled: boolean;
+  /** Create yearly offline dumps for cold sales years (default true). */
+  archiveYearlyDumpsEnabled: boolean;
+  /** After successful yearly sales dump, delete matching live docs (default false). */
+  archiveAutoPurgeSales: boolean;
+  /** Require safety mongodump before sales auto/manual purge (default true). */
+  archivePurgeRequireSafetyBackup: boolean;
+  /** Require safety mongodump before PURGE_FINANCE (default true). */
+  financePurgeRequireSafetyBackup: boolean;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean) => {
@@ -26,6 +46,13 @@ const parseBoolean = (value: string | undefined, fallback: boolean) => {
   if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
   if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
   return fallback;
+};
+
+const parseNonNegativeInt = (value: string | undefined, fallback: number) => {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.trunc(parsed);
 };
 
 export const parseEnv = (
@@ -44,6 +71,16 @@ export const parseEnv = (
       | 'BACKUP_CREATE_COMMAND'
       | 'BACKUP_RESTORE_COMMAND'
       | 'BACKUP_RESTORE_UPLOAD_LIMIT'
+      | 'BACKUP_SCHEDULED_RETENTION_DAYS'
+      | 'BACKUP_SCHEDULED_MAX_COUNT'
+      | 'BACKUP_SAFETY_MAX_COUNT'
+      | 'BACKUP_MAX_TOTAL_BYTES'
+      | 'FINANCE_AUTO_SEAL'
+      | 'FINANCE_AUTO_PURGE'
+      | 'ARCHIVE_YEARLY_DUMPS'
+      | 'ARCHIVE_AUTO_PURGE_SALES'
+      | 'ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP'
+      | 'FINANCE_PURGE_REQUIRE_SAFETY_BACKUP'
     >
   >,
 ): BackendEnv => {
@@ -69,6 +106,25 @@ export const parseEnv = (
     backupCreateCommand: rawEnv.BACKUP_CREATE_COMMAND,
     backupRestoreCommand: rawEnv.BACKUP_RESTORE_COMMAND,
     backupRestoreUploadLimit: rawEnv.BACKUP_RESTORE_UPLOAD_LIMIT ?? '2gb',
+    backupScheduledRetentionDays: parseNonNegativeInt(
+      rawEnv.BACKUP_SCHEDULED_RETENTION_DAYS,
+      14,
+    ),
+    backupScheduledMaxCount: parseNonNegativeInt(rawEnv.BACKUP_SCHEDULED_MAX_COUNT, 14),
+    backupSafetyMaxCount: parseNonNegativeInt(rawEnv.BACKUP_SAFETY_MAX_COUNT, 5),
+    backupMaxTotalBytes: parseNonNegativeInt(rawEnv.BACKUP_MAX_TOTAL_BYTES, 0),
+    financeAutoSealEnabled: parseBoolean(rawEnv.FINANCE_AUTO_SEAL, true),
+    financeAutoPurgeEnabled: parseBoolean(rawEnv.FINANCE_AUTO_PURGE, false),
+    archiveYearlyDumpsEnabled: parseBoolean(rawEnv.ARCHIVE_YEARLY_DUMPS, true),
+    archiveAutoPurgeSales: parseBoolean(rawEnv.ARCHIVE_AUTO_PURGE_SALES, false),
+    archivePurgeRequireSafetyBackup: parseBoolean(
+      rawEnv.ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP,
+      true,
+    ),
+    financePurgeRequireSafetyBackup: parseBoolean(
+      rawEnv.FINANCE_PURGE_REQUIRE_SAFETY_BACKUP,
+      true,
+    ),
   };
 };
 

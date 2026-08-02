@@ -8,6 +8,7 @@ import {
   getFinanceReport,
   listCashboxes,
   listFinanceCurrencies,
+  listFinancePeriodSnapshots,
   listFinanceTransactions,
   updateCashbox,
   updateFinanceCurrency,
@@ -71,6 +72,11 @@ financeRouter.patch('/finance/currencies/:currencyCode', asyncHandler(async (req
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.view');
   res.json(await listFinanceTransactions(req.query as Record<string, unknown>));
+}));
+
+financeRouter.get('/finance/period-snapshots', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await listFinancePeriodSnapshots());
 }));
 
 financeRouter.post('/finance/transactions', asyncHandler(async (req, res) => {

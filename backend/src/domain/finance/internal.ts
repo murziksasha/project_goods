@@ -107,8 +107,11 @@ export const ensureFinanceCurrencies = async (session?: mongoose.ClientSession) 
           },
         },
         { upsert: true, returnDocument: 'after', runValidators: true },
-      );
-      return session && (op as any).session ? (op as any).session(session) : op;
+      ) as mongoose.Query<
+        FinanceCurrencyConfigDocument | null,
+        FinanceCurrencyConfigDocument
+      >;
+      return session ? op.session(session) : op;
     }),
   );
 };

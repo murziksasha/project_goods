@@ -31,6 +31,10 @@ services:
       BUILD_SHA: ${GIT_SHA:-dev}
       MONGO_URI: mongodb://mongo:27017/inventory?replicaSet=rs0
       CLIENT_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,http://192.168.10.55:5173
+      # Optional: idle session expiry in hours (0 = off). Example for shared shop PCs: 72
+      AUTH_SESSION_IDLE_HOURS: ${AUTH_SESSION_IDLE_HOURS:-0}
+      # OpenWeather key stays on the server only (never in settings JSON / query params)
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       BACKUP_DIR: /app/backups
     ports:
       - "5000:5000"

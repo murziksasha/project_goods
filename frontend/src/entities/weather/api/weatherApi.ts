@@ -34,20 +34,21 @@ export const getWeatherForecast = async ({
   latitude,
   longitude,
   provider,
-  openWeatherApiKey,
+  force = false,
 }: {
   latitude: number;
   longitude: number;
   provider: WeatherProvider;
-  openWeatherApiKey?: string;
+  force?: boolean;
 }) => {
   try {
+    // OpenWeather key lives only in backend env (OPENWEATHER_API_KEY) — never send from client.
     const response = await apiClient.get<WeatherForecast>('/weather/forecast', {
       params: {
         lat: latitude,
         lon: longitude,
         provider,
-        apiKey: openWeatherApiKey ?? '',
+        ...(force ? { force: '1' } : {}),
       },
     });
     return response.data;
@@ -60,29 +61,20 @@ export const useWeatherForecastQuery = ({
   latitude,
   longitude,
   provider,
-  openWeatherApiKey,
   enabled = true,
 }: {
   latitude: number;
   longitude: number;
   provider: WeatherProvider;
-  openWeatherApiKey?: string;
   enabled?: boolean;
 }) =>
   useQuery({
-    queryKey: [
-      ...queryKeys.weatherForecast,
-      latitude,
-      longitude,
-      provider,
-      openWeatherApiKey ?? '',
-    ],
+    queryKey: [...queryKeys.weatherForecast, latitude, longitude, provider],
     queryFn: () =>
       getWeatherForecast({
         latitude,
         longitude,
         provider,
-        openWeatherApiKey,
       }),
     enabled,
     staleTime: 15 * 60 * 1000,
