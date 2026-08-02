@@ -68,7 +68,6 @@ import {
   type PageKey,
 } from '../model/types';
 import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
-=======
 
 const OrdersWorkspace = lazy(() =>
   import('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace').then(

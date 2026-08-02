@@ -394,7 +394,7 @@ export const WarehousePanel = ({
     }
   };
 
-  const buildReceiptRows = (orders: SupplierOrder[]): ReceiptRow[] => {
+  const buildReceiptRows = useCallback((orders: SupplierOrder[]): ReceiptRow[] => {
     return orders.flatMap((order) =>
       order.items.map((item) => ({
         id: `${order.id}-${item.itemIndex}`,
@@ -427,7 +427,7 @@ export const WarehousePanel = ({
         note: order.note || '',
       })),
     );
-  };
+  }, [t]);
 
   const receiptHistory = useMemo(
     () => [
@@ -437,7 +437,7 @@ export const WarehousePanel = ({
       })),
       ...manualReceiptRows,
     ],
-    [manualReceiptRows, supplierOrders],
+    [buildReceiptRows, manualReceiptRows, supplierOrders],
   );
 
   const refreshSupplierOrders = useCallback(async () => {
@@ -527,7 +527,7 @@ export const WarehousePanel = ({
         ? warehouseSettingsQuery.error.message
         : i18n.t('warehouse.messages.errors.failedLoadSettings'),
     );
-  }, [onError, warehouseSettingsQuery.error]);
+  }, [i18n, onError, warehouseSettingsQuery.error]);
   useEffect(() => {
     if (!selectedSupplierForEdit) return;
     setSupplierEditForm({
