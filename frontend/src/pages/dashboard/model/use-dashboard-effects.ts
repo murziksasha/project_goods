@@ -11,6 +11,7 @@ import type { ClientDevice } from '../../../entities/client-device/model/types';
 import { useSettingsQuery } from '../../../entities/settings/api/settingsApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
+import { writeCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
@@ -120,6 +121,15 @@ export const useDashboardEffects = ({
     if (!enabled) return;
     if (settingsQuery.data) {
       setSettings(settingsQuery.data);
+      writeCachedCompanySettings({
+        serviceName: settingsQuery.data.serviceName,
+        company: settingsQuery.data.company,
+        companyAddress: settingsQuery.data.companyAddress,
+        companyId: settingsQuery.data.companyId,
+        companyIban: settingsQuery.data.companyIban,
+        companyEmail: settingsQuery.data.companyEmail,
+        companySite: settingsQuery.data.companySite,
+      });
       setSettingsForm({
         serviceName: settingsQuery.data.serviceName,
         company: settingsQuery.data.company,

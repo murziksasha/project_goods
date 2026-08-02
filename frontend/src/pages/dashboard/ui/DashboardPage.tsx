@@ -40,6 +40,34 @@ import { InlineError } from '../../../shared/ui/InlineError';
 import { LoadingState } from '../../../shared/ui/LoadingState';
 import { useTranslation } from 'react-i18next';
 import { hardReloadApp } from '../../../shared/lib/hardReload';
+import {
+  DashboardSidebar,
+  type DashboardSidebarItem,
+} from '../../../widgets/dashboard-sidebar/ui/DashboardSidebar';
+import { DashboardTopbar } from '../../../widgets/dashboard-topbar/ui/DashboardTopbar';
+import {
+  CommandPalette,
+  type CommandPaletteAction,
+} from '../../../widgets/dashboard/ui/command-palette/CommandPalette';
+import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav/ui/DashboardMobileNav';
+import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
+import {
+  getDashboardHref,
+  navigateDashboard,
+  parseDashboardLocationFromWindow,
+  type DashboardLocation,
+} from '../model/dashboard-navigation';
+import {
+  getCreateOrderForOrdersTab,
+  getCreateOrderFromUrl,
+  getOrdersTabFromUrl,
+  getPageFromUrlOrNull,
+  getStoredOrdersTab,
+  ordersTabs,
+  type OrdersTab,
+  type PageKey,
+} from '../model/types';
+import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
 
 const OrdersWorkspace = lazy(() =>
   import('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace').then(
@@ -86,33 +114,7 @@ const SupplierOrdersWorkspace = lazy(() =>
     '../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace'
   ).then((module) => ({ default: module.SupplierOrdersWorkspace })),
 );
-import {
-  DashboardSidebar,
-  type DashboardSidebarItem,
-} from '../../../widgets/dashboard-sidebar/ui/DashboardSidebar';
-import { DashboardTopbar } from '../../../widgets/dashboard-topbar/ui/DashboardTopbar';
-import {
-  CommandPalette,
-  type CommandPaletteAction,
-} from '../../../widgets/dashboard/ui/command-palette/CommandPalette';
-import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav/ui/DashboardMobileNav';
-import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
-import {
-  getDashboardHref,
-  navigateDashboard,
-  parseDashboardLocationFromWindow,
-  type DashboardLocation,
-} from '../model/dashboard-navigation';
-import {
-  getCreateOrderForOrdersTab,
-  getCreateOrderFromUrl,
-  getOrdersTabFromUrl,
-  getPageFromUrlOrNull,
-  getStoredOrdersTab,
-  ordersTabs,
-  type OrdersTab,
-  type PageKey,
-} from '../model/types';
+
 
 const pageKeys: PageKey[] = [
   'home',
@@ -234,6 +236,7 @@ export const DashboardPage = () => {
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
   const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
+  const [cachedServiceName] = useState(() => readCachedServiceName() ?? '');
   const effectivePrintForms = useMemo(
     () =>
       applyPrintFormLocalOverrides(
@@ -1113,7 +1116,11 @@ export const DashboardPage = () => {
 
       <section className="dashboard-main">
         <DashboardTopbar
-          serviceName={state.settings?.serviceName || t('common.serviceCRM')}
+          serviceName={
+            state.settings?.serviceName ||
+            cachedServiceName ||
+            t('common.serviceCRM')
+          }
           isSidebarCollapsed={isSidebarCollapsed}
           isMobileNavOpen={isMobileNavOpen}
           isNarrowLayout={isNarrowLayout}
@@ -1324,6 +1331,7 @@ export const DashboardPage = () => {
             <SettingsPanel
               form={state.settingsForm}
               isSaving={state.isSettingsSaving}
+              isSettingsReady={state.isSettingsReady}
               canEditSettings={canEditSettings}
               canEditPrintForms={canEditPrintForms}
               canManageBackups={canManageBackups}

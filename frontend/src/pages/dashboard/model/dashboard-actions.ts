@@ -55,6 +55,7 @@ import {
   persistPrintFormLayoutOverrides,
 } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
+import { writeCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
 import {
   createSupplier,
   mergeSuppliers as mergeSuppliersApi,
@@ -926,6 +927,17 @@ export const createDashboardActions = ({
           currentEmployee?.id,
         );
         setSettings(updated);
+        if (canEditAllSettings) {
+          writeCachedCompanySettings({
+            serviceName: updated.serviceName,
+            company: updated.company,
+            companyAddress: updated.companyAddress,
+            companyId: updated.companyId,
+            companyIban: updated.companyIban,
+            companyEmail: updated.companyEmail,
+            companySite: updated.companySite,
+          });
+        }
         setSettingsForm((current) => ({
           ...current,
           ...(canEditAllSettings
