@@ -521,28 +521,28 @@ export const CreateOrderCard = ({
       return;
     }
 
+    // ORDER_FLOW: Device #1 searches Clients goods globally (no clientId filter).
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setIsDeviceLookupLoading(true);
       try {
         const devices = await getClientDevices(deviceLookupQuery);
-        if (isActive) {
-          let suggestions = filterActiveDevicesByQuery(
-            devices,
+        if (!isActive) return;
+        let suggestions = filterActiveDevicesByQuery(
+          devices,
+          deviceLookupQuery,
+        );
+
+        if (suggestions.length === 0) {
+          const allDevices = await getClientDevices('');
+          if (!isActive) return;
+          suggestions = filterActiveDevicesByQuery(
+            allDevices,
             deviceLookupQuery,
           );
-
-          if (suggestions.length === 0) {
-            const allDevices = await getClientDevices('');
-            if (!isActive) return;
-            suggestions = filterActiveDevicesByQuery(
-              allDevices,
-              deviceLookupQuery,
-            );
-          }
-
-          setDeviceSuggestions(suggestions.slice(0, 8));
         }
+
+        if (isActive) setDeviceSuggestions(suggestions.slice(0, 8));
       } catch {
         if (isActive) setDeviceSuggestions([]);
       } finally {

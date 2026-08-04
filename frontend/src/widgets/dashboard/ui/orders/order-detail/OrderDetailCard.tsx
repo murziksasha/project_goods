@@ -385,6 +385,7 @@ export const OrderDetailCard = ({
       return;
     }
 
+    // Same global Clients goods lookup as Create order Device #1 (ORDER_CARD.md).
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setIsDeviceLookupLoading(true);
@@ -405,7 +406,7 @@ export const OrderDetailCard = ({
           );
         }
 
-        setDeviceLookupSuggestions(suggestions.slice(0, 8));
+        if (isActive) setDeviceLookupSuggestions(suggestions.slice(0, 8));
       } catch {
         if (isActive) setDeviceLookupSuggestions([]);
       } finally {
@@ -420,10 +421,12 @@ export const OrderDetailCard = ({
   }, [deviceSearch, isDeviceModalOpen]);
   const clientDeviceOptions = useMemo(() => {
     const uniqueByName = new Map<string, ClientDevice>();
-    const sourceDevices =
-      deviceSearch.trim().length >= 2
-        ? deviceLookupSuggestions
-        : clientDevices.filter((device) => device.clientId === sale.client.id);
+    const saleClientId = sale.client.id;
+    const isSearching = deviceSearch.trim().length >= 2;
+    // Empty search: current-client devices. With query: global lookup results.
+    const sourceDevices = isSearching
+      ? deviceLookupSuggestions
+      : clientDevices.filter((device) => device.clientId === saleClientId);
 
     sourceDevices.forEach((device) => {
       if (!device.isActive) return;
@@ -431,7 +434,7 @@ export const OrderDetailCard = ({
       if (!key || uniqueByName.has(key)) return;
       uniqueByName.set(key, device);
     });
-    const query = toNameKey(deviceSearch);
+    const query = deviceSearch.trim();
     return Array.from(uniqueByName.values()).filter((device) =>
       query ? filterActiveDevicesByQuery([device], query).length > 0 : true,
     );

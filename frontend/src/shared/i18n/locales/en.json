@@ -177,7 +177,8 @@
       "title": "Service configuration",
       "subtitle": "Global CRM settings for orders, print forms, finance and future client notifications.",
       "saveSettings": "Save settings",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "loading": "Loading settings..."
     },
     "company": {
       "serviceNameInHeader": "Service name in header",

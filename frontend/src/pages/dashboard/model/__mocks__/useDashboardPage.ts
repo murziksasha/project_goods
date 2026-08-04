@@ -13,6 +13,7 @@ export const useDashboardPage = vi.fn(() => ({
     allEmployees: [],
     settings: null,
     settingsForm: createDefaultSettingsForm(),
+    isSettingsReady: true,
     statsPeriod: 'today' as const,
     products: [],
     clients: [],

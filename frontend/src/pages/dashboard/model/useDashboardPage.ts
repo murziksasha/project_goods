@@ -73,6 +73,7 @@ import {
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
+import { readCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
@@ -119,9 +120,26 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>(
-    createDefaultSettingsForm,
-  );
+  const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>(() => {
+    const base = createDefaultSettingsForm();
+    const cached = readCachedCompanySettings();
+    if (!cached) {
+      return {
+        ...base,
+        serviceName: '',
+        company: '',
+        companyAddress: '',
+        companyId: '',
+        companyIban: '',
+        companyEmail: '',
+        companySite: '',
+      };
+    }
+    return {
+      ...base,
+      ...cached,
+    };
+  });
   const [draftAnalyticsDateRange, setDraftAnalyticsDateRange] = useState<AnalyticsDateRange>(() => ({
     dateFrom: getStoredAnalyticsDateRange()?.dateFrom ?? '',
     dateTo: getStoredAnalyticsDateRange()?.dateTo ?? '',
@@ -607,6 +625,7 @@ export const useDashboardPage = (enabled = true, currentEmployee: Employee | nul
       allEmployees: enabled ? allEmployees : [],
       settings: enabled ? settings : null,
       settingsForm: enabled ? settingsForm : createDefaultSettingsForm(),
+      isSettingsReady: enabled ? settings !== null : false,
       statsPeriod,
       products: enabled ? products : [],
       clients: enabled ? clients : [],

@@ -55,25 +55,64 @@ export const CreateOrderRepairSection = ({
   onApplyDevice,
 }: CreateOrderRepairSectionProps) => {
   const { t } = useTranslation();
+  const showDeviceSuggestions =
+    visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading;
 
   return (
     <>
       <h3 className="create-section-title">{t('orders.create.device')}</h3>
       <div className="create-device-search">
-        <label className="field">
-          <span>{t('orders.create.deviceNumber', { number: 1 })}</span>
-          <input
-            value={deviceName}
-            onFocus={() => {
-              void onEnsureClientForDevice();
-            }}
-            onChange={(event) => {
-              onClearSelectedDeviceSuggestion();
-              onDeviceNameChange(event.target.value);
-            }}
-            placeholder={t('orders.create.enterDeviceName')}
-          />
-        </label>
+        <div className="create-device-search-field modal-suggestions-anchor">
+          <label className="field">
+            <span>{t('orders.create.deviceNumber', { number: 1 })}</span>
+            <input
+              value={deviceName}
+              onFocus={() => {
+                void onEnsureClientForDevice();
+              }}
+              onChange={(event) => {
+                onClearSelectedDeviceSuggestion();
+                onDeviceNameChange(event.target.value);
+              }}
+              placeholder={t('orders.create.enterDeviceName')}
+              autoComplete="off"
+            />
+          </label>
+          {showDeviceSuggestions ? (
+            <div
+              className="create-suggestions create-suggestions-compact create-device-suggestions"
+              role="listbox"
+              aria-label={t('orders.create.device')}
+            >
+              {isDeviceLookupLoading ? (
+                <p className="create-device-suggestions-status">
+                  {t('orders.create.searchingDevices')}
+                </p>
+              ) : null}
+              {visibleDeviceSuggestions.map((device) => {
+                const serial = device.serialNumber.trim();
+                return (
+                  <button
+                    key={device.id}
+                    type="button"
+                    role="option"
+                    className="create-suggestion-item create-suggestion-item-compact create-device-suggestion-item"
+                    onClick={() => onApplyDevice(device)}
+                  >
+                    <strong className="create-device-suggestion-name">
+                      {device.name}
+                    </strong>
+                    {serial ? (
+                      <span className="create-device-suggestion-serial">
+                        {serial}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
           className="secondary-button"
@@ -91,25 +130,9 @@ export const CreateOrderRepairSection = ({
         </button>
       </div>
       {hasExactDeviceMatch ? (
-        <p>{t('orders.create.foundExistingDevice')}</p>
-      ) : null}
-      {visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading ? (
-        <div className="create-suggestions create-suggestions-compact create-device-suggestions">
-          {isDeviceLookupLoading ? (
-            <p>{t('orders.create.searchingDevices')}</p>
-          ) : null}
-          {visibleDeviceSuggestions.map((device) => (
-            <button
-              key={device.id}
-              type="button"
-              className="create-suggestion-item create-suggestion-item-compact"
-              onClick={() => onApplyDevice(device)}
-            >
-              <strong>{device.name}</strong>
-              <span>{device.serialNumber || '-'}</span>
-            </button>
-          ))}
-        </div>
+        <p className="create-device-exact-match-hint">
+          {t('orders.create.foundExistingDevice')}
+        </p>
       ) : null}
 
       <div className="create-row-2">
