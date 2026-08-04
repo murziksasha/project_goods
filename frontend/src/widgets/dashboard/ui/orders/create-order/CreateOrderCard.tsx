@@ -297,6 +297,8 @@ export const CreateOrderCard = ({
 
     return exactMatches.length === 1 ? exactMatches[0] : null;
   }, [selectedClientId, selectedClient, clientPhone, clientName, clientSuggestions]);
+  const deviceLookupClientId =
+    selectedClientId || resolvedClientForDeviceCreate?.id || null;
   const showPhoneLengthWarning = shouldWarnNewClientPhoneLength({
     phone: clientPhone,
     hasExistingClient: Boolean(selectedClientId || resolvedClientForDeviceCreate),
@@ -521,28 +523,46 @@ export const CreateOrderCard = ({
       return;
     }
 
+    const filterOptions = { clientId: deviceLookupClientId };
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setIsDeviceLookupLoading(true);
       try {
-        const devices = await getClientDevices(deviceLookupQuery);
-        if (isActive) {
-          let suggestions = filterActiveDevicesByQuery(
-            devices,
+        // Prefer already-loaded client devices when scoped to a known client.
+        if (
+          deviceLookupClientId &&
+          registeredClientDevices.length > 0
+        ) {
+          const localMatches = filterActiveDevicesByQuery(
+            registeredClientDevices,
             deviceLookupQuery,
+            filterOptions,
           );
-
-          if (suggestions.length === 0) {
-            const allDevices = await getClientDevices('');
-            if (!isActive) return;
-            suggestions = filterActiveDevicesByQuery(
-              allDevices,
-              deviceLookupQuery,
-            );
+          if (localMatches.length > 0) {
+            if (isActive) setDeviceSuggestions(localMatches.slice(0, 8));
+            return;
           }
-
-          setDeviceSuggestions(suggestions.slice(0, 8));
         }
+
+        const devices = await getClientDevices(deviceLookupQuery);
+        if (!isActive) return;
+        let suggestions = filterActiveDevicesByQuery(
+          devices,
+          deviceLookupQuery,
+          filterOptions,
+        );
+
+        if (suggestions.length === 0) {
+          const allDevices = await getClientDevices('');
+          if (!isActive) return;
+          suggestions = filterActiveDevicesByQuery(
+            allDevices,
+            deviceLookupQuery,
+            filterOptions,
+          );
+        }
+
+        if (isActive) setDeviceSuggestions(suggestions.slice(0, 8));
       } catch {
         if (isActive) setDeviceSuggestions([]);
       } finally {
@@ -554,7 +574,12 @@ export const CreateOrderCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [deviceLookupQuery, selectedDeviceSuggestionId]);
+  }, [
+    deviceLookupQuery,
+    selectedDeviceSuggestionId,
+    deviceLookupClientId,
+    registeredClientDevices,
+  ]);
 
   useEffect(() => {
     if (
@@ -1346,6 +1371,7 @@ export const CreateOrderCard = ({
                 selectedDeviceSuggestionId={selectedDeviceSuggestionId}
                 hasExactDeviceMatch={hasExactDeviceMatch}
                 visibleDeviceSuggestions={visibleDeviceSuggestions}
+                showDeviceClientMeta={!deviceLookupClientId}
                 isDeviceLookupLoading={isDeviceLookupLoading}
                 onDeviceNameChange={setDeviceName}
                 onDeviceSerialNumberChange={setDeviceSerialNumber}

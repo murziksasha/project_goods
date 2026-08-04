@@ -1320,6 +1320,41 @@ describe('CreateOrderCard', () => {
     );
   });
 
+  it('does not suggest devices that only match via clientName', async () => {
+    getClientDevicesMock.mockImplementation(async () => [
+      clientDevice({
+        id: 'stabilizer',
+        name: 'Стабілізатор напруги',
+        clientName: 'Светлана НВЧ піч Delfa',
+        serialNumber: '',
+      }),
+      clientDevice({
+        id: 'microwave',
+        name: 'НВЧ піч Delfa',
+        clientName: 'Светлана',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Enter device name'), {
+          target: { value: 'НВЧ піч Delfa' },
+        }),
+      () => {
+        expect(getClientDevicesMock).toHaveBeenCalled();
+      },
+    );
+
+    expect(screen.queryByText('Стабілізатор напруги')).not.toBeInTheDocument();
+    // Exact name match is treated as existing device, not listed as suggestion.
+    expect(
+      screen.queryByRole('button', { name: /НВЧ піч Delfa/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/found existing device/i)).toBeInTheDocument();
+  });
+
   it('keeps services section collapsed by default on sales tab', () => {
     renderCreateOrderCard('sale');
 

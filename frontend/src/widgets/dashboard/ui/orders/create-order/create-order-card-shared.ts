@@ -186,26 +186,73 @@ export const extractDeviceKit = (note: string) =>
     .slice(0, 2)
     .join(', ');
 
+/** Device autocomplete haystack: name/serial/note only — never client metadata. */
+export const deviceAutocompleteHaystack = (device: ClientDevice) =>
+  toDeviceLookupKey(
+    [device.name, device.serialNumber, device.note].filter(Boolean).join(' '),
+  );
+
+const queryTokens = (rawQuery: string) =>
+  toDeviceLookupKey(rawQuery)
+    .split(' ')
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+const deviceMatchesQueryTokens = (device: ClientDevice, tokens: string[]) => {
+  if (tokens.length === 0) return true;
+  const haystack = deviceAutocompleteHaystack(device);
+  return tokens.every((token) => haystack.includes(token));
+};
+
+/**
+ * Rank: exact name > name prefix > all tokens in name > serial/note matches.
+ * Lower score is better.
+ */
+export const scoreDeviceQueryMatch = (
+  device: ClientDevice,
+  rawQuery: string,
+): number => {
+  const normalizedQuery = toDeviceLookupKey(rawQuery);
+  if (!normalizedQuery) return 0;
+
+  const nameKey = toDeviceLookupKey(device.name);
+  const serialKey = toDeviceLookupKey(device.serialNumber || '');
+  const tokens = queryTokens(rawQuery);
+
+  if (nameKey === normalizedQuery) return 0;
+  if (nameKey.startsWith(normalizedQuery)) return 1;
+  if (tokens.length > 0 && tokens.every((token) => nameKey.includes(token))) {
+    return 2;
+  }
+  if (serialKey && tokens.every((token) => serialKey.includes(token))) {
+    return 3;
+  }
+  return 4;
+};
+
 export const filterActiveDevicesByQuery = (
   devices: ClientDevice[],
   rawQuery: string,
+  options?: { clientId?: string | null },
 ) => {
-  const normalizedQuery = toDeviceLookupKey(rawQuery);
-  const activeDevices = devices.filter((device) => device.isActive);
-  if (!normalizedQuery) return activeDevices;
+  const tokens = queryTokens(rawQuery);
+  const clientId = options?.clientId?.trim() || '';
 
-  return activeDevices.filter((device) => {
-    const lookupFields = [
-      device.name,
-      device.serialNumber,
-      device.clientName,
-      device.clientPhone,
-      device.note,
-    ];
-    return lookupFields.some((field) =>
-      toDeviceLookupKey(field || '').includes(normalizedQuery),
-    );
+  const activeDevices = devices.filter((device) => {
+    if (!device.isActive) return false;
+    if (clientId && device.clientId !== clientId) return false;
+    return true;
   });
+
+  if (tokens.length === 0) return activeDevices;
+
+  return activeDevices
+    .filter((device) => deviceMatchesQueryTokens(device, tokens))
+    .sort(
+      (left, right) =>
+        scoreDeviceQueryMatch(left, rawQuery) -
+        scoreDeviceQueryMatch(right, rawQuery),
+    );
 };
 
 export const getDeviceHistory = (history: ClientHistory | null) => {

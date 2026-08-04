@@ -14,6 +14,7 @@ type CreateOrderRepairSectionProps = {
   selectedDeviceSuggestionId: string | null;
   hasExactDeviceMatch: boolean;
   visibleDeviceSuggestions: ClientDevice[];
+  showDeviceClientMeta?: boolean;
   isDeviceLookupLoading: boolean;
   onDeviceNameChange: (value: string) => void;
   onDeviceSerialNumberChange: (value: string) => void;
@@ -41,6 +42,7 @@ export const CreateOrderRepairSection = ({
   selectedDeviceSuggestionId,
   hasExactDeviceMatch,
   visibleDeviceSuggestions,
+  showDeviceClientMeta = false,
   isDeviceLookupLoading,
   onDeviceNameChange,
   onDeviceSerialNumberChange,
@@ -107,6 +109,9 @@ export const CreateOrderRepairSection = ({
             >
               <strong>{device.name}</strong>
               <span>{device.serialNumber || '-'}</span>
+              {showDeviceClientMeta && device.clientName ? (
+                <span className="create-suggestion-meta">{device.clientName}</span>
+              ) : null}
             </button>
           ))}
         </div>
