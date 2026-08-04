@@ -1300,18 +1300,19 @@ describe('CreateOrderCard', () => {
       () => {
         expect(getClientDevicesMock).toHaveBeenCalled();
         expect(
-          screen.getByRole('button', {
+          screen.getByRole('option', {
             name: /Кавомашина Delonghi/i,
           }),
         ).toBeInTheDocument();
       },
     );
 
-    const suggestion = screen.getByRole('button', {
+    const suggestion = screen.getByRole('option', {
       name: /Кавомашина Delonghi/i,
     });
-    expect(suggestion).toHaveClass('create-suggestion-item-compact');
-    expect(suggestion.closest('.create-suggestions-compact')).not.toBeNull();
+    expect(suggestion).toHaveClass('create-device-suggestion-item');
+    expect(suggestion.closest('.create-device-suggestions')).not.toBeNull();
+    expect(suggestion.closest('.modal-suggestions-anchor')).not.toBeNull();
 
     fireEvent.click(suggestion);
 
@@ -1406,12 +1407,12 @@ describe('CreateOrderCard', () => {
         }),
       () => {
         expect(
-          screen.getByRole('button', { name: /Кавомашина Delonghi/i }),
+          screen.getByRole('option', { name: /Кавомашина Delonghi/i }),
         ).toBeInTheDocument();
       },
     );
 
-    expect(screen.getByText('Other Client')).toBeInTheDocument();
+    expect(screen.queryByText('Other Client')).not.toBeInTheDocument();
   });
 
   it('keeps services section collapsed by default on sales tab', () => {

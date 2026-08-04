@@ -1346,7 +1346,6 @@ export const CreateOrderCard = ({
                 selectedDeviceSuggestionId={selectedDeviceSuggestionId}
                 hasExactDeviceMatch={hasExactDeviceMatch}
                 visibleDeviceSuggestions={visibleDeviceSuggestions}
-                showDeviceClientMeta
                 isDeviceLookupLoading={isDeviceLookupLoading}
                 onDeviceNameChange={setDeviceName}
                 onDeviceSerialNumberChange={setDeviceSerialNumber}
