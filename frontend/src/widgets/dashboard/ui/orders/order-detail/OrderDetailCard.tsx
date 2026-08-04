@@ -385,33 +385,16 @@ export const OrderDetailCard = ({
       return;
     }
 
-    const saleClientId = sale.client.id;
-    const filterOptions = { clientId: saleClientId };
+    // Same global Clients goods lookup as Create order Device #1 (ORDER_CARD.md).
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setIsDeviceLookupLoading(true);
       try {
-        const clientScoped = clientDevices.filter(
-          (device) => device.clientId === saleClientId,
-        );
-        if (clientScoped.length > 0) {
-          const localMatches = filterActiveDevicesByQuery(
-            clientScoped,
-            deviceLookupQuery,
-            filterOptions,
-          );
-          if (localMatches.length > 0) {
-            if (isActive) setDeviceLookupSuggestions(localMatches.slice(0, 8));
-            return;
-          }
-        }
-
         const devices = await getClientDevices(deviceLookupQuery);
         if (!isActive) return;
         let suggestions = filterActiveDevicesByQuery(
           devices,
           deviceLookupQuery,
-          filterOptions,
         );
 
         if (suggestions.length === 0) {
@@ -420,7 +403,6 @@ export const OrderDetailCard = ({
           suggestions = filterActiveDevicesByQuery(
             allDevices,
             deviceLookupQuery,
-            filterOptions,
           );
         }
 
@@ -436,29 +418,25 @@ export const OrderDetailCard = ({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [deviceSearch, isDeviceModalOpen, clientDevices, sale.client.id]);
+  }, [deviceSearch, isDeviceModalOpen]);
   const clientDeviceOptions = useMemo(() => {
     const uniqueByName = new Map<string, ClientDevice>();
     const saleClientId = sale.client.id;
-    const sourceDevices =
-      deviceSearch.trim().length >= 2
-        ? deviceLookupSuggestions
-        : clientDevices.filter((device) => device.clientId === saleClientId);
+    const isSearching = deviceSearch.trim().length >= 2;
+    // Empty search: current-client devices. With query: global lookup results.
+    const sourceDevices = isSearching
+      ? deviceLookupSuggestions
+      : clientDevices.filter((device) => device.clientId === saleClientId);
 
     sourceDevices.forEach((device) => {
       if (!device.isActive) return;
-      if (device.clientId && device.clientId !== saleClientId) return;
       const key = toNameKey(device.name);
       if (!key || uniqueByName.has(key)) return;
       uniqueByName.set(key, device);
     });
     const query = deviceSearch.trim();
     return Array.from(uniqueByName.values()).filter((device) =>
-      query
-        ? filterActiveDevicesByQuery([device], query, {
-            clientId: saleClientId,
-          }).length > 0
-        : true,
+      query ? filterActiveDevicesByQuery([device], query).length > 0 : true,
     );
   }, [
     clientDevices,

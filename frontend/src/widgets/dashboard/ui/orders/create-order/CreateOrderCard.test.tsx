@@ -1300,18 +1300,19 @@ describe('CreateOrderCard', () => {
       () => {
         expect(getClientDevicesMock).toHaveBeenCalled();
         expect(
-          screen.getByRole('button', {
+          screen.getByRole('option', {
             name: /Кавомашина Delonghi/i,
           }),
         ).toBeInTheDocument();
       },
     );
 
-    const suggestion = screen.getByRole('button', {
+    const suggestion = screen.getByRole('option', {
       name: /Кавомашина Delonghi/i,
     });
-    expect(suggestion).toHaveClass('create-suggestion-item-compact');
-    expect(suggestion.closest('.create-suggestions-compact')).not.toBeNull();
+    expect(suggestion).toHaveClass('create-device-suggestion-item');
+    expect(suggestion.closest('.create-device-suggestions')).not.toBeNull();
+    expect(suggestion.closest('.modal-suggestions-anchor')).not.toBeNull();
 
     fireEvent.click(suggestion);
 
@@ -1353,6 +1354,65 @@ describe('CreateOrderCard', () => {
       screen.queryByRole('button', { name: /НВЧ піч Delfa/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/found existing device/i)).toBeInTheDocument();
+  });
+
+  it('searches Clients goods globally even when a client is selected', async () => {
+    const existingClient = lookupClient({
+      id: 'client-selected',
+      name: 'Selected Client',
+      phone: '+380635567090',
+    });
+    getClientsMock.mockResolvedValue([existingClient]);
+    getClientHistoryMock.mockImplementation(async () =>
+      emptyClientHistory(existingClient),
+    );
+    // Selected client's own registered devices (no coffee machine).
+    getClientDevicesMock.mockImplementation(async (query = '') => {
+      if (!query) {
+        return [
+          clientDevice({
+            id: 'own-phone',
+            clientId: existingClient.id,
+            clientName: existingClient.name,
+            name: 'Phone Samsung',
+          }),
+        ];
+      }
+      return [
+        clientDevice({
+          id: 'other-coffee',
+          clientId: 'client-other',
+          clientName: 'Other Client',
+          name: 'Кавомашина Delonghi',
+        }),
+      ];
+    });
+
+    renderCreateOrderCard('repair', vi.fn(), vi.fn(), [existingClient]);
+
+    fireEvent.change(screen.getByPlaceholderText('+380'), {
+      target: { value: '0635567090' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue(
+        'Selected Client',
+      );
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(screen.getByPlaceholderText('Enter device name'), {
+          target: { value: 'кавомашина' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('option', { name: /Кавомашина Delonghi/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    expect(screen.queryByText('Other Client')).not.toBeInTheDocument();
   });
 
   it('keeps services section collapsed by default on sales tab', () => {

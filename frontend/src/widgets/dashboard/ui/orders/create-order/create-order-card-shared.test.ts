@@ -60,7 +60,7 @@ describe('filterActiveDevicesByQuery', () => {
     expect(filterActiveDevicesByQuery([laptop], 'abc-123')).toEqual([laptop]);
   });
 
-  it('scopes results to clientId when provided', () => {
+  it('optionally scopes results to clientId when provided', () => {
     const own = device({
       id: 'own',
       clientId: 'client-a',
@@ -72,11 +72,28 @@ describe('filterActiveDevicesByQuery', () => {
       name: 'НВЧ піч Delfa Pro',
     });
 
-    const result = filterActiveDevicesByQuery([own, other], 'НВЧ', {
-      clientId: 'client-a',
+    // Device #1 create-order path does NOT pass clientId (global Clients goods).
+    expect(
+      filterActiveDevicesByQuery([own, other], 'НВЧ').map((item) => item.id),
+    ).toEqual(['own', 'other']);
+
+    expect(
+      filterActiveDevicesByQuery([own, other], 'НВЧ', {
+        clientId: 'client-a',
+      }).map((item) => item.id),
+    ).toEqual(['own']);
+  });
+
+  it('matches partial coffee-machine name from Clients goods', () => {
+    const coffee = device({
+      id: 'coffee',
+      clientId: 'client-other',
+      name: 'Кавомашина Delonghi',
     });
 
-    expect(result.map((item) => item.id)).toEqual(['own']);
+    expect(filterActiveDevicesByQuery([coffee], 'кавомашина')).toEqual([
+      coffee,
+    ]);
   });
 
   it('excludes inactive devices', () => {
