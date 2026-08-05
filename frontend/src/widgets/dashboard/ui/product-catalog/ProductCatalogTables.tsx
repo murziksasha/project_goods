@@ -6,6 +6,7 @@ import type { ServiceCatalogItem } from '../../../../entities/service-catalog/mo
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
+import { CatalogCopyableName } from './CatalogCopyableName';
 
 export const SuppliersTable = ({
   suppliers,
@@ -46,9 +47,10 @@ export const SuppliersTable = ({
             <tr key={supplier.id}>
               <td data-label={t('catalog.tables.columns.id')}>{supplier.id.slice(-6)}</td>
               <td data-label={t('catalog.tables.columns.name')}>
-                <button type="button" className="catalog-name-button" onClick={() => onSelectSupplier(supplier)}>
-                  {supplier.name}
-                </button>
+                <CatalogCopyableName
+                  name={supplier.name}
+                  onOpen={() => onSelectSupplier(supplier)}
+                />
               </td>
               <td data-label={t('catalog.tables.columns.phone')}>{supplier.phone}</td>
               <td data-label={t('catalog.tables.columns.status')}>
@@ -114,9 +116,10 @@ export const ProductsTable = ({
             <tr key={product.id}>
               <td data-label={t('catalog.tables.columns.id')}>{rowStartIndex + index + 1}</td>
               <td data-label={t('catalog.tables.columns.name')}>
-                <button type="button" className="catalog-name-button" onClick={() => onSelectDevice(product)}>
-                  {product.name}
-                </button>
+                <CatalogCopyableName
+                  name={product.name}
+                  onOpen={() => onSelectDevice(product)}
+                />
               </td>
               <td data-label={t('catalog.tables.columns.activity')}>
                 {product.isActive ? t('catalog.filters.active') : t('catalog.filters.inactive')}
@@ -180,13 +183,10 @@ export const CatalogProductsTable = ({
             <tr key={product.id}>
               <td data-label={t('catalog.tables.columns.id')}>{rowStartIndex + index + 1}</td>
               <td data-label={t('catalog.tables.columns.name')}>
-                <button
-                  type="button"
-                  className="catalog-name-button"
-                  onClick={() => onSelectProduct(product)}
-                >
-                  {product.name}
-                </button>
+                <CatalogCopyableName
+                  name={product.name}
+                  onOpen={() => onSelectProduct(product)}
+                />
               </td>
               <td data-label={t('catalog.tables.columns.activity')}>
                 {product.isActive ? t('catalog.filters.active') : t('catalog.filters.inactive')}
@@ -262,16 +262,16 @@ export const ServicesTable = ({
                 />
               </td>
               <td data-label={t('catalog.tables.columns.name')}>
-                <button
-                  type="button"
-                  className="catalog-name-button"
-                  onClick={() => onEdit(service)}
+                <CatalogCopyableName
+                  name={service.name}
+                  onOpen={() => onEdit(service)}
                 >
-                  {service.name}
-                </button>
-                {!service.isActive ? (
-                  <span className="catalog-inactive-badge">{t('catalog.tables.inactiveBadge')}</span>
-                ) : null}
+                  {!service.isActive ? (
+                    <span className="catalog-inactive-badge">
+                      {t('catalog.tables.inactiveBadge')}
+                    </span>
+                  ) : null}
+                </CatalogCopyableName>
               </td>
               <td data-label={t('catalog.tables.columns.price')}>{formatCurrency(service.price)}</td>
               <td data-label={t('catalog.tables.columns.note')}>{service.note || '-'}</td>
