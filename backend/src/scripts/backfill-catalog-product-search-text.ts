@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { connectDatabase } from '../config/database';
+import { CatalogProduct } from '../domain/catalog-product/model';
 import { rebuildCatalogProductSearchTexts } from '../domain/catalog-product/service';
 
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
@@ -15,7 +16,6 @@ const run = async () => {
   await connectDatabase();
 
   if (!apply) {
-    const { CatalogProduct } = await import('../domain/catalog-product/model');
     const items = await CatalogProduct.find({}).lean();
     let stale = 0;
     for (const item of items) {

@@ -2407,7 +2407,10 @@
       },
       "selectAllServices": "Select all services",
       "selectService": "Select {{name}}",
-      "inactiveBadge": "Inactive"
+      "inactiveBadge": "Inactive",
+      "copyName": "Copy name",
+      "copied": "Copied",
+      "copyFailed": "Copy failed"
     },
     "modals": {
       "close": "Close",
