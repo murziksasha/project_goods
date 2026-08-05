@@ -231,13 +231,15 @@ export const updateCatalogProduct = async (
 ) => {
   isValidObjectIdOrThrow(catalogProductId, 'catalogProductId');
   try {
-    const existing = await CatalogProduct.findById(catalogProductId).lean<CatalogProductDocument | null>();
-    if (!existing) {
+    // Document save (not findByIdAndUpdate) so pre('validate') rebuilds searchText.
+    // findByIdAndUpdate skips middleware → stale searchText → supplier-order suggestions miss renames.
+    const item = await CatalogProduct.findById(catalogProductId);
+    if (!item) {
       throw new HttpError(404, 'Catalog product not found.');
     }
 
     const normalizedPayload = normalizeCatalogProductPayload(payload);
-    const previousName = normalizeCatalogProductName(existing.name);
+    const previousName = normalizeCatalogProductName(item.name);
     const nextName = normalizeCatalogProductName(normalizedPayload.name);
     const nameChanged = shouldPropagateCatalogProductRename(previousName, nextName);
 
@@ -245,13 +247,12 @@ export const updateCatalogProduct = async (
       assertCatalogProductNameFitsWarehouse(nextName);
     }
 
-    const item = await CatalogProduct.findByIdAndUpdate(
-      catalogProductId,
-      normalizedPayload,
-      { returnDocument: 'after', runValidators: true },
-    ).lean<CatalogProductDocument | null>();
+    item.name = normalizedPayload.name;
+    item.note = normalizedPayload.note;
+    item.isActive = normalizedPayload.isActive;
 
-    if (!item) throw new HttpError(404, 'Catalog product not found.');
+    await item.validate();
+    await item.save();
 
     if (nameChanged) {
       await propagateCatalogProductNameChange({
@@ -261,11 +262,32 @@ export const updateCatalogProduct = async (
       });
     }
 
-    const usageCount = await getCatalogProductUsageCount(item);
-    return formatCatalogProduct(item, usageCount);
+    const plain = item.toObject<CatalogProductDocument>();
+    const usageCount = await getCatalogProductUsageCount(plain);
+    return formatCatalogProduct(plain, usageCount);
   } catch (error) {
     throw mapCatalogProductError(error);
   }
+};
+
+/** Recompute searchText for all catalog products (fixes stale index after renames via old update path). */
+export const rebuildCatalogProductSearchTexts = async () => {
+  const items = await CatalogProduct.find({});
+  let updated = 0;
+  let alreadyConsistent = 0;
+
+  for (const item of items) {
+    const expected = [item.name, item.note].filter(Boolean).join(' ').toLowerCase();
+    if ((item.searchText ?? '') === expected) {
+      alreadyConsistent += 1;
+      continue;
+    }
+    await item.validate();
+    await item.save();
+    updated += 1;
+  }
+
+  return { scanned: items.length, updated, alreadyConsistent };
 };
 
 export const deleteCatalogProduct = async (catalogProductId: string) => {
