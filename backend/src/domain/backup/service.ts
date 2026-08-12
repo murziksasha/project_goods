@@ -210,7 +210,7 @@ export const getUploadedArchiveName = (archiveFileName: string) => {
     return baseName;
   }
   // Chrome/Edge/Windows: "file.archive.gz" → "file.archive (1).gz" on re-download
-  const windowsDuplicate = baseName.match(/^(.+\.archive) \(\d+\)\.gz$/i);
+  const windowsDuplicate = baseName.match(/^(.+\.archive)\s+\(\d+\)\.gz$/i);
   if (windowsDuplicate?.[1]) {
     return `${windowsDuplicate[1]}.gz`;
   }
