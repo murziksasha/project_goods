@@ -463,6 +463,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
   const [restoreConfirmation, setRestoreConfirmation] = useState('');
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreFileConfirmation, setRestoreFileConfirmation] = useState('');
+  const [restoreFileError, setRestoreFileError] = useState('');
   const [isRestoreFileModalOpen, setIsRestoreFileModalOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [message, setMessage] = useState('');
@@ -604,6 +605,13 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     setIsRestoreFileModalOpen(false);
     setRestoreFile(null);
     setRestoreFileConfirmation('');
+    setRestoreFileError('');
+  };
+
+  const openRestoreFileModal = () => {
+    setRestoreFileError('');
+    setError('');
+    setIsRestoreFileModalOpen(true);
   };
 
   const handleRestoreBackupFromFile = async () => {
@@ -611,6 +619,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
     setIsRestoring(true);
     setMessage('');
     setError('');
+    setRestoreFileError('');
     try {
       const result = await restoreBackupFromFile(
         restoreFile,
@@ -624,11 +633,12 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
         }),
       );
     } catch (requestError) {
-      setError(
+      const messageText =
         requestError instanceof Error
           ? requestError.message
-          : t('settings.backups.messages.failedRestoreFromFile'),
-      );
+          : t('settings.backups.messages.failedRestoreFromFile');
+      setRestoreFileError(messageText);
+      setError(messageText);
     } finally {
       setIsRestoring(false);
     }
@@ -655,7 +665,7 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
           <button
             type="button"
             className="success-button"
-            onClick={() => setIsRestoreFileModalOpen(true)}
+            onClick={openRestoreFileModal}
             disabled={isCreating || isRestoring}
           >
             {t('settings.backups.restoreFromFile')}
@@ -672,7 +682,9 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
       </div>
 
       {message ? <p className="success-message">{message}</p> : null}
-      {error ? <p className="empty-state">{error}</p> : null}
+      {error && !isRestoreFileModalOpen ? (
+        <p className="empty-state">{error}</p>
+      ) : null}
 
       {isLoading ? (
         <p className="empty-state">{t('settings.backups.loading')}</p>
@@ -891,14 +903,20 @@ const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
           }
         >
           <p>{t('settings.backups.restoreFromFileMessage')}</p>
+          {restoreFileError ? (
+            <p className="empty-state" role="alert">
+              {restoreFileError}
+            </p>
+          ) : null}
           <label className="field field-wide">
             <span>{t('settings.backups.backupArchiveFile')}</span>
             <input
               type="file"
               accept=".gz,.archive.gz,application/gzip,application/octet-stream"
-              onChange={(event) =>
-                setRestoreFile(event.target.files?.[0] ?? null)
-              }
+              onChange={(event) => {
+                setRestoreFile(event.target.files?.[0] ?? null);
+                setRestoreFileError('');
+              }}
             />
           </label>
           {restoreFile ? (

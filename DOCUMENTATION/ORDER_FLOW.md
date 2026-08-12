@@ -326,7 +326,7 @@
 - See **Supplier Order Backdated Delivery and Status Persistence (2026-07-06)** below for the full backdated-order workflow.
 - Supplier Order table list visibility:
   - an order disappears from the default working set only when `paymentStatus = pending` and all line items are `cancelled`
-  - partially processed orders (`partially_stocked`, `partially_completed`) stay visible even when the saved status filter still contains only manual open statuses such as `Approved`
+  - status multi-select is an exact allow-list: `partially_stocked` / `partially_completed` show only when those statuses are selected (or the filter is empty)
   - paid and `without_payment` orders stay visible even if every line item is `cancelled`
 - `Overdue` does not block take-on-charge, content editing, or payment actions.
 - `Cancelled` and `Unavailable` are manual closure statuses. They block take-on-charge and content editing.
