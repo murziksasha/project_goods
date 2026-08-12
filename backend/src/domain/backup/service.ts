@@ -200,21 +200,26 @@ const getMetadataFile = (backupId: string) => `${backupId}${metadataSuffix}`;
 /**
  * Accepts `*.archive.gz` and Windows download renames like `*.archive (1).gz`.
  * Returns a safe basename ending in `.archive.gz`, or empty when invalid.
+ * Handles full Windows paths even when running on Linux CI.
  */
 export const getUploadedArchiveName = (archiveFileName: string) => {
-  const baseName = path.basename(archiveFileName).trim();
+  // Normalize separators so path.basename works for Windows paths on POSIX CI
+  const baseName = path.basename(archiveFileName.replace(/\\/g, '/')).trim();
   if (!baseName) {
     return '';
   }
-  if (baseName.endsWith(archiveSuffix)) {
-    return baseName;
-  }
+
   // Chrome/Edge/Windows: "file.archive.gz" → "file.archive (1).gz" on re-download
   const windowsDuplicate = baseName.match(/^(.+\.archive)\s+\(\d+\)\.gz$/i);
   if (windowsDuplicate?.[1]) {
     return `${windowsDuplicate[1]}.gz`;
   }
-  return '';
+
+  if (!baseName.endsWith(archiveSuffix)) {
+    return '';
+  }
+
+  return baseName;
 };
 
 export const getBackupPaths = (backupId: string, backupDir = env.backupDir) => {
