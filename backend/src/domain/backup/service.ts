@@ -213,10 +213,13 @@ export const getUploadedArchiveName = (archiveFileName: string) => {
   const windowsDuplicate = baseName.match(/^(.+\.archive)\s+\(\d+\)\.gz$/i);
   if (windowsDuplicate?.[1]) {
     return `${windowsDuplicate[1]}.gz`;
+<<<<<<< HEAD
   }
 
   if (!baseName.endsWith(archiveSuffix)) {
     return '';
+=======
+>>>>>>> 4bbc596026bef77baea552e14768a1b5cd529079
   }
 
   return baseName;
