@@ -207,13 +207,6 @@ export const normalizeSupplierOrdersColumns = (
   }
 };
 
-const openSupplierOrderStatuses: SupplierOrderStatus[] = [
-  'request',
-  'ordered',
-  'approved',
-  'overdue',
-];
-
 export const areAllSupplierOrderItemsCancelled = (order: SupplierOrder) =>
   order.items.length > 0 &&
   order.items.every((item) => item.receiptStatus === 'cancelled');
@@ -231,6 +224,7 @@ export const isSupplierOrderHiddenFromList = (
   return !filters.selectedStatuses.includes('cancelled');
 };
 
+/** Empty selection = all statuses; non-empty = exact allow-list match. */
 export const matchesSupplierOrderStatusFilter = (
   orderStatus: SupplierOrderStatus,
   selectedStatuses: SupplierOrderStatus[],
@@ -238,24 +232,7 @@ export const matchesSupplierOrderStatusFilter = (
   if (selectedStatuses.length === 0) {
     return true;
   }
-  if (selectedStatuses.includes(orderStatus)) {
-    return true;
-  }
-  if (
-    orderStatus === 'partially_stocked' &&
-    selectedStatuses.some((status) => openSupplierOrderStatuses.includes(status))
-  ) {
-    return true;
-  }
-  if (orderStatus === 'partially_completed') {
-    return selectedStatuses.some(
-      (status) =>
-        openSupplierOrderStatuses.includes(status) ||
-        status === 'stocked' ||
-        status === 'partially_completed',
-    );
-  }
-  return false;
+  return selectedStatuses.includes(orderStatus);
 };
 
 export const filterSupplierOrders = (

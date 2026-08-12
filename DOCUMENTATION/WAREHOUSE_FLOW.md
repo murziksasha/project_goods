@@ -298,9 +298,9 @@ Implementation references:
   - hide order only when `paymentStatus = pending` and every `items[].receiptStatus = cancelled`
   - keep order visible for partial outcomes (`partially_stocked`, `partially_completed`) and for paid / `without_payment` orders even when all items are cancelled
   - when operator explicitly filters `Order status = Cancelled`, fully-cancelled unpaid orders remain visible
-- Status filter compatibility:
-  - `partially_stocked` matches open status filters (`request`, `ordered`, `approved`, `overdue`)
-  - `partially_completed` matches `approved`, `stocked`, `partially_completed`, and open status filters
+- Status filter matching (`matchesSupplierOrderStatusFilter`):
+  - empty selection → all statuses
+  - non-empty selection → exact allow-list match only (unchecking `partially_completed` / `partially_stocked` hides those orders even if open statuses remain selected)
 - Take-on-charge and cancel-item from any entry point (`Warehouse -> Receipts`, `Orders -> Supplier Order`, linked sale card) must invalidate/refetch the shared `supplierOrders` query cache so both tabs stay synchronized.
 
 ### 6.3) Supplier Order Modal Item List Editing

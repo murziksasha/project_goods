@@ -483,4 +483,35 @@ describe('SettingsPanel', () => {
     expect(backupApi.restoreBackupFromFile).toHaveBeenCalledWith(file, 'RESTORE');
     expect(await screen.findByText('Backup file restored. Safety backup: project-goods-20260607-100100-safety.')).toBeInTheDocument();
   });
+
+  it('shows restore-from-file errors inside the modal', async () => {
+    vi.spyOn(backupApi, 'restoreBackupFromFile').mockRejectedValue(
+      new Error('Backup archive file must end with .archive.gz.'),
+    );
+    render(<BackupOnlySettingsPanelHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore from file' }));
+
+    const file = new File(
+      ['archive'],
+      'project-goods-20260812-045952.archive (1).gz',
+      { type: 'application/gzip' },
+    );
+    fireEvent.change(screen.getByLabelText('Backup archive file'), {
+      target: { files: [file] },
+    });
+    fireEvent.change(screen.getByLabelText('Type RESTORE to confirm'), {
+      target: { value: 'RESTORE' },
+    });
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Restore from file' }).at(-1)!,
+    );
+
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent('Backup archive file must end with .archive.gz.');
+    // Modal stays open so the operator can fix the file selection
+    expect(screen.getByLabelText('Backup archive file')).toBeInTheDocument();
+  });
 });
