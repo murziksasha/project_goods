@@ -210,13 +210,16 @@ export const getUploadedArchiveName = (archiveFileName: string) => {
   }
 
   // Chrome/Edge/Windows: "file.archive.gz" → "file.archive (1).gz" on re-download
-  const normalized = baseName.replace(/\s+\(\d+\)(?=\.gz$)/i, '');
+  const windowsDuplicate = baseName.match(/^(.+\.archive)\s+\(\d+\)\.gz$/i);
+  if (windowsDuplicate?.[1]) {
+    return `${windowsDuplicate[1]}.gz`;
+  }
 
-  if (!normalized.endsWith(archiveSuffix)) {
+  if (!baseName.endsWith(archiveSuffix)) {
     return '';
   }
 
-  return normalized;
+  return baseName;
 };
 
 export const getBackupPaths = (backupId: string, backupDir = env.backupDir) => {
