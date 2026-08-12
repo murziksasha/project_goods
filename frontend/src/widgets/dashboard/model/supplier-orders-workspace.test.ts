@@ -136,7 +136,7 @@ describe('supplier-orders-workspace', () => {
   ).toEqual(['so-2']);
   });
 
-  it('keeps partially_stocked orders visible when approved status filter is active', () => {
+  it('hides partially_stocked orders when only approved status filter is active', () => {
     const orders = [
       makeOrder({
         id: 'so-partial',
@@ -166,6 +166,16 @@ describe('supplier-orders-workspace', () => {
       filterSupplierOrders(orders, {
         query: '',
         selectedStatuses: ['approved'],
+        paymentStatus: 'all',
+        deliveryDateFrom: '',
+        deliveryDateTo: '',
+        favoritesOnly: false,
+      }).map((order) => order.id),
+    ).toEqual([]);
+    expect(
+      filterSupplierOrders(orders, {
+        query: '',
+        selectedStatuses: ['partially_stocked'],
         paymentStatus: 'all',
         deliveryDateFrom: '',
         deliveryDateTo: '',
@@ -273,16 +283,29 @@ describe('supplier-orders-workspace', () => {
     ).toEqual(['so-paid-cancelled']);
   });
 
-  it('matches partially_completed orders against stocked and approved filters', () => {
+  it('matches partially_completed only when that status is explicitly selected', () => {
     expect(
       matchesSupplierOrderStatusFilter('partially_completed', ['approved']),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       matchesSupplierOrderStatusFilter('partially_completed', ['stocked']),
+    ).toBe(false);
+    expect(
+      matchesSupplierOrderStatusFilter('partially_completed', [
+        'ordered',
+        'approved',
+        'partially_stocked',
+        'overdue',
+      ]),
+    ).toBe(false);
+    expect(
+      matchesSupplierOrderStatusFilter('partially_completed', [
+        'partially_completed',
+      ]),
     ).toBe(true);
     expect(
-      matchesSupplierOrderStatusFilter('partially_completed', ['cancelled']),
-    ).toBe(false);
+      matchesSupplierOrderStatusFilter('partially_completed', []),
+    ).toBe(true);
   });
 
   it('filters to starred supplier orders only', () => {

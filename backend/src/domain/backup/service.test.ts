@@ -10,6 +10,7 @@ import {
   deleteOldScheduledBackups,
   enforceBackupRetention,
   getBackupPaths,
+  getUploadedArchiveName,
   isSafeBackupId,
   listBackups,
   resetBackupJobForTests,
@@ -421,6 +422,20 @@ describe('backup service', () => {
     expect(commands).toEqual(['mongodump']);
   });
 
+  it('normalizes uploaded archive names including Windows re-download suffixes', () => {
+    expect(getUploadedArchiveName('project-goods-20260812-045952.archive.gz')).toBe(
+      'project-goods-20260812-045952.archive.gz',
+    );
+    expect(
+      getUploadedArchiveName('project-goods-20260812-045952.archive (1).gz'),
+    ).toBe('project-goods-20260812-045952.archive.gz');
+    expect(
+      getUploadedArchiveName('C:\\Downloads\\project-goods-20260812-045952.archive (2).gz'),
+    ).toBe('project-goods-20260812-045952.archive.gz');
+    expect(getUploadedArchiveName('backup.gz')).toBe('');
+    expect(getUploadedArchiveName('notes.archive.txt')).toBe('');
+  });
+
   it('restores from an uploaded archive and removes the temporary file', async () => {
     const backupDir = await makeTempDir();
     const nowValues = [
@@ -467,6 +482,47 @@ describe('backup service', () => {
     await expect(fs.access(restoreArchivePaths[1]!)).rejects.toThrow();
     const entries = await fs.readdir(backupDir);
     expect(entries.some((entry) => entry.startsWith('.restore-'))).toBe(false);
+  });
+
+  it('restores from a Windows-renamed archive (1).gz filename', async () => {
+    const backupDir = await makeTempDir();
+    const nowValues = [
+      new Date(2026, 5, 7, 10, 3, 0),
+      new Date(2026, 5, 7, 10, 3, 1),
+    ];
+
+    const result = await restoreBackupFromUploadedArchive(
+      Buffer.from('uploaded-archive'),
+      'project-goods-20260812-045952.archive (1).gz',
+      'RESTORE',
+      'Owner',
+      {
+        backupDir,
+        now: () => nowValues.shift() ?? new Date(2026, 5, 7, 10, 3, 1),
+        clearDatabase: async () => undefined,
+        runCommand: async (command, args) => {
+          const archiveArg = args.find((arg) => arg.startsWith('--archive='));
+          if (!archiveArg) throw new Error('archive arg missing');
+          const archivePath = archiveArg.replace('--archive=', '');
+          if (command === 'mongodump') {
+            await fs.writeFile(archivePath, 'safety');
+          }
+          if (command === 'mongorestore') {
+            expect(path.basename(archivePath)).toBe(
+              'project-goods-20260812-045952.archive.gz',
+            );
+            await expect(fs.readFile(archivePath, 'utf8')).resolves.toBe(
+              'uploaded-archive',
+            );
+          }
+        },
+      },
+    );
+
+    expect(result.restoredArchiveFile).toBe(
+      'project-goods-20260812-045952.archive.gz',
+    );
+    expect(result.success).toBe(true);
   });
 
   it('requires confirmation before restoring an uploaded archive', async () => {
