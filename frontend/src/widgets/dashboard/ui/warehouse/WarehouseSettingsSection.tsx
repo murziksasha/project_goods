@@ -184,7 +184,7 @@ export const WarehouseSettings = ({
             </button>
           </div>
           <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table'>
+            <table className='catalog-table warehouse-settings-table table-card-stack'>
               <thead>
                 <tr>
                   <th>
@@ -299,7 +299,7 @@ export const WarehouseSettings = ({
             </button>
           </div>
           <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table'>
+            <table className='catalog-table warehouse-settings-table table-card-stack'>
               <thead>
                 <tr>
                   <th>{t('warehouse.settings.warehouses.columns.id')}</th>
@@ -389,7 +389,7 @@ export const WarehouseSettings = ({
       {tab === 'administrators' ? (
         <>
           <div className='catalog-table-wrap warehouse-admin-table-wrap'>
-            <table className='catalog-table warehouse-settings-table warehouse-admin-table'>
+            <table className='catalog-table warehouse-settings-table warehouse-admin-table table-card-stack'>
               <thead>
                 <tr>
                   <th>{t('warehouse.settings.administrators.administrator')}</th>

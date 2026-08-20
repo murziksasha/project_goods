@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { initialClientForm } from '../../../entities/client/model/forms';
 import type { ClientFormValues, ClientHistory, ClientStatus } from '../../../entities/client/model/types';
@@ -76,6 +76,7 @@ import { createDefaultSettingsForm } from '../../../entities/settings/model/prin
 import { readCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
+import type { PageKey } from './types';
 import type { StatsPeriod } from '../../../widgets/dashboard/model/sales-analytics';
 import {
   getStoredAnalyticsDateRange,
@@ -89,26 +90,55 @@ const serviceSearchStorageKey = 'project-goods.filter.service-search';
 const clientSearchStorageKey = 'project-goods.filter.client-search';
 const clientStatusStorageKey = 'project-goods.filter.client-status';
 
-export const useDashboardPage = (enabled = true, currentEmployee: Employee | null = null) => {
+export const useDashboardPage = (
+  enabled = true,
+  currentEmployee: Employee | null = null,
+  activePage: PageKey | null = null,
+) => {
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
   const [analyticsDateRange, setAnalyticsDateRange] = useState<AnalyticsDateRange | null>(() =>
     getStoredAnalyticsDateRange(),
   );
-  const salesListParams = useMemo(() => {
-    if (!analyticsDateRange?.dateFrom && !analyticsDateRange?.dateTo) {
-      return {};
-    }
-    return {
-      ...(analyticsDateRange.dateFrom ? { dateFrom: analyticsDateRange.dateFrom } : {}),
-      ...(analyticsDateRange.dateTo ? { dateTo: analyticsDateRange.dateTo } : {}),
-    };
-  }, [analyticsDateRange]);
+  const pollSales = !activePage || activePage === 'orders';
+  const productsEnabled =
+    enabled &&
+    (!activePage ||
+      activePage === 'home' ||
+      activePage === 'orders' ||
+      activePage === 'warehouse' ||
+      activePage === 'catalog');
+  const clientsEnabled =
+    enabled &&
+    (!activePage ||
+      activePage === 'home' ||
+      activePage === 'orders' ||
+      activePage === 'clients');
+  const catalogEnabled =
+    enabled &&
+    (!activePage ||
+      activePage === 'orders' ||
+      activePage === 'catalog' ||
+      activePage === 'warehouse');
+  const servicesEnabled =
+    enabled && (!activePage || activePage === 'catalog' || activePage === 'orders');
 
-  const productsQuery = useProductsQuery(enabled);
-  const clientsQuery = useClientsQuery(enabled);
-  const salesQuery = useSalesQuery(enabled, salesListParams);
-  const catalogProductsQuery = useCatalogProductsQuery(enabled);
-  const servicesQuery = useServicesQuery(enabled);
+  const productsQuery = useProductsQuery(productsEnabled, {
+    poll: activePage === 'warehouse' || activePage === 'catalog',
+  });
+  const clientsQuery = useClientsQuery(clientsEnabled, {
+    poll: activePage === 'clients',
+  });
+  const salesQuery = useSalesQuery(
+    enabled,
+    { limit: activePage === 'warehouse' ? 2000 : 500 },
+    { poll: pollSales },
+  );
+  const catalogProductsQuery = useCatalogProductsQuery(catalogEnabled, {
+    poll: activePage === 'catalog' || activePage === 'warehouse',
+  });
+  const servicesQuery = useServicesQuery(servicesEnabled, {
+    poll: activePage === 'catalog',
+  });
 
   const allProducts = enabled ? (productsQuery.data ?? []) : [];
   const allClients = enabled ? (clientsQuery.data ?? []) : [];

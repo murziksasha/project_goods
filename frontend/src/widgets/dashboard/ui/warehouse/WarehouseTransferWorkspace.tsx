@@ -173,7 +173,7 @@ export const TransferWorkspace = ({
           className='catalog-table-wrap warehouse-transfer-list'
           data-global-scrollbar='off'
         >
-          <table className='catalog-table'>
+          <table className='catalog-table table-card-stack'>
             <thead>
               <tr>
                 <th>{t('warehouse.transfer.stockTable.columns.product')}</th>
@@ -236,7 +236,7 @@ export const TransferWorkspace = ({
       </div>
 
       <div className='warehouse-transfer-history'>
-        <table className='catalog-table'>
+        <table className='catalog-table table-card-stack'>
           <thead>
             <tr>
               <th>{t('warehouse.transfer.historyTable.columns.date')}</th>

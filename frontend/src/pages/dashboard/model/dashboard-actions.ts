@@ -392,10 +392,27 @@ export const createDashboardActions = ({
 
   return {
     replaceSaleInState: (sale: Sale) => {
-      queryClient.setQueriesData<Sale[]>(
+      queryClient.setQueriesData(
         { queryKey: queryKeys.sales },
-        (current) => (current ?? []).map((item) => (item.id === sale.id ? sale : item)),
+        (current: unknown) => {
+          if (Array.isArray(current)) {
+            return current.map((item: Sale) => (item.id === sale.id ? sale : item));
+          }
+          if (
+            current &&
+            typeof current === 'object' &&
+            Array.isArray((current as { items?: Sale[] }).items)
+          ) {
+            const page = current as { items: Sale[] };
+            return {
+              ...page,
+              items: page.items.map((item) => (item.id === sale.id ? sale : item)),
+            };
+          }
+          return current;
+        },
       );
+      queryClient.setQueryData(queryKeys.saleDetail(sale.id), sale);
     },
     setProductSearchQuery,
     setServiceSearchQuery,

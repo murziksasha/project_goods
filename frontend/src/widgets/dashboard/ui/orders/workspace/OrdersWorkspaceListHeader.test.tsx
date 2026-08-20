@@ -75,5 +75,24 @@ describe('OrdersWorkspaceListHeader', () => {
 
     expect(screen.getByLabelText('Orders: 18')).toBeInTheDocument();
     expect(screen.getByText('Orders: 18')).toBeInTheDocument();
+    expect(screen.getByLabelText('Orders: 18').tagName).toBe('SPAN');
+  });
+
+  it('makes the orders count clickable when search matches one order', () => {
+    const onOpenSingleMatch = vi.fn();
+
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        activeTab="kanban"
+        visibleTabs={['orders', 'kanban']}
+        searchValue="r000588"
+        filteredOrdersCount={1}
+        onOpenSingleMatch={onOpenSingleMatch}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Orders: 1' }));
+    expect(onOpenSingleMatch).toHaveBeenCalledTimes(1);
   });
 });

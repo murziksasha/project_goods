@@ -286,7 +286,7 @@
 
 .catalog-edit-modal {
   width: min(520px, calc(100vw - 28px));
-  max-height: calc(100vh - 32px);
+  max-height: min(calc(100dvh - 16px), calc(100vh - 32px));
   overflow-y: auto;
   background: var(--bg-card);
   border-radius: 8px;
@@ -302,7 +302,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #dde5ee;
+  border-bottom: 1px solid var(--color-line-strong);
   padding: 12px 16px;
 }
 
@@ -428,6 +428,12 @@
 .catalog-activate-button:disabled {
   background: var(--text-soft);
   cursor: not-allowed;
+}
+
+.topbar-primary-actions-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .global-fixed-h-scrollbar {
@@ -3430,7 +3436,7 @@ select.line-item-inline-input {
 
 .serial-bind-modal {
   width: min(680px, calc(100vw - 32px));
-  max-height: calc(100vh - 48px);
+  max-height: min(calc(100dvh - 16px), calc(100vh - 48px));
   grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
 }
@@ -3491,7 +3497,7 @@ select.line-item-inline-input {
   position: relative;
   width: min(760px, calc(100vw - 40px));
   min-width: 0;
-  max-height: calc(100vh - 48px);
+  max-height: min(calc(100dvh - 16px), calc(100vh - 48px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border: 1px solid var(--color-line-panel);

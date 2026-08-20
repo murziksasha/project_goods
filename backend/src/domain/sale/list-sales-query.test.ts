@@ -83,4 +83,19 @@ describe('list-sales-query', () => {
       ]),
     );
   });
+
+  it('parses pagination and multi-status filters', () => {
+    const options = parseListSalesQuery({
+      page: '2',
+      pageSize: '999',
+      statuses: 'new,paid',
+      masterId: '507f1f77bcf86cd799439011',
+      repairType: 'warranty',
+    });
+    expect(options.page).toBe(2);
+    expect(options.pageSize).toBe(500);
+    expect(options.statuses).toEqual(['new', 'paid']);
+    expect(options.masterId).toBe('507f1f77bcf86cd799439011');
+    expect(options.repairType).toBe('warranty');
+  });
 });

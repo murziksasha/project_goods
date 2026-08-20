@@ -55,6 +55,9 @@ import { OrdersWorkspaceListHeader } from './OrdersWorkspaceListHeader';
 import { OrdersWorkspaceModals } from './OrdersWorkspaceModals';
 import { OrdersWorkspaceTableSection } from './OrdersWorkspaceTableSection';
 import { TruncatedTextTooltip } from '../../../../../shared/ui/TruncatedTextTooltip';
+import { useSaleDetail } from '../../../../../entities/sale/api/useSaleDetail';
+import { useSalesPageQuery } from '../../../../../entities/sale/api/saleApi';
+import { buildOrdersSalesListParams } from './orders-sales-query';
 
 import { OrderDetailCard } from '../order-detail/OrderDetailCard';
 import { OrderDetailCardSkeleton } from '../order-detail/OrderDetailCardSkeleton';
@@ -332,14 +335,36 @@ export const OrdersWorkspace = ({
   );
   const visibleColumnKeys = visibleColumns[activeTab];
   const tableMinWidth = Math.max(720, visibleColumnKeys.length * 104);
+  const currentPage = pageByTab[activeTab];
+  const currentPageSize = pageSizeByTab[activeTab];
+  const usesServerList =
+    activeTab === 'orders' || activeTab === 'sales' || activeTab === 'kanban';
+  const salesListParams = useMemo(
+    () =>
+      buildOrdersSalesListParams({
+        tab: activeTab,
+        filters: appliedFilters,
+        searchValue,
+        page: currentPage,
+        pageSize: currentPageSize,
+      }),
+    [activeTab, appliedFilters, currentPage, currentPageSize, searchValue],
+  );
+  const salesPageQuery = useSalesPageQuery(usesServerList, salesListParams, {
+    poll: true,
+  });
+  const listSource =
+    usesServerList && salesPageQuery.isSuccess && salesPageQuery.data
+      ? salesPageQuery.data.items
+      : sales;
   const tabSales = useMemo(
     () =>
-      sales.filter((sale) =>
+      listSource.filter((sale) =>
         isRepairOrdersTab(activeTab)
           ? isRepairOrder(sale)
           : !isRepairOrder(sale),
       ),
-    [activeTab, sales],
+    [activeTab, listSource],
   );
   const clientStatsMap = useMemo(() => getClientStatsMap(sales), [sales]);
   const statusOptionsForActiveTab = useMemo(
@@ -615,17 +640,27 @@ export const OrdersWorkspace = ({
     }
   };
 
-  const currentPage = pageByTab[activeTab];
-  const currentPageSize = pageSizeByTab[activeTab];
   const paginatedOrders = useMemo(() => {
+    if (usesServerList && salesPageQuery.isSuccess && activeTab !== 'kanban') {
+      return filteredOrders;
+    }
     const start = (currentPage - 1) * currentPageSize;
     return filteredOrders.slice(start, start + currentPageSize);
-  }, [currentPage, currentPageSize, filteredOrders]);
+  }, [
+    activeTab,
+    currentPage,
+    currentPageSize,
+    filteredOrders,
+    salesPageQuery.isSuccess,
+    usesServerList,
+  ]);
+  const visibleOrdersCount =
+    activeTab === 'kanban'
+      ? filteredOrders.length
+      : (salesPageQuery.data?.total ?? filteredOrders.length);
 
-  const selectedSale = useMemo(
-    () => sales.find((sale) => sale.id === selectedSaleId) ?? null,
-    [sales, selectedSaleId],
-  );
+  const saleDetailQuery = useSaleDetail(selectedSaleId);
+  const selectedSale = saleDetailQuery.data ?? null;
   const shouldLoadSupplierOrders =
     canViewSupplierOrders && Boolean(selectedSale);
   const supplierOrdersQuery = useSupplierOrdersQuery(shouldLoadSupplierOrders);
@@ -680,7 +715,7 @@ export const OrdersWorkspace = ({
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(filteredOrders.length / currentPageSize),
+      Math.ceil(visibleOrdersCount / currentPageSize),
     );
 
     if (currentPage > pageCount) {
@@ -693,7 +728,7 @@ export const OrdersWorkspace = ({
     activeTab,
     currentPage,
     currentPageSize,
-    filteredOrders.length,
+    visibleOrdersCount,
   ]);
 
   const toggleStatusFilter = (status: OrderStatus) => {
@@ -2609,7 +2644,13 @@ export const OrdersWorkspace = ({
     <section className='orders-page'>
       {selectedSaleId && !selectedSale ? (
         <div ref={orderDetailAnchorRef}>
-          <OrderDetailCardSkeleton />
+          {saleDetailQuery.isError ? (
+            <p className="inline-error" role="alert">
+              {t('errors.failedLoadSales')}
+            </p>
+          ) : (
+            <OrderDetailCardSkeleton />
+          )}
         </div>
       ) : null}
       {selectedSale ? (
@@ -2718,7 +2759,7 @@ export const OrdersWorkspace = ({
         searchValue={searchValue}
         createOrderHref={createOrderHref}
         canCreateOrders={canCreateOrders}
-        filteredOrdersCount={filteredOrders.length}
+        filteredOrdersCount={visibleOrdersCount}
         currentPage={currentPage}
         currentPageSize={currentPageSize}
         activeFiltersCount={activeFiltersCount}
@@ -2743,6 +2784,13 @@ export const OrdersWorkspace = ({
         }
         onToggleColumnVisibility={toggleColumnVisibility}
         onToggleFavoritesOnly={toggleFavoritesOnly}
+        onOpenSingleMatch={
+          searchValue.trim() &&
+          visibleOrdersCount === 1 &&
+          filteredOrders[0]
+            ? () => openSaleCard(filteredOrders[0])
+            : undefined
+        }
       />
 
       <OrdersWorkspaceFilterPanel
@@ -2809,7 +2857,10 @@ export const OrdersWorkspace = ({
       ) : (
         <OrdersWorkspaceTableSection
           activeTab={activeTab}
-          isLoading={isLoading}
+          isLoading={
+            isLoading ||
+            (usesServerList && salesPageQuery.isLoading && !salesPageQuery.data)
+          }
           filteredOrders={filteredOrders}
           paginatedOrders={paginatedOrders}
           visibleColumnKeys={visibleColumnKeys}

@@ -2,11 +2,15 @@
 
 ## Current State (implemented)
 
-- Frontend state is centralized in `useDashboardPage` with React `useState`.
-- Initial loading is done in `use-dashboard-effects.ts`.
-- Mutations are orchestrated in `dashboard-actions.ts`.
-- After critical mutations we perform server refresh (`safeRefresh`) for affected entities.
+- Server collections live in TanStack Query (`products`, `sales` compact lists, `clients`, catalog, services, employees, suppliers, settings).
+- `useDashboardPage` still owns forms, filters, and mutation orchestration (`dashboard-actions.ts`).
+- Sales **list** uses `compact=1` (no `timeline` / `paymentHistory`). Order/sale cards load the full document via `GET /sales/:id` (`useSaleDetail`).
+- Orders/Sales tables request `GET /sales?page&pageSize` (`{ items, total, page, pageSize }`). Kanban loads visible statuses with `pageSize=500`. Command palette still uses a capped compact dump (`limit=500`).
+- Queries are page-scoped where safe (warehouse/catalog/clients). Sales stay loaded for command palette.
+- Polling is visibility-aware (15s on the active orders/stock/clients surface, including the Kanban orders tab; paused when the tab is hidden).
+- `GET /api/events/stream` (SSE) invalidates matching query keys after mutations so other LAN users refresh without a full reload.
 - UI shows `Last sync` time in topbar.
+- Optimistic concurrency: `409` reloads latest data and asks the user to retry.
 
 ## Goal
 
@@ -30,8 +34,8 @@ Support stable concurrent work for 3-5 users with minimal conflicts and stale da
 - Configure focus/reconnect refetch and reasonable `staleTime`.
 
 4. Phase 4: Near real-time updates
-- Start with polling (10-30s) for sales/stock.
-- Optionally switch to WebSocket/SSE events (`sale.updated`, `stock.changed`, `client.updated`).
+- Visibility-aware polling on the active workspace.
+- SSE `GET /api/events/stream` (`resource.changed`) → `invalidateQueries`.
 
 5. Phase 5: Backend transaction hardening
 - Wrap stock/payment critical paths in Mongo transactions.

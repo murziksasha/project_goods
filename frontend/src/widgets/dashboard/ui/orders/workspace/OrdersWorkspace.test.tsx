@@ -17,6 +17,8 @@ const {
   refundSalePaymentMock,
   updateSaleFavoriteMock,
   updateSaleWorkspaceMock,
+  getSaleByIdMock,
+  getSalesPageMock,
   createFinanceTransactionMock,
   getCashboxesMock,
 } = vi.hoisted(() => ({
@@ -37,6 +39,8 @@ const {
   refundSalePaymentMock: vi.fn(),
   updateSaleFavoriteMock: vi.fn(),
   updateSaleWorkspaceMock: vi.fn(),
+  getSaleByIdMock: vi.fn(),
+  getSalesPageMock: vi.fn(),
   createFinanceTransactionMock: vi.fn(),
   getCashboxesMock: vi.fn(
     async (_options?: { includeArchived?: boolean }): Promise<Cashbox[]> => [],
@@ -53,6 +57,35 @@ vi.mock('../../../../../entities/sale/api/saleApi', async (importOriginal) => {
     refundSalePayment: refundSalePaymentMock,
     updateSaleFavorite: updateSaleFavoriteMock,
     updateSaleWorkspace: updateSaleWorkspaceMock,
+    getSaleById: getSaleByIdMock,
+    getSalesPage: getSalesPageMock,
+    useSalesPageQuery: (
+      _enabled: boolean,
+      params: {
+        kind?: 'sale' | 'repair';
+        page?: number;
+        pageSize?: number;
+      } = {},
+    ) => {
+      const rows = testSales.filter(
+        (item) => !params.kind || item.kind === params.kind,
+      );
+      const page = params.page ?? 1;
+      const pageSize = params.pageSize ?? 30;
+      const start = (page - 1) * pageSize;
+      return {
+        data: {
+          items: rows.slice(start, start + pageSize),
+          total: rows.length,
+          page,
+          pageSize,
+        },
+        isSuccess: true,
+        isLoading: false,
+        isFetching: false,
+        error: null,
+      };
+    },
   };
 });
 vi.mock('../../../../../entities/finance/api/financeApi', async (importOriginal) => {
@@ -92,6 +125,8 @@ const restoreApiMocks = () => {
   vi.spyOn(saleApi, 'refundSalePayment').mockImplementation(refundSalePaymentMock);
   vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation(updateSaleFavoriteMock);
   vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation(updateSaleWorkspaceMock);
+  vi.spyOn(saleApi, 'getSaleById').mockImplementation(getSaleByIdMock);
+  vi.spyOn(saleApi, 'getSalesPage').mockImplementation(getSalesPageMock);
   vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation(createFinanceTransactionMock);
   vi.spyOn(financeApi, 'getCashboxes').mockImplementation(getCashboxesMock);
 };
@@ -102,6 +137,8 @@ beforeEach(() => {
   refundSalePaymentMock.mockReset();
   updateSaleFavoriteMock.mockReset();
   updateSaleWorkspaceMock.mockReset();
+  getSaleByIdMock.mockReset();
+  getSalesPageMock.mockReset();
   createFinanceTransactionMock.mockReset();
   useSupplierOrdersQueryMock.mockReset();
   getCashboxesMock.mockReset();
@@ -194,6 +231,8 @@ const printForm: PrintForm = {
   sortOrder: 10,
 };
 
+const testSales: Sale[] = [];
+
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -204,6 +243,28 @@ const createTestQueryClient = () =>
 const renderWorkspace = (
   props: Partial<ComponentProps<typeof OrdersWorkspace>> = {},
 ) => {
+  testSales.length = 0;
+  (props.sales ?? []).forEach((sale) => testSales.push(sale));
+  getSaleByIdMock.mockImplementation(async (saleId: string) => {
+    const sale = testSales.find((item) => item.id === saleId);
+    if (!sale) {
+      throw new Error(`Sale ${saleId} not found`);
+    }
+    return sale;
+  });
+  getSalesPageMock.mockImplementation(async (params = {}) => {
+    const kind = params.kind;
+    const rows = testSales.filter((item) => !kind || item.kind === kind);
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 30;
+    const start = (page - 1) * pageSize;
+    return {
+      items: rows.slice(start, start + pageSize),
+      total: rows.length,
+      page,
+      pageSize,
+    };
+  });
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
@@ -518,6 +579,8 @@ describe('OrdersWorkspace', () => {
     });
 
     const queryClient = createTestQueryClient();
+    testSales.length = 0;
+    testSales.push(updatedSale);
     rerender(
       <QueryClientProvider client={queryClient}>
         <OrdersWorkspace
@@ -1222,6 +1285,38 @@ describe('OrdersWorkspace', () => {
     expect(screen.getByText('#R000201')).toBeInTheDocument();
     expect(screen.queryByText('#R000202')).not.toBeInTheDocument();
     expect(screen.queryByText('#R000203')).not.toBeInTheDocument();
+  });
+
+  it('opens the matching order from the kanban Orders: 1 count', async () => {
+    const onSelectedSaleIdChange = vi.fn();
+
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      searchValue: 'Alpha',
+      onSelectedSaleIdChange,
+      sales: [
+        {
+          ...sale,
+          id: 'sale-match',
+          status: 'new',
+          recordNumber: 'R000201',
+          client: { ...sale.client, name: 'Alpha Client' },
+        },
+        {
+          ...sale,
+          id: 'sale-other',
+          status: 'diagnostics',
+          recordNumber: 'R000203',
+          client: { ...sale.client, name: 'Beta Client' },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Orders: 1' }));
+    await waitFor(() => {
+      expect(onSelectedSaleIdChange).toHaveBeenCalledWith('sale-match');
+    });
   });
 
   it('filters kanban by assigned master, not the creating manager', () => {

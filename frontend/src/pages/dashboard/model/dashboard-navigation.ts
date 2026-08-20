@@ -38,7 +38,7 @@ export const parseDashboardLocation = (
     search.startsWith('?') ? search.slice(1) : search,
   );
   const pageParam = params.get('page');
-  const page = pageKeys.includes(pageParam as PageKey)
+  const rawPage = pageKeys.includes(pageParam as PageKey)
     ? (pageParam as PageKey)
     : 'home';
 
@@ -47,7 +47,11 @@ export const parseDashboardLocation = (
     createOrderParam === 'repair' || createOrderParam === 'sale'
       ? createOrderParam
       : null;
-  const ordersTab = resolveOrdersTab(params, createOrder);
+  const isKanbanAlias = rawPage === 'kanban';
+  const page: PageKey = isKanbanAlias ? 'orders' : rawPage;
+  const ordersTab = isKanbanAlias
+    ? 'kanban'
+    : resolveOrdersTab(params, createOrder);
   const saleId = params.get('saleId')?.trim() || null;
   const accountingTabParam = params.get('accountingTab');
   const accountingTab =
@@ -72,8 +76,11 @@ export const buildDashboardHref = (
   baseHref: string = window.location.href,
 ): string => {
   const url = new URL(baseHref);
-  const page = location.page;
-  const ordersTab = location.ordersTab ?? 'orders';
+  const isKanbanAlias = location.page === 'kanban';
+  const page: PageKey = isKanbanAlias ? 'orders' : location.page;
+  const ordersTab = isKanbanAlias
+    ? 'kanban'
+    : (location.ordersTab ?? 'orders');
   const createOrder = location.createOrder ?? null;
   const saleId = location.saleId ?? null;
   const accountingTab = location.accountingTab ?? null;
@@ -102,11 +109,7 @@ export const buildDashboardHref = (
     url.searchParams.delete('createOrder');
   }
 
-  if (
-    (page === 'orders' || page === 'kanban') &&
-    saleId &&
-    !createOrder
-  ) {
+  if (page === 'orders' && saleId && !createOrder) {
     url.searchParams.set('saleId', saleId);
   } else {
     url.searchParams.delete('saleId');
