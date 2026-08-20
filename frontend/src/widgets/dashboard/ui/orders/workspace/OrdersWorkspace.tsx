@@ -44,6 +44,10 @@ import {
   useSupplierOrdersQuery,
 } from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
+import {
+  isKanbanVisibleSale,
+  saleMatchesKanbanMasterFilter,
+} from '../../kanban/repair-kanban';
 import { RepairKanbanBoard } from '../../kanban/RepairKanbanBoard';
 import { OrdersActiveFilterChips } from './OrdersActiveFilterChips';
 import { OrdersWorkspaceFilterPanel } from './OrdersWorkspaceFilterPanel';
@@ -171,10 +175,12 @@ export const OrdersWorkspace = ({
   isLoading,
   activeTab,
   visibleTabs,
+  permittedTabs,
   searchValue,
   currentEmployee,
   canCreateOrders,
   onActiveTabChange,
+  onToggleTabVisibility,
   onSearchChange,
   onCreateOrder,
   createOrderHref,
@@ -346,17 +352,26 @@ export const OrdersWorkspace = ({
     [statusOptionsForActiveTab],
   );
   const assigneeOptions = useMemo(() => {
+    if (activeTab === 'kanban') {
+      return employees
+        .filter(
+          (employee) =>
+            employee.isActive &&
+            (employee.role === 'master' ||
+              hasEmployeePermission(employee, 'repairs.execute')),
+        )
+        .map((employee) => ({ id: employee.id, label: employee.name }))
+        .sort((first, second) => first.label.localeCompare(second.label));
+    }
     const map = new Map<string, string>();
     tabSales.forEach((sale) => {
       if (sale.master) {
         map.set(
           sale.master.id,
-          activeTab === 'kanban'
-            ? sale.master.name
-            : t('orders.toolbar.assignee.master', { name: sale.master.name }),
+          t('orders.toolbar.assignee.master', { name: sale.master.name }),
         );
       }
-      if (activeTab !== 'kanban' && sale.manager) {
+      if (sale.manager) {
         map.set(
           sale.manager.id,
           t('orders.toolbar.assignee.manager', { name: sale.manager.name }),
@@ -368,7 +383,7 @@ export const OrdersWorkspace = ({
       .sort((first, second) =>
         first.label.localeCompare(second.label),
       );
-  }, [activeTab, tabSales, t]);
+  }, [activeTab, employees, tabSales, t]);
   const warehouseOptions = useMemo(() => {
     const values = new Set(
       tabSales.map((sale) => getWarehouseLabel(sale)),
@@ -416,6 +431,9 @@ export const OrdersWorkspace = ({
     const serviceValue = appliedFilters.service.trim().toLowerCase();
 
     return sortedTabSales.filter((sale) => {
+      if (activeTab === 'kanban' && !isKanbanVisibleSale(sale)) {
+        return false;
+      }
       const orderNumber = buildOrderNumber(sale);
       const status = normalizeOrderStatus(sale.status);
       const lineItems = sale.lineItems?.length
@@ -487,12 +505,15 @@ export const OrdersWorkspace = ({
       ) {
         return false;
       }
-      if (
-        appliedFilters.assigneeId &&
-        sale.master?.id !== appliedFilters.assigneeId &&
-        sale.manager?.id !== appliedFilters.assigneeId
-      ) {
-        return false;
+      if (appliedFilters.assigneeId) {
+        const matchesAssignee =
+          activeTab === 'kanban'
+            ? saleMatchesKanbanMasterFilter(sale, appliedFilters.assigneeId)
+            : sale.master?.id === appliedFilters.assigneeId ||
+              sale.manager?.id === appliedFilters.assigneeId;
+        if (!matchesAssignee) {
+          return false;
+        }
       }
       if (
         appliedFilters.warehouse &&
@@ -2693,6 +2714,7 @@ export const OrdersWorkspace = ({
       <OrdersWorkspaceListHeader
         activeTab={activeTab}
         visibleTabs={visibleTabs}
+        permittedTabs={permittedTabs}
         searchValue={searchValue}
         createOrderHref={createOrderHref}
         canCreateOrders={canCreateOrders}
@@ -2706,6 +2728,7 @@ export const OrdersWorkspace = ({
         visibleColumnKeys={visibleColumnKeys}
         columnsMenuRef={columnsMenuRef}
         onActiveTabChange={onActiveTabChange}
+        onToggleTabVisibility={onToggleTabVisibility}
         onSearchChange={onSearchChange}
         onCreateOrder={onCreateOrder}
         onPageChange={(page) =>
@@ -2754,6 +2777,11 @@ export const OrdersWorkspace = ({
       <OrdersActiveFilterChips
         filters={appliedFilters}
         assigneeLabelById={assigneeLabelById}
+        assigneeFieldLabel={
+          activeTab === 'kanban'
+            ? t('orders.filters.master')
+            : undefined
+        }
         onChangeFilters={applyFiltersPatch}
         onClearAll={resetFilters}
       />

@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import { employeeRoles, type EmployeeRole } from './constants';
+import {
+  employeeRoles,
+  ordersTabPreferenceKeys,
+  type EmployeeRole,
+  type OrdersTabPreferenceKey,
+} from './constants';
 import { Employee, type EmployeeDocument } from './model';
 import { Sale } from '../sale/model';
 import { WarehouseSettings } from '../warehouse-settings/model';
@@ -204,4 +209,50 @@ export const deleteEmployee = async (employeeId: string, actor?: EmployeeActor) 
   }
 
   return { id: employeeId };
+};
+
+export const normalizeHiddenOrdersTabs = (
+  value: unknown,
+): OrdersTabPreferenceKey[] => {
+  if (!Array.isArray(value)) {
+    throw new HttpError(400, 'hiddenOrdersTabs must be an array.');
+  }
+
+  const unique: OrdersTabPreferenceKey[] = [];
+  for (const item of value) {
+    if (
+      typeof item !== 'string' ||
+      !ordersTabPreferenceKeys.includes(item as OrdersTabPreferenceKey)
+    ) {
+      throw new HttpError(
+        400,
+        `Invalid orders tab. Allowed: ${ordersTabPreferenceKeys.join(', ')}.`,
+      );
+    }
+    if (!unique.includes(item as OrdersTabPreferenceKey)) {
+      unique.push(item as OrdersTabPreferenceKey);
+    }
+  }
+
+  return unique;
+};
+
+export const updateOwnUiPreferences = async (
+  employeeId: string,
+  payload: { hiddenOrdersTabs?: unknown } = {},
+) => {
+  isValidObjectIdOrThrow(employeeId, 'employeeId');
+  const hiddenOrdersTabs = normalizeHiddenOrdersTabs(payload.hiddenOrdersTabs);
+
+  const employee = await Employee.findByIdAndUpdate(
+    employeeId,
+    { $set: { 'uiPreferences.hiddenOrdersTabs': hiddenOrdersTabs } },
+    { returnDocument: 'after', runValidators: true },
+  ).lean<EmployeeDocument | null>();
+
+  if (!employee) {
+    throw new HttpError(404, 'Employee not found.');
+  }
+
+  return formatEmployee(employee);
 };

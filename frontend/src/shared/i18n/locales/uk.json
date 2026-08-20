@@ -672,6 +672,8 @@
       "searchOrders": "Пошук замовлень",
       "clearSearch": "Очистити пошук",
       "toggleColumns": "Керувати колонками таблиці",
+      "toggleTabs": "Вибрати видимі вкладки",
+      "lastVisibleTab": "Потрібно залишити хоча б одну вкладку",
       "orderCategories": "Категорії замовлень",
       "showAllOrders": "Показати всі замовлення",
       "showAllSales": "Показати всі продажі",

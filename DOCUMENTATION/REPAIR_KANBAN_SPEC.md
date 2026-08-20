@@ -8,6 +8,7 @@ Live Kanban board for **repair orders only** (`sale.kind = repair`). There is no
 - Orders workspace tab: `OrdersTab = kanban` (`?page=orders&ordersTab=kanban`).
 - Both entry points render the same board UI inside `OrdersWorkspace`.
 - Access mirrors repair orders visibility (`orders.view` / `orders.manage` / `repairs.execute` / related repair-capable permissions).
+- The workspace tab strip can hide Kanban per employee (`uiPreferences.hiddenOrdersTabs`). Sidebar / command palette `page=kanban` stays permission-based.
 
 ## Data sync
 
@@ -35,15 +36,15 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 
 ## Toolbar (Kanban only)
 
-- Count label `Orders: N` / `Замовлень: N` (no pagination arrows).
+- Count label `Orders: N` / `Замовлень: N` (no pagination arrows). `N` is the number of cards currently shown on the board: search + toolbar filters, summed across visible columns. Hidden statuses (`issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`) are excluded.
 - Search + favorites star.
-- Simplified Filter panel fields: **Master**, **Date from/to** (+ inline **Save filter** after Date to).
+- Simplified Filter panel fields: **Master**, **Date from/to** (+ inline **Save filter** after Date to). Master options and matching use the assigned repair master (`sale.master`) only — never the order creator (`sale.manager`).
 - **Saved filters** reuse the same per-employee Orders saved-filter API (`scope=orders`, `tab=kanban`): list / save drawer / delete.
 - No table columns gear.
 
 ## Interactions
 
-- **Drag & drop** between visible columns (no transition matrix; no confirm dialog).
+- **Drag & drop** between visible columns (no transition matrix; no confirm dialog). Cards are column drop targets, not a sortable list: overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder, and the card lands in the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
 - **Click** card (outside master control) opens the existing Order Detail panel/modal while staying on the Kanban page/tab.
 - **Master select** on the card uses the same employee options as Order Detail (`master` role or `repairs.execute`); change persists via the same main-info workspace save and stays in sync with the open order card.
 
@@ -71,3 +72,6 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - 2026-08-20: Re-enabled per-user saved filters on Kanban (`tab=kanban`).
 - 2026-08-20: Dropped Repair type from Kanban filter; moved Save filter after Date to.
 - 2026-08-20: Inline master select on Kanban cards (synced with order detail).
+- 2026-08-20: Fixed Kanban drag animation (column droppables + overlay; no sortable shuffle / fly-back).
+- 2026-08-20: Toolbar `Orders: N` counts currently visible board cards (filters + visible columns), not all repair orders.
+- 2026-08-20: Kanban Master filter lists master-capable employees and matches `sale.master` only.

@@ -672,6 +672,8 @@
       "searchOrders": "Search orders",
       "clearSearch": "Clear search text",
       "toggleColumns": "Toggle table columns",
+      "toggleTabs": "Choose visible tabs",
+      "lastVisibleTab": "Keep at least one tab visible",
       "orderCategories": "Order categories",
       "showAllOrders": "Show all orders",
       "showAllSales": "Show all sales",

@@ -7,14 +7,15 @@ import {
   getOrdersSearchPlaceholder,
   isPlainLeftClick,
   lockedColumnsByTab,
-  orderTabs,
   type OrdersColumnKey,
   type OrdersTab,
 } from './orders-workspace-shared';
+import { OrdersWorkspaceTabList } from './OrdersWorkspaceTabList';
 
 type OrdersWorkspaceListHeaderProps = {
   activeTab: OrdersTab;
   visibleTabs: OrdersTab[];
+  permittedTabs?: OrdersTab[];
   searchValue: string;
   createOrderHref: string;
   canCreateOrders: boolean;
@@ -28,6 +29,7 @@ type OrdersWorkspaceListHeaderProps = {
   visibleColumnKeys: OrdersColumnKey[];
   columnsMenuRef: RefObject<HTMLDivElement | null>;
   onActiveTabChange: (tab: OrdersTab) => void;
+  onToggleTabVisibility?: (tab: OrdersTab) => void;
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
   onPageChange: (page: number) => void;
@@ -40,6 +42,7 @@ type OrdersWorkspaceListHeaderProps = {
 export const OrdersWorkspaceListHeader = ({
   activeTab,
   visibleTabs,
+  permittedTabs,
   searchValue,
   createOrderHref,
   canCreateOrders,
@@ -53,6 +56,7 @@ export const OrdersWorkspaceListHeader = ({
   visibleColumnKeys,
   columnsMenuRef,
   onActiveTabChange,
+  onToggleTabVisibility,
   onSearchChange,
   onCreateOrder,
   onPageChange,
@@ -65,28 +69,13 @@ export const OrdersWorkspaceListHeader = ({
 
   return (
     <>
-      <div
-        className="orders-tabs"
-        role="tablist"
-        aria-label={t('orders.toolbar.orderCategories')}
-      >
-        {orderTabs
-          .filter((tab) => visibleTabs.includes(tab.key))
-          .map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={
-                tab.key === activeTab
-                  ? 'orders-tab orders-tab-active'
-                  : 'orders-tab'
-              }
-              onClick={() => onActiveTabChange(tab.key)}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-      </div>
+      <OrdersWorkspaceTabList
+        activeTab={activeTab}
+        visibleTabs={visibleTabs}
+        permittedTabs={permittedTabs}
+        onActiveTabChange={onActiveTabChange}
+        onToggleTabVisibility={onToggleTabVisibility}
+      />
 
       <div className="orders-toolbar">
         <div className="orders-toolbar-left">

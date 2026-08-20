@@ -1,5 +1,7 @@
 import {
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -8,19 +10,14 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  closestCorners,
+  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
 import type { Employee } from '../../../../entities/employee/model/types';
@@ -34,6 +31,14 @@ import {
   type OrderStatus,
   type RepairStatus,
 } from '../orders/workspace/orders-workspace-shared';
+import {
+  columnDropId,
+  groupRepairSalesByKanbanStatus,
+  kanbanCollisionDetection,
+  resolveKanbanDropStatus,
+  shouldKeepKanbanPendingMove,
+  type KanbanPendingMove,
+} from './repair-kanban';
 
 type RepairKanbanBoardProps = {
   sales: Sale[];
@@ -43,13 +48,6 @@ type RepairKanbanBoardProps = {
   onStatusChange: (sale: Sale, status: OrderStatus) => void | Promise<void>;
   onMasterChange: (sale: Sale, masterId: string) => void | Promise<void>;
   onOpenSale: (sale: Sale) => void;
-};
-
-const columnDropId = (status: RepairStatus) => `column:${status}`;
-
-const parseColumnDropId = (id: string): RepairStatus | null => {
-  if (!id.startsWith('column:')) return null;
-  return id.slice('column:'.length) as RepairStatus;
 };
 
 const stopCardInteraction = (
@@ -135,39 +133,35 @@ const KanbanCard = ({
   );
 };
 
-const SortableKanbanCard = ({
+const DraggableKanbanCard = ({
   sale,
+  canUpdateStatus,
   masterOptions,
   canUpdateMaster,
   onOpen,
   onMasterChange,
 }: {
   sale: Sale;
+  canUpdateStatus: boolean;
   masterOptions: Employee[];
   canUpdateMaster: boolean;
   onOpen: (sale: Sale) => void;
   onMasterChange: (sale: Sale, masterId: string) => void | Promise<void>;
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: sale.id, data: { sale } });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: sale.id,
+    data: { sale },
+    disabled: !canUpdateStatus,
+  });
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="repair-kanban-card-shell"
+      className={
+        isDragging
+          ? 'repair-kanban-card-shell repair-kanban-card-shell-dragging'
+          : 'repair-kanban-card-shell'
+      }
       {...attributes}
       {...listeners}
     >
@@ -188,6 +182,9 @@ const SortableKanbanCard = ({
 const KanbanColumn = ({
   status,
   sales,
+  showPlaceholder,
+  isOver,
+  canUpdateStatus,
   masterOptions,
   canUpdateMaster,
   onOpenSale,
@@ -195,19 +192,23 @@ const KanbanColumn = ({
 }: {
   status: RepairStatus;
   sales: Sale[];
+  showPlaceholder: boolean;
+  isOver: boolean;
+  canUpdateStatus: boolean;
   masterOptions: Employee[];
   canUpdateMaster: boolean;
   onOpenSale: (sale: Sale) => void;
   onMasterChange: (sale: Sale, masterId: string) => void | Promise<void>;
 }) => {
   const { t } = useTranslation();
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: columnDropId(status),
     data: { status },
   });
 
   return (
     <section
+      ref={setNodeRef}
       className={
         isOver
           ? 'repair-kanban-column repair-kanban-column-over'
@@ -221,23 +222,22 @@ const KanbanColumn = ({
         </h3>
         <span className="repair-kanban-column-count">{sales.length}</span>
       </header>
-      <div ref={setNodeRef} className="repair-kanban-column-body">
-        <SortableContext
-          items={sales.map((sale) => sale.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {sales.map((sale) => (
-            <SortableKanbanCard
-              key={sale.id}
-              sale={sale}
-              masterOptions={masterOptions}
-              canUpdateMaster={canUpdateMaster}
-              onOpen={onOpenSale}
-              onMasterChange={onMasterChange}
-            />
-          ))}
-        </SortableContext>
-        {sales.length === 0 ? (
+      <div className="repair-kanban-column-body">
+        {showPlaceholder ? (
+          <div className="repair-kanban-drop-placeholder" />
+        ) : null}
+        {sales.map((sale) => (
+          <DraggableKanbanCard
+            key={sale.id}
+            sale={sale}
+            canUpdateStatus={canUpdateStatus}
+            masterOptions={masterOptions}
+            canUpdateMaster={canUpdateMaster}
+            onOpen={onOpenSale}
+            onMasterChange={onMasterChange}
+          />
+        ))}
+        {sales.length === 0 && !showPlaceholder ? (
           <p className="repair-kanban-column-empty">—</p>
         ) : null}
       </div>
@@ -255,6 +255,12 @@ export const RepairKanbanBoard = ({
   onOpenSale,
 }: RepairKanbanBoardProps) => {
   const [activeSale, setActiveSale] = useState<Sale | null>(null);
+  const [overStatus, setOverStatus] = useState<RepairStatus | null>(null);
+  const [pendingMove, setPendingMove] = useState<KanbanPendingMove | null>(
+    null,
+  );
+  const salesRef = useRef(sales);
+  const moveGeneration = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -273,22 +279,17 @@ export const RepairKanbanBoard = ({
     [employees],
   );
 
-  const columns = useMemo(() => {
-    const byStatus = new Map<RepairStatus, Sale[]>();
-    for (const status of kanbanVisibleRepairStatuses) {
-      byStatus.set(status, []);
-    }
-
-    for (const sale of sales) {
-      const status = normalizeOrderStatus(sale.status) as RepairStatus;
-      const bucket = byStatus.get(status);
-      if (bucket) {
-        bucket.push(sale);
-      }
-    }
-
-    return byStatus;
+  useEffect(() => {
+    salesRef.current = sales;
+    setPendingMove((current) =>
+      shouldKeepKanbanPendingMove(sales, current) ? current : null,
+    );
   }, [sales]);
+
+  const columns = useMemo(
+    () => groupRepairSalesByKanbanStatus(sales, pendingMove),
+    [pendingMove, sales],
+  );
 
   const saleById = useMemo(() => {
     const map = new Map<string, Sale>();
@@ -296,47 +297,108 @@ export const RepairKanbanBoard = ({
     return map;
   }, [sales]);
 
+  const activeSourceStatus = activeSale
+    ? pendingMove?.saleId === activeSale.id
+      ? pendingMove.status
+      : (normalizeOrderStatus(activeSale.status) as RepairStatus)
+    : null;
+
   const handleDragStart = (event: DragStartEvent) => {
     const sale = saleById.get(String(event.active.id));
     setActiveSale(sale ?? null);
+    if (sale) {
+      setOverStatus(
+        pendingMove?.saleId === sale.id
+          ? pendingMove.status
+          : (normalizeOrderStatus(sale.status) as RepairStatus),
+      );
+    }
   };
 
-  const resolveTargetStatus = (event: DragEndEvent): RepairStatus | null => {
-    const overId = event.over?.id ? String(event.over.id) : '';
-    if (!overId) return null;
+  const handleDragOver = (event: DragOverEvent) => {
+    const nextStatus = resolveKanbanDropStatus(
+      event.over?.id ? String(event.over.id) : null,
+      saleById,
+      pendingMove,
+    );
+    setOverStatus(nextStatus);
+  };
 
-    const direct = parseColumnDropId(overId);
-    if (direct) return direct;
-
-    const overSale = saleById.get(overId);
-    if (overSale) {
-      return normalizeOrderStatus(overSale.status) as RepairStatus;
+  const waitForSaleStatus = async (
+    saleId: string,
+    status: RepairStatus,
+    timeoutMs = 400,
+  ) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const current = salesRef.current.find((item) => item.id === saleId);
+      if (current && normalizeOrderStatus(current.status) === status) {
+        return true;
+      }
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 16);
+      });
     }
-
-    return null;
+    return false;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const sale = saleById.get(String(event.active.id));
+    const nextStatus = resolveKanbanDropStatus(
+      event.over?.id ? String(event.over.id) : null,
+      saleById,
+      pendingMove,
+    );
     setActiveSale(null);
-    if (!sale || !canUpdateStatus) return;
+    setOverStatus(null);
 
-    const nextStatus = resolveTargetStatus(event);
-    if (!nextStatus) return;
+    if (!sale || !canUpdateStatus || !nextStatus) return;
 
-    const current = normalizeOrderStatus(sale.status);
-    if (current === nextStatus) return;
+    const currentStatus =
+      pendingMove?.saleId === sale.id
+        ? pendingMove.status
+        : (normalizeOrderStatus(sale.status) as RepairStatus);
+    if (currentStatus === nextStatus) return;
 
-    void onStatusChange(sale, nextStatus);
+    const move: KanbanPendingMove = { saleId: sale.id, status: nextStatus };
+    setPendingMove(move);
+    moveGeneration.current += 1;
+    const generation = moveGeneration.current;
+
+    void (async () => {
+      try {
+        await onStatusChange(sale, nextStatus);
+        const matched = await waitForSaleStatus(sale.id, nextStatus);
+        if (generation !== moveGeneration.current) return;
+        if (!matched) {
+          setPendingMove((current) =>
+            current?.saleId === sale.id && current.status === nextStatus
+              ? null
+              : current,
+          );
+        }
+      } catch {
+        if (generation !== moveGeneration.current) return;
+        setPendingMove((current) =>
+          current?.saleId === sale.id ? null : current,
+        );
+      }
+    })();
+  };
+
+  const clearDragState = () => {
+    setActiveSale(null);
+    setOverStatus(null);
   };
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={kanbanCollisionDetection}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveSale(null)}
+      onDragCancel={clearDragState}
     >
       <div className="repair-kanban-board" data-testid="repair-kanban-board">
         {kanbanVisibleRepairStatuses.map((status) => (
@@ -344,6 +406,13 @@ export const RepairKanbanBoard = ({
             key={status}
             status={status}
             sales={columns.get(status) ?? []}
+            showPlaceholder={Boolean(
+              activeSale &&
+                overStatus === status &&
+                activeSourceStatus !== status,
+            )}
+            isOver={Boolean(activeSale && overStatus === status)}
+            canUpdateStatus={canUpdateStatus}
             masterOptions={masterOptions}
             canUpdateMaster={canUpdateMaster}
             onOpenSale={onOpenSale}
@@ -351,15 +420,17 @@ export const RepairKanbanBoard = ({
           />
         ))}
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeSale ? (
-          <KanbanCard
-            sale={activeSale}
-            isDragging
-            masterOptions={masterOptions}
-            canUpdateMaster={false}
-            onOpen={() => undefined}
-          />
+          <div className="repair-kanban-drag-overlay">
+            <KanbanCard
+              sale={activeSale}
+              isDragging
+              masterOptions={masterOptions}
+              canUpdateMaster={false}
+              onOpen={() => undefined}
+            />
+          </div>
         ) : null}
       </DragOverlay>
     </DndContext>

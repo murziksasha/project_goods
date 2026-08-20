@@ -33,7 +33,7 @@ type OrdersWorkspaceFilterPanelProps = {
   newFilterName: string;
   newFilterIcon: string;
   statusFilterRef: RefObject<HTMLDivElement | null>;
-  /** Kanban: assignee + dates + repair type only. */
+  /** Kanban: master + dates only. */
   variant?: 'full' | 'kanban';
   setDraftFilters: Dispatch<SetStateAction<OrdersFilters>>;
   setIsStatusFilterOpen: Dispatch<SetStateAction<boolean>>;

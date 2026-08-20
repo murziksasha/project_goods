@@ -37,10 +37,12 @@ export type OrdersWorkspaceProps = {
   isLoading: boolean;
   activeTab: OrdersTab;
   visibleTabs: OrdersTab[];
+  permittedTabs?: OrdersTab[];
   searchValue: string;
   currentEmployee: Employee | null;
   canCreateOrders: boolean;
   onActiveTabChange: (tab: OrdersTab) => void;
+  onToggleTabVisibility?: (tab: OrdersTab) => void;
   onSearchChange: (value: string) => void;
   onCreateOrder: (tab: OrdersTab) => void;
   createOrderHref: string;

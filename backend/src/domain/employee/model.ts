@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
-import { employeePermissions, employeeRoles } from './constants';
+import {
+  employeePermissions,
+  employeeRoles,
+  ordersTabPreferenceKeys,
+} from './constants';
 
 export const employeeSchema = new mongoose.Schema(
   {
@@ -100,6 +104,19 @@ export const employeeSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Employee note must contain no more than 500 characters'],
       default: '',
+    },
+    uiPreferences: {
+      type: new mongoose.Schema(
+        {
+          hiddenOrdersTabs: {
+            type: [String],
+            enum: [...ordersTabPreferenceKeys],
+            default: [],
+          },
+        },
+        { _id: false },
+      ),
+      default: () => ({ hiddenOrdersTabs: [] }),
     },
     searchText: {
       type: String,

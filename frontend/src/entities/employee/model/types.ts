@@ -79,6 +79,20 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
   support: ['orders.view'],
 };
 
+export const ordersTabPreferenceOptions = [
+  'orders',
+  'kanban',
+  'sales',
+  'supplierOrders',
+  'supplierInformation',
+] as const;
+
+export type OrdersTabPreference = (typeof ordersTabPreferenceOptions)[number];
+
+export type EmployeeUiPreferences = {
+  hiddenOrdersTabs: OrdersTabPreference[];
+};
+
 export type Employee = {
   id: string;
   name: string;
@@ -90,6 +104,7 @@ export type Employee = {
   isActive: boolean;
   isRegistered: boolean;
   note: string;
+  uiPreferences?: EmployeeUiPreferences;
   createdAt: string;
   updatedAt: string;
 };
