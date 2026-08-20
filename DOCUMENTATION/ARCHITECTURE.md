@@ -29,6 +29,10 @@ Mongoose models
 MongoDB
 ```
 
+## Repair Kanban
+
+Канбан ремонтів (`page=kanban` та вкладка `ordersTab=kanban`) синхронізований із repair sales; статуси = стовпці. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+
 ## Архитектура frontend
 
 Frontend использует слоистую структуру, близкую к feature-sliced подходу:
@@ -72,6 +76,8 @@ Frontend использует слоистую структуру, близку�
 На вкладке заказов номер заказа и серийный номер устройства — точки входа в карточку заказа. Карточка показывает основную информацию, live feed (`timeline`), услуги, оплату и заметки. **Статус ремонта/продажи**, **timeline**, **paidAmount** и **paymentHistory** хранятся в MongoDB на документе `Sale` (не в localStorage). Optimistic concurrency: `expectedUpdatedAt` → 409 при конфликте.
 
 Прием оплаты через finance API (`deposit`/`refund`) пишет в кассу и обновляет `paidAmount` / `paymentHistory` заказа. localStorage на orders UI используется только для UI-preferences (фильтры, колонки, свёрнутые секции), не для бизнес-статусов.
+
+Видимі вкладки orders workspace (`Orders` / `Kanban` / `Sales` / `Supplier Order` / `Information`) зберігаються на документі співробітника в MongoDB (`uiPreferences.hiddenOrdersTabs`) через `PATCH /api/auth/me/preferences` і не залежать від пристрою. Чекбокси в шестерні рядка вкладок показують лише вкладки, на які є права. Сайдбар / command palette Kanban від цього списку не залежить.
 
 Печатные формы заказа выбираются из dropdown в модальном окне оплаты. Их шаблоны редактируются в разделе `Settings`, который расположен внизу основного меню. Содержимое шаблонов (блоки, заголовки, встроенные формы) хранится в MongoDB через `PUT /api/settings`. Персональная настройка layout (отступы, размер страницы/этикетки, ориентация) сохраняется по кнопке **Save settings** в `localStorage` per employee (`project-goods.print-form-overrides.{employeeId}`) и не пишется при каждом изменении поля. Подробнее: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#content-margins-and-per-user-layout-storage).
 

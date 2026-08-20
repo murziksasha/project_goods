@@ -5,7 +5,11 @@ import type { SaleDocument } from '../../domain/sale/model';
 import type { SupplierDocument } from '../../domain/supplier/model';
 import type { ClientDeviceDocument } from '../../domain/client-device/model';
 import type { CatalogProductDocument } from '../../domain/catalog-product/model';
-import { getEffectiveEmployeePermissions } from '../../domain/employee/constants';
+import {
+  getEffectiveEmployeePermissions,
+  ordersTabPreferenceKeys,
+  type OrdersTabPreferenceKey,
+} from '../../domain/employee/constants';
 import { getSaleDocumentTotal } from './saleTotals';
 
 export const formatProduct = (product: ProductDocument) => {
@@ -97,6 +101,17 @@ export const formatClientDevice = (device: ClientDeviceDocument, usageCount = 0)
   updatedAt: device.updatedAt.toISOString(),
 });
 
+const formatHiddenOrdersTabs = (employee: EmployeeDocument) => {
+  const hidden = employee.uiPreferences?.hiddenOrdersTabs;
+  if (!Array.isArray(hidden)) {
+    return [] as OrdersTabPreferenceKey[];
+  }
+
+  return hidden.filter((tab): tab is OrdersTabPreferenceKey =>
+    ordersTabPreferenceKeys.includes(tab as OrdersTabPreferenceKey),
+  );
+};
+
 export const formatEmployee = (employee: EmployeeDocument) => ({
   id: employee._id.toString(),
   name: employee.name,
@@ -108,6 +123,9 @@ export const formatEmployee = (employee: EmployeeDocument) => ({
   isActive: employee.isActive,
   isRegistered: Boolean(employee.username),
   note: employee.note,
+  uiPreferences: {
+    hiddenOrdersTabs: formatHiddenOrdersTabs(employee),
+  },
   createdAt: employee.createdAt.toISOString(),
   updatedAt: employee.updatedAt.toISOString(),
 });

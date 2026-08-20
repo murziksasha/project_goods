@@ -13,6 +13,8 @@ describe('sale stock helpers', () => {
     expect(isStockCommittedSaleStatus('draft')).toBe(false);
     expect(isStockCommittedRepairStatus('issuedWithoutRepair')).toBe(true);
     expect(isStockCommittedRepairStatus('diagnostics')).toBe(false);
+    expect(isStockCommittedRepairStatus('notPickedUp')).toBe(false);
+    expect(isStockCommittedRepairStatus('ready')).toBe(false);
   });
 
   it('aggregates product line quantities and falls back when no line products exist', () => {

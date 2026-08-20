@@ -14,14 +14,18 @@ import {
   getInvitationDetails,
   login,
   logout,
+  updateCurrentEmployeePreferences,
   authTokenStorageKey,
 } from '../../../entities/auth/api/authApi';
-import type { Employee } from '../../../entities/employee/model/types';
+import type {
+  Employee,
+  OrdersTabPreference,
+} from '../../../entities/employee/model/types';
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
 } from '../../../entities/employee/model/permissions';
-import { setApiAuthToken } from '../../../shared/api/http';
+import { getApiErrorMessage, setApiAuthToken } from '../../../shared/api/http';
 import {
   isNetworkRequestError,
   isUnauthorizedRequestError,
@@ -57,6 +61,10 @@ import {
   parseDashboardLocationFromWindow,
   type DashboardLocation,
 } from '../model/dashboard-navigation';
+import {
+  canHideOrdersTab,
+  resolveDisplayedOrdersTabs,
+} from '../model/orders-tab-visibility';
 import {
   getCreateOrderForOrdersTab,
   getCreateOrderFromUrl,
@@ -119,6 +127,7 @@ const SupplierOrdersWorkspace = lazy(() =>
 const pageKeys: PageKey[] = [
   'home',
   'orders',
+  'kanban',
   'clients',
   'employees',
   'settings',
@@ -192,6 +201,7 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
 const sidebarItems: DashboardSidebarItem[] = [
   { key: 'home', labelKey: 'nav.home' },
   { key: 'orders', labelKey: 'nav.orders' },
+  { key: 'kanban', labelKey: 'nav.kanban' },
   { key: 'accounting', labelKey: 'nav.accounting' },
   { key: 'warehouse', labelKey: 'nav.warehouse' },
   { key: 'catalog', labelKey: 'nav.catalog' },
@@ -292,13 +302,23 @@ export const DashboardPage = () => {
     'supplierOrders.manage',
   );
   const canViewOrders = canViewRepairSalesOrders || canViewSupplierOrders;
-  const availableOrdersTabs = ordersTabs.filter((tab) =>
-    tab === 'supplierOrders' || tab === 'supplierInformation'
-      ? canViewSupplierOrders
-      : canViewRepairSalesOrders,
+  const availableOrdersTabs = ordersTabs.filter((tab) => {
+    if (tab === 'supplierOrders' || tab === 'supplierInformation') {
+      return canViewSupplierOrders;
+    }
+    if (tab === 'kanban') {
+      return canViewRepairSalesOrders;
+    }
+    return canViewRepairSalesOrders;
+  });
+  const hiddenOrdersTabs =
+    currentEmployee?.uiPreferences?.hiddenOrdersTabs ?? [];
+  const displayedOrdersTabs = resolveDisplayedOrdersTabs(
+    availableOrdersTabs,
+    hiddenOrdersTabs,
   );
-  const fallbackOrdersTab = availableOrdersTabs[0] ?? 'orders';
-  const effectiveOrdersTab = availableOrdersTabs.includes(activeOrdersTab)
+  const fallbackOrdersTab = displayedOrdersTabs[0] ?? 'orders';
+  const effectiveOrdersTab = displayedOrdersTabs.includes(activeOrdersTab)
     ? activeOrdersTab
     : fallbackOrdersTab;
   const canManageClients = hasEmployeePermission(currentEmployee, 'clients.manage');
@@ -315,6 +335,7 @@ export const DashboardPage = () => {
     if (page === 'other') return false;
     if (page === 'home') return true;
     if (page === 'orders') return canViewOrders;
+    if (page === 'kanban') return canViewRepairSalesOrders;
     if (page === 'clients') return canManageClients;
     if (page === 'warehouse' || page === 'catalog') return canManageInventory;
     if (page === 'employees') return canManageEmployees;
@@ -327,6 +348,7 @@ export const DashboardPage = () => {
     canManageEmployees,
     canManageInventory,
     canManageSettings,
+    canViewRepairSalesOrders,
     canViewAccounting,
     canViewOrders,
     t,
@@ -424,6 +446,66 @@ export const DashboardPage = () => {
       );
     },
     [actions, availableOrdersTabs, navigateTo, t],
+  );
+  const toggleOrdersTabVisibility = useCallback(
+    async (tab: OrdersTab) => {
+      if (!currentEmployee) {
+        return;
+      }
+
+      const currentHidden =
+        currentEmployee.uiPreferences?.hiddenOrdersTabs ?? [];
+      const isCurrentlyVisible = displayedOrdersTabs.includes(tab);
+      if (
+        isCurrentlyVisible &&
+        !canHideOrdersTab(availableOrdersTabs, currentHidden, tab)
+      ) {
+        return;
+      }
+
+      const nextHidden: OrdersTabPreference[] = isCurrentlyVisible
+        ? Array.from(new Set([...currentHidden, tab]))
+        : currentHidden.filter((item) => item !== tab);
+      const nextDisplayed = resolveDisplayedOrdersTabs(
+        availableOrdersTabs,
+        nextHidden,
+      );
+      const previousEmployee = currentEmployee;
+      const nextEmployee: Employee = {
+        ...currentEmployee,
+        uiPreferences: { hiddenOrdersTabs: nextHidden },
+      };
+
+      setCurrentEmployee(nextEmployee);
+      saveEmployeeSnapshot(nextEmployee);
+
+      const currentWorkspaceTab =
+        activePage === 'kanban' ? 'kanban' : effectiveOrdersTab;
+      if (isCurrentlyVisible && tab === currentWorkspaceTab) {
+        changeOrdersTab(nextDisplayed[0] ?? 'orders', { replace: true });
+      }
+
+      try {
+        const saved = await updateCurrentEmployeePreferences({
+          hiddenOrdersTabs: nextHidden,
+        });
+        setCurrentEmployee(saved);
+        saveEmployeeSnapshot(saved);
+      } catch (error) {
+        setCurrentEmployee(previousEmployee);
+        saveEmployeeSnapshot(previousEmployee);
+        actions.showError(getApiErrorMessage(error));
+      }
+    },
+    [
+      actions,
+      activePage,
+      availableOrdersTabs,
+      changeOrdersTab,
+      currentEmployee,
+      displayedOrdersTabs,
+      effectiveOrdersTab,
+    ],
   );
   const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
@@ -653,16 +735,16 @@ export const DashboardPage = () => {
   }, [activeOrdersTab, currentEmployee, isAuthLoading, navigateTo]);
 
   useEffect(() => {
-    if (!canViewOrders || availableOrdersTabs.includes(activeOrdersTab)) {
+    if (!canViewOrders || displayedOrdersTabs.includes(activeOrdersTab)) {
       return;
     }
 
     changeOrdersTab(fallbackOrdersTab, { replace: true });
   }, [
     activeOrdersTab,
-    availableOrdersTabs,
     canViewOrders,
     changeOrdersTab,
+    displayedOrdersTabs,
     fallbackOrdersTab,
   ]);
 
@@ -672,7 +754,7 @@ export const DashboardPage = () => {
       return;
     }
 
-    const ordersTab = availableOrdersTabs.includes(activeOrdersTab)
+    const ordersTab = displayedOrdersTabs.includes(activeOrdersTab)
       ? activeOrdersTab
       : fallbackOrdersTab;
 
@@ -757,6 +839,11 @@ export const DashboardPage = () => {
       openOrdersPage();
     }
 
+    if (item.key === 'kanban') {
+      setOrdersTabPreference('kanban');
+      openPage('kanban');
+    }
+
     if (item.key === 'employees') {
       openPage('employees');
     }
@@ -832,6 +919,16 @@ export const DashboardPage = () => {
 
   const handleSelectedSaleIdChange = useCallback(
     (saleId: string | null) => {
+      if (activePage === 'kanban') {
+        navigateTo({
+          page: 'kanban',
+          ordersTab: 'kanban',
+          createOrder: null,
+          saleId,
+          accountingTab: null,
+        });
+        return;
+      }
       navigateTo({
         page: 'orders',
         ordersTab: effectiveOrdersTab,
@@ -840,7 +937,7 @@ export const DashboardPage = () => {
         accountingTab: null,
       });
     },
-    [effectiveOrdersTab, navigateTo],
+    [activePage, effectiveOrdersTab, navigateTo],
   );
 
   const handleNavigateAccountingTab = useCallback(
@@ -1184,7 +1281,11 @@ export const DashboardPage = () => {
               allowedPages={pageKeys.filter((page) => canAccessPage(page))}
               onNavigate={openPage}
             />
-          ) : activePage === 'orders' && canViewOrders ? (
+          ) : (activePage === 'orders' || activePage === 'kanban') &&
+            (activePage === 'kanban'
+              ? canViewRepairSalesOrders
+              : canViewOrders) ? (
+            activePage === 'orders' &&
             isCreateOrderOpen &&
             effectiveOrdersTab !== 'supplierOrders' &&
             effectiveOrdersTab !== 'supplierInformation' ? (
@@ -1205,13 +1306,15 @@ export const DashboardPage = () => {
                   onError={actions.showError}
                   onOpenClientCard={openClientCardFromOrders}
               />
-            ) : (
-              effectiveOrdersTab === 'supplierOrders' ||
-              effectiveOrdersTab === 'supplierInformation' ? (
+            ) : activePage === 'orders' &&
+              (effectiveOrdersTab === 'supplierOrders' ||
+                effectiveOrdersTab === 'supplierInformation') ? (
                 <SupplierOrdersWorkspace
                   activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}
-                  visibleTabs={availableOrdersTabs}
+                  onToggleTabVisibility={toggleOrdersTabVisibility}
+                  visibleTabs={displayedOrdersTabs}
+                  permittedTabs={availableOrdersTabs}
                   suppliers={state.suppliers}
                   catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
@@ -1229,15 +1332,22 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
-                  activeTab={effectiveOrdersTab}
-                  visibleTabs={availableOrdersTabs}
+                  activeTab={
+                    activePage === 'kanban' ? 'kanban' : effectiveOrdersTab
+                  }
+                  visibleTabs={displayedOrdersTabs}
+                  permittedTabs={availableOrdersTabs}
                   searchValue={state.productSearchQuery}
                   onActiveTabChange={changeOrdersTab}
+                  onToggleTabVisibility={toggleOrdersTabVisibility}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
                   createOrderHref={getDashboardHref('orders', {
-                    ordersTab: effectiveOrdersTab,
-                    createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
+                    ordersTab:
+                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
+                    createOrder: getCreateOrderForOrdersTab(
+                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
+                    ),
                   })}
                   getCreateOrderHref={(tab) =>
                     getDashboardHref('orders', {
@@ -1278,7 +1388,6 @@ export const DashboardPage = () => {
                   onPendingPaymentSaleHandled={() => setPendingPaymentSale(null)}
                 />
               )
-            )
           ) : activePage === 'employees' && canManageEmployees ? (
             <EmployeesPanel
               employees={state.allEmployees}
@@ -1450,9 +1559,9 @@ export const DashboardPage = () => {
           items={[
             { key: 'home', labelKey: 'nav.home' },
             { key: 'orders', labelKey: 'nav.orders' },
+            { key: 'kanban', labelKey: 'nav.kanban' },
             { key: 'clients', labelKey: 'nav.clients' },
             { key: 'warehouse', labelKey: 'nav.warehouse' },
-            { key: 'accounting', labelKey: 'nav.accounting' },
           ]}
           activePage={activePage}
           canAccessPage={(page) => canAccessPage(page)}
@@ -1463,6 +1572,9 @@ export const DashboardPage = () => {
             if (page === 'orders') {
               openOrdersPage();
               return;
+            }
+            if (page === 'kanban') {
+              setOrdersTabPreference('kanban');
             }
             openPage(page);
           }}

@@ -35,6 +35,16 @@ export const employeePermissions = [
 
 export type EmployeePermission = (typeof employeePermissions)[number];
 
+export const ordersTabPreferenceKeys = [
+  'orders',
+  'kanban',
+  'sales',
+  'supplierOrders',
+  'supplierInformation',
+] as const;
+
+export type OrdersTabPreferenceKey = (typeof ordersTabPreferenceKeys)[number];
+
 export const defaultEmployeePermissionsByRole: Record<
   EmployeeRole,
   EmployeePermission[]

@@ -31,6 +31,7 @@ describe('filterCommandPaletteItems', () => {
         page: {
           home: 'Main',
           orders: 'Orders',
+          kanban: 'Kanban',
           accounting: 'Accounting',
           warehouse: 'Warehouse',
           catalog: 'Catalog',

@@ -39,7 +39,7 @@ describe('OrdersWorkspaceListHeader', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /sales/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /sales/i }));
     expect(onActiveTabChange).toHaveBeenCalledWith('sales');
   });
 
@@ -61,5 +61,19 @@ describe('OrdersWorkspaceListHeader', () => {
     );
 
     expect(onSearchChange).toHaveBeenCalledWith('iphone');
+  });
+
+  it('shows the visible kanban orders count without pagination', () => {
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        activeTab="kanban"
+        visibleTabs={['orders', 'kanban']}
+        filteredOrdersCount={18}
+      />,
+    );
+
+    expect(screen.getByLabelText('Orders: 18')).toBeInTheDocument();
+    expect(screen.getByText('Orders: 18')).toBeInTheDocument();
   });
 });

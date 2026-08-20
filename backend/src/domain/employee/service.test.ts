@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeEmployeePayload } from '../../shared/lib/parsers';
-import { ensureCanWriteEmployee } from './service';
+import {
+  ensureCanWriteEmployee,
+  normalizeHiddenOrdersTabs,
+} from './service';
 
 const createPayload = (permissions: string[]) =>
   normalizeEmployeePayload({
@@ -29,5 +32,25 @@ describe('employee service permissions', () => {
         createPayload(['orders.view', 'system.backups.manage']),
       ),
     ).not.toThrow();
+  });
+});
+
+describe('normalizeHiddenOrdersTabs', () => {
+  it('accepts a unique list of known tabs', () => {
+    expect(
+      normalizeHiddenOrdersTabs(['sales', 'kanban', 'sales']),
+    ).toEqual(['sales', 'kanban']);
+  });
+
+  it('rejects a non-array payload', () => {
+    expect(() => normalizeHiddenOrdersTabs({ sales: true })).toThrow(
+      'hiddenOrdersTabs must be an array.',
+    );
+  });
+
+  it('rejects unknown tab keys', () => {
+    expect(() => normalizeHiddenOrdersTabs(['sales', 'nope'])).toThrow(
+      'Invalid orders tab.',
+    );
   });
 });

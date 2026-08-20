@@ -62,7 +62,9 @@ import {
 type Props = {
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
+  onToggleTabVisibility?: (tab: OrdersTab) => void;
   visibleTabs: OrdersTab[];
+  permittedTabs?: OrdersTab[];
   suppliers: Supplier[];
   catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
@@ -84,7 +86,9 @@ type Props = {
 export const SupplierOrdersWorkspace = ({
   activeTab,
   onActiveTabChange,
+  onToggleTabVisibility,
   visibleTabs,
+  permittedTabs,
   suppliers,
   catalogProducts,
   currentEmployeeName,
@@ -599,8 +603,10 @@ export const SupplierOrdersWorkspace = ({
         favoritesOnly={favoritesOnly}
         visibleColumns={visibleColumns}
         visibleTabs={visibleTabs}
+        permittedTabs={permittedTabs}
         canManageSupplierOrders={canManageSupplierOrders}
         onActiveTabChange={onActiveTabChange}
+        onToggleTabVisibility={onToggleTabVisibility}
         onCreateOrder={() => {
           if (!canManageSupplierOrders) {
             onError(t('orders.supplier.messages.errors.noManagePermission'));

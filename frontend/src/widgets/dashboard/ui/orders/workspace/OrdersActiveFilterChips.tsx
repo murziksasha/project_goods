@@ -10,6 +10,7 @@ import { buildOrdersFilterChips } from './orders-filter-chips';
 type OrdersActiveFilterChipsProps = {
   filters: OrdersFilters;
   assigneeLabelById: Map<string, string>;
+  assigneeFieldLabel?: string;
   onChangeFilters: (next: OrdersFilters) => void;
   onClearAll: () => void;
 };
@@ -17,6 +18,7 @@ type OrdersActiveFilterChipsProps = {
 export const OrdersActiveFilterChips = ({
   filters,
   assigneeLabelById,
+  assigneeFieldLabel,
   onChangeFilters,
   onClearAll,
 }: OrdersActiveFilterChipsProps) => {
@@ -34,7 +36,7 @@ export const OrdersActiveFilterChips = ({
         assignee: (id) => assigneeLabelById.get(id) || id,
         orderNumber: t('orders.filters.orderNumber'),
         client: t('orders.filters.client'),
-        assigneeField: t('orders.filters.assignee'),
+        assigneeField: assigneeFieldLabel ?? t('orders.filters.assignee'),
         warehouse: t('orders.filters.warehouse'),
         repairType: t('orders.filters.repairType'),
         repairPaid: t('orders.filters.repairTypePaid'),
@@ -48,7 +50,7 @@ export const OrdersActiveFilterChips = ({
         service: t('orders.filters.service'),
         favorites: t('orders.filters.favoritesOnly'),
       }),
-    [assigneeLabelById, filters, t],
+    [assigneeFieldLabel, assigneeLabelById, filters, t],
   );
 
   if (chips.length === 0) {
