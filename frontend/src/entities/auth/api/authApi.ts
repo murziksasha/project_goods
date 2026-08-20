@@ -3,7 +3,10 @@ import {
   createApiRequestError,
   getApiErrorMessage,
 } from '../../../shared/api/http';
-import type { Employee } from '../../employee/model/types';
+import type {
+  Employee,
+  EmployeeUiPreferences,
+} from '../../employee/model/types';
 import type { AuthSession, InvitationDetails, LoginPayload } from '../model/types';
 
 export const authTokenStorageKey = 'project-goods.auth-token';
@@ -20,6 +23,20 @@ export const login = async (payload: LoginPayload) => {
 export const getCurrentEmployee = async () => {
   try {
     const response = await apiClient.get<Employee>('/auth/me');
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const updateCurrentEmployeePreferences = async (
+  payload: EmployeeUiPreferences,
+) => {
+  try {
+    const response = await apiClient.patch<Employee>(
+      '/auth/me/preferences',
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw createApiRequestError(error);

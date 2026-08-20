@@ -21,6 +21,7 @@ Project Goods - full-stack приложение для учета товаров
 ### Flow-документы
 - [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - analytics, market rates, weather widget
 - [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - repair orders и sales orders
+- [REPAIR_KANBAN_SPEC.md](./DOCUMENTATION/REPAIR_KANBAN_SPEC.md) - канбан ремонтів, статус `notPickedUp`
 - [SUPPLIER_ORDER_FLOW.md](./DOCUMENTATION/SUPPLIER_ORDER_FLOW.md) - заказы поставщику (вкладки Supplier Order / Information)
 - [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - продажи, Rapid sale
 - [WAREHOUSE_FLOW.md](./DOCUMENTATION/WAREHOUSE_FLOW.md) - склад, серийные этикетки

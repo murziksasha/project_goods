@@ -1146,4 +1146,166 @@ describe('OrdersWorkspace', () => {
       expect(onPendingPaymentSaleHandled).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('shows kanban orders count as currently visible board cards', () => {
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      sales: [
+        { ...sale, id: 'sale-new', status: 'new', recordNumber: 'R000101' },
+        {
+          ...sale,
+          id: 'sale-repair',
+          status: 'inRepair',
+          recordNumber: 'R000102',
+        },
+        {
+          ...sale,
+          id: 'sale-issued',
+          status: 'issued',
+          recordNumber: 'R000103',
+        },
+        {
+          ...sale,
+          id: 'sale-not-picked',
+          status: 'notPickedUp',
+          recordNumber: 'R000104',
+        },
+        {
+          ...sale,
+          id: 'sale-ready',
+          status: 'ready',
+          recordNumber: 'R000105',
+        },
+      ],
+    });
+
+    expect(screen.getByLabelText('Orders: 3')).toBeInTheDocument();
+    expect(screen.getByText('#R000101')).toBeInTheDocument();
+    expect(screen.getByText('#R000102')).toBeInTheDocument();
+    expect(screen.getByText('#R000105')).toBeInTheDocument();
+    expect(screen.queryByText('#R000103')).not.toBeInTheDocument();
+    expect(screen.queryByText('#R000104')).not.toBeInTheDocument();
+  });
+
+  it('updates kanban orders count when search filters visible cards', () => {
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      searchValue: 'Alpha',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-match',
+          status: 'new',
+          recordNumber: 'R000201',
+          client: { ...sale.client, name: 'Alpha Client' },
+        },
+        {
+          ...sale,
+          id: 'sale-hidden-match',
+          status: 'issued',
+          recordNumber: 'R000202',
+          client: { ...sale.client, name: 'Alpha Issued' },
+        },
+        {
+          ...sale,
+          id: 'sale-other',
+          status: 'diagnostics',
+          recordNumber: 'R000203',
+          client: { ...sale.client, name: 'Beta Client' },
+        },
+      ],
+    });
+
+    expect(screen.getByLabelText('Orders: 1')).toBeInTheDocument();
+    expect(screen.getByText('#R000201')).toBeInTheDocument();
+    expect(screen.queryByText('#R000202')).not.toBeInTheDocument();
+    expect(screen.queryByText('#R000203')).not.toBeInTheDocument();
+  });
+
+  it('filters kanban by assigned master, not the creating manager', () => {
+    const managerEmployee: Employee = {
+      ...employee,
+      id: 'olexandr-1',
+      name: 'Olexandr Gryhoriev',
+      role: 'manager',
+    };
+    const masterEmployee: Employee = {
+      ...employee,
+      id: 'kostia-1',
+      name: 'Kostiantyn',
+      role: 'master',
+      permissions: ['orders.view', 'repairs.execute'],
+    };
+
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      employees: [managerEmployee, masterEmployee],
+      sales: [
+        {
+          ...sale,
+          id: 'sale-created-only',
+          recordNumber: 'R000301',
+          status: 'new',
+          manager: {
+            id: managerEmployee.id,
+            name: managerEmployee.name,
+            role: 'manager',
+          },
+          master: null,
+        },
+        {
+          ...sale,
+          id: 'sale-assigned-master',
+          recordNumber: 'R000302',
+          status: 'diagnostics',
+          manager: {
+            id: managerEmployee.id,
+            name: managerEmployee.name,
+            role: 'manager',
+          },
+          master: {
+            id: masterEmployee.id,
+            name: masterEmployee.name,
+            role: 'master',
+          },
+        },
+        {
+          ...sale,
+          id: 'sale-other-master',
+          recordNumber: 'R000303',
+          status: 'clientApproved',
+          manager: {
+            id: managerEmployee.id,
+            name: managerEmployee.name,
+            role: 'manager',
+          },
+          master: {
+            id: 'other-master',
+            name: 'Other Master',
+            role: 'master',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    const masterSelect = document.querySelector(
+      '.orders-filter-panel select',
+    ) as HTMLSelectElement;
+    expect(masterSelect).toBeTruthy();
+    expect(
+      [...masterSelect.options].map((option) => option.textContent),
+    ).toEqual(['All', 'Kostiantyn']);
+    fireEvent.change(masterSelect, { target: { value: masterEmployee.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByLabelText('Orders: 1')).toBeInTheDocument();
+    expect(screen.getByText('#R000302')).toBeInTheDocument();
+    expect(screen.queryByText('#R000301')).not.toBeInTheDocument();
+    expect(screen.queryByText('#R000303')).not.toBeInTheDocument();
+    expect(screen.getByText(/Master: Kostiantyn/i)).toBeInTheDocument();
+  });
 });

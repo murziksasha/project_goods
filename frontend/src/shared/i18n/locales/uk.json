@@ -2,6 +2,7 @@
   "nav": {
     "home": "Головна",
     "orders": "Замовлення",
+    "kanban": "Канбан",
     "accounting": "Бухгалтерія",
     "warehouse": "Склад",
     "catalog": "Товари та послуги",
@@ -507,6 +508,7 @@
   "orders": {
     "tabs": {
       "orders": "Замовлення",
+      "kanban": "Канбан",
       "sales": "Продажі",
       "supplierOrders": "Замовлення постачальнику",
       "supplierInformation": "Інформація",
@@ -660,6 +662,9 @@
       "shortcuts": "Enter додати · Esc очистити · F4 видати",
       "shortcutsLabel": "Гарячі клавіші"
     },
+    "kanban": {
+      "ordersCount": "Замовлень: {{count}}"
+    },
     "toolbar": {
       "filter": "Фільтр",
       "createOrder": "Створити замовлення",
@@ -667,6 +672,8 @@
       "searchOrders": "Пошук замовлень",
       "clearSearch": "Очистити пошук",
       "toggleColumns": "Керувати колонками таблиці",
+      "toggleTabs": "Вибрати видимі вкладки",
+      "lastVisibleTab": "Потрібно залишити хоча б одну вкладку",
       "orderCategories": "Категорії замовлень",
       "showAllOrders": "Показати всі замовлення",
       "showAllSales": "Показати всі продажі",
@@ -710,6 +717,7 @@
       "client": "Клієнт",
       "clientPlaceholder": "Імʼя або телефон клієнта",
       "assignee": "Майстер / менеджер",
+      "master": "Майстер",
       "warehouse": "Склад",
       "repairType": "Тип ремонту",
       "repairTypePaid": "Paid",
@@ -1327,7 +1335,8 @@
         "waitingParts": "Очікує запчастини",
         "clientApproved": "Погоджено клієнтом",
         "clientRejected": "Відхилено клієнтом",
-        "issuedWithoutRepair": "Видано без ремонту"
+        "issuedWithoutRepair": "Видано без ремонту",
+        "notPickedUp": "Не забирають"
       },
       "sale": {
         "new": "Новий продаж",

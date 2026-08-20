@@ -33,6 +33,8 @@ type OrdersWorkspaceFilterPanelProps = {
   newFilterName: string;
   newFilterIcon: string;
   statusFilterRef: RefObject<HTMLDivElement | null>;
+  /** Kanban: master + dates only. */
+  variant?: 'full' | 'kanban';
   setDraftFilters: Dispatch<SetStateAction<OrdersFilters>>;
   setIsStatusFilterOpen: Dispatch<SetStateAction<boolean>>;
   setIsSaveFilterDrawerOpen: Dispatch<SetStateAction<boolean>>;
@@ -61,6 +63,7 @@ export const OrdersWorkspaceFilterPanel = ({
   newFilterName,
   newFilterIcon,
   statusFilterRef,
+  variant = 'full',
   setDraftFilters,
   setIsStatusFilterOpen,
   setIsSaveFilterDrawerOpen,
@@ -75,6 +78,7 @@ export const OrdersWorkspaceFilterPanel = ({
   onRemoveSavedFilter,
 }: OrdersWorkspaceFilterPanelProps) => {
   const { t } = useTranslation();
+  const isKanban = variant === 'kanban';
 
   return (
     <>
@@ -120,98 +124,116 @@ export const OrdersWorkspaceFilterPanel = ({
               <small>{t('orders.filters.noSaved')}</small>
             )}
           </div>
-          <button
-            type="button"
-            className="toolbar-filter-button"
-            onClick={() => setIsSaveFilterDrawerOpen(true)}
-            disabled={!canManageSavedFilters}
-            title={
-              canManageSavedFilters
-                ? t('orders.filters.saveFilter')
-                : t('orders.filters.saveFilterDenied')
-            }
-          >
-            {t('orders.filters.saveFilter')}
-          </button>
-        </div>
-
-        <div className="orders-filter-grid">
-          <div
-            className="orders-filter-field orders-filter-status-field"
-            ref={statusFilterRef}
-          >
-            <span>{t('orders.filters.status')}</span>
+          {!isKanban ? (
             <button
               type="button"
-              className="orders-filter-status-toggle"
-              aria-expanded={isStatusFilterOpen}
-              onClick={() => setIsStatusFilterOpen((current) => !current)}
+              className="toolbar-filter-button"
+              onClick={() => setIsSaveFilterDrawerOpen(true)}
+              disabled={!canManageSavedFilters}
+              title={
+                canManageSavedFilters
+                  ? t('orders.filters.saveFilter')
+                  : t('orders.filters.saveFilterDenied')
+              }
             >
-              {draftFilters.statuses.length > 0
-                ? t('orders.filters.selectedCount', {
-                    count: draftFilters.statuses.length,
-                  })
-                : t('orders.filters.all')}
+              {t('orders.filters.saveFilter')}
             </button>
-            {isStatusFilterOpen ? (
-              <div className="orders-filter-status-menu">
-                <label className="orders-filter-status-all">
-                  <input
-                    type="checkbox"
-                    checked={
-                      draftFilters.statuses.length ===
-                      statusOptionsForActiveTab.length
-                    }
-                    onChange={onToggleAllStatuses}
-                  />
-                  <strong>{t('orders.filters.all')}</strong>
-                </label>
-                {statusOptionsForActiveTab.map((statusOption) => (
-                  <label key={statusOption.key}>
-                    <input
-                      type="checkbox"
-                      checked={draftFilters.statuses.includes(statusOption.key)}
-                      onChange={() => onToggleStatusFilter(statusOption.key)}
-                    />
-                    <span>{t(statusOption.labelKey)}</span>
-                  </label>
-                ))}
+          ) : null}
+        </div>
+
+        <div
+          className={
+            isKanban
+              ? 'orders-filter-grid orders-filter-grid-kanban'
+              : 'orders-filter-grid'
+          }
+        >
+          {!isKanban ? (
+            <>
+              <div
+                className="orders-filter-field orders-filter-status-field"
+                ref={statusFilterRef}
+              >
+                <span>{t('orders.filters.status')}</span>
+                <button
+                  type="button"
+                  className="orders-filter-status-toggle"
+                  aria-expanded={isStatusFilterOpen}
+                  onClick={() => setIsStatusFilterOpen((current) => !current)}
+                >
+                  {draftFilters.statuses.length > 0
+                    ? t('orders.filters.selectedCount', {
+                        count: draftFilters.statuses.length,
+                      })
+                    : t('orders.filters.all')}
+                </button>
+                {isStatusFilterOpen ? (
+                  <div className="orders-filter-status-menu">
+                    <label className="orders-filter-status-all">
+                      <input
+                        type="checkbox"
+                        checked={
+                          draftFilters.statuses.length ===
+                          statusOptionsForActiveTab.length
+                        }
+                        onChange={onToggleAllStatuses}
+                      />
+                      <strong>{t('orders.filters.all')}</strong>
+                    </label>
+                    {statusOptionsForActiveTab.map((statusOption) => (
+                      <label key={statusOption.key}>
+                        <input
+                          type="checkbox"
+                          checked={draftFilters.statuses.includes(
+                            statusOption.key,
+                          )}
+                          onChange={() => onToggleStatusFilter(statusOption.key)}
+                        />
+                        <span>{t(statusOption.labelKey)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
+
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.orderNumber')}</span>
+                <input
+                  type="text"
+                  value={draftFilters.orderNumber}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      orderNumber: event.target.value,
+                    }))
+                  }
+                  placeholder={t('orders.filters.orderNumberPlaceholder')}
+                />
+              </label>
+
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.client')}</span>
+                <input
+                  type="text"
+                  value={draftFilters.client}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      client: event.target.value,
+                    }))
+                  }
+                  placeholder={t('orders.filters.clientPlaceholder')}
+                />
+              </label>
+            </>
+          ) : null}
 
           <label className="orders-filter-field">
-            <span>{t('orders.filters.orderNumber')}</span>
-            <input
-              type="text"
-              value={draftFilters.orderNumber}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  orderNumber: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.orderNumberPlaceholder')}
-            />
-          </label>
-
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.client')}</span>
-            <input
-              type="text"
-              value={draftFilters.client}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  client: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.clientPlaceholder')}
-            />
-          </label>
-
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.assignee')}</span>
+            <span>
+              {isKanban
+                ? t('orders.filters.master')
+                : t('orders.filters.assignee')}
+            </span>
             <select
               value={draftFilters.assigneeId}
               onChange={(event) =>
@@ -230,44 +252,50 @@ export const OrdersWorkspaceFilterPanel = ({
             </select>
           </label>
 
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.warehouse')}</span>
-            <select
-              value={draftFilters.warehouse}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  warehouse: event.target.value,
-                }))
-              }
-            >
-              <option value="">{t('orders.filters.all')}</option>
-              {warehouseOptions.map((warehouse) => (
-                <option key={warehouse} value={warehouse}>
-                  {warehouse}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!isKanban ? (
+            <>
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.warehouse')}</span>
+                <select
+                  value={draftFilters.warehouse}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      warehouse: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">{t('orders.filters.all')}</option>
+                  {warehouseOptions.map((warehouse) => (
+                    <option key={warehouse} value={warehouse}>
+                      {warehouse}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.repairType')}</span>
-            <select
-              value={draftFilters.repairType}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  repairType: event.target.value as RepairTypeFilter,
-                }))
-              }
-            >
-              <option value="all">{t('orders.filters.all')}</option>
-              <option value="paid">{t('orders.filters.repairTypePaid')}</option>
-              <option value="warranty">
-                {t('orders.filters.repairTypeWarranty')}
-              </option>
-            </select>
-          </label>
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.repairType')}</span>
+                <select
+                  value={draftFilters.repairType}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      repairType: event.target.value as RepairTypeFilter,
+                    }))
+                  }
+                >
+                  <option value="all">{t('orders.filters.all')}</option>
+                  <option value="paid">
+                    {t('orders.filters.repairTypePaid')}
+                  </option>
+                  <option value="warranty">
+                    {t('orders.filters.repairTypeWarranty')}
+                  </option>
+                </select>
+              </label>
+            </>
+          ) : null}
 
           <label className="orders-filter-field">
             <span>{t('orders.filters.dateFrom')}</span>
@@ -297,54 +325,79 @@ export const OrdersWorkspaceFilterPanel = ({
             />
           </label>
 
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.paymentMethod')}</span>
-            <select
-              value={draftFilters.paymentMethod}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  paymentMethod: event.target.value as '' | PaymentMethod,
-                }))
-              }
-            >
-              <option value="">{t('orders.filters.all')}</option>
-              <option value="cash">{t('orders.filters.paymentCash')}</option>
-              <option value="non-cash">
-                {t('orders.filters.paymentNonCash')}
-              </option>
-            </select>
-          </label>
+          {isKanban ? (
+            <div className="orders-filter-field orders-filter-field-action">
+              <span className="orders-filter-field-action-spacer" aria-hidden="true">
+                &nbsp;
+              </span>
+              <button
+                type="button"
+                className="toolbar-filter-button orders-filter-save-inline"
+                onClick={() => setIsSaveFilterDrawerOpen(true)}
+                disabled={!canManageSavedFilters}
+                title={
+                  canManageSavedFilters
+                    ? t('orders.filters.saveFilter')
+                    : t('orders.filters.saveFilterDenied')
+                }
+              >
+                {t('orders.filters.saveFilter')}
+              </button>
+            </div>
+          ) : null}
 
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.product')}</span>
-            <input
-              type="text"
-              value={draftFilters.product}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  product: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.productPlaceholder')}
-            />
-          </label>
+          {!isKanban ? (
+            <>
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.paymentMethod')}</span>
+                <select
+                  value={draftFilters.paymentMethod}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      paymentMethod: event.target.value as '' | PaymentMethod,
+                    }))
+                  }
+                >
+                  <option value="">{t('orders.filters.all')}</option>
+                  <option value="cash">{t('orders.filters.paymentCash')}</option>
+                  <option value="non-cash">
+                    {t('orders.filters.paymentNonCash')}
+                  </option>
+                </select>
+              </label>
 
-          <label className="orders-filter-field">
-            <span>{t('orders.filters.service')}</span>
-            <input
-              type="text"
-              value={draftFilters.service}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  service: event.target.value,
-                }))
-              }
-              placeholder={t('orders.filters.servicePlaceholder')}
-            />
-          </label>
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.product')}</span>
+                <input
+                  type="text"
+                  value={draftFilters.product}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      product: event.target.value,
+                    }))
+                  }
+                  placeholder={t('orders.filters.productPlaceholder')}
+                />
+              </label>
+
+              <label className="orders-filter-field">
+                <span>{t('orders.filters.service')}</span>
+                <input
+                  type="text"
+                  value={draftFilters.service}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      service: event.target.value,
+                    }))
+                  }
+                  placeholder={t('orders.filters.servicePlaceholder')}
+                />
+              </label>
+            </>
+          ) : null}
         </div>
 
         <div className="orders-filter-actions">

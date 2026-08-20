@@ -37,6 +37,14 @@ export const OrdersIcon = (props: IconProps) => (
   </IconShell>
 );
 
+export const KanbanIcon = (props: IconProps) => (
+  <IconShell {...props}>
+    <path d="M4 4h4v16H4z" />
+    <path d="M10 4h4v10h-4z" />
+    <path d="M16 4h4v13h-4z" />
+  </IconShell>
+);
+
 export const ClientsIcon = (props: IconProps) => (
   <IconShell {...props}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

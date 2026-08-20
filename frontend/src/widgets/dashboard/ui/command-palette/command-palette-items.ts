@@ -42,6 +42,7 @@ export const buildCommandPaletteItems = ({
   const pages: PageKey[] = [
     'home',
     'orders',
+    'kanban',
     'accounting',
     'warehouse',
     'catalog',

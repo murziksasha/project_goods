@@ -59,6 +59,7 @@ export const CommandPalette = ({
           page: {
             home: t('nav.home'),
             orders: t('nav.orders'),
+            kanban: t('nav.kanban'),
             accounting: t('nav.accounting'),
             warehouse: t('nav.warehouse'),
             catalog: t('nav.catalog'),

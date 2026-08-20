@@ -13,6 +13,7 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { OrdersWorkspaceTabList } from '../orders/workspace/OrdersWorkspaceTabList';
 import type {
   SupplierOrderAnalytics,
   SupplierOrderProductStat,
@@ -30,7 +31,6 @@ import {
   manualSupplierOrderStatuses,
   summarizeSupplierOrderItems,
   supplierOrderStatuses,
-  supplierOrderTabs,
   supplierOrdersAllColumns,
   supplierOrdersLockedColumns,
   supplierPaymentStatuses,
@@ -62,8 +62,10 @@ type SupplierOrdersToolbarProps = {
   favoritesOnly: boolean;
   visibleColumns: SupplierOrdersColumnKey[];
   visibleTabs: OrdersTab[];
+  permittedTabs?: OrdersTab[];
   canManageSupplierOrders: boolean;
   onActiveTabChange: (tab: OrdersTab) => void;
+  onToggleTabVisibility?: (tab: OrdersTab) => void;
   onCreateOrder: () => void;
   onColumnsMenuOpenChange: Dispatch<SetStateAction<boolean>>;
   onFilterBarOpenChange: Dispatch<SetStateAction<boolean>>;
@@ -104,8 +106,10 @@ export const SupplierOrdersToolbar = ({
   favoritesOnly,
   visibleColumns,
   visibleTabs,
+  permittedTabs,
   canManageSupplierOrders,
   onActiveTabChange,
+  onToggleTabVisibility,
   onCreateOrder,
   onColumnsMenuOpenChange,
   onFilterBarOpenChange,
@@ -125,20 +129,13 @@ export const SupplierOrdersToolbar = ({
 
   return (
   <>
-    <div className='orders-tabs' role='tablist' aria-label={t('orders.toolbar.orderCategories')}>
-      {supplierOrderTabs.filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
-        <button
-          key={tab.key}
-          type='button'
-          className={
-            tab.key === activeTab ? 'orders-tab orders-tab-active' : 'orders-tab'
-          }
-          onClick={() => onActiveTabChange(tab.key)}
-        >
-          {t(`orders.tabs.${tab.key}`)}
-        </button>
-      ))}
-    </div>
+    <OrdersWorkspaceTabList
+      activeTab={activeTab}
+      visibleTabs={visibleTabs}
+      permittedTabs={permittedTabs}
+      onActiveTabChange={onActiveTabChange}
+      onToggleTabVisibility={onToggleTabVisibility}
+    />
 
     <div className='orders-toolbar'>
       <div className='orders-toolbar-left supplier-orders-toolbar-left'>

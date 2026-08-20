@@ -11,6 +11,11 @@ All `/api/*` routes require `Authorization: Bearer <token>` except:
 | `GET` | `/auth/invitations/:token` | Invitation lookup |
 | `POST` | `/auth/invitations/:token/register` | Invitation registration |
 
+Authenticated session:
+
+- `GET /auth/me` — current employee, including `uiPreferences.hiddenOrdersTabs`
+- `PATCH /auth/me/preferences` — self-only; body `{ hiddenOrdersTabs: OrdersTab[] }` (opt-out list of workspace tabs)
+
 Responses:
 
 - `401` — missing/invalid token
