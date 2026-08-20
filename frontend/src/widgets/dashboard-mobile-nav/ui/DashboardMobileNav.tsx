@@ -3,22 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { PageKey } from '../../../pages/dashboard/model/types';
 import { getDashboardHref } from '../../../pages/dashboard/model/types';
 import { sidebarNavIcons } from '../../../shared/ui/sidebarNavIcons';
-
-export type MobileNavItem = {
-  key: PageKey | 'other';
-  labelKey: string;
-};
-
-export const mobileNavPriority: PageKey[] = [
-  'home',
-  'orders',
-  'accounting',
-  'clients',
-  'warehouse',
-  'catalog',
-  'employees',
-  'settings',
-];
+import type { MobileNavItem } from '../model/constants';
+import { mobileNavPriority } from '../model/constants';
 
 type DashboardMobileNavProps = {
   items: MobileNavItem[];
