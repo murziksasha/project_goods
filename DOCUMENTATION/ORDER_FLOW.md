@@ -83,16 +83,19 @@
 
 - Column `Received` is renamed to `Issued`.
 - Column `Master` is added.
-- `Issued` displays only the employee who performed the status change to one of final repair statuses:
+- `Issued` displays only the employee who performed the status change to one of handoff repair statuses:
   - `issued`
   - `client rejected`
   - `issued without repair`
+  - (`notPickedUp` / «Не забирають» is **not** a handoff status and does not fill `Issued`)
 - If no such status transition happened yet, `Issued` shows `-`.
 - Every status change action is recorded in `Live feed` with author and timestamp.
 - `Ready date` in the orders list is treated as completion date and is set from the timestamp of transition to one of:
   - `issued`
   - `client rejected`
   - `issued without repair`
+  - (not from `notPickedUp`)
+- Repair Kanban board (sidebar `Kanban` + Orders tab `Kanban`) mirrors repair statuses as columns; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.

@@ -1,6 +1,7 @@
 export type PageKey =
   | 'home'
   | 'orders'
+  | 'kanban'
   | 'clients'
   | 'employees'
   | 'settings'
@@ -10,6 +11,7 @@ export type PageKey =
 
 export type OrdersTab =
   | 'orders'
+  | 'kanban'
   | 'sales'
   | 'supplierOrders'
   | 'supplierInformation';
@@ -18,6 +20,7 @@ export type CreateOrderTab = 'repair' | 'sale';
 export const pageKeys: PageKey[] = [
   'home',
   'orders',
+  'kanban',
   'clients',
   'employees',
   'settings',
@@ -28,6 +31,7 @@ export const pageKeys: PageKey[] = [
 
 export const ordersTabs: OrdersTab[] = [
   'orders',
+  'kanban',
   'sales',
   'supplierOrders',
   'supplierInformation',
@@ -85,3 +89,6 @@ export const getOrdersTabForCreateOrder = (
 export const getCreateOrderForOrdersTab = (
   tab: OrdersTab,
 ): CreateOrderTab => (tab === 'sales' ? 'sale' : 'repair');
+
+export const isRepairOrdersTab = (tab: OrdersTab) =>
+  tab === 'orders' || tab === 'kanban';

@@ -6,6 +6,7 @@ import { Button } from './Button';
 const pageLabelKeys: Record<PageKey, string> = {
   home: 'nav.home',
   orders: 'nav.orders',
+  kanban: 'nav.kanban',
   accounting: 'nav.accounting',
   warehouse: 'nav.warehouse',
   catalog: 'nav.catalog',

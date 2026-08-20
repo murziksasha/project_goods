@@ -102,7 +102,11 @@ export const buildDashboardHref = (
     url.searchParams.delete('createOrder');
   }
 
-  if (page === 'orders' && saleId && !createOrder) {
+  if (
+    (page === 'orders' || page === 'kanban') &&
+    saleId &&
+    !createOrder
+  ) {
     url.searchParams.set('saleId', saleId);
   } else {
     url.searchParams.delete('saleId');

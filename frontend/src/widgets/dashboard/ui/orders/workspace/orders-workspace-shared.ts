@@ -87,6 +87,7 @@ export type OrderPrintRequest = {
 
 export type OrdersTab =
   | 'orders'
+  | 'kanban'
   | 'sales'
   | 'supplierOrders'
   | 'supplierInformation';
@@ -126,6 +127,7 @@ export type RepairStatus =
   | 'clientApproved'
   | 'clientRejected'
   | 'issuedWithoutRepair'
+  | 'notPickedUp'
   | 'ready';
 export type SaleStatus =
   | 'new'
@@ -205,10 +207,14 @@ export type OrderTabDefinition = {
 
 export const orderTabs: OrderTabDefinition[] = [
   { key: 'orders', labelKey: 'orders.tabs.orders' },
+  { key: 'kanban', labelKey: 'orders.tabs.kanban' },
   { key: 'sales', labelKey: 'orders.tabs.sales' },
   { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
   { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },
 ];
+
+export const isRepairOrdersTab = (tab: OrdersTab) =>
+  tab === 'orders' || tab === 'kanban';
 
 export const supplierOrderSaleLinkPrefix = '[LINKED_SALE_ID:';
 export const supplierOrderClientLinkPrefix = '[LINKED_CLIENT_ID:';
@@ -333,6 +339,7 @@ export const getStoredOrderDetailRelatedTab = (): OrdersTab => {
       orderDetailRelatedTabStorageKey,
     );
     return storedTab === 'orders' ||
+      storedTab === 'kanban' ||
       storedTab === 'sales' ||
       storedTab === 'supplierOrders' ||
       storedTab === 'supplierInformation'
@@ -423,6 +430,16 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
     'term',
     'createdAt',
   ],
+  kanban: [
+    'orderNumber',
+    'client',
+    'status',
+    'primaryItem',
+    'price',
+    'paid',
+    'term',
+    'createdAt',
+  ],
   sales: [
     'orderNumber',
     'client',
@@ -436,12 +453,14 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
 };
 export const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: allOrdersColumnKeys,
+  kanban: allOrdersColumnKeys,
   sales: defaultVisibleColumns.sales,
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
 };
 export const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: ['orderNumber'],
+  kanban: ['orderNumber'],
   sales: ['orderNumber'],
   supplierOrders: ['orderNumber'],
   supplierInformation: ['orderNumber'],
@@ -459,6 +478,7 @@ export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
   { key: 'clientApproved', labelKey: 'orders.status.repair.clientApproved' },
   { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
   { key: 'issuedWithoutRepair', labelKey: 'orders.status.repair.issuedWithoutRepair' },
+  { key: 'notPickedUp', labelKey: 'orders.status.repair.notPickedUp' },
 ];
 export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
   { key: 'new', labelKey: 'orders.status.sale.new' },
@@ -471,7 +491,34 @@ export const finalRepairStatuses: RepairStatus[] = [
   'issued',
   'clientRejected',
   'issuedWithoutRepair',
+  'notPickedUp',
 ];
+/** Statuses that mean the device left / was refused — fill Issued / received-by. */
+export const handoffRepairStatuses: RepairStatus[] = [
+  'issued',
+  'clientRejected',
+  'issuedWithoutRepair',
+];
+/** Kanban: active pipeline columns (order matters). */
+export const kanbanVisibleRepairStatuses: RepairStatus[] = [
+  'new',
+  'diagnostics',
+  'waitingParts',
+  'clientApproved',
+  'inRepair',
+  'refinement',
+  'ready',
+  'paid',
+];
+/** Kanban: hidden completely (no column). */
+export const kanbanHiddenRepairStatuses: RepairStatus[] = [
+  'issued',
+  'issuedWithoutRepair',
+  'clientRejected',
+  'notPickedUp',
+];
+/** @deprecated No collapsed columns on Kanban; kept empty for compatibility. */
+export const kanbanCollapsedRepairStatuses: RepairStatus[] = [];
 export const stockLockedRepairStatuses = new Set<RepairStatus>([
   'clientRejected',
   'issuedWithoutRepair',
@@ -520,6 +567,7 @@ export const readActiveOrderFilters = () => {
 
     return {
       orders: normalizeOne(raw.orders),
+      kanban: normalizeOne(raw.kanban ?? raw.orders),
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
       supplierInformation: normalizeOne(raw.supplierInformation),
@@ -527,6 +575,7 @@ export const readActiveOrderFilters = () => {
   } catch {
     return {
       orders: emptyOrdersFilters,
+      kanban: emptyOrdersFilters,
       sales: emptyOrdersFilters,
       supplierOrders: emptyOrdersFilters,
       supplierInformation: emptyOrdersFilters,
@@ -558,6 +607,9 @@ export const normalizeOrderStatus = (
     issued_without_repairing: 'issuedWithoutRepair',
     'issued without repair': 'issuedWithoutRepair',
     'issued without repairing': 'issuedWithoutRepair',
+    notpickedup: 'notPickedUp',
+    not_picked_up: 'notPickedUp',
+    'not picked up': 'notPickedUp',
   };
   const repairStatusMap: Record<string, RepairStatus> = {
     new: 'new',
@@ -572,6 +624,7 @@ export const normalizeOrderStatus = (
     issued: 'issued',
     issuedwithoutrepair: 'issuedWithoutRepair',
     issuedwithoutrepairing: 'issuedWithoutRepair',
+    notpickedup: 'notPickedUp',
   };
   const saleStatusMap: Record<string, SaleStatus> = {
     new: 'new',
@@ -871,7 +924,7 @@ export const isClosingStatus = (sale: Sale, status: OrderStatus) =>
 
 export const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
-    ? finalRepairStatuses.includes(status as RepairStatus)
+    ? handoffRepairStatuses.includes(status as RepairStatus)
     : status === 'reserved' ||
       status === 'paid' ||
       status === 'returned';
@@ -880,7 +933,7 @@ export const getRepairCompletionDate = (sale: Sale) => {
   if (!isRepairOrder(sale)) return sale.saleDate;
 
   const completionLabels = new Set(
-    finalRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
+    handoffRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
   );
   const completionEntry = (sale.timeline ?? []).find((entry) => {
     const text = entry.message.toLowerCase();
@@ -1628,7 +1681,7 @@ export const getCreatedTime = (sale: Sale) =>
   new Date(sale.createdAt).getTime();
 
 export const getOrdersSearchPlaceholder = (activeTab: OrdersTab) =>
-  activeTab === 'orders'
+  isRepairOrdersTab(activeTab)
     ? i18n.t('orders.toolbar.searchPlaceholder.orders')
     : i18n.t('orders.toolbar.searchPlaceholder.sales');
 
@@ -1661,7 +1714,7 @@ export const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
 };
 
 export const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
-  activeTab === 'orders'
+  isRepairOrdersTab(activeTab)
     ? i18n.t('orders.columns.device')
     : i18n.t('orders.columns.serviceCenter');
 
@@ -1760,6 +1813,7 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
 
     return {
       orders: sanitizeColumns(saved.orders, 'orders'),
+      kanban: sanitizeColumns(saved.kanban ?? saved.orders, 'kanban'),
       sales: sanitizeColumns(saved.sales, 'sales'),
       supplierOrders: defaultVisibleColumns.orders,
       supplierInformation: defaultVisibleColumns.orders,

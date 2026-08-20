@@ -12,12 +12,14 @@ import {
 
 export type OrdersTab =
   | 'orders'
+  | 'kanban'
   | 'sales'
   | 'supplierOrders'
   | 'supplierInformation';
 
 export const supplierOrderTabs: Array<{ key: OrdersTab; labelKey: string }> = [
   { key: 'orders', labelKey: 'orders.tabs.orders' },
+  { key: 'kanban', labelKey: 'orders.tabs.kanban' },
   { key: 'sales', labelKey: 'orders.tabs.sales' },
   { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
   { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },

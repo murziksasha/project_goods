@@ -29,6 +29,10 @@ Mongoose models
 MongoDB
 ```
 
+## Repair Kanban
+
+Канбан ремонтів (`page=kanban` та вкладка `ordersTab=kanban`) синхронізований із repair sales; статуси = стовпці. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+
 ## Архитектура frontend
 
 Frontend использует слоистую структуру, близкую к feature-sliced подходу:

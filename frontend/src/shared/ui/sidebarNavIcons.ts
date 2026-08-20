@@ -7,6 +7,7 @@ import {
   ClientsIcon,
   EmployeesIcon,
   HomeIcon,
+  KanbanIcon,
   OrdersIcon,
   SettingsIcon,
   WarehouseIcon,
@@ -22,6 +23,7 @@ export const sidebarNavIcons: Record<
 > = {
   home: HomeIcon,
   orders: OrdersIcon,
+  kanban: KanbanIcon,
   clients: ClientsIcon,
   accounting: AccountingIcon,
   catalog: CatalogIcon,

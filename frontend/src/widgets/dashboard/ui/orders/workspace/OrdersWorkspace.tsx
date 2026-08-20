@@ -44,6 +44,7 @@ import {
   useSupplierOrdersQuery,
 } from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
+import { RepairKanbanBoard } from '../../kanban/RepairKanbanBoard';
 import { OrdersActiveFilterChips } from './OrdersActiveFilterChips';
 import { OrdersWorkspaceFilterPanel } from './OrdersWorkspaceFilterPanel';
 import { OrdersWorkspaceListHeader } from './OrdersWorkspaceListHeader';
@@ -110,6 +111,7 @@ import {
   isIsoDateWithinRange,
   isPlainLeftClick,
   isRepairDevicePlaceholderLineItem,
+  isRepairOrdersTab,
   isRepairStatusChangeLockedByStock,
   isSalePaymentStatus,
   isUrgentRepairOrder,
@@ -287,6 +289,7 @@ export const OrdersWorkspace = ({
     Record<OrdersTab, number>
   >({
     orders: 1,
+    kanban: 1,
     sales: 1,
     supplierOrders: 1,
     supplierInformation: 1,
@@ -295,6 +298,7 @@ export const OrdersWorkspace = ({
     Record<OrdersTab, number>
   >({
     orders: 30,
+    kanban: 30,
     sales: 30,
     supplierOrders: 30,
     supplierInformation: 30,
@@ -325,7 +329,7 @@ export const OrdersWorkspace = ({
   const tabSales = useMemo(
     () =>
       sales.filter((sale) =>
-        activeTab === 'orders'
+        isRepairOrdersTab(activeTab)
           ? isRepairOrder(sale)
           : !isRepairOrder(sale),
       ),
@@ -333,7 +337,7 @@ export const OrdersWorkspace = ({
   );
   const clientStatsMap = useMemo(() => getClientStatsMap(sales), [sales]);
   const statusOptionsForActiveTab = useMemo(
-    () => (activeTab === 'orders' ? repairStatuses : saleStatuses),
+    () => (isRepairOrdersTab(activeTab) ? repairStatuses : saleStatuses),
     [activeTab],
   );
   const statusKeysForActiveTab = useMemo(
@@ -347,10 +351,12 @@ export const OrdersWorkspace = ({
       if (sale.master) {
         map.set(
           sale.master.id,
-          t('orders.toolbar.assignee.master', { name: sale.master.name }),
+          activeTab === 'kanban'
+            ? sale.master.name
+            : t('orders.toolbar.assignee.master', { name: sale.master.name }),
         );
       }
-      if (sale.manager) {
+      if (activeTab !== 'kanban' && sale.manager) {
         map.set(
           sale.manager.id,
           t('orders.toolbar.assignee.manager', { name: sale.manager.name }),
@@ -362,15 +368,23 @@ export const OrdersWorkspace = ({
       .sort((first, second) =>
         first.label.localeCompare(second.label),
       );
-  }, [tabSales, t]);
+  }, [activeTab, tabSales, t]);
   const warehouseOptions = useMemo(() => {
     const values = new Set(
       tabSales.map((sale) => getWarehouseLabel(sale)),
     );
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [tabSales]);
-  const activeFiltersCount = useMemo(
-    () =>
+  const activeFiltersCount = useMemo(() => {
+    if (activeTab === 'kanban') {
+      return (
+        (appliedFilters.assigneeId ? 1 : 0) +
+        (appliedFilters.dateFrom ? 1 : 0) +
+        (appliedFilters.dateTo ? 1 : 0) +
+        (appliedFilters.favoritesOnly ? 1 : 0)
+      );
+    }
+    return (
       appliedFilters.statuses.length +
       (appliedFilters.orderNumber.trim() ? 1 : 0) +
       (appliedFilters.client.trim() ? 1 : 0) +
@@ -382,9 +396,9 @@ export const OrdersWorkspace = ({
       (appliedFilters.dateTo ? 1 : 0) +
       (appliedFilters.product.trim() ? 1 : 0) +
       (appliedFilters.service.trim() ? 1 : 0) +
-      (appliedFilters.favoritesOnly ? 1 : 0),
-    [appliedFilters],
-  );
+      (appliedFilters.favoritesOnly ? 1 : 0)
+    );
+  }, [activeTab, appliedFilters]);
 
   const filteredOrders = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -413,7 +427,7 @@ export const OrdersWorkspace = ({
       const salePhones = getSaleClientPhones(sale);
       const clientSearchValues = getSaleClientSearchValues(sale, t);
       const searchValues =
-        activeTab === 'orders'
+        isRepairOrdersTab(activeTab)
           ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
               ...clientSearchValues,
@@ -689,13 +703,23 @@ export const OrdersWorkspace = ({
   };
 
   const applyFilters = () => {
-    const nextFilters = {
-      ...draftFilters,
-      orderNumber: draftFilters.orderNumber.trim(),
-      client: draftFilters.client.trim(),
-      product: draftFilters.product.trim(),
-      service: draftFilters.service.trim(),
-    };
+    const nextFilters =
+      activeTab === 'kanban'
+        ? {
+            ...emptyOrdersFilters,
+            assigneeId: draftFilters.assigneeId,
+            dateFrom: draftFilters.dateFrom,
+            dateTo: draftFilters.dateTo,
+            favoritesOnly: draftFilters.favoritesOnly,
+          }
+        : {
+            ...draftFilters,
+            orderNumber: draftFilters.orderNumber.trim(),
+            client: draftFilters.client.trim(),
+            product: draftFilters.product.trim(),
+            service: draftFilters.service.trim(),
+          };
+    setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setStoredActiveFilters((current) => ({
       ...current,
@@ -812,6 +836,14 @@ export const OrdersWorkspace = ({
     };
   }, [currentEmployee?.id, onError, t]);
 
+  const toKanbanSavedFilters = (filters: OrdersFilters): OrdersFilters => ({
+    ...emptyOrdersFilters,
+    assigneeId: filters.assigneeId,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    favoritesOnly: filters.favoritesOnly,
+  });
+
   const saveCurrentFilter = () => {
     if (!currentEmployee?.id) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
@@ -822,13 +854,16 @@ export const OrdersWorkspace = ({
       onError(t('orders.messages.errors.enterFilterName'));
       return;
     }
-    const filters: OrdersFilters = {
-      ...draftFilters,
-      orderNumber: draftFilters.orderNumber.trim(),
-      client: draftFilters.client.trim(),
-      product: draftFilters.product.trim(),
-      service: draftFilters.service.trim(),
-    };
+    const filters: OrdersFilters =
+      activeTab === 'kanban'
+        ? toKanbanSavedFilters(draftFilters)
+        : {
+            ...draftFilters,
+            orderNumber: draftFilters.orderNumber.trim(),
+            client: draftFilters.client.trim(),
+            product: draftFilters.product.trim(),
+            service: draftFilters.service.trim(),
+          };
     void (async () => {
       try {
         const created = await createSavedFilterRequest({
@@ -862,12 +897,16 @@ export const OrdersWorkspace = ({
     })();
   };
   const applySavedFilter = (savedFilter: SavedOrdersFilter) => {
+    const nextFilters =
+      savedFilter.tab === 'kanban'
+        ? toKanbanSavedFilters(savedFilter.filters)
+        : savedFilter.filters;
     onActiveTabChange(savedFilter.tab);
-    setDraftFilters(savedFilter.filters);
-    setAppliedFilters(savedFilter.filters);
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
     setStoredActiveFilters((current) => ({
       ...current,
-      [savedFilter.tab]: savedFilter.filters,
+      [savedFilter.tab]: nextFilters,
     }));
     setIsFilterPanelOpen(true);
     setIsStatusFilterOpen(false);
@@ -1539,7 +1578,7 @@ export const OrdersWorkspace = ({
             title={primaryItemText}
           >
             <span>{primaryItemText}</span>
-            {activeTab === 'orders' ? (
+            {isRepairOrdersTab(activeTab) ? (
               primaryDeviceSerial ? (
                 <small title={primaryDeviceSerial}>
                   {t('orders.toolbar.serialPrefix', {
@@ -2697,6 +2736,7 @@ export const OrdersWorkspace = ({
         newFilterName={newFilterName}
         newFilterIcon={newFilterIcon}
         statusFilterRef={statusFilterRef}
+        variant={activeTab === 'kanban' ? 'kanban' : 'full'}
         setDraftFilters={setDraftFilters}
         setIsStatusFilterOpen={setIsStatusFilterOpen}
         setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
@@ -2718,36 +2758,58 @@ export const OrdersWorkspace = ({
         onClearAll={resetFilters}
       />
 
-      <OrdersWorkspaceTableSection
-        activeTab={activeTab}
-        isLoading={isLoading}
-        filteredOrders={filteredOrders}
-        paginatedOrders={paginatedOrders}
-        visibleColumnKeys={visibleColumnKeys}
-        tableMinWidth={tableMinWidth}
-        currentPage={currentPage}
-        currentPageSize={currentPageSize}
-        ordersTableWrapRef={ordersTableWrapRef}
-        openStatusSale={openStatusSale}
-        statusMenuPosition={statusMenuPosition}
-        statusMenuOptionsRef={statusMenuOptionsRef}
-        getStatus={getStatus}
-        renderOrdersCell={renderOrdersCell}
-        onPageChange={(page) =>
-          setPageByTab((current) => ({
-            ...current,
-            [activeTab]: page,
-          }))
-        }
-        onPageSizeChange={(pageSize) => {
-          setPageSizeByTab((current) => ({
-            ...current,
-            [activeTab]: pageSize,
-          }));
-          setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
-        }}
-        onUpdateStatus={updateStatus}
-      />
+      {activeTab === 'kanban' ? (
+        <RepairKanbanBoard
+          sales={filteredOrders}
+          employees={employees}
+          canUpdateStatus={Boolean(currentEmployee?.id)}
+          canUpdateMaster={hasEmployeePermission(
+            currentEmployee,
+            'orders.manage',
+          )}
+          onStatusChange={updateStatus}
+          onMasterChange={(sale, masterId) =>
+            saveOrderMainInfo(sale, {
+              deviceName: getPrimaryDeviceName(sale),
+              serialNumber: getPrimaryDeviceSerial(sale),
+              masterId,
+              status: normalizeOrderStatus(sale.status),
+            })
+          }
+          onOpenSale={openSaleCard}
+        />
+      ) : (
+        <OrdersWorkspaceTableSection
+          activeTab={activeTab}
+          isLoading={isLoading}
+          filteredOrders={filteredOrders}
+          paginatedOrders={paginatedOrders}
+          visibleColumnKeys={visibleColumnKeys}
+          tableMinWidth={tableMinWidth}
+          currentPage={currentPage}
+          currentPageSize={currentPageSize}
+          ordersTableWrapRef={ordersTableWrapRef}
+          openStatusSale={openStatusSale}
+          statusMenuPosition={statusMenuPosition}
+          statusMenuOptionsRef={statusMenuOptionsRef}
+          getStatus={getStatus}
+          renderOrdersCell={renderOrdersCell}
+          onPageChange={(page) =>
+            setPageByTab((current) => ({
+              ...current,
+              [activeTab]: page,
+            }))
+          }
+          onPageSizeChange={(pageSize) => {
+            setPageSizeByTab((current) => ({
+              ...current,
+              [activeTab]: pageSize,
+            }));
+            setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+          }}
+          onUpdateStatus={updateStatus}
+        />
+      )}
 
       <OrdersWorkspaceModals
         printForms={printForms}

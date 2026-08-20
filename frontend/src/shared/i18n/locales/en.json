@@ -2,6 +2,7 @@
   "nav": {
     "home": "Main",
     "orders": "Orders",
+    "kanban": "Kanban",
     "accounting": "Accounting",
     "warehouse": "Warehouse",
     "catalog": "Products & Services",
@@ -507,6 +508,7 @@
   "orders": {
     "tabs": {
       "orders": "Orders",
+      "kanban": "Kanban",
       "sales": "Sales",
       "supplierOrders": "Supplier Order",
       "supplierInformation": "Information",
@@ -660,6 +662,9 @@
       "shortcuts": "Enter add · Esc clear · F4 issue",
       "shortcutsLabel": "Keyboard shortcuts"
     },
+    "kanban": {
+      "ordersCount": "Orders: {{count}}"
+    },
     "toolbar": {
       "filter": "Filter",
       "createOrder": "Create order",
@@ -710,6 +715,7 @@
       "client": "Client",
       "clientPlaceholder": "Client name or phone",
       "assignee": "Master / manager",
+      "master": "Master",
       "warehouse": "Warehouse",
       "repairType": "Repair type",
       "repairTypePaid": "Paid",
@@ -1327,7 +1333,8 @@
         "waitingParts": "Waiting parts",
         "clientApproved": "Client approved",
         "clientRejected": "Client rejected",
-        "issuedWithoutRepair": "Issued without repair"
+        "issuedWithoutRepair": "Issued without repair",
+        "notPickedUp": "Not picked up"
       },
       "sale": {
         "new": "New sale",

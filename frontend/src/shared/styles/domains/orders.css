@@ -2466,3 +2466,207 @@
     background-position: -100% 0;
   }
 }
+
+/* Repair Kanban board */
+.repair-kanban-board {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 8px 2px 16px;
+  -webkit-overflow-scrolling: touch;
+  min-height: 420px;
+}
+
+.repair-kanban-column {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+  max-height: calc(100vh - 260px);
+  border: 1px solid var(--color-line-panel);
+  border-radius: 12px;
+  background: var(--bg-panel);
+}
+
+.repair-kanban-column-collapsed {
+  flex-basis: 180px;
+  min-height: 120px;
+  max-height: none;
+}
+
+.repair-kanban-column-over {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.repair-kanban-column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-line-panel);
+}
+
+.repair-kanban-column-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  flex: 1;
+}
+
+.repair-kanban-column-count {
+  min-width: 1.5rem;
+  text-align: center;
+  border-radius: 999px;
+  background: var(--bg-panel-elevated);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.repair-kanban-column-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.repair-kanban-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.repair-kanban-column-body-collapsed {
+  min-height: 48px;
+  flex: 1;
+}
+
+.repair-kanban-column-empty {
+  margin: 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: 12px 0;
+}
+
+.repair-kanban-card-shell {
+  touch-action: none;
+}
+
+.repair-kanban-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 10px;
+  background: var(--bg-panel-elevated);
+  color: inherit;
+  padding: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.repair-kanban-card:hover {
+  border-color: var(--color-primary);
+}
+
+.repair-kanban-card-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  cursor: grabbing;
+}
+
+.repair-kanban-card-number {
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.repair-kanban-card-client,
+.repair-kanban-card-device {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repair-kanban-card-master {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.repair-kanban-card-master-label {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.repair-kanban-card-master-select {
+  width: 100%;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--color-text-heading);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.repair-kanban-card-master-select:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+@media (max-width: 1024px) {
+  .repair-kanban-column {
+    flex-basis: 220px;
+    max-height: calc(100vh - 220px);
+  }
+}
+
+.orders-kanban-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--color-line-panel);
+  color: var(--color-text-heading);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.orders-filter-grid-kanban {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+.orders-filter-field-action {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.orders-filter-field-action-spacer {
+  display: block;
+  min-height: 1.1em;
+  margin-bottom: 6px;
+}
+
+.orders-filter-save-inline {
+  width: 100%;
+  min-height: 36px;
+}

@@ -119,6 +119,7 @@ const SupplierOrdersWorkspace = lazy(() =>
 const pageKeys: PageKey[] = [
   'home',
   'orders',
+  'kanban',
   'clients',
   'employees',
   'settings',
@@ -192,6 +193,7 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
 const sidebarItems: DashboardSidebarItem[] = [
   { key: 'home', labelKey: 'nav.home' },
   { key: 'orders', labelKey: 'nav.orders' },
+  { key: 'kanban', labelKey: 'nav.kanban' },
   { key: 'accounting', labelKey: 'nav.accounting' },
   { key: 'warehouse', labelKey: 'nav.warehouse' },
   { key: 'catalog', labelKey: 'nav.catalog' },
@@ -292,11 +294,15 @@ export const DashboardPage = () => {
     'supplierOrders.manage',
   );
   const canViewOrders = canViewRepairSalesOrders || canViewSupplierOrders;
-  const availableOrdersTabs = ordersTabs.filter((tab) =>
-    tab === 'supplierOrders' || tab === 'supplierInformation'
-      ? canViewSupplierOrders
-      : canViewRepairSalesOrders,
-  );
+  const availableOrdersTabs = ordersTabs.filter((tab) => {
+    if (tab === 'supplierOrders' || tab === 'supplierInformation') {
+      return canViewSupplierOrders;
+    }
+    if (tab === 'kanban') {
+      return canViewRepairSalesOrders;
+    }
+    return canViewRepairSalesOrders;
+  });
   const fallbackOrdersTab = availableOrdersTabs[0] ?? 'orders';
   const effectiveOrdersTab = availableOrdersTabs.includes(activeOrdersTab)
     ? activeOrdersTab
@@ -315,6 +321,7 @@ export const DashboardPage = () => {
     if (page === 'other') return false;
     if (page === 'home') return true;
     if (page === 'orders') return canViewOrders;
+    if (page === 'kanban') return canViewRepairSalesOrders;
     if (page === 'clients') return canManageClients;
     if (page === 'warehouse' || page === 'catalog') return canManageInventory;
     if (page === 'employees') return canManageEmployees;
@@ -327,6 +334,7 @@ export const DashboardPage = () => {
     canManageEmployees,
     canManageInventory,
     canManageSettings,
+    canViewRepairSalesOrders,
     canViewAccounting,
     canViewOrders,
     t,
@@ -757,6 +765,11 @@ export const DashboardPage = () => {
       openOrdersPage();
     }
 
+    if (item.key === 'kanban') {
+      setOrdersTabPreference('kanban');
+      openPage('kanban');
+    }
+
     if (item.key === 'employees') {
       openPage('employees');
     }
@@ -832,6 +845,16 @@ export const DashboardPage = () => {
 
   const handleSelectedSaleIdChange = useCallback(
     (saleId: string | null) => {
+      if (activePage === 'kanban') {
+        navigateTo({
+          page: 'kanban',
+          ordersTab: 'kanban',
+          createOrder: null,
+          saleId,
+          accountingTab: null,
+        });
+        return;
+      }
       navigateTo({
         page: 'orders',
         ordersTab: effectiveOrdersTab,
@@ -840,7 +863,7 @@ export const DashboardPage = () => {
         accountingTab: null,
       });
     },
-    [effectiveOrdersTab, navigateTo],
+    [activePage, effectiveOrdersTab, navigateTo],
   );
 
   const handleNavigateAccountingTab = useCallback(
@@ -1184,7 +1207,11 @@ export const DashboardPage = () => {
               allowedPages={pageKeys.filter((page) => canAccessPage(page))}
               onNavigate={openPage}
             />
-          ) : activePage === 'orders' && canViewOrders ? (
+          ) : (activePage === 'orders' || activePage === 'kanban') &&
+            (activePage === 'kanban'
+              ? canViewRepairSalesOrders
+              : canViewOrders) ? (
+            activePage === 'orders' &&
             isCreateOrderOpen &&
             effectiveOrdersTab !== 'supplierOrders' &&
             effectiveOrdersTab !== 'supplierInformation' ? (
@@ -1205,9 +1232,9 @@ export const DashboardPage = () => {
                   onError={actions.showError}
                   onOpenClientCard={openClientCardFromOrders}
               />
-            ) : (
-              effectiveOrdersTab === 'supplierOrders' ||
-              effectiveOrdersTab === 'supplierInformation' ? (
+            ) : activePage === 'orders' &&
+              (effectiveOrdersTab === 'supplierOrders' ||
+                effectiveOrdersTab === 'supplierInformation') ? (
                 <SupplierOrdersWorkspace
                   activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}
@@ -1229,15 +1256,20 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
-                  activeTab={effectiveOrdersTab}
+                  activeTab={
+                    activePage === 'kanban' ? 'kanban' : effectiveOrdersTab
+                  }
                   visibleTabs={availableOrdersTabs}
                   searchValue={state.productSearchQuery}
                   onActiveTabChange={changeOrdersTab}
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
                   createOrderHref={getDashboardHref('orders', {
-                    ordersTab: effectiveOrdersTab,
-                    createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
+                    ordersTab:
+                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
+                    createOrder: getCreateOrderForOrdersTab(
+                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
+                    ),
                   })}
                   getCreateOrderHref={(tab) =>
                     getDashboardHref('orders', {
@@ -1278,7 +1310,6 @@ export const DashboardPage = () => {
                   onPendingPaymentSaleHandled={() => setPendingPaymentSale(null)}
                 />
               )
-            )
           ) : activePage === 'employees' && canManageEmployees ? (
             <EmployeesPanel
               employees={state.allEmployees}
@@ -1450,9 +1481,9 @@ export const DashboardPage = () => {
           items={[
             { key: 'home', labelKey: 'nav.home' },
             { key: 'orders', labelKey: 'nav.orders' },
+            { key: 'kanban', labelKey: 'nav.kanban' },
             { key: 'clients', labelKey: 'nav.clients' },
             { key: 'warehouse', labelKey: 'nav.warehouse' },
-            { key: 'accounting', labelKey: 'nav.accounting' },
           ]}
           activePage={activePage}
           canAccessPage={(page) => canAccessPage(page)}
@@ -1463,6 +1494,9 @@ export const DashboardPage = () => {
             if (page === 'orders') {
               openOrdersPage();
               return;
+            }
+            if (page === 'kanban') {
+              setOrdersTabPreference('kanban');
             }
             openPage(page);
           }}
