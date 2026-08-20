@@ -26,6 +26,8 @@ import { weatherRouter } from './routes/weather.routes';
 import { analyticsRouter } from './routes/analytics.routes';
 import { archiveRouter } from './routes/archive.routes';
 import { savedFilterRouter } from './routes/saved-filter.routes';
+import { eventsRouter } from './routes/events.routes';
+import { publishDomainEvent } from './shared/lib/domain-events';
 import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
 
 export const app = express();
@@ -50,6 +52,24 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+      return;
+    }
+    if (res.statusCode >= 400) return;
+    const path = (req.originalUrl || req.path).split('?')[0] ?? '';
+    if (!path.startsWith('/api/')) return;
+    if (path.includes('/auth/login') || path.includes('/events/stream')) return;
+    publishDomainEvent({
+      type: 'resource.changed',
+      method: req.method,
+      path,
+    });
+  });
+  next();
+});
+
 app.use('/api', requireAuthUnlessPublic);
 app.use('/api', healthRouter);
 app.use('/api', authRouter);
@@ -72,6 +92,7 @@ app.use('/api', weatherRouter);
 app.use('/api', analyticsRouter);
 app.use('/api', archiveRouter);
 app.use('/api', savedFilterRouter);
+app.use('/api', eventsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });

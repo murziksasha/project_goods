@@ -44,6 +44,7 @@ import { InlineError } from '../../../shared/ui/InlineError';
 import { LoadingState } from '../../../shared/ui/LoadingState';
 import { useTranslation } from 'react-i18next';
 import { hardReloadApp } from '../../../shared/lib/hardReload';
+import { startLiveEvents } from '../../../shared/api/liveEvents';
 import {
   DashboardSidebar,
   type DashboardSidebarItem,
@@ -127,7 +128,6 @@ const SupplierOrdersWorkspace = lazy(() =>
 const pageKeys: PageKey[] = [
   'home',
   'orders',
-  'kanban',
   'clients',
   'employees',
   'settings',
@@ -160,6 +160,7 @@ const saveEmployeeSnapshot = (employee: Employee) => {
 
 const getStoredActivePage = (): PageKey => {
   const rawPage = window.localStorage.getItem(activePageStorageKey);
+  if (rawPage === 'kanban') return 'orders';
   return pageKeys.includes(rawPage as PageKey) ? (rawPage as PageKey) : 'home';
 };
 
@@ -201,7 +202,6 @@ const setOrdersTabPreference = (tab: OrdersTab) => {
 const sidebarItems: DashboardSidebarItem[] = [
   { key: 'home', labelKey: 'nav.home' },
   { key: 'orders', labelKey: 'nav.orders' },
-  { key: 'kanban', labelKey: 'nav.kanban' },
   { key: 'accounting', labelKey: 'nav.accounting' },
   { key: 'warehouse', labelKey: 'nav.warehouse' },
   { key: 'catalog', labelKey: 'nav.catalog' },
@@ -245,7 +245,12 @@ export const DashboardPage = () => {
     email: string;
     role: string;
   }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
-  const { state, actions } = useDashboardPage(Boolean(currentEmployee), currentEmployee);
+  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrlOrNull() ?? getStoredActivePage());
+  const { state, actions } = useDashboardPage(
+    Boolean(currentEmployee),
+    currentEmployee,
+    activePage,
+  );
   const [cachedServiceName] = useState(() => readCachedServiceName() ?? '');
   const effectivePrintForms = useMemo(
     () =>
@@ -259,8 +264,8 @@ export const DashboardPage = () => {
       state.settingsForm.printForms,
     ],
   );
-  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrlOrNull() ?? getStoredActivePage());
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
@@ -335,7 +340,7 @@ export const DashboardPage = () => {
     if (page === 'other') return false;
     if (page === 'home') return true;
     if (page === 'orders') return canViewOrders;
-    if (page === 'kanban') return canViewRepairSalesOrders;
+    if (page === 'kanban') return false;
     if (page === 'clients') return canManageClients;
     if (page === 'warehouse' || page === 'catalog') return canManageInventory;
     if (page === 'employees') return canManageEmployees;
@@ -479,8 +484,7 @@ export const DashboardPage = () => {
       setCurrentEmployee(nextEmployee);
       saveEmployeeSnapshot(nextEmployee);
 
-      const currentWorkspaceTab =
-        activePage === 'kanban' ? 'kanban' : effectiveOrdersTab;
+      const currentWorkspaceTab = effectiveOrdersTab;
       if (isCurrentlyVisible && tab === currentWorkspaceTab) {
         changeOrdersTab(nextDisplayed[0] ?? 'orders', { replace: true });
       }
@@ -596,6 +600,11 @@ export const DashboardPage = () => {
   useEffect(() => {
     window.localStorage.setItem(activePageStorageKey, activePage);
   }, [activePage]);
+
+  useEffect(() => {
+    if (!currentEmployee) return undefined;
+    return startLiveEvents();
+  }, [currentEmployee]);
 
   useEffect(() => {
     window.localStorage.setItem(sidebarCollapsedStorageKey, String(isSidebarCollapsed));
@@ -839,11 +848,6 @@ export const DashboardPage = () => {
       openOrdersPage();
     }
 
-    if (item.key === 'kanban') {
-      setOrdersTabPreference('kanban');
-      openPage('kanban');
-    }
-
     if (item.key === 'employees') {
       openPage('employees');
     }
@@ -919,16 +923,6 @@ export const DashboardPage = () => {
 
   const handleSelectedSaleIdChange = useCallback(
     (saleId: string | null) => {
-      if (activePage === 'kanban') {
-        navigateTo({
-          page: 'kanban',
-          ordersTab: 'kanban',
-          createOrder: null,
-          saleId,
-          accountingTab: null,
-        });
-        return;
-      }
       navigateTo({
         page: 'orders',
         ordersTab: effectiveOrdersTab,
@@ -1229,22 +1223,59 @@ export const DashboardPage = () => {
             canViewOrders &&
             canCreateOrders &&
             !isCreateOrderOpen ? (
-              <>
+              <div className="topbar-primary-actions-create">
                 <button
                   type="button"
-                  className="primary-button topbar-create-button"
+                  className="primary-button topbar-create-button topbar-create-desktop"
                   onClick={() => openCreateOrder('orders')}
                 >
                   {t('orders.toolbar.createRepair')}
                 </button>
                 <button
                   type="button"
-                  className="secondary-button topbar-create-button"
+                  className="secondary-button topbar-create-button topbar-create-desktop"
                   onClick={() => openCreateOrder('sales')}
                 >
                   {t('orders.toolbar.createSale')}
                 </button>
-              </>
+                <div className="topbar-create-phone">
+                  <button
+                    type="button"
+                    className="primary-button topbar-create-button"
+                    aria-expanded={isCreateMenuOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setIsCreateMenuOpen((open) => !open)}
+                  >
+                    {t('common.create')}
+                  </button>
+                  {isCreateMenuOpen ? (
+                    <div className="topbar-create-menu-panel" role="menu">
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsCreateMenuOpen(false);
+                          openCreateOrder('orders');
+                        }}
+                      >
+                        {t('orders.toolbar.createRepair')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsCreateMenuOpen(false);
+                          openCreateOrder('sales');
+                        }}
+                      >
+                        {t('orders.toolbar.createSale')}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             ) : null
           }
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -1281,10 +1312,7 @@ export const DashboardPage = () => {
               allowedPages={pageKeys.filter((page) => canAccessPage(page))}
               onNavigate={openPage}
             />
-          ) : (activePage === 'orders' || activePage === 'kanban') &&
-            (activePage === 'kanban'
-              ? canViewRepairSalesOrders
-              : canViewOrders) ? (
+          ) : activePage === 'orders' && canViewOrders ? (
             activePage === 'orders' &&
             isCreateOrderOpen &&
             effectiveOrdersTab !== 'supplierOrders' &&
@@ -1332,9 +1360,7 @@ export const DashboardPage = () => {
                   products={state.allProducts}
                   employees={state.allEmployees}
                   isLoading={state.isSalesLoading}
-                  activeTab={
-                    activePage === 'kanban' ? 'kanban' : effectiveOrdersTab
-                  }
+                  activeTab={effectiveOrdersTab}
                   visibleTabs={displayedOrdersTabs}
                   permittedTabs={availableOrdersTabs}
                   searchValue={state.productSearchQuery}
@@ -1343,11 +1369,8 @@ export const DashboardPage = () => {
                   onSearchChange={actions.setProductSearchQuery}
                   onCreateOrder={openCreateOrder}
                   createOrderHref={getDashboardHref('orders', {
-                    ordersTab:
-                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
-                    createOrder: getCreateOrderForOrdersTab(
-                      activePage === 'kanban' ? 'kanban' : effectiveOrdersTab,
-                    ),
+                    ordersTab: effectiveOrdersTab,
+                    createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
                   })}
                   getCreateOrderHref={(tab) =>
                     getDashboardHref('orders', {
@@ -1556,15 +1579,10 @@ export const DashboardPage = () => {
         </div>
         <GlobalHorizontalScrollbar />
         <DashboardMobileNav
-          items={[
-            { key: 'home', labelKey: 'nav.home' },
-            { key: 'orders', labelKey: 'nav.orders' },
-            { key: 'kanban', labelKey: 'nav.kanban' },
-            { key: 'clients', labelKey: 'nav.clients' },
-            { key: 'warehouse', labelKey: 'nav.warehouse' },
-          ]}
+          items={sidebarItems}
           activePage={activePage}
           canAccessPage={(page) => canAccessPage(page)}
+          onOpenMore={() => setIsMobileNavOpen(true)}
           onNavClick={(event, page) => {
             if (!isPlainLeftClick(event)) return;
             event.preventDefault();
@@ -1572,9 +1590,6 @@ export const DashboardPage = () => {
             if (page === 'orders') {
               openOrdersPage();
               return;
-            }
-            if (page === 'kanban') {
-              setOrdersTabPreference('kanban');
             }
             openPage(page);
           }}

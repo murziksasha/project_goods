@@ -63,7 +63,11 @@ export const getEffectiveDashboardWidgetSettings = (
 
   return {
     marketWeatherEnabled: preferences.marketWeatherEnabled,
-    collapsed: overrides.collapsed ?? false,
+    collapsed:
+      overrides.collapsed ??
+      (typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(max-width: 1024px)').matches),
     contentVisible: overrides.contentVisible ?? true,
     exchangeRatesEnabled:
       overrides.exchangeRatesEnabled ?? preferences.exchangeRatesEnabled,

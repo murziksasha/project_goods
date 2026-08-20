@@ -1,0 +1,264 @@
+/* Tablet + phone: stack wide tables into labeled cards. */
+
+@media (max-width: 1024px) {
+  .global-fixed-h-scrollbar {
+    display: none !important;
+  }
+
+  .orders-table-wrap:has(.orders-workspace-table),
+  .orders-table-wrap:has(.clients-table),
+  .orders-table-wrap:has(.clients-card-table),
+  .orders-table-wrap:has(.supplier-orders-table),
+  .finance-card-table-wrap,
+  .catalog-card-table-wrap,
+  .catalog-table-wrap:has(.table-card-stack) {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .orders-workspace-table,
+  .clients-table,
+  .clients-card-table,
+  .supplier-orders-table,
+  .finance-transactions-table,
+  .finance-orders-table,
+  .catalog-card-table,
+  .table-card-stack {
+    min-width: 0 !important;
+    width: 100%;
+    display: block;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+  }
+
+  .orders-workspace-table thead,
+  .clients-table thead,
+  .clients-card-table thead,
+  .supplier-orders-table thead,
+  .finance-transactions-table thead,
+  .finance-orders-table thead,
+  .catalog-card-table thead,
+  .table-card-stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .orders-workspace-table tbody,
+  .clients-table tbody,
+  .clients-card-table tbody,
+  .supplier-orders-table tbody,
+  .finance-transactions-table tbody,
+  .finance-orders-table tbody,
+  .catalog-card-table tbody,
+  .table-card-stack tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .orders-workspace-table tr,
+  .clients-table tr,
+  .clients-card-table tr,
+  .supplier-orders-table tr,
+  .finance-transactions-table tr,
+  .finance-orders-table tr,
+  .catalog-card-table tr,
+  .table-card-stack tr {
+    display: grid;
+    gap: 0;
+    border: 1px solid var(--color-line-panel);
+    border-radius: 8px;
+    background: var(--bg-card);
+    box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
+    overflow: hidden;
+  }
+
+  .orders-workspace-table td,
+  .clients-table td,
+  .clients-card-table td,
+  .supplier-orders-table td,
+  .finance-transactions-table td,
+  .finance-orders-table td,
+  .catalog-card-table td,
+  .table-card-stack td {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    border-bottom: 1px solid var(--color-line-panel);
+    padding: 10px 12px;
+    overflow: visible;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .orders-workspace-table td:last-child,
+  .clients-table td:last-child,
+  .clients-card-table td:last-child,
+  .supplier-orders-table td:last-child,
+  .finance-transactions-table td:last-child,
+  .finance-orders-table td:last-child,
+  .catalog-card-table td:last-child,
+  .table-card-stack td:last-child {
+    border-bottom: 0;
+  }
+
+  .orders-workspace-table td::before,
+  .clients-table td::before,
+  .clients-card-table td::before,
+  .supplier-orders-table td::before,
+  .finance-transactions-table td::before,
+  .finance-orders-table td::before,
+  .catalog-card-table td::before,
+  .table-card-stack td::before {
+    content: attr(data-label);
+    color: var(--color-text-label);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .orders-workspace-table td:not([data-label])::before,
+  .orders-workspace-table td[data-label='']::before,
+  .clients-table td:not([data-label])::before,
+  .clients-table td[data-label='']::before,
+  .clients-card-table td:not([data-label])::before,
+  .clients-card-table td[data-label='']::before,
+  .supplier-orders-table td:not([data-label])::before,
+  .supplier-orders-table td[data-label='']::before,
+  .finance-transactions-table td:not([data-label])::before,
+  .finance-transactions-table td[data-label='']::before,
+  .finance-orders-table td:not([data-label])::before,
+  .finance-orders-table td[data-label='']::before,
+  .catalog-card-table td:not([data-label])::before,
+  .catalog-card-table td[data-label='']::before,
+  .table-card-stack td:not([data-label])::before,
+  .table-card-stack td[data-label='']::before {
+    content: none;
+  }
+
+  .table-card-stack td:not([data-label]),
+  .table-card-stack td[data-label=''] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .repair-kanban-board {
+    scroll-snap-type: x mandatory;
+    padding-bottom: 20px;
+  }
+
+  .repair-kanban-column {
+    flex: 0 0 min(86vw, 320px);
+    scroll-snap-align: start;
+    max-height: calc(100dvh - 220px);
+  }
+
+  .repair-kanban-card-master-select,
+  .order-detail-status-select,
+  .order-status {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .catalog-edit-modal,
+  .warehouse-settings-modal,
+  .product-model-modal,
+  .payment-modal,
+  .clients-modal,
+  .supplier-order-modal,
+  .order-print-dialog {
+    max-height: min(100dvh - 16px, 100vh - 16px);
+  }
+
+  .modal-backdrop {
+    padding: max(8px, env(safe-area-inset-top, 0px)) 8px
+      max(8px, env(safe-area-inset-bottom, 0px));
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 1024px) {
+  .analytics-dashboard {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .analytics-executive-header,
+  .hero-controls,
+  .analytics-date-filter,
+  .analytics-summary-grid {
+    order: 1;
+  }
+
+  .analytics-executive-grid,
+  .hero-chart-layout,
+  .analytics-report-layout {
+    order: 2;
+  }
+
+  .analytics-live-insights {
+    order: 8;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar-create-desktop {
+    display: none !important;
+  }
+
+  .topbar-create-phone {
+    display: block;
+    position: relative;
+  }
+
+  .topbar-menu-button,
+  .topbar-more-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (min-width: 721px) {
+  .topbar-create-phone {
+    display: none !important;
+  }
+}
+
+.topbar-create-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 110;
+  display: grid;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: 0 12px 28px rgba(15, 28, 42, 0.18);
+}
+
+.topbar-create-menu-panel button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+}
+
+.mobile-bottom-nav-item {
+  min-height: 44px;
+  font-size: 0.75rem;
+}

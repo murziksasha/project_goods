@@ -7,8 +7,15 @@ type Metrics = {
   visible: boolean;
 };
 
+const shouldHideGlobalScrollbar = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  (window.matchMedia('(max-width: 1024px)').matches ||
+    window.matchMedia('(pointer: coarse)').matches);
+
 const isVisibleOverflow = (element: HTMLDivElement) => {
   if (element.dataset.globalScrollbar === 'off') return false;
+  if (shouldHideGlobalScrollbar()) return false;
 
   const rect = element.getBoundingClientRect();
   const intersectsViewport = rect.bottom > 0 && rect.top < window.innerHeight;

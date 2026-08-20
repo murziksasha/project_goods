@@ -55,7 +55,7 @@ All dashboard views share one path (`/` or the deployed SPA root). Section state
 |-----------|--------------|----------------|
 | `page` | Non-home sections | `orders`, `clients`, `employees`, `settings`, `accounting`, `catalog`, `warehouse` |
 | `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation` |
-| `page` | always | includes `kanban` for standalone repair Kanban (`?page=kanban`, optional `saleId`) |
+| legacy `page=kanban` | parse only | remapped to `page=orders&ordersTab=kanban` (keeps `saleId`) |
 | `createOrder` | Create-order card open | `repair`, `sale` |
 | `saleId` | Order/sale detail card open | Sale document id |
 | `accountingTab` | `page=accounting` | `cashboxes`, `transactions`, `orders`, `reports` |

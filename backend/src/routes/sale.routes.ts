@@ -3,6 +3,7 @@ import {
   acceptSalePayment,
   createSale,
   deleteSale,
+  getSaleById,
   listSales,
   refundSalePayment,
   returnSale,
@@ -48,6 +49,11 @@ const saleReadPermissions = [
 saleRouter.get('/sales', asyncHandler(async (req, res) => {
   await requireAnyPermission(req, saleReadPermissions);
   res.json(await listSales(req.query as Record<string, unknown>));
+}));
+
+saleRouter.get('/sales/:saleId', asyncHandler(async (req, res) => {
+  await requireAnyPermission(req, saleReadPermissions);
+  res.json(await getSaleById(routeParam(req, 'saleId')));
 }));
 
 saleRouter.post('/sales', asyncHandler(async (req, res) => {

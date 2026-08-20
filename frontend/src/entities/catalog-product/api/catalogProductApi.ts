@@ -1,19 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
+import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import axios from 'axios';
 import type { CatalogProduct, CatalogProductFormValues } from '../model/types';
 
 let hasLoggedCatalogProducts404Warning = false;
 
-export const useCatalogProductsQuery = (enabled = true) =>
-  useQuery({
+export const useCatalogProductsQuery = (
+  enabled = true,
+  options: { poll?: boolean } = {},
+) => {
+  const refetchInterval = useVisibleRefetchInterval(
+    60_000,
+    Boolean(enabled && options.poll),
+  );
+  return useQuery({
     queryKey: queryKeys.catalogProducts,
     queryFn: () => getCatalogProducts(),
     enabled,
     staleTime: 2 * 60_000,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval,
   });
+};
 
 export const getCatalogProducts = async (query = '') => {
   try {

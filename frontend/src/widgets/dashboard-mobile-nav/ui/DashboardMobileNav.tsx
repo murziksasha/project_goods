@@ -5,9 +5,20 @@ import { getDashboardHref } from '../../../pages/dashboard/model/types';
 import { sidebarNavIcons } from '../../../shared/ui/sidebarNavIcons';
 
 export type MobileNavItem = {
-  key: PageKey;
+  key: PageKey | 'other';
   labelKey: string;
 };
+
+export const mobileNavPriority: PageKey[] = [
+  'home',
+  'orders',
+  'accounting',
+  'clients',
+  'warehouse',
+  'catalog',
+  'employees',
+  'settings',
+];
 
 type DashboardMobileNavProps = {
   items: MobileNavItem[];
@@ -17,6 +28,7 @@ type DashboardMobileNavProps = {
     event: ReactMouseEvent<HTMLAnchorElement>,
     key: PageKey,
   ) => void;
+  onOpenMore?: () => void;
 };
 
 /** Bottom tab bar for narrow layouts (≤1024px, shown via CSS). */
@@ -25,9 +37,20 @@ export const DashboardMobileNav = ({
   activePage,
   canAccessPage,
   onNavClick,
+  onOpenMore,
 }: DashboardMobileNavProps) => {
   const { t } = useTranslation();
-  const visible = items.filter((item) => canAccessPage(item.key)).slice(0, 5);
+  const ranked = [...items].sort((left, right) => {
+    const leftRank = mobileNavPriority.indexOf(left.key as PageKey);
+    const rightRank = mobileNavPriority.indexOf(right.key as PageKey);
+    return leftRank - rightRank;
+  });
+  const visible = ranked
+    .filter((item): item is { key: PageKey; labelKey: string } => {
+      if (item.key === 'other') return false;
+      return canAccessPage(item.key);
+    })
+    .slice(0, 4);
 
   if (visible.length === 0) return null;
 
@@ -55,6 +78,18 @@ export const DashboardMobileNav = ({
           </a>
         );
       })}
+      {onOpenMore ? (
+        <button
+          type="button"
+          className="mobile-bottom-nav-item"
+          onClick={onOpenMore}
+        >
+          <span className="mobile-bottom-nav-icon" aria-hidden="true">
+            ⋯
+          </span>
+          <span className="mobile-bottom-nav-label">{t('common.more')}</span>
+        </button>
+      ) : null}
     </nav>
   );
 };

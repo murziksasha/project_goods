@@ -22,6 +22,7 @@ const restoreHttpMocks = () => {
 let createSale: typeof import('./saleApi').createSale;
 let updateSaleWorkspace: typeof import('./saleApi').updateSaleWorkspace;
 let getSales: typeof import('./saleApi').getSales;
+let getSaleById: typeof import('./saleApi').getSaleById;
 let buildSalesListQuery: typeof import('./saleApi').buildSalesListQuery;
 
 beforeEach(async () => {
@@ -30,7 +31,7 @@ beforeEach(async () => {
   patchMock.mockReset();
   getMock.mockReset();
   restoreHttpMocks();
-  ({ createSale, updateSaleWorkspace, getSales, buildSalesListQuery } = await import('./saleApi'));
+  ({ createSale, updateSaleWorkspace, getSales, getSaleById, buildSalesListQuery } = await import('./saleApi'));
 });
 
 const sale: Sale = {
@@ -81,6 +82,9 @@ describe('saleApi list params', () => {
         dateFrom: '2026-01-01',
         dateTo: '2026-01-31',
         limit: 100,
+        compact: true,
+        page: 2,
+        pageSize: 30,
         isFavorite: true,
       }),
     ).toEqual({
@@ -89,6 +93,9 @@ describe('saleApi list params', () => {
       dateTo: '2026-01-31',
       limit: '100',
       isFavorite: 'true',
+      compact: '1',
+      page: '2',
+      pageSize: '30',
     });
   });
 
@@ -106,6 +113,12 @@ describe('saleApi list params', () => {
         limit: '50',
       },
     });
+  });
+
+  it('loads a full sale by id', async () => {
+    getMock.mockResolvedValueOnce({ data: sale });
+    await expect(getSaleById('sale-1')).resolves.toEqual(sale);
+    expect(getMock).toHaveBeenCalledWith('/sales/sale-1');
   });
 });
 

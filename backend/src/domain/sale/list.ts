@@ -8,6 +8,15 @@ import {
   SALES_LIST_COMPACT_EXCLUDE,
 } from './list-sales-query';
 
+export const getSaleById = async (saleId: string) => {
+  isValidObjectIdOrThrow(saleId, 'saleId');
+  const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
+  if (!sale) {
+    throw new HttpError(404, 'Sale not found.');
+  }
+  return formatSale(sale);
+};
+
 export const listSales = async (query: Record<string, unknown> = {}) => {
   const options = parseListSalesQuery(query);
   const filter = buildSalesFilter(options);
@@ -18,6 +27,21 @@ export const listSales = async (query: Record<string, unknown> = {}) => {
   if (options.compact) {
     findQuery = findQuery.select(SALES_LIST_COMPACT_EXCLUDE);
   }
+
+  if (options.page !== undefined && options.pageSize !== undefined) {
+    const skip = (options.page - 1) * options.pageSize;
+    const [total, sales] = await Promise.all([
+      Sale.countDocuments(filter),
+      findQuery.skip(skip).limit(options.pageSize).lean() as Promise<SaleDocument[]>,
+    ]);
+    return {
+      items: sales.map(formatSale),
+      total,
+      page: options.page,
+      pageSize: options.pageSize,
+    };
+  }
+
   if (options.limit !== undefined) {
     findQuery = findQuery.limit(options.limit);
   }

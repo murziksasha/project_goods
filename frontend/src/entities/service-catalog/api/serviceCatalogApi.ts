@@ -1,19 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
+import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
 } from '../model/types';
 
-export const useServicesQuery = (enabled = true) =>
-  useQuery({
+export const useServicesQuery = (enabled = true, options: { poll?: boolean } = {}) => {
+  const refetchInterval = useVisibleRefetchInterval(
+    60_000,
+    Boolean(enabled && options.poll),
+  );
+  return useQuery({
     queryKey: queryKeys.services,
     queryFn: () => getServiceCatalogItems(),
     enabled,
     staleTime: 2 * 60_000,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval,
   });
+};
 
 export const getServiceCatalogItems = async (query = '') => {
   try {

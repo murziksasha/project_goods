@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
+import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   Product,
@@ -7,14 +8,19 @@ import type {
   ProductModelUpdatePayload,
 } from '../model/types';
 
-export const useProductsQuery = (enabled = true) =>
-  useQuery({
+export const useProductsQuery = (enabled = true, options: { poll?: boolean } = {}) => {
+  const refetchInterval = useVisibleRefetchInterval(
+    15_000,
+    Boolean(enabled && options.poll),
+  );
+  return useQuery({
     queryKey: queryKeys.products,
     queryFn: () => getProducts(),
     enabled,
     staleTime: 30_000,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval,
   });
+};
 
 export const getProducts = async (query = '') => {
   try {

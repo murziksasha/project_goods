@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
+import { formatCurrency } from '../../../../shared/lib/format';
+import { getSaleTotal } from '../../model/sales-analytics';
 import { getSaleClientDisplayName } from '../../model/sale-client-display';
 import {
   buildOrderNumber,
@@ -76,6 +78,8 @@ const KanbanCard = ({
   const clientName = getSaleClientDisplayName(sale, t);
   const deviceName = getPrimaryDeviceName(sale);
   const masterId = sale.master?.id ?? '';
+  const hasLineItems = Array.isArray(sale.lineItems) && sale.lineItems.length > 0;
+  const orderTotal = hasLineItems ? getSaleTotal(sale) : 0;
 
   return (
     <div
@@ -97,6 +101,11 @@ const KanbanCard = ({
       <span className="repair-kanban-card-number">#{orderNumber}</span>
       <span className="repair-kanban-card-client">{clientName}</span>
       <span className="repair-kanban-card-device">{deviceName || '—'}</span>
+      {hasLineItems ? (
+        <span className="repair-kanban-card-total">
+          {formatCurrency(orderTotal)}
+        </span>
+      ) : null}
       <label
         className="repair-kanban-card-master"
         onClick={stopCardInteraction}
@@ -264,7 +273,11 @@ export const RepairKanbanBoard = ({
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
+      activationConstraint:
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(pointer: coarse)').matches
+          ? { delay: 180, tolerance: 8 }
+          : { distance: 6 },
     }),
   );
 
