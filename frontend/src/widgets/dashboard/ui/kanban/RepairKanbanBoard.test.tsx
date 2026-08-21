@@ -33,5 +33,39 @@ describe('RepairKanbanBoard', () => {
     expect(screen.getByLabelText(/new|нове/i)).toBeInTheDocument();
     expect(container.querySelector('.repair-kanban-card-shell')).toBeTruthy();
     expect(container.querySelector('.repair-kanban-drop-placeholder')).toBeNull();
+    expect(container.querySelector('.repair-kanban-card-device')).toBeTruthy();
+    expect(container.querySelector('.repair-kanban-card-total')).toBeNull();
+  });
+
+  it('shows the order total when the sale has line items', () => {
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[
+          {
+            ...sale,
+            lineItems: [
+              {
+                id: 'item-1',
+                kind: 'service',
+                name: 'Diagnostics',
+                price: 250,
+                quantity: 1,
+                warrantyPeriod: 0,
+              },
+            ],
+            salePrice: 0,
+            quantity: 1,
+          } as Sale,
+        ]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.repair-kanban-card-total')).toBeTruthy();
   });
 });

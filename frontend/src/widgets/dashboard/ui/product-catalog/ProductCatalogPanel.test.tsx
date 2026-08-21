@@ -1,10 +1,31 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClientDevice } from '../../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { Supplier } from '../../../../entities/supplier/model/types';
 import { ProductCatalogPanel } from './ProductCatalogPanel';
+
+vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+  listSavedFilters: vi.fn(async () => []),
+  createSavedFilter: vi.fn(async (payload: {
+    scope: string;
+    tab: string;
+    name: string;
+    icon: string;
+    filters: unknown;
+  }) => ({
+    id: 'saved-1',
+    employeeId: 'employee-1',
+    scope: payload.scope,
+    tab: payload.tab,
+    name: payload.name,
+    icon: payload.icon,
+    filters: payload.filters,
+    createdAt: '2026-06-13T00:00:00.000Z',
+  })),
+  deleteSavedFilter: vi.fn(async () => ({ id: 'saved-1', deleted: true })),
+}));
 
 const employee: Employee = {
   id: 'employee-1',
@@ -187,7 +208,7 @@ describe('ProductCatalogPanel client devices search', () => {
     expect(screen.getByText('No products found.')).toBeInTheDocument();
   });
 
-  it('applies and saves filters only for the active catalog tab', () => {
+  it('applies and saves filters only for the active catalog tab', async () => {
     renderPanel({
       clientDevices: [
         clientDevice({
@@ -224,11 +245,13 @@ describe('ProductCatalogPanel client devices search', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(
-      screen
-        .getAllByRole('button', { name: /Active coffee/ })
-        .some((button) => button.className === 'orders-filter-saved-button'),
-    ).toBe(true);
+    await waitFor(() => {
+      expect(
+        screen
+          .getAllByRole('button', { name: /Active coffee/ })
+          .some((button) => button.className === 'orders-filter-saved-button'),
+      ).toBe(true);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Products' }));
 

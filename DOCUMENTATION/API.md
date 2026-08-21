@@ -117,9 +117,16 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
   - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
-  - `limit` — максимум записей (cap 5000); без `limit` — полный список (как раньше; не режем по умолчанию — analytics/orders)
-  - `compact` — `1`/`true`: list projection без `timeline` и `paymentHistory` (меньше payload; не включать в main dashboard fetch, пока UI не грузит эти поля отдельно)
+  - `limit` — максимум записей (cap 5000); без `limit` и без `page` — полный список
+  - `page` / `pageSize` — если `page` задан, ответ `{ items, total, page, pageSize }` (default pageSize 30, cap 500). Таблица Orders/Sales использует этот режим.
+  - `statuses` — CSV/`$in`; `excludeStatuses` — `$nin`
+  - `assigneeId` — master или manager; `masterId` — только master (Kanban)
+  - `recordNumber`, `client`, `product`, `service`, `repairType` (`paid`|`warranty`), `paymentMethod` (`cash`|`non-cash`)
+  - `compact` — `1`/`true`: list projection без `timeline` и `paymentHistory`. Dashboard dump і таблиця шлють `compact=1`; картка довантажує `GET /sales/:id`.
   - См. политику размера БД: [DATA_RETENTION.md](./DATA_RETENTION.md)
+- `GET /sales/:saleId` — повний документ продажу/замовлення (`timeline`, `paymentHistory`, line items)
+  - Permission: ті самі read-права, що й `GET /sales`
+- `GET /events/stream` — SSE (`text/event-stream`) для LAN live-invalidation. Auth: Bearer. Події `resource.changed` після успішних POST/PUT/PATCH/DELETE.
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
   - **Rapid sale** (`isRapidSale: true`): compact counter-sale path (see [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24)).

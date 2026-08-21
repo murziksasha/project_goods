@@ -13,7 +13,7 @@ export type SidebarNavGroup = {
 
 export const defaultSidebarGroups: SidebarNavGroup[] = [
   { id: 'home', labelKey: 'nav.groups.overview', keys: ['home'] },
-  { id: 'work', labelKey: 'nav.groups.work', keys: ['orders', 'kanban', 'clients'] },
+  { id: 'work', labelKey: 'nav.groups.work', keys: ['orders', 'clients'] },
   { id: 'stock', labelKey: 'nav.groups.stock', keys: ['warehouse', 'catalog'] },
   { id: 'money', labelKey: 'nav.groups.money', keys: ['accounting'] },
   {

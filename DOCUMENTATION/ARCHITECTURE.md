@@ -31,7 +31,7 @@ MongoDB
 
 ## Repair Kanban
 
-Канбан ремонтів (`page=kanban` та вкладка `ordersTab=kanban`) синхронізований із repair sales; статуси = стовпці. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+Канбан ремонтів — вкладка Orders (`ordersTab=kanban`), не окрема сторінка. Синхронізований із repair sales; статуси = стовпці. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
 
 ## Архитектура frontend
 
@@ -161,8 +161,8 @@ Backend собран по модульному практическому пат
 
 ## Shared State Consistency (2026-05-06)
 
-- Frontend keeps local state in useDashboardPage and syncs with backend via dashboard actions.
-- Critical mutations trigger targeted refresh calls for sales, products, and client-devices.
+- Frontend keeps collection state in TanStack Query; `useDashboardPage` owns forms/filters.
+- Sales list is compact; cards fetch `GET /sales/:id`. SSE `/api/events/stream` invalidates caches for other LAN users.
 - Topbar shows Last sync timestamp to visualize data freshness.
 - Full rollout plan is tracked in [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md).
 

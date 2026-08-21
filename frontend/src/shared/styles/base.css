@@ -74,8 +74,8 @@
   --text-sm: 0.875rem;
   --text-md: 1rem;
   --text-lg: 1.125rem;
-  --font-ui: 'Bahnschrift', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  --font-display: 'Cambria', 'Palatino Linotype', serif;
+  --font-ui: 'Bahnschrift', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Cambria', 'Palatino Linotype', Palatino, Georgia, serif;
   --focus-ring: 0 0 0 3px rgba(45, 138, 227, 0.28);
 
   --status-new: #6b7280;
@@ -298,6 +298,6 @@ p {
 .lang-btn-active,
 .lang-btn:hover {
   background: var(--color-primary, #2563eb);
-  color: #fff;
+  color: var(--color-on-accent);
   border-color: var(--color-primary, #2563eb);
 }

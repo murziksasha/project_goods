@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sale } from './model';
-import { listSales } from './list';
+import { getSaleById, listSales } from './list';
 
 vi.mock('../../shared/lib/formatters', () => ({
   formatSale: (sale: { _id: { toString: () => string }; kind: string }) => ({
@@ -60,5 +60,42 @@ describe('listSales', () => {
     await listSales({ compact: '1' });
 
     expect(select).toHaveBeenCalledWith('-timeline -paymentHistory');
+  });
+
+  it('returns a paginated envelope when page is set', async () => {
+    const lean = vi.fn().mockResolvedValue([
+      { _id: { toString: () => '1' }, kind: 'repair' },
+    ]);
+    const limit = vi.fn().mockReturnValue({ lean });
+    const skip = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ skip });
+    const sort = vi.fn().mockReturnValue({ select });
+    vi.spyOn(Sale, 'find').mockReturnValue({ sort } as never);
+    vi.spyOn(Sale, 'countDocuments').mockResolvedValue(41);
+
+    await expect(
+      listSales({ kind: 'repair', page: '2', pageSize: '20', compact: '1' }),
+    ).resolves.toEqual({
+      items: [{ id: '1', kind: 'repair' }],
+      total: 41,
+      page: 2,
+      pageSize: 20,
+    });
+    expect(skip).toHaveBeenCalledWith(20);
+    expect(limit).toHaveBeenCalledWith(20);
+    expect(select).toHaveBeenCalledWith('-timeline -paymentHistory');
+  });
+
+  it('loads a full sale by id', async () => {
+    const lean = vi.fn().mockResolvedValue({
+      _id: { toString: () => 'sale-1' },
+      kind: 'repair',
+    });
+    vi.spyOn(Sale, 'findById').mockReturnValue({ lean } as never);
+
+    await expect(getSaleById('507f1f77bcf86cd799439011')).resolves.toEqual({
+      id: 'sale-1',
+      kind: 'repair',
+    });
   });
 });

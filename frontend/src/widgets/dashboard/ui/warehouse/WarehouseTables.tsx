@@ -44,7 +44,7 @@ export const ReceiptsTable = ({
     );
   return (
     <div className='catalog-table-wrap'>
-      <table className='catalog-table warehouse-receipts-table'>
+      <table className='catalog-table warehouse-receipts-table table-card-stack'>
         <thead>
           <tr>
             {visibleColumns.map((columnKey) => (
@@ -58,7 +58,10 @@ export const ReceiptsTable = ({
           {receipts.map((receipt) => (
             <tr key={receipt.id}>
               {visibleColumns.map((columnKey) => (
-                <td key={`${receipt.id}-${columnKey}`}>
+                <td
+                  key={`${receipt.id}-${columnKey}`}
+                  data-label={t(`warehouse.tables.receipts.columns.${columnKey}`)}
+                >
                   {columnKey === 'number' ? (
                     <div className='supplier-order-number-cell'>
                       {receipt.supplierOrderId ? (
@@ -262,7 +265,7 @@ export const StockTable = ({
     );
   return (
     <div className='catalog-table-wrap'>
-      <table className='catalog-table warehouse-stock-table'>
+      <table className='catalog-table warehouse-stock-table table-card-stack'>
         <thead>
           <tr>
             {visibleColumns.map((columnKey) => (
@@ -317,6 +320,11 @@ export const StockTable = ({
                         ]
                           .filter(Boolean)
                           .join(' ')}
+                        data-label={
+                          columnKey === 'select'
+                            ? ''
+                            : t(`warehouse.tables.stock.columns.${columnKey}`)
+                        }
                       >
                         {columnKey === 'select' ? (
                           <input

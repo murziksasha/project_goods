@@ -49,6 +49,7 @@ describe('filterCommandPaletteItems', () => {
     const emptyQuery = filterCommandPaletteItems(items, '');
     expect(emptyQuery.some((item) => item.group === 'orders')).toBe(false);
     expect(emptyQuery.some((item) => item.id === 'create-repair')).toBe(true);
+    expect(items.some((item) => item.id === 'page-kanban')).toBe(false);
 
     const filtered = filterCommandPaletteItems(items, 'r000123');
     expect(filtered.some((item) => item.action.type === 'openSale')).toBe(true);

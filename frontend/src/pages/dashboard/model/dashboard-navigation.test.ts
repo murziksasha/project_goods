@@ -72,6 +72,26 @@ describe('dashboard-navigation', () => {
     ).toBe('/?page=clients');
   });
 
+  it('maps legacy page=kanban to orders tab kanban', () => {
+    expect(parseDashboardLocation('?page=kanban&saleId=sale-9')).toEqual({
+      page: 'orders',
+      ordersTab: 'kanban',
+      createOrder: null,
+      saleId: 'sale-9',
+      accountingTab: null,
+    });
+
+    expect(
+      buildDashboardHref({
+        page: 'kanban',
+        ordersTab: 'orders',
+        createOrder: null,
+        saleId: 'sale-9',
+        accountingTab: null,
+      }),
+    ).toBe('/?page=orders&ordersTab=kanban&saleId=sale-9');
+  });
+
   it('builds sidebar hrefs through getDashboardHref', () => {
     expect(getDashboardHref('home')).toBe('/');
     expect(

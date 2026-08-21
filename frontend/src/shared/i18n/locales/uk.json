@@ -41,6 +41,7 @@
     "collapseMenu": "Згорнути меню",
     "openMenu": "Відкрити меню",
     "moreActions": "Більше дій",
+    "more": "Ще",
     "save": "Зберегти",
     "cancel": "Скасувати",
     "delete": "Видалити",
@@ -2728,7 +2729,7 @@
       },
       "errors": {
         "failedRefresh": "Не вдалося оновити {{entity}}.",
-        "optimisticConflict": "{{entity}} оновлено іншим користувачем. Завантажено актуальні дані, повторіть спробу.",
+        "optimisticConflict": "{{entity}} оновлено іншим користувачем. Завантажено актуальні дані. Перевірте зміни та повторіть спробу.",
         "failedRefreshProducts": "Не вдалося оновити товари.",
         "failedRefreshSales": "Не вдалося оновити продажі.",
         "failedRefreshClientDevices": "Не вдалося оновити пристрої клієнтів.",

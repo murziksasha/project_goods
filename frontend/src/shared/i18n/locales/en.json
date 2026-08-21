@@ -41,6 +41,7 @@
     "collapseMenu": "Collapse menu",
     "openMenu": "Open menu",
     "moreActions": "More actions",
+    "more": "More",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -2728,7 +2729,7 @@
       },
       "errors": {
         "failedRefresh": "Failed to refresh {{entity}}.",
-        "optimisticConflict": "{{entity}} was updated by another user. Latest data loaded, please retry.",
+        "optimisticConflict": "{{entity}} was updated by another user. Latest data loaded. Review the changes and retry.",
         "failedRefreshProducts": "Failed to refresh products.",
         "failedRefreshSales": "Failed to refresh sales.",
         "failedRefreshClientDevices": "Failed to refresh client devices.",

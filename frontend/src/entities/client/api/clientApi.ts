@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
+import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type {
   Client,
@@ -9,14 +10,19 @@ import type {
   ClientStatus,
 } from '../model/types';
 
-export const useClientsQuery = (enabled = true) =>
-  useQuery({
+export const useClientsQuery = (enabled = true, options: { poll?: boolean } = {}) => {
+  const refetchInterval = useVisibleRefetchInterval(
+    15_000,
+    Boolean(enabled && options.poll),
+  );
+  return useQuery({
     queryKey: queryKeys.clients,
     queryFn: () => getClients(),
     enabled,
     staleTime: 30_000,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval,
   });
+};
 
 export const getClients = async (
   query = '',

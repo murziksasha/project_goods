@@ -20,7 +20,7 @@ Mongo **must** run as replica set (`?replicaSet=rs0` in `MONGO_URI`) for transac
 
 `backend/Dockerfile`:
 
-1. Installs MongoDB database tools (`mongodump` / `mongorestore`).
+1. Installs MongoDB database tools (`mongodump` / `mongorestore`) from fastdl over HTTP/1.1 with retries (HTTP/2 streams from that CDN often abort with curl 18).
 2. Runs `npm run build` (TypeScript → `dist/`).
 3. Starts with `node dist/server.js` (`NODE_ENV=production` in Compose).
 

@@ -37,6 +37,7 @@ type OrdersWorkspaceListHeaderProps = {
   onToggleColumnsMenu: () => void;
   onToggleColumnVisibility: (columnKey: OrdersColumnKey) => void;
   onToggleFavoritesOnly: () => void;
+  onOpenSingleMatch?: () => void;
 };
 
 export const OrdersWorkspaceListHeader = ({
@@ -64,8 +65,30 @@ export const OrdersWorkspaceListHeader = ({
   onToggleColumnsMenu,
   onToggleColumnVisibility,
   onToggleFavoritesOnly,
+  onOpenSingleMatch,
 }: OrdersWorkspaceListHeaderProps) => {
   const { t } = useTranslation();
+  const canOpenSingleMatch =
+    Boolean(onOpenSingleMatch) &&
+    searchValue.trim().length > 0 &&
+    filteredOrdersCount === 1;
+  const countLabel = t('orders.kanban.ordersCount', {
+    count: filteredOrdersCount,
+  });
+  const countChip = canOpenSingleMatch ? (
+    <button
+      type="button"
+      className="orders-kanban-count"
+      aria-label={countLabel}
+      onClick={onOpenSingleMatch}
+    >
+      {countLabel}
+    </button>
+  ) : (
+    <span className="orders-kanban-count" aria-label={countLabel}>
+      {countLabel}
+    </span>
+  );
 
   return (
     <>
@@ -80,14 +103,9 @@ export const OrdersWorkspaceListHeader = ({
       <div className="orders-toolbar">
         <div className="orders-toolbar-left">
           {activeTab === 'kanban' ? (
-            <span
-              className="orders-kanban-count"
-              aria-label={t('orders.kanban.ordersCount', {
-                count: filteredOrdersCount,
-              })}
-            >
-              {t('orders.kanban.ordersCount', { count: filteredOrdersCount })}
-            </span>
+            countChip
+          ) : canOpenSingleMatch ? (
+            countChip
           ) : (
             <CompactPaginationPanel
               totalItems={filteredOrdersCount}

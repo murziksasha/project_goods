@@ -788,7 +788,7 @@ export const WarehouseInformationPanel = ({
 
       {view === 'products' ? (
         <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table'>
+          <table className='catalog-table warehouse-information-table table-card-stack'>
             <thead>
               <tr>
                 <th>
@@ -821,14 +821,33 @@ export const WarehouseInformationPanel = ({
               ) : (
                 paginatedProducts.map((row) => (
                   <tr key={row.id}>
-                    <td className='catalog-name-cell'>{row.name}</td>
-                    <td>{row.article}</td>
-                    <td>{row.units}</td>
-                    <td>{formatCurrency(row.value)}</td>
-                    <td>{formatList(row.warehouses)}</td>
-                    <td>{formatList(row.locations)}</td>
-                    <td>{formatList(row.suppliers)}</td>
-                    <td>{formatDate(row.latestPurchaseDate)}</td>
+                    <td
+                      className='catalog-name-cell'
+                      data-label={t('warehouse.information.productsTable.columns.product')}
+                    >
+                      {row.name}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.article')}>
+                      {row.article}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.units')}>
+                      {row.units}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.value')}>
+                      {formatCurrency(row.value)}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.warehouses')}>
+                      {formatList(row.warehouses)}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.locations')}>
+                      {formatList(row.locations)}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.suppliers')}>
+                      {formatList(row.suppliers)}
+                    </td>
+                    <td data-label={t('warehouse.information.productsTable.columns.latest')}>
+                      {formatDate(row.latestPurchaseDate)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -840,7 +859,7 @@ export const WarehouseInformationPanel = ({
 
       {view === 'locations' ? (
         <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table'>
+          <table className='catalog-table warehouse-information-table table-card-stack'>
             <thead>
               <tr>
                 <th>
@@ -872,8 +891,13 @@ export const WarehouseInformationPanel = ({
               ) : (
                 paginatedLocations.map((row) => (
                   <tr key={row.id}>
-                    <td className='catalog-name-cell'>{row.warehouseName}</td>
-                    <td>
+                    <td
+                      className='catalog-name-cell'
+                      data-label={t('warehouse.information.locationsTable.columns.warehouse')}
+                    >
+                      {row.warehouseName}
+                    </td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.status')}>
                       <span
                         className={
                           row.isWarehouseActive
@@ -886,11 +910,21 @@ export const WarehouseInformationPanel = ({
                           : t('warehouse.common.inactive')}
                       </span>
                     </td>
-                    <td>{row.locationName}</td>
-                    <td>{row.units}</td>
-                    <td>{row.uniqueProducts}</td>
-                    <td>{formatCurrency(row.value)}</td>
-                    <td>{formatDate(row.latestPurchaseDate)}</td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.location')}>
+                      {row.locationName}
+                    </td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.units')}>
+                      {row.units}
+                    </td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.products')}>
+                      {row.uniqueProducts}
+                    </td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.value')}>
+                      {formatCurrency(row.value)}
+                    </td>
+                    <td data-label={t('warehouse.information.locationsTable.columns.latest')}>
+                      {formatDate(row.latestPurchaseDate)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -902,7 +936,7 @@ export const WarehouseInformationPanel = ({
 
       {view === 'suppliers' ? (
         <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table'>
+          <table className='catalog-table warehouse-information-table table-card-stack'>
             <thead>
               <tr>
                 <th>
@@ -931,12 +965,27 @@ export const WarehouseInformationPanel = ({
               ) : (
                 paginatedSuppliers.map((row) => (
                   <tr key={row.id}>
-                    <td className='catalog-name-cell'>{row.supplierName}</td>
-                    <td>{row.units}</td>
-                    <td>{formatCurrency(row.value)}</td>
-                    <td>{formatList(row.products)}</td>
-                    <td>{formatList(row.warehouses)}</td>
-                    <td>{formatDate(row.latestPurchaseDate)}</td>
+                    <td
+                      className='catalog-name-cell'
+                      data-label={t('warehouse.information.suppliersTable.columns.supplier')}
+                    >
+                      {row.supplierName}
+                    </td>
+                    <td data-label={t('warehouse.information.suppliersTable.columns.units')}>
+                      {row.units}
+                    </td>
+                    <td data-label={t('warehouse.information.suppliersTable.columns.value')}>
+                      {formatCurrency(row.value)}
+                    </td>
+                    <td data-label={t('warehouse.information.suppliersTable.columns.products')}>
+                      {formatList(row.products)}
+                    </td>
+                    <td data-label={t('warehouse.information.suppliersTable.columns.warehouses')}>
+                      {formatList(row.warehouses)}
+                    </td>
+                    <td data-label={t('warehouse.information.suppliersTable.columns.latest')}>
+                      {formatDate(row.latestPurchaseDate)}
+                    </td>
                   </tr>
                 ))
               )}

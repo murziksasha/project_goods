@@ -51,15 +51,16 @@ export {
 export const getPageFromUrlOrNull = (): PageKey | null => {
   const page = new URLSearchParams(window.location.search).get('page');
 
-  return pageKeys.includes(page as PageKey) ? (page as PageKey) : null;
+  if (!pageKeys.includes(page as PageKey)) return null;
+  return page === 'kanban' ? 'orders' : (page as PageKey);
 };
 
 export const getPageFromUrl = (): PageKey => getPageFromUrlOrNull() ?? 'home';
 
 export const getOrdersTabFromUrl = (): OrdersTab | null => {
-  const tab = new URLSearchParams(window.location.search).get(
-    'ordersTab',
-  );
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('page') === 'kanban') return 'kanban';
+  const tab = params.get('ordersTab');
 
   return ordersTabs.includes(tab as OrdersTab)
     ? (tab as OrdersTab)

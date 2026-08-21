@@ -2645,10 +2645,25 @@
 .repair-kanban-card-client,
 .repair-kanban-card-device {
   font-size: 0.82rem;
-  color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.repair-kanban-card-client {
+  color: var(--color-text-muted);
+}
+
+.repair-kanban-card-device {
+  color: var(--color-primary-strong);
+  font-weight: 600;
+}
+
+.repair-kanban-card-total {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-heading);
 }
 
 .repair-kanban-card-master {
@@ -2702,6 +2717,17 @@
   font-size: 0.88rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+button.orders-kanban-count {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.orders-kanban-count:hover,
+button.orders-kanban-count:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary-strong);
 }
 
 .orders-filter-grid-kanban {
