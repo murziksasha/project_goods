@@ -68,4 +68,47 @@ describe('RepairKanbanBoard', () => {
 
     expect(container.querySelector('.repair-kanban-card-total')).toBeTruthy();
   });
+
+  it('shows the client phone next to the order number without +38', () => {
+    render(
+      <RepairKanbanBoard
+        sales={[
+          {
+            ...sale,
+            client: {
+              name: 'Client A',
+              phone: '+380990569080',
+            },
+          } as Sale,
+        ]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    const phone = screen.getByText('099 056 90 80');
+    expect(phone.tagName).toBe('STRONG');
+    expect(phone).toHaveClass('repair-kanban-card-phone');
+    expect(screen.getByText('#r0001')).toBeInTheDocument();
+  });
+
+  it('hides the phone when the client number is empty', () => {
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[sale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.repair-kanban-card-phone')).toBeNull();
+  });
 });

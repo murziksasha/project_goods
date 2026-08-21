@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getSaleFavoritePermission,
+  isKanbanBoardWorkspacePatch,
   isManualCommentWorkspacePatch,
 } from './sale.routes';
 
@@ -90,6 +91,76 @@ describe('isManualCommentWorkspacePatch', () => {
         ],
         paymentHistory: [],
         lineItems: [],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('isKanbanBoardWorkspacePatch', () => {
+  const boardPayload = {
+    kind: 'repair',
+    status: 'inRepair',
+    paidAmount: 0,
+    discount: { mode: 'amount', value: 0 },
+    deviceName: 'iPhone 13',
+    serialNumber: 'SN-001',
+    timeline: [
+      {
+        id: 'system-1',
+        author: 'Dispatcher',
+        message: 'Status changed.',
+        createdAt: '2026-06-09T10:05:00.000Z',
+      },
+    ],
+    paymentHistory: [],
+    lineItems: [],
+  };
+
+  it('returns true when only repair status changes', () => {
+    expect(isKanbanBoardWorkspacePatch(existingSale, boardPayload)).toBe(true);
+  });
+
+  it('returns true when only the master is assigned', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(existingSale, {
+        ...boardPayload,
+        status: 'new',
+        masterId: 'master-1',
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for product sales', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(
+        { ...existingSale, kind: 'sale' },
+        { ...boardPayload, kind: 'sale' },
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when line items change with the status', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(existingSale, {
+        ...boardPayload,
+        lineItems: [
+          {
+            id: 'item-1',
+            kind: 'service',
+            name: 'Diagnostics',
+            price: 250,
+            quantity: 1,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when userNote changes with the board patch', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(existingSale, {
+        ...boardPayload,
+        userNote: 'Call client',
       }),
     ).toBe(false);
   });

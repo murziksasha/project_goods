@@ -57,6 +57,13 @@ const inactiveEmployee: Employee = {
 };
 
 describe('EmployeeManagementPanel', () => {
+  it('renders kanban.use in a separate Kanban group', () => {
+    render(<PanelHarness />);
+
+    expect(screen.getByText('Kanban')).toBeInTheDocument();
+    expect(screen.getByLabelText('kanban.use')).not.toBeChecked();
+  });
+
   it('shows inactive badge after employee name', () => {
     render(
       <I18nextProvider i18n={i18n}>
@@ -97,6 +104,7 @@ describe('EmployeeManagementPanel', () => {
     expect(screen.getByLabelText('supplierOrders.view')).toBeChecked();
     expect(screen.getByLabelText('supplierOrders.manage')).toBeChecked();
     expect(screen.getByLabelText('orders.manage')).not.toBeChecked();
+    expect(screen.getByLabelText('kanban.use')).not.toBeChecked();
   });
 
   it('activates supplier-order and inventory defaults for manager role', () => {

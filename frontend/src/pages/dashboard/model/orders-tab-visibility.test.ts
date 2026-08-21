@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canHideOrdersTab,
   resolveDisplayedOrdersTabs,
+  resolvePermittedOrdersTabs,
 } from './orders-tab-visibility';
 import type { OrdersTab } from './types';
 
@@ -36,6 +37,38 @@ describe('resolveDisplayedOrdersTabs', () => {
     expect(
       resolveDisplayedOrdersTabs(['orders', 'sales'], ['orders', 'sales']),
     ).toEqual(['orders']);
+  });
+});
+
+describe('resolvePermittedOrdersTabs', () => {
+  it('keeps kanban for existing order-view access without kanban.use', () => {
+    expect(
+      resolvePermittedOrdersTabs({
+        canViewRepairSalesOrders: true,
+        canViewSupplierOrders: false,
+        canViewKanban: true,
+      }),
+    ).toEqual(['orders', 'kanban', 'sales']);
+  });
+
+  it('shows only kanban when the employee has kanban.use and no order rights', () => {
+    expect(
+      resolvePermittedOrdersTabs({
+        canViewRepairSalesOrders: false,
+        canViewSupplierOrders: false,
+        canViewKanban: true,
+      }),
+    ).toEqual(['kanban']);
+  });
+
+  it('does not expose orders or sales from kanban.use alone', () => {
+    expect(
+      resolvePermittedOrdersTabs({
+        canViewRepairSalesOrders: false,
+        canViewSupplierOrders: true,
+        canViewKanban: true,
+      }),
+    ).toEqual(['kanban', 'supplierOrders', 'supplierInformation']);
   });
 });
 

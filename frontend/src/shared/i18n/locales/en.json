@@ -2671,6 +2671,7 @@
     },
     "permissionGroups": {
       "orders": "Orders",
+      "kanban": "Kanban",
       "supplierOrders": "Supplier Orders",
       "clients": "Clients",
       "inventory": "Inventory",

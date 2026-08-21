@@ -24,6 +24,7 @@ import type {
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
+  isKanbanOnlyEmployee,
 } from '../../../entities/employee/model/permissions';
 import { getApiErrorMessage, setApiAuthToken } from '../../../shared/api/http';
 import {
@@ -65,6 +66,7 @@ import {
 import {
   canHideOrdersTab,
   resolveDisplayedOrdersTabs,
+  resolvePermittedOrdersTabs,
 } from '../model/orders-tab-visibility';
 import {
   getCreateOrderForOrdersTab,
@@ -72,7 +74,6 @@ import {
   getOrdersTabFromUrl,
   getPageFromUrlOrNull,
   getStoredOrdersTab,
-  ordersTabs,
   type OrdersTab,
   type PageKey,
 } from '../model/types';
@@ -292,12 +293,18 @@ export const DashboardPage = () => {
   const canCreateOrders =
     currentEmployee?.isActive === true &&
     hasEmployeePermission(currentEmployee, 'orders.manage');
-  const canViewRepairSalesOrders = hasAnyEmployeePermission(currentEmployee, [
-    'orders.view',
-    'orders.manage',
-    'repairs.execute',
-    'sales.manage',
-  ]);
+  const kanbanOnlyEmployee = isKanbanOnlyEmployee(currentEmployee);
+  const canViewRepairSalesOrders =
+    !kanbanOnlyEmployee &&
+    hasAnyEmployeePermission(currentEmployee, [
+      'orders.view',
+      'orders.manage',
+      'repairs.execute',
+      'sales.manage',
+    ]);
+  const canViewKanban =
+    kanbanOnlyEmployee ||
+    canViewRepairSalesOrders;
   const canViewSupplierOrders = hasAnyEmployeePermission(currentEmployee, [
     'supplierOrders.view',
     'supplierOrders.manage',
@@ -306,15 +313,12 @@ export const DashboardPage = () => {
     currentEmployee,
     'supplierOrders.manage',
   );
-  const canViewOrders = canViewRepairSalesOrders || canViewSupplierOrders;
-  const availableOrdersTabs = ordersTabs.filter((tab) => {
-    if (tab === 'supplierOrders' || tab === 'supplierInformation') {
-      return canViewSupplierOrders;
-    }
-    if (tab === 'kanban') {
-      return canViewRepairSalesOrders;
-    }
-    return canViewRepairSalesOrders;
+  const canViewOrders =
+    canViewRepairSalesOrders || canViewSupplierOrders || canViewKanban;
+  const availableOrdersTabs = resolvePermittedOrdersTabs({
+    canViewRepairSalesOrders,
+    canViewSupplierOrders,
+    canViewKanban,
   });
   const hiddenOrdersTabs =
     currentEmployee?.uiPreferences?.hiddenOrdersTabs ?? [];

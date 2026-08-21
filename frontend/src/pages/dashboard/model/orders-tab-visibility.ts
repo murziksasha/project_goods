@@ -1,4 +1,23 @@
-import type { OrdersTab } from './types';
+import { ordersTabs, type OrdersTab } from './types';
+
+export const resolvePermittedOrdersTabs = ({
+  canViewRepairSalesOrders,
+  canViewSupplierOrders,
+  canViewKanban,
+}: {
+  canViewRepairSalesOrders: boolean;
+  canViewSupplierOrders: boolean;
+  canViewKanban: boolean;
+}): OrdersTab[] =>
+  ordersTabs.filter((tab) => {
+    if (tab === 'supplierOrders' || tab === 'supplierInformation') {
+      return canViewSupplierOrders;
+    }
+    if (tab === 'kanban') {
+      return canViewKanban;
+    }
+    return canViewRepairSalesOrders;
+  });
 
 export const resolveDisplayedOrdersTabs = (
   permitted: readonly OrdersTab[],

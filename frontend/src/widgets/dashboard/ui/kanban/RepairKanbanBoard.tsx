@@ -25,8 +25,10 @@ import type { Sale } from '../../../../entities/sale/model/types';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { getSaleTotal } from '../../model/sales-analytics';
 import { getSaleClientDisplayName } from '../../model/sale-client-display';
+import { getSaleClientPhones } from '../../../../entities/client/lib/phone-match';
 import {
   buildOrderNumber,
+  formatPhoneNumber,
   getPrimaryDeviceName,
   kanbanVisibleRepairStatuses,
   normalizeOrderStatus,
@@ -77,6 +79,10 @@ const KanbanCard = ({
   const orderNumber = buildOrderNumber(sale);
   const clientName = getSaleClientDisplayName(sale, t);
   const deviceName = getPrimaryDeviceName(sale);
+  const clientPhone = sale.client ? getSaleClientPhones(sale)[0] ?? '' : '';
+  const formattedClientPhone = clientPhone
+    ? formatPhoneNumber(clientPhone)
+    : '';
   const masterId = sale.master?.id ?? '';
   const hasLineItems = Array.isArray(sale.lineItems) && sale.lineItems.length > 0;
   const orderTotal = hasLineItems ? getSaleTotal(sale) : 0;
@@ -98,7 +104,14 @@ const KanbanCard = ({
         }
       }}
     >
-      <span className="repair-kanban-card-number">#{orderNumber}</span>
+      <span className="repair-kanban-card-header">
+        <span className="repair-kanban-card-number">#{orderNumber}</span>
+        {formattedClientPhone ? (
+          <strong className="repair-kanban-card-phone">
+            {formattedClientPhone}
+          </strong>
+        ) : null}
+      </span>
       <span className="repair-kanban-card-client">{clientName}</span>
       <span className="repair-kanban-card-device">{deviceName || '—'}</span>
       {hasLineItems ? (

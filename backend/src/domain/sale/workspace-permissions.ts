@@ -21,6 +21,7 @@ type WorkspaceComparableSale = {
   paymentHistory?: unknown[];
   lineItems?: unknown[];
   timeline?: unknown[];
+  userNote?: string | null;
 };
 
 const toComparableWorkspaceState = (
@@ -88,6 +89,43 @@ export const isManualCommentWorkspacePatch = (
     current.paidAmount === next.paidAmount &&
     current.masterId === next.masterId &&
     current.issuedById === next.issuedById &&
+    current.deviceName === next.deviceName &&
+    current.serialNumber === next.serialNumber &&
+    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.paymentHistory) ===
+      JSON.stringify(next.paymentHistory) &&
+    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+  );
+};
+
+/** True when PATCH only moves a repair card or assigns a master (kanban.use). */
+export const isKanbanBoardWorkspacePatch = (
+  sale: WorkspaceComparableSale,
+  payloadInput: SalePayload,
+) => {
+  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
+  if (current.kind === 'sale' || next.kind === 'sale') {
+    return false;
+  }
+
+  const statusChanged = current.status !== next.status;
+  const masterChanged = current.masterId !== next.masterId;
+  if (!statusChanged && !masterChanged) {
+    return false;
+  }
+
+  const currentUserNote = String(sale.userNote ?? '');
+  const nextUserNote =
+    payloadInput.userNote === undefined
+      ? currentUserNote
+      : String(payloadInput.userNote ?? '');
+  if (nextUserNote !== currentUserNote) {
+    return false;
+  }
+
+  return (
+    current.kind === next.kind &&
+    current.paidAmount === next.paidAmount &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
     JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
