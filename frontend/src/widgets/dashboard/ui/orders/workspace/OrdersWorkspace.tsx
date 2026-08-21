@@ -8,7 +8,11 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../../shared/i18n/config';
-import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
+import {
+  hasAnyEmployeePermission,
+  hasEmployeePermission,
+  isKanbanOnlyEmployee,
+} from '../../../../../entities/employee/model/permissions';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../../../shared/lib/format';
@@ -222,6 +226,11 @@ export const OrdersWorkspace = ({
     currentEmployee,
     'orders.chat',
   );
+  const canUpdateKanbanBoard = hasAnyEmployeePermission(currentEmployee, [
+    'kanban.use',
+    'orders.manage',
+  ]);
+  const canEditOpenedSaleWorkspace = !isKanbanOnlyEmployee(currentEmployee);
   const canViewSupplierOrders =
     hasEmployeePermission(currentEmployee, 'supplierOrders.view') ||
     hasEmployeePermission(currentEmployee, 'supplierOrders.manage');
@@ -2670,11 +2679,12 @@ export const OrdersWorkspace = ({
             catalogProducts={catalogProducts}
             paidAmount={getPaidAmount(selectedSale)}
             isReadOnly={
-              !isRepairOrder(selectedSale) &&
-              !isOrderEditableStatus(
-                selectedSale,
-                normalizeOrderStatus(selectedSale.status),
-              )
+              !canEditOpenedSaleWorkspace ||
+              (!isRepairOrder(selectedSale) &&
+                !isOrderEditableStatus(
+                  selectedSale,
+                  normalizeOrderStatus(selectedSale.status),
+                ))
             }
             canAddComment={canChatInOrders}
             canAcceptPayment={canAcceptFinanceDeposit}
@@ -2838,11 +2848,8 @@ export const OrdersWorkspace = ({
         <RepairKanbanBoard
           sales={filteredOrders}
           employees={employees}
-          canUpdateStatus={Boolean(currentEmployee?.id)}
-          canUpdateMaster={hasEmployeePermission(
-            currentEmployee,
-            'orders.manage',
-          )}
+          canUpdateStatus={canUpdateKanbanBoard}
+          canUpdateMaster={canUpdateKanbanBoard}
           onStatusChange={updateStatus}
           onMasterChange={(sale, masterId) =>
             saveOrderMainInfo(sale, {

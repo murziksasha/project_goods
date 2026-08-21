@@ -35,3 +35,34 @@ export const hasAnyEmployeePermission = (
   permissions.some((permission) =>
     getEffectiveEmployeePermissions(employee).includes(permission),
   );
+
+export const hasStoredEmployeePermission = (
+  employee: Employee | null | undefined,
+  permission: EmployeePermission,
+) =>
+  employee?.role === 'owner' ||
+  Boolean(employee?.permissions.includes(permission));
+
+export const hasAnyStoredEmployeePermission = (
+  employee: Employee | null | undefined,
+  permissions: readonly EmployeePermission[],
+) =>
+  employee?.role === 'owner' ||
+  permissions.some((permission) =>
+    Boolean(employee?.permissions.includes(permission)),
+  );
+
+const orderWorkspacePermissions = [
+  'orders.view',
+  'orders.manage',
+  'repairs.execute',
+  'sales.manage',
+] as const;
+
+export const isKanbanOnlyEmployee = (
+  employee: Employee | null | undefined,
+) =>
+  Boolean(employee) &&
+  employee?.role !== 'owner' &&
+  hasStoredEmployeePermission(employee, 'kanban.use') &&
+  !hasAnyStoredEmployeePermission(employee, orderWorkspacePermissions);

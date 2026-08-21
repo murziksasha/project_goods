@@ -18,6 +18,7 @@ import { Sale } from '../domain/sale/model';
 import {
   getSaleFavoritePermission,
   getSaleManagePermission,
+  isKanbanBoardWorkspacePatch,
   isManualCommentWorkspacePatch,
 } from '../domain/sale/workspace-permissions';
 import type { SalePayload } from '../domain/shared/types';
@@ -35,6 +36,7 @@ export const saleRouter = Router();
 export {
   getSaleFavoritePermission,
   getSaleManagePermission,
+  isKanbanBoardWorkspacePatch,
   isManualCommentWorkspacePatch,
 };
 
@@ -42,6 +44,7 @@ const saleReadPermissions = [
   'orders.view',
   'sales.manage',
   'repairs.execute',
+  'kanban.use',
   'supplierOrders.view',
   'supplierOrders.manage',
 ] as const;
@@ -101,6 +104,11 @@ saleRouter.patch('/sales/:saleId/workspace', asyncHandler(async (req, res) => {
       'orders.chat',
       'Current employee does not have permission to add live feed comments.',
     );
+  } else if (isKanbanBoardWorkspacePatch(existingSale, payload)) {
+    await requireAnyPermission(req, [
+      'kanban.use',
+      getSaleManagePermission(existingSale.kind),
+    ]);
   } else {
     await requirePermission(req, getSaleManagePermission(existingSale.kind));
   }

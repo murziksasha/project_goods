@@ -27,6 +27,10 @@ const permissionGroups: Array<{
     ],
   },
   {
+    titleKey: 'employees.permissionGroups.kanban',
+    permissions: ['kanban.use'],
+  },
+  {
     titleKey: 'employees.permissionGroups.supplierOrders',
     permissions: ['supplierOrders.view', 'supplierOrders.manage'],
   },
