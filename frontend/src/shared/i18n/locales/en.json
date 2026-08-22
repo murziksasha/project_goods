@@ -798,6 +798,12 @@
       "acceptPaymentButton": "Accept payment",
       "toggleDiscountMode": "Toggle discount mode"
     },
+    "serialIssueWarning": {
+      "title": "Serial numbers are not bound",
+      "description": "These products have no warehouse serial. Continue to issue anyway, or cancel and bind serials first.",
+      "continue": "Continue",
+      "closeAria": "Close serial warning"
+    },
     "print": {
       "title": "Print order",
       "closePreview": "Close print preview",

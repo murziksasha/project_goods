@@ -113,6 +113,7 @@
 - Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
 - Discount value is stored in workspace state and reused across card and payment modal.
 - After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
+- `Accept and issue` with target `issued` shows the unbound-serial confirm when any product line has no warehouse `serialNumbers`. **Cancel** stays in the payment modal. **Continue** issues. `Accept to cashbox` and `Issue without payment` do not show this alert.
 
 ## Notes
 
@@ -149,6 +150,7 @@
 - If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
 - Status `issued` is allowed only when `To pay = 0`.
 - If `issued` is selected while `To pay > 0`, payment must be accepted first; accepting money without issuing leaves the status as `paid`.
+- Before the sale card **Save changes** persists status `issued`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
 - While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.

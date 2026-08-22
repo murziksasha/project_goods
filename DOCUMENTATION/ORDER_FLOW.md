@@ -127,7 +127,7 @@
 - In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `issued`.
 - For repair order card issue target, payment modal actions follow the same issue behavior as sale card:
   - `Accept to cashbox` adds a deposit without issuing.
-  - `Accept and issue` adds a deposit and changes the order status to `issued`.
+  - `Accept and issue` adds a deposit and changes the order status to `issued`. If any product line has no warehouse serial, a confirm alert lists those product names first (`orders.serialIssueWarning.*`). **Cancel** stays in the payment modal. **Continue** runs Accept and issue. `Issue without payment`, `Accept to cashbox`, and target `paid` do not show this alert.
   - `Issue without payment` changes only the status to `issued` when allowed by product/payment guards.
 - Repair order `paid` behavior remains available only through explicit `paid` status selection from the Orders list/status dropdown:
   - `Accept to cashbox` adds a deposit and marks the order `paid`.

@@ -9,6 +9,7 @@ import {
   computeOrderStatusMenuPosition,
   getPrintTemplateData,
   getReopenedSaleStatusForLineItems,
+  getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
@@ -149,6 +150,78 @@ describe('repair stock status guards', () => {
         500,
       ),
     ).toBe(true);
+  });
+});
+
+describe('getProductLinesMissingWarehouseSerials', () => {
+  const unboundProduct = (
+    patch: Partial<OrderLineItem> = {},
+  ): OrderLineItem => ({
+    id: 'line-unbound',
+    kind: 'product',
+    productId: 'product-unbound',
+    name: 'Splash cover',
+    price: 100,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [],
+    ...patch,
+  });
+
+  it('returns product rows without warehouse serials', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct(),
+        {
+          id: 'svc-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        ...repairProductLineItems,
+      ]).map((item) => item.name),
+    ).toEqual(['Splash cover']);
+  });
+
+  it('treats whitespace-only serials as unbound', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct({ serialNumbers: ['  ', ''] }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it('ignores qty 0 rows and bound serials', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct({ quantity: 0 }),
+        unboundProduct({
+          id: 'line-bound',
+          serialNumbers: ['S000010'],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('ignores repair device placeholder rows', () => {
+    const placeholder: OrderLineItem = {
+      id: 'line-device',
+      kind: 'product',
+      name: 'Repair device',
+      price: 0,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: [],
+    };
+
+    expect(
+      getProductLinesMissingWarehouseSerials(
+        repairSale({ salePrice: 0, quantity: 1 }),
+        [placeholder],
+      ),
+    ).toEqual([]);
   });
 });
 

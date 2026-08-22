@@ -847,6 +847,23 @@ export const isRepairDevicePlaceholderLineItem = (
   return hasLegacyPrice && hasLegacyQuantity;
 };
 
+const hasBoundWarehouseSerial = (item: OrderLineItem) =>
+  (item.serialNumbers ?? []).some(
+    (serial) => String(serial ?? '').trim().length > 0,
+  );
+
+export const getProductLinesMissingWarehouseSerials = (
+  sale: Sale,
+  lineItems: OrderLineItem[],
+): OrderLineItem[] =>
+  lineItems.filter(
+    (item) =>
+      item.kind === 'product' &&
+      Number(item.quantity ?? 0) > 0 &&
+      !isRepairDevicePlaceholderLineItem(sale, item) &&
+      !hasBoundWarehouseSerial(item),
+  );
+
 export const hasShippedStockProducts = (
   sale: Sale,
   lineItems: OrderLineItem[] = Array.isArray(sale.lineItems)

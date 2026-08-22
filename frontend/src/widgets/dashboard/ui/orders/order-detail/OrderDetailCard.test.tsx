@@ -262,7 +262,9 @@ const buildCardElement = ({
   salesOverride,
   onOpenRelatedSale = vi.fn(),
   status,
+  statusOptions,
   lineItems = [],
+  paidAmount = 0,
   supplierOrders = [],
   employees = [],
 }: {
@@ -318,7 +320,9 @@ const buildCardElement = ({
   salesOverride?: Sale[];
   onOpenRelatedSale?: (sale: Sale) => void;
   status?: OrderStatus;
+  statusOptions?: Array<{ key: OrderStatus; labelKey: string }>;
   lineItems?: OrderLineItem[];
+  paidAmount?: number;
   supplierOrders?: SupplierOrder[];
   employees?: OrderDetailCardProps['employees'];
 } = {}) => {
@@ -331,16 +335,18 @@ const buildCardElement = ({
       supplierOrders={supplierOrders}
       employees={employees}
       status={cardStatus}
-      statusOptions={[
-        { key: cardStatus, labelKey: 'orders.status.repair.new' },
-      ]}
+      statusOptions={
+        statusOptions ?? [
+          { key: cardStatus, labelKey: 'orders.status.repair.new' },
+        ]
+      }
       comments={comments}
       lineItems={lineItems}
       products={products}
       printForms={defaultPrintForms}
       clientDevices={clientDevices}
       catalogProducts={catalogProducts}
-      paidAmount={0}
+      paidAmount={paidAmount}
       isReadOnly={isReadOnly}
       canAddComment={canAddComment}
       canAcceptPayment={true}
@@ -2565,5 +2571,156 @@ describe('OrderDetailCard notes section', () => {
     expect(
       document.querySelector('.order-detail-note-toggle'),
     ).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('OrderDetailCard unbound serial issue warning', () => {
+  const saleStatusOptions = [
+    { key: 'new' as const, labelKey: 'orders.status.sale.new' },
+    { key: 'issued' as const, labelKey: 'orders.status.sale.issued' },
+  ];
+  const repairStatusOptions = [
+    { key: 'ready' as const, labelKey: 'orders.status.repair.ready' },
+    { key: 'issued' as const, labelKey: 'orders.status.repair.issued' },
+  ];
+  const unboundProduct: OrderLineItem = {
+    id: 'line-unbound',
+    kind: 'product',
+    productId: 'product-unbound',
+    name: 'Splash cover',
+    price: 100,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [],
+  };
+
+  const selectIssuedAndSave = () => {
+    fireEvent.change(screen.getByLabelText('Repair status'), {
+      target: { value: 'issued' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  };
+
+  it('asks to continue before saving issued when a product has no serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [unboundProduct],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    const alert = await screen.findByRole('alertdialog', {
+      name: 'Serial numbers are not bound',
+    });
+    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+
+    selectIssuedAndSave();
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Serial numbers are not bound',
+        }),
+      ).getByRole('button', { name: 'Continue' }),
+    );
+
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'issued' }),
+      );
+    });
+  });
+
+  it('saves issued without the warning when every product has a serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [
+        {
+          ...unboundProduct,
+          serialNumbers: ['S000010'],
+        },
+      ],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'issued' }),
+      );
+    });
+  });
+
+  it('skips the warning for service-only cards', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [
+        {
+          id: 'svc-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalled();
+    });
+  });
+
+  it('asks before saving a paid repair as issued when a product has no serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'ready' },
+      status: 'ready',
+      statusOptions: repairStatusOptions,
+      lineItems: [unboundProduct],
+      paidAmount: 100,
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).toBeInTheDocument();
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
   });
 });

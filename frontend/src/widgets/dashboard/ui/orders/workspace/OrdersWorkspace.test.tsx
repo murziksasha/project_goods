@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import * as financeApi from '../../../../../entities/finance/api/financeApi';
@@ -901,6 +901,91 @@ describe('OrdersWorkspace', () => {
     });
     expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('confirms Accept and issue when a product has no warehouse serial', async () => {
+    const onSaleUpdate = vi.fn();
+    const issuedSale: Sale = {
+      ...sale,
+      status: 'issued',
+      paidAmount: 100,
+    };
+    getCashboxesMock.mockResolvedValue([
+      {
+        id: 'cashbox-1',
+        name: 'Основная',
+        balances: { UAH: 5000, USD: 0 },
+        enabledCurrencies: { UAH: true, USD: false },
+        isDefault: true,
+        isArchived: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    acceptSalePaymentMock.mockResolvedValue(issuedSale);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          lineItems: [
+            {
+              id: 'product-1',
+              kind: 'product',
+              productId: 'stock-1',
+              name: 'Splash cover',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Accept and issue' }),
+    );
+
+    const alert = await screen.findByRole('alertdialog', {
+      name: 'Serial numbers are not bound',
+    });
+    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(acceptSalePaymentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    expect(acceptSalePaymentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept and issue' }));
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Serial numbers are not bound',
+        }),
+      ).getByRole('button', { name: 'Continue' }),
+    );
+
+    await waitFor(() => {
+      expect(acceptSalePaymentMock).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          action: 'depositAndIssue',
+          targetStatus: 'issued',
+        }),
+      );
+    });
   });
 
   it('closes payment modal after successful issue without payment', async () => {
