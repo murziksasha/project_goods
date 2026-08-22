@@ -6419,3 +6419,67 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   cursor: not-allowed;
   background: var(--bg-surface-subtle);
 }
+
+.scroll-to-top-button {
+  position: fixed;
+  right: var(--space-5);
+  bottom: 88px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border-radius: 999px;
+  color: var(--color-on-accent);
+  background: color-mix(in srgb, var(--color-primary) 62%, transparent);
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    background-color 160ms ease;
+}
+
+.scroll-to-top-button.is-visible {
+  opacity: 0.55;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.scroll-to-top-button:hover,
+.scroll-to-top-button:focus-visible {
+  opacity: 0.95;
+  background: color-mix(in srgb, var(--color-primary) 88%, transparent);
+}
+
+.scroll-to-top-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 720px) {
+  .scroll-to-top-button {
+    right: var(--space-4);
+    bottom: 96px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-top-button {
+    transform: none;
+    transition: opacity 0.01ms linear;
+  }
+}
+
+@media print {
+  .scroll-to-top-button {
+    display: none;
+  }
+}

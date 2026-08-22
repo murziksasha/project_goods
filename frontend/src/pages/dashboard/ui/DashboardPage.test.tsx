@@ -76,6 +76,9 @@ vi.mock('../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace',
 vi.mock('../../../shared/ui/GlobalHorizontalScrollbar', () => ({
   GlobalHorizontalScrollbar: () => null,
 }));
+vi.mock('../../../shared/ui/ScrollToTopButton', () => ({
+  ScrollToTopButton: () => null,
+}));
 
 const hardReloadAppMock = vi.hoisted(() => vi.fn());
 

@@ -11,6 +11,12 @@ import type { Cashbox } from '../../../../../entities/finance/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { OrdersWorkspace } from './OrdersWorkspace';
 
+const scrollDashboardMainToTopMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../../../shared/lib/scrollDashboardMain', () => ({
+  scrollDashboardMainToTop: () => scrollDashboardMainToTopMock(),
+}));
+
 const {
   useSupplierOrdersQueryMock,
   acceptSalePaymentMock,
@@ -133,6 +139,7 @@ const restoreApiMocks = () => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  scrollDashboardMainToTopMock.mockReset();
   acceptSalePaymentMock.mockReset();
   refundSalePaymentMock.mockReset();
   updateSaleFavoriteMock.mockReset();
@@ -353,14 +360,10 @@ describe('OrdersWorkspace', () => {
   });
 
   it('scrolls the order card into view when opening from the order number link', async () => {
-    const scrollIntoView = vi.fn();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
 
     renderWorkspace({
       sales: [sale],
@@ -369,21 +372,14 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
 
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-      block: 'start',
-    });
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('scrolls the order card into view when opening from the device serial button', async () => {
-    const scrollIntoView = vi.fn();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
 
     renderWorkspace({
       sales: [
@@ -400,21 +396,33 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /s\/n: r0035759/i }));
 
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-      block: 'start',
-    });
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
-  it('does not scroll when closing the order card', async () => {
-    const scrollIntoView = vi.fn();
+  it('scrolls to the top again when clicking the already open order number', async () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    const orderLink = screen.getByRole('link', { name: /r000001/i });
+    fireEvent.click(orderLink);
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(orderLink);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not scroll when closing the order card', async () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
 
     renderWorkspace({
       sales: [sale],
@@ -422,12 +430,12 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByLabelText('Close order card'));
 
     expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('allows a master with role defaults to use the live feed composer', async () => {

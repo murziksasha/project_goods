@@ -39,6 +39,7 @@ import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/p
 import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
 import type { Sale } from '../../../entities/sale/model/types';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
+import { ScrollToTopButton } from '../../../shared/ui/ScrollToTopButton';
 import { AccessDeniedPanel } from '../../../shared/ui/AccessDeniedPanel';
 import { Button } from '../../../shared/ui/Button';
 import { InlineError } from '../../../shared/ui/InlineError';
@@ -1582,6 +1583,7 @@ export const DashboardPage = () => {
           </Suspense>
         </div>
         <GlobalHorizontalScrollbar />
+        <ScrollToTopButton />
         <DashboardMobileNav
           items={sidebarItems}
           activePage={activePage}
