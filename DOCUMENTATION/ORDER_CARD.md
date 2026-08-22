@@ -52,6 +52,7 @@
 - For any other saved status, `Issued` employee is cleared.
 - If attached product line items are not fully paid, saving status `issued` is blocked.
 - If product line items still have bound warehouse serials, saving status `client rejected` or `issued without repair` is blocked until the client is refunded for those serials and the serials are returned/unbound to stock.
+- Before **Save changes** persists status `issued`, if any product line (not the repair device placeholder) has no warehouse `serialNumbers`, show a confirm alert (`orders.serialIssueWarning.*`) listing those product names. **Cancel** does not persist. **Continue** saves `issued` as today. Service-only cards skip the alert. List / Kanban / Rapid Sale `Issued` are unchanged.
 
 ## Live Feed
 

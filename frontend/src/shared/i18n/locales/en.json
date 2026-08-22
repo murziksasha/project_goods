@@ -48,6 +48,7 @@
     "edit": "Edit",
     "create": "Create",
     "close": "Close",
+    "scrollToTop": "Back to top",
     "ok": "OK",
     "supplier": "Supplier",
     "update": "Update",
@@ -796,6 +797,12 @@
       "warningTitle": "Payment warning",
       "acceptPaymentButton": "Accept payment",
       "toggleDiscountMode": "Toggle discount mode"
+    },
+    "serialIssueWarning": {
+      "title": "Serial numbers are not bound",
+      "description": "These products have no warehouse serial. Continue to issue anyway, or cancel and bind serials first.",
+      "continue": "Continue",
+      "closeAria": "Close serial warning"
     },
     "print": {
       "title": "Print order",

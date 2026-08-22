@@ -120,7 +120,7 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 - After payment/issue/refusal, operator remains on the sales list; sale card opens only if chosen manually later.
 - Payment modal actions after rapid-sale create:
   - **Accept to cashbox** — deposit only; if remaining becomes `0`, status may auto-change to **`paid`** (sale is not issued).
-  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules).
+  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules). If any product line has no warehouse serial, the payment modal shows the unbound-serial confirm first (same as sale/repair cards). **Cancel** stays in payment. **Continue** issues. Rapid Sale footer **Issued** (create) does not show this alert.
   - Closing or partial deposit without full pay leaves a non-final editable status (`new` / partial pay) as for any sale.
 
 ### Opened Rapid Sale Card (Post-Create Edit)

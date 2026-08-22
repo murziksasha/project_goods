@@ -16,6 +16,7 @@ import {
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../../../shared/lib/format';
+import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
 import {
   getSaleClientPhones,
@@ -240,7 +241,6 @@ export const OrdersWorkspace = ({
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
-  const orderDetailAnchorRef = useRef<HTMLDivElement>(null);
   const [printRequest, setPrintRequest] =
     useState<OrderPrintRequest | null>(null);
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
@@ -1469,6 +1469,9 @@ export const OrdersWorkspace = ({
     setSelectedSaleId(sale.id);
     onSelectedSaleIdChange?.(sale.id);
     setOpenStatusSaleId(null);
+    window.requestAnimationFrame(() => {
+      scrollDashboardMainToTop();
+    });
   };
 
   const closeSelectedSaleCard = useCallback(() => {
@@ -1485,22 +1488,14 @@ export const OrdersWorkspace = ({
     onSelectedSaleIdChange?.(externalSelectedSaleId);
     setOpenStatusSaleId(null);
     onExternalSaleOpenHandled?.();
+    window.requestAnimationFrame(() => {
+      scrollDashboardMainToTop();
+    });
   }, [
     externalSelectedSaleId,
     onExternalSaleOpenHandled,
     onSelectedSaleIdChange,
   ]);
-
-  useEffect(() => {
-    if (!selectedSaleId) return;
-
-    window.requestAnimationFrame(() => {
-      orderDetailAnchorRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    });
-  }, [selectedSaleId]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (
@@ -2652,7 +2647,7 @@ export const OrdersWorkspace = ({
   return (
     <section className='orders-page'>
       {selectedSaleId && !selectedSale ? (
-        <div ref={orderDetailAnchorRef}>
+        <div>
           {saleDetailQuery.isError ? (
             <p className="inline-error" role="alert">
               {t('errors.failedLoadSales')}
@@ -2663,7 +2658,7 @@ export const OrdersWorkspace = ({
         </div>
       ) : null}
       {selectedSale ? (
-        <div ref={orderDetailAnchorRef}>
+        <div>
           <OrderDetailCard
             sale={selectedSale}
             sales={sales}

@@ -55,6 +55,7 @@ import {
   getOrderTotal,
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
+  getProductLinesMissingWarehouseSerials,
   getRemainingPayment,
   getStoredOrderDetailRelatedTab,
   getSupplierOrderStatusLabel,
@@ -75,6 +76,7 @@ import {
   isPlainLeftClick,
 } from '../workspace/orders-workspace-shared';
 import { PrinterIcon } from '../modals/PrinterIcon';
+import { UnboundSerialIssueModal } from '../modals/UnboundSerialIssueModal';
 import { OrderDetailDeviceModal } from './OrderDetailDeviceModal';
 import { OrderDetailLineItemsPanel } from './OrderDetailLineItemsPanel';
 import { OrderDetailNoteSection } from './OrderDetailNoteSection';
@@ -163,6 +165,8 @@ export const OrderDetailCard = ({
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [isUnboundSerialIssueOpen, setIsUnboundSerialIssueOpen] =
+    useState(false);
   const [mainInfoSaveError, setMainInfoSaveError] = useState<string | null>(
     null,
   );
@@ -547,6 +551,34 @@ export const OrderDetailCard = ({
     isStatusDraftLockedByStock ||
     isRepairIssuedDraftBlockedByPayment ||
     isSaleReturnStatusDraftBlocked;
+  const missingWarehouseSerialLines = useMemo(
+    () => getProductLinesMissingWarehouseSerials(sale, lineItems),
+    [lineItems, sale],
+  );
+  const shouldConfirmUnboundSerialIssue =
+    statusDraft === 'issued' &&
+    status !== 'issued' &&
+    missingWarehouseSerialLines.length > 0;
+  const persistMainInfo = async () => {
+    setIsSavingMainInfo(true);
+    setMainInfoSaveError(null);
+    try {
+      await onSaveMainInfo({
+        deviceName: deviceNameInput.trim(),
+        serialNumber: serialNumberInput.trim().toUpperCase(),
+        masterId: masterIdInput,
+        status: statusDraft,
+      });
+    } catch (error) {
+      setMainInfoSaveError(
+        error instanceof Error
+          ? error.message
+          : t('orders.detail.saveFailedInline'),
+      );
+    } finally {
+      setIsSavingMainInfo(false);
+    }
+  };
   const getStatusOptionBlockedReason = (statusOption: OrderStatus) => {
     if (
       isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
@@ -1175,25 +1207,12 @@ export const OrderDetailCard = ({
                           ? getStatusDraftBlockedReason()
                           : undefined
                       }
-                      onClick={async () => {
-                        setIsSavingMainInfo(true);
-                        setMainInfoSaveError(null);
-                        try {
-                          await onSaveMainInfo({
-                            deviceName: deviceNameInput.trim(),
-                            serialNumber: serialNumberInput.trim().toUpperCase(),
-                            masterId: masterIdInput,
-                            status: statusDraft,
-                          });
-                        } catch (error) {
-                          setMainInfoSaveError(
-                            error instanceof Error
-                              ? error.message
-                              : t('orders.detail.saveFailedInline'),
-                          );
-                        } finally {
-                          setIsSavingMainInfo(false);
+                      onClick={() => {
+                        if (shouldConfirmUnboundSerialIssue) {
+                          setIsUnboundSerialIssueOpen(true);
+                          return;
                         }
+                        void persistMainInfo();
                       }}
                     >
                       {isSavingMainInfo
@@ -1825,6 +1844,16 @@ export const OrderDetailCard = ({
           await onSupplierOrderCreated();
         }}
       />
+      {isUnboundSerialIssueOpen ? (
+        <UnboundSerialIssueModal
+          productNames={missingWarehouseSerialLines.map((item) => item.name)}
+          onCancel={() => setIsUnboundSerialIssueOpen(false)}
+          onContinue={() => {
+            setIsUnboundSerialIssueOpen(false);
+            void persistMainInfo();
+          }}
+        />
+      ) : null}
     </article>
   );
 };

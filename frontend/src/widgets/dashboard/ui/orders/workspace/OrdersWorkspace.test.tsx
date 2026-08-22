@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import * as financeApi from '../../../../../entities/finance/api/financeApi';
@@ -10,6 +10,12 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { OrdersWorkspace } from './OrdersWorkspace';
+
+const scrollDashboardMainToTopMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../../../shared/lib/scrollDashboardMain', () => ({
+  scrollDashboardMainToTop: () => scrollDashboardMainToTopMock(),
+}));
 
 const {
   useSupplierOrdersQueryMock,
@@ -133,6 +139,7 @@ const restoreApiMocks = () => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  scrollDashboardMainToTopMock.mockReset();
   acceptSalePaymentMock.mockReset();
   refundSalePaymentMock.mockReset();
   updateSaleFavoriteMock.mockReset();
@@ -353,14 +360,10 @@ describe('OrdersWorkspace', () => {
   });
 
   it('scrolls the order card into view when opening from the order number link', async () => {
-    const scrollIntoView = vi.fn();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
 
     renderWorkspace({
       sales: [sale],
@@ -369,21 +372,14 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
 
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-      block: 'start',
-    });
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('scrolls the order card into view when opening from the device serial button', async () => {
-    const scrollIntoView = vi.fn();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
 
     renderWorkspace({
       sales: [
@@ -400,21 +396,33 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /s\/n: r0035759/i }));
 
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-      block: 'start',
-    });
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
-  it('does not scroll when closing the order card', async () => {
-    const scrollIntoView = vi.fn();
+  it('scrolls to the top again when clicking the already open order number', async () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      scrollIntoView,
-    );
+
+    renderWorkspace({
+      sales: [sale],
+    });
+
+    const orderLink = screen.getByRole('link', { name: /r000001/i });
+    fireEvent.click(orderLink);
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(orderLink);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not scroll when closing the order card', async () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
 
     renderWorkspace({
       sales: [sale],
@@ -422,12 +430,12 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByLabelText('Close order card'));
 
     expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('allows a master with role defaults to use the live feed composer', async () => {
@@ -893,6 +901,91 @@ describe('OrdersWorkspace', () => {
     });
     expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('confirms Accept and issue when a product has no warehouse serial', async () => {
+    const onSaleUpdate = vi.fn();
+    const issuedSale: Sale = {
+      ...sale,
+      status: 'issued',
+      paidAmount: 100,
+    };
+    getCashboxesMock.mockResolvedValue([
+      {
+        id: 'cashbox-1',
+        name: 'Основная',
+        balances: { UAH: 5000, USD: 0 },
+        enabledCurrencies: { UAH: true, USD: false },
+        isDefault: true,
+        isArchived: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    acceptSalePaymentMock.mockResolvedValue(issuedSale);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          lineItems: [
+            {
+              id: 'product-1',
+              kind: 'product',
+              productId: 'stock-1',
+              name: 'Splash cover',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      onSaleUpdate,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Accept and issue' }),
+    );
+
+    const alert = await screen.findByRole('alertdialog', {
+      name: 'Serial numbers are not bound',
+    });
+    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(acceptSalePaymentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    expect(acceptSalePaymentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept and issue' }));
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Serial numbers are not bound',
+        }),
+      ).getByRole('button', { name: 'Continue' }),
+    );
+
+    await waitFor(() => {
+      expect(acceptSalePaymentMock).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          action: 'depositAndIssue',
+          targetStatus: 'issued',
+        }),
+      );
+    });
   });
 
   it('closes payment modal after successful issue without payment', async () => {
