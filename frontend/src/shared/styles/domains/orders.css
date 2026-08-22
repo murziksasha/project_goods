@@ -2637,9 +2637,27 @@
   cursor: grabbing;
 }
 
+.repair-kanban-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .repair-kanban-card-number {
   font-weight: 700;
   color: var(--color-text-heading);
+  min-width: 0;
+}
+
+.repair-kanban-card-phone {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-heading);
+  white-space: nowrap;
 }
 
 .repair-kanban-card-client,

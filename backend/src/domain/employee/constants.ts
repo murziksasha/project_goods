@@ -18,6 +18,7 @@ export const employeePermissions = [
   'supplierOrders.manage',
   'repairs.execute',
   'sales.manage',
+  'kanban.use',
   'clients.manage',
   'inventory.manage',
   'finance.view',

@@ -2671,6 +2671,7 @@
     },
     "permissionGroups": {
       "orders": "Замовлення",
+      "kanban": "Канбан",
       "supplierOrders": "Замовлення постачальникам",
       "clients": "Клієнти",
       "inventory": "Склад",

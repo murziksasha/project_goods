@@ -224,6 +224,7 @@ describe('normalizeEmployeePayload', () => {
     expect(defaults.permissions).toContain('supplierOrders.view');
     expect(defaults.permissions).toContain('supplierOrders.manage');
     expect(defaults.permissions).toContain('system.backups.manage');
+    expect(defaults.permissions).toContain('kanban.use');
   });
 
   it('keeps employees.manage for owner even when an explicit payload omits it', () => {

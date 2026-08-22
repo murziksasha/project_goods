@@ -449,6 +449,26 @@ describe('OrdersWorkspace', () => {
     expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
   });
 
+  it('opens the order card read-only for a kanban.use-only employee', async () => {
+    renderWorkspace({
+      sales: [sale],
+      activeTab: 'kanban',
+      visibleTabs: ['kanban'],
+      canCreateOrders: false,
+      currentEmployee: {
+        ...employee,
+        role: 'support',
+        permissions: ['kanban.use'],
+      },
+    });
+
+    fireEvent.click(screen.getByText('#R000001'));
+
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
   it('shows an error when order status update fails', async () => {
     const onError = vi.fn();
     const onSaleUpdate = vi.fn();
