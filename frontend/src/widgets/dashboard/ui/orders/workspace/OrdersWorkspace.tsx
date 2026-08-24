@@ -1317,15 +1317,15 @@ export const OrdersWorkspace = ({
     const updatedSale = await updateSaleWorkspace(sale.id, {
       kind: sale.kind,
       status: payload.status ?? normalizeOrderStatus(sale.status),
-      paidAmount: payload.paidAmount ?? sale.paidAmount,
+      paidAmount: payload.paidAmount,
       masterId: payload.masterId,
       issuedById: payload.issuedById,
       deviceName: payload.deviceName,
       serialNumber: payload.serialNumber,
-      discount: payload.discount ?? sale.discount,
-      timeline: payload.timeline ?? sale.timeline,
-      paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
-      lineItems: payload.lineItems ?? getLineItems(sale),
+      discount: payload.discount,
+      timeline: payload.timeline,
+      paymentHistory: payload.paymentHistory,
+      lineItems: payload.lineItems,
       userNote: payload.userNote,
       expectedUpdatedAt: sale.updatedAt,
     });
@@ -2846,14 +2846,21 @@ export const OrdersWorkspace = ({
           canUpdateStatus={canUpdateKanbanBoard}
           canUpdateMaster={canUpdateKanbanBoard}
           onStatusChange={updateStatus}
-          onMasterChange={(sale, masterId) =>
-            saveOrderMainInfo(sale, {
-              deviceName: getPrimaryDeviceName(sale),
-              serialNumber: getPrimaryDeviceSerial(sale),
-              masterId,
-              status: normalizeOrderStatus(sale.status),
-            })
-          }
+          onMasterChange={async (sale, masterId) => {
+            try {
+              await persistSaleWorkspace(sale, {
+                masterId,
+                timeline: [
+                  appendTimelineEntry(
+                    buildUpdatedMainInfoTimelineMessage(currentEmployeeName),
+                  ),
+                  ...sale.timeline,
+                ],
+              });
+            } catch (error) {
+              handleWorkspaceUpdateError(error);
+            }
+          }}
           onOpenSale={openSaleCard}
         />
       ) : (

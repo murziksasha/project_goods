@@ -535,6 +535,13 @@ describe('OrdersWorkspace', () => {
       await waitFor(() => {
         expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
       });
+      expect(updateSaleWorkspaceMock).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          status: 'diagnostics',
+        }),
+      );
+      expect(updateSaleWorkspaceMock.mock.calls[0]?.[1].lineItems).toBeUndefined();
     } finally {
       if (randomUuidDescriptor) {
         Object.defineProperty(crypto, 'randomUUID', randomUuidDescriptor);
