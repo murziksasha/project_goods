@@ -24,22 +24,60 @@ type WorkspaceComparableSale = {
   userNote?: string | null;
 };
 
+const asComparableId = (value: unknown) => {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && typeof value.toString === 'function') {
+    const text = value.toString();
+    return text && text !== '[object Object]' ? text : '';
+  }
+  return '';
+};
+
+const withComparableLineItemIds = (items: unknown) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const row = item as Record<string, unknown>;
+    return {
+      ...row,
+      productId: asComparableId(row.productId),
+      catalogProductId: asComparableId(row.catalogProductId),
+      serviceId: asComparableId(row.serviceId),
+    };
+  });
+};
+
 const toComparableWorkspaceState = (
   sale: WorkspaceComparableSale,
   payloadInput: SalePayload,
 ) => {
-  const payload = normalizeSalePayload(payloadInput);
+  const payload = normalizeSalePayload({
+    ...payloadInput,
+    lineItems: withComparableLineItemIds(payloadInput.lineItems),
+  });
+  const currentNormalized = normalizeSalePayload({
+    kind: sale.kind,
+    status: sale.status,
+    paidAmount: sale.paidAmount,
+    discount: sale.discount,
+    deviceName: sale.productSnapshot?.name,
+    serialNumber: sale.productSnapshot?.serialNumber,
+    paymentHistory: sale.paymentHistory,
+    lineItems: withComparableLineItemIds(sale.lineItems),
+    timeline: sale.timeline,
+  });
   const current = {
     kind: sale.kind === 'sale' ? 'sale' : 'repair',
     status: String(sale.status ?? ''),
     paidAmount: sale.paidAmount ?? 0,
     masterId: sale.master ? String(sale.master) : '',
     issuedById: sale.issuedBy ? String(sale.issuedBy) : '',
-    deviceName: sale.productSnapshot?.name ?? '',
-    serialNumber: sale.productSnapshot?.serialNumber ?? '',
-    discount: sale.discount ?? { mode: 'amount', value: 0 },
-    paymentHistory: sale.paymentHistory ?? [],
-    lineItems: sale.lineItems ?? [],
+    deviceName: currentNormalized.deviceName,
+    serialNumber: currentNormalized.serialNumber,
+    discount: currentNormalized.discount,
+    paymentHistory: currentNormalized.paymentHistory,
+    lineItems: currentNormalized.lineItems,
     timeline: sale.timeline ?? [],
   };
 

@@ -164,6 +164,69 @@ describe('isKanbanBoardWorkspacePatch', () => {
       }),
     ).toBe(false);
   });
+
+  it('returns true when status changes and stored line items only differ by mongo id shape', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(
+        {
+          ...existingSale,
+          lineItems: [
+            {
+              id: 'item-1',
+              kind: 'service',
+              productId: null,
+              catalogProductId: null,
+              serviceId: { toString: () => '507f1f77bcf86cd799439011' },
+              name: 'Diagnostics',
+              price: 250,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+        {
+          ...boardPayload,
+          lineItems: [
+            {
+              id: 'item-1',
+              kind: 'service',
+              serviceId: '507f1f77bcf86cd799439011',
+              name: 'Diagnostics',
+              price: 250,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true when a kanban move omits unchanged line items', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(
+        {
+          ...existingSale,
+          lineItems: [
+            {
+              id: 'device-placeholder',
+              kind: 'service',
+              name: 'iPhone 13',
+              price: 0,
+              quantity: 1,
+            },
+          ],
+        },
+        {
+          kind: 'repair',
+          status: 'inRepair',
+          timeline: boardPayload.timeline,
+        },
+      ),
+    ).toBe(true);
+  });
 });
 
 describe('getSaleFavoritePermission', () => {
