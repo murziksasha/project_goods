@@ -801,6 +801,8 @@ export const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
     (total, item) => total + item.price * item.quantity,
     0,
   );
+export const getLineItemsQuantity = (lineItems: OrderLineItem[]) =>
+  lineItems.reduce((total, item) => total + item.quantity, 0);
 export const getLineItemRefundableAmount = (
   sale: Sale,
   lineItem: OrderLineItem,

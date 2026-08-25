@@ -51,6 +51,8 @@ import {
   getDiscount,
   formatReadyDate,
   getCreatedTime,
+  getLineItemsQuantity,
+  getLineItemsTotal,
   getOrderBaseTotal,
   getOrderTotal,
   getPrimaryDeviceName,
@@ -231,6 +233,10 @@ export const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
+  const productQuantity = getLineItemsQuantity(productItems);
+  const productTotal = getLineItemsTotal(productItems);
+  const serviceQuantity = getLineItemsQuantity(serviceItems);
+  const serviceTotal = getLineItemsTotal(serviceItems);
   const isProductBlockReadOnly =
     isSaleCard
       ? isReadOnly
@@ -1312,8 +1318,20 @@ export const OrderDetailCard = ({
             aria-expanded={isProductsOpen}
           >
             <span>{t('orders.detail.products')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span className='order-detail-collapse-meta'>
+              {productQuantity > 0 ? (
+                <span className='order-detail-section-summary'>
+                  <span>
+                    {t('orders.detail.lineItems.groupedCount', {
+                      quantity: productQuantity,
+                    })}
+                  </span>
+                  <span>{formatCurrency(productTotal)}</span>
+                </span>
+              ) : null}
+              <span className='order-detail-collapse-icon' aria-hidden='true'>
+                {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              </span>
             </span>
           </button>
           {isProductsOpen ? (
@@ -1353,8 +1371,20 @@ export const OrderDetailCard = ({
             aria-expanded={isServicesOpen}
           >
             <span>{t('orders.detail.services')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span className='order-detail-collapse-meta'>
+              {serviceQuantity > 0 ? (
+                <span className='order-detail-section-summary'>
+                  <span>
+                    {t('orders.detail.lineItems.groupedCount', {
+                      quantity: serviceQuantity,
+                    })}
+                  </span>
+                  <span>{formatCurrency(serviceTotal)}</span>
+                </span>
+              ) : null}
+              <span className='order-detail-collapse-icon' aria-hidden='true'>
+                {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              </span>
             </span>
           </button>
           {isServicesOpen ? (
