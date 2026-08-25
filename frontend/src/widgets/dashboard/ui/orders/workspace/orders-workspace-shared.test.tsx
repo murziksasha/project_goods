@@ -388,6 +388,131 @@ describe('order print labels', () => {
     expect(data.labelContact).toBe('');
   });
 
+  it('groups identical print products with the same price into one qty row', () => {
+    const productItems: OrderLineItem[] = [
+      {
+        id: 'p1',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'p2',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+      {
+        id: 'p3',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000003'],
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: productItems }),
+      productItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
+      'TerraE 30E INR18650 3000mAh',
+    ]);
+    expect(data.products_table).toContain('>3<');
+    expect(
+      data.invoice_items_table
+        ?.match(/<tbody>([\s\S]*)<\/tbody>/)?.[1]
+        ?.match(/<tr>/g),
+    ).toHaveLength(1);
+    expect(data.invoice_items_table).toContain(
+      'Serial No.: S000001, S000002, S000003',
+    );
+  });
+
+  it('keeps same-name print products on separate rows when prices differ', () => {
+    const productItems: OrderLineItem[] = [
+      {
+        id: 'p1',
+        kind: 'product',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'p2',
+        kind: 'product',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 90,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: productItems }),
+      productItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
+      'TerraE 30E INR18650 3000mAh',
+      'TerraE 30E INR18650 3000mAh',
+    ]);
+    expect(data.invoice_items_table).toContain('Serial No.: S000001');
+    expect(data.invoice_items_table).toContain('Serial No.: S000002');
+    expect(data.invoice_items_table).not.toContain(
+      'Serial No.: S000001, S000002',
+    );
+  });
+
+  it('does not group matching service rows in print tables', () => {
+    const serviceItems: OrderLineItem[] = [
+      {
+        id: 's1',
+        kind: 'service',
+        name: 'Repair',
+        price: 1000,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+      {
+        id: 's2',
+        kind: 'service',
+        name: 'Repair',
+        price: 1000,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: serviceItems }),
+      serviceItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.services_table?.match(/Repair/g)).toEqual(['Repair', 'Repair']);
+  });
+
   it('prints label pages in the selected orientation', () => {
     const landscape = buildOrderPrintHtml({
       title: 'Label',

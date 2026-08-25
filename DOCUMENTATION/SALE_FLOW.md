@@ -344,6 +344,7 @@ Suggestion rows may show the resolved retail price before click when matching st
 - `Accept to cashbox` must never require the entered amount to cover the full remaining balance.
 - `Accept to cashbox` records only the deposit and must not implicitly issue shipped products when `To pay > 0`.
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
+- Printed product tables collapse identical products **only when unit price matches** (`groupPrintProductLineItems`). Same name with different prices stay separate rows. Card accordion grouping (no price in the key) is documented in [SALE_CARD.md](./SALE_CARD.md). Print spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 

@@ -93,6 +93,7 @@
   - Singles stay as flat rows (no group header).
   - Adding a new matching line to an already-open card auto-expands that group. Switching to another card resets groups to collapsed.
   - Services are not grouped.
+  - Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.

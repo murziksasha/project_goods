@@ -181,6 +181,7 @@
   - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
 - In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
 - Identical product lines in `Products` (same `catalogProductId` or normalized name) collapse into a UI group; persistence stays one row per serial. Spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
+- Print tables (`{{products_table}}`, `{{invoice_items_table}}`) also collapse identical products, but **only when unit price matches**. Same name / different serials / different price stay separate print rows. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - If saved status is NOT one of final issued statuses:
   - `issued`
   - `client rejected`

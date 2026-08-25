@@ -100,6 +100,7 @@ frontend/
 - `src/pages/dashboard/model/dashboard-navigation.ts` - parse/build URL и History API для dashboard (Back/Forward внутри SPA)
 - `src/widgets/` - крупные секции интерфейса
 - `src/widgets/dashboard/model/` - бизнес-логика dashboard: аналитика, заказы, склад, клиенты, печать
+- `src/widgets/dashboard/model/order-line-item-groups.ts` - группировка одинаковых товаров в карточке (`groupProductLineItems`) и в печатных таблицах (`groupPrintProductLineItems`, ключ + цена)
 - `src/widgets/dashboard/ui/` - UI dashboard, разбитый по тематическим подпапкам (см. раздел ниже)
 - `src/widgets/dashboard-sidebar/ui/DashboardSidebar.tsx` - sidebar shell (nav, profile, build label)
 - `src/widgets/dashboard-topbar/ui/DashboardTopbar.tsx` - topbar shell (menu toggle, sync, language, logout)

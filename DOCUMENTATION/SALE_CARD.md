@@ -72,6 +72,7 @@
 - Single distinct products stay as flat rows.
 - Adding another matching line while the card is open auto-expands that group.
 - `Services` is not grouped.
+- Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 
 ## Serialized Product Rows
 
