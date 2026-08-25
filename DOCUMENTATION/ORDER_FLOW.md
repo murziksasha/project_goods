@@ -180,6 +180,7 @@
   - `issued` is blocked while attached product line items have unpaid balance.
   - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
 - In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
+- Identical product lines in `Products` (same `catalogProductId` or normalized name) collapse into a UI group; persistence stays one row per serial. Spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
 - If saved status is NOT one of final issued statuses:
   - `issued`
   - `client rejected`

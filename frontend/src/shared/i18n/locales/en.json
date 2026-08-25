@@ -1006,6 +1006,8 @@
         "action": "Action",
         "noProductsAdded": "No products added.",
         "noServicesAdded": "No services added.",
+        "groupedCount": "\u00d7{{quantity}}",
+        "toggleGroup": "Toggle {{name}} group ({{quantity}})",
         "return": "Return",
         "remove": "Remove",
         "serials": "Serials ",

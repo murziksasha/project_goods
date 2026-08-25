@@ -987,6 +987,45 @@
   display: contents;
 }
 
+.order-line-item-group-header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid #e6ecf3;
+  background: var(--bg-panel-elevated);
+  color: var(--color-text-label);
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-line-item-group-header-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.order-line-item-group-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-line-item-group-count {
+  color: #6a6f75;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .order-line-items {
   display: grid;
   gap: 12px;

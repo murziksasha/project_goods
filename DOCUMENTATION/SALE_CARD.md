@@ -63,6 +63,16 @@
 - In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
 - The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.
 
+## Identical Product Grouping
+
+- Display-only grouping in `Products` (same helper as repair cards: `groupProductLineItems`). Data rules below are unchanged.
+- Group key: `catalogProductId` when present, else normalized `name`.
+- 2+ matching rows start collapsed; header shows name + collapsed quantity (`×N` = sum of `quantity`) + `⌃` / `⌄`.
+- Collapsed group hides child rows (serials, price, qty, warranty, actions). Expand to edit/bind/remove each line.
+- Single distinct products stay as flat rows.
+- Adding another matching line while the card is open auto-expands that group.
+- `Services` is not grouped.
+
 ## Serialized Product Rows
 
 - Serialized warehouse products are atomic in sale card data:

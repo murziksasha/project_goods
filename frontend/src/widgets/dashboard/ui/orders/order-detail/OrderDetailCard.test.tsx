@@ -1582,6 +1582,174 @@ describe('OrderDetailCard product entry', () => {
     expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
   });
 
+  it('collapses identical sale-card products and shows grouped quantity', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000001'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000002'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle TerraE 30E INR18650 2900mAh group (2)',
+    });
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(screen.queryByText('S000001')).not.toBeInTheDocument();
+    expect(screen.queryByText('S000002')).not.toBeInTheDocument();
+
+    fireEvent.click(groupToggle);
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('S000001')).toBeInTheDocument();
+    expect(screen.getByText('S000002')).toBeInTheDocument();
+  });
+
+  it('collapses identical repair-card products and shows grouped quantity', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R1'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R2'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle Existing part group (2)',
+    });
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(screen.queryByText('R1')).not.toBeInTheDocument();
+
+    fireEvent.click(groupToggle);
+    expect(screen.getByText('R1')).toBeInTheDocument();
+    expect(screen.getByText('R2')).toBeInTheDocument();
+  });
+
+  it('does not group distinct product lines', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Cable',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Case',
+          price: 20,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.queryByRole('button', { name: /group \(2\)/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Cable' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Case' }),
+    ).toBeInTheDocument();
+  });
+
+  it('expands a product group when a new matching line is added', () => {
+    const groupedItems: OrderLineItem[] = [
+      {
+        id: 'line-item-1',
+        kind: 'product',
+        catalogProductId: 'catalog-1',
+        name: 'TerraE 30E INR18650 2900mAh',
+        price: 88,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'line-item-2',
+        kind: 'product',
+        catalogProductId: 'catalog-1',
+        name: 'TerraE 30E INR18650 2900mAh',
+        price: 88,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+    ];
+    const { rerender } = renderCard({ lineItems: groupedItems });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (2)',
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    rerender(
+      buildCardElement({
+        lineItems: [
+          ...groupedItems,
+          {
+            id: 'line-item-3',
+            kind: 'product',
+            catalogProductId: 'catalog-1',
+            name: 'TerraE 30E INR18650 2900mAh',
+            price: 88,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S000003'],
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (3)',
+      }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('S000003')).toBeInTheDocument();
+  });
+
   it('opens the product model modal in serial mode when clicking a matching bound serial', async () => {
     renderCard({
       products: [
