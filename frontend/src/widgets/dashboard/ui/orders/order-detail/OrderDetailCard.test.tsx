@@ -25,6 +25,7 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseSettings } from '../../../../../entities/warehouse-settings/model/types';
+import { formatCurrency } from '../../../../../shared/lib/format';
 import {
   OrderDetailCard,
   type OrderDetailCardProps,
@@ -1803,11 +1804,18 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
     expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /88,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
     expect(screen.queryByText('S000001')).not.toBeInTheDocument();
     expect(screen.queryByText('S000002')).not.toBeInTheDocument();
 
     fireEvent.click(groupToggle);
     expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toBeNull();
     expect(screen.getByText('S000001')).toBeInTheDocument();
     expect(screen.getByText('S000002')).toBeInTheDocument();
   });
@@ -1843,6 +1851,12 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
     expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /10,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
     expect(screen.queryByText('R1')).not.toBeInTheDocument();
 
     fireEvent.click(groupToggle);
@@ -1881,6 +1895,41 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: 'Case' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows mixed-price group amount on the collapsed price cell', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R1'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Existing part',
+          price: 25,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R2'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle Existing part group (2)',
+    });
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /35,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
   });
 
   it('expands a product group when a new matching line is added', () => {
@@ -2222,6 +2271,76 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Services/i }),
     ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows qty and pre-discount totals on products and services headers', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000001'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000002'],
+        },
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const productsHeader = screen.getByRole('button', { name: /Products/i });
+    expect(
+      within(productsHeader).getByText('\u00d72'),
+    ).toBeInTheDocument();
+    expect(
+      within(productsHeader).getByText(/176,00/),
+    ).toBeInTheDocument();
+
+    const servicesHeader = screen.getByRole('button', { name: /Services/i });
+    expect(
+      within(servicesHeader).getByText('\u00d71'),
+    ).toBeInTheDocument();
+    expect(
+      within(servicesHeader).getByText(/50,00/),
+    ).toBeInTheDocument();
+  });
+
+  it('hides section header totals when the section is empty', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Phone',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const servicesHeader = screen.getByRole('button', { name: /Services/i });
+    expect(servicesHeader.querySelector('.order-detail-section-summary')).toBeNull();
+    expect(servicesHeader).not.toHaveTextContent(formatCurrency(0));
   });
 
   it('opens sale card services when service lines exist', () => {

@@ -31,6 +31,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Section headers use compact collapse indicators (`⌃` / `⌄`).
 - Header interaction toggles only current section.
+- `Products` / `Services` headers show `×N` + pre-discount line total when the section has lines (same rule as [ORDER_CARD.md](./ORDER_CARD.md#products-section)).
 
 ## Line Items Table
 
@@ -70,7 +71,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Display-only grouping in `Products` (same helper as repair cards: `groupProductLineItems`). Data rules below are unchanged.
 - Group key: `catalogProductId` when present, else normalized `name`.
 - 2+ matching rows start collapsed; header shows name + collapsed quantity (`×N` = sum of `quantity`) + `⌃` / `⌄`.
-- Collapsed group hides child rows (serials, price, qty, warranty, actions). Expand to edit/bind/remove each line.
+- Collapsed group hides child rows (serials, warranty, actions) but still shows Price + Qty on the group header (Qty duplicates `×N`; Price is the common unit price, or group `sum(price × qty)` when unit prices differ). Expand to edit/bind/remove each line.
 - Single distinct products stay as flat rows.
 - Adding another matching line while the card is open auto-expands that group.
 - `Services` is not grouped.

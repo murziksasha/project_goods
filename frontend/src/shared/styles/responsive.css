@@ -1442,6 +1442,23 @@
     box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
   }
 
+  .order-line-item-group-header-collapsed {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .order-line-item-group-header-collapsed > span {
+    padding: 0;
+  }
+
+  .order-line-item-group-serial,
+  .order-line-item-group-warranty {
+    display: none;
+  }
+
   .order-detail-table-row > div,
   .order-detail-table-entry-row > div {
     display: grid;

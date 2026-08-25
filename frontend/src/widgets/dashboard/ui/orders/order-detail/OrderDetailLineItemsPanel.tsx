@@ -63,7 +63,10 @@ import {
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
-import { groupProductLineItems } from '../../../model/order-line-item-groups';
+import {
+  getGroupedLinePriceSummary,
+  groupProductLineItems,
+} from '../../../model/order-line-item-groups';
 import {
   buildSerializedProductLineItem,
   filterBindableSerialProducts,
@@ -1404,11 +1407,25 @@ export const OrderDetailLineItemsPanel = ({
             const isGrouped = isProductKind && group.items.length >= 2;
             const isExpanded =
               !isGrouped || expandedGroupKeys.has(group.key);
+            const groupPriceSummary = isGrouped
+              ? getGroupedLinePriceSummary(group.items)
+              : null;
+            const collapsedGroupPrice =
+              groupPriceSummary == null
+                ? ''
+                : formatCurrency(
+                    groupPriceSummary.unitPrice ??
+                      groupPriceSummary.totalAmount,
+                  );
             const header = isGrouped ? (
               <button
                 key={`group-${group.key}`}
                 type='button'
-                className='order-line-item-group-header'
+                className={
+                  isExpanded
+                    ? 'order-line-item-group-header'
+                    : 'order-line-item-group-header order-line-item-group-header-collapsed'
+                }
                 onClick={() => toggleProductGroup(group.key)}
                 aria-expanded={isExpanded}
                 aria-label={t('orders.detail.lineItems.toggleGroup', {
@@ -1428,6 +1445,24 @@ export const OrderDetailLineItemsPanel = ({
                     </span>
                   ) : null}
                 </span>
+                {!isExpanded ? (
+                  <>
+                    <span
+                      className='order-line-item-group-serial'
+                      aria-hidden='true'
+                    />
+                    <span className='order-line-item-group-price'>
+                      {collapsedGroupPrice}
+                    </span>
+                    <span className='order-line-item-group-qty'>
+                      {group.totalQuantity}
+                    </span>
+                    <span
+                      className='order-line-item-group-warranty'
+                      aria-hidden='true'
+                    />
+                  </>
+                ) : null}
                 <span
                   className='order-detail-collapse-icon'
                   aria-hidden='true'

@@ -48,6 +48,25 @@ export const getPrintProductLineItemGroupKey = (
   return `${getProductLineItemGroupKey(item)}|price:${toPriceCents(item.price)}`;
 };
 
+export type GroupedLinePriceSummary = {
+  unitPrice: number | null;
+  totalAmount: number;
+};
+
+export const getGroupedLinePriceSummary = (
+  items: Array<{ price: number; quantity: number }>,
+): GroupedLinePriceSummary => {
+  const totalAmount = items.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0,
+  );
+  const unitCents = new Set(items.map((item) => toPriceCents(item.price)));
+  return {
+    unitPrice: unitCents.size === 1 ? items[0].price : null,
+    totalAmount,
+  };
+};
+
 const collectSerialNumbers = (
   items: Array<{ serialNumbers?: string[] }>,
 ) => {

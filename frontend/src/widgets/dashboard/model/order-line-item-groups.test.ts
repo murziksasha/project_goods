@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getGroupedLinePriceSummary,
   getPrintProductLineItemGroupKey,
   getProductLineItemGroupKey,
   groupPrintProductLineItems,
@@ -181,6 +182,26 @@ describe('groupPrintProductLineItems', () => {
         0,
       ),
     ).toBe('catalog:cat-1|price:7000');
+  });
+});
+
+describe('getGroupedLinePriceSummary', () => {
+  it('returns the shared unit price and line total', () => {
+    expect(
+      getGroupedLinePriceSummary([
+        { price: 88, quantity: 1 },
+        { price: 88, quantity: 2 },
+      ]),
+    ).toEqual({ unitPrice: 88, totalAmount: 264 });
+  });
+
+  it('returns null unit price when prices differ', () => {
+    expect(
+      getGroupedLinePriceSummary([
+        { price: 10, quantity: 1 },
+        { price: 25, quantity: 1 },
+      ]),
+    ).toEqual({ unitPrice: null, totalAmount: 35 });
   });
 });
 

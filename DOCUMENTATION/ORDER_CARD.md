@@ -72,6 +72,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - No product line items → **collapsed** by default (localStorage `productsOpen` may open when empty).
   - ≥1 product line item → **expanded for every user** (overrides localStorage `productsOpen: false`).
   - When the first product line is added while the card is open, Products opens immediately.
+- **Section header summary (`Products` and `Services`):** when the section has line items, the collapse header shows collapsed quantity (`×N` = sum of `quantity`) and the pre-discount line total (`sum(price × qty)`, `formatCurrency`). Empty sections keep title + chevron only. Amounts are **not** reduced by order discount; they sum to Payment `Repair cost` (`getOrderBaseTotal`). Discount stays only in Payment.
 - Sale cards keep Products open by default (see [SALE_CARD.md](./SALE_CARD.md)).
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
 - Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
@@ -91,7 +92,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - Persistence stays atomic: 2+ of the same product remain separate `lineItems[]` rows (especially one serial per row).
   - UI groups rows that share `catalogProductId`, or the same normalized name when catalog id is missing (`groupProductLineItems`).
   - Groups of 2+ start **collapsed**. Header shows the product name, collapsed quantity (`×N` = sum of row `quantity`), and `⌃` / `⌄`.
-  - Collapsed group hides per-row serial / price / qty / warranty / actions. Expanding the group reveals the existing rows unchanged.
+  - Collapsed group still fills **Price** and **Qty** (read-only, aligned to table columns). Qty duplicates `×N`. Price is the common unit price when all rows share it; if unit prices differ, Price shows `sum(price × qty)`. Serial / warranty / per-row actions stay hidden. Expand to edit/bind/remove each line.
   - Singles stay as flat rows (no group header).
   - Adding a new matching line to an already-open card auto-expands that group. Switching to another card resets groups to collapsed.
   - Services are not grouped.

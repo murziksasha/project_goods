@@ -7,6 +7,8 @@ import {
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
   computeOrderStatusMenuPosition,
+  getLineItemsQuantity,
+  getLineItemsTotal,
   getPrintTemplateData,
   getReopenedSaleStatusForLineItems,
   getProductLinesMissingWarehouseSerials,
@@ -800,5 +802,31 @@ describe('order status menu position', () => {
 
     expect(position.left).toBeLessThan(1200);
     expect(position.left + 230).toBeLessThanOrEqual(1280 - 8);
+  });
+});
+
+describe('line item totals', () => {
+  it('sums quantity and price * quantity', () => {
+    const items: OrderLineItem[] = [
+      {
+        id: 'a',
+        kind: 'product',
+        name: 'Part',
+        price: 88,
+        quantity: 2,
+        warrantyPeriod: 0,
+      },
+      {
+        id: 'b',
+        kind: 'service',
+        name: 'Setup',
+        price: 50,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+
+    expect(getLineItemsQuantity(items)).toBe(3);
+    expect(getLineItemsTotal(items)).toBe(226);
   });
 });
