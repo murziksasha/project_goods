@@ -1,5 +1,7 @@
 # Security
 
+Related: [Permission_Flow.md](./Permission_Flow.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · [index](./README.md)
+
 ## Deployment Context
 
 Project Goods targets **LAN / trusted-office** deployments. API endpoints require authentication; RBAC enforces permissions per module. This is not a public-internet SaaS hardening profile.

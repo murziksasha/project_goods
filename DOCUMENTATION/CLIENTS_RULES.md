@@ -1,5 +1,7 @@
 # CLIENTS RULES
 
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [index](./README.md)
+
 ## Client Status Localization Rule
 - Keep client status values in original English.
 - Do not translate client status enums in UI labels, API payloads, or documentation.

@@ -130,6 +130,43 @@ export const useSalesQuery = (
   });
 };
 
+export type OccupiedSerialNumbersResponse = {
+  occupied: string[];
+};
+
+export const getOccupiedSerialNumbers = async ({
+  excludeSaleId,
+  serials,
+}: {
+  excludeSaleId?: string;
+  serials: string[];
+}): Promise<OccupiedSerialNumbersResponse> => {
+  const uniqueSerials = Array.from(
+    new Set(serials.map((serial) => String(serial ?? '').trim()).filter(Boolean)),
+  );
+  if (uniqueSerials.length === 0) {
+    return { occupied: [] };
+  }
+
+  try {
+    const response = await apiClient.get<OccupiedSerialNumbersResponse>(
+      '/sales/occupied-serials',
+      {
+        params: {
+          serials: uniqueSerials.join(','),
+          ...(excludeSaleId ? { excludeSaleId } : {}),
+        },
+      },
+    );
+    const occupied = Array.isArray(response.data?.occupied)
+      ? response.data.occupied
+      : [];
+    return { occupied };
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const getSaleById = async (saleId: string) => {
   try {
     const response = await apiClient.get<Sale>(`/sales/${saleId}`);

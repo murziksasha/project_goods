@@ -5,26 +5,32 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Sale, type SaleDocument } from './model';
 import type { SaleLineItem } from './stock';
 
-export const assertSerialNumbersNotBoundToOtherSales = async (
-  saleId: string,
-  lineItems: SaleLineItem[],
-) => {
+export const normalizeBoundSerialNumber = (value: unknown) =>
+  String(value ?? '').trim().toUpperCase();
+
+export const findOccupiedSerialNumbers = async ({
+  excludeSaleId,
+  serials,
+}: {
+  excludeSaleId?: string;
+  serials: string[];
+}): Promise<string[]> => {
   const requestedSerials = Array.from(
-    new Set(
-      lineItems
-        .filter((item) => item.kind === 'product')
-        .flatMap((item) => item.serialNumbers ?? [])
-        .map((serial) => String(serial ?? '').trim().toUpperCase())
-        .filter(Boolean),
-    ),
+    new Set(serials.map(normalizeBoundSerialNumber).filter(Boolean)),
   );
+  if (requestedSerials.length === 0) return [];
 
-  if (requestedSerials.length === 0) return;
-
-  const query = {
-    ...(saleId ? { _id: { $ne: saleId } } : {}),
-    'lineItems.serialNumbers.0': { $exists: true },
+  const query: Record<string, unknown> = {
+    lineItems: {
+      $elemMatch: {
+        kind: 'product',
+        serialNumbers: { $in: requestedSerials },
+      },
+    },
   };
+  if (excludeSaleId) {
+    query._id = { $ne: excludeSaleId };
+  }
 
   const otherSales = await Sale.find(query)
     .select({ lineItems: 1 })
@@ -35,15 +41,35 @@ export const assertSerialNumbersNotBoundToOtherSales = async (
     (sale.lineItems ?? []).forEach((item) => {
       if (item.kind !== 'product') return;
       (item.serialNumbers ?? [])
-        .map((serial) => String(serial ?? '').trim().toUpperCase())
+        .map(normalizeBoundSerialNumber)
         .filter(Boolean)
         .forEach((serial) => occupied.add(serial));
     });
   });
 
-  const duplicates = requestedSerials.filter((serial) =>
-    occupied.has(serial),
+  return requestedSerials.filter((serial) => occupied.has(serial));
+};
+
+export const assertSerialNumbersNotBoundToOtherSales = async (
+  saleId: string,
+  lineItems: SaleLineItem[],
+) => {
+  const requestedSerials = Array.from(
+    new Set(
+      lineItems
+        .filter((item) => item.kind === 'product')
+        .flatMap((item) => item.serialNumbers ?? [])
+        .map(normalizeBoundSerialNumber)
+        .filter(Boolean),
+    ),
   );
+
+  if (requestedSerials.length === 0) return;
+
+  const duplicates = await findOccupiedSerialNumbers({
+    excludeSaleId: saleId || undefined,
+    serials: requestedSerials,
+  });
   if (duplicates.length > 0) {
     throw new HttpError(
       400,

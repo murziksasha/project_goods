@@ -1,5 +1,7 @@
 # Sale Flow Rules
 
+Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
+
 ## Create Order Modal (Sale Tab)
 
 - Tab `Sales order` is used to create sale requests.
@@ -276,7 +278,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 `Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
 
 - **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
-- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card.
+- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - **No match:** keep catalog-only row (`catalogProductId`, price `0`).
 
 ### Price Stepper (2026-07-11)

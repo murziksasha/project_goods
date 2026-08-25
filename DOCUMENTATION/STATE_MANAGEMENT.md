@@ -1,5 +1,7 @@
 # State Management and Multi-User Roadmap
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [API.md](./API.md) · [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [index](./README.md)
+
 ## Current State (implemented)
 
 - Server collections live in TanStack Query (`products`, `sales` compact lists, `clients`, catalog, services, employees, suppliers, settings).

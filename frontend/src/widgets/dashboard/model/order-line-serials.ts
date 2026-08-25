@@ -69,6 +69,18 @@ export const getSaleSerialUsage = (
   return { current, other };
 };
 
+export const filterBindableSerialProducts = (
+  products: Product[],
+  occupiedSerials: Set<string>,
+  keepSerials: Set<string> = new Set(),
+): Product[] =>
+  products.filter((product) => {
+    const serial = normalizeSerialNumber(product.serialNumber);
+    if (!serial) return false;
+    if (keepSerials.has(serial)) return true;
+    return !occupiedSerials.has(serial);
+  });
+
 export const getProductSerialAvailability = (
   product: Product,
   serialUsage: SerialUsage,

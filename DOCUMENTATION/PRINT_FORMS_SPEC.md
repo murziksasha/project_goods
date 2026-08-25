@@ -1,5 +1,7 @@
 # Print Forms Specification
 
+Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [index](./README.md)
+
 This document is the living specification for built-in and corrected print templates.
 When a print template is changed, add the intended behavior here before or together
 with implementation updates.

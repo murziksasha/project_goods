@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sale } from './model';
-import { getSaleById, listSales } from './list';
+import { getSaleById, listOccupiedSerialNumbers, listSales } from './list';
 
 vi.mock('../../shared/lib/formatters', () => ({
   formatSale: (sale: { _id: { toString: () => string }; kind: string }) => ({
@@ -96,6 +96,70 @@ describe('listSales', () => {
     await expect(getSaleById('507f1f77bcf86cd799439011')).resolves.toEqual({
       id: 'sale-1',
       kind: 'repair',
+    });
+  });
+});
+
+describe('listOccupiedSerialNumbers', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns an empty occupied list when serials are missing', async () => {
+    const find = vi.spyOn(Sale, 'find');
+    await expect(listOccupiedSerialNumbers({})).resolves.toEqual({
+      occupied: [],
+    });
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  it('queries occupancy and skips invalid excludeSaleId', async () => {
+    const lean = vi.fn().mockResolvedValue([
+      {
+        lineItems: [{ kind: 'product', serialNumbers: ['S000031'] }],
+      },
+    ]);
+    const select = vi.fn().mockReturnValue({ lean });
+    vi.spyOn(Sale, 'find').mockReturnValue({ select } as never);
+
+    await expect(
+      listOccupiedSerialNumbers({
+        serials: 's000031,S000032',
+        excludeSaleId: 'not-an-id',
+      }),
+    ).resolves.toEqual({ occupied: ['S000031'] });
+
+    expect(Sale.find).toHaveBeenCalledWith({
+      lineItems: {
+        $elemMatch: {
+          kind: 'product',
+          serialNumbers: { $in: ['S000031', 'S000032'] },
+        },
+      },
+    });
+  });
+
+  it('passes a valid excludeSaleId through to the occupancy query', async () => {
+    const lean = vi.fn().mockResolvedValue([]);
+    const select = vi.fn().mockReturnValue({ lean });
+    vi.spyOn(Sale, 'find').mockReturnValue({ select } as never);
+    const excludeSaleId = '507f1f77bcf86cd799439011';
+
+    await expect(
+      listOccupiedSerialNumbers({
+        serials: ['S000031'],
+        excludeSaleId,
+      }),
+    ).resolves.toEqual({ occupied: [] });
+
+    expect(Sale.find).toHaveBeenCalledWith({
+      lineItems: {
+        $elemMatch: {
+          kind: 'product',
+          serialNumbers: { $in: ['S000031'] },
+        },
+      },
+      _id: { $ne: excludeSaleId },
     });
   });
 });

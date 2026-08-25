@@ -1,5 +1,7 @@
 # Order Creation Rules
 
+Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+
 ## Create Order Modal
 
 - Clicking `Create order` opens the modal.
@@ -223,7 +225,7 @@
 ## Sales Card: Serials Modal -> Supplier Order (2026-05-20)
 
 - In sale card product line, `Serials x/y` action opens serial binding modal.
-- In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter and pick the oldest dated stock inside it only.
+- In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter. Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
 - Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
 - Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).

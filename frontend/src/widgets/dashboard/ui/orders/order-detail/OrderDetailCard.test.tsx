@@ -40,6 +40,7 @@ const {
   getProductsMock,
   getClientDevicesMock,
   getWarehouseSettingsMock,
+  getOccupiedSerialNumbersMock,
 } = vi.hoisted(() => ({
   getProductsMock: vi.fn(
     async (_query = ''): Promise<Product[]> => [],
@@ -48,6 +49,9 @@ const {
     async (_query = ''): Promise<ClientDevice[]> => [],
   ),
   getWarehouseSettingsMock: vi.fn(),
+  getOccupiedSerialNumbersMock: vi.fn(
+    async () => ({ occupied: [] as string[] }),
+  ),
 }));
 
 vi.mock(
@@ -60,6 +64,20 @@ vi.mock(
     return {
       ...actual,
       getProducts: getProductsMock,
+    };
+  },
+);
+
+vi.mock(
+  '../../../../../entities/sale/api/saleApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/sale/api/saleApi')
+      >();
+    return {
+      ...actual,
+      getOccupiedSerialNumbers: getOccupiedSerialNumbersMock,
     };
   },
 );
@@ -437,6 +455,9 @@ const warehouseSettingsFixture: WarehouseSettings = {
 const restoreApiMocks = () => {
   getClientDevicesMock.mockImplementation(async () => []);
   getProductsMock.mockImplementation(async () => []);
+  getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+    occupied: [],
+  }));
   getWarehouseSettingsMock.mockImplementation(
     async () => warehouseSettingsFixture,
   );
@@ -471,8 +492,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   getProductsMock.mockClear();
+  getOccupiedSerialNumbersMock.mockClear();
   getClientDevicesMock.mockClear();
-  getWarehouseSettingsMock.mockClear();
   getWarehouseSettingsMock.mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
@@ -1300,6 +1321,175 @@ describe('OrderDetailCard product entry', () => {
           name: /\[ \] S000003/i,
         }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  it('hides serials bound to other orders from the bind modal and auto-select', async () => {
+    const stockProducts = [
+      product({
+        id: 'product-bound',
+        serialNumber: 'S000031',
+        purchaseDate: '2026-01-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'product-free',
+        serialNumber: 'S000040',
+        purchaseDate: '2026-02-01T00:00:00.000Z',
+      }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: ['S000031'],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      salesOverride: [
+        sale({
+          id: 'sale-1',
+          lineItems: [],
+        }),
+      ],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000040/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(modal).queryByRole('button', { name: /S000031/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(modal).getByRole('button', { name: 'Auto-select oldest' }),
+    );
+
+    expect(
+      within(modal).getByText('S000040', {
+        selector: '.serial-bind-selected-item strong',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(modal).queryByText('S000031', {
+        selector: '.serial-bind-selected-item strong',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides serials already bound on other lines of the opened card', async () => {
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000031' }),
+      product({ id: 'product-2', serialNumber: 'S000040' }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: [],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      lineItems: [
+        {
+          id: 'line-bound',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 6,
+          serialNumbers: ['S000031'],
+        },
+        {
+          id: 'line-open',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (3)',
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000040/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(modal).queryByRole('button', { name: /S000031/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the current line serial visible in the bind modal', async () => {
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000031' }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: [],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 6,
+          serialNumbers: ['S000031'],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*1\/1/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[x\] S000031/i }),
+      ).toBeInTheDocument();
     });
   });
 

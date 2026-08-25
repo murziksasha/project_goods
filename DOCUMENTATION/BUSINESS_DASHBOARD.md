@@ -1,5 +1,7 @@
 # Business Dashboard (Home Page)
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATA_RETENTION.md](./DATA_RETENTION.md) · [index](./README.md)
+
 The business home page is the default dashboard view (`page=home`). It is rendered by `AnalyticsHeroSection` and focuses on operational KPIs, comparative charts, and live market/weather insights.
 
 ## UI entry points

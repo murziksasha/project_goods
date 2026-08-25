@@ -5,7 +5,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ## Navigation
 - Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Settings`
-- Related flow docs: [ORDER_FLOW.md](./ORDER_FLOW.md), [SALE_FLOW.md](./SALE_FLOW.md), [ACCOUNTING.md](./ACCOUNTING.md), [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md), [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md)
+- Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [ACCOUNTING.md](./ACCOUNTING.md) · [index](./README.md)
 
 ### Client order links (Stock balances)
 - Column `Client order` renders linked sale/order numbers with a shareable `href` built via `getOrderLink(saleId, kind)`.
@@ -116,6 +116,19 @@ This document defines current warehouse requirements for stock balances, receipt
 - Result requirement:
 1. operator must never see serials from another product model in the same bind modal
 2. serial picker must remain deterministic and model-safe even when names are similar
+
+### 4.3.0) Bind Modal Occupancy (Opened Repair and Sale Cards)
+- Binding a serial to an order/sale does **not** drop `freeQuantity` until stock-committed status (`paid`/`issued` for sales; `issued`/`issuedWithoutRepair` for repairs). Occupancy is a sale-domain rule, not a stock-quantity rule.
+- Operator must never see a serial that is already bound to another order/sale, or to another product line on the opened card. `Auto-select oldest` must never pick those serials.
+- Occupancy source of truth is Mongo via `GET /sales/occupied-serials` (`findOccupiedSerialNumbers` in `backend/src/domain/sale/validators.ts`). Do **not** infer occupancy from the dashboard `GET /sales?limit=500` list.
+- Filter rules for `SerialBindModal` candidates (`OrderDetailLineItemsPanel` + `filterBindableSerialProducts`):
+1. keep in-stock units for the exact product (`isActive`, has serial, `freeQuantity > 0`, match from 4.3)
+2. hide serials bound on any other sale (`lineItems.kind = product` + `serialNumbers`)
+3. hide serials bound on other product lines of the opened card (`items`, not the stale list row)
+4. keep serials already bound on the **current** editing line so `[x]` / unbind still works
+5. `Auto-select oldest` consumes only this filtered list
+- Workspace save still rejects occupied serials with the same helper (`assertSerialNumbersNotBoundToOtherSales`).
+- Rapid Sale draft occupancy stays in-memory; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#rapid-sale-serial-dedup-rule).
 
 ### 4.3.1) Serialized Sale Line Item Invariant
 - Warehouse receipt creates one stock `Product` row per serialized unit; sale/order cards must preserve that unit-level identity.

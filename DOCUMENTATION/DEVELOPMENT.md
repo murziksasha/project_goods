@@ -1,5 +1,7 @@
 # Development Guide
 
+Related: [DEPLOYMENT.md](./DEPLOYMENT.md) · [TESTING.md](./TESTING.md) · [index](./README.md)
+
 ## Цель
 
 Этот документ описывает предсказуемый локальный запуск и базовые правила сопровождения проекта.

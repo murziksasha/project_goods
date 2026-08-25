@@ -4,43 +4,14 @@ Project Goods - full-stack приложение для учета товаров
 
 ## Карта документации
 
-### Базовая документация
-- [DEVELOPMENT.md](./DOCUMENTATION/DEVELOPMENT.md) - локальный запуск, окружение, команды
-- [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md) - Docker prod, env vars, MongoDB replica set
-- [TESTING.md](./DOCUMENTATION/TESTING.md) - команды тестов, структура, CI (GitHub Actions)
-- [PROJECT_STRUCTURE.md](./DOCUMENTATION/PROJECT_STRUCTURE.md) - структура репозитория
-- [ARCHITECTURE.md](./DOCUMENTATION/ARCHITECTURE.md) - архитектура и поток данных
-- [API.md](./DOCUMENTATION/API.md) - backend API, auth matrix per endpoint
-- [STATE_MANAGEMENT.md](./DOCUMENTATION/STATE_MANAGEMENT.md) - TanStack Query, multi-user roadmap
-- [STATE_QUERY_MIGRATION_PLAN.md](./DOCUMENTATION/STATE_QUERY_MIGRATION_PLAN.md) - план миграции query cache
-- [BROWSER_NAVIGATION.md](./DOCUMENTATION/BROWSER_NAVIGATION.md) - SPA History API, URL-параметры dashboard
-- [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md) - метка версии сборки (SHA + время)
-- [SECURITY.md](./DOCUMENTATION/SECURITY.md) - аутентификация, RBAC, LAN-деплой
-- [UI_DESIGN_SYSTEM.md](./DOCUMENTATION/UI_DESIGN_SYSTEM.md) - токены, компоненты, breakpoints
+Полный индекс и порядок чтения: [DOCUMENTATION/README.md](./DOCUMENTATION/README.md).
 
-### Flow-документы
-- [BUSINESS_DASHBOARD.md](./DOCUMENTATION/BUSINESS_DASHBOARD.md) - analytics, market rates, weather widget
-- [ORDER_FLOW.md](./DOCUMENTATION/ORDER_FLOW.md) - repair orders и sales orders
-- [REPAIR_KANBAN_SPEC.md](./DOCUMENTATION/REPAIR_KANBAN_SPEC.md) - канбан ремонтів, статус `notPickedUp`
-- [SUPPLIER_ORDER_FLOW.md](./DOCUMENTATION/SUPPLIER_ORDER_FLOW.md) - заказы поставщику (вкладки Supplier Order / Information)
-- [SALE_FLOW.md](./DOCUMENTATION/SALE_FLOW.md) - продажи, Rapid sale
-- [WAREHOUSE_FLOW.md](./DOCUMENTATION/WAREHOUSE_FLOW.md) - склад, серийные этикетки
-- [ACCOUNTING.md](./DOCUMENTATION/ACCOUNTING.md) - финансы и кассы
-- [Permission_Flow.md](./DOCUMENTATION/Permission_Flow.md) - RBAC, роли, finance permissions
-- [EMPLOYEES_SPEC.md](./DOCUMENTATION/EMPLOYEES_SPEC.md) - сотрудники, аналитика, мастер
-
-### Карточки и предметные спецификации
-- [ORDER_CARD.md](./DOCUMENTATION/ORDER_CARD.md) - карточка заказа (loading/error/mobile)
-- [SALE_CARD.md](./DOCUMENTATION/SALE_CARD.md) - карточка продажи
-- [CLIENTS_RULES.md](./DOCUMENTATION/CLIENTS_RULES.md) - клиенты и статусы CRM
-- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./DOCUMENTATION/CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) - модалка каталога
-- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md) - серийные номера
-- [PRINT_FORMS_SPEC.md](./DOCUMENTATION/PRINT_FORMS_SPEC.md) - печатные формы
-- [SPEC_SUGGESTIONS_BEHAVIOR.md](./DOCUMENTATION/SPEC_SUGGESTIONS_BEHAVIOR.md) - подсказки
-
-### Служебная документация
-- [DEMO_DATA.md](./DOCUMENTATION/DEMO_DATA.md) - демо-данные
-- [AGENTS.md](./AGENTS.md) - правила для AI-агентов
+- **Start:** [DEVELOPMENT](./DOCUMENTATION/DEVELOPMENT.md) · [DEPLOYMENT](./DOCUMENTATION/DEPLOYMENT.md) · [TESTING](./DOCUMENTATION/TESTING.md)
+- **Platform:** [ARCHITECTURE](./DOCUMENTATION/ARCHITECTURE.md) · [API](./DOCUMENTATION/API.md) · [PROJECT_STRUCTURE](./DOCUMENTATION/PROJECT_STRUCTURE.md) · [SECURITY](./DOCUMENTATION/SECURITY.md)
+- **Orders / sales:** [ORDER_FLOW](./DOCUMENTATION/ORDER_FLOW.md) · [ORDER_CARD](./DOCUMENTATION/ORDER_CARD.md) · [SALE_FLOW](./DOCUMENTATION/SALE_FLOW.md) · [SALE_CARD](./DOCUMENTATION/SALE_CARD.md)
+- **Warehouse / serials:** [WAREHOUSE_FLOW](./DOCUMENTATION/WAREHOUSE_FLOW.md) · [SERIAL_NUMBER_SEQUENCE_SPEC](./DOCUMENTATION/SERIAL_NUMBER_SEQUENCE_SPEC.md)
+- **Finance / people:** [ACCOUNTING](./DOCUMENTATION/ACCOUNTING.md) · [CLIENTS_RULES](./DOCUMENTATION/CLIENTS_RULES.md) · [EMPLOYEES_SPEC](./DOCUMENTATION/EMPLOYEES_SPEC.md)
+- **Agents:** [AGENTS.md](./AGENTS.md)
 
 ## UI Infrastructure Notes
 - Global fixed horizontal scrollbar is implemented via shared component:

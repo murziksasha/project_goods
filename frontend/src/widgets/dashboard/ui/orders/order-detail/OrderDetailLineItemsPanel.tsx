@@ -12,6 +12,7 @@ import {
   toServiceCatalogForm,
 } from '../../../../../entities/service-catalog/model/forms';
 import { getProducts } from '../../../../../entities/product/api/productApi';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import {
   createSupplier,
   getSuppliers,
@@ -65,6 +66,7 @@ import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import { groupProductLineItems } from '../../../model/order-line-item-groups';
 import {
   buildSerializedProductLineItem,
+  filterBindableSerialProducts,
   getProductSerialAvailability,
   getSaleSerialUsage,
   normalizeSerialNumber,
@@ -257,6 +259,8 @@ export const OrderDetailLineItemsPanel = ({
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
     useState<Product[]>([]);
+  const [occupiedSerialsOnOtherSales, setOccupiedSerialsOnOtherSales] =
+    useState<Set<string>>(() => new Set());
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
     useState(false);
   const [productModelContext, setProductModelContext] = useState<{
@@ -378,7 +382,7 @@ export const OrderDetailLineItemsPanel = ({
   const occupiedSerials = useMemo(() => {
     if (!isProductKind) return new Set<string>();
 
-    const occupied = new Set<string>();
+    const occupied = new Set<string>(occupiedSerialsOnOtherSales);
 
     sales.forEach((candidateSale) => {
       const saleLevelSerial = normalizeSerialNumber(
@@ -387,25 +391,28 @@ export const OrderDetailLineItemsPanel = ({
       if (saleLevelSerial) {
         occupied.add(saleLevelSerial);
       }
+    });
 
-      (candidateSale.lineItems ?? []).forEach((lineItem) => {
-        if (lineItem.kind !== 'product') return;
+    items.forEach((lineItem) => {
+      if (lineItem.kind !== 'product') return;
+      if (serialsEditingItem && lineItem.id === serialsEditingItem.id) {
+        return;
+      }
 
-        const isCurrentEditingLine =
-          serialsEditingItem &&
-          candidateSale.id === currentSaleId &&
-          lineItem.id === serialsEditingItem.id;
-        if (isCurrentEditingLine) return;
-
-        (lineItem.serialNumbers ?? [])
-          .map(normalizeSerialNumber)
-          .filter(Boolean)
-          .forEach((serial) => occupied.add(serial));
-      });
+      (lineItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean)
+        .forEach((serial) => occupied.add(serial));
     });
 
     return occupied;
-  }, [isProductKind, currentSaleId, sales, serialsEditingItem]);
+  }, [
+    isProductKind,
+    items,
+    occupiedSerialsOnOtherSales,
+    sales,
+    serialsEditingItem,
+  ]);
   const getProductSuggestionState = useCallback(
     (product: Product): ProductSerialAvailability => {
       if (!isProductKind)
@@ -670,6 +677,7 @@ export const OrderDetailLineItemsPanel = ({
   useEffect(() => {
     if (!isProductKind || !serialsEditingItem) {
       setAvailableSerialProducts([]);
+      setOccupiedSerialsOnOtherSales(new Set());
       setIsSerialLookupLoading(false);
       return;
     }
@@ -681,6 +689,20 @@ export const OrderDetailLineItemsPanel = ({
         .replace(/[^a-z0-9\u0400-\u04ff\s-]/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+    const keepSerials = new Set(
+      (serialsEditingItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean),
+    );
+    const occupiedOnOtherLines = new Set<string>();
+    items.forEach((lineItem) => {
+      if (lineItem.kind !== 'product') return;
+      if (lineItem.id === serialsEditingItem.id) return;
+      (lineItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean)
+        .forEach((serial) => occupiedOnOtherLines.add(serial));
+    });
     const loadAvailableSerials = async () => {
       setIsSerialLookupLoading(true);
       try {
@@ -709,23 +731,69 @@ export const OrderDetailLineItemsPanel = ({
           );
         });
 
-        const sorted = [...filtered]
-          .filter((product) => {
-            const serial = normalizeSerialNumber(
-              product.serialNumber,
-            );
-            if (!serial) return false;
-            return !occupiedSerials.has(serial);
-          })
-          .sort((first, second) => {
-            const firstTime = new Date(
-              first.purchaseDate ?? first.createdAt,
-            ).getTime();
-            const secondTime = new Date(
-              second.purchaseDate ?? second.createdAt,
-            ).getTime();
-            return firstTime - secondTime;
+        const candidateSerials = filtered
+          .map((product) => normalizeSerialNumber(product.serialNumber))
+          .filter(Boolean);
+        let occupiedFromOtherSales: string[] = [];
+        let occupancyFailed = false;
+        try {
+          const occupancy = await getOccupiedSerialNumbers({
+            excludeSaleId: currentSaleId,
+            serials: candidateSerials,
           });
+          occupiedFromOtherSales = occupancy.occupied;
+        } catch {
+          occupancyFailed = true;
+          occupiedFromOtherSales = [];
+        }
+        if (!isActive) return;
+
+        const occupiedOnOtherSales = new Set(
+          occupiedFromOtherSales.map(normalizeSerialNumber).filter(Boolean),
+        );
+        if (occupancyFailed) {
+          sales.forEach((candidateSale) => {
+            (candidateSale.lineItems ?? []).forEach((lineItem) => {
+              if (lineItem.kind !== 'product') return;
+              if (
+                candidateSale.id === currentSaleId &&
+                lineItem.id === serialsEditingItem.id
+              ) {
+                return;
+              }
+              (lineItem.serialNumbers ?? [])
+                .map(normalizeSerialNumber)
+                .filter(Boolean)
+                .forEach((serial) => occupiedOnOtherSales.add(serial));
+            });
+          });
+        }
+        setOccupiedSerialsOnOtherSales(occupiedOnOtherSales);
+
+        const occupied = new Set<string>([
+          ...occupiedOnOtherSales,
+          ...occupiedOnOtherLines,
+        ]);
+        sales.forEach((candidateSale) => {
+          const saleLevelSerial = normalizeSerialNumber(
+            candidateSale.product?.serialNumber,
+          );
+          if (saleLevelSerial) occupied.add(saleLevelSerial);
+        });
+
+        const sorted = filterBindableSerialProducts(
+          filtered,
+          occupied,
+          keepSerials,
+        ).sort((first, second) => {
+          const firstTime = new Date(
+            first.purchaseDate ?? first.createdAt,
+          ).getTime();
+          const secondTime = new Date(
+            second.purchaseDate ?? second.createdAt,
+          ).getTime();
+          return firstTime - secondTime;
+        });
         setAvailableSerialProducts(sorted);
       } catch {
         if (isActive) setAvailableSerialProducts([]);
@@ -739,7 +807,7 @@ export const OrderDetailLineItemsPanel = ({
     return () => {
       isActive = false;
     };
-  }, [isProductKind, occupiedSerials, serialsEditingItem]);
+  }, [currentSaleId, isProductKind, items, sales, serialsEditingItem]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');

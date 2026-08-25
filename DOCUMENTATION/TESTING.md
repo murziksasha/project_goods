@@ -1,5 +1,7 @@
 # Testing Guide
 
+Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
+
 ## Commands
 
 | Scope | Command | Notes |

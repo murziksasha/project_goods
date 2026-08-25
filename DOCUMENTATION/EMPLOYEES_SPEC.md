@@ -1,5 +1,7 @@
 # Employees Module
 
+Related: [Permission_Flow.md](./Permission_Flow.md) · [SECURITY.md](./SECURITY.md) · [index](./README.md)
+
 The Employees section (`page=employees`) is available to `owner` and employees with `employees.manage`. It combines team management and performance analytics.
 
 ## UI entry points
