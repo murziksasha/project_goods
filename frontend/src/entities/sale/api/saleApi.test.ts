@@ -23,6 +23,7 @@ let createSale: typeof import('./saleApi').createSale;
 let updateSaleWorkspace: typeof import('./saleApi').updateSaleWorkspace;
 let getSales: typeof import('./saleApi').getSales;
 let getSaleById: typeof import('./saleApi').getSaleById;
+let getOccupiedSerialNumbers: typeof import('./saleApi').getOccupiedSerialNumbers;
 let buildSalesListQuery: typeof import('./saleApi').buildSalesListQuery;
 
 beforeEach(async () => {
@@ -31,7 +32,14 @@ beforeEach(async () => {
   patchMock.mockReset();
   getMock.mockReset();
   restoreHttpMocks();
-  ({ createSale, updateSaleWorkspace, getSales, getSaleById, buildSalesListQuery } = await import('./saleApi'));
+  ({
+    createSale,
+    updateSaleWorkspace,
+    getSales,
+    getSaleById,
+    getOccupiedSerialNumbers,
+    buildSalesListQuery,
+  } = await import('./saleApi'));
 });
 
 const sale: Sale = {
@@ -119,6 +127,31 @@ describe('saleApi list params', () => {
     getMock.mockResolvedValueOnce({ data: sale });
     await expect(getSaleById('sale-1')).resolves.toEqual(sale);
     expect(getMock).toHaveBeenCalledWith('/sales/sale-1');
+  });
+
+  it('skips occupied-serials request when the candidate list is empty', async () => {
+    await expect(
+      getOccupiedSerialNumbers({ excludeSaleId: 'sale-1', serials: ['  '] }),
+    ).resolves.toEqual({ occupied: [] });
+    expect(getMock).not.toHaveBeenCalled();
+  });
+
+  it('loads occupied serials for candidate serials', async () => {
+    getMock.mockResolvedValueOnce({ data: { occupied: ['S000031'] } });
+
+    await expect(
+      getOccupiedSerialNumbers({
+        excludeSaleId: 'sale-1',
+        serials: ['S000031', 'S000040'],
+      }),
+    ).resolves.toEqual({ occupied: ['S000031'] });
+
+    expect(getMock).toHaveBeenCalledWith('/sales/occupied-serials', {
+      params: {
+        serials: 'S000031,S000040',
+        excludeSaleId: 'sale-1',
+      },
+    });
   });
 });
 

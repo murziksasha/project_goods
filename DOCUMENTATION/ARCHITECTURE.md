@@ -1,5 +1,7 @@
 # Architecture
 
+Related: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) · [API.md](./API.md) · [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) · [index](./README.md)
+
 ## Обзор
 
 Project Goods организован как full-stack приложение из трех основных частей:

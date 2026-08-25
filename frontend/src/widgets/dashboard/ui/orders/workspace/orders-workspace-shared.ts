@@ -13,6 +13,7 @@ import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
+import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
 import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
@@ -1119,14 +1120,14 @@ export const renderLineItemsTable = (
     return `<p class="print-muted">${emptyLabel}</p>`;
   }
 
-  const rows = items
+  const rows = groupPrintProductLineItems(items)
     .map(
-      (item) => `
+      (group) => `
         <tr>
-          <td>${escapeHtml(item.name)}</td>
-          <td>${escapeHtml(String(item.quantity))}</td>
-          <td>${escapeHtml(formatCurrency(item.price))}</td>
-          <td>${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
+          <td>${escapeHtml(group.name)}</td>
+          <td>${escapeHtml(String(group.totalQuantity))}</td>
+          <td>${escapeHtml(formatCurrency(group.price))}</td>
+          <td>${escapeHtml(formatCurrency(group.price * group.totalQuantity))}</td>
         </tr>
       `,
     )
@@ -1259,33 +1260,37 @@ export const formatAmountInWords = (value: number) => {
 };
 
 export const renderInvoiceItemsTable = (sale: Sale) => {
-  const items = (sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale))
-    .filter((item) => item.quantity > 0)
-    .map((item, index) => {
-      const amount = item.price * item.quantity;
+  const sourceItems = (
+    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale)
+  ).filter((item) => item.quantity > 0);
+  const items = groupPrintProductLineItems(sourceItems).map(
+    (group, index) => {
+      const amount = group.price * group.totalQuantity;
+      const kind = group.items[0]?.kind;
       return `
         <tr>
           <td>${index + 1}.</td>
           <td>
-            <strong>${escapeHtml(item.name)}</strong>
+            <strong>${escapeHtml(group.name)}</strong>
             <span class="invoice-item-description">${escapeHtml(
-              item.serialNumbers?.length
+              group.serialNumbers.length
                 ? i18n.t('orders.print.invoice.serialNumber', {
-                    serials: item.serialNumbers.join(', '),
+                    serials: group.serialNumbers.join(', '),
                   })
-                : item.kind === 'service'
+                : kind === 'service'
                   ? i18n.t('orders.print.invoice.itemTypeService')
                   : i18n.t('orders.print.invoice.itemTypeProduct'),
             )}</span>
           </td>
-          <td>${formatInvoiceAmount(item.quantity)}</td>
-          <td>${formatInvoiceAmount(item.price)}</td>
+          <td>${formatInvoiceAmount(group.totalQuantity)}</td>
+          <td>${formatInvoiceAmount(group.price)}</td>
           <td>0%</td>
           <td>${formatInvoiceAmount(amount)}</td>
           <td>${formatInvoiceAmount(amount)}</td>
         </tr>
       `;
-    });
+    },
+  );
 
   if (items.length === 0) {
     items.push(`

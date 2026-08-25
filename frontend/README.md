@@ -5,7 +5,7 @@ React 19 SPA для CRM dashboard (заказы, склад, клиенты, ф�
 ## Стек
 
 - **React 19** + TypeScript + **Vite 8**
-- **TanStack Query** — server state (частично; см. `STATE_QUERY_MIGRATION_PLAN.md`)
+- **TanStack Query** — server state (см. [STATE_MANAGEMENT.md](../DOCUMENTATION/STATE_MANAGEMENT.md))
 - **Axios** — HTTP (`shared/api/http.ts`)
 - **i18next** — en/uk (`shared/i18n/`)
 - **Custom CSS** — `shared/styles/` (без Bootstrap/Tailwind)
@@ -37,4 +37,4 @@ SPA routing через query params (`?page=orders&saleId=...`). См. [BROWSER_
 
 ## Документация
 
-Полный индекс: [README.md](../README.md).
+Полный индекс: [DOCUMENTATION/README.md](../DOCUMENTATION/README.md).

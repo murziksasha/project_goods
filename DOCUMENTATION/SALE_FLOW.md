@@ -1,5 +1,7 @@
 # Sale Flow Rules
 
+Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
+
 ## Create Order Modal (Sale Tab)
 
 - Tab `Sales order` is used to create sale requests.
@@ -276,7 +278,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 `Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
 
 - **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
-- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card.
+- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - **No match:** keep catalog-only row (`catalogProductId`, price `0`).
 
 ### Price Stepper (2026-07-11)
@@ -344,6 +346,7 @@ Suggestion rows may show the resolved retail price before click when matching st
 - `Accept to cashbox` must never require the entered amount to cover the full remaining balance.
 - `Accept to cashbox` records only the deposit and must not implicitly issue shipped products when `To pay > 0`.
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
+- Printed product tables collapse identical products **only when unit price matches** (`groupPrintProductLineItems`). Same name with different prices stay separate rows. Card accordion grouping (no price in the key) is documented in [SALE_CARD.md](./SALE_CARD.md). Print spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 

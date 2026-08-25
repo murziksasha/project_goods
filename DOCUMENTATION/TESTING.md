@@ -1,5 +1,7 @@
 # Testing Guide
 
+Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
+
 ## Commands
 
 | Scope | Command | Notes |
@@ -15,6 +17,7 @@
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
+- Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
 - Split workspace shells: `OrdersWorkspaceListHeader`, `OrdersWorkspaceTableSection`, `OrdersWorkspaceModals`.
 - Query migration regression: `useDashboardPage.invalidation.test.ts` asserts `queryKeys` invalidation contract.
 

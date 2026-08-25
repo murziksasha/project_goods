@@ -1,5 +1,7 @@
 # Order Creation Rules
 
+Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+
 ## Create Order Modal
 
 - Clicking `Create order` opens the modal.
@@ -180,6 +182,8 @@
   - `issued` is blocked while attached product line items have unpaid balance.
   - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
 - In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
+- Identical product lines in `Products` (same `catalogProductId` or normalized name) collapse into a UI group; persistence stays one row per serial. Spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
+- Print tables (`{{products_table}}`, `{{invoice_items_table}}`) also collapse identical products, but **only when unit price matches**. Same name / different serials / different price stay separate print rows. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - If saved status is NOT one of final issued statuses:
   - `issued`
   - `client rejected`
@@ -221,7 +225,7 @@
 ## Sales Card: Serials Modal -> Supplier Order (2026-05-20)
 
 - In sale card product line, `Serials x/y` action opens serial binding modal.
-- In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter and pick the oldest dated stock inside it only.
+- In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter. Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
 - Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
 - Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).

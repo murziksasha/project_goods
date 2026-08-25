@@ -1,5 +1,7 @@
 # Print Forms Specification
 
+Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [index](./README.md)
+
 This document is the living specification for built-in and corrected print templates.
 When a print template is changed, add the intended behavior here before or together
 with implementation updates.
@@ -322,26 +324,72 @@ Regression tests:
   - compare standalone preview, Chrome print preview, and physical label;
   - scan the printed barcode with a scanner or phone scanner app.
 
+## Line Items Grouping (Products)
+
+Applies to order/sale print tokens `{{products_table}}` and `{{invoice_items_table}}`
+(Receipt, Check, Warranty card, Completion act, Invoice). Display-only: persisted
+`lineItems[]` stay atomic (one serial = one row).
+
+### Merge rule
+
+- Group **product** rows that share identity **and** unit price.
+- Identity: `catalogProductId` when present, else normalized `name` (same as the
+  order/sale card helper `groupProductLineItems`).
+- Price: `Math.round(price * 100)` so `70` and `70.00` merge; `70` and `90` do not.
+- Qty on the print row = sum of grouped `quantity`. Sum = `price * qty`.
+- Different serial numbers do **not** split rows when the price matches.
+
+### Split rule
+
+- Same name / same catalog product / different unit price → separate print rows
+  (individual serials may have different sale prices).
+- **Services** are never grouped (`{{services_table}}` and service rows on Invoice).
+
+### Invoice extras
+
+- Grouped invoice product rows join unique serials in the description:
+  `Serial No.: A, B, C`.
+- Service rows keep `Service`; product rows without serials keep `Product`.
+
+### Out of scope
+
+- `Barcode` and `Product barcode` labels: still one physical label per serial.
+- Order/sale card accordion grouping does not require matching price; print does.
+  Card spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
+
+### Implementation
+
+- `frontend/src/widgets/dashboard/model/order-line-item-groups.ts` — `groupPrintProductLineItems`
+- `frontend/src/widgets/dashboard/ui/orders/workspace/orders-workspace-shared.ts` —
+  `renderLineItemsTable` (`{{products_table}}`) and `renderInvoiceItemsTable`
+  (`{{invoice_items_table}}`)
+
+### Tests
+
+- `order-line-item-groups.test.ts`: print key includes price cents; services stay split.
+- `orders-workspace-shared.test.tsx`: Check/invoice HTML collapses same-price products
+  and keeps different-price / service rows separate.
+
 ## Future Template Requirements
 
 Add sections here when updating other built-in templates.
 
 ### Receipt
 
-Pending.
+Product lines use line-items grouping above.
 
 ### Check
 
-Pending.
+Product lines use line-items grouping above.
 
 ### Warranty Card
 
-Pending.
+Product lines use line-items grouping above.
 
 ### Completion Act
 
-Pending.
+Product lines use line-items grouping above.
 
 ### Invoice
 
-Pending.
+Product lines use line-items grouping above, including joined serials.

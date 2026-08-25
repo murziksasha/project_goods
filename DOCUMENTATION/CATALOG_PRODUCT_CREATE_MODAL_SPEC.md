@@ -1,5 +1,7 @@
 # Catalog Product Create Modal Spec
 
+Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [index](./README.md)
+
 ## Scope
 - Products & Services page, `Products` tab (`catalogProducts`).
 - Supplier order modal product search field (`SupplierOrderModal`).

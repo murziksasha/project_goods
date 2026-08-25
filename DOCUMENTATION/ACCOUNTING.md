@@ -1,5 +1,7 @@
 # Accounting Logic
 
+Related: [Permission_Flow.md](./Permission_Flow.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [index](./README.md)
+
 ## Purpose
 This document defines financial behavior in the `Accounting` workspace (cashboxes, transactions, supplier order payments, etc.) and connected flows in Warehouse and Orders.
 

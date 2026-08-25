@@ -1,5 +1,7 @@
 # UI Design System
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [index](./README.md)
+
 Project Goods uses a custom CSS design system (no Bootstrap). Tokens live in [`frontend/src/shared/styles/base.css`](../frontend/src/shared/styles/base.css); domain layout rules are split under [`frontend/src/shared/styles/domains/`](../frontend/src/shared/styles/domains/).
 
 ## Design tokens

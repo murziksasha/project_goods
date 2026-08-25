@@ -1,5 +1,7 @@
 # Build Version Label Spec
 
+Related: [DEPLOYMENT.md](./DEPLOYMENT.md) · [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
+
 ## Purpose
 
 Show which frontend build the user is running: short git commit and build timestamp. Helps verify deploys, Docker rebuilds, and stale browser cache after releases.

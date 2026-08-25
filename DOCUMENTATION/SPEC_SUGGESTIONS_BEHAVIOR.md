@@ -1,5 +1,7 @@
 # Suggestions Behavior Spec
 
+Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [index](./README.md)
+
 ## Scope
 
 Applies to all lookup/autocomplete suggestion lists in the project.

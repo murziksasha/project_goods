@@ -1,5 +1,7 @@
 # Order Card Rules
 
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+
 ## Header
 
 - Repair order cards and sale cards share the same header shell (`order-detail-header`).
@@ -85,11 +87,19 @@
 - Clearing a product row `Price` input while editing must not remove the product line item; explicit `Remove` remains the only row-removal action.
 - Serialized warehouse products attached to an order follow the same atomic row rule as sales: one bound stock serial is stored as one product line item with `quantity = 1`, one `serialNumbers[]` value, and matching `productId`.
 - If multiple serials are bound to a legacy multi-quantity product line, the card must split it into one product row per serial before saving.
+- **Identical product grouping (repair and sale cards):**
+  - Persistence stays atomic: 2+ of the same product remain separate `lineItems[]` rows (especially one serial per row).
+  - UI groups rows that share `catalogProductId`, or the same normalized name when catalog id is missing (`groupProductLineItems`).
+  - Groups of 2+ start **collapsed**. Header shows the product name, collapsed quantity (`×N` = sum of row `quantity`), and `⌃` / `⌄`.
+  - Collapsed group hides per-row serial / price / qty / warranty / actions. Expanding the group reveals the existing rows unchanged.
+  - Singles stay as flat rows (no group header).
+  - Adding a new matching line to an already-open card auto-expands that group. Switching to another card resets groups to collapsed.
+  - Services are not grouped.
+  - Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
-- **Serial bind modal** (Products action column → `Serials`): includes a warehouse dropdown; available serial numbers are filtered to the selected warehouse (default: first created active warehouse). Applies to opened repair orders and sales.
-- `Auto-select oldest` in the serial bind modal must select only serials from the currently selected warehouse, ordered by oldest stock date (`purchaseDate`, fallback `createdAt`) within that warehouse, up to the line-item quantity. Changing the warehouse dropdown clears selections that are not visible in the new warehouse.
+- **Serial bind modal** (Products action column → `Serials`): warehouse dropdown + `Auto-select oldest` (oldest `purchaseDate`, fallback `createdAt`, selected warehouse only, up to line qty). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Changing warehouse clears selections not visible in the new warehouse.
 
 ## Payment And Discount
 

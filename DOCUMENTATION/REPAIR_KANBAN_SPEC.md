@@ -1,5 +1,7 @@
 # Repair Kanban Spec
 
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [index](./README.md)
+
 Live Kanban board for **repair orders only** (`sale.kind = repair`). There is no separate Kanban persistence model: cards are the existing repair sales.
 
 ## Navigation

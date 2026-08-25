@@ -1,5 +1,7 @@
 # Permission Flow
 
+Related: [SECURITY.md](./SECURITY.md) · [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) · [API.md](./API.md) · [index](./README.md)
+
 ## Purpose
 This document defines employee access rules for Project Goods. The source of truth is backend authorization; frontend visibility is only a convenience layer.
 

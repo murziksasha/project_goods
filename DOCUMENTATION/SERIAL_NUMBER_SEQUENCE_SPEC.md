@@ -1,5 +1,7 @@
 # Product Serial Number & Warehouse Flow Spec
 
+Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [index](./README.md)
+
 ## Scope
 This spec defines when product serial numbers are assigned and when items are allowed to appear in warehouse stock balances.
 

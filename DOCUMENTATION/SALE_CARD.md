@@ -1,5 +1,7 @@
 # Sale Card Rules
 
+Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+
 ## Rapid Sale Display
 
 - Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (full creation UX: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24-ux-updates-2026-06-30)) and may still be opened later as a normal sale card from the sales list.
@@ -63,6 +65,17 @@
 - In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
 - The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.
 
+## Identical Product Grouping
+
+- Display-only grouping in `Products` (same helper as repair cards: `groupProductLineItems`). Data rules below are unchanged.
+- Group key: `catalogProductId` when present, else normalized `name`.
+- 2+ matching rows start collapsed; header shows name + collapsed quantity (`×N` = sum of `quantity`) + `⌃` / `⌄`.
+- Collapsed group hides child rows (serials, price, qty, warranty, actions). Expand to edit/bind/remove each line.
+- Single distinct products stay as flat rows.
+- Adding another matching line while the card is open auto-expands that group.
+- `Services` is not grouped.
+- Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
+
 ## Serialized Product Rows
 
 - Serialized warehouse products are atomic in sale card data:
@@ -76,7 +89,7 @@
 - If a legacy/non-serialized product row has `quantity > 1` and the operator binds multiple serial numbers, the save flow must split it into one atomic row per selected serial.
 - Catalog/name pre-fill may keep `selectedProductId` for price hints, but `Add product` with `qty > 1` must persist the line without `productId` until serial binding completes.
 - Backend workspace validation must reject serialized rows with `quantity > 1`, more than one serial, or a `productId`/`serialNumber` mismatch.
-- `Serials x/y` opens the shared serial bind modal with a warehouse dropdown; `Auto-select oldest` must pick only from the selected warehouse, oldest `purchaseDate` first (fallback `createdAt`), up to the row quantity.
+- `Serials x/y` opens the shared serial bind modal (warehouse dropdown + `Auto-select oldest`). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 
 ## Service Entry
 

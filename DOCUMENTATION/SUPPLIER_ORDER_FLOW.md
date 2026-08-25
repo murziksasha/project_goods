@@ -6,6 +6,8 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 
 - [ORDER_FLOW.md](./ORDER_FLOW.md) — repair/sales orders, serial linking to supplier orders
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — receipt / stock after take-on-charge
+- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — serials assigned on take-on-charge
+- [index](./README.md)
 - [ACCOUNTING.md](./ACCOUNTING.md) — supplier-order payment queue
 - [Permission_Flow.md](./Permission_Flow.md) — `supplierOrders.view` / `supplierOrders.manage`
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import {
@@ -12,6 +12,7 @@ import {
   toServiceCatalogForm,
 } from '../../../../../entities/service-catalog/model/forms';
 import { getProducts } from '../../../../../entities/product/api/productApi';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import {
   createSupplier,
   getSuppliers,
@@ -62,8 +63,10 @@ import {
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
+import { groupProductLineItems } from '../../../model/order-line-item-groups';
 import {
   buildSerializedProductLineItem,
+  filterBindableSerialProducts,
   getProductSerialAvailability,
   getSaleSerialUsage,
   normalizeSerialNumber,
@@ -139,6 +142,9 @@ type ProductEntrySuggestion =
       warrantyPeriod: number;
     }
   | { type: 'stock'; product: Product; warehouseName: string };
+
+const COLLAPSE_ICON_EXPANDED = '\u2303';
+const COLLAPSE_ICON_COLLAPSED = '\u2304';
 
 export const OrderDetailLineItemsPanel = ({
   kind,
@@ -253,6 +259,8 @@ export const OrderDetailLineItemsPanel = ({
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
     useState<Product[]>([]);
+  const [occupiedSerialsOnOtherSales, setOccupiedSerialsOnOtherSales] =
+    useState<Set<string>>(() => new Set());
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
     useState(false);
   const [productModelContext, setProductModelContext] = useState<{
@@ -289,6 +297,75 @@ export const OrderDetailLineItemsPanel = ({
     });
     return map;
   }, [isProductKind, products]);
+  const lineItemGroups = useMemo(() => {
+    if (!isProductKind) {
+      return items.map((item) => ({
+        key: item.id || item.name,
+        name: item.name,
+        items: [item],
+        totalQuantity: item.quantity,
+      }));
+    }
+    return groupProductLineItems(items);
+  }, [isProductKind, items]);
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<
+    Set<string>
+  >(() => new Set());
+  const previousItemIdsRef = useRef<string[]>([]);
+  const previousSaleIdRef = useRef(currentSaleId);
+  useEffect(() => {
+    if (previousSaleIdRef.current !== currentSaleId) {
+      previousSaleIdRef.current = currentSaleId;
+      previousItemIdsRef.current = items.map((item) => item.id);
+      setExpandedGroupKeys(new Set());
+      return;
+    }
+
+    if (!isProductKind) {
+      previousItemIdsRef.current = items.map((item) => item.id);
+      return;
+    }
+
+    const previousIds = new Set(previousItemIdsRef.current);
+    setExpandedGroupKeys((current) => {
+      let changed = false;
+      const next = new Set(current);
+      lineItemGroups.forEach((group) => {
+        if (group.items.length < 2) {
+          if (next.delete(group.key)) changed = true;
+          return;
+        }
+        const hasNewItem = group.items.some(
+          (item) => item.id && !previousIds.has(item.id),
+        );
+        if (hasNewItem && previousIds.size > 0 && !next.has(group.key)) {
+          next.add(group.key);
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+    previousItemIdsRef.current = items.map((item) => item.id);
+  }, [currentSaleId, isProductKind, items, lineItemGroups]);
+  const lastVisibleItemId = useMemo(() => {
+    for (let index = lineItemGroups.length - 1; index >= 0; index -= 1) {
+      const group = lineItemGroups[index];
+      const isGrouped = isProductKind && group.items.length >= 2;
+      const isExpanded =
+        !isGrouped || expandedGroupKeys.has(group.key);
+      if (!isExpanded) continue;
+      return group.items[group.items.length - 1]?.id ?? null;
+    }
+    return null;
+  }, [expandedGroupKeys, isProductKind, lineItemGroups]);
+  const toggleProductGroup = (groupKey: string) => {
+    setExpandedGroupKeys((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  };
   useEffect(() => {
     setPriceDrafts((current) => {
       const itemIds = new Set(items.map((item) => item.id));
@@ -305,7 +382,7 @@ export const OrderDetailLineItemsPanel = ({
   const occupiedSerials = useMemo(() => {
     if (!isProductKind) return new Set<string>();
 
-    const occupied = new Set<string>();
+    const occupied = new Set<string>(occupiedSerialsOnOtherSales);
 
     sales.forEach((candidateSale) => {
       const saleLevelSerial = normalizeSerialNumber(
@@ -314,25 +391,28 @@ export const OrderDetailLineItemsPanel = ({
       if (saleLevelSerial) {
         occupied.add(saleLevelSerial);
       }
+    });
 
-      (candidateSale.lineItems ?? []).forEach((lineItem) => {
-        if (lineItem.kind !== 'product') return;
+    items.forEach((lineItem) => {
+      if (lineItem.kind !== 'product') return;
+      if (serialsEditingItem && lineItem.id === serialsEditingItem.id) {
+        return;
+      }
 
-        const isCurrentEditingLine =
-          serialsEditingItem &&
-          candidateSale.id === currentSaleId &&
-          lineItem.id === serialsEditingItem.id;
-        if (isCurrentEditingLine) return;
-
-        (lineItem.serialNumbers ?? [])
-          .map(normalizeSerialNumber)
-          .filter(Boolean)
-          .forEach((serial) => occupied.add(serial));
-      });
+      (lineItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean)
+        .forEach((serial) => occupied.add(serial));
     });
 
     return occupied;
-  }, [isProductKind, currentSaleId, sales, serialsEditingItem]);
+  }, [
+    isProductKind,
+    items,
+    occupiedSerialsOnOtherSales,
+    sales,
+    serialsEditingItem,
+  ]);
   const getProductSuggestionState = useCallback(
     (product: Product): ProductSerialAvailability => {
       if (!isProductKind)
@@ -597,6 +677,7 @@ export const OrderDetailLineItemsPanel = ({
   useEffect(() => {
     if (!isProductKind || !serialsEditingItem) {
       setAvailableSerialProducts([]);
+      setOccupiedSerialsOnOtherSales(new Set());
       setIsSerialLookupLoading(false);
       return;
     }
@@ -608,6 +689,20 @@ export const OrderDetailLineItemsPanel = ({
         .replace(/[^a-z0-9\u0400-\u04ff\s-]/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+    const keepSerials = new Set(
+      (serialsEditingItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean),
+    );
+    const occupiedOnOtherLines = new Set<string>();
+    items.forEach((lineItem) => {
+      if (lineItem.kind !== 'product') return;
+      if (lineItem.id === serialsEditingItem.id) return;
+      (lineItem.serialNumbers ?? [])
+        .map(normalizeSerialNumber)
+        .filter(Boolean)
+        .forEach((serial) => occupiedOnOtherLines.add(serial));
+    });
     const loadAvailableSerials = async () => {
       setIsSerialLookupLoading(true);
       try {
@@ -636,23 +731,69 @@ export const OrderDetailLineItemsPanel = ({
           );
         });
 
-        const sorted = [...filtered]
-          .filter((product) => {
-            const serial = normalizeSerialNumber(
-              product.serialNumber,
-            );
-            if (!serial) return false;
-            return !occupiedSerials.has(serial);
-          })
-          .sort((first, second) => {
-            const firstTime = new Date(
-              first.purchaseDate ?? first.createdAt,
-            ).getTime();
-            const secondTime = new Date(
-              second.purchaseDate ?? second.createdAt,
-            ).getTime();
-            return firstTime - secondTime;
+        const candidateSerials = filtered
+          .map((product) => normalizeSerialNumber(product.serialNumber))
+          .filter(Boolean);
+        let occupiedFromOtherSales: string[] = [];
+        let occupancyFailed = false;
+        try {
+          const occupancy = await getOccupiedSerialNumbers({
+            excludeSaleId: currentSaleId,
+            serials: candidateSerials,
           });
+          occupiedFromOtherSales = occupancy.occupied;
+        } catch {
+          occupancyFailed = true;
+          occupiedFromOtherSales = [];
+        }
+        if (!isActive) return;
+
+        const occupiedOnOtherSales = new Set(
+          occupiedFromOtherSales.map(normalizeSerialNumber).filter(Boolean),
+        );
+        if (occupancyFailed) {
+          sales.forEach((candidateSale) => {
+            (candidateSale.lineItems ?? []).forEach((lineItem) => {
+              if (lineItem.kind !== 'product') return;
+              if (
+                candidateSale.id === currentSaleId &&
+                lineItem.id === serialsEditingItem.id
+              ) {
+                return;
+              }
+              (lineItem.serialNumbers ?? [])
+                .map(normalizeSerialNumber)
+                .filter(Boolean)
+                .forEach((serial) => occupiedOnOtherSales.add(serial));
+            });
+          });
+        }
+        setOccupiedSerialsOnOtherSales(occupiedOnOtherSales);
+
+        const occupied = new Set<string>([
+          ...occupiedOnOtherSales,
+          ...occupiedOnOtherLines,
+        ]);
+        sales.forEach((candidateSale) => {
+          const saleLevelSerial = normalizeSerialNumber(
+            candidateSale.product?.serialNumber,
+          );
+          if (saleLevelSerial) occupied.add(saleLevelSerial);
+        });
+
+        const sorted = filterBindableSerialProducts(
+          filtered,
+          occupied,
+          keepSerials,
+        ).sort((first, second) => {
+          const firstTime = new Date(
+            first.purchaseDate ?? first.createdAt,
+          ).getTime();
+          const secondTime = new Date(
+            second.purchaseDate ?? second.createdAt,
+          ).getTime();
+          return firstTime - secondTime;
+        });
         setAvailableSerialProducts(sorted);
       } catch {
         if (isActive) setAvailableSerialProducts([]);
@@ -666,7 +807,7 @@ export const OrderDetailLineItemsPanel = ({
     return () => {
       isActive = false;
     };
-  }, [isProductKind, occupiedSerials, serialsEditingItem]);
+  }, [currentSaleId, isProductKind, items, sales, serialsEditingItem]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
@@ -1259,14 +1400,53 @@ export const OrderDetailLineItemsPanel = ({
               : t('orders.detail.lineItems.noServicesAdded')}
           </div>
         ) : (
-          items.map((item, itemIndex) => {
-            const isLastRow = itemIndex === items.length - 1;
+          lineItemGroups.flatMap((group) => {
+            const isGrouped = isProductKind && group.items.length >= 2;
+            const isExpanded =
+              !isGrouped || expandedGroupKeys.has(group.key);
+            const header = isGrouped ? (
+              <button
+                key={`group-${group.key}`}
+                type='button'
+                className='order-line-item-group-header'
+                onClick={() => toggleProductGroup(group.key)}
+                aria-expanded={isExpanded}
+                aria-label={t('orders.detail.lineItems.toggleGroup', {
+                  name: group.name,
+                  quantity: group.totalQuantity,
+                })}
+              >
+                <span className='order-line-item-group-header-label'>
+                  <span className='order-line-item-group-name'>
+                    {group.name}
+                  </span>
+                  {!isExpanded ? (
+                    <span className='order-line-item-group-count'>
+                      {t('orders.detail.lineItems.groupedCount', {
+                        quantity: group.totalQuantity,
+                      })}
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  className='order-detail-collapse-icon'
+                  aria-hidden='true'
+                >
+                  {isExpanded
+                    ? COLLAPSE_ICON_EXPANDED
+                    : COLLAPSE_ICON_COLLAPSED}
+                </span>
+              </button>
+            ) : null;
+            const rows = isExpanded
+              ? group.items.map((item, itemIndex) => {
+            const isLastRow = item.id === lastVisibleItemId;
             const lastRowClass = isLastRow
               ? 'order-detail-table-last-row'
               : '';
             return (
               <div
-                key={`${item.id || 'line-item'}-${itemIndex}`}
+                key={`${item.id || 'line-item'}-${group.key}-${itemIndex}`}
                 className='order-detail-table-row'
               >
                 <div
@@ -1482,6 +1662,9 @@ export const OrderDetailLineItemsPanel = ({
                 </div>
               </div>
             );
+              })
+              : [];
+            return header ? [header, ...rows] : rows;
           })
         )}
         <div className='order-detail-table-entry-row'>

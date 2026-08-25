@@ -1006,6 +1006,8 @@
         "action": "Дія",
         "noProductsAdded": "Товари не додано.",
         "noServicesAdded": "Послуги не додано.",
+        "groupedCount": "\u00d7{{quantity}}",
+        "toggleGroup": "Група {{name}} ({{quantity}})",
         "return": "Повернути",
         "remove": "Видалити",
         "serials": "Серійні ",
