@@ -6,6 +6,8 @@ import {
   buildSupplierOrderItemNumber,
   filterActiveSuppliers,
   getSupplierSuggestions,
+  isSupplierOrderPayable,
+  isSupplierOrderPaid,
   mergeSupplierOrderItemUpdate,
 } from './supplier-order-utils';
 
@@ -48,6 +50,65 @@ const makeOrder = (): SupplierOrder => ({
 });
 
 describe('supplier-order-utils', () => {
+  it('marks queue-eligible supplier orders as payable', () => {
+    const payable = {
+      status: 'approved' as const,
+      paymentStatus: 'pending' as const,
+      total: 100,
+    };
+
+    expect(isSupplierOrderPayable(payable)).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'overdue' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'partially_stocked' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'partially_completed' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'stocked' }),
+    ).toBe(true);
+  });
+
+  it('hides payment when status, payment, or total is not queue-eligible', () => {
+    const payable = {
+      status: 'approved' as const,
+      paymentStatus: 'pending' as const,
+      total: 100,
+    };
+
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'request' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'ordered' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'cancelled' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, paymentStatus: 'paid' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({
+        ...payable,
+        paymentStatus: 'without_payment',
+      }),
+    ).toBe(false);
+    expect(isSupplierOrderPayable({ ...payable, total: 0 })).toBe(false);
+  });
+
+  it('treats only paymentStatus paid as paid', () => {
+    expect(isSupplierOrderPaid({ paymentStatus: 'paid' })).toBe(true);
+    expect(isSupplierOrderPaid({ paymentStatus: 'pending' })).toBe(false);
+    expect(
+      isSupplierOrderPaid({ paymentStatus: 'without_payment' }),
+    ).toBe(false);
+    expect(isSupplierOrderPaid({ paymentStatus: 'cancelled' })).toBe(false);
+  });
+
   it('builds supplier order number with item postfix', () => {
     const order = makeOrder();
     expect(buildSupplierOrderItemNumber(order, 0)).toBe(

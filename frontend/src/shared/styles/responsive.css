@@ -437,6 +437,21 @@
   .catalog-toolbar-actions {
     margin-left: 0;
   }
+
+  .order-related-item-supplier {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .order-related-supplier-open {
+    grid-template-columns: 88px minmax(0, 1fr) minmax(72px, auto) minmax(72px, auto);
+    gap: 8px;
+  }
+
+  .order-related-supplier-actions {
+    gap: 6px;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1406,6 +1421,32 @@
     grid-template-columns: 1fr;
     gap: 4px;
     align-items: start;
+  }
+
+  .order-related-supplier-open {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+
+  .order-related-supplier-open strong {
+    grid-column: 1 / -1;
+  }
+
+  .order-related-supplier-actions {
+    justify-self: start;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .order-related-supplier-pay-button,
+  .order-related-supplier-paid-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    flex-basis: 36px;
   }
 
   .order-detail-table-wide,

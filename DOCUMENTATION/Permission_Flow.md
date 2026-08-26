@@ -55,8 +55,8 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `finance.transactions.deposit` | Create deposit transactions, including accepting client payments from Orders. |
 | `finance.transactions.withdraw` | Create withdraw transactions, including client refunds/returns. |
 | `finance.transactions.transfer` | Transfer money between cashboxes. |
-| `finance.supplierOrders.pay` | Pay supplier orders from Accounting queue. |
-| `finance.supplierOrders.issueWithoutPayment` | Mark supplier orders as issued without payment. |
+| `finance.supplierOrders.pay` | Pay supplier orders from Accounting queue and from the linked sale/order card `Supplier Order` tab. |
+| `finance.supplierOrders.issueWithoutPayment` | Mark supplier orders as issued without payment (Accounting queue and linked sale/order card pay modal). |
 
 ### Employees
 | Permission | Allows |
@@ -204,6 +204,7 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
   - Transfer: `finance.transactions.transfer`
 - Accounting supplier-order payment action requires `finance.supplierOrders.pay`.
 - Accounting supplier-order issue-without-payment action requires `finance.supplierOrders.issueWithoutPayment`.
+- Linked sale/order card supplier-order pay icon requires `finance.supplierOrders.pay`; issue-without-payment in that modal requires `finance.supplierOrders.issueWithoutPayment`.
 - Orders payment modal requires `finance.transactions.deposit`.
 - Orders refund/return flows that return money require `finance.transactions.withdraw`.
 - Cashbox list loading in payment/refund forms requires `finance.cashboxes.view` or `finance.view`.

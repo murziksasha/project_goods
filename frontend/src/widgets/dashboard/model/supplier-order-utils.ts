@@ -3,6 +3,7 @@ import i18n from '../../../shared/i18n/config';
 import type {
   SupplierOrder,
   SupplierOrderItem,
+  SupplierOrderStatus,
   SupplierReceiptStatus,
 } from '../../../entities/supplier-order/model/types';
 
@@ -66,6 +67,25 @@ export const resolveSupplierOrderModalLocks = (
   return { isContentLocked, isTakeOnChargeLocked, isCancelLocked };
 };
 
+export const SUPPLIER_ORDER_PAYABLE_STATUSES: readonly SupplierOrderStatus[] = [
+  'approved',
+  'overdue',
+  'partially_stocked',
+  'partially_completed',
+  'stocked',
+];
+
+export const isSupplierOrderPayable = (
+  order: Pick<SupplierOrder, 'status' | 'paymentStatus' | 'total'>,
+) =>
+  order.paymentStatus === 'pending' &&
+  order.total > 0 &&
+  SUPPLIER_ORDER_PAYABLE_STATUSES.includes(order.status);
+
+export const isSupplierOrderPaid = (
+  order: Pick<SupplierOrder, 'paymentStatus'>,
+) => order.paymentStatus === 'paid';
+
 const supplierOrderBackendErrorMap: Record<string, string> = {
   'Оплачений заказ не можна редагувати.':
     'orders.supplier.messages.errors.paidNotEditable',
@@ -87,6 +107,15 @@ const supplierOrderBackendErrorMap: Record<string, string> = {
     'orders.supplier.messages.errors.itemReceivedNotCancellable',
   'Supplier order item is already cancelled.':
     'orders.supplier.messages.errors.itemAlreadyCancelled',
+  'Замовлення вже сплачено.': 'orders.supplier.messages.errors.alreadyPaid',
+  'Замовлення вже видано без оплати.':
+    'orders.supplier.messages.errors.alreadyIssuedWithoutPayment',
+  'Оплата доступна тільки для замовлень зі статусом approved або stocked.':
+    'orders.supplier.messages.errors.payStatusNotAllowed',
+  'Видача без оплати доступна тільки для замовлень зі статусом approved або stocked.':
+    'orders.supplier.messages.errors.issueWithoutPaymentStatusNotAllowed',
+  'Cashbox balance is not enough for this operation.':
+    'orders.supplier.messages.errors.cashboxBalanceNotEnough',
 };
 
 export const resolveSupplierOrderErrorMessage = (

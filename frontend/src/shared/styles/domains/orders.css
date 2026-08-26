@@ -924,10 +924,53 @@
   color: var(--color-primary-hover);
 }
 
+.order-related-supplier-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  justify-self: end;
+  min-width: 0;
+}
+
 .order-related-supplier-status {
   font-weight: 700;
   color: #4c6077;
-  justify-self: end;
+}
+
+.order-related-supplier-pay-button,
+.order-related-supplier-paid-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 36px;
+  min-width: 40px;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.order-related-supplier-pay-button {
+  color: var(--color-primary);
+}
+
+.order-related-supplier-paid-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-success-strong);
+}
+
+.order-related-supplier-pay-button svg,
+.order-related-supplier-paid-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.order-related-supplier-paid-icon svg {
+  stroke-width: 2.5;
+}
+
+.supplier-order-pay-modal .payment-modal-form {
+  grid-template-columns: minmax(240px, 1fr);
 }
 
 .order-detail-table {
