@@ -254,9 +254,11 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 
 ### Related row actions (2026-07-16)
 
-- Each linked line is a two-control row:
+- Each linked line is a two-control row (plus payment marker after the status badge):
   - main open control (number / product / amount / date) opens `SupplierOrderModal` for that item,
-  - status badge uses the same interactive control as `Orders -> Supplier Order` (manual statuses only).
+  - status badge uses the same interactive control as `Orders -> Supplier Order` (manual statuses only),
+  - a dollar pay icon is rendered after the status badge when the order is payable,
+  - a green check icon occupies the same slot when `paymentStatus = paid`.
 - Status badge rules match **Supplier Order Row Status Window**:
   - requires `supplierOrders.manage`,
   - disabled when `paymentStatus = cancelled` or `status` is `cancelled` / `unavailable`,
@@ -270,6 +272,17 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - sets `forceReadOnly` when the employee lacks `supplierOrders.manage`.
 - After take-on-charge, cancel, or status change, the card refreshes linked supplier orders (`onSupplierOrderCreated`); reopening a received/cancelled/unavailable locked order follows content lock / read-only modal behavior from Supplier Order Lock Rules.
 - Item-scoped take-on-charge passes `itemIndex` so only the selected product line is received.
+- Pay icon / modal (linked sale/order card `Supplier Order` tab):
+  - dollar icon requires `finance.supplierOrders.pay`,
+  - same queue rules as Accounting: `paymentStatus = pending`, `total > 0`, `status in [approved, overdue, partially_stocked, partially_completed, stocked]`,
+  - hidden for `request` / `ordered` / `cancelled` / `unavailable`, paid / without_payment, and zero-total orders,
+  - click loads cashboxes and opens `SupplierOrderPayModal` (cashbox select + Pay),
+  - payment is order-level (`POST /finance/supplier-orders/:id/pay` for full `order.total`, even on item-scoped rows),
+  - `Issue without payment` appears in the same modal only with `finance.supplierOrders.issueWithoutPayment` and uses the Accounting confirm copy,
+  - success dispatches `project-goods:finance-updated` and refreshes linked supplier orders so the dollar is replaced by the paid check,
+  - `paymentStatus = paid` shows a non-interactive green check in the same slot (visible to anyone who can see the tab; not gated by `finance.supplierOrders.pay`),
+  - `without_payment` does not show the dollar or the check,
+  - status + icon stay on one row; compact / phone layouts keep a fixed 36–40px slot so the marker does not jump or overflow.
 
 ## Products Suggestions Source (2026-05-09)
 

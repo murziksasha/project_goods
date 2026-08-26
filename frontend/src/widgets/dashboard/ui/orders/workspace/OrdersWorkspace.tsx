@@ -2689,6 +2689,14 @@ export const OrdersWorkspace = ({
               currentEmployee,
               'supplierOrders.manage',
             )}
+            canPaySupplierOrders={hasEmployeePermission(
+              currentEmployee,
+              'finance.supplierOrders.pay',
+            )}
+            canIssueSupplierOrdersWithoutPayment={hasEmployeePermission(
+              currentEmployee,
+              'finance.supplierOrders.issueWithoutPayment',
+            )}
             onCreateOrder={() =>
               onCreateOrder(
                 isRepairOrder(selectedSale) ? 'orders' : 'sales',

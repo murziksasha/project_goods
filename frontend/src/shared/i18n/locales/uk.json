@@ -1180,6 +1180,12 @@
         "supplyLocal": "Локально",
         "supplyForeign": "Закордон"
       },
+      "pay": {
+        "openAriaLabel": "Оплатити замовлення постачальнику {{number}}",
+        "paidAriaLabel": "Замовлення постачальнику {{number}} оплачено",
+        "modalTitle": "Оплата замовлення постачальнику",
+        "closeAriaLabel": "Закрити оплату замовлення постачальнику"
+      },
       "messages": {
         "errors": {
           "failedLoad": "Не вдалося завантажити замовлення постачальників.",
@@ -1206,7 +1212,14 @@
           "itemCancelledNotReceivable": "Скасовану позицію не можна оприбуткувати.",
           "itemReceivedNotCancellable": "Оприбутковану позицію не можна скасувати.",
           "itemAlreadyCancelled": "Позицію вже скасовано.",
-          "failedCancelItem": "Не вдалося скасувати позицію."
+          "failedCancelItem": "Не вдалося скасувати позицію.",
+          "alreadyPaid": "Замовлення вже сплачено.",
+          "alreadyIssuedWithoutPayment": "Замовлення вже видано без оплати.",
+          "payStatusNotAllowed": "Оплата доступна тільки для замовлень зі статусом approved, overdue, stocked або частково оприбуткованих.",
+          "issueWithoutPaymentStatusNotAllowed": "Видача без оплати доступна тільки для замовлень зі статусом approved, overdue, stocked або частково оприбуткованих.",
+          "cashboxBalanceNotEnough": "Недостатньо коштів у касі для цієї операції.",
+          "failedPay": "Не вдалося оплатити замовлення постачальнику.",
+          "failedIssueWithoutPayment": "Не вдалося видати замовлення без оплати."
         },
         "success": {
           "statusUpdated": "Статус замовлення постачальника оновлено.",

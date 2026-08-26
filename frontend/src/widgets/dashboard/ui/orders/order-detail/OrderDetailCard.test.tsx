@@ -42,6 +42,9 @@ const {
   getClientDevicesMock,
   getWarehouseSettingsMock,
   getOccupiedSerialNumbersMock,
+  getCashboxesMock,
+  paySupplierOrderMock,
+  issueSupplierOrderWithoutPaymentMock,
 } = vi.hoisted(() => ({
   getProductsMock: vi.fn(
     async (_query = ''): Promise<Product[]> => [],
@@ -53,6 +56,20 @@ const {
   getOccupiedSerialNumbersMock: vi.fn(
     async () => ({ occupied: [] as string[] }),
   ),
+  getCashboxesMock: vi.fn(async () => [
+    {
+      id: 'cashbox-1',
+      name: 'Main',
+      balances: { UAH: 5000 },
+      enabledCurrencies: { UAH: true },
+      isDefault: true,
+      isArchived: false,
+      createdAt: '2026-06-09T09:00:00.000Z',
+      updatedAt: '2026-06-09T09:00:00.000Z',
+    },
+  ]),
+  paySupplierOrderMock: vi.fn(async () => undefined),
+  issueSupplierOrderWithoutPaymentMock: vi.fn(async () => undefined),
 }));
 
 vi.mock(
@@ -126,6 +143,12 @@ vi.mock(
 vi.mock('../../../../../entities/supplier/api/supplierApi', () => ({
   createSupplier: vi.fn(),
   getSuppliers: vi.fn(async () => []),
+}));
+
+vi.mock('../../../../../entities/finance/api/financeApi', () => ({
+  getCashboxes: getCashboxesMock,
+  paySupplierOrder: paySupplierOrderMock,
+  issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
 }));
 
 const now = '2026-06-09T09:00:00.000Z';
@@ -275,7 +298,11 @@ const buildCardElement = ({
   isReadOnly = false,
   canCreateOrders = true,
   canManageSupplierOrders = true,
+  canPaySupplierOrders = false,
+  canIssueSupplierOrdersWithoutPayment = false,
   onCreateOrder = vi.fn(),
+  onSupplierOrderCreated = vi.fn(async () => undefined),
+  onSuccess = vi.fn(),
   comments = [],
   saleOverride,
   salesOverride,
@@ -327,7 +354,11 @@ const buildCardElement = ({
   isReadOnly?: boolean;
   canCreateOrders?: boolean;
   canManageSupplierOrders?: boolean;
+  canPaySupplierOrders?: boolean;
+  canIssueSupplierOrdersWithoutPayment?: boolean;
   onCreateOrder?: () => void;
+  onSupplierOrderCreated?: () => Promise<void>;
+  onSuccess?: (message: string) => void;
   comments?: Array<{
     id: string;
     kind?: 'manual' | 'system';
@@ -372,6 +403,10 @@ const buildCardElement = ({
       canRefundPayment={true}
       canCreateOrders={canCreateOrders}
       canManageSupplierOrders={canManageSupplierOrders}
+      canPaySupplierOrders={canPaySupplierOrders}
+      canIssueSupplierOrdersWithoutPayment={
+        canIssueSupplierOrdersWithoutPayment
+      }
       onCreateOrder={onCreateOrder}
       createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
       onClose={vi.fn()}
@@ -387,13 +422,13 @@ const buildCardElement = ({
       onRefundPayment={vi.fn()}
       onDiscountChange={onDiscountChange}
       onOpenClientCard={vi.fn()}
-      onSupplierOrderCreated={vi.fn(async () => undefined)}
+      onSupplierOrderCreated={onSupplierOrderCreated}
       onCreateClientDevice={onCreateClientDevice}
       onUpdateClientDevice={onUpdateClientDevice}
       onDeleteClientDevice={onDeleteClientDevice}
       onUpdateProductModel={vi.fn(async () => true)}
       onError={onError}
-      onSuccess={vi.fn()}
+      onSuccess={onSuccess}
       onSaveMainInfo={onSaveMainInfo}
       onSaveUserNote={onSaveUserNote}
     />
@@ -496,6 +531,9 @@ afterEach(() => {
   getOccupiedSerialNumbersMock.mockClear();
   getClientDevicesMock.mockClear();
   getWarehouseSettingsMock.mockClear();
+  getCashboxesMock.mockClear();
+  paySupplierOrderMock.mockClear();
+  issueSupplierOrderWithoutPaymentMock.mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
   document.body.style.overflow = '';
@@ -2852,6 +2890,329 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.queryByRole('button', { name: /SO000099/i }),
     ).toBeNull();
+  });
+
+  it('shows a pay icon after payable supplier-order statuses', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    'request',
+    'ordered',
+    'cancelled',
+  ] as const)('hides the pay icon for %s supplier orders', (status) => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status,
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('hides the pay icon without finance.supplierOrders.pay', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: false,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('shows a green paid check instead of the pay icon when the supplier order is paid', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'paid',
+          total: 1550,
+        }),
+      ],
+      canPaySupplierOrders: false,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.getByRole('img', {
+        name: 'Supplier order SO000010 is paid',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('hides pay and paid icons for zero-total and without-payment orders', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+
+    const { unmount } = renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000011',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'pending',
+          total: 0,
+        }),
+      ],
+      canPaySupplierOrders: true,
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /is paid/i }),
+    ).toBeNull();
+    unmount();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000012',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'without_payment',
+          total: 1550,
+        }),
+      ],
+      canPaySupplierOrders: true,
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /is paid/i }),
+    ).toBeNull();
+  });
+
+  it('opens the pay modal and pays the supplier order', async () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      id: 'supplier-order-pay',
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+    const onSupplierOrderCreated = vi.fn(async () => undefined);
+    const onSuccess = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+      onSupplierOrderCreated,
+      onSuccess,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+
+    await waitFor(() =>
+      expect(paySupplierOrderMock).toHaveBeenCalledWith(
+        'supplier-order-pay',
+        {
+          cashboxId: 'cashbox-1',
+          note: 'Payment for order SO000010',
+        },
+      ),
+    );
+    expect(onSupplierOrderCreated).toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledWith('Order has been paid.');
+  });
+
+  it('keeps the pay modal open when payment fails', async () => {
+    paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const onError = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'stocked',
+          paymentStatus: 'pending',
+          total: 200,
+        }),
+      ],
+      canPaySupplierOrders: true,
+      onError,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
+    expect(
+      screen.getByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+  });
+
+  it('issues a supplier order without payment from the card pay modal', async () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const onSuccess = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          id: 'supplier-order-issue',
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'overdue',
+          paymentStatus: 'pending',
+          total: 200,
+        }),
+      ],
+      canPaySupplierOrders: true,
+      canIssueSupplierOrdersWithoutPayment: true,
+      onSuccess,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Issue without payment' }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() =>
+      expect(issueSupplierOrderWithoutPaymentMock).toHaveBeenCalledWith(
+        'supplier-order-issue',
+      ),
+    );
+    expect(onSuccess).toHaveBeenCalledWith(
+      'Order issued without payment.',
+    );
   });
 
   it('renders related orders and sales as browser links while preserving plain left click handling', () => {

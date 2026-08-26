@@ -24,7 +24,15 @@ import {
   unbindClientDevice,
 } from '../../../../../entities/client-device/lib/unbind-client-device';
 import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
+import {
+  getCashboxes,
+  issueSupplierOrderWithoutPayment,
+  paySupplierOrder,
+} from '../../../../../entities/finance/api/financeApi';
+import type { Cashbox } from '../../../../../entities/finance/model/types';
+import { AccountingIcon, CheckIcon } from '../../../../../shared/ui/NavIcons';
 import { SupplierOrderModal } from '../modals/SupplierOrderModal';
+import { SupplierOrderPayModal } from '../modals/SupplierOrderPayModal';
 import {
   filterActiveDevicesByQuery,
   getOrderLink,
@@ -37,7 +45,11 @@ import {
 } from '../../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderItemNumber,
+  getSupplierOrderDisplayNumber,
+  isSupplierOrderPayable,
+  isSupplierOrderPaid,
   mergeSupplierOrderItemUpdate,
+  resolveSupplierOrderErrorMessage,
 } from '../../../model/supplier-order-utils';
 import {
   computeSupplierOrderStatusMenuPosition,
@@ -122,6 +134,8 @@ export const OrderDetailCard = ({
   canRefundPayment: canRefundPaymentPermission,
   canCreateOrders,
   canManageSupplierOrders = false,
+  canPaySupplierOrders = false,
+  canIssueSupplierOrdersWithoutPayment = false,
   onCreateOrder,
   createOrderHref,
   onClose,
@@ -217,6 +231,12 @@ export const OrderDetailCard = ({
       locations: Array<{ id: string; name: string }>;
     }>
   >([]);
+  const [payingRelatedSupplierOrder, setPayingRelatedSupplierOrder] =
+    useState<SupplierOrder | null>(null);
+  const [payCashboxes, setPayCashboxes] = useState<Cashbox[]>([]);
+  const [isPayCashboxesLoading, setIsPayCashboxesLoading] = useState(false);
+  const [isPayingRelatedSupplierOrder, setIsPayingRelatedSupplierOrder] =
+    useState(false);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
   const [discountInput, setDiscountInput] = useState(String(discount.value));
@@ -923,6 +943,90 @@ export const OrderDetailCard = ({
     setRelatedStatusMenuPosition(null);
   };
 
+  const openRelatedSupplierOrderPay = async (order: SupplierOrder) => {
+    if (!canPaySupplierOrders || !isSupplierOrderPayable(order)) return;
+    setPayingRelatedSupplierOrder(order);
+    setPayCashboxes([]);
+    setIsPayCashboxesLoading(true);
+    try {
+      const cashboxData = await getCashboxes();
+      setPayCashboxes(cashboxData);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.messages.errors.failedLoadCashboxes'),
+      );
+      setPayingRelatedSupplierOrder(null);
+    } finally {
+      setIsPayCashboxesLoading(false);
+    }
+  };
+
+  const closeRelatedSupplierOrderPay = () => {
+    if (isPayingRelatedSupplierOrder) return;
+    setPayingRelatedSupplierOrder(null);
+    setPayCashboxes([]);
+  };
+
+  const payRelatedSupplierOrder = async (cashboxId: string) => {
+    if (
+      !payingRelatedSupplierOrder ||
+      !cashboxId ||
+      isPayingRelatedSupplierOrder
+    ) {
+      return;
+    }
+    const orderNumber = getSupplierOrderDisplayNumber(
+      payingRelatedSupplierOrder,
+    );
+    setIsPayingRelatedSupplierOrder(true);
+    try {
+      await paySupplierOrder(payingRelatedSupplierOrder.id, {
+        cashboxId,
+        note: t('accounting.orders.paymentNote', { orderNumber }),
+      });
+      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      await onSupplierOrderCreated();
+      onSuccess(t('accounting.messages.success.orderPaid'));
+      setPayingRelatedSupplierOrder(null);
+      setPayCashboxes([]);
+    } catch (error) {
+      onError(
+        resolveSupplierOrderErrorMessage(
+          error,
+          (key) => t(key),
+          'accounting.messages.errors.failedPayOrder',
+        ),
+      );
+    } finally {
+      setIsPayingRelatedSupplierOrder(false);
+    }
+  };
+
+  const issueRelatedSupplierOrderWithoutPayment = async () => {
+    if (!payingRelatedSupplierOrder || isPayingRelatedSupplierOrder) return;
+    setIsPayingRelatedSupplierOrder(true);
+    try {
+      await issueSupplierOrderWithoutPayment(payingRelatedSupplierOrder.id);
+      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      await onSupplierOrderCreated();
+      onSuccess(t('accounting.messages.success.orderIssuedWithoutPayment'));
+      setPayingRelatedSupplierOrder(null);
+      setPayCashboxes([]);
+    } catch (error) {
+      onError(
+        resolveSupplierOrderErrorMessage(
+          error,
+          (key) => t(key),
+          'accounting.messages.errors.failedIssueWithoutPayment',
+        ),
+      );
+    } finally {
+      setIsPayingRelatedSupplierOrder(false);
+    }
+  };
+
   useEffect(() => {
     if (!openRelatedStatusOrder) return;
 
@@ -1597,28 +1701,76 @@ export const OrderDetailCard = ({
                         </span>
                         <span>{formatReadyDate(order.createdAt)}</span>
                       </button>
-                      <div className='supplier-order-status-picker order-related-supplier-status'>
-                        <button
-                          type='button'
-                          className={getSupplierOrderStatusClass(order.status)}
-                          data-related-supplier-order-status-trigger={rowKey}
-                          disabled={statusDisabled}
-                          aria-expanded={
-                            openRelatedStatusOrder?.key === rowKey
-                          }
-                          aria-haspopup='listbox'
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void openRelatedSupplierOrderStatusMenu(
-                              rowKey,
-                              order,
-                              item.itemIndex,
-                              event.currentTarget.getBoundingClientRect(),
-                            );
-                          }}
-                        >
-                          {getSupplierOrderStatusLabel(order.status)}
-                        </button>
+                      <div className='order-related-supplier-actions'>
+                        <div className='supplier-order-status-picker order-related-supplier-status'>
+                          <button
+                            type='button'
+                            className={getSupplierOrderStatusClass(order.status)}
+                            data-related-supplier-order-status-trigger={rowKey}
+                            disabled={statusDisabled}
+                            aria-expanded={
+                              openRelatedStatusOrder?.key === rowKey
+                            }
+                            aria-haspopup='listbox'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openRelatedSupplierOrderStatusMenu(
+                                rowKey,
+                                order,
+                                item.itemIndex,
+                                event.currentTarget.getBoundingClientRect(),
+                              );
+                            }}
+                          >
+                            {getSupplierOrderStatusLabel(order.status)}
+                          </button>
+                        </div>
+                        {isSupplierOrderPaid(order) ? (
+                          <span
+                            className='order-related-supplier-paid-icon'
+                            role='img'
+                            data-related-supplier-order-paid={rowKey}
+                            aria-label={t(
+                              'orders.supplier.pay.paidAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(order),
+                              },
+                            )}
+                            title={t('orders.supplier.pay.paidAriaLabel', {
+                              number: getSupplierOrderDisplayNumber(order),
+                            })}
+                          >
+                            <CheckIcon />
+                          </span>
+                        ) : canPaySupplierOrders &&
+                          isSupplierOrderPayable(order) ? (
+                          <button
+                            type='button'
+                            className='toolbar-square-button order-print-icon-button order-related-supplier-pay-button'
+                            data-related-supplier-order-pay={rowKey}
+                            aria-label={t(
+                              'orders.supplier.pay.openAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(order),
+                              },
+                            )}
+                            title={t('orders.supplier.pay.openAriaLabel', {
+                              number: getSupplierOrderDisplayNumber(order),
+                            })}
+                            disabled={
+                              isPayingRelatedSupplierOrder ||
+                              isPayCashboxesLoading
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openRelatedSupplierOrderPay(order);
+                            }}
+                          >
+                            <AccountingIcon />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -1714,6 +1866,22 @@ export const OrderDetailCard = ({
           onApplyDeviceName={applyDeviceName}
           onUnbindDevice={handleUnbindDevice}
           onCreateAndApply={() => void createAndApplyDevice()}
+        />
+      ) : null}
+      {payingRelatedSupplierOrder ? (
+        <SupplierOrderPayModal
+          order={payingRelatedSupplierOrder}
+          cashboxes={payCashboxes}
+          isLoading={isPayCashboxesLoading}
+          isSaving={isPayingRelatedSupplierOrder}
+          canIssueWithoutPayment={canIssueSupplierOrdersWithoutPayment}
+          onClose={closeRelatedSupplierOrderPay}
+          onPay={(cashboxId) => {
+            void payRelatedSupplierOrder(cashboxId);
+          }}
+          onIssueWithoutPayment={() => {
+            void issueRelatedSupplierOrderWithoutPayment();
+          }}
         />
       ) : null}
       <SupplierOrderStatusMenuPortal

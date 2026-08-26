@@ -1180,6 +1180,12 @@
         "supplyLocal": "Local",
         "supplyForeign": "Foreign"
       },
+      "pay": {
+        "openAriaLabel": "Pay supplier order {{number}}",
+        "paidAriaLabel": "Supplier order {{number}} is paid",
+        "modalTitle": "Pay supplier order",
+        "closeAriaLabel": "Close supplier order payment"
+      },
       "messages": {
         "errors": {
           "failedLoad": "Failed to load supplier orders.",
@@ -1206,7 +1212,14 @@
           "itemCancelledNotReceivable": "Cancelled items cannot be taken on charge.",
           "itemReceivedNotCancellable": "Received items cannot be cancelled.",
           "itemAlreadyCancelled": "This item is already cancelled.",
-          "failedCancelItem": "Failed to cancel supplier order item."
+          "failedCancelItem": "Failed to cancel supplier order item.",
+          "alreadyPaid": "Supplier order is already paid.",
+          "alreadyIssuedWithoutPayment": "Supplier order is already issued without payment.",
+          "payStatusNotAllowed": "Payment is available only for approved, overdue, stocked, or partially received supplier orders.",
+          "issueWithoutPaymentStatusNotAllowed": "Issue without payment is available only for approved, overdue, stocked, or partially received supplier orders.",
+          "cashboxBalanceNotEnough": "Cashbox balance is not enough for this operation.",
+          "failedPay": "Failed to pay supplier order.",
+          "failedIssueWithoutPayment": "Failed to issue supplier order without payment."
         },
         "success": {
           "statusUpdated": "Supplier order status updated.",

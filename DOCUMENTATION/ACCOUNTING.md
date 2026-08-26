@@ -146,6 +146,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Any status transition that changes finance visibility must trigger finance refresh event:
   - `project-goods:finance-updated`
 - Warehouse receipts must refresh on this event to reflect latest payment status changes.
+- Linked sale/order card `Supplier Order` tab reuses the same pay / issue-without-payment APIs and queue eligibility as this Accounting queue (`POST /finance/supplier-orders/:id/pay`, `POST /finance/supplier-orders/:id/issue-without-payment`).
 - Read-only modal behavior must be reused across modules to avoid divergent financial UX and logic.
 
 ## Transactions Table Visual + Total Rules
