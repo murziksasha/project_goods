@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../entities/sale/model/types';
 import { RepairKanbanBoard } from './RepairKanbanBoard';
@@ -110,5 +110,46 @@ describe('RepairKanbanBoard', () => {
     );
 
     expect(container.querySelector('.repair-kanban-card-phone')).toBeNull();
+  });
+
+  it('opens a move sheet with pipeline statuses', () => {
+    const onStatusChange = vi.fn();
+    render(
+      <RepairKanbanBoard
+        sales={[sale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={onStatusChange}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Move$/i }));
+    const dialog = screen.getByRole('dialog', { name: /Move order r0001/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /In repair/i }));
+    expect(onStatusChange).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sale-1' }),
+      'inRepair',
+    );
+  });
+
+  it('renders the column navigator for jump/drop targets', () => {
+    render(
+      <RepairKanbanBoard
+        sales={[sale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('navigation', { name: /Kanban columns/i }),
+    ).toBeInTheDocument();
   });
 });

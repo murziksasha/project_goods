@@ -77,6 +77,14 @@
     padding-bottom: 72px;
   }
 
+  .supplier-information-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .supplier-information-charts {
+    grid-template-columns: 1fr;
+  }
+
   .auth-screen {
     display: flex;
     flex-direction: column;
@@ -566,6 +574,8 @@
   .analytics-summary-grid,
   .analytics-summary-grid-wide,
   .supplier-information-summary,
+  .supplier-information-summary-compact,
+  .supplier-information-charts,
   .supplier-information-grid,
   .supplier-information-price-grid,
   .finance-orders-summary-grid,

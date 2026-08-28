@@ -665,7 +665,15 @@
       "shortcutsLabel": "Keyboard shortcuts"
     },
     "kanban": {
-      "ordersCount": "Orders: {{count}}"
+      "ordersCount": "Orders: {{count}}",
+      "dragHandle": "Drag to another column",
+      "move": "Move",
+      "moveTo": "Move to column",
+      "moveOrder": "Move order {{number}}",
+      "closeMove": "Close",
+      "collapseColumn": "Collapse empty column",
+      "expandColumn": "Expand column",
+      "navigator": "Kanban columns"
     },
     "toolbar": {
       "filter": "Filter",
@@ -1124,7 +1132,29 @@
         "overdueOrders": "Overdue orders",
         "lateRiskIn3Days": "Late risk in 3 days",
         "cancelledUnavailable": "Cancelled / unavailable",
-        "paymentCoverage": "Payment coverage"
+        "paymentCoverage": "Payment coverage",
+        "openPipeline": "Open pipeline",
+        "openPipelineHint": "{{count}} orders not yet stocked",
+        "ordersAndPcs": "Orders / pcs",
+        "spendTrend": "Spend over time",
+        "spendTrendHint": "By order date",
+        "statusMix": "Order status mix",
+        "paymentMix": "Payment mix",
+        "topGoods": "Top goods",
+        "topSuppliers": "Top suppliers",
+        "tabQuantity": "Quantity",
+        "tabValue": "Value",
+        "tabFrequency": "Frequency",
+        "tabSpend": "Spend",
+        "tabOutstanding": "Outstanding",
+        "avgLeadTime": "Avg lead time",
+        "leadTimeHint": "Created to stocked (days)",
+        "leadTimeDays": "{{count}} days",
+        "leadTimeEmpty": "No stocked orders in range",
+        "supplierConcentration": "Top supplier share",
+        "overdueOutstanding": "Overdue outstanding",
+        "chartOrders": "{{count}} orders",
+        "vsPrevious": "vs previous window"
       },
       "editModal": {
         "supplier": "Supplier",

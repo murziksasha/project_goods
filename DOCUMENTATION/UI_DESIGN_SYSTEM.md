@@ -94,8 +94,8 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | Name | Max width | Notes |
 |------|-----------|-------|
 | Desktop | > 1024px | Default dashboard grid |
-| Tablet | 1024px | Phone shell (drawer + bottom nav); tables stack into labeled cards; Kanban snaps per column; weather widget collapsed |
-| Mobile | 720px | Stacked toolbars; create menu instead of two topbar buttons; Accounting tabs scroll/wrap; cashboxes stack; topbar title shrinks |
+| Tablet | 1024px | Phone shell (drawer + bottom nav); tables stack into labeled cards; Kanban shows two 50% snap columns + sticky navigator (no 86vw peek); weather widget collapsed |
+| Mobile | 720px | Stacked toolbars; create menu instead of two topbar buttons; Accounting tabs scroll/wrap; cashboxes stack; topbar title shrinks; Kanban is one full-width snap column |
 | Finance refine | 530px | Extra full-width finance controls / tab padding |
 | Phone | 480px | Tighter spacing, full-width controls, smaller finance tabs/title |
 

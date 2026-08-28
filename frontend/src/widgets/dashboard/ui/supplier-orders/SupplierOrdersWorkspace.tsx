@@ -27,6 +27,7 @@ import { getWarehouseSettings } from '../../../../entities/warehouse-settings/ap
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderAnalytics,
+  getPreviousDeliveryDateRange,
   resolveSupplierOrderErrorMessage,
 } from '../../model/supplier-order-utils';
 import {
@@ -376,9 +377,34 @@ export const SupplierOrdersWorkspace = ({
     [filteredOrders, page, pageSize],
   );
   const isInformationTab = activeTab === 'supplierInformation';
+  const previousRange = useMemo(
+    () => getPreviousDeliveryDateRange(deliveryDateFrom, deliveryDateTo),
+    [deliveryDateFrom, deliveryDateTo],
+  );
+  const previousOrders = useMemo(() => {
+    if (!previousRange) return undefined;
+    return filterSupplierOrders(orders, {
+      query,
+      selectedStatuses,
+      paymentStatus,
+      deliveryDateFrom: previousRange.dateFrom,
+      deliveryDateTo: previousRange.dateTo,
+      favoritesOnly,
+    });
+  }, [
+    favoritesOnly,
+    orders,
+    paymentStatus,
+    previousRange,
+    query,
+    selectedStatuses,
+  ]);
   const supplierInformation = useMemo(
-    () => buildSupplierOrderAnalytics(filteredOrders),
-    [filteredOrders],
+    () =>
+      buildSupplierOrderAnalytics(filteredOrders, new Date(), {
+        previousOrders,
+      }),
+    [filteredOrders, previousOrders],
   );
 
   const toggleStatus = (status: SupplierOrderStatus) => {

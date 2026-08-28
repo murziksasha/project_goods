@@ -15,7 +15,10 @@ import {
   countKanbanVisibleSales,
   groupRepairSalesByKanbanStatus,
   isKanbanVisibleSale,
+  parseCollapsedKanbanColumns,
   parseColumnDropId,
+  parseRailDropId,
+  railDropId,
   resolveKanbanDropStatus,
   saleMatchesKanbanMasterFilter,
   shouldKeepKanbanPendingMove,
@@ -109,6 +112,12 @@ describe('repair kanban drop helpers', () => {
     expect(parseColumnDropId('column:ready')).toBe('ready');
     expect(parseColumnDropId('column:notPickedUp')).toBeNull();
     expect(parseColumnDropId('ready')).toBeNull();
+    expect(parseRailDropId(railDropId('paid'))).toBe('paid');
+    expect(parseRailDropId('column:paid')).toBeNull();
+    expect(parseCollapsedKanbanColumns('["new","ready","issued"]')).toEqual([
+      'new',
+      'ready',
+    ]);
   });
 
   it('resolves drop status from a column id or another sale', () => {
@@ -117,6 +126,7 @@ describe('repair kanban drop helpers', () => {
       ['b', sale('b', 'inRepair')],
     ]);
 
+    expect(resolveKanbanDropStatus('rail:ready', saleById)).toBe('ready');
     expect(resolveKanbanDropStatus('column:diagnostics', saleById)).toBe(
       'diagnostics',
     );

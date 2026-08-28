@@ -665,7 +665,15 @@
       "shortcutsLabel": "Гарячі клавіші"
     },
     "kanban": {
-      "ordersCount": "Замовлень: {{count}}"
+      "ordersCount": "Замовлень: {{count}}",
+      "dragHandle": "Перетягнути в іншу колонку",
+      "move": "Перемістити",
+      "moveTo": "Перемістити в колонку",
+      "moveOrder": "Перемістити замовлення {{number}}",
+      "closeMove": "Закрити",
+      "collapseColumn": "Згорнути порожню колонку",
+      "expandColumn": "Розгорнути колонку",
+      "navigator": "Колонки канбану"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -1124,7 +1132,29 @@
         "overdueOrders": "Прострочені замовлення",
         "lateRiskIn3Days": "Ризик затримки за 3 дні",
         "cancelledUnavailable": "Скасовані / недоступні",
-        "paymentCoverage": "Покриття оплатою"
+        "paymentCoverage": "Покриття оплатою",
+        "openPipeline": "Відкритий конвеєр",
+        "openPipelineHint": "{{count}} замовлень ще не оприбутковано",
+        "ordersAndPcs": "Замовлення / шт.",
+        "spendTrend": "Закупівлі в часі",
+        "spendTrendHint": "За датою замовлення",
+        "statusMix": "Розподіл статусів",
+        "paymentMix": "Розподіл оплат",
+        "topGoods": "Топ товарів",
+        "topSuppliers": "Топ постачальників",
+        "tabQuantity": "Кількість",
+        "tabValue": "Сума",
+        "tabFrequency": "Частота",
+        "tabSpend": "Витрати",
+        "tabOutstanding": "Борг",
+        "avgLeadTime": "Середній цикл",
+        "leadTimeHint": "Від створення до оприбуткування (дні)",
+        "leadTimeDays": "{{count}} дн.",
+        "leadTimeEmpty": "Немає оприбуткованих замовлень у періоді",
+        "supplierConcentration": "Частка топ-постачальника",
+        "overdueOutstanding": "Прострочений борг",
+        "chartOrders": "{{count}} замовлень",
+        "vsPrevious": "до попереднього вікна"
       },
       "editModal": {
         "supplier": "Постачальник",

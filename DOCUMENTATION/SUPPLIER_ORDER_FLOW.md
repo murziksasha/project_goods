@@ -52,9 +52,16 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 
 ## Information tab
 
-- Same filtered working set as Supplier Order tab.
-- Analytics: summary cards, popular goods, price/supplier analysis, overdue/late-risk signals.
-- Gear hidden (no configurable columns).
+- Same filtered working set as Supplier Order tab (`filterSupplierOrders`).
+- Gear hidden (no configurable columns). Custom SVG only (no chart library), tokenized surfaces.
+- Builder: `buildSupplierOrderAnalytics(filteredOrders, now, { previousOrders })` in `frontend/src/widgets/dashboard/model/supplier-order-utils.ts`. UI: `SupplierInformationDashboard.tsx`.
+- **Date Δ:** when Data `dateFrom`/`dateTo` is set, previous window is the equal-length range immediately before (`getPreviousDeliveryDateRange`). No date filter → no Δ (same as Home `whole`). Hide a Δ chip when previous is 0.
+- **KPI row:** spend (sparkline of `spendSeries`), paid + coverage bar, outstanding (risk tone when overdue outstanding > 0), open pipeline (not stocked / partially_completed / cancelled / unavailable / received). Compact row: order count + pcs, stocked rate.
+- **Charts:** spend-over-time (hourly ≤1 day of `createdAt` span, daily ≤62 days, else monthly); status mix bar; payment mix bar (`pending` / `paid` / `without_payment` / `cancelled`).
+- **Ranked bars:** top goods tabs Quantity | Value | Frequency; top suppliers tabs Spend | Outstanding; price min/max plus spread track (min–max, avg tick).
+- **Signals:** overdue count + overdue outstanding ₴; late-risk 3 days; cancelled/unavailable %; avg lead time; top-1 supplier concentration (warning if ≥50%). Coverage is not repeated here (Paid KPI only).
+- **Lead time:** average whole days from date-only `createdAt` to `updatedAt` for `stocked` / `partially_completed` / `receiptStatus=received`. Approximation — there is no dedicated `stockedAt`.
+- **Open pipeline value:** sum of totals for orders that are not closed (`stocked`, `partially_completed`, `cancelled`, `unavailable`, or received).
 
 ## API touchpoints
 
