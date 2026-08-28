@@ -4168,8 +4168,8 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 }
 
 .supplier-orders-toolbar-left {
+  flex: 1 1 auto;
   flex-wrap: nowrap;
-  width: 100%;
   min-width: 0;
 }
 

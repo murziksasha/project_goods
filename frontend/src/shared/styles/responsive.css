@@ -1103,10 +1103,14 @@
   .ghost-button,
   .danger-button,
   .warning-button,
-  .orders-create-button,
   .toolbar-filter-button {
     min-width: 0;
     white-space: normal;
+  }
+
+  .orders-create-button {
+    min-width: 0;
+    white-space: nowrap;
   }
 
   .modal-backdrop {
