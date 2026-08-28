@@ -2198,6 +2198,40 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeDisabled();
   });
 
+  it('locks repair products when the card is read-only even in an editable status', async () => {
+    const onAddLineItem = vi.fn();
+    const onSuccess = vi.fn();
+    renderCard({
+      isReadOnly: true,
+      onAddLineItem,
+      onSuccess,
+      catalogProducts: [],
+      saleOverride: { kind: 'repair', status: 'ready' },
+      status: 'ready',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
+
+    const productSearch = screen.getByPlaceholderText(
+      PRODUCT_SEARCH_PLACEHOLDER,
+    );
+    expect(productSearch).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Add product' }),
+    ).toBeDisabled();
+
+    fireEvent.change(productSearch, { target: { value: 'S000003' } });
+    await waitFor(() => {
+      expect(
+        screen.getByText('TerraE 30E INR18650 2900mAh'),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
+
+    expect(onAddLineItem).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it('exposes keyboard focus path for repair status select', () => {
     renderCard({
       saleOverride: { kind: 'repair', status: 'new' },

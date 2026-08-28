@@ -308,6 +308,10 @@
     grid-template-columns: 1fr;
   }
 
+  .analytics-executive-grid {
+    grid-template-areas: 'charts' 'side';
+  }
+
   .create-order-grid {
     grid-template-columns: 1fr;
   }
@@ -558,6 +562,7 @@
   }
 
   .hero-inline-metrics,
+  .analytics-kpi-money,
   .analytics-summary-grid,
   .analytics-summary-grid-wide,
   .supplier-information-summary,
@@ -574,6 +579,30 @@
   .history-stats,
   .employee-permissions {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-kpi-volume,
+  .analytics-top-items-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-top-toggle {
+    display: inline-flex;
+  }
+
+  .analytics-top-items.is-collapsed .analytics-top-items-body {
+    display: none;
+  }
+
+  .analytics-chart-tooltip {
+    position: static;
+    justify-self: start;
+  }
+
+  .period-toggle {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
   }
 
   .bar-chart {
@@ -1926,6 +1955,14 @@
 }
 
 @media (max-width: 480px) {
+  .analytics-kpi-volume {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-chart {
+    min-height: 200px;
+  }
+
   .auth-screen .auth-panel {
     width: 100%;
     max-width: 100%;

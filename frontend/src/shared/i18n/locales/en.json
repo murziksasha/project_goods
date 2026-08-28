@@ -2820,17 +2820,25 @@
   "analytics": {
     "executiveDashboard": "Executive dashboard",
     "businessPerformance": "Business performance",
-    "heroNote": "Sales, repair workload, payments and stock health for {{period}}.",
+    "heroNote": "Billed volume, repairs, payments and stock health for {{period}}.",
+    "currentSnapshot": "Current snapshot",
     "statisticsPeriod": "Statistics period",
     "loading": "Loading...",
     "loadingAnalytics": "Loading analytics...",
     "eraseAllData": "Erase all data",
     "workflow": "Workflow",
     "operationalPulse": "Operational pulse",
-    "open": "Open",
-    "closed": "Closed",
+    "open": "Open now",
+    "closed": "Closed in period",
+    "openNow": "Open now",
+    "closedInPeriod": "Closed in period",
+    "inProgress": "In progress",
+    "ready": "Ready",
+    "waitingParts": "Waiting parts",
     "todaySales": "Today sales",
     "todayRepairs": "Today repairs",
+    "todayBilled": "Today billed",
+    "todayStrip": "Today",
     "stock": "Stock",
     "inventoryHealth": "Inventory health",
     "products": "Products",
@@ -2841,7 +2849,7 @@
     "signals": "Signals",
     "attentionQueue": "Attention queue",
     "comparativeAnalysis": "Comparative analysis",
-    "comparisonNote": "Current period is blue; previous comparable years are orange and green.",
+    "comparisonNote": "Current billed is stacked (product + repair). Previous years appear only when they have data.",
     "revenue": "Revenue",
     "productSales": "Product sales",
     "noSalesForPeriod": "No sales found for the selected period.",
@@ -2859,11 +2867,56 @@
     "summary": {
       "sales": "Sales",
       "repairOrders": "Repair orders",
-      "revenue": "Revenue",
+      "revenue": "Billed",
+      "billed": "Billed",
+      "collected": "Collected",
       "averageTicket": "Average ticket",
-      "paid": "Paid",
-      "receivables": "Receivables"
+      "productTicket": "Product ticket",
+      "repairTicket": "Repair ticket",
+      "paid": "Collected",
+      "receivables": "Receivables",
+      "productBilled": "Product",
+      "repairBilled": "Repair",
+      "coverage": "Coverage",
+      "rapidSales": "Rapid sales",
+      "returns": "Returns"
     },
+    "delta": {
+      "vs": "vs {{label}}",
+      "yesterday": "yesterday",
+      "previousPeriod": "previous period"
+    },
+    "chartTabs": {
+      "billed": "Billed",
+      "mix": "Mix",
+      "volume": "Volume"
+    },
+    "mix": {
+      "product": "Product billed",
+      "repair": "Repair billed"
+    },
+    "funnel": {
+      "label": "Pipeline",
+      "title": "Repair funnel",
+      "other": "Other"
+    },
+    "payments": {
+      "label": "Payments",
+      "title": "Cash vs non-cash",
+      "cash": "Cash",
+      "nonCash": "Non-cash",
+      "unspecified": "Unspecified"
+    },
+    "topItems": {
+      "label": "Bestsellers",
+      "title": "Top products and services",
+      "products": "Top products",
+      "services": "Top services",
+      "empty": "No line items in this period.",
+      "toggle": "Show top items"
+    },
+    "skeleton": "Loading performance metrics...",
+    "unpaidAmount": "Unpaid amount",
     "conversion": {
       "repairOrdersPerSales": "Repair orders / sales",
       "salesPerRepairOrders": "Sales / repair orders",

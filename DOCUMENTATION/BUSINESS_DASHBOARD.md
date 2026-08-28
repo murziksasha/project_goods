@@ -4,11 +4,16 @@ Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATA_RETENTION.md](./DATA_RETE
 
 The business home page is the default dashboard view (`page=home`). It is rendered by `AnalyticsHeroSection` and focuses on operational KPIs, comparative charts, and live market/weather insights.
 
+**Business performance (dense board):** hero money KPIs use **Billed** = product sales totals + repair totals for the selected period. **Collected** / **Receivables** compare against billed (not product-only revenue). Charts stack product vs repair; empty YoY series are hidden. Extra widgets: repair funnel (current open kanban statuses), cash vs non-cash from `paymentHistory`, top-5 products/services, today strip (always calendar-today). Market & weather is unchanged.
+
 ## UI entry points
 
 - Main component: `frontend/src/widgets/dashboard/ui/analytics/AnalyticsHeroSection.tsx`
+- KPI / charts / funnel / top items: `frontend/src/widgets/dashboard/ui/analytics/Analytics*.tsx`
 - Page host: `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
 - Analytics engine: `frontend/src/widgets/dashboard/model/sales-analytics.ts`
+- Aggregates: `frontend/src/widgets/dashboard/model/analytics-aggregates.ts` and `backend/src/domain/analytics/aggregates.ts`
+- API: `GET /api/analytics/dashboard` (`backend/src/domain/analytics/service.ts`)
 - Market & weather widget: `frontend/src/widgets/dashboard/ui/weather/MarketWeatherWidget.tsx`
 
 ## Header controls
@@ -53,6 +58,38 @@ Related files:
 
 - `frontend/src/widgets/dashboard/ui/analytics/AnalyticsDateFilterPanel.tsx`
 - `frontend/src/widgets/dashboard/model/analytics-date-range.ts`
+
+## Business performance metrics
+
+Money KPIs (selected period):
+
+| KPI | Formula |
+|-----|---------|
+| Billed | Σ sale totals + Σ repair totals |
+| Product / repair billed | split of billed |
+| Collected | Σ `paidAmount` |
+| Receivables | max(billed − collected, 0) |
+| Coverage | collected / billed |
+| Product / repair ticket | billed split / count |
+| Δ | vs consecutive previous window (today→yesterday, month→previous month, custom→equal prior range). Hidden when previous is 0. `whole` has no consecutive Δ. |
+
+Operations:
+
+- Funnel and Open / Ready / Waiting parts are **current open repairs** (snapshot), not period-created. Repair `paid` stays open (kanban column); final repair statuses are `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`.
+- Closed in period = final-status repairs whose `saleDate` is in the selected period.
+- Stock is a current snapshot (free / reserved / value). Clients are not shown here.
+- Today strip always uses calendar today.
+
+Charts (custom SVG, no extra library):
+
+- **Billed** tab: stacked product+repair (bars when ≥50% buckets are zero, otherwise area/line). Previous years as dashed lines only if total > 0.
+- **Mix** tab: product vs repair donut.
+- **Volume** tab: sales count vs repair count.
+- Hover tooltip on billed/volume.
+
+Dense widgets: cash vs non-cash (`paymentHistory` deposits minus refunds; remainder vs `paidAmount` is unspecified), top-5 products and top-5 services from line items.
+
+Responsive: desktop 34/66 side+charts; ≤1024 charts above side; ≤720 KPI stack / 2-col volume, top-5 collapsed; weather `order: 8` unchanged.
 
 ## Market & Weather widget
 
@@ -405,6 +442,9 @@ Overflow safety:
 - `frontend/src/widgets/dashboard/model/analytics-date-range.test.ts`
 - `frontend/src/widgets/dashboard/model/dashboard-widget-settings.test.ts`
 - `frontend/src/widgets/dashboard/model/sales-analytics.test.ts`
+- `frontend/src/widgets/dashboard/model/analytics-aggregates.test.ts`
+- `frontend/src/widgets/dashboard/ui/analytics/AnalyticsHeroSection.test.tsx`
+- `backend/src/domain/analytics/aggregates.test.ts`
 - `frontend/src/widgets/dashboard/ui/weather/MarketWeatherWidget.test.tsx`
 - `frontend/src/widgets/dashboard/ui/weather/WeatherAnimatedScene.test.tsx`
 - `backend/src/domain/market/service.test.ts`

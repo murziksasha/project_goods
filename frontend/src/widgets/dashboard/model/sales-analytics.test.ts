@@ -130,12 +130,16 @@ describe('sales analytics', () => {
       new Date('2026-05-29T12:00:00.000Z'),
     );
 
-    expect(analytics.revenueSnapshots[0].total).toBe(120);
+    expect(analytics.productRevenueSnapshots[0].total).toBe(120);
+    expect(analytics.revenueSnapshots[0].total).toBe(200);
+    expect(analytics.metrics.billed).toBe(200);
+    expect(analytics.metrics.productRevenue).toBe(120);
+    expect(analytics.metrics.repairRevenue).toBe(80);
     expect(analytics.orderSnapshots[0].total).toBe(1);
     expect(analytics.operations.paidAmount).toBe(70);
     expect(analytics.operations.remainingAmount).toBe(130);
     expect(analytics.operations.openOrders).toBe(1);
-    expect(analytics.operations.closedOrders).toBe(1);
+    expect(analytics.operations.closedOrders).toBe(0);
     expect(analytics.stock.freeStock).toBe(2);
     expect(analytics.stock.stockValue).toBe(180);
   });
@@ -171,9 +175,106 @@ describe('sales analytics', () => {
 
     expect(analytics.revenueSnapshots).toHaveLength(1);
     expect(analytics.orderSnapshots).toHaveLength(1);
-    expect(analytics.revenueSnapshots[0].total).toBe(300);
+    expect(analytics.productRevenueSnapshots[0].total).toBe(300);
+    expect(analytics.metrics.billed).toBe(400);
     expect(analytics.orderSnapshots[0].total).toBe(1);
     expect(analytics.axisLabels).toEqual(['2024', '2025', '2026']);
+  });
+
+  it('builds cash split, funnel and top items', () => {
+    const analytics = buildDashboardAnalytics(
+      [
+        {
+          ...baseSale,
+          id: 's1',
+          saleDate: '2026-08-10T10:00:00.000Z',
+          isRapidSale: true,
+          paidAmount: 200,
+          lineItems: [
+            {
+              id: 'i1',
+              kind: 'product',
+              productId: 'p1',
+              name: 'Screen',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+          paymentHistory: [
+            {
+              id: 'pay1',
+              type: 'deposit',
+              paymentMethod: 'non-cash',
+              amount: 200,
+              cashboxId: 'c1',
+              cashboxName: 'Card',
+              author: 'A',
+              createdAt: '2026-08-10T10:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      [
+        {
+          ...baseSale,
+          id: 'r1',
+          kind: 'repair',
+          status: 'waitingParts',
+          saleDate: '2026-08-11T10:00:00.000Z',
+          paidAmount: 40,
+          lineItems: [
+            {
+              id: 'i2',
+              kind: 'service',
+              serviceId: 's1',
+              name: 'Diagnostics',
+              price: 80,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+          paymentHistory: [
+            {
+              id: 'pay2',
+              type: 'deposit',
+              paymentMethod: 'cash',
+              amount: 40,
+              cashboxId: 'c2',
+              cashboxName: 'Cash',
+              author: 'A',
+              createdAt: '2026-08-11T10:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      'currentMonth',
+      [],
+      new Date('2026-08-15T12:00:00.000Z'),
+    );
+
+    expect(analytics.metrics.billed).toBe(280);
+    expect(analytics.metrics.cashCollected).toBe(40);
+    expect(analytics.metrics.nonCashCollected).toBe(200);
+    expect(analytics.metrics.rapidSaleCount).toBe(1);
+    expect(analytics.topLineItems.products[0]?.name).toBe('Screen');
+    expect(analytics.topLineItems.services[0]?.name).toBe('Diagnostics');
+    expect(analytics.funnel.find((item) => item.status === 'waitingParts')?.count).toBe(1);
+    expect(analytics.operations.waitingPartsCount).toBe(1);
+  });
+
+  it('keeps paid repairs in the open funnel', () => {
+    const analytics = buildDashboardAnalytics(
+      [],
+      [{ ...baseSale, id: 'r-paid', kind: 'repair', status: 'paid' }],
+      'currentMonth',
+      [],
+      new Date('2026-05-12T12:00:00.000Z'),
+    );
+
+    expect(analytics.operations.openOrders).toBe(1);
+    expect(analytics.operations.closedOrders).toBe(0);
+    expect(analytics.funnel.find((item) => item.status === 'paid')?.count).toBe(1);
   });
 
   it('returns stable empty-state values without records', () => {

@@ -200,7 +200,9 @@
   .analytics-executive-header,
   .hero-controls,
   .analytics-date-filter,
-  .analytics-summary-grid {
+  .analytics-summary-grid,
+  .analytics-kpi-board,
+  .analytics-today-strip {
     order: 1;
   }
 

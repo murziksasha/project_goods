@@ -944,6 +944,7 @@ export const OrderDetailLineItemsPanel = ({
   const applyProductSuggestion = (
     suggestion: ProductEntrySuggestion,
   ) => {
+    if (isReadOnly) return;
     if (suggestion.type === 'catalog') {
       const matchingStock = findSelectableStockProductByName({
         products,
@@ -1126,6 +1127,7 @@ export const OrderDetailLineItemsPanel = ({
   };
 
   const submitItem = async () => {
+    if (isReadOnly) return;
     const normalizedName = name.trim();
     const normalizedPrice = parseDecimal(price);
     const normalizedQuantity = Number(quantity);
