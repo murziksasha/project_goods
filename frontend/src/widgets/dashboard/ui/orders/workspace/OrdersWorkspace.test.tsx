@@ -475,6 +475,11 @@ describe('OrdersWorkspace', () => {
     expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
+    expect(
+      screen.getByRole('button', { name: 'Add product' }),
+    ).toBeDisabled();
   });
 
   it('shows an error when order status update fails', async () => {

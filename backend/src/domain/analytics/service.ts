@@ -2,6 +2,14 @@ import { coldSalesPurgedExist } from '../archive/yearly-dump';
 import { Product } from '../product/model';
 import { Sale, type SaleDocument } from '../sale/model';
 import { getSaleDocumentTotal } from '../../shared/lib/saleTotals';
+import {
+  getCashSplit,
+  getConsecutivePreviousBounds,
+  getDeltaPct,
+  getRepairFunnel,
+  getTopLineItems,
+  isDateInBounds,
+} from './aggregates';
 
 export const analyticsPeriods = [
   'whole',
@@ -38,16 +46,18 @@ type LeanSale = Pick<
   | 'quantity'
   | 'lineItems'
   | 'discount'
+  | 'isRapidSale'
+  | 'paymentHistory'
 >;
 
 const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
-const finalStatuses = new Set([
+const finalRepairStatuses = new Set([
   'issued',
   'issuedWithoutRepair',
-  'paid',
-  'returned',
   'clientRejected',
+  'notPickedUp',
 ]);
+const finalSaleStatuses = new Set(['issued', 'paid', 'returned']);
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -64,7 +74,12 @@ const parseDateKey = (value: unknown) => {
 };
 
 const getPaidAmount = (sale: LeanSale) => Math.max(Number(sale.paidAmount ?? 0), 0);
-const isFinalRecord = (sale: LeanSale) => finalStatuses.has(String(sale.status ?? ''));
+const isFinalRecord = (sale: { kind?: string; status?: string }) => {
+  const status = String(sale.status ?? '');
+  return sale.kind === 'sale'
+    ? finalSaleStatuses.has(status)
+    : finalRepairStatuses.has(status);
+};
 const getDateKey = (date: Date) =>
   `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
@@ -333,6 +348,19 @@ const buildCustomSnapshot = (
   };
 };
 
+const addSnapshots = (left: ChartSnapshot[], right: ChartSnapshot[]): ChartSnapshot[] =>
+  left.map((snapshot, index) => {
+    const other = right[index];
+    const values = snapshot.values.map(
+      (value, bucket) => value + (other?.values[bucket] ?? 0),
+    );
+    return {
+      ...snapshot,
+      values,
+      total: values.reduce((sum, value) => sum + value, 0),
+    };
+  });
+
 const loadLeanSales = async () =>
   Sale.find()
     .select({
@@ -342,9 +370,17 @@ const loadLeanSales = async () =>
       paidAmount: 1,
       salePrice: 1,
       quantity: 1,
+      isRapidSale: 1,
       'lineItems.price': 1,
       'lineItems.quantity': 1,
+      'lineItems.kind': 1,
+      'lineItems.name': 1,
+      'lineItems.productId': 1,
+      'lineItems.serviceId': 1,
       discount: 1,
+      'paymentHistory.type': 1,
+      'paymentHistory.paymentMethod': 1,
+      'paymentHistory.amount': 1,
     })
     .lean<LeanSale[]>();
 
@@ -383,12 +419,22 @@ const loadStockMetrics = async () => {
   };
 };
 
+const sumTotals = (records: LeanSale[]) =>
+  records.reduce((sum, sale) => sum + getSaleDocumentTotal(sale as SaleDocument), 0);
+
+const sumPaid = (records: LeanSale[]) =>
+  records.reduce((sum, sale) => sum + getPaidAmount(sale), 0);
+
 const buildResult = (
   productSales: LeanSale[],
   repairOrders: LeanSale[],
   selectedSales: LeanSale[],
   selectedOrders: LeanSale[],
+  previousSales: LeanSale[],
+  previousOrders: LeanSale[],
   revenueSnapshots: ChartSnapshot[],
+  productRevenueSnapshots: ChartSnapshot[],
+  repairRevenueSnapshots: ChartSnapshot[],
   orderSnapshots: ChartSnapshot[],
   salesCountSnapshots: ChartSnapshot[],
   detailLabel: string,
@@ -396,26 +442,34 @@ const buildResult = (
   stock: Awaited<ReturnType<typeof loadStockMetrics>>,
   currentDate: Date,
 ) => {
-  const currentRevenue = revenueSnapshots[0]!;
   const currentOrders = orderSnapshots[0]!;
   const currentSalesCount = salesCountSnapshots[0]!;
   const selectedRecords = [...selectedSales, ...selectedOrders];
-  const revenue = currentRevenue.total;
+  const productRevenue = productRevenueSnapshots[0]?.total ?? sumTotals(selectedSales);
+  const repairRevenue = repairRevenueSnapshots[0]?.total ?? sumTotals(selectedOrders);
+  const billed = productRevenue + repairRevenue;
   const salesCount = currentSalesCount.total;
   const ordersCount = currentOrders.total;
-  const averageTicket = salesCount > 0 ? revenue / salesCount : 0;
-  const paidAmount = selectedRecords.reduce((sum, sale) => sum + getPaidAmount(sale), 0);
-  const totalAmount = selectedRecords.reduce(
-    (sum, sale) => sum + getSaleDocumentTotal(sale as SaleDocument),
-    0,
-  );
-  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
-  const paymentCoverage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
-  const openOrders = selectedRecords.filter((sale) => !isFinalRecord(sale)).length;
-  const closedOrders = selectedRecords.length - openOrders;
+  const productAverageTicket = salesCount > 0 ? productRevenue / salesCount : 0;
+  const repairAverageTicket = ordersCount > 0 ? repairRevenue / ordersCount : 0;
+  const documentCount = salesCount + ordersCount;
+  const averageTicket = documentCount > 0 ? billed / documentCount : 0;
+  const paidAmount = sumPaid(selectedRecords);
+  const remainingAmount = Math.max(billed - paidAmount, 0);
+  const paymentCoverage = billed > 0 ? (paidAmount / billed) * 100 : 0;
+  const openRepairs = repairOrders.filter((sale) => !isFinalRecord(sale));
+  const openOrders = openRepairs.length;
+  const closedOrders = selectedOrders.filter((sale) => isFinalRecord(sale)).length;
+  const readyCount = openRepairs.filter((sale) => sale.status === 'ready').length;
+  const waitingPartsCount = openRepairs.filter((sale) => sale.status === 'waitingParts').length;
+  const inProgressCount = Math.max(openOrders - readyCount - waitingPartsCount, 0);
   const unpaidOrders = selectedRecords.filter(
     (sale) => getSaleDocumentTotal(sale as SaleDocument) > getPaidAmount(sale),
   ).length;
+  const unpaidAmount = selectedRecords.reduce((sum, sale) => {
+    const total = getSaleDocumentTotal(sale as SaleDocument);
+    return sum + Math.max(total - getPaidAmount(sale), 0);
+  }, 0);
   const todayKey = getDateKey(currentDate);
   const todaySales = productSales.filter(
     (sale) => getDateKey(new Date(sale.saleDate)) === todayKey,
@@ -423,35 +477,85 @@ const buildResult = (
   const todayOrders = repairOrders.filter(
     (sale) => getDateKey(new Date(sale.saleDate)) === todayKey,
   );
+  const todayRevenue =
+    sumTotals(todaySales) + sumTotals(todayOrders);
+  const previousBilled = sumTotals(previousSales) + sumTotals(previousOrders);
+  const previousCollected = sumPaid([...previousSales, ...previousOrders]);
+  const hasPrevious = previousSales.length + previousOrders.length > 0 || previousBilled > 0;
+  const cashSplit = getCashSplit(selectedRecords);
+  const mixProductPct = billed > 0 ? (productRevenue / billed) * 100 : 0;
+  const mixRepairPct = billed > 0 ? (repairRevenue / billed) * 100 : 0;
 
   return {
     detailLabel,
     axisLabels,
     revenueSnapshots,
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
-    revenueChartMax: Math.max(1, ...revenueSnapshots.flatMap((snapshot) => snapshot.values)),
-    ordersChartMax: Math.max(1, ...orderSnapshots.flatMap((snapshot) => snapshot.values)),
-    hasRevenueData: revenueSnapshots.some((snapshot) => snapshot.total > 0),
+    revenueChartMax: Math.max(
+      1,
+      ...revenueSnapshots.flatMap((snapshot) => snapshot.values),
+      ...productRevenueSnapshots.flatMap((snapshot) => snapshot.values),
+      ...repairRevenueSnapshots.flatMap((snapshot) => snapshot.values),
+    ),
+    ordersChartMax: Math.max(
+      1,
+      ...orderSnapshots.flatMap((snapshot) => snapshot.values),
+      ...salesCountSnapshots.flatMap((snapshot) => snapshot.values),
+    ),
+    hasRevenueData: billed > 0 || revenueSnapshots.some((snapshot) => snapshot.total > 0),
     hasOrdersData: orderSnapshots.some((snapshot) => snapshot.total > 0),
     metrics: {
       salesCount,
       ordersCount,
-      revenue,
+      revenue: billed,
+      billed,
+      productRevenue,
+      repairRevenue,
       averageTicket,
+      productAverageTicket,
+      repairAverageTicket,
       paidAmount,
       remainingAmount,
       paymentCoverage,
       openOrders,
       closedOrders,
       unpaidOrders,
+      unpaidAmount,
+      readyCount,
+      waitingPartsCount,
+      inProgressCount,
+      rapidSaleCount: selectedSales.filter((sale) => Boolean(sale.isRapidSale)).length,
+      returnedCount: selectedRecords.filter((sale) => sale.status === 'returned').length,
+      mixProductPct,
+      mixRepairPct,
+      cashCollected: cashSplit.cashCollected,
+      nonCashCollected: cashSplit.nonCashCollected,
+      unspecifiedCollected: cashSplit.unspecifiedCollected,
+      previous: hasPrevious
+        ? {
+            billed: previousBilled,
+            collected: previousCollected,
+            salesCount: previousSales.length,
+            ordersCount: previousOrders.length,
+          }
+        : null,
+      deltas: hasPrevious
+        ? {
+            billedPct: getDeltaPct(billed, previousBilled),
+            collectedPct: getDeltaPct(paidAmount, previousCollected),
+            salesPct: getDeltaPct(salesCount, previousSales.length),
+            ordersPct: getDeltaPct(ordersCount, previousOrders.length),
+          }
+        : null,
       todaySales: todaySales.length,
       todayOrders: todayOrders.length,
-      todayRevenue: todaySales.reduce(
-        (sum, sale) => sum + getSaleDocumentTotal(sale as SaleDocument),
-        0,
-      ),
+      todayRevenue,
     },
+    funnel: getRepairFunnel(repairOrders, isFinalRecord),
+    topLineItems: getTopLineItems(selectedRecords),
     stock,
     generatedAt: currentDate.toISOString(),
   };
@@ -466,6 +570,11 @@ const withAnalyticsMeta = async <T extends Record<string, unknown>>(result: T) =
   };
 };
 
+const previousRecords = (
+  records: LeanSale[],
+  bounds: ReturnType<typeof getConsecutivePreviousBounds>,
+) => (bounds ? records.filter((sale) => isDateInBounds(new Date(sale.saleDate), bounds)) : []);
+
 export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
   const currentDate = new Date();
   const period = parsePeriod(query.period);
@@ -474,6 +583,10 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
   const [rows, stock] = await Promise.all([loadLeanSales(), loadStockMetrics()]);
   const productSales = rows.filter((row) => row.kind === 'sale');
   const repairOrders = rows.filter((row) => row.kind !== 'sale');
+  const previousBounds = getConsecutivePreviousBounds(period, currentDate, dateFrom, dateTo);
+  const previousSales = previousRecords(productSales, previousBounds);
+  const previousOrders = previousRecords(repairOrders, previousBounds);
+  const saleTotal = (sale: LeanSale) => getSaleDocumentTotal(sale as SaleDocument);
 
   if (dateFrom || dateTo) {
     const config = buildCustomRangeConfig(dateFrom, dateTo, currentDate);
@@ -485,13 +598,23 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
     );
     if (!config) {
       const todayConfig = getPeriodConfig('today', currentDate);
+      const productRevenueSnapshots = [
+        buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], saleTotal),
+      ];
+      const repairRevenueSnapshots = [
+        buildSnapshot(filteredOrders, todayConfig, 0, comparisonColors[1], saleTotal),
+      ];
       return withAnalyticsMeta(
         buildResult(
           productSales,
           repairOrders,
           filteredSales,
           filteredOrders,
-          [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], (s) => getSaleDocumentTotal(s as SaleDocument))],
+          previousSales,
+          previousOrders,
+          addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+          productRevenueSnapshots,
+          repairRevenueSnapshots,
           [buildSnapshot(filteredOrders, todayConfig, 0, comparisonColors[0], () => 1)],
           [buildSnapshot(filteredSales, todayConfig, 0, comparisonColors[0], () => 1)],
           todayConfig.detailLabel,
@@ -501,21 +624,23 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
         ),
       );
     }
+    const productRevenueSnapshots = [
+      buildCustomSnapshot(filteredSales, config, comparisonColors[0], 'current', saleTotal),
+    ];
+    const repairRevenueSnapshots = [
+      buildCustomSnapshot(filteredOrders, config, comparisonColors[1], 'current', saleTotal),
+    ];
     return withAnalyticsMeta(
       buildResult(
         productSales,
         repairOrders,
         filteredSales,
         filteredOrders,
-        [
-          buildCustomSnapshot(
-            filteredSales,
-            config,
-            comparisonColors[0],
-            'current',
-            (s) => getSaleDocumentTotal(s as SaleDocument),
-          ),
-        ],
+        previousSales,
+        previousOrders,
+        addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+        productRevenueSnapshots,
+        repairRevenueSnapshots,
         [buildCustomSnapshot(filteredOrders, config, comparisonColors[0], 'current', () => 1)],
         [buildCustomSnapshot(filteredSales, config, comparisonColors[0], 'current', () => 1)],
         config.detailLabel,
@@ -535,22 +660,23 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
     const sortedYears = [...years].sort((a, b) => a - b);
     const detailLabel = 'whole';
     const axisLabels = sortedYears.map(String);
+    const productRevenueSnapshots = [
+      buildYearlySnapshot(productSales, sortedYears, comparisonColors[0], 'current', saleTotal, detailLabel),
+    ];
+    const repairRevenueSnapshots = [
+      buildYearlySnapshot(repairOrders, sortedYears, comparisonColors[1], 'current', saleTotal, detailLabel),
+    ];
     return withAnalyticsMeta(
       buildResult(
         productSales,
         repairOrders,
         productSales,
         repairOrders,
-        [
-          buildYearlySnapshot(
-            productSales,
-            sortedYears,
-            comparisonColors[0],
-            'current',
-            (s) => getSaleDocumentTotal(s as SaleDocument),
-            detailLabel,
-          ),
-        ],
+        previousSales,
+        previousOrders,
+        addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+        productRevenueSnapshots,
+        repairRevenueSnapshots,
         [
           buildYearlySnapshot(
             repairOrders,
@@ -580,15 +706,13 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
   }
 
   const config = getPeriodConfig(period, currentDate);
-  const revenueSnapshots = comparisonColors.map((color, index) =>
-    buildSnapshot(
-      productSales,
-      config,
-      index,
-      color,
-      (s) => getSaleDocumentTotal(s as SaleDocument),
-    ),
+  const productRevenueSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(productSales, config, index, color, saleTotal),
   );
+  const repairRevenueSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(repairOrders, config, index, color, saleTotal),
+  );
+  const revenueSnapshots = addSnapshots(productRevenueSnapshots, repairRevenueSnapshots);
   const orderSnapshots = comparisonColors.map((color, index) =>
     buildSnapshot(repairOrders, config, index, color, () => 1),
   );
@@ -609,7 +733,11 @@ export const getDashboardAnalytics = async (query: AnalyticsQuery = {}) => {
       repairOrders,
       selectedSales,
       selectedOrders,
+      previousSales,
+      previousOrders,
       revenueSnapshots,
+      productRevenueSnapshots,
+      repairRevenueSnapshots,
       orderSnapshots,
       salesCountSnapshots,
       config.detailLabel,

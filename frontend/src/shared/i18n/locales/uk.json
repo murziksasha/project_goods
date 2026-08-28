@@ -665,7 +665,15 @@
       "shortcutsLabel": "Гарячі клавіші"
     },
     "kanban": {
-      "ordersCount": "Замовлень: {{count}}"
+      "ordersCount": "Замовлень: {{count}}",
+      "dragHandle": "Перетягнути в іншу колонку",
+      "move": "Перемістити",
+      "moveTo": "Перемістити в колонку",
+      "moveOrder": "Перемістити замовлення {{number}}",
+      "closeMove": "Закрити",
+      "collapseColumn": "Згорнути порожню колонку",
+      "expandColumn": "Розгорнути колонку",
+      "navigator": "Колонки канбану"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -1124,7 +1132,29 @@
         "overdueOrders": "Прострочені замовлення",
         "lateRiskIn3Days": "Ризик затримки за 3 дні",
         "cancelledUnavailable": "Скасовані / недоступні",
-        "paymentCoverage": "Покриття оплатою"
+        "paymentCoverage": "Покриття оплатою",
+        "openPipeline": "Відкритий конвеєр",
+        "openPipelineHint": "{{count}} замовлень ще не оприбутковано",
+        "ordersAndPcs": "Замовлення / шт.",
+        "spendTrend": "Закупівлі в часі",
+        "spendTrendHint": "За датою замовлення",
+        "statusMix": "Розподіл статусів",
+        "paymentMix": "Розподіл оплат",
+        "topGoods": "Топ товарів",
+        "topSuppliers": "Топ постачальників",
+        "tabQuantity": "Кількість",
+        "tabValue": "Сума",
+        "tabFrequency": "Частота",
+        "tabSpend": "Витрати",
+        "tabOutstanding": "Борг",
+        "avgLeadTime": "Середній цикл",
+        "leadTimeHint": "Від створення до оприбуткування (дні)",
+        "leadTimeDays": "{{count}} дн.",
+        "leadTimeEmpty": "Немає оприбуткованих замовлень у періоді",
+        "supplierConcentration": "Частка топ-постачальника",
+        "overdueOutstanding": "Прострочений борг",
+        "chartOrders": "{{count}} замовлень",
+        "vsPrevious": "до попереднього вікна"
       },
       "editModal": {
         "supplier": "Постачальник",
@@ -2820,17 +2850,25 @@
   "analytics": {
     "executiveDashboard": "Виконавча панель",
     "businessPerformance": "Бізнес-показники",
-    "heroNote": "Продажі, ремонти, платежі та стан складу за {{period}}.",
+    "heroNote": "Оборот, ремонти, платежі та стан складу за {{period}}.",
+    "currentSnapshot": "Поточний зріз",
     "statisticsPeriod": "Період статистики",
     "loading": "Завантаження...",
     "loadingAnalytics": "Завантаження аналітики...",
     "eraseAllData": "Стерти всі дані",
     "workflow": "Процеси",
     "operationalPulse": "Операційний пульс",
-    "open": "Відкриті",
-    "closed": "Закриті",
+    "open": "Відкриті зараз",
+    "closed": "Закриті за період",
+    "openNow": "Відкриті зараз",
+    "closedInPeriod": "Закриті за період",
+    "inProgress": "У роботі",
+    "ready": "Готові",
+    "waitingParts": "Чекають запчастини",
     "todaySales": "Продажі сьогодні",
     "todayRepairs": "Ремонти сьогодні",
+    "todayBilled": "Оборот сьогодні",
+    "todayStrip": "Сьогодні",
     "stock": "Склад",
     "inventoryHealth": "Стан запасів",
     "products": "Товари",
@@ -2841,7 +2879,7 @@
     "signals": "Сигнали",
     "attentionQueue": "Черга уваги",
     "comparativeAnalysis": "Порівняльний аналіз",
-    "comparisonNote": "Поточний період — синій; попередні порівнянні роки — помаранчевий і зелений.",
+    "comparisonNote": "Поточний оборот — стек (товар + ремонт). Попередні роки лише якщо є дані.",
     "revenue": "Виручка",
     "productSales": "Продажі товарів",
     "noSalesForPeriod": "Продажів за обраний період не знайдено.",
@@ -2859,11 +2897,56 @@
     "summary": {
       "sales": "Продажі",
       "repairOrders": "Ремонтні замовлення",
-      "revenue": "Виручка",
+      "revenue": "Оборот",
+      "billed": "Оборот",
+      "collected": "Оплачено",
       "averageTicket": "Середній чек",
+      "productTicket": "Чек продажу",
+      "repairTicket": "Чек ремонту",
       "paid": "Оплачено",
-      "receivables": "Дебіторка"
+      "receivables": "Дебіторка",
+      "productBilled": "Товар",
+      "repairBilled": "Ремонт",
+      "coverage": "Покриття",
+      "rapidSales": "Швидкі продажі",
+      "returns": "Повернення"
     },
+    "delta": {
+      "vs": "до {{label}}",
+      "yesterday": "вчора",
+      "previousPeriod": "попереднього періоду"
+    },
+    "chartTabs": {
+      "billed": "Оборот",
+      "mix": "Мікс",
+      "volume": "Обсяг"
+    },
+    "mix": {
+      "product": "Оборот товарів",
+      "repair": "Оборот ремонтів"
+    },
+    "funnel": {
+      "label": "Воронка",
+      "title": "Воронка ремонтів",
+      "other": "Інше"
+    },
+    "payments": {
+      "label": "Оплати",
+      "title": "Готівка та безготівка",
+      "cash": "Готівка",
+      "nonCash": "Безготівка",
+      "unspecified": "Нерозподілено"
+    },
+    "topItems": {
+      "label": "Топ",
+      "title": "Топ товарів і послуг",
+      "products": "Топ товарів",
+      "services": "Топ послуг",
+      "empty": "Немає позицій за цей період.",
+      "toggle": "Показати топ"
+    },
+    "skeleton": "Завантаження показників...",
+    "unpaidAmount": "Сума боргу",
     "conversion": {
       "repairOrdersPerSales": "Ремонтні замовлення / продажі",
       "salesPerRepairOrders": "Продажі / ремонтні замовлення",

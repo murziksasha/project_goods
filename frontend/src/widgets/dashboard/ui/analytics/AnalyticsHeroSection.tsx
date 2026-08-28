@@ -3,31 +3,33 @@ import { useTranslation } from 'react-i18next';
 import type { DashboardPreferences } from '../../../../entities/settings/model/types';
 import type { Product } from '../../../../entities/product/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
-import {
-  useDashboardAnalyticsQuery,
-  type DashboardAnalyticsResponse,
-} from '../../../../entities/analytics/api/analyticsApi';
+import { useDashboardAnalyticsQuery } from '../../../../entities/analytics/api/analyticsApi';
 import {
   getAnalyticsDateRangeFilterCount,
   type AnalyticsDateRange,
 } from '../../model/analytics-date-range';
 import {
+  adaptDashboardAnalyticsResponse,
   buildDashboardAnalytics,
-  buildLinePath,
-  formatCurrencyMetric,
-  formatMetric,
 } from '../../model/sales-analytics';
 import type { StatsPeriod } from '../../model/stats-period';
 import { AnalyticsDateFilterPanel } from './AnalyticsDateFilterPanel';
 import { StatsPeriodToggle } from './StatsPeriodToggle';
 import { MarketWeatherWidget } from '../weather/MarketWeatherWidget';
-import i18n from '../../../../shared/i18n/config';
+import { AnalyticsKpiBoard } from './AnalyticsKpiBoard';
+import { AnalyticsTodayStrip } from './AnalyticsTodayStrip';
+import { AnalyticsChartPanel } from './AnalyticsChartPanel';
+import { AnalyticsFunnelPanel } from './AnalyticsFunnelPanel';
+import { AnalyticsPaymentsSplit } from './AnalyticsPaymentsSplit';
+import { AnalyticsOperationsPanel } from './AnalyticsOperationsPanel';
+import { AnalyticsStockPanel } from './AnalyticsStockPanel';
+import { AnalyticsSignalsPanel } from './AnalyticsSignalsPanel';
+import { AnalyticsTopItemsPanel } from './AnalyticsTopItemsPanel';
 
 type AnalyticsHeroSectionProps = {
   sales: Sale[];
   orders: Sale[];
   products: Product[];
-  clientCount: number;
   isSalesLoading: boolean;
   isSeeding: boolean;
   canEraseAllData: boolean;
@@ -44,266 +46,16 @@ type AnalyticsHeroSectionProps = {
   onSeed: () => void;
 };
 
-const mapServerAnalytics = (payload: DashboardAnalyticsResponse) => {
-  const m = payload.metrics;
-  const stock = payload.stock;
-  const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
-  const detailLabel =
-    payload.detailLabel === 'whole'
-      ? i18n.t('analytics.periods.whole')
-      : payload.detailLabel;
-
-  return {
-    detailLabel,
-    axisLabels: payload.axisLabels,
-    revenueSnapshots: payload.revenueSnapshots,
-    orderSnapshots: payload.orderSnapshots,
-    salesCountSnapshots: payload.salesCountSnapshots,
-    revenueChartMax: payload.revenueChartMax,
-    ordersChartMax: payload.ordersChartMax,
-    hasRevenueData: payload.hasRevenueData,
-    hasOrdersData: payload.hasOrdersData,
-    currentYearLabel: payload.revenueSnapshots[0]?.label ?? '',
-    comparisonLabel: payload.revenueSnapshots.map((s) => s.label).join(', '),
-    summaryCards: [
-      {
-        labelKey: 'analytics.summary.sales',
-        value: formatMetric(m.salesCount),
-        accent: comparisonColors[0],
-      },
-      {
-        labelKey: 'analytics.summary.repairOrders',
-        value: formatMetric(m.ordersCount),
-        accent: '#14b8a6',
-      },
-      {
-        labelKey: 'analytics.summary.revenue',
-        value: formatCurrencyMetric(m.revenue),
-        accent: '#f97316',
-      },
-      {
-        labelKey: 'analytics.summary.averageTicket',
-        value: formatCurrencyMetric(m.averageTicket),
-        accent: '#64748b',
-      },
-      {
-        labelKey: 'analytics.summary.paid',
-        value: formatCurrencyMetric(m.paidAmount),
-        accent: '#0ea47d',
-      },
-      {
-        labelKey: 'analytics.summary.receivables',
-        value: formatCurrencyMetric(m.remainingAmount),
-        accent: '#dc2626',
-      },
-    ],
-    conversionCards: [
-      {
-        label: i18n.t('analytics.conversion.repairOrdersPerSales'),
-        value:
-          m.salesCount > 0
-            ? `${formatMetric((m.ordersCount / m.salesCount) * 100)}%`
-            : '0%',
-      },
-      {
-        label: i18n.t('analytics.conversion.salesPerRepairOrders'),
-        value:
-          m.ordersCount > 0
-            ? `${formatMetric((m.salesCount / m.ordersCount) * 100)}%`
-            : '0%',
-      },
-      {
-        label: i18n.t('analytics.conversion.paymentCoverage'),
-        value: `${formatMetric(m.paymentCoverage)}%`,
-      },
-    ],
-    operations: {
-      openOrders: m.openOrders,
-      closedOrders: m.closedOrders,
-      unpaidOrders: m.unpaidOrders,
-      paidAmount: m.paidAmount,
-      remainingAmount: m.remainingAmount,
-      paymentCoverage: m.paymentCoverage,
-      todaySales: m.todaySales,
-      todayOrders: m.todayOrders,
-      todayRevenue: m.todayRevenue,
-    },
-    stock: {
-      productCount: stock.productCount,
-      totalStock: stock.totalStock,
-      freeStock: stock.freeStock,
-      reservedStock: stock.reservedStock,
-      stockValue: stock.stockValue,
-      outOfStockProducts: stock.outOfStockProducts,
-      lowStockProducts: stock.lowStockProducts,
-    },
-    signals: [
-      {
-        labelKey: 'analytics.signalsLabels.unpaidOrders',
-        value: formatMetric(m.unpaidOrders),
-        tone: m.unpaidOrders > 0 ? 'risk' : ('good' as const),
-      },
-      {
-        labelKey: 'analytics.signalsLabels.openWorkflow',
-        value: formatMetric(m.openOrders),
-        tone: m.openOrders > 0 ? 'watch' : ('good' as const),
-      },
-      {
-        labelKey: 'analytics.signalsLabels.lowStockItems',
-        value: formatMetric(stock.lowStockProducts + stock.outOfStockProducts),
-        tone:
-          stock.lowStockProducts + stock.outOfStockProducts > 0
-            ? 'risk'
-            : ('good' as const),
-      },
-      {
-        labelKey: 'analytics.signalsLabels.todayActivity',
-        value: formatMetric(m.todaySales + m.todayOrders),
-        tone: m.todaySales + m.todayOrders > 0 ? 'good' : ('muted' as const),
-      },
-    ],
-  };
-};
-
-const chartWidth = 720;
-const chartHeight = 260;
-const chartPadding = { top: 18, right: 20, bottom: 32, left: 42 };
-
-type ChartPanelProps = {
-  title: string;
-  valueLabel: string;
-  emptyText: string;
-  isLoading: boolean;
-  hasData: boolean;
-  snapshots: Array<{ label: string; values: number[]; total: number; color: string }>;
-  maxValue: number;
-  axisLabels: string[];
-  formatTotal?: (value: number) => string;
-};
-
-const ChartPanel = ({
-  title,
-  valueLabel,
-  emptyText,
-  isLoading,
-  hasData,
-  snapshots,
-  maxValue,
-  axisLabels,
-  formatTotal = formatMetric,
-}: ChartPanelProps) => {
-  const { t } = useTranslation();
-
-  return (
-    <section className="analytics-chart-panel">
-      <div className="analytics-panel-header">
-        <div>
-          <p className="section-label">{valueLabel}</p>
-          <h2>{title}</h2>
-        </div>
-        <div className="chart-legend">
-          {snapshots.map((snapshot) => (
-            <div key={snapshot.label} className="chart-legend-item">
-              <span className="chart-legend-swatch" style={{ backgroundColor: snapshot.color }} />
-              <div>
-                <strong>{snapshot.label}</strong>
-                <p>{formatTotal(snapshot.total)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p className="empty-state">{t('analytics.loadingAnalytics')}</p>
-      ) : !hasData ? (
-        <p className="empty-state">{emptyText}</p>
-      ) : (
-        <>
-          <svg className="hero-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img">
-            {[0, 0.25, 0.5, 0.75, 1].map((step) => {
-              const y =
-                chartPadding.top +
-                (chartHeight - chartPadding.top - chartPadding.bottom) * (1 - step);
-              const value = Math.round(maxValue * step);
-
-              return (
-                <g key={step}>
-                  <line
-                    x1={chartPadding.left}
-                    x2={chartWidth - chartPadding.right}
-                    y1={y}
-                    y2={y}
-                    className="hero-chart-gridline"
-                  />
-                  <text x="8" y={y + 4} className="chart-y-label">
-                    {formatMetric(value)}
-                  </text>
-                </g>
-              );
-            })}
-
-            {snapshots.map((snapshot) => (
-              <path
-                key={snapshot.label}
-                d={buildLinePath(
-                  snapshot.values,
-                  maxValue,
-                  chartWidth,
-                  chartHeight,
-                  chartPadding,
-                )}
-                fill="none"
-                stroke={snapshot.color}
-                strokeWidth={snapshot.label === snapshots[0].label ? '4' : '2.5'}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-
-            {snapshots.map((snapshot) =>
-              snapshot.values.map((value, index) => {
-                const innerWidth = chartWidth - chartPadding.left - chartPadding.right;
-                const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
-                const x =
-                  chartPadding.left +
-                  (snapshot.values.length === 1
-                    ? innerWidth / 2
-                    : (index / (snapshot.values.length - 1)) * innerWidth);
-                const y =
-                  chartPadding.top +
-                  innerHeight -
-                  (value / Math.max(maxValue, 1)) * innerHeight;
-
-                return value > 0 ? (
-                  <circle
-                    key={`${snapshot.label}-${index}`}
-                    cx={x}
-                    cy={y}
-                    r={snapshot.label === snapshots[0].label ? '4' : '3'}
-                    fill={snapshot.color}
-                  />
-                ) : null;
-              }),
-            )}
-          </svg>
-
-          <div className="chart-axis-labels">
-            {axisLabels.map((label, index) => (
-              <span key={`${label}-${index}`}>{label}</span>
-            ))}
-          </div>
-        </>
-      )}
-    </section>
-  );
+const previousLabelForPeriod = (period: StatsPeriod, hasCustomRange: boolean, t: (key: string) => string) => {
+  if (hasCustomRange) return t('analytics.delta.previousPeriod');
+  if (period === 'today') return t('analytics.delta.yesterday');
+  return t('analytics.delta.previousPeriod');
 };
 
 export const AnalyticsHeroSection = ({
   sales,
   orders,
   products,
-  clientCount,
   isSalesLoading,
   isSeeding,
   canEraseAllData,
@@ -334,10 +86,12 @@ export const AnalyticsHeroSection = ({
     [sales, orders, statsPeriod, products, analyticsDateRange],
   );
   const analytics = serverQuery.data
-    ? mapServerAnalytics(serverQuery.data)
+    ? adaptDashboardAnalyticsResponse(serverQuery.data)
     : localAnalytics;
   const isAnalyticsLoading = serverQuery.isLoading || (isSalesLoading && !serverQuery.data);
   const dateFilterCount = getAnalyticsDateRangeFilterCount(analyticsDateRange);
+  const hasCustomDateRange = Boolean(analyticsDateRange?.dateFrom || analyticsDateRange?.dateTo);
+  const previousLabel = previousLabelForPeriod(statsPeriod, hasCustomDateRange, t);
 
   return (
     <section className="analytics-dashboard">
@@ -358,7 +112,7 @@ export const AnalyticsHeroSection = ({
         <div className="hero-controls">
           <StatsPeriodToggle
             statsPeriod={statsPeriod}
-            hasCustomDateRange={Boolean(analyticsDateRange?.dateFrom || analyticsDateRange?.dateTo)}
+            hasCustomDateRange={hasCustomDateRange}
             onChange={onStatsPeriodChange}
           />
           <button
@@ -389,131 +143,28 @@ export const AnalyticsHeroSection = ({
         onClose={() => onAnalyticsDateFilterOpenChange(false)}
       />
 
-      <div className="analytics-summary-grid analytics-summary-grid-wide">
-        {analytics.summaryCards.map((card) => (
-          <article key={card.labelKey} className="analytics-summary-card">
-            <span className="metric-label">{t(card.labelKey)}</span>
-            <strong style={{ color: card.accent }}>{card.value}</strong>
-          </article>
-        ))}
-      </div>
+      <AnalyticsKpiBoard analytics={analytics} previousLabel={previousLabel} />
+      <AnalyticsTodayStrip
+        sales={analytics.operations.todaySales}
+        repairs={analytics.operations.todayOrders}
+        billed={analytics.operations.todayRevenue}
+      />
 
       <div className="analytics-executive-grid">
         <aside className="analytics-side-stack">
-          <section className="analytics-info-panel">
-            <div className="analytics-panel-header">
-              <div>
-                <p className="section-label">{t('analytics.workflow')}</p>
-                <h2>{t('analytics.operationalPulse')}</h2>
-              </div>
-            </div>
-            <div className="analytics-mini-grid">
-              <div>
-                <span className="metric-label">{t('analytics.open')}</span>
-                <strong>{formatMetric(analytics.operations.openOrders)}</strong>
-              </div>
-              <div>
-                <span className="metric-label">{t('analytics.closed')}</span>
-                <strong>{formatMetric(analytics.operations.closedOrders)}</strong>
-              </div>
-              <div>
-                <span className="metric-label">{t('analytics.todaySales')}</span>
-                <strong>{formatMetric(analytics.operations.todaySales)}</strong>
-              </div>
-              <div>
-                <span className="metric-label">{t('analytics.todayRepairs')}</span>
-                <strong>{formatMetric(analytics.operations.todayOrders)}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="analytics-info-panel">
-            <div className="analytics-panel-header">
-              <div>
-                <p className="section-label">{t('analytics.stock')}</p>
-                <h2>{t('analytics.inventoryHealth')}</h2>
-              </div>
-            </div>
-            <div className="analytics-stock-list">
-              <div>
-                <span>{t('analytics.products')}</span>
-                <strong>{formatMetric(analytics.stock.productCount)}</strong>
-              </div>
-              <div>
-                <span>{t('analytics.freeStock')}</span>
-                <strong>{formatMetric(analytics.stock.freeStock)}</strong>
-              </div>
-              <div>
-                <span>{t('analytics.reserved')}</span>
-                <strong>{formatMetric(analytics.stock.reservedStock)}</strong>
-              </div>
-              <div>
-                <span>{t('analytics.stockValue')}</span>
-                <strong>{formatCurrencyMetric(analytics.stock.stockValue)}</strong>
-              </div>
-              <div>
-                <span>{t('analytics.clients')}</span>
-                <strong>{formatMetric(clientCount)}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="analytics-info-panel">
-            <div className="analytics-panel-header">
-              <div>
-                <p className="section-label">{t('analytics.signals')}</p>
-                <h2>{t('analytics.attentionQueue')}</h2>
-              </div>
-            </div>
-            <div className="analytics-signal-list">
-              {analytics.signals.map((signal) => (
-                <div
-                  key={signal.labelKey}
-                  className={`analytics-signal analytics-signal-${signal.tone}`}
-                >
-                  <span>{t(signal.labelKey)}</span>
-                  <strong>{signal.value}</strong>
-                </div>
-              ))}
-            </div>
-          </section>
+          <AnalyticsFunnelPanel funnel={analytics.funnel} />
+          <AnalyticsPaymentsSplit metrics={analytics.metrics} />
+          <AnalyticsOperationsPanel operations={analytics.operations} />
+          <AnalyticsStockPanel stock={analytics.stock} />
+          <AnalyticsSignalsPanel analytics={analytics} />
         </aside>
 
         <div className="analytics-charts-stack">
-          <div className="analytics-period-row">
-            <div>
-              <p className="section-label">{t('analytics.comparativeAnalysis')}</p>
-              <h2>{analytics.detailLabel}</h2>
-            </div>
-            <p className="hero-chart-note">
-              {analyticsDateRange
-                ? t('analytics.customRange.note')
-                : t('analytics.comparisonNote')}
-            </p>
-          </div>
-
-          <ChartPanel
-            title={t('analytics.revenue')}
-            valueLabel={t('analytics.productSales')}
-            emptyText={t('analytics.noSalesForPeriod')}
-            isLoading={isAnalyticsLoading}
-            hasData={analytics.hasRevenueData}
-            snapshots={analytics.revenueSnapshots}
-            maxValue={analytics.revenueChartMax}
-            axisLabels={analytics.axisLabels}
-            formatTotal={formatCurrencyMetric}
-          />
-
-          <ChartPanel
-            title={t('analytics.repairOrders')}
-            valueLabel={t('analytics.orderVolume')}
-            emptyText={t('analytics.noOrdersForPeriod')}
-            isLoading={isAnalyticsLoading}
-            hasData={analytics.hasOrdersData}
-            snapshots={analytics.orderSnapshots}
-            maxValue={analytics.ordersChartMax}
-            axisLabels={analytics.axisLabels}
-          />
+          <p className="hero-chart-note">
+            {analyticsDateRange ? t('analytics.customRange.note') : t('analytics.comparisonNote')}
+          </p>
+          <AnalyticsChartPanel analytics={analytics} isLoading={isAnalyticsLoading} />
+          <AnalyticsTopItemsPanel items={analytics.topLineItems} />
         </div>
       </div>
     </section>

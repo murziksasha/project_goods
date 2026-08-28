@@ -258,9 +258,8 @@ export const OrderDetailCard = ({
   const serviceQuantity = getLineItemsQuantity(serviceItems);
   const serviceTotal = getLineItemsTotal(serviceItems);
   const isProductBlockReadOnly =
-    isSaleCard
-      ? isReadOnly
-      : !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+    isReadOnly ||
+    !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   useEffect(() => {
     const storedState = readOrderDetailSectionsState()[sale.id];
     const hasProductLines = lineItems.some((item) => item.kind === 'product');

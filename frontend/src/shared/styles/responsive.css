@@ -77,6 +77,14 @@
     padding-bottom: 72px;
   }
 
+  .supplier-information-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .supplier-information-charts {
+    grid-template-columns: 1fr;
+  }
+
   .auth-screen {
     display: flex;
     flex-direction: column;
@@ -306,6 +314,10 @@
   .analytics-executive-grid,
   .workspace-grid {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-executive-grid {
+    grid-template-areas: 'charts' 'side';
   }
 
   .create-order-grid {
@@ -558,9 +570,12 @@
   }
 
   .hero-inline-metrics,
+  .analytics-kpi-money,
   .analytics-summary-grid,
   .analytics-summary-grid-wide,
   .supplier-information-summary,
+  .supplier-information-summary-compact,
+  .supplier-information-charts,
   .supplier-information-grid,
   .supplier-information-price-grid,
   .finance-orders-summary-grid,
@@ -574,6 +589,30 @@
   .history-stats,
   .employee-permissions {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-kpi-volume,
+  .analytics-top-items-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-top-toggle {
+    display: inline-flex;
+  }
+
+  .analytics-top-items.is-collapsed .analytics-top-items-body {
+    display: none;
+  }
+
+  .analytics-chart-tooltip {
+    position: static;
+    justify-self: start;
+  }
+
+  .period-toggle {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
   }
 
   .bar-chart {
@@ -1074,10 +1113,14 @@
   .ghost-button,
   .danger-button,
   .warning-button,
-  .orders-create-button,
   .toolbar-filter-button {
     min-width: 0;
     white-space: normal;
+  }
+
+  .orders-create-button {
+    min-width: 0;
+    white-space: nowrap;
   }
 
   .modal-backdrop {
@@ -1926,6 +1969,14 @@
 }
 
 @media (max-width: 480px) {
+  .analytics-kpi-volume {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-chart {
+    min-height: 200px;
+  }
+
   .auth-screen .auth-panel {
     width: 100%;
     max-width: 100%;

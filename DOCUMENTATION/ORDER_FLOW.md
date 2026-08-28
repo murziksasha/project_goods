@@ -97,7 +97,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `client rejected`
   - `issued without repair`
   - (not from `notPickedUp`)
-- Repair Kanban board (sidebar `Kanban` + Orders tab `Kanban`) mirrors repair statuses as columns; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.

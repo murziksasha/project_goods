@@ -1563,7 +1563,6 @@ export const DashboardPage = () => {
               sales={productSales}
               orders={repairOrders}
               products={state.allProducts}
-              clientCount={state.allClients.length}
               isSalesLoading={state.isSalesLoading}
               isSeeding={state.isSeeding}
               canEraseAllData={canEraseAllData}
