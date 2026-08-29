@@ -11,22 +11,30 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - [ACCOUNTING.md](./ACCOUNTING.md) — supplier-order payment queue
 - [Permission_Flow.md](./Permission_Flow.md) — `supplierOrders.view` / `supplierOrders.manage`
 
-## Toolbar and date panel
+## Toolbar and filter panel
 
-- Toolbar pattern: left `Data`, columns gear, `Search`, `Order status`, `Payment status`; right `Order from supplier`.
+- Toolbar pattern matches Orders/Sales: left pagination (or count chip), **Filter** (badge = applied drawer filters), columns gear + **Reset columns**, star, search; right `Order from supplier`.
 - `Supplier Order` + `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
 - `Order from supplier` requires `supplierOrders.manage`.
-- `Data` panel: inclusive `Date from` / `Date to` / `Clear dates` filter on `deliveryDate`.
-- Column visibility + starred-only filter persist in local storage.
+- Filter drawer (draft → Apply / Clear): order statuses, payment statuses (multi; empty = all), supplier, created by, product, order number, date from/to, date field (`delivery` default or `created`).
+- Named saved filters use `GET/POST/DELETE /api/saved-filters` with `scope=orders` and `tab=supplierOrders`. Active/draft filters stay in `localStorage` (`project-goods.supplier-orders-filters`).
+- Removable chips under the toolbar cover statuses, payment, supplier, created by, product, number, dates, date-field, search query, and starred.
+- Toolbar search is live (number, product, supplier, created by, note). Enter / count chip opens the unique match.
+- Starred-only is a live toolbar toggle. Column visibility persists in `project-goods.supplier-orders-columns`.
+- Information tab uses the same applied filters. Gear, star, search, and create stay hidden.
 
 ## Table columns (gear)
 
-Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid`, `supplier`, **`createdAt` (Order date)**, `deliveryDate`, `status`, `paymentStatus`.
+Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid`, `supplier`, **`createdAt` (Order date)**, `createdBy`, `deliveryDate`, `status`, `paymentStatus`.
 
-- **`createdAt` / Order date** — order creation timestamp (`SupplierOrder.createdAt` from API); shown left of **Delivery date**.
-- Labels: EN `Order date`, UK `Дата замовлення` (`orders.supplier.columns.createdAt`).
+- **`createdAt` / Order date** — order creation timestamp (`SupplierOrder.createdAt` from API); shown left of **Created by** / **Delivery date**.
+- Labels: EN `Order date`, UK `Дата замовлення` (`orders.supplier.columns.createdAt`). `createdBy`: EN `Created by`, UK `Створив`.
 - Locked column: `number` only.
-- Existing saved column prefs omit new keys until the user enables them in the gear; empty/invalid prefs default to all columns.
+- Default visible: `number`, `product`, `quantity`, `price`, `total`, `paid`, `supplier`, `createdAt`, `status`, `paymentStatus`. `deliveryDate` and `createdBy` are extras in the gear.
+- Existing saved column prefs omit new keys until the user enables them; empty/invalid prefs restore the default set (`Reset columns` too).
+- `Paid` uses unpaid (amber) styling when `paymentStatus = pending` and `total - paid > 0`.
+- Past `deliveryDate` on open orders (`not` stocked / cancelled / unavailable / partially_completed) uses overdue tone (Europe/Kiev date).
+- Footer totals are for the **filtered** set: order count, pcs, total, paid, outstanding.
 
 ## Row status window
 
@@ -55,7 +63,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - Same filtered working set as Supplier Order tab (`filterSupplierOrders`).
 - Gear hidden (no configurable columns). Custom SVG only (no chart library), tokenized surfaces.
 - Builder: `buildSupplierOrderAnalytics(filteredOrders, now, { previousOrders })` in `frontend/src/widgets/dashboard/model/supplier-order-utils.ts`. UI: `SupplierInformationDashboard.tsx`.
-- **Date Δ:** when Data `dateFrom`/`dateTo` is set, previous window is the equal-length range immediately before (`getPreviousDeliveryDateRange`). No date filter → no Δ (same as Home `whole`). Hide a Δ chip when previous is 0.
+- **Date Δ:** when Filter `dateFrom`/`dateTo` is set, previous window is the equal-length range immediately before (`getPreviousDeliveryDateRange`). The same `dateField` (`delivery` or `created`) is applied to both windows. No date filter → no Δ (same as Home `whole`). Hide a Δ chip when previous is 0.
 - **KPI row:** spend (sparkline of `spendSeries`), paid + coverage bar, outstanding (risk tone when overdue outstanding > 0), open pipeline (not stocked / partially_completed / cancelled / unavailable / received). Compact row: order count + pcs, stocked rate.
 - **Charts:** spend-over-time (hourly ≤1 day of `createdAt` span, daily ≤62 days, else monthly); status mix bar; payment mix bar (`pending` / `paid` / `without_payment` / `cancelled`).
 - **Ranked bars:** top goods tabs Quantity | Value | Frequency; top suppliers tabs Spend | Outstanding; price min/max plus spread track (min–max, avg tick).

@@ -366,7 +366,8 @@
     min-width: min(100%, 180px);
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     white-space: normal;
   }
 
@@ -653,11 +654,6 @@
 
   .supplier-orders-toolbar-left {
     flex-wrap: wrap;
-  }
-
-  .supplier-orders-quick-filters {
-    flex-wrap: wrap;
-    overflow-x: visible;
   }
 
   .finance-transactions-toolbar-left {
@@ -1662,11 +1658,13 @@
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 0 1 auto;
-    white-space: nowrap;
+    min-height: 36px;
     padding: 8px 10px;
     font-size: 0.88rem;
+    white-space: nowrap;
   }
 
   .order-detail-main-panel .order-detail-list {
@@ -2064,10 +2062,12 @@
   }
 
   .order-detail-header-actions {
+    width: 100%;
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 1 1 auto;
     min-width: 0;
   }

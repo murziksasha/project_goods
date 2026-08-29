@@ -166,7 +166,7 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 
 - **Auth:** any authenticated employee (`req.employee`).
 - **`scope`:** `orders` \| `warehouse` \| `clients` \| `catalog` (required on list/create).
-- **Create body:** `{ scope, tab, name, icon, filters }` — `filters` is an opaque JSON object (shape depends on workspace); `name` max 80; `tab` identifies list tab (e.g. `orders`, `sales`, `stock`, `suppliers`).
+- **Create body:** `{ scope, tab, name, icon, filters }` — `filters` is an opaque JSON object (shape depends on workspace); `name` max 80; `tab` identifies list tab (e.g. `orders`, `sales`, `kanban`, `supplierOrders`, `stock`, `suppliers`).
 - **Response item:** `{ id, employeeId, scope, tab, name, icon, filters, createdAt, updatedAt }`.
 - Frontend migrates legacy localStorage lists once when server list is empty, then clears the old key.
 

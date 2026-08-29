@@ -4212,18 +4212,7 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 
 .supplier-orders-toolbar-left {
   flex: 1 1 auto;
-  flex-wrap: nowrap;
   min-width: 0;
-}
-
-.supplier-orders-quick-filters {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: nowrap;
-  min-width: 0;
-  overflow: visible;
-  padding-bottom: 2px;
 }
 
 .operator-checkboxes {

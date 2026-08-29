@@ -1070,9 +1070,10 @@
       "toolbar": {
         "data": "Дата",
         "createOrder": "Замовити у постачальника",
-        "searchPlaceholder": "Пошук за номером, товаром, постачальником",
+        "searchPlaceholder": "Пошук за номером, товаром, постачальником, автором або нотаткою",
         "orderStatus": "Статус замовлення",
         "orderStatusesCount": "{{count}} статусів замовлення",
+        "paymentStatusesCount": "{{count}} статусів оплати",
         "allPaymentStatuses": "Усі статуси оплати",
         "showAllOrders": "Показати всі замовлення постачальників",
         "showStarredOrders": "Показати обрані замовлення постачальників",
@@ -1088,6 +1089,7 @@
         "paid": "Оплачено",
         "supplier": "Постачальник",
         "createdAt": "Дата замовлення",
+        "createdBy": "Створив",
         "deliveryDate": "Дата поставки",
         "status": "Статус",
         "paymentStatus": "Статус оплати"
@@ -1095,7 +1097,18 @@
       "filters": {
         "dateFrom": "Дата від",
         "dateTo": "Дата до",
-        "clearDates": "Очистити дати"
+        "clearDates": "Очистити дати",
+        "orderStatus": "Статус замовлення",
+        "paymentStatus": "Статус оплати",
+        "supplier": "Постачальник",
+        "createdBy": "Створив",
+        "product": "Товар",
+        "productPlaceholder": "Назва товару",
+        "orderNumber": "№",
+        "orderNumberPlaceholder": "Номер замовлення",
+        "dateField": "Поле дати",
+        "dateFieldDelivery": "Дата поставки",
+        "dateFieldCreated": "Дата замовлення"
       },
       "table": {
         "starOrder": "Додати зірку {{id}}",
@@ -1106,7 +1119,12 @@
         "itemsCount": "{{count}} позицій",
         "expandOrder": "Розгорнути замовлення {{id}}",
         "collapseOrder": "Згорнути замовлення {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} замовлень",
+        "totalsPcs": "{{count}} шт.",
+        "totalsAmount": "Сума {{amount}}",
+        "totalsPaid": "Оплачено {{amount}}",
+        "totalsOutstanding": "Борг {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Замовлення {{id}}"

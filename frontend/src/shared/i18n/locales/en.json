@@ -1070,9 +1070,10 @@
       "toolbar": {
         "data": "Data",
         "createOrder": "Order from supplier",
-        "searchPlaceholder": "Search by number, product, supplier",
+        "searchPlaceholder": "Search by number, product, supplier, author or note",
         "orderStatus": "Order status",
         "orderStatusesCount": "{{count}} order statuses",
+        "paymentStatusesCount": "{{count}} payment statuses",
         "allPaymentStatuses": "All payment statuses",
         "showAllOrders": "Show all supplier orders",
         "showStarredOrders": "Show starred supplier orders",
@@ -1088,6 +1089,7 @@
         "paid": "Paid",
         "supplier": "Supplier",
         "createdAt": "Order date",
+        "createdBy": "Created by",
         "deliveryDate": "Delivery date",
         "status": "Status",
         "paymentStatus": "Payment status"
@@ -1095,7 +1097,18 @@
       "filters": {
         "dateFrom": "Date from",
         "dateTo": "Date to",
-        "clearDates": "Clear dates"
+        "clearDates": "Clear dates",
+        "orderStatus": "Order status",
+        "paymentStatus": "Payment status",
+        "supplier": "Supplier",
+        "createdBy": "Created by",
+        "product": "Product",
+        "productPlaceholder": "Product name",
+        "orderNumber": "No.",
+        "orderNumberPlaceholder": "Order number",
+        "dateField": "Date field",
+        "dateFieldDelivery": "Delivery date",
+        "dateFieldCreated": "Order date"
       },
       "table": {
         "starOrder": "Star {{id}}",
@@ -1106,7 +1119,12 @@
         "itemsCount": "{{count}} items",
         "expandOrder": "Expand order {{id}}",
         "collapseOrder": "Collapse order {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} orders",
+        "totalsPcs": "{{count}} pcs",
+        "totalsAmount": "Total {{amount}}",
+        "totalsPaid": "Paid {{amount}}",
+        "totalsOutstanding": "Outstanding {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Order {{id}}"

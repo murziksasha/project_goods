@@ -316,8 +316,21 @@
   font-size: 1.05rem;
 }
 
-.order-detail-header-pay-button {
+.order-detail-header-actions .order-detail-header-pay-button,
+.order-detail-header-actions .order-detail-create-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 18px;
+  border-radius: 7px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
+  text-align: center;
 }
 
 .order-detail-title {
@@ -373,22 +386,13 @@
 }
 
 .order-detail-header-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
   gap: 10px;
   min-width: 0;
   flex: 0 1 auto;
-}
-
-.order-detail-create-button {
-  min-width: 0;
-  max-width: 100%;
-  padding: 9px 12px;
-  font-size: 0.92rem;
-  white-space: nowrap;
-  text-align: center;
 }
 
 .order-detail-grid {
@@ -1759,16 +1763,22 @@
   background: var(--bg-card);
 }
 
-.supplier-orders-quick-filters .orders-search-group {
-  width: min(360px, 42vw);
-  min-width: 260px;
-  flex: 0 1 360px;
+.supplier-order-delivery-overdue {
+  color: #c47a12;
+  font-weight: 700;
 }
 
-.supplier-orders-quick-filters .orders-filter-status-field {
-  min-width: 220px;
-  max-width: 240px;
-  flex: 0 0 240px;
+.supplier-orders-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 12px 2px;
+  color: var(--color-text-body);
+  font-size: 0.92rem;
+}
+
+.supplier-orders-totals span {
+  white-space: nowrap;
 }
 
 .orders-filter-actions {

@@ -6,13 +6,13 @@ import type { Supplier } from '../../../../entities/supplier/model/types';
 import type {
   SupplierOrder,
   SupplierOrderStatus,
-  SupplierPaymentStatus,
 } from '../../../../entities/supplier-order/model/types';
 import { formatCurrency } from '../../../../shared/lib/format';
 import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
 import { OrdersWorkspaceTabList } from '../orders/workspace/OrdersWorkspaceTabList';
 import { buildSupplierOrderItemNumber } from '../../model/supplier-order-utils';
 import {
@@ -22,12 +22,12 @@ import {
   getSupplierOrderStatusLabel,
   getSupplierPaymentStatusClass,
   getSupplierPaymentStatusLabel,
+  isSupplierOrderDeliveryOverdue,
+  isSupplierOrderPaidAmountUnpaid,
   manualSupplierOrderStatuses,
   summarizeSupplierOrderItems,
-  supplierOrderStatuses,
   supplierOrdersAllColumns,
   supplierOrdersLockedColumns,
-  supplierPaymentStatuses,
   type OrdersTab,
   type SupplierOrdersColumnKey,
 } from '../../model/supplier-orders-workspace';
@@ -36,25 +36,15 @@ export { SupplierInformationDashboard } from './SupplierInformationDashboard';
 
 type SupplierOrdersToolbarProps = {
   activeTab: OrdersTab;
-  dateFiltersCount: number;
+  activeFiltersCount: number;
   filteredOrdersCount: number;
-  filteredOrderStatuses: typeof supplierOrderStatuses;
-  filteredPaymentStatuses: typeof supplierPaymentStatuses;
   isColumnsMenuOpen: boolean;
   isFilterBarOpen: boolean;
   isInformationTab: boolean;
-  isOrderStatusOpen: boolean;
-  isPaymentStatusOpen: boolean;
-  orderStatusFilterRef: RefObject<HTMLDivElement | null>;
-  paymentStatusFilterRef: RefObject<HTMLDivElement | null>;
   columnsMenuRef: RefObject<HTMLDivElement | null>;
-  paymentQuery: string;
-  paymentStatus: SupplierPaymentStatus | 'all';
   page: number;
   pageSize: number;
   query: string;
-  selectedStatuses: SupplierOrderStatus[];
-  statusQuery: string;
   favoritesOnly: boolean;
   visibleColumns: SupplierOrdersColumnKey[];
   visibleTabs: OrdersTab[];
@@ -65,40 +55,25 @@ type SupplierOrdersToolbarProps = {
   onCreateOrder: () => void;
   onColumnsMenuOpenChange: Dispatch<SetStateAction<boolean>>;
   onFilterBarOpenChange: Dispatch<SetStateAction<boolean>>;
-  onOrderStatusOpenChange: Dispatch<SetStateAction<boolean>>;
-  onPaymentStatusOpenChange: Dispatch<SetStateAction<boolean>>;
-  onPaymentQueryChange: (value: string) => void;
-  onPaymentStatusChange: (status: SupplierPaymentStatus | 'all') => void;
   onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
-  onSelectedStatusesChange: Dispatch<SetStateAction<SupplierOrderStatus[]>>;
-  onStatusQueryChange: (value: string) => void;
   onFavoritesOnlyChange: () => void;
   onToggleColumnVisibility: (columnKey: SupplierOrdersColumnKey) => void;
-  onToggleStatus: (status: SupplierOrderStatus) => void;
+  onResetColumns: () => void;
+  onOpenSingleMatch?: () => void;
 };
 
 export const SupplierOrdersToolbar = ({
   activeTab,
-  dateFiltersCount,
+  activeFiltersCount,
   filteredOrdersCount,
-  filteredOrderStatuses,
-  filteredPaymentStatuses,
   isColumnsMenuOpen,
   isFilterBarOpen,
   isInformationTab,
-  isOrderStatusOpen,
-  isPaymentStatusOpen,
-  orderStatusFilterRef,
-  paymentStatusFilterRef,
   columnsMenuRef,
-  paymentQuery,
-  paymentStatus,
   page,
   pageSize,
   query,
-  selectedStatuses,
-  statusQuery,
   favoritesOnly,
   visibleColumns,
   visibleTabs,
@@ -109,19 +84,35 @@ export const SupplierOrdersToolbar = ({
   onCreateOrder,
   onColumnsMenuOpenChange,
   onFilterBarOpenChange,
-  onOrderStatusOpenChange,
-  onPaymentStatusOpenChange,
-  onPaymentQueryChange,
-  onPaymentStatusChange,
   onPageChange,
   onQueryChange,
-  onSelectedStatusesChange,
-  onStatusQueryChange,
   onFavoritesOnlyChange,
   onToggleColumnVisibility,
-  onToggleStatus,
+  onResetColumns,
+  onOpenSingleMatch,
 }: SupplierOrdersToolbarProps) => {
   const { t } = useTranslation();
+  const canOpenSingleMatch =
+    Boolean(onOpenSingleMatch) &&
+    query.trim().length > 0 &&
+    filteredOrdersCount === 1;
+  const countLabel = t('orders.kanban.ordersCount', {
+    count: filteredOrdersCount,
+  });
+  const countChip = canOpenSingleMatch ? (
+    <button
+      type='button'
+      className='orders-kanban-count'
+      aria-label={countLabel}
+      onClick={onOpenSingleMatch}
+    >
+      {countLabel}
+    </button>
+  ) : (
+    <span className='orders-kanban-count' aria-label={countLabel}>
+      {countLabel}
+    </span>
+  );
 
   return (
   <>
@@ -134,24 +125,26 @@ export const SupplierOrdersToolbar = ({
     />
 
     <div className='orders-toolbar'>
-      <div className='orders-toolbar-left supplier-orders-toolbar-left'>
-        {!isInformationTab ? (
+      <div className='orders-toolbar-left'>
+        {isInformationTab || canOpenSingleMatch ? (
+          countChip
+        ) : (
           <CompactPaginationPanel
             totalItems={filteredOrdersCount}
             page={page}
             pageSize={pageSize}
             onPageChange={onPageChange}
           />
-        ) : null}
+        )}
         <button
           type='button'
           className='toolbar-filter-button toolbar-filter-toggle-button'
           aria-expanded={isFilterBarOpen}
           onClick={() => onFilterBarOpenChange((current) => !current)}
         >
-          {t('orders.supplier.toolbar.data')}
-          {dateFiltersCount > 0 ? (
-            <span className='toolbar-filter-count'>{dateFiltersCount}</span>
+          {t('orders.toolbar.filter')}
+          {activeFiltersCount > 0 ? (
+            <span className='toolbar-filter-count'>{activeFiltersCount}</span>
           ) : null}
         </button>
 
@@ -186,6 +179,13 @@ export const SupplierOrdersToolbar = ({
                     <span>{t(`orders.supplier.columns.${columnKey}`)}</span>
                   </label>
                 ))}
+                <button
+                  type='button'
+                  className='toolbar-settings-reset'
+                  onClick={onResetColumns}
+                >
+                  {t('orders.toolbar.resetColumns')}
+                </button>
               </div>
             ) : null}
           </div>
@@ -213,12 +213,20 @@ export const SupplierOrdersToolbar = ({
           </button>
         ) : null}
 
-        <div className='supplier-orders-quick-filters'>
+        {!isInformationTab ? (
           <div className='orders-search-group orders-search-group-clearable'>
             <input
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder={t('orders.supplier.toolbar.searchPlaceholder')}
+              title={t('orders.supplier.toolbar.searchPlaceholder')}
+              aria-label={t('orders.supplier.toolbar.searchPlaceholder')}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                if (!canOpenSingleMatch) return;
+                event.preventDefault();
+                onOpenSingleMatch?.();
+              }}
             />
             {query ? (
               <span
@@ -238,105 +246,11 @@ export const SupplierOrdersToolbar = ({
               </span>
             ) : null}
           </div>
-
-          <div
-            className='orders-filter-field orders-filter-status-field'
-            ref={orderStatusFilterRef}
-          >
-            <button
-              type='button'
-              className='orders-filter-status-toggle'
-              aria-expanded={isOrderStatusOpen}
-              onClick={() => onOrderStatusOpenChange((current) => !current)}
-            >
-              {selectedStatuses.length > 0
-                ? t('orders.supplier.toolbar.orderStatusesCount', {
-                    count: selectedStatuses.length,
-                  })
-                : t('orders.supplier.toolbar.orderStatus')}
-            </button>
-            {isOrderStatusOpen ? (
-              <div className='orders-filter-status-menu'>
-                <input
-                  value={statusQuery}
-                  onChange={(event) => onStatusQueryChange(event.target.value)}
-                  placeholder={t('orders.supplier.toolbar.search')}
-                />
-                <label className='orders-filter-status-all'>
-                  <input
-                    type='checkbox'
-                    checked={selectedStatuses.length === supplierOrderStatuses.length}
-                    onChange={() =>
-                      onSelectedStatusesChange((current) =>
-                        current.length === supplierOrderStatuses.length
-                          ? []
-                          : supplierOrderStatuses.map((item) => item.key),
-                      )
-                    }
-                  />
-                  <span>{t('orders.supplier.toolbar.selectAll')}</span>
-                </label>
-                {filteredOrderStatuses.map((status) => (
-                  <label key={status.key}>
-                    <input
-                      type='checkbox'
-                      checked={selectedStatuses.includes(status.key)}
-                      onChange={() => onToggleStatus(status.key)}
-                    />
-                    <span>{t(status.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div
-            className='orders-filter-field orders-filter-status-field'
-            ref={paymentStatusFilterRef}
-          >
-            <button
-              type='button'
-              className='orders-filter-status-toggle'
-              aria-expanded={isPaymentStatusOpen}
-              onClick={() => onPaymentStatusOpenChange((current) => !current)}
-            >
-              {paymentStatus === 'all'
-                ? t('orders.supplier.toolbar.allPaymentStatuses')
-                : getSupplierPaymentStatusLabel(paymentStatus)}
-            </button>
-            {isPaymentStatusOpen ? (
-              <div className='orders-filter-status-menu'>
-                <input
-                  value={paymentQuery}
-                  onChange={(event) => onPaymentQueryChange(event.target.value)}
-                  placeholder={t('orders.supplier.toolbar.search')}
-                />
-                <label>
-                  <input
-                    type='radio'
-                    checked={paymentStatus === 'all'}
-                    onChange={() => onPaymentStatusChange('all')}
-                  />
-                  <span>{t('orders.supplier.toolbar.allPaymentStatuses')}</span>
-                </label>
-                {filteredPaymentStatuses.map((status) => (
-                  <label key={status.key}>
-                    <input
-                      type='radio'
-                      checked={paymentStatus === status.key}
-                      onChange={() => onPaymentStatusChange(status.key)}
-                    />
-                    <span>{t(status.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        ) : null}
       </div>
 
       <div className='orders-toolbar-actions'>
-        {canManageSupplierOrders ? (
+        {canManageSupplierOrders && !isInformationTab ? (
           <button
             type='button'
             className='orders-create-button'
@@ -351,65 +265,17 @@ export const SupplierOrdersToolbar = ({
   );
 };
 
-type SupplierOrdersDateFilterPanelProps = {
-  deliveryDateFrom: string;
-  deliveryDateTo: string;
-  isOpen: boolean;
-  onDeliveryDateFromChange: (value: string) => void;
-  onDeliveryDateToChange: (value: string) => void;
-  onClearDates: () => void;
-};
-
-export const SupplierOrdersDateFilterPanel = ({
-  deliveryDateFrom,
-  deliveryDateTo,
-  isOpen,
-  onDeliveryDateFromChange,
-  onDeliveryDateToChange,
-  onClearDates,
-}: SupplierOrdersDateFilterPanelProps) => {
-  const { t } = useTranslation();
-
-  return (
-  <section
-    className={
-      isOpen ? 'orders-filter-panel orders-filter-panel-open' : 'orders-filter-panel'
-    }
-    aria-hidden={!isOpen}
-  >
-    <div className='orders-filter-grid'>
-      <label className='orders-filter-field supplier-orders-date-filter'>
-        <span>{t('orders.supplier.filters.dateFrom')}</span>
-        <input
-          type='date'
-          value={deliveryDateFrom}
-          onChange={(event) => onDeliveryDateFromChange(event.target.value)}
-        />
-      </label>
-
-      <label className='orders-filter-field supplier-orders-date-filter'>
-        <span>{t('orders.supplier.filters.dateTo')}</span>
-        <input
-          type='date'
-          value={deliveryDateTo}
-          onChange={(event) => onDeliveryDateToChange(event.target.value)}
-        />
-      </label>
-    </div>
-
-    <div className='orders-filter-actions'>
-      <button type='button' className='toolbar-filter-button' onClick={onClearDates}>
-        {t('orders.supplier.filters.clearDates')}
-      </button>
-    </div>
-  </section>
-  );
-};
-
 type SupplierOrdersTableProps = {
   catalogProducts: CatalogProduct[];
   expandedOrderIds: ReadonlySet<string>;
   filteredOrdersCount: number;
+  totals: {
+    orderCount: number;
+    pcs: number;
+    total: number;
+    paid: number;
+    outstanding: number;
+  };
   isLoading: boolean;
   openStatusOrder: { key: string; order: SupplierOrder } | null;
   page: number;
@@ -444,6 +310,7 @@ export const SupplierOrdersTable = ({
   catalogProducts,
   expandedOrderIds,
   filteredOrdersCount,
+  totals,
   isLoading,
   openStatusOrder,
   page,
@@ -496,6 +363,9 @@ export const SupplierOrdersTable = ({
             ) : null}
             {visibleColumns.includes('createdAt') ? (
               <th className='supplier-orders-col-date'>{t('orders.supplier.columns.createdAt')}</th>
+            ) : null}
+            {visibleColumns.includes('createdBy') ? (
+              <th className='supplier-orders-col-created-by'>{t('orders.supplier.columns.createdBy')}</th>
             ) : null}
             {visibleColumns.includes('deliveryDate') ? (
               <th className='supplier-orders-col-date'>{t('orders.supplier.columns.deliveryDate')}</th>
@@ -660,7 +530,9 @@ export const SupplierOrdersTable = ({
                           }`}
                           onClick={() => openProductCatalog(item)}
                         >
-                          {item.productName}
+                          <TruncatedTextTooltip text={item.productName}>
+                            {item.productName}
+                          </TruncatedTextTooltip>
                         </button>
                       ) : null}
                     </td>
@@ -693,7 +565,14 @@ export const SupplierOrdersTable = ({
                     </td>
                   ) : null}
                   {visibleColumns.includes('paid') ? (
-                    <td data-label={t('orders.supplier.columns.paid')}>
+                    <td
+                      data-label={t('orders.supplier.columns.paid')}
+                      className={
+                        !isChild && isSupplierOrderPaidAmountUnpaid(order)
+                          ? 'orders-money-unpaid'
+                          : undefined
+                      }
+                    >
                       {isChild
                         ? notApplicableLabel
                         : formatCurrency(order.paid)}
@@ -738,8 +617,20 @@ export const SupplierOrdersTable = ({
                         : formatSupplierOrderDate(order.createdAt)}
                     </td>
                   ) : null}
+                  {visibleColumns.includes('createdBy') ? (
+                    <td data-label={t('orders.supplier.columns.createdBy')}>
+                      {isChild ? notApplicableLabel : order.createdBy || notApplicableLabel}
+                    </td>
+                  ) : null}
                   {visibleColumns.includes('deliveryDate') ? (
-                    <td data-label={t('orders.supplier.columns.deliveryDate')}>
+                    <td
+                      data-label={t('orders.supplier.columns.deliveryDate')}
+                      className={
+                        !isChild && isSupplierOrderDeliveryOverdue(order)
+                          ? 'supplier-order-delivery-overdue'
+                          : undefined
+                      }
+                    >
                       {isChild
                         ? notApplicableLabel
                         : formatSupplierOrderDate(order.deliveryDate)}
@@ -806,6 +697,31 @@ export const SupplierOrdersTable = ({
       {isLoading ? <p className='orders-empty'>{t('orders.supplier.table.loading')}</p> : null}
       {!isLoading && paginatedOrders.length === 0 ? (
         <p className='orders-empty'>{t('orders.supplier.table.empty')}</p>
+      ) : null}
+      {!isLoading && paginatedOrders.length > 0 ? (
+        <div className='supplier-orders-totals' role='status'>
+          <span>
+            {t('orders.supplier.table.totalsOrders', { count: totals.orderCount })}
+          </span>
+          <span>
+            {t('orders.supplier.table.totalsPcs', { count: totals.pcs })}
+          </span>
+          <span>
+            {t('orders.supplier.table.totalsAmount', {
+              amount: formatCurrency(totals.total),
+            })}
+          </span>
+          <span>
+            {t('orders.supplier.table.totalsPaid', {
+              amount: formatCurrency(totals.paid),
+            })}
+          </span>
+          <span>
+            {t('orders.supplier.table.totalsOutstanding', {
+              amount: formatCurrency(totals.outstanding),
+            })}
+          </span>
+        </div>
       ) : null}
     </div>
 
