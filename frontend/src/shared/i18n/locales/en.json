@@ -1891,8 +1891,17 @@
     },
     "information": {
       "sectionLabel": "Warehouse analytics",
-      "title": "Information",
+      "title": "Stock overview",
       "unitsStatus": "{{count}} units",
+      "positionsStatus": "{{count}} positions",
+      "warehousesStatus": "{{count}} active warehouses",
+      "moreChips": "+{{count}}",
+      "charts": {
+        "distribution": "Share",
+        "topShare": "Value distribution",
+        "comparison": "Comparison",
+        "topThree": "Top 3"
+      },
       "summary": {
         "stockUnits": "Stock units",
         "positions": "Positions",

@@ -1891,8 +1891,17 @@
     },
     "information": {
       "sectionLabel": "Аналітика складу",
-      "title": "Інформація",
+      "title": "Огляд складу",
       "unitsStatus": "{{count}} од.",
+      "positionsStatus": "{{count}} позицій",
+      "warehousesStatus": "{{count}} активних складів",
+      "moreChips": "+{{count}}",
+      "charts": {
+        "distribution": "Частка",
+        "topShare": "Розподіл вартості",
+        "comparison": "Порівняння",
+        "topThree": "Топ 3"
+      },
       "summary": {
         "stockUnits": "Одиниці на складі",
         "positions": "Позиції",
