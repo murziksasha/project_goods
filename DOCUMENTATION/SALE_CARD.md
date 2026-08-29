@@ -162,9 +162,9 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Status `paid` is a payment state and may be selected from the list or sale card.
 - If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
-- Status `issued` is allowed only when `To pay = 0`.
-- If `issued` is selected while `To pay > 0`, payment must be accepted first; accepting money without issuing leaves the status as `paid`.
-- Before the sale card **Save changes** persists status `issued`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert.
+- Status `issued` is allowed only when `To pay = 0` (or final total is `0`).
+- If `issued` or `paid` is selected on **Save changes** while `To pay > 0`, open the same **Accept payment** modal as the Sales list status dropdown. Do not persist `issued`/`paid` until a modal action. Accepting money without issuing leaves the status as `paid`.
+- Before the sale card **Save changes** persists status `issued` when `To pay = 0`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert. When `To pay > 0`, the payment modal shows that confirm on **Accept and issue**.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
 - While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.

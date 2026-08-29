@@ -29,7 +29,6 @@ type OrdersWorkspaceFilterPanelProps = {
   draftFilters: OrdersFilters;
   statusOptionsForActiveTab: StatusOption[];
   assigneeOptions: AssigneeOption[];
-  warehouseOptions: string[];
   newFilterName: string;
   newFilterIcon: string;
   statusFilterRef: RefObject<HTMLDivElement | null>;
@@ -59,7 +58,6 @@ export const OrdersWorkspaceFilterPanel = ({
   draftFilters,
   statusOptionsForActiveTab,
   assigneeOptions,
-  warehouseOptions,
   newFilterName,
   newFilterIcon,
   statusFilterRef,
@@ -254,26 +252,6 @@ export const OrdersWorkspaceFilterPanel = ({
 
           {!isKanban ? (
             <>
-              <label className="orders-filter-field">
-                <span>{t('orders.filters.warehouse')}</span>
-                <select
-                  value={draftFilters.warehouse}
-                  onChange={(event) =>
-                    setDraftFilters((current) => ({
-                      ...current,
-                      warehouse: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="">{t('orders.filters.all')}</option>
-                  {warehouseOptions.map((warehouse) => (
-                    <option key={warehouse} value={warehouse}>
-                      {warehouse}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <label className="orders-filter-field">
                 <span>{t('orders.filters.repairType')}</span>
                 <select

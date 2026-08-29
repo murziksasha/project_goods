@@ -126,6 +126,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
+- Repair **order card** **Save changes** to `issued` or `paid` uses the same rule as the list/Kanban status dropdown: if `To pay > 0`, open `Accept payment` (do not persist `issued`/`paid` until a modal action). If `To pay = 0`, persist the status.
 - In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `issued`.
 - For repair order card issue target, payment modal actions follow the same issue behavior as sale card:
   - `Accept to cashbox` adds a deposit without issuing.

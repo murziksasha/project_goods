@@ -364,6 +364,7 @@ Suggestion rows may show the resolved retail price before click when matching st
 ## Status Change: Issued In Sales List
 
 - In `Orders -> Sales` list, when user selects status `issued`, `Accept payment` modal is opened if `To pay > 0`.
+- Sale **card** **Save changes** to `issued` or `paid` uses the same rule: if `To pay > 0`, open `Accept payment` and do not persist `issued`/`paid` until a modal action.
 - If in this modal user clicks `Accept to cashbox` and enters full or partial payment:
   - payment is added to cashbox
   - if `To pay` becomes `0`, sale status may be auto-changed to `paid`

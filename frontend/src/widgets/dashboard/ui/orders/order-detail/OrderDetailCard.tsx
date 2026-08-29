@@ -75,7 +75,6 @@ import {
   getStoredOrderDetailRelatedTab,
   getSupplierOrderStatusLabel,
   hasSaleReturnObligations,
-  isRepairDevicePlaceholderLineItem,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
   isSystemTimelineMessage,
@@ -162,7 +161,7 @@ export const OrderDetailCard = ({
   onSaveMainInfo,
   onSaveUserNote,
 }: OrderDetailCardProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
   const [isProductsOpen, setIsProductsOpen] = useState(isSaleCard);
@@ -253,6 +252,12 @@ export const OrderDetailCard = ({
     ReturnType<typeof setTimeout> | undefined
   >(undefined);
   const persistDiscountValue = (input: string) => {
+    if (
+      isReadOnly ||
+      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
+    ) {
+      return;
+    }
     const currentDiscount = discountRef.current;
     if (input === '') {
       if (currentDiscount.value !== 0) {
@@ -309,7 +314,7 @@ export const OrderDetailCard = ({
   const productTotal = getLineItemsTotal(productItems);
   const serviceQuantity = getLineItemsQuantity(serviceItems);
   const serviceTotal = getLineItemsTotal(serviceItems);
-  const isProductBlockReadOnly =
+  const isContentLocked =
     isReadOnly ||
     !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   useEffect(() => {
@@ -400,11 +405,9 @@ export const OrderDetailCard = ({
       return next;
     });
   };
-  const canEditUserNote =
-    !isReadOnly &&
-    isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+  const canEditUserNote = !isContentLocked;
   const toggleDiscountMode = () => {
-    if (isReadOnly) return;
+    if (isContentLocked) return;
 
     cancelDiscountCommit();
     const nextValue = parseDecimal(discountInput);
@@ -612,23 +615,12 @@ export const OrderDetailCard = ({
     statusDraft,
     lineItems,
   );
-  const hasRepairProductLineItems =
-    isRepairOrder(sale) &&
-    lineItems
-      .filter((item) => !isRepairDevicePlaceholderLineItem(sale, item))
-      .some((item) => item.kind === 'product' && item.quantity > 0);
-  const isRepairIssuedDraftBlockedByPayment =
-    hasRepairProductLineItems &&
-    statusDraft === 'issued' &&
-    getRemainingPayment(sale, paidAmount, lineItems) > 0;
   const isSaleReturnStatusDraftBlocked =
     !isRepairOrder(sale) &&
     statusDraft === 'returned' &&
     hasSaleReturnObligations(sale, lineItems);
   const isStatusDraftBlocked =
-    isStatusDraftLockedByStock ||
-    isRepairIssuedDraftBlockedByPayment ||
-    isSaleReturnStatusDraftBlocked;
+    isStatusDraftLockedByStock || isSaleReturnStatusDraftBlocked;
   const missingWarehouseSerialLines = useMemo(
     () => getProductLinesMissingWarehouseSerials(sale, lineItems),
     [lineItems, sale],
@@ -636,7 +628,8 @@ export const OrderDetailCard = ({
   const shouldConfirmUnboundSerialIssue =
     statusDraft === 'issued' &&
     status !== 'issued' &&
-    missingWarehouseSerialLines.length > 0;
+    missingWarehouseSerialLines.length > 0 &&
+    getRemainingPayment(sale, paidAmount, lineItems) <= 0;
   const persistMainInfo = async () => {
     setIsSavingMainInfo(true);
     setMainInfoSaveError(null);
@@ -664,13 +657,6 @@ export const OrderDetailCard = ({
       return t('orders.payment.stockLocked');
     }
     if (
-      hasRepairProductLineItems &&
-      statusOption === 'issued' &&
-      getRemainingPayment(sale, paidAmount, lineItems) > 0
-    ) {
-      return t('orders.messages.errors.fullPaymentBeforeIssue');
-    }
-    if (
       !isRepairOrder(sale) &&
       statusOption === 'returned' &&
       hasSaleReturnObligations(sale, lineItems)
@@ -682,9 +668,6 @@ export const OrderDetailCard = ({
   const getStatusDraftBlockedReason = () => {
     if (isSaleReturnStatusDraftBlocked) {
       return t('orders.messages.errors.returnProductsFirst');
-    }
-    if (isRepairIssuedDraftBlockedByPayment) {
-      return t('orders.messages.errors.fullPaymentBeforeIssue');
     }
     if (isStatusDraftLockedByStock) {
       return t('orders.payment.stockLocked');
@@ -805,7 +788,9 @@ export const OrderDetailCard = ({
   const formatDateSeparator = (value: string) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('en-GB', {
+    const language = i18n.resolvedLanguage || i18n.language || 'uk';
+    const locale = language.toLowerCase().startsWith('en') ? 'en-GB' : 'uk-UA';
+    return new Intl.DateTimeFormat(locale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -1293,7 +1278,7 @@ export const OrderDetailCard = ({
                       type='button'
                       className='order-detail-device-button'
                       onClick={() => setIsDeviceModalOpen(true)}
-                      disabled={isReadOnly}
+                      disabled={isContentLocked}
                       aria-label={t('orders.detail.changeDevice')}
                     >
                       <span>{deviceNameInput || '-'}</span>
@@ -1329,6 +1314,8 @@ export const OrderDetailCard = ({
                     className='order-detail-master-select'
                     value={masterIdInput}
                     onChange={(event) => setMasterIdInput(event.target.value)}
+                    disabled={isContentLocked}
+                    aria-label={t('orders.detail.master')}
                   >
                     <option value=''>{t('orders.detail.selectMaster')}</option>
                     {masterOptions.map((employee) => (
@@ -1431,7 +1418,11 @@ export const OrderDetailCard = ({
                 >
                   <span>
                     {new Date(entry.item.createdAt).toLocaleTimeString(
-                      'uk-UA',
+                      (i18n.resolvedLanguage || i18n.language || 'uk')
+                        .toLowerCase()
+                        .startsWith('en')
+                        ? 'en-GB'
+                        : 'uk-UA',
                       { hour: '2-digit', minute: '2-digit' },
                     )}
                   </span>
@@ -1514,7 +1505,7 @@ export const OrderDetailCard = ({
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
-              isReadOnly={isProductBlockReadOnly}
+              isReadOnly={isContentLocked}
             />
           ) : null}
         </section>
@@ -1567,7 +1558,7 @@ export const OrderDetailCard = ({
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
-              isReadOnly={isReadOnly}
+              isReadOnly={isContentLocked}
             />
           ) : null}
         </section>
@@ -1588,7 +1579,7 @@ export const OrderDetailCard = ({
                     className='payment-summary-discount-badge'
                     onClick={toggleDiscountMode}
                     aria-label={t('orders.payment.toggleDiscountMode')}
-                    disabled={isReadOnly}
+                    disabled={isContentLocked}
                   >
                     {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
                   </button>
@@ -1614,14 +1605,15 @@ export const OrderDetailCard = ({
                         normalizeDecimalInput(event.currentTarget.value),
                       )
                     }
-                    disabled={isReadOnly}
+                    disabled={isContentLocked}
+                    aria-label={t('orders.payment.discount')}
                   />
                   <button
                     type='button'
                     className='order-payment-discount-mode'
                     onClick={toggleDiscountMode}
                     aria-label={t('orders.payment.toggleDiscountMode')}
-                    disabled={isReadOnly}
+                    disabled={isContentLocked}
                   >
                     {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
                   </button>

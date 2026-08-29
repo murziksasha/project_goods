@@ -954,10 +954,13 @@ export const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
 export const getRepairCompletionDate = (sale: Sale) => {
   if (!isRepairOrder(sale)) return sale.saleDate;
 
+  const timeline = sale.timeline ?? [];
+  if (timeline.length === 0) return sale.saleDate;
+
   const completionLabels = new Set(
     handoffRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
   );
-  const completionEntry = (sale.timeline ?? []).find((entry) => {
+  const completionEntry = timeline.find((entry) => {
     const text = entry.message.toLowerCase();
     if (
       !text.includes('changed status to') &&
@@ -973,6 +976,13 @@ export const getRepairCompletionDate = (sale: Sale) => {
 
 export const isSalePaymentStatus = (status: OrderStatus) =>
   status === 'paid';
+
+export const shouldOpenPaymentModalForStatusChange = (
+  nextStatus: OrderStatus,
+  remainingPayment: number,
+) =>
+  remainingPayment > 0 &&
+  (nextStatus === 'issued' || nextStatus === 'paid');
 export const canRefundFromStatus = (sale: Sale, status: OrderStatus) =>
   isRepairOrder(sale)
     ? status !== 'issued' &&
@@ -1434,11 +1444,20 @@ export const getPrintTemplateData = (
 export const buildOrderNumber = (sale: Sale) =>
   sale.recordNumber ?? i18n.t('orders.fallbacks.recordNumber');
 
-export const formatReadyDate = (value: string) =>
-  new Intl.DateTimeFormat('uk-UA', {
+export const formatReadyDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  const language = i18n.resolvedLanguage || i18n.language || 'uk';
+  const locale = language.toLowerCase().startsWith('en') ? 'en-GB' : 'uk-UA';
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
-  }).format(new Date(value));
+    year: 'numeric',
+  }).format(date);
+};
 
 export const getWarehouseLabel = (sale: Sale) => {
   void sale;
@@ -1724,6 +1743,31 @@ export const truncateOrdersCellText = (
   return `${normalizedValue.slice(0, maxLength)}...`;
 };
 
+export const ORDERS_COLUMN_MIN_WIDTH: Record<OrdersColumnKey, number> = {
+  orderNumber: 140,
+  client: 200,
+  status: 160,
+  primaryItem: 200,
+  price: 110,
+  paid: 110,
+  term: 80,
+  warehouse: 140,
+  manager: 140,
+  master: 140,
+  received: 140,
+  createdAt: 120,
+  readyDate: 120,
+};
+
+export const getOrdersTableMinWidth = (columnKeys: OrdersColumnKey[]) =>
+  Math.max(
+    720,
+    columnKeys.reduce(
+      (total, columnKey) => total + ORDERS_COLUMN_MIN_WIDTH[columnKey],
+      0,
+    ),
+  );
+
 export const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
   switch (columnKey) {
     case 'orderNumber':
@@ -1734,10 +1778,35 @@ export const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
       return 'orders-col-status';
     case 'primaryItem':
       return 'orders-col-primary-item';
+    case 'price':
+      return 'orders-col-price';
+    case 'paid':
+      return 'orders-col-paid';
+    case 'term':
+      return 'orders-col-term';
+    case 'warehouse':
+      return 'orders-col-warehouse';
+    case 'manager':
+      return 'orders-col-manager';
+    case 'master':
+      return 'orders-col-master';
+    case 'received':
+      return 'orders-col-received';
+    case 'createdAt':
+      return 'orders-col-created-at';
+    case 'readyDate':
+      return 'orders-col-ready-date';
     default:
       return '';
   }
 };
+
+export const isLegacyFullOrdersColumnSet = (
+  columns: OrdersColumnKey[] | undefined,
+) =>
+  Array.isArray(columns) &&
+  columns.length === allOrdersColumnKeys.length &&
+  allOrdersColumnKeys.every((key) => columns.includes(key));
 
 export const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   isRepairOrdersTab(activeTab)
@@ -1824,6 +1893,10 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
       columns: OrdersColumnKey[] | undefined,
       tab: OrdersTab,
     ) => {
+      if (isLegacyFullOrdersColumnSet(columns)) {
+        return defaultVisibleColumns[tab];
+      }
+
       const safeColumns =
         columns?.filter((columnKey) =>
           availableColumnsByTab[tab].includes(columnKey),

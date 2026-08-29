@@ -25,6 +25,7 @@ const baseProps = {
   onToggleFilterPanel: vi.fn(),
   onToggleColumnsMenu: vi.fn(),
   onToggleColumnVisibility: vi.fn(),
+  onResetColumns: vi.fn(),
   onToggleFavoritesOnly: vi.fn(),
 };
 
@@ -54,7 +55,7 @@ describe('OrdersWorkspaceListHeader', () => {
     );
 
     fireEvent.change(
-      screen.getByPlaceholderText(/search by order/i),
+      screen.getByPlaceholderText(/order, client, phone or device/i),
       {
         target: { value: 'iphone' },
       },
@@ -94,5 +95,38 @@ describe('OrdersWorkspaceListHeader', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Orders: 1' }));
     expect(onOpenSingleMatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the single search match from Enter in the search field', () => {
+    const onOpenSingleMatch = vi.fn();
+
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        searchValue="r000588"
+        filteredOrdersCount={1}
+        onOpenSingleMatch={onOpenSingleMatch}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText(/order, client, phone/i), {
+      key: 'Enter',
+    });
+    expect(onOpenSingleMatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets visible columns from the columns menu', () => {
+    const onResetColumns = vi.fn();
+
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        isColumnsMenuOpen
+        onResetColumns={onResetColumns}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /reset columns/i }));
+    expect(onResetColumns).toHaveBeenCalledTimes(1);
   });
 });
