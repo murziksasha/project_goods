@@ -4,6 +4,7 @@ import type { Product } from '../../../../entities/product/model/types';
 import {
   getWarehouseStockTableMinWidth,
   warehouseStockNameWidthDefault,
+  warehouseStockNameWidthStorageKey,
   type ReceiptRow,
   type StockColumnKey,
 } from '../../model/warehouse-panel';
@@ -248,6 +249,34 @@ describe('StockTable models view', () => {
     expect(table.style.getPropertyValue('--warehouse-name-col-width')).toBe(
       '440px',
     );
+    expect(
+      window.localStorage.getItem(warehouseStockNameWidthStorageKey),
+    ).toBe('440');
+  });
+
+  it('restores the name column width from this device on remount', () => {
+    window.localStorage.setItem(warehouseStockNameWidthStorageKey, '512');
+
+    const firstRender = render(
+      <StockTable {...stockTableProps} visibleColumns={['name']} />,
+    );
+    const firstTable = firstRender.container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+    expect(firstTable.style.getPropertyValue('--warehouse-name-col-width')).toBe(
+      '512px',
+    );
+    firstRender.unmount();
+
+    const secondRender = render(
+      <StockTable {...stockTableProps} visibleColumns={['name']} />,
+    );
+    const secondTable = secondRender.container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+    expect(
+      secondTable.style.getPropertyValue('--warehouse-name-col-width'),
+    ).toBe('512px');
   });
 
   it('sets a table min-width that fits supplier order and supplier headers', () => {

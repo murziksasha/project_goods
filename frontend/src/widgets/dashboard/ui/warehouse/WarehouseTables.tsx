@@ -29,7 +29,7 @@ import {
   getWarehouseBadgeAccentStyle,
   getWarehouseStockTableMinWidth,
   readWarehouseStockNameWidth,
-  warehouseStockNameWidthStorageKey,
+  writeWarehouseStockNameWidth,
   type ProductWarehouseMeta,
   type ReceiptRow,
   type ReceiptsColumnKey,
@@ -658,10 +658,7 @@ export const StockTable = ({
   const [isNameColumnResizing, setIsNameColumnResizing] = useState(false);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      warehouseStockNameWidthStorageKey,
-      String(nameColumnWidth),
-    );
+    writeWarehouseStockNameWidth(nameColumnWidth);
   }, [nameColumnWidth]);
 
   const startNameColumnResize = (

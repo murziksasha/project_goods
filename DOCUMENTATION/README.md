@@ -50,7 +50,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 ## 4. Warehouse, serials, print
 
-- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock, bind modal, occupancy, labels
+- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, labels
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
 - [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock)

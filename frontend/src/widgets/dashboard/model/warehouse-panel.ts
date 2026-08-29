@@ -323,6 +323,17 @@ export const readWarehouseStockNameWidth = () => {
     return warehouseStockNameWidthDefault;
   }
 };
+
+export const writeWarehouseStockNameWidth = (value: number) => {
+  try {
+    window.localStorage.setItem(
+      warehouseStockNameWidthStorageKey,
+      String(clampWarehouseStockNameWidth(value)),
+    );
+  } catch {
+    return;
+  }
+};
 export const savedWarehouseFiltersStorageKey =
   'project-goods.saved-warehouse-filters';
 export const initialWarehouseFilters: WarehouseFilters = {

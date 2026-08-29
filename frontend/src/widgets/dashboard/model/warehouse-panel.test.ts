@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   clampWarehouseStockNameWidth,
   filterReceiptRows,
@@ -8,12 +8,19 @@ import {
   groupReceiptRowsByOrder,
   initialWarehouseFilters,
   normalizeReceiptStatuses,
+  readWarehouseStockNameWidth,
   warehouseStockColumnWidths,
   warehouseStockNameWidthDefault,
   warehouseStockNameWidthMax,
   warehouseStockNameWidthMin,
+  warehouseStockNameWidthStorageKey,
+  writeWarehouseStockNameWidth,
   type ReceiptRow,
 } from './warehouse-panel';
+
+afterEach(() => {
+  window.localStorage.clear();
+});
 
 const makeReceipt = (patch: Partial<ReceiptRow> = {}): ReceiptRow => ({
   id: 'receipt-1',
@@ -223,5 +230,24 @@ describe('stock name column width', () => {
         warehouseStockColumnWidths.supplier +
         warehouseStockColumnWidths.action,
     );
+  });
+
+  it('reads and writes the name column width on this device only', () => {
+    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthDefault);
+
+    writeWarehouseStockNameWidth(480);
+    expect(
+      window.localStorage.getItem(warehouseStockNameWidthStorageKey),
+    ).toBe('480');
+    expect(readWarehouseStockNameWidth()).toBe(480);
+
+    writeWarehouseStockNameWidth(12);
+    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthMin);
+
+    writeWarehouseStockNameWidth(9000);
+    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthMax);
+
+    window.localStorage.setItem(warehouseStockNameWidthStorageKey, 'nope');
+    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthDefault);
   });
 });
