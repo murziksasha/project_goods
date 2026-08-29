@@ -15,12 +15,11 @@ eventsRouter.get('/events/stream', (req, res) => {
 
   let closed = false;
   let unsubscribe = () => {};
-  let heartbeat: ReturnType<typeof setInterval> | undefined;
 
   const close = () => {
     if (closed) return;
     closed = true;
-    if (heartbeat) clearInterval(heartbeat);
+    clearInterval(heartbeat);
     unsubscribe();
     if (!res.writableEnded) {
       res.end();
@@ -36,15 +35,15 @@ eventsRouter.get('/events/stream', (req, res) => {
     }
   };
 
+  const heartbeat = setInterval(() => {
+    write(': ping\n\n');
+  }, 25000);
+
   write(': connected\n\n');
 
   unsubscribe = subscribeDomainEvents((event) => {
     write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
   });
-
-  heartbeat = setInterval(() => {
-    write(': ping\n\n');
-  }, 25000);
 
   req.on('close', close);
   req.on('aborted', close);

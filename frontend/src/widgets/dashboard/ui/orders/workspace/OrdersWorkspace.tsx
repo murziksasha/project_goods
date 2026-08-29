@@ -604,7 +604,7 @@ export const OrdersWorkspace = ({
       }
       return true;
     });
-  }, [activeTab, appliedFilters, searchValue, tabSales]);
+  }, [activeTab, appliedFilters, searchValue, t, tabSales]);
 
   const canManageOrderFavorite = (sale: Sale) =>
     sale.kind === 'sale'
@@ -1320,46 +1320,56 @@ export const OrdersWorkspace = ({
     createdAt: new Date().toISOString(),
   });
 
-  const persistSaleWorkspaceRaw = async (
-    sale: Sale,
-    payload: SaleWorkspaceQueuePayload,
-  ) => {
-    const updatedSale = await updateSaleWorkspace(sale.id, {
-      kind: sale.kind,
-      status: payload.status ?? normalizeOrderStatus(sale.status),
-      paidAmount: payload.paidAmount,
-      masterId: payload.masterId,
-      issuedById: payload.issuedById,
-      deviceName: payload.deviceName,
-      serialNumber: payload.serialNumber,
-      discount: payload.discount,
-      timeline: payload.timeline,
-      paymentHistory: payload.paymentHistory,
-      lineItems: payload.lineItems,
-      userNote: payload.userNote,
-      expectedUpdatedAt: sale.updatedAt,
-    });
-    if (!isSaleResponse(updatedSale)) {
-      throw new Error('Unexpected sale workspace update response from API.');
-    }
-    rememberPersistedSale(updatedSale);
-    onSaleUpdate(updatedSale);
-    return updatedSale;
-  };
+  const persistSaleWorkspaceRaw = useCallback(
+    async (sale: Sale, payload: SaleWorkspaceQueuePayload) => {
+      const updatedSale = await updateSaleWorkspace(sale.id, {
+        kind: sale.kind,
+        status: payload.status ?? normalizeOrderStatus(sale.status),
+        paidAmount: payload.paidAmount,
+        masterId: payload.masterId,
+        issuedById: payload.issuedById,
+        deviceName: payload.deviceName,
+        serialNumber: payload.serialNumber,
+        discount: payload.discount,
+        timeline: payload.timeline,
+        paymentHistory: payload.paymentHistory,
+        lineItems: payload.lineItems,
+        userNote: payload.userNote,
+        expectedUpdatedAt: sale.updatedAt,
+      });
+      if (!isSaleResponse(updatedSale)) {
+        throw new Error('Unexpected sale workspace update response from API.');
+      }
+      rememberPersistedSale(updatedSale);
+      onSaleUpdate(updatedSale);
+      return updatedSale;
+    },
+    [onSaleUpdate],
+  );
 
   const persistSaleWorkspaceRawRef = useRef(persistSaleWorkspaceRaw);
-  persistSaleWorkspaceRawRef.current = persistSaleWorkspaceRaw;
 
-  const handleWorkspaceUpdateError = (
-    error: unknown,
-    fallback = t('orders.messages.errors.failedUpdateStatus'),
-  ) => {
-    onError(error instanceof Error && error.message ? error.message : fallback);
-  };
+  const handleWorkspaceUpdateError = useCallback(
+    (
+      error: unknown,
+      fallback = t('orders.messages.errors.failedUpdateStatus'),
+    ) => {
+      onError(
+        error instanceof Error && error.message ? error.message : fallback,
+      );
+    },
+    [onError, t],
+  );
 
   const handleWorkspaceUpdateErrorRef = useRef(handleWorkspaceUpdateError);
-  handleWorkspaceUpdateErrorRef.current = handleWorkspaceUpdateError;
 
+  useEffect(() => {
+    persistSaleWorkspaceRawRef.current = persistSaleWorkspaceRaw;
+    handleWorkspaceUpdateErrorRef.current = handleWorkspaceUpdateError;
+  }, [persistSaleWorkspaceRaw, handleWorkspaceUpdateError]);
+
+  // Queue callbacks only read refs when async work runs, never during render.
+  /* eslint-disable react-hooks/refs */
   const workspaceQueue = useMemo(
     () =>
       createSaleWorkspaceUpdateQueue({
@@ -1371,6 +1381,7 @@ export const OrdersWorkspace = ({
       }),
     [],
   );
+  /* eslint-enable react-hooks/refs */
 
   const persistSaleWorkspace = async (
     sale: Sale,
