@@ -1,13 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../../entities/client/model/types';
 import {
-  getClientStatusClass,
-  getClientStatusColor,
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
 } from '../../../../entities/client/model/constants';
 import { formatDateTime } from '../../../../shared/lib/format';
+import { Button } from '../../../../shared/ui/Button';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
+import { PhoneNumber } from '../shared/PhoneNumber';
 import {
   defaultClientStats,
   formatClientIncome,
@@ -41,9 +42,8 @@ export const ClientsTable = ({
       <table className='orders-table clients-table'>
         <thead>
           <tr>
-            <th>{t('clients.table.columns.id')}</th>
-            <th>{t('clients.table.columns.tag')}</th>
             <th>{t('clients.table.columns.name')}</th>
+            <th>{t('clients.table.columns.tag')}</th>
             <th>{t('clients.table.columns.phone')}</th>
             <th>{t('clients.table.columns.registrationDate')}</th>
             <th>{t('clients.table.columns.visits')}</th>
@@ -54,17 +54,17 @@ export const ClientsTable = ({
         <tbody>
           {isLoading ? (
             <tr>
-              <td colSpan={8} className='orders-empty'>
+              <td colSpan={7} className='orders-empty'>
                 <TableSkeleton
                   rows={6}
-                  columns={8}
+                  columns={7}
                   label={t('clients.table.loading')}
                 />
               </td>
             </tr>
           ) : filteredClientsCount === 0 ? (
             <tr>
-              <td colSpan={8} className='orders-empty'>
+              <td colSpan={7} className='orders-empty'>
                 {t('clients.table.empty')}
               </td>
             </tr>
@@ -103,38 +103,26 @@ export const ClientsTable = ({
                   }
                   onClick={() => onOpenClientCard(client.id)}
                 >
-                  <td data-label={t('clients.table.columns.id')}>
-                    {client.id.slice(-6)}
+                  <td data-label={t('clients.table.columns.name')}>
+                    {client.name}
                   </td>
                   <td data-label={t('clients.table.columns.tag')}>
-                    <span
-                      className={`client-status-badge ${getClientStatusClass(
-                        effectiveStatus || '',
-                      )}`}
-                      style={{
-                        backgroundColor: getClientStatusColor(
-                          effectiveStatus || '',
-                        ),
-                        color: 'white',
-                      }}
+                    <StatusBadge
+                      clientStatus={effectiveStatus || ''}
+                      label={t(getClientStatusLabelKey(effectiveStatus))}
                       title={
                         isBlacklisted
                           ? t('clients.table.blacklistTitle')
                           : undefined
                       }
-                    >
-                      {t(getClientStatusLabelKey(effectiveStatus))}
-                    </span>
-                  </td>
-                  <td data-label={t('clients.table.columns.name')}>
-                    {client.name}
+                    />
                   </td>
                   <td data-label={t('clients.table.columns.phone')}>
                     <a
                       href={`tel:${client.phone}`}
                       onClick={(event) => event.stopPropagation()}
                     >
-                      {client.phone}
+                      <PhoneNumber value={client.phone} />
                     </a>
                   </td>
                   <td data-label={t('clients.table.columns.registrationDate')}>
@@ -147,8 +135,8 @@ export const ClientsTable = ({
                     {formatClientIncome(stats.income)}
                   </td>
                   <td data-label={t('clients.table.columns.actions')}>
-                    <button
-                      type='button'
+                    <Button
+                      variant='ghost'
                       className='clients-delete-button'
                       disabled={stats.visits > 0}
                       onClick={(event) => {
@@ -164,8 +152,8 @@ export const ClientsTable = ({
                           : t('clients.table.deleteTitle')
                       }
                     >
-                      x
-                    </button>
+                      ×
+                    </Button>
                   </td>
                 </tr>
               );

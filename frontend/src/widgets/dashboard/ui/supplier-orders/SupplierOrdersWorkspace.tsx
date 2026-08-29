@@ -21,7 +21,6 @@ import type {
   SupplierOrder,
   SupplierOrderFormValues,
   SupplierOrderStatus,
-  SupplierPaymentStatus,
 } from '../../../../entities/supplier-order/model/types';
 import { getWarehouseSettings } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
@@ -32,33 +31,44 @@ import {
 } from '../../model/supplier-order-utils';
 import {
   computeSupplierOrderStatusMenuPosition,
+  emptySupplierOrdersFilters,
   filterSupplierOrders,
+  getActiveSupplierOrdersFiltersCount,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
   parseSupplierOrdersFilters,
-  supplierOrderStatuses,
   supplierOrdersAllColumns,
   supplierOrdersColumnsStorageKey,
+  supplierOrdersDefaultColumns,
   supplierOrdersFiltersStorageKey,
   supplierOrdersLockedColumns,
-  supplierPaymentStatuses,
+  summarizeFilteredSupplierOrders,
   type OrdersTab,
   type SupplierOrdersColumnKey,
+  type SupplierOrdersFilters,
 } from '../../model/supplier-orders-workspace';
-
-const notifyFinanceUpdated = () => {
-  window.dispatchEvent(new Event('project-goods:finance-updated'));
-};
+import {
+  createSavedFilter as createSavedFilterRequest,
+  deleteSavedFilter as deleteSavedFilterRequest,
+  listSavedFilters,
+} from '../../../../entities/saved-filter/api/savedFilterApi';
+import type { SavedFilterRecord } from '../../../../entities/saved-filter/model/types';
+import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../orders/modals/SupplierOrderModal';
+import { SupplierOrdersActiveFilterChips } from './SupplierOrdersActiveFilterChips';
+import { SupplierOrdersFilterPanel } from './SupplierOrdersFilterPanel';
 import {
   CatalogProductEditModal,
   SupplierEditModal,
   SupplierInformationDashboard,
   SupplierOrderStatusMenuPortal,
-  SupplierOrdersDateFilterPanel,
   SupplierOrdersTable,
   SupplierOrdersToolbar,
 } from './SupplierOrdersWorkspaceSections';
+
+const notifyFinanceUpdated = () => {
+  window.dispatchEvent(new Event('project-goods:finance-updated'));
+};
 
 type Props = {
   activeTab: OrdersTab;
@@ -69,6 +79,7 @@ type Props = {
   suppliers: Supplier[];
   catalogProducts: CatalogProduct[];
   currentEmployeeName: string;
+  currentEmployeeId?: string;
   canViewSupplierOrders: boolean;
   canManageSupplierOrders: boolean;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
@@ -93,6 +104,7 @@ export const SupplierOrdersWorkspace = ({
   suppliers,
   catalogProducts,
   currentEmployeeName,
+  currentEmployeeId,
   canViewSupplierOrders,
   canManageSupplierOrders,
   onCreateSupplier,
@@ -112,7 +124,10 @@ export const SupplierOrdersWorkspace = ({
     useCancelSupplierOrderItemMutation();
   const takeOnChargeSupplierOrderMutation =
     useTakeOnChargeSupplierOrderMutation();
-  const orders = supplierOrdersQuery.data ?? [];
+  const orders = useMemo(
+    () => supplierOrdersQuery.data ?? [],
+    [supplierOrdersQuery.data],
+  );
   const isLoading = supplierOrdersQuery.isLoading;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
@@ -123,26 +138,19 @@ export const SupplierOrdersWorkspace = ({
       ),
     [],
   );
-  const [query, setQuery] = useState(initialFilters.query);
-  const [selectedStatuses, setSelectedStatuses] = useState<
-    SupplierOrderStatus[]
-  >(initialFilters.selectedStatuses);
-  const [paymentStatus, setPaymentStatus] = useState<
-    SupplierPaymentStatus | 'all'
-  >(initialFilters.paymentStatus);
-  const [deliveryDateFrom, setDeliveryDateFrom] = useState(
-    initialFilters.deliveryDateFrom,
-  );
-  const [deliveryDateTo, setDeliveryDateTo] = useState(
-    initialFilters.deliveryDateTo,
-  );
-  const [favoritesOnly, setFavoritesOnly] = useState(
-    initialFilters.favoritesOnly,
-  );
+  const [appliedFilters, setAppliedFilters] =
+    useState<SupplierOrdersFilters>(initialFilters);
+  const [draftFilters, setDraftFilters] =
+    useState<SupplierOrdersFilters>(initialFilters);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
-  const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
-  const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [isPaymentFilterOpen, setIsPaymentFilterOpen] = useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
+  const [savedFilters, setSavedFilters] = useState<
+    SavedFilterRecord<SupplierOrdersFilters>[]
+  >([]);
+  const [newFilterName, setNewFilterName] = useState('');
+  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0] ?? '?');
   const [openStatusOrder, setOpenStatusOrder] = useState<{
     key: string;
     order: SupplierOrder;
@@ -157,8 +165,6 @@ export const SupplierOrdersWorkspace = ({
     maxHeight: number;
     placement: 'below' | 'above';
   } | null>(null);
-  const [statusQuery, setStatusQuery] = useState('');
-  const [paymentQuery, setPaymentQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SupplierOrder | null>(null);
   const [editingOrderSource, setEditingOrderSource] =
@@ -166,8 +172,8 @@ export const SupplierOrdersWorkspace = ({
   const [editingOrderItemIndex, setEditingOrderItemIndex] = useState<
     number | null
   >(null);
-  const orderStatusFilterRef = useRef<HTMLDivElement | null>(null);
-  const paymentStatusFilterRef = useRef<HTMLDivElement | null>(null);
+  const statusFilterRef = useRef<HTMLDivElement | null>(null);
+  const paymentFilterRef = useRef<HTMLDivElement | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const supplierOrdersTableWrapRef = useRef<HTMLDivElement | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<
@@ -204,19 +210,19 @@ export const SupplierOrdersWorkspace = ({
       if (!target) return;
 
       if (
-        isOrderStatusOpen &&
-        orderStatusFilterRef.current &&
-        !orderStatusFilterRef.current.contains(target)
+        isStatusFilterOpen &&
+        statusFilterRef.current &&
+        !statusFilterRef.current.contains(target)
       ) {
-        setIsOrderStatusOpen(false);
+        setIsStatusFilterOpen(false);
       }
 
       if (
-        isPaymentStatusOpen &&
-        paymentStatusFilterRef.current &&
-        !paymentStatusFilterRef.current.contains(target)
+        isPaymentFilterOpen &&
+        paymentFilterRef.current &&
+        !paymentFilterRef.current.contains(target)
       ) {
-        setIsPaymentStatusOpen(false);
+        setIsPaymentFilterOpen(false);
       }
 
       if (
@@ -240,7 +246,7 @@ export const SupplierOrdersWorkspace = ({
     return () => {
       document.removeEventListener('mousedown', closeMenusOnOutsideClick);
     };
-  }, [isColumnsMenuOpen, isOrderStatusOpen, isPaymentStatusOpen, openStatusOrder]);
+  }, [isColumnsMenuOpen, isPaymentFilterOpen, isStatusFilterOpen, openStatusOrder]);
 
   useEffect(() => {
     if (!openStatusOrder) {
@@ -334,71 +340,35 @@ export const SupplierOrdersWorkspace = ({
   }, []);
 
   const filteredOrders = useMemo(
-    () =>
-      filterSupplierOrders(orders, {
-        query,
-        selectedStatuses,
-        paymentStatus,
-        deliveryDateFrom,
-        deliveryDateTo,
-        favoritesOnly,
-      }),
-    [
-      deliveryDateFrom,
-      deliveryDateTo,
-      favoritesOnly,
-      orders,
-      paymentStatus,
-      query,
-      selectedStatuses,
-    ],
+    () => filterSupplierOrders(orders, appliedFilters),
+    [appliedFilters, orders],
   );
-
-  const filteredOrderStatuses = useMemo(() => {
-    const normalized = statusQuery.trim().toLowerCase();
-    return normalized
-      ? supplierOrderStatuses.filter((item) =>
-          t(item.labelKey).toLowerCase().includes(normalized),
-        )
-      : supplierOrderStatuses;
-  }, [statusQuery, t]);
-
-  const filteredPaymentStatuses = useMemo(() => {
-    const normalized = paymentQuery.trim().toLowerCase();
-    return normalized
-      ? supplierPaymentStatuses.filter((item) =>
-          t(item.labelKey).toLowerCase().includes(normalized),
-        )
-      : supplierPaymentStatuses;
-  }, [paymentQuery, t]);
 
   const paginatedOrders = useMemo(
     () => paginateSupplierOrders(filteredOrders, page, pageSize),
     [filteredOrders, page, pageSize],
   );
+  const filteredTotals = useMemo(
+    () => summarizeFilteredSupplierOrders(filteredOrders),
+    [filteredOrders],
+  );
   const isInformationTab = activeTab === 'supplierInformation';
   const previousRange = useMemo(
-    () => getPreviousDeliveryDateRange(deliveryDateFrom, deliveryDateTo),
-    [deliveryDateFrom, deliveryDateTo],
+    () =>
+      getPreviousDeliveryDateRange(
+        appliedFilters.dateFrom,
+        appliedFilters.dateTo,
+      ),
+    [appliedFilters.dateFrom, appliedFilters.dateTo],
   );
   const previousOrders = useMemo(() => {
     if (!previousRange) return undefined;
     return filterSupplierOrders(orders, {
-      query,
-      selectedStatuses,
-      paymentStatus,
-      deliveryDateFrom: previousRange.dateFrom,
-      deliveryDateTo: previousRange.dateTo,
-      favoritesOnly,
+      ...appliedFilters,
+      dateFrom: previousRange.dateFrom,
+      dateTo: previousRange.dateTo,
     });
-  }, [
-    favoritesOnly,
-    orders,
-    paymentStatus,
-    previousRange,
-    query,
-    selectedStatuses,
-  ]);
+  }, [appliedFilters, orders, previousRange]);
   const supplierInformation = useMemo(
     () =>
       buildSupplierOrderAnalytics(filteredOrders, new Date(), {
@@ -407,35 +377,12 @@ export const SupplierOrdersWorkspace = ({
     [filteredOrders, previousOrders],
   );
 
-  const toggleStatus = (status: SupplierOrderStatus) => {
-    setSelectedStatuses((current) =>
-      current.includes(status)
-        ? current.filter((item) => item !== status)
-        : [...current, status],
-    );
-    setPage(1);
-  };
-
   useEffect(() => {
     window.localStorage.setItem(
       supplierOrdersFiltersStorageKey,
-      JSON.stringify({
-        query,
-        selectedStatuses,
-        paymentStatus,
-        deliveryDateFrom,
-        deliveryDateTo,
-        favoritesOnly,
-      }),
+      JSON.stringify(appliedFilters),
     );
-  }, [
-    deliveryDateFrom,
-    deliveryDateTo,
-    favoritesOnly,
-    paymentStatus,
-    query,
-    selectedStatuses,
-  ]);
+  }, [appliedFilters]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -444,8 +391,70 @@ export const SupplierOrdersWorkspace = ({
     );
   }, [visibleColumns]);
 
-  const dateFiltersCount =
-    (deliveryDateFrom ? 1 : 0) + (deliveryDateTo ? 1 : 0);
+  const activeFiltersCount = getActiveSupplierOrdersFiltersCount(appliedFilters);
+  const query = appliedFilters.query;
+  const favoritesOnly = appliedFilters.favoritesOnly;
+  const canManageSavedFilters = Boolean(currentEmployeeId);
+  const createdByOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const order of orders) {
+      const name = order.createdBy.trim();
+      if (name) names.add(name);
+    }
+    return [...names].sort((first, second) => first.localeCompare(second));
+  }, [orders]);
+  const supplierLabelById = useMemo(
+    () => new Map(suppliers.map((supplier) => [supplier.id, supplier.name])),
+    [suppliers],
+  );
+  const visibleSavedFilters = useMemo(
+    () =>
+      savedFilters.filter(
+        (item) =>
+          item.tab === 'supplierOrders' &&
+          (!currentEmployeeId || item.employeeId === currentEmployeeId),
+      ),
+    [currentEmployeeId, savedFilters],
+  );
+
+  const commitFilters = useCallback(
+    (next: SupplierOrdersFilters) => {
+      const sanitized: SupplierOrdersFilters = {
+        ...next,
+        query: next.query,
+        orderNumber: next.orderNumber.trim(),
+        product: next.product.trim(),
+        createdBy: next.createdBy.trim(),
+        supplierId: next.supplierId,
+      };
+      setAppliedFilters(sanitized);
+      setDraftFilters(sanitized);
+      setPage(1);
+    },
+    [],
+  );
+
+  const applyFilters = () => {
+    commitFilters({
+      ...draftFilters,
+      query: appliedFilters.query,
+      favoritesOnly: appliedFilters.favoritesOnly,
+    });
+    setIsStatusFilterOpen(false);
+    setIsPaymentFilterOpen(false);
+    if (isFilterBarOpen) {
+      setIsFilterBarOpen(false);
+    }
+  };
+
+  const resetFilters = () => {
+    commitFilters({
+      ...emptySupplierOrdersFilters,
+      query: appliedFilters.query,
+    });
+    setIsStatusFilterOpen(false);
+    setIsPaymentFilterOpen(false);
+  };
 
   const toggleColumnVisibility = (columnKey: SupplierOrdersColumnKey) => {
     if (supplierOrdersLockedColumns.includes(columnKey)) return;
@@ -456,6 +465,112 @@ export const SupplierOrdersWorkspace = ({
             (key) => key === columnKey || current.includes(key),
           ),
     );
+  };
+
+  const resetColumns = () => {
+    setVisibleColumns(supplierOrdersDefaultColumns);
+  };
+
+  useEffect(() => {
+    if (!currentEmployeeId) {
+      setSavedFilters([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await listSavedFilters<SupplierOrdersFilters>('orders');
+        if (!cancelled) {
+          setSavedFilters(remote);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.supplier.messages.errors.failedLoad'),
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentEmployeeId, onError, t]);
+
+  const saveCurrentFilter = () => {
+    if (!currentEmployeeId) {
+      onError(t('orders.messages.errors.employeeRequiredForFilters'));
+      return;
+    }
+    const name = newFilterName.trim();
+    if (!name) {
+      onError(t('orders.messages.errors.enterFilterName'));
+      return;
+    }
+    const payload: SupplierOrdersFilters = {
+      ...draftFilters,
+      query: '',
+      orderNumber: draftFilters.orderNumber.trim(),
+      product: draftFilters.product.trim(),
+      createdBy: draftFilters.createdBy.trim(),
+    };
+    void (async () => {
+      try {
+        const created = await createSavedFilterRequest({
+          scope: 'orders',
+          tab: 'supplierOrders',
+          name,
+          icon: newFilterIcon,
+          filters: payload,
+        });
+        setSavedFilters((current) => [created, ...current]);
+        setNewFilterName('');
+        onSuccess(t('orders.messages.success.filterSaved'));
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.supplier.messages.errors.failedLoad'),
+        );
+      }
+    })();
+  };
+
+  const applySavedFilter = (filterId: string) => {
+    const saved = savedFilters.find((item) => item.id === filterId);
+    if (!saved) return;
+    commitFilters({
+      ...parseSupplierOrdersFilters(saved.filters),
+      query: appliedFilters.query,
+    });
+    setIsFilterBarOpen(false);
+  };
+
+  const removeSavedFilter = (filterId: string) => {
+    void (async () => {
+      try {
+        await deleteSavedFilterRequest(filterId);
+        setSavedFilters((current) =>
+          current.filter((item) => item.id !== filterId),
+        );
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.supplier.messages.errors.failedLoad'),
+        );
+      }
+    })();
+  };
+
+  const openSingleMatch = () => {
+    const match = filteredOrders[0];
+    if (!match || filteredOrders.length !== 1) return;
+    setEditingOrder(match);
+    setEditingOrderSource(match);
+    setEditingOrderItemIndex(match.items.length === 1 ? 0 : null);
+    setIsModalOpen(true);
   };
 
   const toggleSupplierOrderExpanded = useCallback((orderId: string) => {
@@ -607,25 +722,15 @@ export const SupplierOrdersWorkspace = ({
     <section className='orders-page'>
       <SupplierOrdersToolbar
         activeTab={activeTab}
-        dateFiltersCount={dateFiltersCount}
+        activeFiltersCount={activeFiltersCount}
         filteredOrdersCount={filteredOrders.length}
-        filteredOrderStatuses={filteredOrderStatuses}
-        filteredPaymentStatuses={filteredPaymentStatuses}
         isColumnsMenuOpen={isColumnsMenuOpen}
         isFilterBarOpen={isFilterBarOpen}
         isInformationTab={isInformationTab}
-        isOrderStatusOpen={isOrderStatusOpen}
-        isPaymentStatusOpen={isPaymentStatusOpen}
-        orderStatusFilterRef={orderStatusFilterRef}
-        paymentStatusFilterRef={paymentStatusFilterRef}
         columnsMenuRef={columnsMenuRef}
-        paymentQuery={paymentQuery}
-        paymentStatus={paymentStatus}
         page={page}
         pageSize={pageSize}
         query={query}
-        selectedStatuses={selectedStatuses}
-        statusQuery={statusQuery}
         favoritesOnly={favoritesOnly}
         visibleColumns={visibleColumns}
         visibleTabs={visibleTabs}
@@ -643,42 +748,51 @@ export const SupplierOrdersWorkspace = ({
         }}
         onColumnsMenuOpenChange={setIsColumnsMenuOpen}
         onFilterBarOpenChange={setIsFilterBarOpen}
-        onOrderStatusOpenChange={setIsOrderStatusOpen}
-        onPaymentStatusOpenChange={setIsPaymentStatusOpen}
-        onPaymentQueryChange={setPaymentQuery}
-        onPaymentStatusChange={setPaymentStatus}
         onPageChange={setPage}
         onQueryChange={(nextQuery) => {
-          setQuery(nextQuery);
-          setPage(1);
+          commitFilters({ ...appliedFilters, query: nextQuery });
         }}
-        onSelectedStatusesChange={setSelectedStatuses}
-        onStatusQueryChange={setStatusQuery}
         onFavoritesOnlyChange={() => {
-          setFavoritesOnly((current) => !current);
-          setPage(1);
+          commitFilters({
+            ...appliedFilters,
+            favoritesOnly: !appliedFilters.favoritesOnly,
+          });
         }}
         onToggleColumnVisibility={toggleColumnVisibility}
-        onToggleStatus={toggleStatus}
+        onResetColumns={resetColumns}
+        onOpenSingleMatch={openSingleMatch}
       />
 
-      <SupplierOrdersDateFilterPanel
-        deliveryDateFrom={deliveryDateFrom}
-        deliveryDateTo={deliveryDateTo}
+      <SupplierOrdersFilterPanel
         isOpen={isFilterBarOpen}
-        onDeliveryDateFromChange={(value) => {
-          setDeliveryDateFrom(value);
-          setPage(1);
-        }}
-        onDeliveryDateToChange={(value) => {
-          setDeliveryDateTo(value);
-          setPage(1);
-        }}
-        onClearDates={() => {
-          setDeliveryDateFrom('');
-          setDeliveryDateTo('');
-          setPage(1);
-        }}
+        isStatusFilterOpen={isStatusFilterOpen}
+        isPaymentFilterOpen={isPaymentFilterOpen}
+        canManageSavedFilters={canManageSavedFilters}
+        draftFilters={draftFilters}
+        savedFilters={visibleSavedFilters}
+        suppliers={suppliers}
+        createdByOptions={createdByOptions}
+        newFilterName={newFilterName}
+        newFilterIcon={newFilterIcon}
+        statusFilterRef={statusFilterRef}
+        paymentFilterRef={paymentFilterRef}
+        setDraftFilters={setDraftFilters}
+        setIsStatusFilterOpen={setIsStatusFilterOpen}
+        setIsPaymentFilterOpen={setIsPaymentFilterOpen}
+        setNewFilterName={setNewFilterName}
+        setNewFilterIcon={setNewFilterIcon}
+        onApplyFilters={applyFilters}
+        onResetFilters={resetFilters}
+        onSaveCurrentFilter={saveCurrentFilter}
+        onApplySavedFilter={applySavedFilter}
+        onRemoveSavedFilter={removeSavedFilter}
+      />
+
+      <SupplierOrdersActiveFilterChips
+        filters={appliedFilters}
+        supplierLabelById={supplierLabelById}
+        onChangeFilters={commitFilters}
+        onClearAll={resetFilters}
       />
 
       {isInformationTab ? (
@@ -692,6 +806,7 @@ export const SupplierOrdersWorkspace = ({
           catalogProducts={catalogProducts}
           expandedOrderIds={expandedSupplierOrderIds}
           filteredOrdersCount={filteredOrders.length}
+          totals={filteredTotals}
           isLoading={isLoading}
           openStatusOrder={openStatusOrder}
           page={page}
@@ -801,13 +916,18 @@ export const SupplierOrdersWorkspace = ({
         onCancelItem={async (reason) => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          if (editingOrderItemIndex === null) return;
+          const itemIndex =
+            editingOrderItemIndex ??
+            (editingOrder.items.length === 1
+              ? (editingOrder.items[0]?.itemIndex ?? 0)
+              : null);
+          if (itemIndex === null) return;
           const orderId =
             editingOrderSource?.id ?? editingOrder.id;
           await cancelSupplierOrderItemMutation.mutateAsync({
             supplierOrderId: orderId,
             payload: {
-              itemIndex: editingOrderItemIndex,
+              itemIndex,
               reason,
             },
           });

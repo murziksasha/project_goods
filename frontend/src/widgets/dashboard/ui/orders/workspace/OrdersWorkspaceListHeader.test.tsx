@@ -129,4 +129,19 @@ describe('OrdersWorkspaceListHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: /reset columns/i }));
     expect(onResetColumns).toHaveBeenCalledTimes(1);
   });
+
+  it('uses the sales search placeholder on the sales tab', () => {
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        activeTab="sales"
+      />,
+    );
+
+    expect(
+      screen.getByPlaceholderText(
+        /order, client, phone, product or manager/i,
+      ),
+    ).toBeInTheDocument();
+  });
 });

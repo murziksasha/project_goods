@@ -31,13 +31,15 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 ## Client Card Tabs
 
 - In `Clients & suppliers -> Clients`, opening a client card shows **5 header tabs** (always visible under the title row):
-  1. `Main` — editable client form (name, phones, status, IBAN, note, save).
+  1. `Main` — editable client form (name, phones, status, IBAN, note). Save/Cancel live in a sticky footer.
   2. `Orders` — repair orders for this client (`sale.kind === 'repair'`).
   3. `Sales` — sales for this client (`sale.kind === 'sale'`).
   4. `Client devices` — active client devices + Unbind.
   5. `Information` — aggregate stats (orders/sales counts and amounts, total, first/last contact).
 - Tab strip uses dedicated `clients-card-tabs` styles (sale-card related-tabs pattern), not body-only scroll content.
-- Layout shell is always 2 rows (`header` + scrollable `body`); tabs live in the header extra row so they stay visible while the body scrolls.
+- Layout shell is 3 rows (`header` + scrollable `body` + optional `footer` on Main). Tabs live in the header extra row so they stay visible while the body scrolls.
+- Clients / Suppliers list tables lead with **Name** (no truncated `Id` column). ID remains in the Filter drawer.
+- Status select on Main stores the raw value: `-` (`''`, auto) plus pinned `ok` / `opt` / `vip` / `blacklist`. It must not bind to effective status. Auto mode shows `Auto: {effective}` (status words stay English per the localization rule above).
 - Responsive:
   - tabs scroll horizontally on narrow widths;
   - phone + “total for client” share one meta row (desktop/tablet); stack vertically under ~530px;

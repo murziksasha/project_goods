@@ -154,6 +154,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 ## Saved named filters (server, per creator)
 
 - **Named** saved filters (orders workspace, warehouse, clients/suppliers, product catalog) persist in MongoDB via `GET/POST/DELETE /api/saved-filters` and belong to the **creating employee**.
+- Orders workspace `tab` values: `orders`, `sales`, `kanban`, `supplierOrders`.
 - Same employee sees their filters on any browser/device after login; other employees never see them.
 - Scopes: `orders` | `warehouse` | `clients` | `catalog`; `tab` selects list sub-tab.
 - **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.

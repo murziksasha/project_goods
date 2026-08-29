@@ -366,7 +366,8 @@
     min-width: min(100%, 180px);
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     white-space: normal;
   }
 
@@ -653,11 +654,6 @@
 
   .supplier-orders-toolbar-left {
     flex-wrap: wrap;
-  }
-
-  .supplier-orders-quick-filters {
-    flex-wrap: wrap;
-    overflow-x: visible;
   }
 
   .finance-transactions-toolbar-left {
@@ -958,9 +954,7 @@
   }
 
   .clients-toolbar-actions .toolbar-filter-button,
-  .clients-toolbar-actions .clients-import-button,
-  .clients-toolbar-actions .clients-export-button,
-  .clients-toolbar-actions .orders-create-button {
+  .clients-toolbar-actions button {
     flex: 1;
     width: 100%;
   }
@@ -971,7 +965,7 @@
     height: min(760px, calc(100dvh - 16px), calc(100vh - 16px));
     max-height: min(calc(100dvh - 16px), calc(100vh - 16px));
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
   }
 
@@ -1004,11 +998,6 @@
   .clients-card-total-inline {
     white-space: normal;
     line-height: 1.35;
-  }
-
-  .clients-card-body .clients-main-save {
-    max-width: none;
-    width: 100%;
   }
 
   .clients-card-list-toolbar {
@@ -1662,11 +1651,13 @@
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 0 1 auto;
-    white-space: nowrap;
+    min-height: 36px;
     padding: 8px 10px;
     font-size: 0.88rem;
+    white-space: nowrap;
   }
 
   .order-detail-main-panel .order-detail-list {
@@ -2064,10 +2055,12 @@
   }
 
   .order-detail-header-actions {
+    width: 100%;
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 1 1 auto;
     min-width: 0;
   }

@@ -6,6 +6,7 @@ import {
   type OrdersFilters,
   type PaymentMethod,
   type RepairTypeFilter,
+  type SaleTypeFilter,
   type SavedOrdersFilter,
 } from './orders-workspace-shared';
 
@@ -32,8 +33,8 @@ type OrdersWorkspaceFilterPanelProps = {
   newFilterName: string;
   newFilterIcon: string;
   statusFilterRef: RefObject<HTMLDivElement | null>;
-  /** Kanban: master + dates only. */
-  variant?: 'full' | 'kanban';
+  /** Kanban: master + dates only. Sales: manager + sale type, no repair type. */
+  variant?: 'full' | 'kanban' | 'sales';
   setDraftFilters: Dispatch<SetStateAction<OrdersFilters>>;
   setIsStatusFilterOpen: Dispatch<SetStateAction<boolean>>;
   setIsSaveFilterDrawerOpen: Dispatch<SetStateAction<boolean>>;
@@ -77,6 +78,7 @@ export const OrdersWorkspaceFilterPanel = ({
 }: OrdersWorkspaceFilterPanelProps) => {
   const { t } = useTranslation();
   const isKanban = variant === 'kanban';
+  const isSales = variant === 'sales';
 
   return (
     <>
@@ -230,7 +232,9 @@ export const OrdersWorkspaceFilterPanel = ({
             <span>
               {isKanban
                 ? t('orders.filters.master')
-                : t('orders.filters.assignee')}
+                : isSales
+                  ? t('orders.filters.manager')
+                  : t('orders.filters.assignee')}
             </span>
             <select
               value={draftFilters.assigneeId}
@@ -250,7 +254,30 @@ export const OrdersWorkspaceFilterPanel = ({
             </select>
           </label>
 
-          {!isKanban ? (
+          {isSales ? (
+            <label className="orders-filter-field">
+              <span>{t('orders.filters.saleType')}</span>
+              <select
+                value={draftFilters.saleType}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    saleType: event.target.value as SaleTypeFilter,
+                  }))
+                }
+              >
+                <option value="all">{t('orders.filters.all')}</option>
+                <option value="rapid">
+                  {t('orders.filters.saleTypeRapid')}
+                </option>
+                <option value="regular">
+                  {t('orders.filters.saleTypeRegular')}
+                </option>
+              </select>
+            </label>
+          ) : null}
+
+          {!isKanban && !isSales ? (
             <>
               <label className="orders-filter-field">
                 <span>{t('orders.filters.repairType')}</span>

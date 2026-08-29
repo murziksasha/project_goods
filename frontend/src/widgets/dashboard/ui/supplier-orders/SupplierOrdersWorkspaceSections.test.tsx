@@ -56,6 +56,13 @@ const renderTable = ({
       catalogProducts={[]}
       expandedOrderIds={expandedOrderIds}
       filteredOrdersCount={1}
+      totals={{
+        orderCount: 1,
+        pcs: 5,
+        total: 500,
+        paid: 100,
+        outstanding: 400,
+      }}
       isLoading={false}
       openStatusOrder={null}
       page={1}
@@ -114,6 +121,13 @@ describe('SupplierOrdersTable', () => {
         catalogProducts={[]}
         expandedOrderIds={new Set()}
         filteredOrdersCount={1}
+        totals={{
+          orderCount: 1,
+          pcs: 1,
+          total: 500,
+          paid: 100,
+          outstanding: 400,
+        }}
         isLoading={false}
         openStatusOrder={null}
         page={1}
@@ -160,6 +174,13 @@ describe('SupplierOrdersTable', () => {
         catalogProducts={[]}
         expandedOrderIds={new Set()}
         filteredOrdersCount={1}
+        totals={{
+          orderCount: 1,
+          pcs: 1,
+          total: 500,
+          paid: 100,
+          outstanding: 400,
+        }}
         isLoading={false}
         openStatusOrder={null}
         page={1}
@@ -200,6 +221,13 @@ describe('SupplierOrdersTable', () => {
         catalogProducts={[]}
         expandedOrderIds={new Set()}
         filteredOrdersCount={1}
+        totals={{
+          orderCount: 1,
+          pcs: 1,
+          total: 500,
+          paid: 100,
+          outstanding: 400,
+        }}
         isLoading={false}
         openStatusOrder={null}
         page={1}
@@ -391,6 +419,52 @@ describe('SupplierOrdersTable', () => {
 
     renderTable({ order });
 
-    expect(screen.getByText('Cancelled cable')).toHaveClass('supplier-order-item-cancelled');
+    expect(screen.getByText('Cancelled cable').closest('button')).toHaveClass(
+      'supplier-order-item-cancelled',
+    );
+  });
+
+  it('applies unpaid money styling and shows filtered totals', () => {
+    const order = makeOrder({
+      paymentStatus: 'pending',
+      total: 500,
+      paid: 100,
+    });
+    render(
+      <SupplierOrdersTable
+        catalogProducts={[]}
+        expandedOrderIds={new Set()}
+        filteredOrdersCount={1}
+        totals={{
+          orderCount: 1,
+          pcs: 5,
+          total: 500,
+          paid: 100,
+          outstanding: 400,
+        }}
+        isLoading={false}
+        openStatusOrder={null}
+        page={1}
+        pageSize={30}
+        paginatedOrders={[order]}
+        suppliers={[]}
+        visibleColumns={['number', 'paid']}
+        canViewSupplierOrders
+        canManageSupplierOrders
+        onError={vi.fn()}
+        onEditOrder={vi.fn()}
+        onOpenCatalogProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        onToggleOrderExpanded={vi.fn()}
+        onOpenStatusOrder={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
+    expect(screen.getByText('1 orders')).toBeTruthy();
+    expect(screen.getByText(/Outstanding/)).toBeTruthy();
   });
 });

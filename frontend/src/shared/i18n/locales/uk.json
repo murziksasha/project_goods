@@ -533,6 +533,7 @@
       "master": "Майстер",
       "status": "Статус",
       "device": "Пристрій",
+      "product": "Товар",
       "serviceCenter": "Сервісний центр",
       "price": "Ціна",
       "paid": "Оплачено",
@@ -703,7 +704,7 @@
       "unstarOrder": "Прибрати зірку з {{orderNumber}}",
       "searchPlaceholder": {
         "orders": "Замовлення, клієнт, телефон або пристрій",
-        "sales": "Замовлення, клієнт, телефон або менеджер"
+        "sales": "Замовлення, клієнт, телефон, товар або менеджер"
       },
       "loading": "Завантаження замовлень...",
       "empty": {
@@ -715,6 +716,7 @@
         "nonUrgent": "Не терміново"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",
@@ -738,8 +740,12 @@
       "clientPlaceholder": "Імʼя або телефон клієнта",
       "assignee": "Майстер / менеджер",
       "master": "Майстер",
+      "manager": "Менеджер",
       "warehouse": "Склад",
       "repairType": "Тип ремонту",
+      "saleType": "Тип продажу",
+      "saleTypeRapid": "Швидкий продаж",
+      "saleTypeRegular": "Звичайний",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Дата від",
@@ -1064,9 +1070,10 @@
       "toolbar": {
         "data": "Дата",
         "createOrder": "Замовити у постачальника",
-        "searchPlaceholder": "Пошук за номером, товаром, постачальником",
+        "searchPlaceholder": "Пошук за номером, товаром, постачальником, автором або нотаткою",
         "orderStatus": "Статус замовлення",
         "orderStatusesCount": "{{count}} статусів замовлення",
+        "paymentStatusesCount": "{{count}} статусів оплати",
         "allPaymentStatuses": "Усі статуси оплати",
         "showAllOrders": "Показати всі замовлення постачальників",
         "showStarredOrders": "Показати обрані замовлення постачальників",
@@ -1082,6 +1089,7 @@
         "paid": "Оплачено",
         "supplier": "Постачальник",
         "createdAt": "Дата замовлення",
+        "createdBy": "Створив",
         "deliveryDate": "Дата поставки",
         "status": "Статус",
         "paymentStatus": "Статус оплати"
@@ -1089,7 +1097,18 @@
       "filters": {
         "dateFrom": "Дата від",
         "dateTo": "Дата до",
-        "clearDates": "Очистити дати"
+        "clearDates": "Очистити дати",
+        "orderStatus": "Статус замовлення",
+        "paymentStatus": "Статус оплати",
+        "supplier": "Постачальник",
+        "createdBy": "Створив",
+        "product": "Товар",
+        "productPlaceholder": "Назва товару",
+        "orderNumber": "№",
+        "orderNumberPlaceholder": "Номер замовлення",
+        "dateField": "Поле дати",
+        "dateFieldDelivery": "Дата поставки",
+        "dateFieldCreated": "Дата замовлення"
       },
       "table": {
         "starOrder": "Додати зірку {{id}}",
@@ -1100,7 +1119,12 @@
         "itemsCount": "{{count}} позицій",
         "expandOrder": "Розгорнути замовлення {{id}}",
         "collapseOrder": "Згорнути замовлення {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} замовлень",
+        "totalsPcs": "{{count}} шт.",
+        "totalsAmount": "Сума {{amount}}",
+        "totalsPaid": "Оплачено {{amount}}",
+        "totalsOutstanding": "Борг {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Замовлення {{id}}"
@@ -1176,7 +1200,11 @@
       },
       "modal": {
         "title": "Замовити у постачальника",
-        "delete": "Видалити",
+        "delete": "Скасувати замовлення",
+        "cancelOrder": "Скасувати замовлення",
+        "cancelOrderTitle": "Скасування замовлення",
+        "cancelOrderConfirm": "Скасувати це замовлення постачальника? Неоприбутковані позиції буде скасовано. Запис не видаляється.",
+        "cancelOrderConfirmAction": "Скасувати замовлення",
         "cancelItem": "Скасувати позицію",
         "cancelItemTitle": "Скасування позиції",
         "cancelItemConfirm": "Скасувати цю позицію в замовленні? Оплата та сума замовлення не змінюються автоматично.",
@@ -1253,6 +1281,7 @@
           "itemReceivedNotCancellable": "Оприбутковану позицію не можна скасувати.",
           "itemAlreadyCancelled": "Позицію вже скасовано.",
           "failedCancelItem": "Не вдалося скасувати позицію.",
+          "failedCancelOrder": "Не вдалося скасувати замовлення постачальника.",
           "alreadyPaid": "Замовлення вже сплачено.",
           "alreadyIssuedWithoutPayment": "Замовлення вже видано без оплати.",
           "payStatusNotAllowed": "Оплата доступна тільки для замовлень зі статусом approved, overdue, stocked або частково оприбуткованих.",
@@ -1437,7 +1466,8 @@
       "information": "Інформація",
       "clientsAndSuppliers": "Клієнти та постачальники",
       "clients": "Клієнти",
-      "suppliers": "Постачальники"
+      "suppliers": "Постачальники",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -1449,7 +1479,9 @@
       "exportXls": "Експорт XLS",
       "exporting": "Експорт...",
       "merge": "Обʼєднати",
-      "createClient": "Створити клієнта"
+      "createClient": "Створити клієнта",
+      "totalCount_one": "{{count}} запис",
+      "totalCount_other": "{{count}} записів"
     },
     "table": {
       "title": "Список клієнтів",
@@ -1564,6 +1596,7 @@
       "removePhoneAriaLabel": "Видалити телефон",
       "saveClient": "Зберегти клієнта",
       "saving": "Збереження...",
+      "statusAutoHint": "Авто: {{status}}",
       "history": {
         "columns": {
           "number": "№",
@@ -1620,6 +1653,7 @@
       "toolbar": {
         "filter": "Фільтр",
         "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
+        "searchAriaLabel": "Пошук постачальника",
         "clearSearchAriaLabel": "Очистити пошук",
         "merge": "Обʼєднати",
         "createSupplier": "Створити постачальника"
@@ -1660,7 +1694,7 @@
         "fields": {
           "name": "Імʼя",
           "phone": "Телефон",
-          "supplierOrder": "Замовлення постачальника",
+          "supplierOrder": "Типове ЗП / номер замовлення",
           "note": "Примітка",
           "status": "Статус"
         },
@@ -2671,7 +2705,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Типовий опис або внутрішня примітка",
       "updateService": "Оновити послугу"
-    }
+    },
+    "pageTitle": "Товари та послуги",
+    "pageSubtitle": "{{count}} записів"
   },
   "employees": {
     "tabs": {

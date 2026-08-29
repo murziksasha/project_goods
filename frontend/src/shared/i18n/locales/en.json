@@ -533,6 +533,7 @@
       "master": "Master",
       "status": "Status",
       "device": "Device",
+      "product": "Product",
       "serviceCenter": "Service center",
       "price": "Price",
       "paid": "Paid",
@@ -703,7 +704,7 @@
       "unstarOrder": "Remove star from {{orderNumber}}",
       "searchPlaceholder": {
         "orders": "Order, client, phone or device",
-        "sales": "Order, client, phone or manager"
+        "sales": "Order, client, phone, product or manager"
       },
       "loading": "Loading orders...",
       "empty": {
@@ -715,6 +716,7 @@
         "nonUrgent": "Non-urgent"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",
@@ -738,8 +740,12 @@
       "clientPlaceholder": "Client name or phone",
       "assignee": "Master / manager",
       "master": "Master",
+      "manager": "Manager",
       "warehouse": "Warehouse",
       "repairType": "Repair type",
+      "saleType": "Sale type",
+      "saleTypeRapid": "Rapid sale",
+      "saleTypeRegular": "Regular",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Date from",
@@ -1064,9 +1070,10 @@
       "toolbar": {
         "data": "Data",
         "createOrder": "Order from supplier",
-        "searchPlaceholder": "Search by number, product, supplier",
+        "searchPlaceholder": "Search by number, product, supplier, author or note",
         "orderStatus": "Order status",
         "orderStatusesCount": "{{count}} order statuses",
+        "paymentStatusesCount": "{{count}} payment statuses",
         "allPaymentStatuses": "All payment statuses",
         "showAllOrders": "Show all supplier orders",
         "showStarredOrders": "Show starred supplier orders",
@@ -1082,6 +1089,7 @@
         "paid": "Paid",
         "supplier": "Supplier",
         "createdAt": "Order date",
+        "createdBy": "Created by",
         "deliveryDate": "Delivery date",
         "status": "Status",
         "paymentStatus": "Payment status"
@@ -1089,7 +1097,18 @@
       "filters": {
         "dateFrom": "Date from",
         "dateTo": "Date to",
-        "clearDates": "Clear dates"
+        "clearDates": "Clear dates",
+        "orderStatus": "Order status",
+        "paymentStatus": "Payment status",
+        "supplier": "Supplier",
+        "createdBy": "Created by",
+        "product": "Product",
+        "productPlaceholder": "Product name",
+        "orderNumber": "No.",
+        "orderNumberPlaceholder": "Order number",
+        "dateField": "Date field",
+        "dateFieldDelivery": "Delivery date",
+        "dateFieldCreated": "Order date"
       },
       "table": {
         "starOrder": "Star {{id}}",
@@ -1100,7 +1119,12 @@
         "itemsCount": "{{count}} items",
         "expandOrder": "Expand order {{id}}",
         "collapseOrder": "Collapse order {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} orders",
+        "totalsPcs": "{{count}} pcs",
+        "totalsAmount": "Total {{amount}}",
+        "totalsPaid": "Paid {{amount}}",
+        "totalsOutstanding": "Outstanding {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Order {{id}}"
@@ -1176,7 +1200,11 @@
       },
       "modal": {
         "title": "Order from supplier",
-        "delete": "Delete",
+        "delete": "Cancel order",
+        "cancelOrder": "Cancel order",
+        "cancelOrderTitle": "Cancel order",
+        "cancelOrderConfirm": "Cancel this supplier order? Unreceived items will be cancelled. The order is not permanently deleted.",
+        "cancelOrderConfirmAction": "Cancel order",
         "cancelItem": "Cancel item",
         "cancelItemTitle": "Cancel item",
         "cancelItemConfirm": "Cancel this item in the supplier order? Payment and order total are not adjusted automatically.",
@@ -1253,6 +1281,7 @@
           "itemReceivedNotCancellable": "Received items cannot be cancelled.",
           "itemAlreadyCancelled": "This item is already cancelled.",
           "failedCancelItem": "Failed to cancel supplier order item.",
+          "failedCancelOrder": "Failed to cancel supplier order.",
           "alreadyPaid": "Supplier order is already paid.",
           "alreadyIssuedWithoutPayment": "Supplier order is already issued without payment.",
           "payStatusNotAllowed": "Payment is available only for approved, overdue, stocked, or partially received supplier orders.",
@@ -1437,7 +1466,8 @@
       "information": "Information",
       "clientsAndSuppliers": "Clients and suppliers",
       "clients": "Clients",
-      "suppliers": "Suppliers"
+      "suppliers": "Suppliers",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Filter",
@@ -1449,7 +1479,9 @@
       "exportXls": "Export XLS",
       "exporting": "Exporting...",
       "merge": "Merge",
-      "createClient": "Create client"
+      "createClient": "Create client",
+      "totalCount_one": "{{count}} record",
+      "totalCount_other": "{{count}} records"
     },
     "table": {
       "title": "Client list",
@@ -1564,6 +1596,7 @@
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
       "saving": "Saving...",
+      "statusAutoHint": "Auto: {{status}}",
       "history": {
         "columns": {
           "number": "No.",
@@ -1620,6 +1653,7 @@
       "toolbar": {
         "filter": "Filter",
         "searchPlaceholder": "Search by name, phone or supplier order",
+        "searchAriaLabel": "Search supplier",
         "clearSearchAriaLabel": "Clear search text",
         "merge": "Merge",
         "createSupplier": "Create supplier"
@@ -1660,7 +1694,7 @@
         "fields": {
           "name": "Name",
           "phone": "Phone",
-          "supplierOrder": "Supplier order",
+          "supplierOrder": "Default PO / order ref",
           "note": "Note",
           "status": "Status"
         },
@@ -2671,7 +2705,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Default description or internal note",
       "updateService": "Update service"
-    }
+    },
+    "pageTitle": "Products & services",
+    "pageSubtitle": "{{count}} records"
   },
   "employees": {
     "tabs": {

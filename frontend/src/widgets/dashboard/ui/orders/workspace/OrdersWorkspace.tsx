@@ -108,6 +108,7 @@ import {
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
   getPrimaryItemCellContent,
+  getPrimaryItemExtraLineCount,
   getRepairCompletionDate,
   getRemainingPayment,
   getSalePaidAmount,
@@ -418,6 +419,20 @@ export const OrdersWorkspace = ({
         .map((employee) => ({ id: employee.id, label: employee.name }))
         .sort((first, second) => first.label.localeCompare(second.label));
     }
+    if (activeTab === 'sales') {
+      return activeEmployees
+        .filter(
+          (employee) =>
+            employee.role === 'manager' ||
+            employee.role === 'owner' ||
+            hasAnyEmployeePermission(employee, [
+              'sales.manage',
+              'orders.manage',
+            ]),
+        )
+        .map((employee) => ({ id: employee.id, label: employee.name }))
+        .sort((first, second) => first.label.localeCompare(second.label));
+    }
     return activeEmployees
       .map((employee) => ({
         id: employee.id,
@@ -443,7 +458,13 @@ export const OrdersWorkspace = ({
       (appliedFilters.orderNumber.trim() ? 1 : 0) +
       (appliedFilters.client.trim() ? 1 : 0) +
       (appliedFilters.assigneeId ? 1 : 0) +
-      (appliedFilters.repairType !== 'all' ? 1 : 0) +
+      (activeTab === 'sales'
+        ? appliedFilters.saleType !== 'all'
+          ? 1
+          : 0
+        : appliedFilters.repairType !== 'all'
+          ? 1
+          : 0) +
       (appliedFilters.paymentMethod ? 1 : 0) +
       (appliedFilters.dateFrom ? 1 : 0) +
       (appliedFilters.dateTo ? 1 : 0) +
@@ -486,6 +507,7 @@ export const OrdersWorkspace = ({
         isRepairOrdersTab(activeTab)
           ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
+              getPrimaryItemCellContent(sale, activeTab),
               ...clientSearchValues,
               ...salePhones,
               sale.manager?.name ?? '',
@@ -547,16 +569,23 @@ export const OrdersWorkspace = ({
         const matchesAssignee =
           activeTab === 'kanban'
             ? saleMatchesKanbanMasterFilter(sale, appliedFilters.assigneeId)
-            : sale.master?.id === appliedFilters.assigneeId ||
-              sale.manager?.id === appliedFilters.assigneeId;
+            : activeTab === 'sales'
+              ? sale.manager?.id === appliedFilters.assigneeId
+              : sale.master?.id === appliedFilters.assigneeId ||
+                sale.manager?.id === appliedFilters.assigneeId;
         if (!matchesAssignee) {
           return false;
         }
       }
-      if (appliedFilters.repairType === 'warranty') {
+      if (activeTab === 'sales' && appliedFilters.saleType !== 'all') {
+        const isRapidSale = sale.isRapidSale === true;
+        if (appliedFilters.saleType === 'rapid' && !isRapidSale) return false;
+        if (appliedFilters.saleType === 'regular' && isRapidSale) return false;
+      }
+      if (activeTab !== 'sales' && appliedFilters.repairType === 'warranty') {
         if (!hasWarrantyService) return false;
       }
-      if (appliedFilters.repairType === 'paid') {
+      if (activeTab !== 'sales' && appliedFilters.repairType === 'paid') {
         if (hasWarrantyService) return false;
       }
       if (
@@ -796,6 +825,9 @@ export const OrdersWorkspace = ({
         : {
             ...draftFilters,
             warehouse: '',
+            repairType:
+              activeTab === 'sales' ? 'all' : draftFilters.repairType,
+            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -943,6 +975,9 @@ export const OrdersWorkspace = ({
         : {
             ...draftFilters,
             warehouse: '',
+            repairType:
+              activeTab === 'sales' ? 'all' : draftFilters.repairType,
+            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -1669,6 +1704,9 @@ export const OrdersWorkspace = ({
           activeTab,
         );
         const primaryDeviceSerial = getPrimaryDeviceSerial(sale);
+        const extraLineCount = isRepairOrdersTab(activeTab)
+          ? 0
+          : getPrimaryItemExtraLineCount(sale);
         return (
           <button
             type='button'
@@ -1680,17 +1718,18 @@ export const OrdersWorkspace = ({
               text={primaryItemText}
               className="orders-table-cell-truncate"
             />
-            {isRepairOrdersTab(activeTab) ? (
-              primaryDeviceSerial ? (
-                <small title={primaryDeviceSerial}>
-                  {t('orders.toolbar.serialPrefix', {
-                    serial: primaryDeviceSerial,
-                  })}
-                </small>
-              ) : null
-            ) : (
-              <small>{t('orders.toolbar.warehouseLabel')}</small>
-            )}
+            {primaryDeviceSerial ? (
+              <small title={primaryDeviceSerial}>
+                {t('orders.toolbar.serialPrefix', {
+                  serial: primaryDeviceSerial,
+                })}
+              </small>
+            ) : null}
+            {extraLineCount > 0 ? (
+              <small>
+                {t('orders.toolbar.extraLines', { count: extraLineCount })}
+              </small>
+            ) : null}
           </button>
         );
       }
@@ -1704,16 +1743,26 @@ export const OrdersWorkspace = ({
             {formatCurrency(getOrderTotal(sale, getLineItems(sale)))}
           </span>
         );
-      case 'paid':
+      case 'paid': {
+        const remainingPayment = getRemainingPayment(
+          sale,
+          getPaidAmount(sale),
+          getLineItems(sale),
+        );
         return (
           <span
             className={
-              hasNonCashPayment(sale) ? 'orders-money-non-cash' : ''
+              hasNonCashPayment(sale)
+                ? 'orders-money-non-cash'
+                : remainingPayment > 0
+                  ? 'orders-money-unpaid'
+                  : ''
             }
           >
             {formatCurrency(getPaidAmount(sale))}
           </span>
         );
+      }
       case 'client': {
         const clientDisplayName = getSaleClientDisplayName(sale, t);
         const isRapidSale = isRapidSaleClientLinkDisabled(sale);
@@ -2977,7 +3026,13 @@ export const OrdersWorkspace = ({
         newFilterName={newFilterName}
         newFilterIcon={newFilterIcon}
         statusFilterRef={statusFilterRef}
-        variant={activeTab === 'kanban' ? 'kanban' : 'full'}
+        variant={
+          activeTab === 'kanban'
+            ? 'kanban'
+            : activeTab === 'sales'
+              ? 'sales'
+              : 'full'
+        }
         setDraftFilters={setDraftFilters}
         setIsStatusFilterOpen={setIsStatusFilterOpen}
         setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
@@ -2998,7 +3053,9 @@ export const OrdersWorkspace = ({
         assigneeFieldLabel={
           activeTab === 'kanban'
             ? t('orders.filters.master')
-            : undefined
+            : activeTab === 'sales'
+              ? t('orders.filters.manager')
+              : undefined
         }
         onChangeFilters={applyFiltersPatch}
         onClearAll={resetFilters}

@@ -348,7 +348,22 @@ Suggestion rows may show the resolved retail price before click when matching st
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Printed product tables collapse identical products **only when unit price matches** (`groupPrintProductLineItems`). Same name with different prices stay separate rows. Card accordion grouping (no price in the key) is documented in [SALE_CARD.md](./SALE_CARD.md). Print spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+- If remaining to pay is greater than `0` and the latest deposit is not non-cash, `Paid` uses unpaid styling (amber), so unpaid new sales stay visible next to fully paid issued rows.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
+
+## Sales List Columns (`Orders -> Sales`)
+
+- Default visible columns: `Order #`, `Client`, `Product`, `Status`, `Price`, `Paid`, `Manager`, `Created`.
+- Column picker extras: `Issued` (`issuedBy`). Repair-only columns stay off this tab: `Term`, `Master`, `Warehouse`, `Ready date`.
+- Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
+- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists.
+- Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
+- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` already matches record number, client, product snapshot (name/serial/article), line names, and manager.
+- Filters on this tab:
+  - hide `Repair type`
+  - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)
+  - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
+  - product, service, payment method, and dates stay available
 
 ## Status Change: Paid
 

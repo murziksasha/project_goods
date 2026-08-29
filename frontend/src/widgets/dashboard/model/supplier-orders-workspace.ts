@@ -115,9 +115,12 @@ export type SupplierOrdersColumnKey =
   | 'paid'
   | 'supplier'
   | 'createdAt'
+  | 'createdBy'
   | 'deliveryDate'
   | 'status'
   | 'paymentStatus';
+
+export type SupplierOrdersDateField = 'delivery' | 'created';
 
 export const supplierOrdersAllColumns: SupplierOrdersColumnKey[] = [
   'number',
@@ -128,7 +131,21 @@ export const supplierOrdersAllColumns: SupplierOrdersColumnKey[] = [
   'paid',
   'supplier',
   'createdAt',
+  'createdBy',
   'deliveryDate',
+  'status',
+  'paymentStatus',
+];
+
+export const supplierOrdersDefaultColumns: SupplierOrdersColumnKey[] = [
+  'number',
+  'product',
+  'quantity',
+  'price',
+  'total',
+  'paid',
+  'supplier',
+  'createdAt',
   'status',
   'paymentStatus',
 ];
@@ -141,53 +158,106 @@ export const getSupplierOrdersColumnLabel = (
   columnKey: SupplierOrdersColumnKey,
 ) => i18n.t(`orders.supplier.columns.${columnKey}`);
 
+export const closedSupplierOrderStatuses: SupplierOrderStatus[] = [
+  'stocked',
+  'cancelled',
+  'unavailable',
+  'partially_completed',
+];
+
+const supplierOrderStatusKeys = supplierOrderStatuses.map((item) => item.key);
+
 export type SupplierOrdersFilters = {
   query: string;
   selectedStatuses: SupplierOrderStatus[];
-  paymentStatus: SupplierPaymentStatus | 'all';
-  deliveryDateFrom: string;
-  deliveryDateTo: string;
+  paymentStatuses: SupplierPaymentStatus[];
+  supplierId: string;
+  createdBy: string;
+  product: string;
+  orderNumber: string;
+  dateFrom: string;
+  dateTo: string;
+  dateField: SupplierOrdersDateField;
   favoritesOnly: boolean;
 };
 
-const isPaymentStatusFilter = (
-  value: unknown,
-): value is SupplierPaymentStatus | 'all' =>
+export const emptySupplierOrdersFilters: SupplierOrdersFilters = {
+  query: '',
+  selectedStatuses: [],
+  paymentStatuses: [],
+  supplierId: '',
+  createdBy: '',
+  product: '',
+  orderNumber: '',
+  dateFrom: '',
+  dateTo: '',
+  dateField: 'delivery',
+  favoritesOnly: false,
+};
+
+const isPaymentStatus = (value: unknown): value is SupplierPaymentStatus =>
   value === 'pending' ||
   value === 'paid' ||
   value === 'without_payment' ||
-  value === 'cancelled' ||
-  value === 'all';
+  value === 'cancelled';
+
+const isSupplierOrderStatus = (value: unknown): value is SupplierOrderStatus =>
+  typeof value === 'string' &&
+  supplierOrderStatusKeys.includes(value as SupplierOrderStatus);
+
+const isDateField = (value: unknown): value is SupplierOrdersDateField =>
+  value === 'delivery' || value === 'created';
+
+const asTrimmedString = (value: unknown) =>
+  typeof value === 'string' ? value : '';
 
 export const parseSupplierOrdersFilters = (
-  value: string | null,
+  value: string | null | Record<string, unknown>,
 ): SupplierOrdersFilters => {
   try {
-    const parsed = JSON.parse(value ?? '{}') as Partial<
-      SupplierOrdersFilters & { deliveryDate: string }
-    >;
+    const parsed = (
+      typeof value === 'string' || value == null
+        ? (JSON.parse(value ?? '{}') as Record<string, unknown>)
+        : value
+    ) as Partial<SupplierOrdersFilters> & {
+      paymentStatus?: unknown;
+      deliveryDate?: unknown;
+      deliveryDateFrom?: unknown;
+      deliveryDateTo?: unknown;
+    };
+
+    const selectedStatuses = Array.isArray(parsed.selectedStatuses)
+      ? parsed.selectedStatuses.filter(isSupplierOrderStatus)
+      : [];
+
+    let paymentStatuses: SupplierPaymentStatus[] = [];
+    if (Array.isArray(parsed.paymentStatuses)) {
+      paymentStatuses = parsed.paymentStatuses.filter(isPaymentStatus);
+    } else if (isPaymentStatus(parsed.paymentStatus)) {
+      paymentStatuses = [parsed.paymentStatus];
+    }
 
     return {
-      query: parsed.query ?? '',
-      selectedStatuses: Array.isArray(parsed.selectedStatuses)
-        ? parsed.selectedStatuses
-        : [],
-      paymentStatus: isPaymentStatusFilter(parsed.paymentStatus)
-        ? parsed.paymentStatus
-        : 'all',
-      deliveryDateFrom: parsed.deliveryDateFrom ?? parsed.deliveryDate ?? '',
-      deliveryDateTo: parsed.deliveryDateTo ?? parsed.deliveryDate ?? '',
+      query: asTrimmedString(parsed.query),
+      selectedStatuses,
+      paymentStatuses,
+      supplierId: asTrimmedString(parsed.supplierId),
+      createdBy: asTrimmedString(parsed.createdBy),
+      product: asTrimmedString(parsed.product),
+      orderNumber: asTrimmedString(parsed.orderNumber),
+      dateFrom:
+        asTrimmedString(parsed.dateFrom) ||
+        asTrimmedString(parsed.deliveryDateFrom) ||
+        asTrimmedString(parsed.deliveryDate),
+      dateTo:
+        asTrimmedString(parsed.dateTo) ||
+        asTrimmedString(parsed.deliveryDateTo) ||
+        asTrimmedString(parsed.deliveryDate),
+      dateField: isDateField(parsed.dateField) ? parsed.dateField : 'delivery',
       favoritesOnly: parsed.favoritesOnly === true,
     };
   } catch {
-    return {
-      query: '',
-      selectedStatuses: [],
-      paymentStatus: 'all',
-      deliveryDateFrom: '',
-      deliveryDateTo: '',
-      favoritesOnly: false,
-    };
+    return { ...emptySupplierOrdersFilters };
   }
 };
 
@@ -197,15 +267,15 @@ export const normalizeSupplierOrdersColumns = (
   try {
     const parsed = JSON.parse(value ?? '[]') as SupplierOrdersColumnKey[];
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      return supplierOrdersAllColumns;
+      return supplierOrdersDefaultColumns;
     }
 
     const normalized = supplierOrdersAllColumns.filter((key) =>
       parsed.includes(key),
     );
-    return normalized.length > 0 ? normalized : supplierOrdersAllColumns;
+    return normalized.length > 0 ? normalized : supplierOrdersDefaultColumns;
   } catch {
-    return supplierOrdersAllColumns;
+    return supplierOrdersDefaultColumns;
   }
 };
 
@@ -237,11 +307,44 @@ export const matchesSupplierOrderStatusFilter = (
   return selectedStatuses.includes(orderStatus);
 };
 
+export const getSupplierOrderDateKey = (
+  order: Pick<SupplierOrder, 'createdAt' | 'deliveryDate'>,
+  dateField: SupplierOrdersDateField,
+) =>
+  (dateField === 'created' ? order.createdAt : order.deliveryDate).slice(0, 10);
+
+export const toKievDateKey = (date: Date = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Kiev',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
+export const isSupplierOrderPaidAmountUnpaid = (
+  order: Pick<SupplierOrder, 'paymentStatus' | 'total' | 'paid'>,
+) => order.paymentStatus === 'pending' && order.total - order.paid > 0;
+
+export const isSupplierOrderDeliveryOverdue = (
+  order: Pick<SupplierOrder, 'deliveryDate' | 'status'>,
+  now: Date = new Date(),
+) => {
+  if (closedSupplierOrderStatuses.includes(order.status)) {
+    return false;
+  }
+  const deliveryDay = order.deliveryDate.slice(0, 10);
+  if (!deliveryDay) return false;
+  return deliveryDay < toKievDateKey(now);
+};
+
 export const filterSupplierOrders = (
   orders: SupplierOrder[],
   filters: SupplierOrdersFilters,
 ) => {
   const normalized = filters.query.trim().toLowerCase();
+  const orderNumber = filters.orderNumber.trim().toLowerCase();
+  const productQuery = filters.product.trim().toLowerCase();
+  const createdBy = filters.createdBy.trim().toLowerCase();
 
   return orders.filter((order) => {
     if (isSupplierOrderHiddenFromList(order, filters)) {
@@ -262,10 +365,44 @@ export const filterSupplierOrders = (
       const matchesSupplier = order.supplierName
         .toLowerCase()
         .includes(normalized);
+      const matchesCreatedBy = order.createdBy.toLowerCase().includes(normalized);
+      const matchesNote = order.note.toLowerCase().includes(normalized);
 
-      if (!matchesNumber && !matchesProduct && !matchesSupplier) {
+      if (
+        !matchesNumber &&
+        !matchesProduct &&
+        !matchesSupplier &&
+        !matchesCreatedBy &&
+        !matchesNote
+      ) {
         return false;
       }
+    }
+
+    if (orderNumber) {
+      const matchesDedicatedNumber =
+        order.number.toLowerCase().includes(orderNumber) ||
+        order.orderBaseId.toLowerCase().includes(orderNumber);
+      if (!matchesDedicatedNumber) {
+        return false;
+      }
+    }
+
+    if (productQuery) {
+      const matchesDedicatedProduct = order.items.some((item) =>
+        item.productName.toLowerCase().includes(productQuery),
+      );
+      if (!matchesDedicatedProduct) {
+        return false;
+      }
+    }
+
+    if (filters.supplierId && order.supplierId !== filters.supplierId) {
+      return false;
+    }
+
+    if (createdBy && order.createdBy.toLowerCase() !== createdBy) {
+      return false;
     }
 
     if (
@@ -275,22 +412,193 @@ export const filterSupplierOrders = (
     }
 
     if (
-      filters.paymentStatus !== 'all' &&
-      order.paymentStatus !== filters.paymentStatus
+      filters.paymentStatuses.length > 0 &&
+      !filters.paymentStatuses.includes(order.paymentStatus)
     ) {
       return false;
     }
 
-    const orderDate = order.deliveryDate.slice(0, 10);
-    if (filters.deliveryDateFrom && orderDate < filters.deliveryDateFrom) {
+    const orderDate = getSupplierOrderDateKey(order, filters.dateField);
+    if (filters.dateFrom && orderDate < filters.dateFrom) {
       return false;
     }
-    if (filters.deliveryDateTo && orderDate > filters.deliveryDateTo) {
+    if (filters.dateTo && orderDate > filters.dateTo) {
       return false;
     }
 
     return true;
   });
+};
+
+export const getActiveSupplierOrdersFiltersCount = (
+  filters: SupplierOrdersFilters,
+) =>
+  filters.selectedStatuses.length +
+  filters.paymentStatuses.length +
+  (filters.supplierId ? 1 : 0) +
+  (filters.createdBy.trim() ? 1 : 0) +
+  (filters.product.trim() ? 1 : 0) +
+  (filters.orderNumber.trim() ? 1 : 0) +
+  (filters.dateFrom ? 1 : 0) +
+  (filters.dateTo ? 1 : 0) +
+  (filters.dateField !== 'delivery' && (filters.dateFrom || filters.dateTo)
+    ? 1
+    : 0) +
+  (filters.favoritesOnly ? 1 : 0);
+
+export type SupplierOrdersFilterChip = {
+  id: string;
+  label: string;
+  clear: (current: SupplierOrdersFilters) => SupplierOrdersFilters;
+};
+
+const clearFilterField =
+  <K extends keyof SupplierOrdersFilters>(
+    key: K,
+    value: SupplierOrdersFilters[K],
+  ) =>
+  (current: SupplierOrdersFilters): SupplierOrdersFilters => ({
+    ...current,
+    [key]: value,
+  });
+
+export const buildSupplierOrdersFilterChips = (
+  filters: SupplierOrdersFilters,
+  labels: {
+    status: (status: SupplierOrderStatus) => string;
+    payment: (status: SupplierPaymentStatus) => string;
+    supplier: (id: string) => string;
+    createdBy: string;
+    product: string;
+    orderNumber: string;
+    dateFrom: string;
+    dateTo: string;
+    dateFieldCreated: string;
+    query: string;
+    favorites: string;
+  },
+): SupplierOrdersFilterChip[] => {
+  const chips: SupplierOrdersFilterChip[] = [];
+
+  for (const status of filters.selectedStatuses) {
+    chips.push({
+      id: `status-${status}`,
+      label: labels.status(status),
+      clear: (current) => ({
+        ...current,
+        selectedStatuses: current.selectedStatuses.filter(
+          (item) => item !== status,
+        ),
+      }),
+    });
+  }
+
+  for (const payment of filters.paymentStatuses) {
+    chips.push({
+      id: `payment-${payment}`,
+      label: labels.payment(payment),
+      clear: (current) => ({
+        ...current,
+        paymentStatuses: current.paymentStatuses.filter(
+          (item) => item !== payment,
+        ),
+      }),
+    });
+  }
+
+  if (filters.supplierId) {
+    chips.push({
+      id: 'supplierId',
+      label: labels.supplier(filters.supplierId),
+      clear: clearFilterField('supplierId', ''),
+    });
+  }
+
+  if (filters.createdBy.trim()) {
+    chips.push({
+      id: 'createdBy',
+      label: `${labels.createdBy}: ${filters.createdBy.trim()}`,
+      clear: clearFilterField('createdBy', ''),
+    });
+  }
+
+  if (filters.product.trim()) {
+    chips.push({
+      id: 'product',
+      label: `${labels.product}: ${filters.product.trim()}`,
+      clear: clearFilterField('product', ''),
+    });
+  }
+
+  if (filters.orderNumber.trim()) {
+    chips.push({
+      id: 'orderNumber',
+      label: `${labels.orderNumber}: ${filters.orderNumber.trim()}`,
+      clear: clearFilterField('orderNumber', ''),
+    });
+  }
+
+  if (filters.dateFrom) {
+    chips.push({
+      id: 'dateFrom',
+      label: `${labels.dateFrom}: ${filters.dateFrom}`,
+      clear: clearFilterField('dateFrom', ''),
+    });
+  }
+
+  if (filters.dateTo) {
+    chips.push({
+      id: 'dateTo',
+      label: `${labels.dateTo}: ${filters.dateTo}`,
+      clear: clearFilterField('dateTo', ''),
+    });
+  }
+
+  if (filters.dateField === 'created' && (filters.dateFrom || filters.dateTo)) {
+    chips.push({
+      id: 'dateField',
+      label: labels.dateFieldCreated,
+      clear: clearFilterField('dateField', 'delivery'),
+    });
+  }
+
+  if (filters.query.trim()) {
+    chips.push({
+      id: 'query',
+      label: `${labels.query}: ${filters.query.trim()}`,
+      clear: clearFilterField('query', ''),
+    });
+  }
+
+  if (filters.favoritesOnly) {
+    chips.push({
+      id: 'favoritesOnly',
+      label: labels.favorites,
+      clear: clearFilterField('favoritesOnly', false),
+    });
+  }
+
+  return chips;
+};
+
+export const summarizeFilteredSupplierOrders = (orders: SupplierOrder[]) => {
+  let pcs = 0;
+  let total = 0;
+  let paid = 0;
+
+  for (const order of orders) {
+    pcs += order.items.reduce((sum, item) => sum + item.quantity, 0);
+    total += order.total;
+    paid += order.paid;
+  }
+
+  return {
+    orderCount: orders.length,
+    pcs,
+    total,
+    paid,
+    outstanding: Math.max(0, total - paid),
+  };
 };
 
 export const paginateSupplierOrders = (
