@@ -252,11 +252,13 @@ export const OrderDetailLineItemsPanel = ({
     Record<string, string>
   >({});
   const priceDraftsRef = useRef(priceDrafts);
-  priceDraftsRef.current = priceDrafts;
   const itemsRef = useRef(items);
-  itemsRef.current = items;
   const onUpdateItemRef = useRef(onUpdateItem);
-  onUpdateItemRef.current = onUpdateItem;
+  useEffect(() => {
+    priceDraftsRef.current = priceDrafts;
+    itemsRef.current = items;
+    onUpdateItemRef.current = onUpdateItem;
+  }, [priceDrafts, items, onUpdateItem]);
   const priceCommitTimersRef = useRef<
     Record<string, ReturnType<typeof setTimeout>>
   >({});
@@ -1339,8 +1341,7 @@ export const OrderDetailLineItemsPanel = ({
         product: selectedStockProduct,
         value: price,
         priceTier,
-        setPriceTier,
-        onPriceChange: setPrice,
+        itemId: null as string | null,
       };
     }
 
@@ -1357,19 +1358,10 @@ export const OrderDetailLineItemsPanel = ({
       product,
       value: priceDrafts[item.id] ?? String(item.price),
       priceTier: priceTierByItemId[item.id] ?? null,
-      setPriceTier: (tier: ProductSalePriceTier) => {
-        setPriceTierByItemId((current) => ({
-          ...current,
-          [item.id]: tier,
-        }));
-      },
-      onPriceChange: (nextPrice: string) => {
-        handleLineItemPriceChange(item, nextPrice, true);
-      },
+      itemId: item.id,
     };
   }, [
     activePriceContext,
-    handleLineItemPriceChange,
     isProductKind,
     items,
     price,
@@ -1383,27 +1375,37 @@ export const OrderDetailLineItemsPanel = ({
     activePriceHeaderTarget?.product &&
     hasWholesaleSalePrice(activePriceHeaderTarget.product),
   );
-  const priceHeaderActiveTier = activePriceHeaderTarget
-    ? resolveSalePriceTier(
-        activePriceHeaderTarget.product,
-        activePriceHeaderTarget.value,
-        activePriceHeaderTarget.priceTier,
-      )
-    : null;
+  const priceHeaderActiveTier = useMemo(() => {
+    if (!activePriceHeaderTarget?.product) return null;
+    return resolveSalePriceTier(
+      activePriceHeaderTarget.product,
+      activePriceHeaderTarget.value,
+      activePriceHeaderTarget.priceTier,
+    );
+  }, [activePriceHeaderTarget, resolveSalePriceTier]);
   const handlePriceHeaderTierChange = (
     tier: ProductSalePriceTier,
   ) => {
     if (!activePriceHeaderTarget?.product) return;
 
-    activePriceHeaderTarget.setPriceTier(tier);
-    activePriceHeaderTarget.onPriceChange(
-      formatProductSalePrice(
-        getProductSalePriceByTier(
-          activePriceHeaderTarget.product,
-          tier,
-        ),
-      ),
+    const nextPrice = formatProductSalePrice(
+      getProductSalePriceByTier(activePriceHeaderTarget.product, tier),
     );
+
+    if (activePriceHeaderTarget.itemId === null) {
+      setPriceTier(tier);
+      setPrice(nextPrice);
+      return;
+    }
+
+    const itemId = activePriceHeaderTarget.itemId;
+    setPriceTierByItemId((current) => ({
+      ...current,
+      [itemId]: tier,
+    }));
+    const item = items.find((lineItem) => lineItem.id === itemId);
+    if (!item) return;
+    handleLineItemPriceChange(item, nextPrice, true);
   };
   const showSerialColumn = isProductKind;
   const tableClassName = showSerialColumn

@@ -242,11 +242,13 @@ export const OrderDetailCard = ({
   const discount = getDiscount(sale);
   const [discountInput, setDiscountInput] = useState(String(discount.value));
   const discountRef = useRef(discount);
-  discountRef.current = discount;
   const discountInputRef = useRef(discountInput);
-  discountInputRef.current = discountInput;
   const onDiscountChangeRef = useRef(onDiscountChange);
-  onDiscountChangeRef.current = onDiscountChange;
+  useEffect(() => {
+    discountRef.current = discount;
+    discountInputRef.current = discountInput;
+    onDiscountChangeRef.current = onDiscountChange;
+  }, [discount, discountInput, onDiscountChange]);
   const discountCommitTimerRef = useRef<
     ReturnType<typeof setTimeout> | undefined
   >(undefined);
