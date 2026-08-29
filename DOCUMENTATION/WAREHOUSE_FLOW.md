@@ -372,15 +372,15 @@ Implementation references:
 - Multi-item take-on-charge from the Supplier Order table status badge `Stocked` or item-scoped modal passes `itemIndex`; success on one line shows partial-stocked feedback until all active lines are received.
 - For open orders (`approved`, `partially_stocked`, `overdue`, etc.) that are not yet fully received:
   1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`; item-scoped via `itemIndex`.
-  2. **Cancel item (`Скасувати позицію`)** — allowed for unreceived items even when `paymentStatus = paid` / `without_payment`; recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red.
-  3. **Delete in modal (`Скасувати`)** — whole-order cancel; allowed only for `paymentStatus = pending` and when not all items are received.
+  2. **Cancel item (`Скасувати позицію`)** — shown when the modal has one unreceived line (`receiptStatus` `new` or `approved`): a 1-line order, or an item-scoped child of a 2+ item order. Allowed for `approved` / `overdue` / other open statuses, including `paymentStatus = paid` / `without_payment`. Recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red. Blocked only when the line is `received`/`cancelled` or the order is `cancelled`/`unavailable`.
+  3. **Cancel order (`Скасувати замовлення`)** — whole-order cancel; shown on the full-order modal (not item-scoped); allowed only for `paymentStatus = pending` and when not all items are received. Confirmation required. This is not a hard delete.
   4. **Status badge closure** — paid / `without_payment` orders may be moved manually to `cancelled` or `unavailable`; `paymentStatus` stays unchanged for paid orders.
 - Take-on-charge locks:
 1. `status = cancelled` or `unavailable`
 2. selected item `receiptStatus = received` or `cancelled`
 3. all items already `received`
 4. `paymentStatus = cancelled`
-- Modal Delete / `POST /supplier-orders/:supplierOrderId/cancel` locks:
+- Modal Cancel order / `POST /supplier-orders/:supplierOrderId/cancel` locks:
 1. `paymentStatus = paid` or `without_payment`
 2. `status = cancelled` or `unavailable`
 3. all items already `received`

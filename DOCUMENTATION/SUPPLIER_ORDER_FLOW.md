@@ -49,6 +49,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page).
 - Content locked after receipt/final status or paid/`without_payment` (take-on-charge remains when allowed).
 - Paid orders cannot be cancelled (`POST .../cancel` rejected).
+- Full-order modal: **Cancel order** (confirm) cancels the unpaid order. **Cancel item** cancels one unreceived line (`new` / `approved` receipt), including on `approved` + paid/`without_payment` orders. There is no hard-delete.
 - Linked sale/order card `Supplier Order` tab shows a dollar pay icon after the status badge when Accounting queue rules allow payment (`finance.supplierOrders.pay`). Click opens a pay modal (`POST /finance/supplier-orders/:id/pay`); optional issue-without-payment uses `finance.supplierOrders.issueWithoutPayment`.
 - After payment (`paymentStatus = paid`) the same slot shows a green check (not clickable). `without_payment` has no marker. The check is visible to anyone who can see the tab.
 

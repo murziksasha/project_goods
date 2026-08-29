@@ -2019,15 +2019,16 @@ export const OrderDetailCard = ({
           }
         }}
         onCancelItem={async (reason) => {
-          if (
-            !relatedSupplierOrderSource ||
-            relatedSupplierOrderItemIndex === null
-          ) {
-            return;
-          }
+          if (!relatedSupplierOrderSource) return;
+          const itemIndex =
+            relatedSupplierOrderItemIndex ??
+            (relatedSupplierOrderSource.items.length === 1
+              ? (relatedSupplierOrderSource.items[0]?.itemIndex ?? 0)
+              : null);
+          if (itemIndex === null) return;
           try {
             await cancelSupplierOrderItem(relatedSupplierOrderSource.id, {
-              itemIndex: relatedSupplierOrderItemIndex,
+              itemIndex,
               reason,
             });
             onSuccess(t('orders.supplier.messages.success.itemCancelled'));

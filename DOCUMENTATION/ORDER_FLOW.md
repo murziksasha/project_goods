@@ -381,14 +381,15 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `Cancel item` calls `POST /supplier-orders/:supplierOrderId/cancel-item`
   - item cancel recalculates order `total` from non-cancelled lines; on paid orders `paid` stays at the amount actually paid
   - cancelled item product names render in red in Supplier Order and Warehouse Receipts
-  - whole-order `Delete` stays available only outside item-scoped multi-item view and only while `paymentStatus = pending`
+  - whole-order `Cancel order` stays available only outside item-scoped multi-item view and only while `paymentStatus = pending`
+  - `Cancel item` is shown whenever the modal has one unreceived line (1-line order or item-scoped child), including `approved` + `paid` / `without_payment`
 - If `paymentStatus = cancelled`, or `status = cancelled`, or `status = unavailable`, the row status button is disabled and the status window cannot be opened.
 - Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
 - If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, `cancelled`, or `unavailable`), the opened modal is read-only instead of blocked.
 - For `status = approved` that is not yet stocked/received, the modal must allow take-on-charge (`Оприбуткувати`) regardless of `paymentStatus` (`pending`, `paid`, `without_payment`) when the employee has `supplierOrders.manage`.
-- Cancel (`Скасувати`) in `SupplierOrderModal` is allowed only while `paymentStatus = pending`.
-- If `paymentStatus = paid` or `without_payment`, the Delete button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
-- On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
+- Cancel order (`Скасувати замовлення`) in `SupplierOrderModal` is allowed only while `paymentStatus = pending`.
+- If `paymentStatus = paid` or `without_payment`, the Cancel order button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
+- On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and whole-order cancel, but must not hide take-on-charge or **Cancel item** while the line is unreceived.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
 
 ## Supplier Order Modal Price/Qty Steppers (2026-07-12)

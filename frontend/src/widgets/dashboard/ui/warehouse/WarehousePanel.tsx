@@ -2472,13 +2472,18 @@ export const WarehousePanel = ({
         onCancelItem={async (reason) => {
           if (!canManageSupplierOrders) return;
           if (!editingSupplierOrder) return;
-          if (editingSupplierOrderItemIndex === null) return;
+          const itemIndex =
+            editingSupplierOrderItemIndex ??
+            (editingSupplierOrder.items.length === 1
+              ? (editingSupplierOrder.items[0]?.itemIndex ?? 0)
+              : null);
+          if (itemIndex === null) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
           await cancelSupplierOrderItemMutation.mutateAsync({
             supplierOrderId: orderId,
             payload: {
-              itemIndex: editingSupplierOrderItemIndex,
+              itemIndex,
               reason,
             },
           });

@@ -916,13 +916,18 @@ export const SupplierOrdersWorkspace = ({
         onCancelItem={async (reason) => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          if (editingOrderItemIndex === null) return;
+          const itemIndex =
+            editingOrderItemIndex ??
+            (editingOrder.items.length === 1
+              ? (editingOrder.items[0]?.itemIndex ?? 0)
+              : null);
+          if (itemIndex === null) return;
           const orderId =
             editingOrderSource?.id ?? editingOrder.id;
           await cancelSupplierOrderItemMutation.mutateAsync({
             supplierOrderId: orderId,
             payload: {
-              itemIndex: editingOrderItemIndex,
+              itemIndex,
               reason,
             },
           });
