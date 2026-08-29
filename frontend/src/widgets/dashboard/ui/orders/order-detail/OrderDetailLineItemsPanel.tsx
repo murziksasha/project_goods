@@ -39,6 +39,7 @@ import {
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
 import {
+  MONEY_FIELD_COMMIT_MS,
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
@@ -249,6 +250,15 @@ export const OrderDetailLineItemsPanel = ({
     useState<WarehouseItem[]>([]);
   const [priceDrafts, setPriceDrafts] = useState<
     Record<string, string>
+  >({});
+  const priceDraftsRef = useRef(priceDrafts);
+  priceDraftsRef.current = priceDrafts;
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const onUpdateItemRef = useRef(onUpdateItem);
+  onUpdateItemRef.current = onUpdateItem;
+  const priceCommitTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
   >({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
@@ -1247,24 +1257,58 @@ export const OrderDetailLineItemsPanel = ({
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
-  const handleLineItemPriceChange = (
-    item: OrderLineItem,
-    value: string,
-  ) => {
-    setPriceDrafts((current) => ({
-      ...current,
-      [item.id]: value,
-    }));
-
-    if (value === '') return;
-
+  const commitLineItemPrice = useCallback((itemId: string, value: string) => {
+    const item = itemsRef.current.find((lineItem) => lineItem.id === itemId);
+    if (!item || value === '') return;
     const parsedPrice = parseDecimal(value);
     if (!Number.isFinite(parsedPrice)) return;
+    const nextPrice = Math.round(parsedPrice * 100) / 100;
+    if (nextPrice === item.price) return;
+    onUpdateItemRef.current(itemId, undefined, { price: nextPrice });
+  }, []);
 
-    onUpdateItem(item.id, undefined, {
-      price: Math.round(parsedPrice * 100) / 100,
-    });
-  };
+  const flushLineItemPrice = useCallback((itemId: string, value: string) => {
+    const timer = priceCommitTimersRef.current[itemId];
+    if (timer) {
+      clearTimeout(timer);
+      delete priceCommitTimersRef.current[itemId];
+    }
+    commitLineItemPrice(itemId, value);
+  }, [commitLineItemPrice]);
+
+  const handleLineItemPriceChange = useCallback(
+    (item: OrderLineItem, value: string, commitNow = false) => {
+      setPriceDrafts((current) => ({
+        ...current,
+        [item.id]: value,
+      }));
+      if (commitNow) {
+        flushLineItemPrice(item.id, value);
+        return;
+      }
+      const timer = priceCommitTimersRef.current[item.id];
+      if (timer) clearTimeout(timer);
+      priceCommitTimersRef.current[item.id] = setTimeout(() => {
+        delete priceCommitTimersRef.current[item.id];
+        commitLineItemPrice(item.id, value);
+      }, MONEY_FIELD_COMMIT_MS);
+    },
+    [commitLineItemPrice, flushLineItemPrice],
+  );
+
+  useEffect(
+    () => () => {
+      Object.entries(priceCommitTimersRef.current).forEach(
+        ([itemId, timer]) => {
+          clearTimeout(timer);
+          const value = priceDraftsRef.current[itemId];
+          if (value !== undefined) commitLineItemPrice(itemId, value);
+        },
+      );
+      priceCommitTimersRef.current = {};
+    },
+    [commitLineItemPrice],
+  );
 
   const resolveSalePriceTier = useCallback(
     (
@@ -1320,7 +1364,7 @@ export const OrderDetailLineItemsPanel = ({
         }));
       },
       onPriceChange: (nextPrice: string) => {
-        handleLineItemPriceChange(item, nextPrice);
+        handleLineItemPriceChange(item, nextPrice, true);
       },
     };
   }, [
@@ -1557,6 +1601,9 @@ export const OrderDetailLineItemsPanel = ({
                       handleLineItemPriceChange(item, value)
                     }
                     onFocus={() => setActivePriceContext(item.id)}
+                    onBlur={(event) =>
+                      flushLineItemPrice(item.id, event.currentTarget.value)
+                    }
                     disabled={isReadOnly}
                     ariaLabel={t('orders.detail.lineItems.price')}
                   />

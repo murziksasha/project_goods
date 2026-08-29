@@ -34,11 +34,13 @@ const sendText = (response, statusCode, body) => {
 };
 
 const proxyApiRequest = (clientRequest, clientResponse) => {
+  const isEventStream = (clientRequest.url ?? '').includes('/events/stream');
   const targetUrl = new URL(clientRequest.url ?? '/', apiTarget);
   const proxyRequest = requestClient(
     targetUrl,
     {
       method: clientRequest.method,
+      timeout: isEventStream ? 0 : undefined,
       headers: {
         ...clientRequest.headers,
         host: apiTarget.host,
@@ -49,6 +51,12 @@ const proxyApiRequest = (clientRequest, clientResponse) => {
       proxyResponse.pipe(clientResponse);
     },
   );
+
+  if (isEventStream) {
+    proxyRequest.setTimeout(0);
+    clientRequest.setTimeout?.(0);
+    clientRequest.socket?.setTimeout?.(0);
+  }
 
   proxyRequest.on('error', () => {
     if (!clientResponse.headersSent) {
@@ -81,7 +89,7 @@ const getStaticPath = (requestUrl) => {
   return join(distDir, 'index.html');
 };
 
-createServer(async (request, response) => {
+const server = createServer(async (request, response) => {
   if ((request.url ?? '').startsWith('/api')) {
     proxyApiRequest(request, response);
     return;
@@ -115,7 +123,10 @@ createServer(async (request, response) => {
       sendText(response, 500, 'Frontend build is unavailable.');
     }
   }
-}).listen(port, '0.0.0.0', () => {
+});
+server.requestTimeout = 0;
+server.headersTimeout = 0;
+server.listen(port, '0.0.0.0', () => {
   console.log(`Frontend started on http://0.0.0.0:${port}`);
   console.log(`Proxying /api to ${apiTarget.origin}`);
 });

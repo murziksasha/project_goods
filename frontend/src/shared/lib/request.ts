@@ -17,6 +17,9 @@ export const getRequestErrorStatus = (error: unknown): number | null => {
   return error.response?.status ?? null;
 };
 
+export const isAuthExpiredError = (error: unknown) =>
+  getRequestErrorStatus(error) === 401;
+
 export const isUnauthorizedRequestError = (error: unknown) => {
   const status = getRequestErrorStatus(error);
   return status === 401 || status === 403;
@@ -46,13 +49,9 @@ export const getRequestErrorMessage = (
 
   if (
     error instanceof Error &&
-    error.message.trim().toLowerCase() === 'session not found.'
+    (error.message.trim().toLowerCase() === 'session not found.' ||
+      error.message.trim().toLowerCase().includes('session'))
   ) {
-    return i18n.t('errors.sessionCheckFailed');
-  }
-
-  if (error instanceof Error && error.message.trim().toLowerCase().includes('session')) {
-    // generic session messages
     return i18n.t('errors.sessionExpired');
   }
 

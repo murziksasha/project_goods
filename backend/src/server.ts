@@ -25,9 +25,12 @@ const startServer = async () => {
     void refreshSupplierOrderDerivedStatuses().catch((error) => {
       console.error('Supplier order derived-status refresh failed on startup:', error);
     });
-    app.listen(env.port, env.host, () => {
+    const server = app.listen(env.port, env.host, () => {
       console.log(`Backend started on http://${env.host}:${env.port}`);
     });
+    // SSE /events/stream must outlive Node's default 300s requestTimeout.
+    server.requestTimeout = 0;
+    server.headersTimeout = 0;
   } catch (error) {
     console.error(`Failed to start backend: ${getStartupErrorMessage(error)}`);
     console.error(

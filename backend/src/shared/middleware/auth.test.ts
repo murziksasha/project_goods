@@ -1,32 +1,40 @@
-import { describe, expect, it } from 'vitest';
-import type { Request } from 'express';
-import { isPublicApiRoute } from './auth';
+import { describe, expect, it, vi } from 'vitest';
+import * as authService from '../../domain/auth/service';
+import { requireAuthUnlessPublic } from './auth';
 
-const createRequest = (method: string, path: string): Request =>
-  ({ method, path }) as Request;
+describe('requireAuthUnlessPublic', () => {
+  it('does not touch session lastUsedAt for the events stream', async () => {
+    const spy = vi
+      .spyOn(authService, 'getEmployeeByToken')
+      .mockResolvedValue({} as never);
+    const next = vi.fn();
+    const req = {
+      method: 'GET',
+      path: '/events/stream',
+      headers: { authorization: 'Bearer tok' },
+    };
 
-describe('isPublicApiRoute', () => {
-  it('allows health checks without auth', () => {
-    expect(isPublicApiRoute(createRequest('GET', '/health'))).toBe(true);
+    await requireAuthUnlessPublic(req as never, {} as never, next);
+
+    expect(spy).toHaveBeenCalledWith('tok', expect.any(Date), { touch: false });
+    expect(next).toHaveBeenCalledWith();
+    spy.mockRestore();
   });
 
-  it('allows login without auth', () => {
-    expect(isPublicApiRoute(createRequest('POST', '/auth/login'))).toBe(true);
-  });
+  it('touches the session for ordinary API routes', async () => {
+    const spy = vi
+      .spyOn(authService, 'getEmployeeByToken')
+      .mockResolvedValue({} as never);
+    const next = vi.fn();
+    const req = {
+      method: 'GET',
+      path: '/finance/currencies',
+      headers: { authorization: 'Bearer tok' },
+    };
 
-  it('allows invitation lookup without auth', () => {
-    expect(isPublicApiRoute(createRequest('GET', '/auth/invitations/abc123'))).toBe(true);
-  });
+    await requireAuthUnlessPublic(req as never, {} as never, next);
 
-  it('allows invitation registration without auth', () => {
-    expect(
-      isPublicApiRoute(createRequest('POST', '/auth/invitations/abc123/register')),
-    ).toBe(true);
-  });
-
-  it('requires auth for protected routes', () => {
-    expect(isPublicApiRoute(createRequest('GET', '/products'))).toBe(false);
-    expect(isPublicApiRoute(createRequest('GET', '/auth/me'))).toBe(false);
-    expect(isPublicApiRoute(createRequest('POST', '/demo/seed'))).toBe(false);
+    expect(spy).toHaveBeenCalledWith('tok', expect.any(Date), { touch: true });
+    spy.mockRestore();
   });
 });

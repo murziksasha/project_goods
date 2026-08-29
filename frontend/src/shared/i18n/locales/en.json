@@ -106,7 +106,7 @@
   "errors": {
     "noInternet": "No internet connection. Read-only mode is active until connection is restored.",
     "requestTimeout": "Request timed out. Check your connection and try again.",
-    "sessionCheckFailed": "Session check failed. Workspace stayed open; please retry the action.",
+    "sessionCheckFailed": "Could not verify the session. Please sign in again.",
     "sessionExpired": "Session expired. Please sign in again.",
     "noInternetShort": "No internet connection. Sign in requires network access.",
     "loginFailed": "Failed to login.",

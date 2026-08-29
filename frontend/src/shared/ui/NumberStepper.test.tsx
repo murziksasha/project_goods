@@ -59,4 +59,16 @@ describe('NumberStepper', () => {
     expect(onChange).toHaveBeenNthCalledWith(1, '834.49');
     expect(onChange).toHaveBeenNthCalledWith(2, '834.47');
   });
+
+  it('forwards blur from the text input', () => {
+    const onBlur = vi.fn();
+    const { container } = render(
+      <NumberStepper value='100' onChange={vi.fn()} onBlur={onBlur} />,
+    );
+    const input = within(
+      container.querySelector('.number-stepper') as HTMLElement,
+    ).getByRole('textbox');
+    fireEvent.blur(input);
+    expect(onBlur).toHaveBeenCalledTimes(1);
+  });
 });

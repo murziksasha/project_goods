@@ -71,9 +71,16 @@ export const Notifications = ({
       expiresAt: Date.now() + errorToastTtlMs,
     };
     lastErrorRef.current = error;
-    setToasts((current) =>
-      [nextToast, ...current].slice(0, maxToastsInStack),
-    );
+    setToasts((current) => {
+      if (
+        current.some(
+          (toast) => toast.tone === 'error' && toast.message === nextToast.message,
+        )
+      ) {
+        return current;
+      }
+      return [nextToast, ...current].slice(0, maxToastsInStack);
+    });
     scheduleToastRemoval(toastId, errorToastTtlMs);
   }, [error, scheduleToastRemoval]);
 
