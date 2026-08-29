@@ -1750,19 +1750,24 @@
         "quantityPcs": "{{count}} шт",
         "removeStarAriaLabel": "Прибрати зірку з {{number}}",
         "starAriaLabel": "Позначити зіркою {{number}}",
+        "expandOrder": "Показати рядки {{number}}",
+        "collapseOrder": "Сховати рядки {{number}}",
+        "moreProducts": "+{{count}}",
         "columns": {
           "number": "#",
           "product": "Товар",
           "quantity": "Кількість",
           "price": "Ціна",
-          "amount": "Сума",
+          "amount": "Разом",
           "paid": "Оплачено",
           "supplier": "Постачальник",
           "receiptDate": "Дата прийому",
           "acceptedBy": "Прийняв",
           "approvedBy": "Затвердив",
           "status": "Статус",
-          "payment": "Оплата"
+          "payment": "Оплата",
+          "money": "Оплачено / Сума",
+          "by": "Ким"
         },
         "status": {
           "cancelled": "Скасовано",
@@ -1783,6 +1788,10 @@
         "emptyHint": "Змініть пошук або фільтри, щоб побачити доступні залишки.",
         "selectAllAriaLabel": "Обрати всі рядки залишків",
         "selectRowAriaLabel": "Обрати {{name}}",
+        "selectModelAriaLabel": "Обрати всі одиниці {{name}}",
+        "expandModel": "Показати серійні номери {{name}}",
+        "collapseModel": "Сховати серійні номери {{name}}",
+        "resizeNameColumn": "Змінити ширину колонки назви",
         "columns": {
           "select": "Обрати",
           "name": "Назва",
@@ -1801,18 +1810,31 @@
       }
     },
     "settings": {
+      "title": "Налаштування складу",
+      "subtitle": "Сервісні центри, склади, локації та доступ адміністраторів.",
       "tabsAriaLabel": "Розділи налаштувань складу",
       "tabs": {
         "serviceCenters": "Сервісні центри",
         "warehouses": "Склади",
         "administrators": "Адміністратори"
       },
+      "kpi": {
+        "serviceCenters": "Сервісні центри",
+        "warehouses": "Склади",
+        "locations": "Локації",
+        "administrators": "Адміністратори"
+      },
+      "warehousesActiveTotal": "{{active}} / {{total}}",
+      "empty": {
+        "serviceCenters": "Сервісних центрів ще немає.",
+        "warehouses": "Немає складів за цим фільтром.",
+        "administrators": "Немає адміністраторів для налаштування."
+      },
       "serviceCenters": {
         "create": "Створити",
         "editAriaLabel": "Редагувати {{name}}",
         "columns": {
           "name": "Назва",
-          "color": "колір",
           "address": "Адреса",
           "phone": "Телефон",
           "warehouses": "Склади"
@@ -1822,10 +1844,10 @@
         "statusFilter": "Статус",
         "createWarehouse": "Створити склад",
         "columns": {
-          "id": "Id",
+          "id": "ID",
           "name": "Назва",
           "status": "Статус",
-          "location": "Локація",
+          "location": "Сервісний центр",
           "address": "Адреса",
           "phone": "Телефон",
           "locations": "Локації",
@@ -1835,8 +1857,8 @@
       },
       "administrators": {
         "administrator": "Адміністратор",
-        "viewWarehouses": "Склади, до яких адміністратор має доступ",
-        "viewDefaultLocation": "Склад і локація за замовчуванням для адміністратора",
+        "viewWarehouses": "Доступні склади",
+        "viewDefaultLocation": "Склад і локація за замовчуванням",
         "allSelected": "Усі ({{count}})",
         "selectWarehouses": "Оберіть склади",
         "searchPlaceholder": "Пошук",
@@ -1846,33 +1868,33 @@
     },
     "modals": {
       "serviceCenter": {
-        "createTitle": "створити сервісний центр",
-        "editTitle": "редагувати сервісний центр",
-        "nameLabel": "назва:",
-        "namePlaceholder": "назва",
-        "colorLabel": "колір (#000000):",
+        "createTitle": "Створити сервісний центр",
+        "editTitle": "Редагувати сервісний центр",
+        "nameLabel": "Назва",
+        "namePlaceholder": "Назва",
+        "colorLabel": "Колір",
         "colorPlaceholder": "#000000",
-        "colorAriaLabel": "колір",
-        "addressLabel": "адреса:",
-        "addressPlaceholder": "адреса",
-        "phoneLabel": "телефон:",
+        "colorAriaLabel": "Колір",
+        "addressLabel": "Адреса",
+        "addressPlaceholder": "Адреса",
+        "phoneLabel": "Телефон",
         "phonePlaceholder": "+380"
       },
       "warehouse": {
-        "createTitle": "створити склад",
-        "editTitle": "редагувати склад",
-        "nameLabel": "назва:",
-        "namePlaceholder": "назва",
-        "active": "активний",
-        "serviceCenterLabel": "Прив'язка до сервісного центру:",
-        "selectServiceCenter": "оберіть сервісний центр",
-        "receiptAddressLabel": "адреса для постачальників:",
-        "receiptPhoneLabel": "телефон для постачальників:",
-        "locationsLabel": "локації:",
-        "locationNamePlaceholder": "введіть назву локації",
+        "createTitle": "Створити склад",
+        "editTitle": "Редагувати склад",
+        "nameLabel": "Назва",
+        "namePlaceholder": "Назва",
+        "active": "Активний",
+        "serviceCenterLabel": "Сервісний центр",
+        "selectServiceCenter": "Оберіть сервісний центр",
+        "receiptAddressLabel": "Адреса для постачальників",
+        "receiptPhoneLabel": "Телефон для постачальників",
+        "locationsLabel": "Локації",
+        "locationNamePlaceholder": "Введіть назву локації",
         "locationUsageTitle": "Товари, що посилаються на цю локацію",
         "duplicateLocationsError": "Назви локацій мають бути унікальними в межах складу.",
-        "addLocation": "локація"
+        "addLocation": "Додати локацію"
       },
       "createReceiptOrder": "Створити прийом",
       "create": "Створити",
@@ -2027,6 +2049,8 @@
       }
     },
     "transfer": {
+      "title": "Переміщення залишків",
+      "subtitle": "Перемістіть одиницю з поточної локації на інший склад або місце.",
       "product": "Товар",
       "selectStockItem": "Оберіть позицію залишку",
       "currentLocation": "Поточна локація",
@@ -2039,7 +2063,22 @@
       "notePlaceholder": "Причина або номер документа",
       "transferring": "Переміщення...",
       "transferStock": "Перемістити залишок",
+      "kpi": {
+        "movable": "Доступно до переміщення",
+        "session": "У цій сесії",
+        "destinations": "Напрямки"
+      },
+      "route": {
+        "from": "Звідки",
+        "to": "Куди",
+        "empty": "Не обрано"
+      },
+      "warnings": {
+        "selectProduct": "Оберіть позицію для переміщення."
+      },
+      "destinationsTitle": "Напрямки сесії",
       "stockTable": {
+        "title": "Залишки для переміщення",
         "columns": {
           "product": "Товар",
           "serial": "Серійний №",
@@ -2050,6 +2089,7 @@
         "empty": "Рядків залишків не знайдено."
       },
       "historyTable": {
+        "title": "Історія сесії",
         "columns": {
           "date": "Дата",
           "product": "Товар",
@@ -2113,7 +2153,16 @@
     "summary": {
       "stockRows": "{{count}} рядків залишків",
       "movableRows": "{{count}} рядків для переміщення",
-      "receiptRows": "{{count}} рядків надходжень"
+      "receiptRows": "{{count}} рядків надходжень",
+      "unitsModelsValue": "{{units}} одиниць · {{models}} моделей · {{value}}",
+      "linesOrdersUnpaid": "{{lines}} рядків · {{orders}} прийомів · {{unpaid}} до сплати"
+    },
+    "view": {
+      "units": "Одиниці",
+      "models": "Моделі",
+      "orders": "Прийоми",
+      "lines": "Рядки",
+      "ariaLabel": "Вигляд таблиці складу"
     },
     "filters": {
       "byName": "За назвою",
@@ -2141,7 +2190,14 @@
       "showStarredReceiptOrders": "Показати лише зірочені прийоми",
       "filter": "Фільтр",
       "filterWithCount": "Фільтр ({{count}})",
-      "clearSearch": "Очистити пошук"
+      "clearSearch": "Очистити пошук",
+      "searchModeAria": "Шукати за",
+      "statusAll": "Усі"
+    },
+    "actions": {
+      "more": "Більше дій",
+      "delete": "Видалити",
+      "transfer": "Перемістити"
     },
     "messages": {
       "errors": {

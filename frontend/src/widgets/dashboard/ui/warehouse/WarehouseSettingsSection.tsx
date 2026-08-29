@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Employee } from '../../../../entities/employee/model/types';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
   settingsTabs,
   type Administrator,
@@ -111,6 +112,21 @@ export const WarehouseSettings = ({
       ),
     [warehouseStatusFilter, warehouses],
   );
+  const locationCount = useMemo(
+    () =>
+      warehouses.reduce(
+        (total, warehouse) => total + warehouse.locations.length,
+        0,
+      ),
+    [warehouses],
+  );
+  const visibleAdministrators = useMemo(
+    () =>
+      administrators.filter((administrator) =>
+        employees.some((employee) => employee.id === administrator.employeeId),
+      ),
+    [administrators, employees],
+  );
 
   const buildDefaultForWarehouses = (warehouseIds: string[]) => {
     const activeWarehouseIds = warehouseIds.filter(
@@ -151,8 +167,45 @@ export const WarehouseSettings = ({
 
   return (
     <div className='warehouse-settings-panel'>
+      <PageHeader
+        title={t('warehouse.settings.title')}
+        subtitle={t('warehouse.settings.subtitle')}
+      />
+
+      <div className='finance-report-grid finance-report-grid-wide warehouse-settings-summary'>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('warehouse.settings.kpi.serviceCenters')}
+          </span>
+          <strong>{serviceCenters.length}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('warehouse.settings.kpi.warehouses')}
+          </span>
+          <strong>
+            {t('warehouse.settings.warehousesActiveTotal', {
+              active: activeWarehouses.length,
+              total: warehouses.length,
+            })}
+          </strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('warehouse.settings.kpi.locations')}
+          </span>
+          <strong>{locationCount}</strong>
+        </article>
+        <article className='analytics-summary-card'>
+          <span className='metric-label'>
+            {t('warehouse.settings.kpi.administrators')}
+          </span>
+          <strong>{visibleAdministrators.length}</strong>
+        </article>
+      </div>
+
       <div
-        className='warehouse-settings-tabs'
+        className='warehouse-search-modes warehouse-settings-tabs'
         role='tablist'
         aria-label={t('warehouse.settings.tabsAriaLabel')}
       >
@@ -160,10 +213,12 @@ export const WarehouseSettings = ({
           <button
             key={settingsTab.key}
             type='button'
+            role='tab'
+            aria-selected={settingsTab.key === tab}
             className={
               settingsTab.key === tab
-                ? 'warehouse-settings-tab warehouse-settings-tab-active'
-                : 'warehouse-settings-tab'
+                ? 'warehouse-mode-button warehouse-mode-button-active'
+                : 'warehouse-mode-button'
             }
             onClick={() => onTabChange(settingsTab.key)}
           >
@@ -183,90 +238,109 @@ export const WarehouseSettings = ({
               {t('warehouse.settings.serviceCenters.create')}
             </button>
           </div>
-          <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table table-card-stack'>
-              <thead>
-                <tr>
-                  <th>
-                    {t('warehouse.settings.serviceCenters.columns.name')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.serviceCenters.columns.color')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.serviceCenters.columns.address')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.serviceCenters.columns.phone')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.serviceCenters.columns.warehouses')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {serviceCenters.map((serviceCenter) => (
-                  <tr key={serviceCenter.id}>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.name}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-color-dot'
-                        style={{
-                          backgroundColor: serviceCenter.color,
-                        }}
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                        aria-label={t(
-                          'warehouse.settings.serviceCenters.editAriaLabel',
-                          { name: serviceCenter.name },
-                        )}
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.address}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type='button'
-                        className='settings-link-button'
-                        onClick={() =>
-                          onEditServiceCenter(serviceCenter)
-                        }
-                      >
-                        {serviceCenter.phone}
-                      </button>
-                    </td>
-                    <td>
-                      {activeWarehousesByServiceCenter[serviceCenter.id] ??
-                        0}
-                      {' / '}
-                      {warehousesByServiceCenter[serviceCenter.id] ?? 0}
-                    </td>
+          {serviceCenters.length === 0 ? (
+            <p className='empty-state warehouse-settings-empty'>
+              {t('warehouse.settings.empty.serviceCenters')}
+            </p>
+          ) : (
+            <div className='catalog-table-wrap'>
+              <table className='catalog-table warehouse-settings-table table-card-stack'>
+                <thead>
+                  <tr>
+                    <th>
+                      {t('warehouse.settings.serviceCenters.columns.name')}
+                    </th>
+                    <th>
+                      {t('warehouse.settings.serviceCenters.columns.address')}
+                    </th>
+                    <th>
+                      {t('warehouse.settings.serviceCenters.columns.phone')}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.serviceCenters.columns.warehouses',
+                      )}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {serviceCenters.map((serviceCenter) => (
+                    <tr key={serviceCenter.id}>
+                      <td
+                        data-label={t(
+                          'warehouse.settings.serviceCenters.columns.name',
+                        )}
+                      >
+                        <span className='warehouse-settings-name-cell'>
+                          <button
+                            type='button'
+                            className='settings-color-dot'
+                            style={{
+                              backgroundColor: serviceCenter.color,
+                            }}
+                            onClick={() => onEditServiceCenter(serviceCenter)}
+                            aria-label={t(
+                              'warehouse.settings.serviceCenters.editAriaLabel',
+                              { name: serviceCenter.name },
+                            )}
+                          />
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEditServiceCenter(serviceCenter)}
+                          >
+                            {serviceCenter.name}
+                          </button>
+                        </span>
+                      </td>
+                      <td
+                        data-label={t(
+                          'warehouse.settings.serviceCenters.columns.address',
+                        )}
+                      >
+                        <button
+                          type='button'
+                          className='settings-link-button'
+                          onClick={() => onEditServiceCenter(serviceCenter)}
+                        >
+                          {serviceCenter.address}
+                        </button>
+                      </td>
+                      <td
+                        data-label={t(
+                          'warehouse.settings.serviceCenters.columns.phone',
+                        )}
+                      >
+                        <button
+                          type='button'
+                          className='settings-link-button'
+                          onClick={() => onEditServiceCenter(serviceCenter)}
+                        >
+                          {serviceCenter.phone}
+                        </button>
+                      </td>
+                      <td
+                        data-label={t(
+                          'warehouse.settings.serviceCenters.columns.warehouses',
+                        )}
+                      >
+                        <span className='warehouse-info-chip'>
+                          {t('warehouse.settings.warehousesActiveTotal', {
+                            active:
+                              activeWarehousesByServiceCenter[
+                                serviceCenter.id
+                              ] ?? 0,
+                            total:
+                              warehousesByServiceCenter[serviceCenter.id] ?? 0,
+                          })}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : null}
 
@@ -298,340 +372,414 @@ export const WarehouseSettings = ({
               {t('warehouse.settings.warehouses.createWarehouse')}
             </button>
           </div>
-          <div className='catalog-table-wrap'>
-            <table className='catalog-table warehouse-settings-table table-card-stack'>
-              <thead>
-                <tr>
-                  <th>{t('warehouse.settings.warehouses.columns.id')}</th>
-                  <th>{t('warehouse.settings.warehouses.columns.name')}</th>
-                  <th>{t('warehouse.settings.warehouses.columns.status')}</th>
-                  <th>
-                    {t('warehouse.settings.warehouses.columns.location')}
-                  </th>
-                  <th>{t('warehouse.settings.warehouses.columns.address')}</th>
-                  <th>{t('warehouse.settings.warehouses.columns.phone')}</th>
-                  <th>
-                    {t('warehouse.settings.warehouses.columns.locations')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.warehouses.columns.products')}
-                  </th>
-                  <th>{t('warehouse.settings.warehouses.columns.action')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleWarehouses.map((warehouse) => {
-                  const center =
-                    serviceCenterMap[warehouse.serviceCenterId];
-                  return (
-                    <tr key={warehouse.id}>
-                      <td>{warehouse.id.replace('w-', '')}</td>
-                      <td>
-                        <button
-                          type='button'
-                          className='settings-link-button'
-                          onClick={() => onEditWarehouse(warehouse)}
+          {visibleWarehouses.length === 0 ? (
+            <p className='empty-state warehouse-settings-empty'>
+              {t('warehouse.settings.empty.warehouses')}
+            </p>
+          ) : (
+            <div className='catalog-table-wrap'>
+              <table className='catalog-table warehouse-settings-table table-card-stack'>
+                <thead>
+                  <tr>
+                    <th>{t('warehouse.settings.warehouses.columns.id')}</th>
+                    <th>{t('warehouse.settings.warehouses.columns.name')}</th>
+                    <th>{t('warehouse.settings.warehouses.columns.status')}</th>
+                    <th>
+                      {t('warehouse.settings.warehouses.columns.location')}
+                    </th>
+                    <th>{t('warehouse.settings.warehouses.columns.address')}</th>
+                    <th>{t('warehouse.settings.warehouses.columns.phone')}</th>
+                    <th>
+                      {t('warehouse.settings.warehouses.columns.locations')}
+                    </th>
+                    <th>
+                      {t('warehouse.settings.warehouses.columns.products')}
+                    </th>
+                    <th>{t('warehouse.settings.warehouses.columns.action')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleWarehouses.map((warehouse) => {
+                    const center =
+                      serviceCenterMap[warehouse.serviceCenterId];
+                    return (
+                      <tr key={warehouse.id}>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.id',
+                          )}
                         >
-                          {warehouse.name}
-                        </button>
-                      </td>
-                      <td>
-                        <span
-                          className={
-                            warehouse.isActive
-                              ? 'receipt-status receipt-status-received'
-                              : 'receipt-status receipt-status-cancelled'
-                          }
+                          {warehouse.id.replace('w-', '')}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.name',
+                          )}
                         >
-                          {warehouse.isActive
-                            ? t('warehouse.common.active')
-                            : t('warehouse.common.inactive')}
-                        </span>
-                      </td>
-                      <td>
-                        <span className='warehouse-settings-center-chip'>
-                          <i
-                            style={{
-                              color: center?.color ?? '#94a3b8',
-                            }}
+                          <button
+                            type='button'
+                            className='settings-link-button'
+                            onClick={() => onEditWarehouse(warehouse)}
                           >
-                            &bull;
-                          </i>{' '}
-                          {center?.name ?? '-'}
-                        </span>
-                      </td>
-                      <td>{warehouse.receiptAddress || '-'}</td>
-                      <td>{warehouse.receiptPhone || '-'}</td>
-                      <td>
-                        {t('warehouse.common.pcs', {
-                          count: warehouse.locations.length,
-                        })}
-                      </td>
-                      <td>{warehouseProductCounts[warehouse.id] ?? 0}</td>
-                      <td>
-                        <button
-                          type='button'
-                          className='secondary-button'
-                          onClick={() => onEditWarehouse(warehouse)}
+                            {warehouse.name}
+                          </button>
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.status',
+                          )}
                         >
-                          {t('warehouse.common.edit')}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <span
+                            className={
+                              warehouse.isActive
+                                ? 'receipt-status receipt-status-received'
+                                : 'receipt-status receipt-status-cancelled'
+                            }
+                          >
+                            {warehouse.isActive
+                              ? t('warehouse.common.active')
+                              : t('warehouse.common.inactive')}
+                          </span>
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.location',
+                          )}
+                        >
+                          <span className='warehouse-settings-center-chip'>
+                            <i
+                              style={{
+                                color: center?.color ?? '#94a3b8',
+                              }}
+                            >
+                              &bull;
+                            </i>{' '}
+                            {center?.name ?? '-'}
+                          </span>
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.address',
+                          )}
+                        >
+                          {warehouse.receiptAddress || '-'}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.phone',
+                          )}
+                        >
+                          {warehouse.receiptPhone || '-'}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.locations',
+                          )}
+                        >
+                          {t('warehouse.common.pcs', {
+                            count: warehouse.locations.length,
+                          })}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.products',
+                          )}
+                        >
+                          {warehouseProductCounts[warehouse.id] ?? 0}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.warehouses.columns.action',
+                          )}
+                        >
+                          <button
+                            type='button'
+                            className='secondary-button'
+                            onClick={() => onEditWarehouse(warehouse)}
+                          >
+                            {t('warehouse.common.edit')}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : null}
 
       {tab === 'administrators' ? (
         <>
-          <div className='catalog-table-wrap warehouse-admin-table-wrap'>
-            <table className='catalog-table warehouse-settings-table warehouse-admin-table table-card-stack'>
-              <thead>
-                <tr>
-                  <th>{t('warehouse.settings.administrators.administrator')}</th>
-                  <th>
-                    {t('warehouse.settings.administrators.viewWarehouses')}
-                  </th>
-                  <th>
-                    {t('warehouse.settings.administrators.viewDefaultLocation')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {administrators.map((administrator) => {
-                  const employee = employees.find(
-                    (item) => item.id === administrator.employeeId,
-                  );
-                  if (!employee) return null;
-                  const availableLocations =
-                    administrator.warehouseIds.flatMap(
-                      (warehouseId) => {
-                        const warehouse = warehouseMap[warehouseId];
-                        if (!warehouse) return [];
-                        return warehouse.locations.map(
-                          (location) => ({
-                            warehouseId: warehouse.id,
-                            warehouseIsActive: warehouse.isActive,
-                            locationId: location.id,
-                            label: `${warehouse.name} ${location.name}`,
-                          }),
-                        );
-                      },
-                    ).filter((location) => location.warehouseIsActive);
-                  const selectedWarehouseNames =
-                    administrator.warehouseIds
-                      .map(
-                        (warehouseId) =>
-                          warehouseMap[warehouseId]?.name,
-                      )
-                      .filter(Boolean);
-                  const isAllSelected =
-                    activeWarehouses.length > 0 &&
-                    activeWarehouses.every((warehouse) =>
-                      administrator.warehouseIds.includes(warehouse.id),
+          {visibleAdministrators.length === 0 ? (
+            <p className='empty-state warehouse-settings-empty'>
+              {t('warehouse.settings.empty.administrators')}
+            </p>
+          ) : (
+            <div className='catalog-table-wrap warehouse-admin-table-wrap'>
+              <table className='catalog-table warehouse-settings-table warehouse-admin-table table-card-stack'>
+                <thead>
+                  <tr>
+                    <th>
+                      {t('warehouse.settings.administrators.administrator')}
+                    </th>
+                    <th>
+                      {t('warehouse.settings.administrators.viewWarehouses')}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.administrators.viewDefaultLocation',
+                      )}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleAdministrators.map((administrator) => {
+                    const employee = employees.find(
+                      (item) => item.id === administrator.employeeId,
                     );
-                  const warehouseSearch =
-                    adminWarehouseSearch[administrator.employeeId] ??
-                    '';
-                  const filteredWarehouses = warehouses.filter(
-                    (warehouse) =>
-                      warehouse.name
-                        .toLowerCase()
-                        .includes(
-                          warehouseSearch.trim().toLowerCase(),
-                        ),
-                  );
-                  const defaultValue = `${administrator.defaultWarehouseId}:${administrator.defaultLocationId}`;
-                  return (
-                    <tr key={administrator.employeeId}>
-                      <td>{employee.name}</td>
-                      <td>
-                        <details
-                          className='warehouse-admin-multiselect'
-                          ref={(element) => {
-                            if (element) {
-                              warehouseMultiselectRefs.current.set(
-                                administrator.employeeId,
-                                element,
-                              );
-                            } else {
-                              warehouseMultiselectRefs.current.delete(
-                                administrator.employeeId,
-                              );
-                            }
-                          }}
+                    if (!employee) return null;
+                    const availableLocations =
+                      administrator.warehouseIds.flatMap(
+                        (warehouseId) => {
+                          const warehouse = warehouseMap[warehouseId];
+                          if (!warehouse) return [];
+                          return warehouse.locations.map(
+                            (location) => ({
+                              warehouseId: warehouse.id,
+                              warehouseIsActive: warehouse.isActive,
+                              locationId: location.id,
+                              label: `${warehouse.name} ${location.name}`,
+                            }),
+                          );
+                        },
+                      ).filter((location) => location.warehouseIsActive);
+                    const selectedWarehouseNames =
+                      administrator.warehouseIds
+                        .map(
+                          (warehouseId) =>
+                            warehouseMap[warehouseId]?.name,
+                        )
+                        .filter(Boolean);
+                    const isAllSelected =
+                      activeWarehouses.length > 0 &&
+                      activeWarehouses.every((warehouse) =>
+                        administrator.warehouseIds.includes(warehouse.id),
+                      );
+                    const warehouseSearch =
+                      adminWarehouseSearch[administrator.employeeId] ??
+                      '';
+                    const filteredWarehouses = warehouses.filter(
+                      (warehouse) =>
+                        warehouse.name
+                          .toLowerCase()
+                          .includes(
+                            warehouseSearch.trim().toLowerCase(),
+                          ),
+                    );
+                    const defaultValue = `${administrator.defaultWarehouseId}:${administrator.defaultLocationId}`;
+                    return (
+                      <tr key={administrator.employeeId}>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.administrators.administrator',
+                          )}
                         >
-                          <summary>
-                            {isAllSelected
-                              ? t(
-                                  'warehouse.settings.administrators.allSelected',
-                                  {
-                                    count: administrator.warehouseIds.length,
-                                  },
-                                )
-                              : selectedWarehouseNames.join(', ') ||
-                                t(
-                                  'warehouse.settings.administrators.selectWarehouses',
-                                )}
-                          </summary>
-                          <div className='warehouse-admin-multiselect-menu'>
-                            <input
-                              value={warehouseSearch}
-                              onChange={(event) =>
-                                setAdminWarehouseSearch(
-                                  (current) => ({
-                                    ...current,
-                                    [administrator.employeeId]:
-                                      event.target.value,
-                                  }),
-                                )
+                          {employee.name}
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.administrators.viewWarehouses',
+                          )}
+                        >
+                          <details
+                            className='warehouse-admin-multiselect'
+                            ref={(element) => {
+                              if (element) {
+                                warehouseMultiselectRefs.current.set(
+                                  administrator.employeeId,
+                                  element,
+                                );
+                              } else {
+                                warehouseMultiselectRefs.current.delete(
+                                  administrator.employeeId,
+                                );
                               }
-                              placeholder={t(
-                                'warehouse.settings.administrators.searchPlaceholder',
-                              )}
-                            />
-                            <label className='warehouse-admin-checkline'>
+                            }}
+                          >
+                            <summary>
+                              {isAllSelected
+                                ? t(
+                                    'warehouse.settings.administrators.allSelected',
+                                    {
+                                      count: administrator.warehouseIds.length,
+                                    },
+                                  )
+                                : selectedWarehouseNames.join(', ') ||
+                                  t(
+                                    'warehouse.settings.administrators.selectWarehouses',
+                                  )}
+                            </summary>
+                            <div className='warehouse-admin-multiselect-menu'>
                               <input
-                                type='checkbox'
-                                checked={isAllSelected}
-                                onChange={(event) => {
-                                  const nextWarehouseIds = event
-                                    .target.checked
-                                    ? activeWarehouses.map(
-                                        (warehouse) => warehouse.id,
-                                      )
-                                    : [];
-                                  onAdministratorChange((current) =>
-                                    current.map((item) =>
-                                      item.employeeId ===
-                                      administrator.employeeId
-                                        ? ensureAdminDefaults(
-                                            {
-                                              ...item,
-                                              warehouseIds:
-                                                nextWarehouseIds,
-                                            },
-                                            nextWarehouseIds,
-                                          )
-                                        : item,
-                                    ),
-                                  );
-                                }}
-                              />
-                              <span>
-                                {t(
-                                  'warehouse.settings.administrators.selectAll',
+                                value={warehouseSearch}
+                                onChange={(event) =>
+                                  setAdminWarehouseSearch(
+                                    (current) => ({
+                                      ...current,
+                                      [administrator.employeeId]:
+                                        event.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder={t(
+                                  'warehouse.settings.administrators.searchPlaceholder',
                                 )}
-                              </span>
-                            </label>
-                            <div className='warehouse-admin-options'>
-                              {filteredWarehouses.map((warehouse) => (
-                                <label
-                                  key={warehouse.id}
-                                  className='warehouse-admin-checkline'
-                                >
-                                  <input
-                                    type='checkbox'
-                                    checked={administrator.warehouseIds.includes(
-                                      warehouse.id,
-                                    )}
-                                    onChange={(event) => {
-                                      const nextWarehouseIds = event
-                                        .target.checked
-                                        ? [
-                                            ...administrator.warehouseIds,
-                                            warehouse.id,
-                                          ]
-                                        : administrator.warehouseIds.filter(
-                                            (warehouseId) =>
-                                              warehouseId !==
-                                              warehouse.id,
-                                          );
-                                      onAdministratorChange(
-                                        (current) =>
-                                          current.map((item) =>
-                                            item.employeeId ===
-                                            administrator.employeeId
-                                              ? ensureAdminDefaults(
-                                                  {
-                                                    ...item,
-                                                    warehouseIds:
-                                                      nextWarehouseIds,
-                                                  },
+                              />
+                              <label className='warehouse-admin-checkline'>
+                                <input
+                                  type='checkbox'
+                                  checked={isAllSelected}
+                                  onChange={(event) => {
+                                    const nextWarehouseIds = event
+                                      .target.checked
+                                      ? activeWarehouses.map(
+                                          (warehouse) => warehouse.id,
+                                        )
+                                      : [];
+                                    onAdministratorChange((current) =>
+                                      current.map((item) =>
+                                        item.employeeId ===
+                                        administrator.employeeId
+                                          ? ensureAdminDefaults(
+                                              {
+                                                ...item,
+                                                warehouseIds:
                                                   nextWarehouseIds,
-                                                )
-                                              : item,
-                                          ),
-                                      );
-                                    }}
-                                  />
-                                  <span>{warehouse.name}</span>
-                                  {!warehouse.isActive ? (
-                                    <span className='catalog-inactive-badge'>
-                                      {t('warehouse.common.inactive')}
-                                    </span>
-                                  ) : null}
-                                </label>
-                              ))}
+                                              },
+                                              nextWarehouseIds,
+                                            )
+                                          : item,
+                                      ),
+                                    );
+                                  }}
+                                />
+                                <span>
+                                  {t(
+                                    'warehouse.settings.administrators.selectAll',
+                                  )}
+                                </span>
+                              </label>
+                              <div className='warehouse-admin-options'>
+                                {filteredWarehouses.map((warehouse) => (
+                                  <label
+                                    key={warehouse.id}
+                                    className='warehouse-admin-checkline'
+                                  >
+                                    <input
+                                      type='checkbox'
+                                      checked={administrator.warehouseIds.includes(
+                                        warehouse.id,
+                                      )}
+                                      onChange={(event) => {
+                                        const nextWarehouseIds = event
+                                          .target.checked
+                                          ? [
+                                              ...administrator.warehouseIds,
+                                              warehouse.id,
+                                            ]
+                                          : administrator.warehouseIds.filter(
+                                              (warehouseId) =>
+                                                warehouseId !==
+                                                warehouse.id,
+                                            );
+                                        onAdministratorChange(
+                                          (current) =>
+                                            current.map((item) =>
+                                              item.employeeId ===
+                                              administrator.employeeId
+                                                ? ensureAdminDefaults(
+                                                    {
+                                                      ...item,
+                                                      warehouseIds:
+                                                        nextWarehouseIds,
+                                                    },
+                                                    nextWarehouseIds,
+                                                  )
+                                                : item,
+                                            ),
+                                        );
+                                      }}
+                                    />
+                                    <span>{warehouse.name}</span>
+                                    {!warehouse.isActive ? (
+                                      <span className='catalog-inactive-badge'>
+                                        {t('warehouse.common.inactive')}
+                                      </span>
+                                    ) : null}
+                                  </label>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        </details>
-                      </td>
-                      <td>
-                        <select
-                          className='warehouse-admin-default-select'
-                          value={defaultValue}
-                          onChange={(event) => {
-                            const [
-                              defaultWarehouseId,
-                              defaultLocationId,
-                            ] = event.target.value.split(':');
-                            onAdministratorChange((current) =>
-                              current.map((item) =>
-                                item.employeeId ===
-                                administrator.employeeId
-                                  ? {
-                                      ...item,
-                                      defaultWarehouseId,
-                                      defaultLocationId,
-                                    }
-                                  : item,
-                              ),
-                            );
-                          }}
+                          </details>
+                        </td>
+                        <td
+                          data-label={t(
+                            'warehouse.settings.administrators.viewDefaultLocation',
+                          )}
                         >
-                          {availableLocations.length === 0 ? (
-                            <option value=''>
-                              {t(
-                                'warehouse.settings.administrators.selectLocation',
-                              )}
-                            </option>
-                          ) : null}
-                          {availableLocations.map((location) => (
-                            <option
-                              key={`${location.warehouseId}:${location.locationId}`}
-                              value={`${location.warehouseId}:${location.locationId}`}
-                            >
-                              {location.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <select
+                            className='warehouse-admin-default-select'
+                            value={defaultValue}
+                            onChange={(event) => {
+                              const [
+                                defaultWarehouseId,
+                                defaultLocationId,
+                              ] = event.target.value.split(':');
+                              onAdministratorChange((current) =>
+                                current.map((item) =>
+                                  item.employeeId ===
+                                  administrator.employeeId
+                                    ? {
+                                        ...item,
+                                        defaultWarehouseId,
+                                        defaultLocationId,
+                                      }
+                                    : item,
+                                ),
+                              );
+                            }}
+                          >
+                            {availableLocations.length === 0 ? (
+                              <option value=''>
+                                {t(
+                                  'warehouse.settings.administrators.selectLocation',
+                                )}
+                              </option>
+                            ) : null}
+                            {availableLocations.map((location) => (
+                              <option
+                                key={`${location.warehouseId}:${location.locationId}`}
+                                value={`${location.warehouseId}:${location.locationId}`}
+                              >
+                                {location.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
           <button
             type='button'
-            className='secondary-button'
+            className='secondary-button warehouse-settings-save'
             onClick={onSaveAdministrators}
-            disabled={isSaving}
+            disabled={isSaving || visibleAdministrators.length === 0}
           >
             {isSaving
               ? t('warehouse.common.saving')
