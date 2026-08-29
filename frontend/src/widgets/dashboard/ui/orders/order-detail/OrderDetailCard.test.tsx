@@ -1750,29 +1750,46 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.change(priceInput, { target: { value: '1.3' } });
     fireEvent.change(priceInput, { target: { value: '1,3' } });
 
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      1,
-      'line-item-1',
-      undefined,
-      {
-        price: 0,
-      },
-    );
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      2,
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    fireEvent.blur(priceInput);
+    expect(onUpdateLineItem).toHaveBeenCalledTimes(1);
+    expect(onUpdateLineItem).toHaveBeenCalledWith(
       'line-item-1',
       undefined,
       {
         price: 1.3,
       },
     );
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      3,
+  });
+
+  it('commits an existing line-item price after idle debounce', () => {
+    vi.useFakeTimers();
+    const onUpdateLineItem = vi.fn();
+    renderCard({
+      onUpdateLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'service',
+          name: 'Postage',
+          price: 2000,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+      ],
+    });
+
+    const priceInput = screen.getByDisplayValue('2000');
+    fireEvent.change(priceInput, { target: { value: '200000' } });
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(399);
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onUpdateLineItem).toHaveBeenCalledTimes(1);
+    expect(onUpdateLineItem).toHaveBeenCalledWith(
       'line-item-1',
       undefined,
-      {
-        price: 1.3,
-      },
+      { price: 200000 },
     );
   });
 
@@ -2156,15 +2173,10 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.change(discountInput!, { target: { value: '1.3' } });
     fireEvent.change(discountInput!, { target: { value: '1,3' } });
 
-    expect(onDiscountChange).toHaveBeenNthCalledWith(1, {
-      mode: 'percent',
-      value: 1,
-    });
-    expect(onDiscountChange).toHaveBeenNthCalledWith(2, {
-      mode: 'percent',
-      value: 1.3,
-    });
-    expect(onDiscountChange).toHaveBeenNthCalledWith(3, {
+    expect(onDiscountChange).not.toHaveBeenCalled();
+    fireEvent.blur(discountInput!);
+    expect(onDiscountChange).toHaveBeenCalledTimes(1);
+    expect(onDiscountChange).toHaveBeenCalledWith({
       mode: 'percent',
       value: 1.3,
     });

@@ -16,7 +16,13 @@ import {
   logout,
   updateCurrentEmployeePreferences,
   authTokenStorageKey,
+  employeeSnapshotStorageKey,
 } from '../../../entities/auth/api/authApi';
+import {
+  clearLocalAuthSession,
+  persistAuthToken,
+  subscribeAuthSession,
+} from '../../../entities/auth/lib/sessionLifecycle';
 import type {
   Employee,
   OrdersTabPreference,
@@ -28,8 +34,8 @@ import {
 } from '../../../entities/employee/model/permissions';
 import { getApiErrorMessage, setApiAuthToken } from '../../../shared/api/http';
 import {
+  isAuthExpiredError,
   isNetworkRequestError,
-  isUnauthorizedRequestError,
 } from '../../../shared/lib/request';
 import { getBuildLabel, getBuildSha } from '../../../shared/lib/buildInfo';
 import { useDashboardPage } from '../model/useDashboardPage';
@@ -139,7 +145,6 @@ const pageKeys: PageKey[] = [
 ];
 const ordersTabStorageKey = 'project-goods.orders-tab';
 const activePageStorageKey = 'project-goods.dashboard-page';
-const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
 const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
 
 const readEmployeeSnapshot = (): Employee | null => {
@@ -536,11 +541,67 @@ export const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
+    return subscribeAuthSession((event) => {
+      if (event.type === 'cleared') {
+        setCurrentEmployee(null);
+        setAuthError((current) => current || t('errors.sessionExpired'));
+        setIsAuthLoading(false);
+      }
+    });
+  }, [t]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== authTokenStorageKey) return;
+
+      if (!event.newValue) {
+        clearLocalAuthSession();
+        setCurrentEmployee(null);
+        setAuthError('');
+        setIsAuthLoading(false);
+        return;
+      }
+
+      persistAuthToken(event.newValue);
+      setIsAuthLoading(true);
+      void (async () => {
+        try {
+          const employee = await getCurrentEmployee();
+          setCurrentEmployee(employee);
+          saveEmployeeSnapshot(employee);
+          setAuthError('');
+        } catch (error) {
+          if (isAuthExpiredError(error)) {
+            clearLocalAuthSession();
+            setCurrentEmployee(null);
+            setAuthError(t('errors.sessionExpired'));
+            return;
+          }
+          if (isNetworkRequestError(error)) {
+            const snapshot = readEmployeeSnapshot();
+            setCurrentEmployee(snapshot);
+            setAuthError(snapshot ? '' : t('errors.noInternetShort'));
+            return;
+          }
+          clearLocalAuthSession();
+          setCurrentEmployee(null);
+        } finally {
+          setIsAuthLoading(false);
+        }
+      })();
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [t]);
+
+  useEffect(() => {
     let isActive = true;
     const token = window.localStorage.getItem(authTokenStorageKey);
 
     if (!token) {
       setApiAuthToken(null);
+      setIsAuthLoading(false);
       return;
     }
 
@@ -555,18 +616,10 @@ export const DashboardPage = () => {
       } catch (error) {
         if (!isActive) return;
 
-        if (isUnauthorizedRequestError(error)) {
-          const snapshot = readEmployeeSnapshot();
-          if (snapshot) {
-            setCurrentEmployee(snapshot);
-            setAuthError(t('errors.sessionCheckFailed'));
-          } else {
-            window.localStorage.removeItem(authTokenStorageKey);
-            window.localStorage.removeItem(employeeSnapshotStorageKey);
-            setApiAuthToken(null);
-            setCurrentEmployee(null);
-            setAuthError(t('errors.sessionExpired'));
-          }
+        if (isAuthExpiredError(error)) {
+          clearLocalAuthSession();
+          setCurrentEmployee(null);
+          setAuthError(t('errors.sessionExpired'));
           return;
         }
 
@@ -582,10 +635,9 @@ export const DashboardPage = () => {
           return;
         }
 
-        window.localStorage.removeItem(authTokenStorageKey);
-        window.localStorage.removeItem(employeeSnapshotStorageKey);
-        setApiAuthToken(null);
+        clearLocalAuthSession();
         setCurrentEmployee(null);
+        setAuthError(t('errors.sessionExpired'));
       } finally {
         if (isActive) {
           setIsAuthLoading(false);
@@ -596,7 +648,7 @@ export const DashboardPage = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     window.localStorage.setItem(ordersTabStorageKey, activeOrdersTab);
@@ -971,8 +1023,7 @@ export const DashboardPage = () => {
 
     try {
       const session = await login(loginForm);
-      window.localStorage.setItem(authTokenStorageKey, session.token);
-      setApiAuthToken(session.token);
+      persistAuthToken(session.token);
       setCurrentEmployee(session.employee);
       saveEmployeeSnapshot(session.employee);
       navigateTo(
@@ -1006,8 +1057,7 @@ export const DashboardPage = () => {
 
     try {
       const session = await acceptInvitation(inviteToken, loginForm);
-      window.localStorage.setItem(authTokenStorageKey, session.token);
-      setApiAuthToken(session.token);
+      persistAuthToken(session.token);
       setCurrentEmployee(session.employee);
       saveEmployeeSnapshot(session.employee);
       setLoginForm({ username: '', password: '' });
@@ -1039,10 +1089,9 @@ export const DashboardPage = () => {
     } catch {
       // ignore logout transport errors and clear local session anyway
     } finally {
-      window.localStorage.removeItem(authTokenStorageKey);
-      window.localStorage.removeItem(employeeSnapshotStorageKey);
-      setApiAuthToken(null);
+      clearLocalAuthSession();
       setCurrentEmployee(null);
+      setAuthError('');
       navigateTo(
         {
           page: 'home',

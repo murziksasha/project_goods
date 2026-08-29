@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
@@ -24,6 +24,7 @@ import {
   unbindClientDevice,
 } from '../../../../../entities/client-device/lib/unbind-client-device';
 import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
+import { MONEY_FIELD_COMMIT_MS } from '../../../../../shared/lib/price-stepper';
 import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
@@ -240,6 +241,57 @@ export const OrderDetailCard = ({
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
   const [discountInput, setDiscountInput] = useState(String(discount.value));
+  const discountRef = useRef(discount);
+  const discountInputRef = useRef(discountInput);
+  const onDiscountChangeRef = useRef(onDiscountChange);
+  useEffect(() => {
+    discountRef.current = discount;
+    discountInputRef.current = discountInput;
+    onDiscountChangeRef.current = onDiscountChange;
+  }, [discount, discountInput, onDiscountChange]);
+  const discountCommitTimerRef = useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
+  const persistDiscountValue = (input: string) => {
+    const currentDiscount = discountRef.current;
+    if (input === '') {
+      if (currentDiscount.value !== 0) {
+        onDiscountChangeRef.current({
+          mode: currentDiscount.mode,
+          value: 0,
+        });
+      }
+      return;
+    }
+    const nextValue = parseDecimal(input);
+    if (!Number.isFinite(nextValue)) return;
+    const rounded =
+      nextValue > 0 ? Math.round(nextValue * 100) / 100 : 0;
+    if (rounded === currentDiscount.value) return;
+    onDiscountChangeRef.current({
+      mode: currentDiscount.mode,
+      value: rounded,
+    });
+  };
+  const cancelDiscountCommit = () => {
+    if (discountCommitTimerRef.current) {
+      clearTimeout(discountCommitTimerRef.current);
+      discountCommitTimerRef.current = undefined;
+    }
+  };
+  const flushDiscountCommit = (input = discountInputRef.current) => {
+    cancelDiscountCommit();
+    persistDiscountValue(input);
+  };
+  useEffect(
+    () => () => {
+      if (discountCommitTimerRef.current) {
+        clearTimeout(discountCommitTimerRef.current);
+        persistDiscountValue(discountInputRef.current);
+      }
+    },
+    [],
+  );
   const remainingPayment = getRemainingPayment(
     sale,
     paidAmount,
@@ -354,6 +406,7 @@ export const OrderDetailCard = ({
   const toggleDiscountMode = () => {
     if (isReadOnly) return;
 
+    cancelDiscountCommit();
     const nextValue = parseDecimal(discountInput);
     onDiscountChange({
       mode: discount.mode === 'percent' ? 'amount' : 'percent',
@@ -1549,25 +1602,18 @@ export const OrderDetailCard = ({
                     value={discountInput}
                     onChange={(event) => {
                       const nextInput = normalizeDecimalInput(event.target.value);
-                      const nextValue = parseDecimal(nextInput);
                       setDiscountInput(nextInput);
-
-                      if (nextInput === '') {
-                        onDiscountChange({
-                          mode: discount.mode,
-                          value: 0,
-                        });
-                        return;
-                      }
-                      if (!Number.isFinite(nextValue)) return;
-
-                      onDiscountChange({
-                        mode: discount.mode,
-                        value: nextValue > 0
-                          ? Math.round(nextValue * 100) / 100
-                          : 0,
-                      });
+                      cancelDiscountCommit();
+                      discountCommitTimerRef.current = setTimeout(() => {
+                        discountCommitTimerRef.current = undefined;
+                        persistDiscountValue(nextInput);
+                      }, MONEY_FIELD_COMMIT_MS);
                     }}
+                    onBlur={(event) =>
+                      flushDiscountCommit(
+                        normalizeDecimalInput(event.currentTarget.value),
+                      )
+                    }
                     disabled={isReadOnly}
                   />
                   <button

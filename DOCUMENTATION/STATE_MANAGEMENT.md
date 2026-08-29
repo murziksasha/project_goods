@@ -93,9 +93,16 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 
 ## Auth Session Recovery Rule (2026-06-14)
 
-- If the session check fails because the current token is no longer valid, the app must clear stale auth state and take the user to the login screen so they can start a new session.
-- The workspace must not stay open on a failed session check when recovery requires a fresh sign-in.
-- The user-facing message should explain that the session ended or could not be verified and that a new login is required.
+- If the session check fails because the current token is no longer valid (`401`), the app must clear stale auth state and take the user to the login screen so they can start a new session.
+- A cached employee snapshot must **not** keep the workspace open on `401`. Snapshots are only for **network/timeout** failures so a brief offline blip does not kick the user out.
+- `403` is permission denied, not session expiry, and must not clear the token.
+- The user-facing message should explain that the session ended and that a new login is required.
+
+## Multi-tab session and live updates (2026-08-29)
+
+- Auth token and employee snapshot live in `localStorage`. Other tabs listen to the `storage` event (and an in-tab 401 interceptor) so logout / expired session in one window signs every window out.
+- `GET /api/events/stream` is held by **one leader tab** (`navigator.locks` + `BroadcastChannel`). Hidden tabs release the stream so Chrome's HTTP/1.1 6-connection pool is not filled by SSE. Followers apply `invalidateQueries` from the channel.
+- Stream reconnects on both error and clean close, with backoff. Backend `/events/stream` does not touch `lastUsedAt`.
 
 ## Phase 2 Status (2026-05-06)
 

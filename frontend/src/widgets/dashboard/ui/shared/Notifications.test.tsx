@@ -60,4 +60,29 @@ describe('Notifications', () => {
       }
     }
   });
+
+  it('does not stack duplicate error toasts', () => {
+    const { rerender } = render(
+      <Notifications
+        error="Request timed out."
+        successMessage=""
+        isOffline={false}
+      />,
+    );
+
+    expect(screen.getAllByText('Request timed out.')).toHaveLength(1);
+
+    rerender(
+      <Notifications error="" successMessage="" isOffline={false} />,
+    );
+    rerender(
+      <Notifications
+        error="Request timed out."
+        successMessage=""
+        isOffline={false}
+      />,
+    );
+
+    expect(screen.getAllByText('Request timed out.')).toHaveLength(1);
+  });
 });

@@ -10,6 +10,7 @@ import type {
 import type { AuthSession, InvitationDetails, LoginPayload } from '../model/types';
 
 export const authTokenStorageKey = 'project-goods.auth-token';
+export const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
 
 export const login = async (payload: LoginPayload) => {
   try {

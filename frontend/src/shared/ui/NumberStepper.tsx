@@ -1,3 +1,4 @@
+import type { FocusEventHandler } from 'react';
 import {
   normalizeDecimalInput,
   parseDecimal,
@@ -15,6 +16,7 @@ type NumberStepperProps = {
   ariaLabel?: string;
   className?: string;
   onFocus?: () => void;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
 };
 
 const getDecimalLength = (value: string) => {
@@ -49,6 +51,7 @@ export const NumberStepper = ({
   ariaLabel,
   className,
   onFocus,
+  onBlur,
 }: NumberStepperProps) => {
   const updateValue = (direction: 1 | -1) => {
     const normalizedValue = normalizeDecimalInput(value);
@@ -81,6 +84,7 @@ export const NumberStepper = ({
         disabled={disabled}
         aria-label={ariaLabel}
         onFocus={onFocus}
+        onBlur={onBlur}
       />
       <div className="number-stepper-controls" aria-hidden="true">
         <button

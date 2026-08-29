@@ -39,6 +39,7 @@ import {
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
 import {
+  MONEY_FIELD_COMMIT_MS,
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
@@ -249,6 +250,17 @@ export const OrderDetailLineItemsPanel = ({
     useState<WarehouseItem[]>([]);
   const [priceDrafts, setPriceDrafts] = useState<
     Record<string, string>
+  >({});
+  const priceDraftsRef = useRef(priceDrafts);
+  const itemsRef = useRef(items);
+  const onUpdateItemRef = useRef(onUpdateItem);
+  useEffect(() => {
+    priceDraftsRef.current = priceDrafts;
+    itemsRef.current = items;
+    onUpdateItemRef.current = onUpdateItem;
+  }, [priceDrafts, items, onUpdateItem]);
+  const priceCommitTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
   >({});
   const [isSupplierOrderModalOpen, setIsSupplierOrderModalOpen] =
     useState(false);
@@ -1247,24 +1259,58 @@ export const OrderDetailLineItemsPanel = ({
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
-  const handleLineItemPriceChange = (
-    item: OrderLineItem,
-    value: string,
-  ) => {
-    setPriceDrafts((current) => ({
-      ...current,
-      [item.id]: value,
-    }));
-
-    if (value === '') return;
-
+  const commitLineItemPrice = useCallback((itemId: string, value: string) => {
+    const item = itemsRef.current.find((lineItem) => lineItem.id === itemId);
+    if (!item || value === '') return;
     const parsedPrice = parseDecimal(value);
     if (!Number.isFinite(parsedPrice)) return;
+    const nextPrice = Math.round(parsedPrice * 100) / 100;
+    if (nextPrice === item.price) return;
+    onUpdateItemRef.current(itemId, undefined, { price: nextPrice });
+  }, []);
 
-    onUpdateItem(item.id, undefined, {
-      price: Math.round(parsedPrice * 100) / 100,
-    });
-  };
+  const flushLineItemPrice = useCallback((itemId: string, value: string) => {
+    const timer = priceCommitTimersRef.current[itemId];
+    if (timer) {
+      clearTimeout(timer);
+      delete priceCommitTimersRef.current[itemId];
+    }
+    commitLineItemPrice(itemId, value);
+  }, [commitLineItemPrice]);
+
+  const handleLineItemPriceChange = useCallback(
+    (item: OrderLineItem, value: string, commitNow = false) => {
+      setPriceDrafts((current) => ({
+        ...current,
+        [item.id]: value,
+      }));
+      if (commitNow) {
+        flushLineItemPrice(item.id, value);
+        return;
+      }
+      const timer = priceCommitTimersRef.current[item.id];
+      if (timer) clearTimeout(timer);
+      priceCommitTimersRef.current[item.id] = setTimeout(() => {
+        delete priceCommitTimersRef.current[item.id];
+        commitLineItemPrice(item.id, value);
+      }, MONEY_FIELD_COMMIT_MS);
+    },
+    [commitLineItemPrice, flushLineItemPrice],
+  );
+
+  useEffect(
+    () => () => {
+      Object.entries(priceCommitTimersRef.current).forEach(
+        ([itemId, timer]) => {
+          clearTimeout(timer);
+          const value = priceDraftsRef.current[itemId];
+          if (value !== undefined) commitLineItemPrice(itemId, value);
+        },
+      );
+      priceCommitTimersRef.current = {};
+    },
+    [commitLineItemPrice],
+  );
 
   const resolveSalePriceTier = useCallback(
     (
@@ -1295,8 +1341,7 @@ export const OrderDetailLineItemsPanel = ({
         product: selectedStockProduct,
         value: price,
         priceTier,
-        setPriceTier,
-        onPriceChange: setPrice,
+        itemId: null as string | null,
       };
     }
 
@@ -1313,19 +1358,10 @@ export const OrderDetailLineItemsPanel = ({
       product,
       value: priceDrafts[item.id] ?? String(item.price),
       priceTier: priceTierByItemId[item.id] ?? null,
-      setPriceTier: (tier: ProductSalePriceTier) => {
-        setPriceTierByItemId((current) => ({
-          ...current,
-          [item.id]: tier,
-        }));
-      },
-      onPriceChange: (nextPrice: string) => {
-        handleLineItemPriceChange(item, nextPrice);
-      },
+      itemId: item.id,
     };
   }, [
     activePriceContext,
-    handleLineItemPriceChange,
     isProductKind,
     items,
     price,
@@ -1339,27 +1375,37 @@ export const OrderDetailLineItemsPanel = ({
     activePriceHeaderTarget?.product &&
     hasWholesaleSalePrice(activePriceHeaderTarget.product),
   );
-  const priceHeaderActiveTier = activePriceHeaderTarget
-    ? resolveSalePriceTier(
-        activePriceHeaderTarget.product,
-        activePriceHeaderTarget.value,
-        activePriceHeaderTarget.priceTier,
-      )
-    : null;
+  const priceHeaderActiveTier = useMemo(() => {
+    if (!activePriceHeaderTarget?.product) return null;
+    return resolveSalePriceTier(
+      activePriceHeaderTarget.product,
+      activePriceHeaderTarget.value,
+      activePriceHeaderTarget.priceTier,
+    );
+  }, [activePriceHeaderTarget, resolveSalePriceTier]);
   const handlePriceHeaderTierChange = (
     tier: ProductSalePriceTier,
   ) => {
     if (!activePriceHeaderTarget?.product) return;
 
-    activePriceHeaderTarget.setPriceTier(tier);
-    activePriceHeaderTarget.onPriceChange(
-      formatProductSalePrice(
-        getProductSalePriceByTier(
-          activePriceHeaderTarget.product,
-          tier,
-        ),
-      ),
+    const nextPrice = formatProductSalePrice(
+      getProductSalePriceByTier(activePriceHeaderTarget.product, tier),
     );
+
+    if (activePriceHeaderTarget.itemId === null) {
+      setPriceTier(tier);
+      setPrice(nextPrice);
+      return;
+    }
+
+    const itemId = activePriceHeaderTarget.itemId;
+    setPriceTierByItemId((current) => ({
+      ...current,
+      [itemId]: tier,
+    }));
+    const item = items.find((lineItem) => lineItem.id === itemId);
+    if (!item) return;
+    handleLineItemPriceChange(item, nextPrice, true);
   };
   const showSerialColumn = isProductKind;
   const tableClassName = showSerialColumn
@@ -1557,6 +1603,9 @@ export const OrderDetailLineItemsPanel = ({
                       handleLineItemPriceChange(item, value)
                     }
                     onFocus={() => setActivePriceContext(item.id)}
+                    onBlur={(event) =>
+                      flushLineItemPrice(item.id, event.currentTarget.value)
+                    }
                     disabled={isReadOnly}
                     ariaLabel={t('orders.detail.lineItems.price')}
                   />

@@ -1248,6 +1248,75 @@ describe('OrdersWorkspace', () => {
     });
   });
 
+  it('serializes overlapping line-item updates with the latest expectedUpdatedAt', async () => {
+    const saleWithService: Sale = {
+      ...sale,
+      kind: 'sale',
+      recordNumber: 'r000704',
+      lineItems: [
+        {
+          id: 'item-1',
+          kind: 'service',
+          name: 'Postage',
+          price: 2000,
+          quantity: 3,
+          warrantyPeriod: 30,
+        },
+      ],
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    let resolveFirst!: (value: Sale) => void;
+    const firstPersist = new Promise<Sale>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const firstUpdated: Sale = {
+      ...saleWithService,
+      lineItems: [
+        { ...saleWithService.lineItems[0], quantity: 4 },
+      ],
+      updatedAt: '2026-01-01T00:00:01.000Z',
+    };
+    const secondUpdated: Sale = {
+      ...firstUpdated,
+      lineItems: [
+        { ...firstUpdated.lineItems[0], quantity: 5 },
+      ],
+      updatedAt: '2026-01-01T00:00:02.000Z',
+    };
+    updateSaleWorkspaceMock
+      .mockImplementationOnce(() => firstPersist)
+      .mockResolvedValueOnce(secondUpdated);
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [saleWithService],
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000704/i }));
+    const qtyInput = await screen.findByDisplayValue('3');
+    fireEvent.change(qtyInput, { target: { value: '4' } });
+    fireEvent.change(qtyInput, { target: { value: '5' } });
+
+    await waitFor(() => {
+      expect(updateSaleWorkspaceMock).toHaveBeenCalledTimes(1);
+    });
+    expect(updateSaleWorkspaceMock.mock.calls[0]?.[1].expectedUpdatedAt).toBe(
+      '2026-01-01T00:00:00.000Z',
+    );
+
+    resolveFirst(firstUpdated);
+
+    await waitFor(() => {
+      expect(updateSaleWorkspaceMock).toHaveBeenCalledTimes(2);
+    });
+    expect(updateSaleWorkspaceMock.mock.calls[1]?.[1].expectedUpdatedAt).toBe(
+      '2026-01-01T00:00:01.000Z',
+    );
+    expect(updateSaleWorkspaceMock.mock.calls[1]?.[1].lineItems?.[0]).toMatchObject({
+      quantity: 5,
+    });
+  });
+
   it('shows rapid sale label instead of client name in sales list', () => {
     renderWorkspace({
       activeTab: 'sales',

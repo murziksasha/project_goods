@@ -25,7 +25,13 @@ export const requireAuthUnlessPublic: RequestHandler = async (
   }
 
   try {
-    req.employee = await getEmployeeByToken(getBearerToken(req.headers.authorization));
+    const isEventsStream =
+      req.path === '/events/stream' || req.path.endsWith('/events/stream');
+    req.employee = await getEmployeeByToken(
+      getBearerToken(req.headers.authorization),
+      new Date(),
+      { touch: !isEventsStream },
+    );
     next();
   } catch (error) {
     next(error);

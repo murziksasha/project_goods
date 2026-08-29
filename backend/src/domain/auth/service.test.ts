@@ -245,6 +245,87 @@ describe('auth sessions', () => {
     expect(employee.save).toHaveBeenCalled();
   });
 
+  it('does not persist session writes when touch is disabled', async () => {
+    env.authSessionIdleHours = 24;
+    const lastUsedAt = new Date('2026-06-09T11:00:00.000Z');
+    const now = new Date('2026-06-09T12:00:00.000Z');
+    const raw = 'fresh-token-raw-value-32bytes-eeeeee';
+    const employee = createEmployeeRecord({
+      authSessions: [
+        {
+          token: hashAuthToken(raw),
+          createdAt: lastUsedAt,
+          lastUsedAt,
+        },
+      ],
+      authTokens: [hashAuthToken(raw)],
+      authToken: hashAuthToken(raw),
+    });
+    mockEmployeeFindOne(employee);
+    const updateOne = vi.spyOn(Employee, 'updateOne').mockResolvedValue({} as never);
+
+    await expect(getEmployeeByToken(raw, now, { touch: false })).resolves.toMatchObject({
+      username: 'employee',
+    });
+    expect(employee.save).not.toHaveBeenCalled();
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+
+  it('touches lastUsedAt atomically when only the idle stamp is stale', async () => {
+    env.authSessionIdleHours = 24;
+    const lastUsedAt = new Date('2026-06-09T11:00:00.000Z');
+    const now = new Date('2026-06-09T12:00:00.000Z');
+    const raw = 'fresh-token-raw-value-32bytes-eeeeee';
+    const hashed = hashAuthToken(raw);
+    const employee = createEmployeeRecord({
+      authSessions: [
+        {
+          token: hashed,
+          createdAt: lastUsedAt,
+          lastUsedAt,
+        },
+      ],
+      authTokens: [hashed],
+      authToken: hashed,
+    });
+    mockEmployeeFindOne(employee);
+    const updateOne = vi.spyOn(Employee, 'updateOne').mockResolvedValue({} as never);
+
+    await expect(getEmployeeByToken(raw, now)).resolves.toMatchObject({
+      username: 'employee',
+    });
+    expect(employee.save).not.toHaveBeenCalled();
+    expect(updateOne).toHaveBeenCalledWith(
+      { _id: employee._id, 'authSessions.token': hashed },
+      { $set: { 'authSessions.$.lastUsedAt': now } },
+    );
+  });
+
+  it('rejects idle-expired sessions without writing when touch is disabled', async () => {
+    env.authSessionIdleHours = 1;
+    const lastUsedAt = new Date('2026-06-09T10:00:00.000Z');
+    const now = new Date('2026-06-09T12:00:00.000Z');
+    const raw = 'stale-token-raw-value-32bytes-dddddd';
+    const employee = createEmployeeRecord({
+      authSessions: [
+        {
+          token: hashAuthToken(raw),
+          createdAt: lastUsedAt,
+          lastUsedAt,
+        },
+      ],
+      authTokens: [hashAuthToken(raw)],
+      authToken: hashAuthToken(raw),
+    });
+    mockEmployeeFindOne(employee);
+
+    await expect(getEmployeeByToken(raw, now, { touch: false })).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Session expired. Please sign in again.',
+    });
+    expect(employee.save).not.toHaveBeenCalled();
+  });
+
   it('accepts sessions still within idle window', async () => {
     env.authSessionIdleHours = 24;
     const lastUsedAt = new Date('2026-06-09T11:00:00.000Z');

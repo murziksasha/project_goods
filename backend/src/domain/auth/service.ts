@@ -170,8 +170,10 @@ export const loginEmployee = async (usernameValue: unknown, passwordValue: unkno
 export const getEmployeeByToken = async (
   tokenValue: unknown,
   now: Date = new Date(),
+  options: { touch?: boolean } = {},
 ) => {
   const token = toNonEmptyString(tokenValue);
+  const touch = options.touch !== false;
   if (!token) {
     throw new HttpError(401, 'Authorization token is required.');
   }
@@ -191,13 +193,19 @@ export const getEmployeeByToken = async (
   }
 
   if (isSessionExpired(session, now)) {
-    const remaining = sessions.filter(
-      (item) =>
-        !authTokenMatches(token, item.token) && !isSessionExpired(item, now),
-    );
-    syncLegacyAuthFields(employee, remaining);
-    await employee.save();
+    if (touch) {
+      const remaining = sessions.filter(
+        (item) =>
+          !authTokenMatches(token, item.token) && !isSessionExpired(item, now),
+      );
+      syncLegacyAuthFields(employee, remaining);
+      await employee.save();
+    }
     throw new HttpError(401, 'Session expired. Please sign in again.');
+  }
+
+  if (!touch) {
+    return employee;
   }
 
   // Drop other idle-expired sessions even when current token is still valid.
@@ -211,6 +219,18 @@ export const getEmployeeByToken = async (
     !Array.isArray(employee.authSessions) ||
     employee.authSessions.length === 0 ||
     !employee.authSessions.some((item) => authTokenMatches(token, item.token));
+
+  if (shouldTouch && !needsRehash && !needsLegacySync && !prunedExpired) {
+    try {
+      await Employee.updateOne(
+        { _id: employee._id, 'authSessions.token': session.token },
+        { $set: { 'authSessions.$.lastUsedAt': now } },
+      );
+    } catch {
+      // lastUsedAt is best-effort; a failed stamp must not fail the request
+    }
+    return employee;
+  }
 
   if (shouldTouch || needsRehash || needsLegacySync || prunedExpired) {
     const nextSessions = activeSessions.map((item) => {

@@ -63,7 +63,7 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 - Soft login rate limit only (see above); no global API rate limit.
 - Session tokens: client holds raw bearer; DB stores `h1:` + SHA-256 only. **Plaintext legacy sessions are rejected** (re-login required).
 - Settings API never returns or persists `openWeatherApiKey`; response includes `dashboardPreferences.hasOpenWeatherApiKey` when server env is set.
-- Idle session expiry: set `AUTH_SESSION_IDLE_HOURS` (e.g. `72` for weekend-safe shop PCs). Default **0** (disabled). `lastUsedAt` is touched at most every 5 minutes.
+- Idle session expiry: set `AUTH_SESSION_IDLE_HOURS` (e.g. `72` for weekend-safe shop PCs). Default **0** (disabled). `lastUsedAt` is touched at most every 5 minutes via atomic `updateOne` (not on `GET /events/stream`). Multi-tab clients share one SSE leader so HTTP/1.1 connection slots stay free.
 - Backup custom `BACKUP_*_COMMAND` templates: only `{mongoUri}` / `{archivePath}`; shell metacharacters rejected before spawn.
 - Backup upload default limit is **2gb** (`BACKUP_RESTORE_UPLOAD_LIMIT`).
 
