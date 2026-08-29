@@ -913,6 +913,7 @@ export const createDashboardActions = ({
           i18n.t('dashboard.actions.errors.failedRefreshEmployees'),
         );
         resetEmployeeEditor();
+        return true;
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -920,6 +921,7 @@ export const createDashboardActions = ({
             i18n.t('dashboard.actions.errors.failedSaveEmployee'),
           ),
         );
+        return false;
       } finally {
         setIsEmployeeSaving(false);
       }

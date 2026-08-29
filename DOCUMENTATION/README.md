@@ -17,6 +17,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Supplier orders | [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) | — |
 | Clients | [CLIENTS_RULES.md](./CLIENTS_RULES.md) | — |
 | Employees / RBAC | [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) | [Permission_Flow.md](./Permission_Flow.md) |
+| Settings | [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md), [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) |
 
 ## 1. Start here
 
@@ -61,4 +62,5 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 - [ACCOUNTING.md](./ACCOUNTING.md)
 - [CLIENTS_RULES.md](./CLIENTS_RULES.md)
 - [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md)
+- [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) — Company, Print, Dashboard, Backups, Database
 - [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) — analytics, rates, weather

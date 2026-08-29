@@ -222,7 +222,12 @@ ui/
 |  `- product-catalog-shared.tsx
 |- settings/                   # настройки, сотрудники, конструктор печати
 |  |- SettingsPanel.tsx
+|  |- CompanySettingsSection.tsx
+|  |- DashboardSettingsSection.tsx
+|  |- PrintFormsSection.tsx
 |  |- PrintFormBuilder.tsx
+|  |- BackupsSection.tsx
+|  |- DatabaseReportSection.tsx
 |  |- EmployeesPanel.tsx
 |  |- EmployeeManagementPanel.tsx
 |  `- EmployeeInformationPanel.tsx

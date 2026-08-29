@@ -11,14 +11,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .warehouse-transfer-grid,
-  .settings-print-builder,
-  .print-builder-workspace {
+  .warehouse-transfer-grid {
     grid-template-columns: 1fr;
-  }
-
-  .settings-print-preview {
-    position: static;
   }
 }
 
@@ -1304,15 +1298,13 @@
 
   .catalog-tabs,
   .warehouse-tabs,
-  .clients-modal-tabs,
-  .settings-tabs {
+  .clients-modal-tabs {
     overflow-x: auto;
     flex-wrap: nowrap;
   }
 
   .catalog-tab,
-  .warehouse-tab,
-  .settings-tab {
+  .warehouse-tab {
     flex: 0 0 auto;
     white-space: nowrap;
   }
@@ -1351,7 +1343,6 @@
   .create-checks-grid,
   .sale-item-row,
   .rapid-sale-entry-row,
-  .settings-print-options-row,
   .print-builder-field-row,
   .print-builder-custom-row {
     grid-template-columns: 1fr;
@@ -1777,17 +1768,6 @@
     flex-wrap: wrap;
   }
 
-  .settings-print-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-print-builder {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-print-preview {
-    position: static;
-  }
 }
 
 @media (max-width: 530px) {

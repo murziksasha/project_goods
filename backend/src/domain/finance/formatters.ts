@@ -25,6 +25,7 @@ export const formatCurrencyConfig = (currency: FinanceCurrencyConfigDocument) =>
 export const formatCashbox = (
   cashbox: CashboxDocument,
   currencyCodes: string[] = [],
+  currencyOperations: Record<string, boolean> = {},
 ) => {
   const balances = mapLikeToRecord<number>(cashbox.balances);
   const enabledCurrencies = mapLikeToRecord<boolean>(cashbox.enabledCurrencies);
@@ -41,8 +42,14 @@ export const formatCashbox = (
   }, {}),
   enabledCurrencies: allCurrencyCodes.reduce<Record<string, boolean>>(
     (acc, currency) => {
-      acc[currency] =
-        currency === baseFinanceCurrency || enabledCurrencies[currency] === true;
+      acc[currency] = enabledCurrencies[currency] === true;
+      return acc;
+    },
+    {},
+  ),
+  hasCurrencyOperations: allCurrencyCodes.reduce<Record<string, boolean>>(
+    (acc, currency) => {
+      acc[currency] = currencyOperations[currency] === true;
       return acc;
     },
     {},

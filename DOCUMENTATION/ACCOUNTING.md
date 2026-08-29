@@ -157,6 +157,14 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `Withdraw` and `Transfer`: balance of source cashbox (`From`) after transaction.
   - `Deposit`: balance of destination cashbox (`To`) after transaction.
 
+## Cashboxes tab (compact cards)
+
+- Cards show name (ellipsis) + balances. Actions are **Operation** and **Transactions** (not four stacked type buttons).
+- Clicking a card or **Operation** opens the operation **modal** (prefill rules below still apply).
+- Search and **Hide empty** filter the grid. **Hide empty** is stored in `localStorage` (`project-goods.accounting-hide-empty-cashboxes`) and restored on reload.
+- **Add cashbox** on the cashboxes toolbar (and empty state) opens a create modal. The tab-row gear still opens full Accounting settings (rename/archive/currencies).
+- Settings open is URL `accountingSettings=1` (not sticky `localStorage`).
+
 ## Cashbox Card Action Prefill Rules
 - Clicking a cashbox card action opens the operation form for that cashbox.
 - If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `type`, `from`, `to`, and `currency` from that memory; `amount` and `note` start empty.
@@ -195,11 +203,19 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 
 ## Cashbox Currency Visibility Rules
 - System currency visibility for cashboxes is stored in MongoDB per cashbox, not in browser-local user preferences.
-- `UAH` is always enabled for every cashbox and cannot be disabled.
+- New cashboxes still default to **UAH receive on**, other currencies off.
+- Create/edit may enable only USD (or another currency) with UAH off. Listing and currency backfill must not turn UAH back on.
+- A cashbox card shows a currency only when it is enabled for receive or has a leftover balance (`Withdraw only`). Disabled UAH with `0.00` is hidden.
+- UAH can be disabled per cashbox (same as USD) only when that cashbox has zero balance and no operations in UAH; leftover already-disabled UAH still shows as `Withdraw only`.
+- The **default cashbox** cannot disable UAH.
+- At least one receive currency must stay enabled on each cashbox.
 - `USD` and all custom currencies exist for every current and future cashbox, but are disabled by default.
 - Enabling a non-UAH currency in one cashbox setting is global for all users because it updates that cashbox document in the database.
 - If a currency is disabled for a cashbox but its balance is greater than zero, the balance remains visible as `Withdraw only`.
 - Disabled currency cashboxes cannot receive deposits or incoming transfers in that currency; withdrawing existing balance is allowed.
+- A cashbox receive-currency checkbox cannot be unchecked when that cashbox has a **positive balance** in the currency or **one or more operations** in that currency (deposit, withdraw, transfer; cancelled and reversal rows count).
+- `PATCH /finance/cashboxes/:cashboxId` rejects those disable attempts with `Cannot disable a cashbox currency that has operations or a positive balance.`
+- Enabling a currency with zero history stays allowed. Already-disabled currencies keep the withdraw-only path if leftover balance exists.
 
 ## Concurrency Safety Rules
 - Finance mutations must use MongoDB transactions when the database is connected as a replica set.

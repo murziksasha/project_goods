@@ -1,8 +1,7 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Dispatch, SetStateAction } from 'react';
 import type {
   Cashbox,
-  CreateFinanceTransactionPayload,
   SupplierOrderPaymentQueueItem,
 } from '../../../../entities/finance/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
@@ -10,12 +9,12 @@ import {
   findSupplierOrderForQueueItem,
   formatDateDdMmYyyy,
   formatMoney,
-  truncateLabel,
   type FinanceOverview,
 } from '../../model/accounting';
 import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
 import { formatMetric } from '../../model/sales-analytics';
 import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils';
+import { PaySupplierOrderModal } from './AccountingConfirmModals';
 
 type AccountingSupplierOrdersQueueProps = {
   canIssueSupplierOrdersWithoutPayment: boolean;
@@ -27,7 +26,6 @@ type AccountingSupplierOrdersQueueProps = {
   payingOrderId: string | null;
   supplierOrders: SupplierOrder[];
   supplierOrdersQueue: SupplierOrderPaymentQueueItem[];
-  transactionForm: CreateFinanceTransactionPayload;
   onIssueWithoutPayment: (order: SupplierOrderPaymentQueueItem) => void;
   onPaySupplierOrder: (
     order: SupplierOrderPaymentQueueItem,
@@ -35,9 +33,6 @@ type AccountingSupplierOrdersQueueProps = {
     orderNumber: string,
   ) => void;
   onSelectedSupplierOrderChange: (order: SupplierOrder) => void;
-  onTransactionFormChange: Dispatch<
-    SetStateAction<CreateFinanceTransactionPayload>
-  >;
 };
 
 export const AccountingSupplierOrdersQueue = ({
@@ -50,13 +45,33 @@ export const AccountingSupplierOrdersQueue = ({
   payingOrderId,
   supplierOrders,
   supplierOrdersQueue,
-  transactionForm,
   onIssueWithoutPayment,
   onPaySupplierOrder,
   onSelectedSupplierOrderChange,
-  onTransactionFormChange,
 }: AccountingSupplierOrdersQueueProps) => {
   const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cashboxByOrderId, setCashboxByOrderId] = useState<Record<string, string>>(
+    {},
+  );
+  const [orderToPay, setOrderToPay] = useState<SupplierOrderPaymentQueueItem | null>(
+    null,
+  );
+
+  const getRowCashboxId = (orderId: string) =>
+    cashboxByOrderId[orderId] || firstCashboxId;
+
+  const visibleOrders = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return supplierOrdersQueue;
+    return supplierOrdersQueue.filter((order) => {
+      const number = getSupplierOrderDisplayNumber(order).toLowerCase();
+      return (
+        number.includes(query) ||
+        order.supplierName.toLowerCase().includes(query)
+      );
+    });
+  }, [searchQuery, supplierOrdersQueue]);
 
   return (
     <section className='finance-orders-view'>
@@ -90,12 +105,14 @@ export const AccountingSupplierOrdersQueue = ({
           </span>
           <strong>{formatMetric(financeOverview.pendingSupplierCount)}</strong>
         </article>
-        <article className='analytics-summary-card'>
-          <span className='metric-label'>
-            {t('accounting.orders.activeCashboxes')}
-          </span>
-          <strong>{formatMetric(financeOverview.activeCashboxCount)}</strong>
-        </article>
+        <label className='field'>
+          <span>{t('accounting.orders.search')}</span>
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t('accounting.orders.searchPlaceholder')}
+          />
+        </label>
       </div>
 
       <div className='orders-table-wrap finance-orders-table-wrap finance-card-table-wrap'>
@@ -120,15 +137,15 @@ export const AccountingSupplierOrdersQueue = ({
             </tr>
           </thead>
           <tbody>
-            {supplierOrdersQueue.length === 0 ? (
+            {visibleOrders.length === 0 ? (
               <tr>
                 <td colSpan={5} className='orders-empty finance-orders-empty'>
                   {t('accounting.orders.empty')}
                 </td>
               </tr>
             ) : (
-              supplierOrdersQueue.map((order) => {
-                const cashboxId = transactionForm.fromCashboxId || firstCashboxId;
+              visibleOrders.map((order) => {
+                const cashboxId = getRowCashboxId(order.id);
                 const orderNumber = getSupplierOrderDisplayNumber(order);
                 const fullOrder = findSupplierOrderForQueueItem(
                   order,
@@ -202,19 +219,26 @@ export const AccountingSupplierOrdersQueue = ({
                               <select
                                 value={cashboxId}
                                 onChange={(event) =>
-                                  onTransactionFormChange((current) => ({
+                                  setCashboxByOrderId((current) => ({
                                     ...current,
-                                    fromCashboxId: event.target.value,
+                                    [order.id]: event.target.value,
                                   }))
                                 }
                               >
-                                {cashboxes.map((cashbox) => (
+                                {cashboxes
+                                  .filter(
+                                    (cashbox) =>
+                                      cashbox.enabledCurrencies?.UAH === true ||
+                                      (cashbox.balances.UAH ?? 0) > 0,
+                                  )
+                                  .map((cashbox) => (
                                   <option
                                     key={cashbox.id}
                                     value={cashbox.id}
                                     title={cashbox.name}
                                   >
-                                    {truncateLabel(cashbox.name, 14)}
+                                    {cashbox.name} (
+                                    {formatMoney(cashbox.balances.UAH ?? 0, 'UAH')})
                                   </option>
                                 ))}
                               </select>
@@ -223,11 +247,11 @@ export const AccountingSupplierOrdersQueue = ({
                               type='button'
                               className='primary-button'
                               disabled={
-                                isSaving || payingOrderId !== null || !cashboxId
+                                isSaving ||
+                                payingOrderId === order.id ||
+                                !cashboxId
                               }
-                              onClick={() =>
-                                onPaySupplierOrder(order, cashboxId, orderNumber)
-                              }
+                              onClick={() => setOrderToPay(order)}
                             >
                               {payingOrderId === order.id
                                 ? t('accounting.orders.paying')
@@ -254,6 +278,34 @@ export const AccountingSupplierOrdersQueue = ({
           </tbody>
         </table>
       </div>
+      {orderToPay ? (
+        <PaySupplierOrderModal
+          isSaving={isSaving || payingOrderId === orderToPay.id}
+          order={orderToPay}
+          cashboxName={
+            cashboxes.find((cashbox) => cashbox.id === getRowCashboxId(orderToPay.id))
+              ?.name ?? '-'
+          }
+          cashboxBalance={
+            cashboxes.find((cashbox) => cashbox.id === getRowCashboxId(orderToPay.id))
+              ?.balances.UAH ?? 0
+          }
+          insufficient={
+            (cashboxes.find((cashbox) => cashbox.id === getRowCashboxId(orderToPay.id))
+              ?.balances.UAH ?? 0) < orderToPay.total
+          }
+          onClose={() => setOrderToPay(null)}
+          onConfirm={() => {
+            const cashboxId = getRowCashboxId(orderToPay.id);
+            onPaySupplierOrder(
+              orderToPay,
+              cashboxId,
+              getSupplierOrderDisplayNumber(orderToPay),
+            );
+            setOrderToPay(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 };

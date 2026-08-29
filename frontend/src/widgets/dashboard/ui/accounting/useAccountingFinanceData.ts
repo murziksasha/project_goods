@@ -178,13 +178,7 @@ export const useAccountingFinanceData = ({
   }, [refreshFinance]);
 
   const isLoading =
-    activeCashboxesQuery.isLoading ||
-    allCashboxesQuery.isLoading ||
-    recentTransactionsQuery.isLoading ||
-    currenciesQuery.isLoading ||
-    reportQuery.isLoading ||
-    supplierOrdersQueueQuery.isLoading ||
-    supplierOrdersQuery.isLoading;
+    activeCashboxesQuery.isLoading || currenciesQuery.isLoading;
 
   return {
     allCashboxes,

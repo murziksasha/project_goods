@@ -149,8 +149,13 @@
       "backups": "Резервні копії",
       "database": "База даних"
     },
-
     "dashboard": {
+      "subtitle": "Типові параметри віджета курсу та погоди на головній.",
+      "groups": {
+        "widgets": "Видимість віджета",
+        "rates": "Курси валют",
+        "weather": "Погода"
+      },
       "marketWeatherEnabled": "Показувати блок курсу та погоди",
       "exchangeRatesEnabled": "Показувати курси валют",
       "weatherEnabled": "Показувати прогноз погоди",
@@ -184,28 +189,32 @@
       "loading": "Завантаження налаштувань..."
     },
     "company": {
+      "appearanceTitle": "Вигляд",
+      "identityTitle": "Реквізити компанії",
+      "identitySubtitle": "Ці значення підставляються в змінні друкованих форм.",
       "serviceNameInHeader": "Назва сервісу в шапці",
       "serviceNamePlaceholder": "Service CRM",
-      "companyName": "Назва компанії ({{company}})",
+      "companyName": "Назва компанії",
       "companyNamePlaceholder": "Назва компанії",
       "companyNameMinLength": "Назва компанії має містити щонайменше 2 символи.",
-      "companyId": "ЄДРПОУ / ID компанії ({{company_id}})",
+      "companyId": "ЄДРПОУ / ID компанії",
       "companyIdPlaceholder": "Реєстраційний номер компанії",
       "companyIdFormat": "ID компанії має містити 8–12 символів (літери, цифри, дефіс).",
-      "companyAddress": "Адреса компанії ({{company_address}})",
+      "companyAddress": "Адреса компанії",
       "companyAddressPlaceholder": "Адреса компанії",
       "companyAddressMinLength": "Адреса компанії має містити щонайменше 5 символів.",
-      "companyIban": "IBAN компанії ({{company_iban}})",
+      "companyIban": "IBAN компанії",
       "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
       "companyIbanFormat": "IBAN має відповідати формату UA + 27 цифр (пробіли дозволені).",
-      "companyEmail": "E-mail компанії ({{company_email}})",
+      "companyEmail": "E-mail компанії",
       "companyEmailPlaceholder": "service@example.com",
-      "companySite": "Сайт компанії ({{company_site}})",
+      "companySite": "Сайт компанії",
       "companySitePlaceholder": "https://example.com"
     },
     "print": {
       "sectionLabel": "Друковані форми",
       "title": "Документи замовлень",
+      "subtitle": "Шаблони для меню друку замовлень, продажів і складу.",
       "documentTemplate": "Шаблон документа",
       "add": "Додати",
       "duplicate": "Дублювати",
@@ -1014,7 +1023,7 @@
         "action": "Дія",
         "noProductsAdded": "Товари не додано.",
         "noServicesAdded": "Послуги не додано.",
-        "groupedCount": "\u00d7{{quantity}}",
+        "groupedCount": "×{{quantity}}",
         "toggleGroup": "Група {{name}} ({{quantity}})",
         "return": "Повернути",
         "remove": "Видалити",
@@ -2275,7 +2284,17 @@
       "comment": "Коментар",
       "emptyOption": "-",
       "saving": "Збереження...",
-      "saveOperation": "Зберегти операцію"
+      "saveOperation": "Зберегти операцію",
+      "confirmSaveOperation": "Підтвердити операцію",
+      "searchPlaceholder": "Пошук кас",
+      "hideEmpty": "Приховати порожні",
+      "empty": "Кас ще немає. Створіть касу в налаштуваннях бухгалтерії.",
+      "searchNoResults": "Немає кас за цим пошуком.",
+      "cashboxCount": "{{count}} кас",
+      "remainingBalance": "Доступно: {{amount}}",
+      "insufficientBalance": "Сума перевищує доступний залишок.",
+      "confirmLargeAmount": "Велика сума. Натисніть ще раз, щоб підтвердити.",
+      "reorderHint": "Перетягніть, щоб змінити порядок"
     },
     "transactions": {
       "loading": "Завантаження фінансових даних...",
@@ -2315,6 +2334,7 @@
       "cancelled": "Скасовано",
       "cancellation": "Скасування",
       "editNoteTitle": "Редагувати примітку",
+      "addNote": "Додати примітку",
       "cancelDeposit": "Скасувати внесення",
       "cancelWithdraw": "Скасувати видачу",
       "cancelTransfer": "Скасувати переказ",
@@ -2329,6 +2349,7 @@
       "cashboxes": "Каси",
       "currencies": "Валюти",
       "createCashbox": "Створити касу",
+      "receiveCurrencies": "Валюти прийому",
       "name": "Назва",
       "enterCashboxNamePlaceholder": "Введіть назву каси",
       "create": "Створити",
@@ -2338,6 +2359,7 @@
       "inactive": "Неактивна",
       "withdrawOnly": "Лише виведення",
       "withdrawOnlyCashboxTitle": "Валюта неактивна для прийому, але в касі ще є залишок. Дозволено лише виведення.",
+      "cannotUncheckCurrencyTitle": "Цю валюту не можна вимкнути, бо в касі є операції або додатний залишок.",
       "inactiveForCashboxTitle": "Валюта неактивна для цієї каси.",
       "globallyInactiveTitle": "Валюта глобально неактивна і не може бути прийнята.",
       "save": "Зберегти",
@@ -2376,6 +2398,8 @@
       "cashbox": "Каса",
       "pay": "Оплатити",
       "paying": "Оплата...",
+      "search": "Пошук",
+      "searchPlaceholder": "Номер або постачальник",
       "issueWithoutPayment": "Видати без оплати",
       "openSupplierOrderAriaLabel": "Відкрити замовлення постачальнику {{orderNumber}}",
       "paymentNote": "Оплата за замовлення {{orderNumber}}"
@@ -2424,6 +2448,9 @@
       "issueWithoutPaymentTitle": "Підтвердити видачу без оплати",
       "issueWithoutPaymentDescription": "Замовлення {{orderNumber}} буде позначено як видане без оплати.",
       "issueWithoutPaymentConfirm": "Фінансова транзакція не буде створена. Продовжити?",
+      "payOrderTitle": "Оплатити замовлення постачальнику",
+      "payOrderDescription": "Сплатити {{amount}} за {{orderNumber}} ({{supplier}}) з каси {{cashbox}}.",
+      "payOrderBalance": "Залишок каси: {{amount}}",
       "confirm": "Підтвердити"
     },
     "messages": {
@@ -2434,6 +2461,9 @@
         "currencyAlreadyExists": "Валюта вже існує.",
         "uahCannotBeArchived": "UAH — основна валюта, її не можна архівувати.",
         "uahAlwaysActive": "UAH завжди активна.",
+        "defaultCashboxUahRequired": "Каса за замовчуванням повинна приймати UAH.",
+        "atLeastOneCurrencyRequired": "Потрібно залишити хоча б одну валюту каси.",
+        "cannotDisableCurrencyWithActivity": "Не можна вимкнути валюту каси, якщо є операції або додатний залишок.",
         "transferCashboxesMustDiffer": "Каси для переказу мають бути різними.",
         "currencyNotAvailable": "Обрана валюта недоступна для цієї операції.",
         "amountMustBePositive": "Сума транзакції має бути більше 0.",
@@ -2539,10 +2569,7 @@
       },
       "selectAllServices": "Вибрати всі послуги",
       "selectService": "Вибрати {{name}}",
-      "inactiveBadge": "Неактивний",
-      "copyName": "Копіювати назву",
-      "copied": "Скопійовано",
-      "copyFailed": "Не вдалося скопіювати"
+      "inactiveBadge": "Неактивний"
     },
     "modals": {
       "close": "Закрити",
@@ -2604,10 +2631,6 @@
       "copyFailed": "Не вдалося скопіювати",
       "printSerialNumber": "Друкувати серійний номер",
       "printSerialTitle": "Серійний номер складу",
-      "printSelectedCount": "Друк {{count}} обраних серійних номерів",
-      "selectSerialsToPrint": "Оберіть серійні номери для друку",
-      "selectAllSerials": "Обрати всі серійні номери для друку",
-      "selectSerialRow": "Обрати серійний номер {{serial}} для друку",
       "noStockRows": "Немає складських рядків для цієї точної назви товару.",
       "sections": {
         "main": "ОСНОВНА ІНФОРМАЦІЯ",
@@ -2646,9 +2669,7 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Типовий опис або внутрішня примітка",
       "updateService": "Оновити послугу"
-    },
-    "pageTitle": "Товари та послуги",
-    "pageSubtitle": "{{count}} записів"
+    }
   },
   "employees": {
     "tabs": {
@@ -2672,7 +2693,80 @@
       "delete": "Видалити",
       "cannotDeleteSelf": "Ви не можете видалити власний обліковий запис.",
       "deleteEmployee": "Видалити співробітника",
-      "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників."
+      "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників.",
+      "addEmployee": "Додати співробітника",
+      "searchPlaceholder": "Ім'я, логін, email, телефон...",
+      "filterRole": "Роль",
+      "filterStatus": "Статус",
+      "allRoles": "Усі ролі",
+      "allStatuses": "Усі статуси",
+      "activeCount": "{{active}} активних · {{inactive}} неактивних",
+      "noMatches": "Немає співробітників за цими фільтрами.",
+      "metaLogin": "Логін",
+      "metaEmail": "Email",
+      "metaPhone": "Телефон"
+    },
+    "roles": {
+      "owner": "Власник",
+      "manager": "Менеджер",
+      "master": "Майстер",
+      "accountant": "Бухгалтер",
+      "warehouse": "Склад",
+      "sales": "Продажі",
+      "support": "Підтримка"
+    },
+    "permissions": {
+      "orders": {
+        "view": "Перегляд замовлень",
+        "manage": "Керування замовленнями",
+        "chat": "Чат замовлень"
+      },
+      "supplierOrders": {
+        "view": "Перегляд замовлень постачальникам",
+        "manage": "Керування замовленнями постачальникам"
+      },
+      "repairs": {
+        "execute": "Виконання ремонтів"
+      },
+      "sales": {
+        "manage": "Керування продажами"
+      },
+      "kanban": {
+        "use": "Використання канбану"
+      },
+      "clients": {
+        "manage": "Керування клієнтами"
+      },
+      "inventory": {
+        "manage": "Керування складом"
+      },
+      "finance": {
+        "view": "Перегляд фінансів",
+        "cashboxes": {
+          "view": "Перегляд кас",
+          "manage": "Керування касами"
+        },
+        "transactions": {
+          "deposit": "Внески в касу",
+          "withdraw": "Вилучення з каси",
+          "transfer": "Перекази між касами"
+        },
+        "supplierOrders": {
+          "pay": "Оплата замовлень постачальникам",
+          "issueWithoutPayment": "Видача замовлень постачальникам без оплати"
+        }
+      },
+      "employees": {
+        "manage": "Керування співробітниками"
+      },
+      "printForms": {
+        "manage": "Керування друкованими формами"
+      },
+      "system": {
+        "backups": {
+          "manage": "Керування резервними копіями"
+        }
+      }
     },
     "information": {
       "sectionLabel": "Аналітика співробітників",

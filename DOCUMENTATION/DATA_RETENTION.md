@@ -73,6 +73,7 @@ Config: `backend/.env.example`, `backend/src/config/env.ts`.
 | Surface | Access |
 | --- | --- |
 | `GET /api/system/db-stats` | Permission `system.backups.manage` |
+| Settings → **Database** tab | Same permission; live health + collection table ([SETTINGS_SPEC.md](./SETTINGS_SPEC.md)) |
 | CLI | `npm run db:stats --prefix backend` (needs `MONGO_URI`) |
 
 Returns per-collection `count`, data/storage/index sizes, `avgObjSize`. Use as baseline before any later archive work.
