@@ -12,6 +12,7 @@ import {
   getAccountingTotals,
   getAccountingCashboxCurrencyRows,
   getAllowedAccountingTransactionCurrencies,
+  isCashboxCurrencyUncheckLocked,
   getActiveTransactionFiltersCount,
   getBalanceAfterByTransactionId,
   getFinanceOverview,
@@ -200,6 +201,39 @@ describe('accounting model helpers', () => {
       UAH: true,
       USD: false,
     });
+  });
+
+  it('locks unchecking a cashbox currency with operations or a positive balance', () => {
+    const funded = createCashbox('cash-1', { UAH: 100, USD: 7 });
+    const usedEmpty = {
+      ...createCashbox('cash-2', { UAH: 0, USD: 0 }),
+      hasCurrencyOperations: { UAH: false, USD: true },
+    };
+    const unusedEmpty = createCashbox('cash-3', { UAH: 0, USD: 0 });
+
+    expect(isCashboxCurrencyUncheckLocked(funded, 'USD')).toBe(true);
+    expect(isCashboxCurrencyUncheckLocked(usedEmpty, 'USD')).toBe(true);
+    expect(isCashboxCurrencyUncheckLocked(unusedEmpty, 'USD')).toBe(false);
+  });
+
+  it('hides disabled empty UAH on USD-only cashboxes', () => {
+    const usdOnly = {
+      ...createCashbox('cash-usd', { UAH: 0, USD: 0 }),
+      enabledCurrencies: { UAH: false, USD: true } as Record<string, boolean>,
+    };
+    const getCurrencyBalance = (cashbox: Cashbox, currency: string) =>
+      cashbox.balances[currency] ?? 0;
+
+    expect(
+      getAccountingCashboxCurrencyRows({
+        allCurrencyCodes: ['UAH', 'USD'],
+        cashbox: usdOnly,
+        getCurrencyBalance,
+        isCashboxCurrencyActive: (_cashboxId, currency) =>
+          usdOnly.enabledCurrencies[currency] === true,
+        isGlobalCurrencyActive: () => true,
+      }).map((row) => row.currency),
+    ).toEqual(['USD']);
   });
 
   it('hides disabled empty USD balances and shows existing disabled USD as withdraw-only', () => {
@@ -394,6 +428,9 @@ describe('accounting model helpers', () => {
     ).toBe(false);
     expect(isAccountingOrderLinkedNote('Supplier order payment: SO-1')).toBe(true);
     expect(isAccountingOrderLinkedNote('Оплата за замовлення ПП-77')).toBe(true);
+    expect(isAccountingOrderLinkedNote('Return for sale s001: item')).toBe(true);
+    expect(isAccountingOrderLinkedNote('Serial return for sale s001: item')).toBe(true);
+    expect(isAccountingOrderLinkedNote('Full return for sale s001')).toBe(true);
     expect(
       canCancelAccountingTransaction({
         canCreateDeposit: true,

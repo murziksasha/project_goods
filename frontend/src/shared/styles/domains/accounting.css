@@ -316,10 +316,42 @@
   max-width: 100%;
 }
 
+.finance-cashbox-toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.finance-cashbox-search {
+  border: 1px solid #cad4e0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 160px;
+  flex: 1 1 180px;
+}
+
+.finance-hide-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5b6674;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.finance-cashbox-count {
+  color: #7a8a9b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .finance-cashbox-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 22px 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 18px;
   align-items: stretch;
 }
 
@@ -330,21 +362,42 @@
   align-content: start;
   min-width: 0;
   height: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+
+.finance-cashbox-card-dragging {
+  opacity: 0.55;
 }
 
 .finance-cashbox-heading {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  min-height: 42px;
+  min-height: 28px;
+  min-width: 0;
+}
+
+.finance-cashbox-drag-handle {
+  color: #9aabbc;
+  letter-spacing: -0.12em;
+  font-weight: 800;
+  cursor: grab;
 }
 
 .finance-cashbox-heading h3 {
   margin: 0;
   color: #5b6674;
-  font-size: 1.06rem;
-  text-align: center;
+  font-size: 1.02rem;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .finance-cashbox-heading span {
@@ -358,7 +411,7 @@
 
 .finance-cashbox-card strong,
 .finance-cashbox-card p {
-  text-align: center;
+  text-align: left;
   color: var(--color-success-accent);
   margin: 0;
 }
@@ -367,17 +420,16 @@
   display: grid;
   align-content: start;
   gap: 8px;
-  justify-items: center;
+  justify-items: start;
 }
 
 .finance-cashbox-balance-row {
   display: flex;
   align-items: baseline;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   color: #28435f;
   width: 100%;
-  max-width: 220px;
 }
 
 .finance-cashbox-balance-row strong {
@@ -429,7 +481,19 @@
 
 .finance-cashbox-actions {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 7px;
+}
+
+.finance-operation-warning {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.finance-operation-modal .finance-operation-grid {
+  margin-bottom: 10px;
 }
 
 .finance-cashbox-actions button {

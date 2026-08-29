@@ -10,6 +10,7 @@ import type {
 } from '../../../entities/finance/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import i18n from '../../../shared/i18n/config';
 import { formatDateTime } from '../../../shared/lib/format';
 
 export type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
@@ -29,6 +30,8 @@ export const accountingLastOperationByCashboxStorageKey =
   'project-goods.accounting-last-operation-by-cashbox';
 export const accountingFinanceSettingsTabStorageKey =
   'project-goods.accounting-finance-settings-tab';
+export const accountingHideEmptyCashboxesStorageKey =
+  'project-goods.accounting-hide-empty-cashboxes';
 
 export const currencyOptions: FinanceCurrency[] = ['UAH', 'USD'];
 export const accountingBusinessTimeZone = 'Europe/Kiev';
@@ -38,11 +41,14 @@ export const transactionLabels: Record<FinanceTransactionType, string> = {
   transfer: 'Transfer',
 };
 
-export const formatMoney = (value: number, currency: string) =>
-  `${new Intl.NumberFormat('en-US', {
+export const formatMoney = (value: number, currency: string) => {
+  const language = i18n.resolvedLanguage || i18n.language || 'en';
+  const locale = language.toLowerCase().startsWith('uk') ? 'uk-UA' : 'en-US';
+  return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)} ${currency}`;
+};
 
 export const formatDateDdMmYyyy = (value: string) => {
   if (!value) return '-';
@@ -89,6 +95,7 @@ const ORDER_TOKEN_PATTERNS = [
   new RegExp(`Payment for order\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
   new RegExp(`Refund for order\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
   new RegExp(`Оплата (?:за )?замовлення\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
+  new RegExp(`(?:Serial return|Full return|Return) for sale\\s+${ORDER_TOKEN_CAPTURE}`, 'iu'),
   new RegExp(`Supplier order payment:\\s*(.+)`, 'i'),
 ];
 
@@ -96,6 +103,7 @@ export const ORDER_LINKED_NOTE_PATTERNS = [
   /Payment for order\s+/i,
   /Refund for order\s+/i,
   /Оплата (?:за )?замовлення\s+/i,
+  /(?:Serial return|Full return|Return) for sale\s+/i,
   /^Supplier order payment:/i,
 ];
 
@@ -242,6 +250,17 @@ export const resolveTransactionNoteLink = ({
 
   return { kind: 'manual' };
 };
+
+export const canEditAccountingTransactionNote = (
+  transaction: Pick<
+    FinanceTransaction,
+    'note' | 'status' | 'isCancellation' | 'cancelsTransactionId'
+  >,
+) =>
+  (transaction.status ?? 'active') !== 'cancelled' &&
+  !transaction.isCancellation &&
+  !transaction.cancelsTransactionId &&
+  !isAccountingOrderLinkedNote(transaction.note);
 
 export const canCancelAccountingTransaction = ({
   canCreateDeposit,
@@ -584,6 +603,46 @@ export const getAccountingTabFromUrl = (): AccountingTab | null => {
   }
 };
 
+export const getAccountingSettingsOpenFromUrl = (): boolean => {
+  try {
+    return (
+      new URLSearchParams(window.location.search).get('accountingSettings') ===
+      '1'
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const writeAccountingSettingsOpenToUrl = (open: boolean) => {
+  try {
+    const url = new URL(window.location.href);
+    if (open) {
+      url.searchParams.set('accountingSettings', '1');
+    } else {
+      url.searchParams.delete('accountingSettings');
+    }
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) {
+      window.history.pushState(null, '', next);
+    }
+  } catch {
+    // Ignore URL write errors.
+  }
+};
+
+export const getStoredHideEmptyCashboxes = (): boolean => {
+  try {
+    return (
+      window.localStorage.getItem(accountingHideEmptyCashboxesStorageKey) ===
+      'true'
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const getStoredAccountingTab = (): AccountingTab => {
   try {
     const storedTab = window.localStorage.getItem(accountingTabStorageKey);
@@ -638,6 +697,13 @@ export type FinanceOverview = {
 };
 
 type CurrencyBalanceGetter = (cashbox: Cashbox, currencyCode: string) => number;
+
+export const isCashboxCurrencyUncheckLocked = (
+  cashbox: Cashbox,
+  currencyCode: string,
+) =>
+  (cashbox.balances[currencyCode] ?? 0) > 0 ||
+  cashbox.hasCurrencyOperations?.[currencyCode] === true;
 
 export const getAccountingTotals = (cashboxes: Cashbox[]) =>
   cashboxes.reduce<Record<string, number>>((summary, cashbox) => {

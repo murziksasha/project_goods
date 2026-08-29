@@ -492,27 +492,24 @@ const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}
 const accountingTablist = () => screen.getByRole('tablist', { name: 'Accounting sections' });
 
 const clickTab = (tab: 'Cashboxes' | 'Transactions' | 'Orders' | 'Information') => {
-  fireEvent.click(within(accountingTablist()).getByRole('button', { name: tab }));
+  fireEvent.click(within(accountingTablist()).getByRole('tab', { name: tab }));
 };
 
-const openAccountingSettings = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Accounting settings' }));
-};
-
-const clickFirstCashboxAction = (action: 'Withdraw' | 'Deposit' | 'Transfer') => {
-  fireEvent.click(screen.getAllByRole('button', { name: action })[0]);
-};
-
-const setNewCashboxName = async (name: string) => {
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('New cashbox'), { target: { value: name } });
-  });
-};
-
-const createCashbox = async () => {
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Add cashbox' }));
-  });
+const clickFirstCashboxAction = async (
+  action: 'Withdraw' | 'Deposit' | 'Transfer',
+) => {
+  const operationButtons = screen.queryAllByRole('button', { name: 'Operation' });
+  if (operationButtons.length > 0 && !screen.queryByLabelText('Type', { selector: 'select' })) {
+    fireEvent.click(operationButtons[0]);
+  }
+  const typeSelect = screen.queryByLabelText('Type', { selector: 'select' });
+  if (typeSelect) {
+    await act(async () => {
+      fireEvent.change(typeSelect, {
+        target: { value: action.toLowerCase() },
+      });
+    });
+  }
 };
 
 const setTransactionAmount = async (amount: string) => {
@@ -539,7 +536,7 @@ const saveTransaction = async () => {
 
 const waitForCashboxesView = async () => {
   await waitFor(() => {
-    expect(screen.getByPlaceholderText('New cashbox')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search cashboxes')).toBeInTheDocument();
   });
 };
 
@@ -648,26 +645,33 @@ describe('AccountingPanel', () => {
     renderPanel({ onSuccess });
     await waitForCashboxesView();
 
-    openAccountingSettings();
     clickTab('Transactions');
     clickTab('Orders');
     clickTab('Information');
     clickTab('Cashboxes');
 
-    await setNewCashboxName('Desk');
-    await createCashbox();
-    await waitFor(() => expect(createCashboxMock).toHaveBeenCalledWith({ name: 'Desk' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add cashbox' }));
+    fireEvent.change(screen.getByPlaceholderText('New cashbox'), {
+      target: { value: 'Desk' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() =>
+      expect(createCashboxMock).toHaveBeenCalledWith({
+        name: 'Desk',
+        enabledCurrencies: { UAH: true, USD: false },
+      }),
+    );
 
     const cards = document.querySelectorAll('.finance-cashbox-card');
     fireEvent.dragStart(cards[0]);
     fireEvent.dragOver(cards[1]);
     fireEvent.drop(cards[1]);
 
-    clickFirstCashboxAction('Withdraw');
-    clickFirstCashboxAction('Transfer');
+    await clickFirstCashboxAction('Withdraw');
+    await clickFirstCashboxAction('Transfer');
     await setTransactionType('withdraw');
     await setTransactionType('deposit');
-    clickFirstCashboxAction('Deposit');
+    await clickFirstCashboxAction('Deposit');
     await setTransactionAmount('25');
     await saveTransaction();
 
@@ -696,7 +700,7 @@ describe('AccountingPanel', () => {
     renderPanel();
     await waitForCashboxesView();
 
-    clickFirstCashboxAction('Deposit');
+    await clickFirstCashboxAction('Deposit');
     await setTransactionType('transfer');
     await setTransactionType('withdraw');
 
@@ -734,7 +738,7 @@ describe('AccountingPanel', () => {
     renderPanel();
     await waitForCashboxesView();
 
-    clickFirstCashboxAction('Transfer');
+    await clickFirstCashboxAction('Transfer');
 
     cleanup();
     await preparePanelTest();
@@ -769,7 +773,7 @@ describe('AccountingPanel', () => {
     renderPanel({ onError });
     await waitForCashboxesView();
 
-    clickFirstCashboxAction('Deposit');
+    await clickFirstCashboxAction('Deposit');
     await setTransactionAmount('0');
     await saveTransaction();
     expect(onError).toHaveBeenCalledWith(
@@ -782,7 +786,7 @@ describe('AccountingPanel', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith('transaction failed'));
 
     createFinanceTransactionMock.mockRejectedValueOnce('nope');
-    clickFirstCashboxAction('Withdraw');
+    await clickFirstCashboxAction('Withdraw');
     await setTransactionAmount('25');
     await saveTransaction();
     await waitFor(() =>
@@ -790,7 +794,7 @@ describe('AccountingPanel', () => {
     );
 
     createFinanceTransactionMock.mockResolvedValueOnce(transfer({ type: 'withdraw' }));
-    clickFirstCashboxAction('Withdraw');
+    await clickFirstCashboxAction('Withdraw');
     await setTransactionAmount('25');
     await saveTransaction();
     await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
@@ -804,7 +808,7 @@ describe('AccountingPanel', () => {
     renderPanel({ onSuccess });
     await waitForCashboxesView();
 
-    clickFirstCashboxAction('Transfer');
+    await clickFirstCashboxAction('Transfer');
     await setTransactionAmount('25');
     await saveTransaction();
 
@@ -825,7 +829,12 @@ describe('AccountingPanel', () => {
     await expandSettingsCard('Create cashbox');
     await setSettingsCashboxName('Desk');
     await createCashboxInSettings();
-    await waitFor(() => expect(createCashboxMock).toHaveBeenCalledWith({ name: 'Desk' }));
+    await waitFor(() =>
+      expect(createCashboxMock).toHaveBeenCalledWith({
+        name: 'Desk',
+        enabledCurrencies: { UAH: true, USD: false },
+      }),
+    );
 
     await expandSettingsCard(/Edit cashbox Main/i);
     await act(async () => {
@@ -898,6 +907,42 @@ describe('AccountingPanel', () => {
     await waitFor(() => expect(updateFinanceCurrencyMock).toHaveBeenCalled());
     await waitFor(() => expect(updateCashboxMock).toHaveBeenCalled());
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('locks unchecking cashbox currencies with operations or a positive balance', async () => {
+    mutableState.isFinanceSettingsOpen = true;
+    const lockedCashboxes = [
+      cashbox({
+        balances: { UAH: 100, USD: 10 },
+        enabledCurrencies: { UAH: true, USD: true },
+        hasCurrencyOperations: { UAH: true, USD: true },
+      }),
+    ];
+    setupHooks({
+      allCashboxes: lockedCashboxes,
+      cashboxes: lockedCashboxes,
+    });
+    setupPreferences();
+    renderPanel();
+
+    await expandSettingsCard(/Edit cashbox Main/i);
+    const boxUsdToggle = screen
+      .getAllByRole('checkbox')
+      .find(
+        (input) =>
+          input.closest('.finance-currency-activity-item')?.textContent?.includes('USD') &&
+          input.closest('.finance-settings-cashbox'),
+      );
+
+    expect(boxUsdToggle).toBeDisabled();
+    expect(boxUsdToggle).toHaveAttribute(
+      'title',
+      'This currency cannot be disabled because the cashbox has operations or a positive balance.',
+    );
+    if (boxUsdToggle) {
+      fireEvent.click(boxUsdToggle);
+    }
+    expect(updateCashboxMock).not.toHaveBeenCalled();
   });
 
   it('handles settings permission denials and API failures', async () => {
@@ -1019,7 +1064,20 @@ describe('AccountingPanel', () => {
     cleanup();
     await preparePanelTest();
     mutableState.isFinanceSettingsOpen = true;
+    const unlockedUsdCashboxes = [
+      cashbox({
+        balances: { UAH: 100, USD: 0 },
+        hasCurrencyOperations: { UAH: true, USD: false },
+      }),
+      cashbox({
+        id: 'cashbox-2',
+        name: 'Reserve',
+        balances: { UAH: 0, USD: 0 },
+      }),
+    ];
     setupHooks({
+      allCashboxes: unlockedUsdCashboxes,
+      cashboxes: unlockedUsdCashboxes,
       currencies: [
         { ...currency(), code: 'UAH', isSystem: true },
         currency({ isArchived: true }),
@@ -1231,16 +1289,19 @@ describe('AccountingPanel', () => {
 
     paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
 
     paySupplierOrderMock.mockRejectedValueOnce('pay failed generic');
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith('Failed to pay order.'),
     );
 
     paySupplierOrderMock.mockResolvedValueOnce(undefined);
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
       expect(paySupplierOrderMock).toHaveBeenCalledWith('queue-1', {
         cashboxId: 'cashbox-1',

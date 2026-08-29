@@ -93,6 +93,76 @@ export const CancelTransactionModal = ({
 /** @deprecated Use CancelTransactionModal */
 export const CancelTransferModal = CancelTransactionModal;
 
+type PaySupplierOrderModalProps = {
+  isSaving: boolean;
+  order: SupplierOrderPaymentQueueItem;
+  cashboxName: string;
+  cashboxBalance: number;
+  insufficient: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+export const PaySupplierOrderModal = ({
+  isSaving,
+  order,
+  cashboxName,
+  cashboxBalance,
+  insufficient,
+  onClose,
+  onConfirm,
+}: PaySupplierOrderModalProps) => {
+  const { t } = useTranslation();
+  const orderNumber = getSupplierOrderDisplayNumber(order);
+
+  return (
+    <Modal
+      isOpen
+      title={t('accounting.confirmModals.payOrderTitle')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      className='finance-without-payment-modal'
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      footer={
+        <footer className='catalog-edit-footer'>
+          <Button variant='secondary' onClick={onClose} disabled={isSaving}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant='primary'
+            disabled={isSaving || insufficient}
+            onClick={onConfirm}
+          >
+            {isSaving
+              ? t('accounting.orders.paying')
+              : t('accounting.confirmModals.confirm')}
+          </Button>
+        </footer>
+      }
+    >
+      <p>
+        {t('accounting.confirmModals.payOrderDescription', {
+          orderNumber,
+          supplier: order.supplierName,
+          amount: formatMoney(order.total, 'UAH'),
+          cashbox: cashboxName,
+        })}
+      </p>
+      <p>
+        {t('accounting.confirmModals.payOrderBalance', {
+          amount: formatMoney(cashboxBalance, 'UAH'),
+        })}
+      </p>
+      {insufficient ? (
+        <p className='finance-operation-warning'>
+          {t('accounting.cashboxes.insufficientBalance')}
+        </p>
+      ) : null}
+    </Modal>
+  );
+};
+
 type IssueWithoutPaymentModalProps = {
   isSaving: boolean;
   order: SupplierOrderPaymentQueueItem;

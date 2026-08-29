@@ -141,12 +141,6 @@ const installFinanceModelSpies = () => {
         return;
       }
       if (
-        query['enabledCurrencies.UAH']?.$ne === true &&
-        cashbox.enabledCurrencies?.UAH === true
-      ) {
-        return;
-      }
-      if (
         query['enabledCurrencies.USD']?.$exists === false &&
         cashbox.enabledCurrencies?.USD !== undefined
       ) {
@@ -252,6 +246,28 @@ const installFinanceModelSpies = () => {
   ) {
     const stored = store.cashboxes.get(String(this._id));
     return (stored ?? this) as never;
+  });
+
+  vi.spyOn(FinanceTransaction, 'find').mockImplementation((query: any = {}) => {
+    const results = [...store.transactions.values()].filter((transaction) => {
+      if (!query?.$or) return true;
+      return query.$or.some((clause: any) => {
+        if (clause.fromCashbox?.$in) {
+          return clause.fromCashbox.$in
+            .map(String)
+            .includes(String(transaction.fromCashbox));
+        }
+        if (clause.toCashbox?.$in) {
+          return clause.toCashbox.$in
+            .map(String)
+            .includes(String(transaction.toCashbox));
+        }
+        return false;
+      });
+    });
+    return {
+      select: () => leanResult(results),
+    } as never;
   });
 
   vi.spyOn(FinanceTransaction, 'findOne').mockImplementation((query: any) => {
@@ -385,7 +401,7 @@ describe('cashbox currency settings', () => {
     });
   });
 
-  it('updates USD activity and rejects disabling UAH', async () => {
+  it('updates USD activity and rejects disabling UAH on the default cashbox', async () => {
     const updated = await updateCashbox(defaultCashboxId, {
       enabledCurrencies: { UAH: true, USD: true },
     });
@@ -395,7 +411,33 @@ describe('cashbox currency settings', () => {
       updateCashbox(defaultCashboxId, {
         enabledCurrencies: { UAH: false, USD: true },
       }),
-    ).rejects.toThrow('UAH currency cannot be disabled.');
+    ).rejects.toThrow('Default cashbox cannot disable UAH.');
+  });
+
+  it('allows a non-default cashbox to receive only USD', async () => {
+    const created = await createCashbox({
+      name: 'USD vault',
+      enabledCurrencies: { UAH: false, USD: true },
+    });
+
+    expect(created.enabledCurrencies).toEqual({ UAH: false, USD: true });
+    const updated = await updateCashbox(created.id, {
+      enabledCurrencies: { UAH: false, USD: true },
+    });
+    expect(updated.enabledCurrencies.UAH).toBe(false);
+    expect(updated.enabledCurrencies.USD).toBe(true);
+  });
+
+  it('does not re-enable UAH on USD-only cashboxes when listing', async () => {
+    const created = await createCashbox({
+      name: 'only USD',
+      enabledCurrencies: { UAH: false, USD: true },
+    });
+
+    const cashboxes = await listCashboxes();
+    const listed = cashboxes.find((cashbox) => cashbox.id === created.id);
+
+    expect(listed?.enabledCurrencies).toEqual({ UAH: false, USD: true });
   });
 
   it('rejects USD deposits into disabled cashboxes without changing balances', async () => {
@@ -478,9 +520,15 @@ describe('cashbox currency settings', () => {
     });
     expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(10);
 
-    await updateCashbox(defaultCashboxId, {
-      enabledCurrencies: { UAH: true, EUR: false },
-    });
+    await expect(
+      updateCashbox(defaultCashboxId, {
+        enabledCurrencies: { UAH: true, EUR: false },
+      }),
+    ).rejects.toThrow(
+      'Cannot disable a cashbox currency that has operations or a positive balance.',
+    );
+    expect(store.cashboxes.get(defaultCashboxId).enabledCurrencies.EUR).toBe(true);
+
     await createFinanceTransaction({
       type: 'withdraw',
       amount: '5',
@@ -488,6 +536,53 @@ describe('cashbox currency settings', () => {
       fromCashboxId: defaultCashboxId,
     });
     expect(store.cashboxes.get(defaultCashboxId).balances.EUR).toBe(5);
+  });
+
+  it('rejects disabling a cashbox currency with a leftover positive balance', async () => {
+    store.cashboxes.get(reserveCashboxId).enabledCurrencies.USD = true;
+    store.cashboxes.get(reserveCashboxId).balances.USD = 8;
+
+    await expect(
+      updateCashbox(reserveCashboxId, {
+        enabledCurrencies: { UAH: true, USD: false },
+      }),
+    ).rejects.toThrow(
+      'Cannot disable a cashbox currency that has operations or a positive balance.',
+    );
+    expect(store.cashboxes.get(reserveCashboxId).enabledCurrencies.USD).toBe(true);
+  });
+
+  it('rejects disabling a cashbox currency after operations even when the balance is zero', async () => {
+    store.cashboxes.get(reserveCashboxId).enabledCurrencies.USD = true;
+    store.transactions.set('aaaaaaaaaaaaaaaaaaaaaaaa', {
+      _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+      type: 'deposit',
+      amount: 10,
+      currency: 'USD',
+      fromCashbox: null,
+      toCashbox: reserveCashboxId,
+      status: 'cancelled',
+    });
+
+    await expect(
+      updateCashbox(reserveCashboxId, {
+        enabledCurrencies: { UAH: true, USD: false },
+      }),
+    ).rejects.toThrow(
+      'Cannot disable a cashbox currency that has operations or a positive balance.',
+    );
+    expect(store.cashboxes.get(reserveCashboxId).enabledCurrencies.USD).toBe(true);
+  });
+
+  it('allows disabling a cashbox currency with zero balance and no operations', async () => {
+    store.cashboxes.get(reserveCashboxId).enabledCurrencies.USD = true;
+
+    const updated = await updateCashbox(reserveCashboxId, {
+      enabledCurrencies: { UAH: true, USD: false },
+    });
+
+    expect(updated.enabledCurrencies.USD).toBe(false);
+    expect(updated.hasCurrencyOperations.USD).toBe(false);
   });
 
   it('prevents concurrent withdrawals from overdrawing the same cashbox', async () => {

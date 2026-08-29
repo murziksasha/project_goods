@@ -213,9 +213,9 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 
 ## Finance
 
-- `GET /finance/cashboxes` - список касс. Cashbox responses include `enabledCurrencies`, for example `{ "UAH": true, "USD": false }`.
+- `GET /finance/cashboxes` - список касс. Cashbox responses include `enabledCurrencies` (for example `{ "UAH": true, "USD": false }`) and `hasCurrencyOperations` (for example `{ "UAH": true, "USD": false }`).
 - `POST /finance/cashboxes` - создать кассу
-- `PATCH /finance/cashboxes/:cashboxId` - update cashbox metadata and global per-cashbox currency settings. `UAH` is always enabled; every non-UAH currency is disabled by default and can be toggled with `enabledCurrencies.<CODE>`.
+- `PATCH /finance/cashboxes/:cashboxId` - update cashbox metadata and global per-cashbox currency settings. `UAH` is always enabled on the default cashbox; every non-UAH currency is disabled by default and can be toggled with `enabledCurrencies.<CODE>`. Disabling a currency is rejected when the cashbox has a positive balance or any finance operations in that currency.
 - `GET /finance/currencies` - list finance currencies. Currency responses include `code`, `isSystem`, and `isArchived`.
 - `POST /finance/currencies` - create or restore a finance currency. New currencies are full transaction currencies and are backfilled into every cashbox as disabled with zero balance.
 - `PATCH /finance/currencies/:currencyCode` - archive or restore a currency with `{ "isArchived": boolean }`; `UAH` cannot be archived.

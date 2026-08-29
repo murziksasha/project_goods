@@ -27,8 +27,8 @@ import {
   canCancelAccountingTransaction,
   getAccountingCashboxCurrencyRows,
   getAccountingTotals,
-
   getFinanceOverview,
+  isCashboxCurrencyUncheckLocked,
   type AccountingTab,
 } from '../../model/accounting';
 import { AccountingCashboxesView } from './AccountingCashboxesView';
@@ -185,11 +185,12 @@ export const AccountingPanel = ({
   );
   const isCashboxCurrencyActive = useCallback(
     (cashboxId: string, currencyCode: string) => {
-      if (currencyCode === 'UAH') return true;
-      const cashbox = allCashboxes.find((item) => item.id === cashboxId);
+      const cashbox =
+        allCashboxes.find((item) => item.id === cashboxId) ??
+        cashboxes.find((item) => item.id === cashboxId);
       return cashbox?.enabledCurrencies?.[currencyCode] === true;
     },
-    [allCashboxes],
+    [allCashboxes, cashboxes],
   );
   const getCurrencyBalance = useCallback(
     (cashbox: Cashbox, currencyCode: string) =>
@@ -443,23 +444,34 @@ export const AccountingPanel = ({
     cashboxId: string,
     currencyCode: string,
   ) => {
-    if (currencyCode === 'UAH') {
-      onError(i18n.t('accounting.messages.errors.uahAlwaysActive'));
-      return;
-    }
     const cashbox = allCashboxes.find((item) => item.id === cashboxId);
     if (!cashbox) return;
+    if (cashbox.isDefault && currencyCode === 'UAH') {
+      onError(i18n.t('accounting.messages.errors.defaultCashboxUahRequired'));
+      return;
+    }
     const nextEnabled = cashbox.enabledCurrencies?.[currencyCode] !== true;
+    if (
+      nextEnabled === false &&
+      isCashboxCurrencyUncheckLocked(cashbox, currencyCode)
+    ) {
+      onError(i18n.t('accounting.messages.errors.cannotDisableCurrencyWithActivity'));
+      return;
+    }
+    const nextEnabledCurrencies = {
+      ...cashbox.enabledCurrencies,
+      [currencyCode]: nextEnabled,
+    };
+    if (!Object.values(nextEnabledCurrencies).some(Boolean)) {
+      onError(i18n.t('accounting.messages.errors.atLeastOneCurrencyRequired'));
+      return;
+    }
     await runFinanceAction(
       () =>
         updateCashboxMutation.mutateAsync({
           cashboxId,
           payload: {
-            enabledCurrencies: {
-              ...cashbox.enabledCurrencies,
-              UAH: true,
-              [currencyCode]: nextEnabled,
-            },
+            enabledCurrencies: nextEnabledCurrencies,
           },
         }),
       i18n.t('accounting.messages.success.cashboxCurrencySettingsUpdated'),
@@ -472,14 +484,22 @@ export const AccountingPanel = ({
     );
   };
 
-  const handleCreateCashbox = async () => {
-    if (!newCashboxName.trim()) return;
+  const handleCreateCashbox = async (
+    rawName?: string,
+    enabledCurrencies?: Record<string, boolean>,
+  ) => {
+    const name = (typeof rawName === 'string' ? rawName : newCashboxName).trim();
+    if (!name) return;
     if (!canManageCashboxes) {
       onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
       return;
     }
-    await runFinanceAction(
-      () => createCashboxMutation.mutateAsync({ name: newCashboxName }),
+    return runFinanceAction(
+      () =>
+        createCashboxMutation.mutateAsync({
+          name,
+          ...(enabledCurrencies ? { enabledCurrencies } : {}),
+        }),
       i18n.t('accounting.messages.success.cashboxCreated'),
       {
         afterSuccess: () => {
@@ -719,11 +739,9 @@ export const AccountingPanel = ({
           payingOrderId={payingOrderId}
           supplierOrders={supplierOrders}
           supplierOrdersQueue={supplierOrdersQueue}
-          transactionForm={transactionForm}
           onIssueWithoutPayment={setWithoutPaymentOrder}
           onPaySupplierOrder={handlePaySupplierOrder}
           onSelectedSupplierOrderChange={setSelectedSupplierOrder}
-          onTransactionFormChange={setTransactionForm}
         />
       ) : activeTab === 'reports' ? (
         <AccountingReportsView financeOverview={financeOverview} />
@@ -733,18 +751,17 @@ export const AccountingPanel = ({
           canCreateDeposit={canCreateDeposit}
           canCreateTransfer={canCreateTransfer}
           canCreateWithdraw={canCreateWithdraw}
+          allCurrencyCodes={allCurrencyCodes}
           canManageCashboxes={canManageCashboxes}
           cashboxes={cashboxes}
           cashboxCurrencyRows={cashboxCurrencyRows}
           draggedCashboxId={draggedCashboxId}
           isSaving={isSaving}
-          newCashboxName={newCashboxName}
           permittedTransactionTypes={permittedTransactionTypes}
           totals={totals}
           transactionForm={transactionForm}
           onCreateCashbox={handleCreateCashbox}
           onCreateTransaction={handleCreateTransaction}
-          onNewCashboxNameChange={setNewCashboxName}
           onOpenCashboxTransactions={openCashboxTransactions}
           onSetCashboxes={setCashboxes}
           onSetDraggedCashboxId={setDraggedCashboxId}

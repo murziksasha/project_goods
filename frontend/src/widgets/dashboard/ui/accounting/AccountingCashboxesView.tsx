@@ -1,41 +1,44 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Cashbox,
   CreateFinanceTransactionPayload,
-  FinanceCurrency,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
+import { parseDecimal } from '../../../../shared/lib/decimal';
+import { Modal } from '../../../../shared/ui/Modal';
 import {
-  PRICE_STEPPER_PRECISION,
-  PRICE_STEPPER_STEP,
-} from '../../../../shared/lib/price-stepper';
-import { NumberStepper } from '../../../../shared/ui/NumberStepper';
-import {
-  canPerformTransferBetweenCashboxes,
+  accountingHideEmptyCashboxesStorageKey,
   formatMoney,
+  getStoredHideEmptyCashboxes,
   reorderCashboxes,
   type CashboxCurrencyRow,
 } from '../../model/accounting';
+import {
+  AccountingOperationForm,
+  LARGE_OPERATION_AMOUNT,
+} from './AccountingOperationForm';
 
 type AccountingCashboxesViewProps = {
   allowedTransactionCurrencies: string[];
   canCreateDeposit: boolean;
   canCreateTransfer: boolean;
   canCreateWithdraw: boolean;
+  allCurrencyCodes: string[];
   canManageCashboxes: boolean;
   cashboxes: Cashbox[];
   cashboxCurrencyRows: (cashbox: Cashbox) => CashboxCurrencyRow[];
   draggedCashboxId: string | null;
   isSaving: boolean;
-  newCashboxName: string;
   permittedTransactionTypes: FinanceTransactionType[];
   totals: Record<string, number>;
   transactionForm: CreateFinanceTransactionPayload;
-  onCreateCashbox: () => void;
-  onCreateTransaction: () => void;
-  onNewCashboxNameChange: (value: string) => void;
+  onCreateCashbox: (
+    name: string,
+    enabledCurrencies?: Record<string, boolean>,
+  ) => void | Promise<unknown>;
+  onCreateTransaction: () => void | Promise<void>;
   onOpenCashboxTransactions: (cashbox: Cashbox) => void;
   onSetCashboxes: Dispatch<SetStateAction<Cashbox[]>>;
   onSetDraggedCashboxId: (cashboxId: string | null) => void;
@@ -46,23 +49,31 @@ type AccountingCashboxesViewProps = {
   onTransactionTypeChange: (type: FinanceTransactionType) => void;
 };
 
+const isCashboxEmpty = (
+  cashbox: Cashbox,
+  cashboxCurrencyRows: (cashbox: Cashbox) => CashboxCurrencyRow[],
+) => {
+  const rows = cashboxCurrencyRows(cashbox);
+  if (rows.length === 0) return true;
+  return rows.every((row) => row.balance === 0);
+};
+
 export const AccountingCashboxesView = ({
   allowedTransactionCurrencies,
   canCreateDeposit,
   canCreateTransfer,
   canCreateWithdraw,
+  allCurrencyCodes,
   canManageCashboxes,
   cashboxes,
   cashboxCurrencyRows,
   draggedCashboxId,
   isSaving,
-  newCashboxName,
   permittedTransactionTypes,
   totals,
   transactionForm,
   onCreateCashbox,
   onCreateTransaction,
-  onNewCashboxNameChange,
   onOpenCashboxTransactions,
   onSetCashboxes,
   onSetDraggedCashboxId,
@@ -71,22 +82,109 @@ export const AccountingCashboxesView = ({
   onTransactionTypeChange,
 }: AccountingCashboxesViewProps) => {
   const { t } = useTranslation();
-  const operationPanelRef = useRef<HTMLElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [hideEmpty, setHideEmpty] = useState(getStoredHideEmptyCashboxes);
+  const [isOperationOpen, setIsOperationOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createEnabledCurrencies, setCreateEnabledCurrencies] = useState<
+    Record<string, boolean>
+  >({ UAH: true });
+  const [awaitingLargeConfirm, setAwaitingLargeConfirm] = useState(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        accountingHideEmptyCashboxesStorageKey,
+        String(hideEmpty),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [hideEmpty]);
+
+  const defaultOperationType = permittedTransactionTypes[0];
   const transactionTypeLabel = (type: FinanceTransactionType) =>
     t(`accounting.cashboxes.${type}`);
 
-  const handleStartTransaction = useCallback(
+  const visibleCashboxes = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    return cashboxes.filter((cashbox) => {
+      if (
+        normalizedQuery &&
+        !cashbox.name.toLowerCase().includes(normalizedQuery)
+      ) {
+        return false;
+      }
+      if (hideEmpty && isCashboxEmpty(cashbox, cashboxCurrencyRows)) {
+        return false;
+      }
+      return true;
+    });
+  }, [cashboxCurrencyRows, cashboxes, hideEmpty, searchQuery]);
+
+  const sourceCashbox = cashboxes.find(
+    (cashbox) =>
+      cashbox.id ===
+      (transactionForm.type === 'deposit'
+        ? transactionForm.toCashboxId
+        : transactionForm.fromCashboxId),
+  );
+  const availableBalance =
+    transactionForm.type === 'deposit' || !sourceCashbox
+      ? null
+      : (sourceCashbox.balances[transactionForm.currency] ?? 0);
+
+  const openOperation = useCallback(
     (type: FinanceTransactionType, cashbox: Cashbox) => {
       onStartTransaction(type, cashbox);
-      window.requestAnimationFrame(() => {
-        operationPanelRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'end',
-        });
-      });
+      setAwaitingLargeConfirm(false);
+      setIsOperationOpen(true);
     },
     [onStartTransaction],
   );
+
+  const closeOperation = useCallback(() => {
+    if (isSaving) return;
+    setIsOperationOpen(false);
+    setAwaitingLargeConfirm(false);
+  }, [isSaving]);
+
+  const handleSave = useCallback(() => {
+    const amount = parseDecimal(transactionForm.amount);
+    const needsConfirm =
+      Number.isFinite(amount) &&
+      amount > 0 &&
+      (amount >= LARGE_OPERATION_AMOUNT ||
+        (availableBalance !== null &&
+          availableBalance > 0 &&
+          amount >= availableBalance * 0.5));
+    if (needsConfirm && !awaitingLargeConfirm) {
+      setAwaitingLargeConfirm(true);
+      return;
+    }
+    void onCreateTransaction();
+  }, [
+    awaitingLargeConfirm,
+    availableBalance,
+    onCreateTransaction,
+    transactionForm.amount,
+  ]);
+
+  const handleCardDrop = (target: Cashbox) => {
+    if (!canManageCashboxes) {
+      onSetDraggedCashboxId(null);
+      return;
+    }
+    if (!draggedCashboxId || draggedCashboxId === target.id) {
+      onSetDraggedCashboxId(null);
+      return;
+    }
+    onSetCashboxes((current) =>
+      reorderCashboxes(current, draggedCashboxId, target.id),
+    );
+    onSetDraggedCashboxId(null);
+  };
 
   return (
     <>
@@ -101,320 +199,287 @@ export const AccountingCashboxesView = ({
                 <span key={currency}>{formatMoney(amount, currency)}</span>
               ),
             )}
+          <span className='finance-cashbox-count'>
+            {t('accounting.cashboxes.cashboxCount', { count: cashboxes.length })}
+          </span>
         </div>
-        {canManageCashboxes ? (
-          <div className='finance-add-cashbox'>
+        <div className='finance-cashbox-toolbar-tools'>
+          <input
+            className='finance-cashbox-search'
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t('accounting.cashboxes.searchPlaceholder')}
+            aria-label={t('accounting.cashboxes.searchPlaceholder')}
+          />
+          <label className='finance-hide-empty'>
             <input
-              value={newCashboxName}
-              onChange={(event) => onNewCashboxNameChange(event.target.value)}
-              placeholder={t('accounting.cashboxes.newCashboxPlaceholder')}
+              type='checkbox'
+              checked={hideEmpty}
+              onChange={(event) => setHideEmpty(event.target.checked)}
             />
+            {t('accounting.cashboxes.hideEmpty')}
+          </label>
+          {canManageCashboxes ? (
             <button
               type='button'
               className='orders-create-button'
-              onClick={onCreateCashbox}
-              disabled={isSaving}
+              onClick={() => {
+                setCreateEnabledCurrencies({ UAH: true });
+                setIsCreateOpen(true);
+              }}
             >
               {t('accounting.cashboxes.addCashbox')}
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
-      <div className='finance-cashbox-grid'>
-        {cashboxes.map((cashbox) => (
-          <article
-            key={cashbox.id}
-            className='finance-cashbox-card'
-            draggable
-            onDragStart={() => onSetDraggedCashboxId(cashbox.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => {
-              if (!draggedCashboxId || draggedCashboxId === cashbox.id) {
-                onSetDraggedCashboxId(null);
-                return;
+      {cashboxes.length === 0 ? (
+        <div className='empty-state'>
+          <p>{t('accounting.cashboxes.empty')}</p>
+          {canManageCashboxes ? (
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={() => setIsCreateOpen(true)}
+            >
+              {t('accounting.cashboxes.addCashbox')}
+            </button>
+          ) : null}
+        </div>
+      ) : visibleCashboxes.length === 0 ? (
+        <p className='empty-state'>{t('accounting.cashboxes.searchNoResults')}</p>
+      ) : (
+        <div className='finance-cashbox-grid'>
+          {visibleCashboxes.map((cashbox) => (
+            <article
+              key={cashbox.id}
+              className={
+                draggedCashboxId === cashbox.id
+                  ? 'finance-cashbox-card finance-cashbox-card-dragging'
+                  : 'finance-cashbox-card'
               }
-              onSetCashboxes((current) =>
-                reorderCashboxes(current, draggedCashboxId, cashbox.id),
-              );
-              onSetDraggedCashboxId(null);
-            }}
-            onDragEnd={() => onSetDraggedCashboxId(null)}
-          >
-            <div className='finance-cashbox-heading'>
-              <h3>{cashbox.name}</h3>
-              {cashbox.isDefault ? (
-                <span>{t('accounting.cashboxes.default')}</span>
-              ) : null}
-            </div>
-            <div className='finance-cashbox-balances'>
-              {cashboxCurrencyRows(cashbox).length === 0 ? (
-                <span className='finance-cashbox-balance-row finance-cashbox-balance-row-inactive'>
-                  <strong>{t('accounting.cashboxes.noActiveCurrencyBalances')}</strong>
-                </span>
-              ) : (
-                cashboxCurrencyRows(cashbox).map(
-                  ({ currency, balance, canAccept }) => (
-                    <div
-                      key={`${cashbox.id}-${currency}`}
-                      className={
-                        canAccept
-                          ? 'finance-cashbox-balance-row'
-                          : 'finance-cashbox-balance-row finance-cashbox-balance-row-inactive'
-                      }
-                    >
-                      <strong
+              draggable={canManageCashboxes}
+              onDragStart={() => {
+                if (!canManageCashboxes) return;
+                onSetDraggedCashboxId(cashbox.id);
+              }}
+              onDragOver={(event) => {
+                if (!canManageCashboxes) return;
+                event.preventDefault();
+              }}
+              onDrop={() => handleCardDrop(cashbox)}
+              onDragEnd={() => onSetDraggedCashboxId(null)}
+              onClick={() => {
+                if (!defaultOperationType) return;
+                openOperation(defaultOperationType, cashbox);
+              }}
+            >
+              <div className='finance-cashbox-heading'>
+                {canManageCashboxes ? (
+                  <span
+                    className='finance-cashbox-drag-handle'
+                    aria-hidden
+                    title={t('accounting.cashboxes.reorderHint')}
+                  >
+                    ::
+                  </span>
+                ) : null}
+                <h3 title={cashbox.name}>{cashbox.name}</h3>
+                {cashbox.isDefault ? (
+                  <span>{t('accounting.cashboxes.default')}</span>
+                ) : null}
+              </div>
+              <div className='finance-cashbox-balances'>
+                {cashboxCurrencyRows(cashbox).length === 0 ? (
+                  <span className='finance-cashbox-balance-row finance-cashbox-balance-row-inactive'>
+                    <strong>
+                      {t('accounting.cashboxes.noActiveCurrencyBalances')}
+                    </strong>
+                  </span>
+                ) : (
+                  cashboxCurrencyRows(cashbox).map(
+                    ({ currency, balance, canAccept }) => (
+                      <div
+                        key={`${cashbox.id}-${currency}`}
                         className={
-                          currency === 'UAH'
-                            ? 'finance-cashbox-balance-value finance-cashbox-balance-value-uah'
-                            : 'finance-cashbox-balance-value'
+                          canAccept
+                            ? 'finance-cashbox-balance-row'
+                            : 'finance-cashbox-balance-row finance-cashbox-balance-row-inactive'
                         }
                       >
-                        {currency === 'UAH' ? (
-                          <>
-                            <span className='finance-cashbox-balance-amount'>
-                              {new Intl.NumberFormat('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }).format(balance)}
-                            </span>
-                            <span className='finance-cashbox-balance-currency-code'>
-                              UAH
-                            </span>
-                          </>
-                        ) : (
-                          formatMoney(balance, currency)
+                        <strong
+                          className={
+                            currency === 'UAH'
+                              ? 'finance-cashbox-balance-value finance-cashbox-balance-value-uah'
+                              : 'finance-cashbox-balance-value'
+                          }
+                        >
+                          {currency === 'UAH' ? (
+                            <>
+                              <span className='finance-cashbox-balance-amount'>
+                                {new Intl.NumberFormat('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }).format(balance)}
+                              </span>
+                              <span className='finance-cashbox-balance-currency-code'>
+                                UAH
+                              </span>
+                            </>
+                          ) : (
+                            formatMoney(balance, currency)
+                          )}
+                        </strong>
+                        {canAccept ? null : (
+                          <span
+                            title={t('accounting.cashboxes.withdrawOnlyTitle')}
+                          >
+                            {t('accounting.cashboxes.withdrawOnly')}
+                          </span>
                         )}
-                      </strong>
-                      {canAccept ? null : (
-                        <span title={t('accounting.cashboxes.withdrawOnlyTitle')}>
-                          {t('accounting.cashboxes.withdrawOnly')}
-                        </span>
-                      )}
-                    </div>
-                  ),
-                )
-              )}
-            </div>
-            <div className='finance-cashbox-actions'>
-              {canCreateWithdraw ? (
-                <button
-                  type='button'
-                  onClick={() => handleStartTransaction('withdraw', cashbox)}
-                >
-                  {t('accounting.cashboxes.withdraw')}
-                </button>
-              ) : null}
-              {canCreateDeposit ? (
-                <button
-                  type='button'
-                  onClick={() => handleStartTransaction('deposit', cashbox)}
-                >
-                  {t('accounting.cashboxes.deposit')}
-                </button>
-              ) : null}
-              {canCreateTransfer ? (
-                <button
-                  type='button'
-                  onClick={() => handleStartTransaction('transfer', cashbox)}
-                >
-                  {t('accounting.cashboxes.transfer')}
-                </button>
-              ) : null}
-              <button
-                type='button'
-                onClick={() => onOpenCashboxTransactions(cashbox)}
-              >
-                {t('accounting.cashboxes.transactions')}
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      {permittedTransactionTypes.length > 0 ? (
-        <section ref={operationPanelRef} className='finance-operation-panel'>
-          <div className='panel-header'>
-            <div>
-              <p className='section-label'>{t('accounting.cashboxes.operation')}</p>
-              <h2>{transactionTypeLabel(transactionForm.type)}</h2>
-            </div>
-          </div>
-          <div className='finance-operation-grid'>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.type')}</span>
-              <select
-                value={transactionForm.type}
-                onChange={(event) =>
-                  onTransactionTypeChange(
-                    event.target.value as FinanceTransactionType,
+                      </div>
+                    ),
                   )
-                }
-              >
-                {canCreateDeposit ? (
-                  <option value='deposit'>
-                    {t('accounting.cashboxes.deposit')}
-                  </option>
-                ) : null}
-                {canCreateWithdraw ? (
-                  <option value='withdraw'>
-                    {t('accounting.cashboxes.withdraw')}
-                  </option>
-                ) : null}
-                {canCreateTransfer ? (
-                  <option value='transfer'>
-                    {t('accounting.cashboxes.transfer')}
-                  </option>
-                ) : null}
-              </select>
-            </label>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.amount')}</span>
-              <NumberStepper
-                min={0}
-                step={PRICE_STEPPER_STEP}
-                precision={PRICE_STEPPER_PRECISION}
-                value={transactionForm.amount}
-                onChange={(value) =>
-                  onTransactionFormChange((current) => ({
-                    ...current,
-                    amount: value,
-                  }))
-                }
-              />
-            </label>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.currency')}</span>
-              <select
-                value={
-                  allowedTransactionCurrencies.includes(transactionForm.currency)
-                    ? transactionForm.currency
-                    : ''
-                }
-                onChange={(event) =>
-                  onTransactionFormChange((current) => ({
-                    ...current,
-                    currency: event.target.value as FinanceCurrency,
-                  }))
-                }
-                disabled={allowedTransactionCurrencies.length === 0}
-              >
-                {allowedTransactionCurrencies.length === 0 ? (
-                  <option value=''>
-                    {t('accounting.cashboxes.noAvailableCurrencies')}
-                  </option>
-                ) : (
-                  allowedTransactionCurrencies.map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))
                 )}
-              </select>
-            </label>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.fromCashbox')}</span>
-              <select
-                value={transactionForm.fromCashboxId}
-                disabled={transactionForm.type === 'deposit'}
-                onChange={(event) =>
-                  onTransactionFormChange((current) => {
-                    const newFrom = event.target.value;
-                    if (current.type !== 'transfer') {
-                      return { ...current, fromCashboxId: newFrom };
-                    }
-                    let nextTo = current.toCashboxId;
-                    if (newFrom && newFrom === nextTo) {
-                      nextTo = cashboxes.find((c) => c.id !== newFrom)?.id ?? '';
-                    }
-                    return {
-                      ...current,
-                      fromCashboxId: newFrom,
-                      toCashboxId: nextTo,
-                    };
-                  })
-                }
+              </div>
+              <div className='finance-cashbox-actions'>
+                {defaultOperationType ? (
+                  <button
+                    type='button'
+                    className='primary-button'
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openOperation(defaultOperationType, cashbox);
+                    }}
+                  >
+                    {t('accounting.cashboxes.operation')}
+                  </button>
+                ) : null}
+                <button
+                  type='button'
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenCashboxTransactions(cashbox);
+                  }}
+                >
+                  {t('accounting.cashboxes.transactions')}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {isCreateOpen && canManageCashboxes ? (
+        <Modal
+          isOpen
+          title={t('accounting.cashboxes.addCashbox')}
+          onClose={() => {
+            if (isSaving) return;
+            setIsCreateOpen(false);
+          }}
+          closeLabel={t('common.close')}
+          className='finance-operation-modal'
+          closeOnBackdrop={!isSaving}
+          closeOnEscape={!isSaving}
+        >
+          <label className='field'>
+            <span>{t('common.name')}</span>
+            <input
+              value={createName}
+              onChange={(event) => setCreateName(event.target.value)}
+              placeholder={t('accounting.cashboxes.newCashboxPlaceholder')}
+              autoFocus
+            />
+          </label>
+          <p className='section-label'>
+            {t('accounting.financeSettings.receiveCurrencies')}
+          </p>
+          <div className='finance-currency-activity-list'>
+            {allCurrencyCodes.map((currencyCode) => (
+              <label
+                key={`create-modal-${currencyCode}`}
+                className='field-inline finance-currency-activity-toggle'
               >
-                <option value=''>-</option>
-                {cashboxes.map((cashbox) => (
-                  <option key={cashbox.id} value={cashbox.id}>
-                    {cashbox.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.toCashbox')}</span>
-              <select
-                value={transactionForm.toCashboxId}
-                disabled={transactionForm.type === 'withdraw'}
-                onChange={(event) =>
-                  onTransactionFormChange((current) => {
-                    const newTo = event.target.value;
-                    if (current.type !== 'transfer') {
-                      return { ...current, toCashboxId: newTo };
-                    }
-                    let nextFrom = current.fromCashboxId;
-                    if (newTo && newTo === nextFrom) {
-                      nextFrom = cashboxes.find((c) => c.id !== newTo)?.id ?? '';
-                    }
-                    return {
-                      ...current,
-                      toCashboxId: newTo,
-                      fromCashboxId: nextFrom,
-                    };
-                  })
-                }
-              >
-                <option value=''>-</option>
-                {cashboxes
-                  .filter(
-                    (cashbox) =>
-                      !(
-                        transactionForm.type === 'transfer' &&
-                        cashbox.id === transactionForm.fromCashboxId
-                      ),
-                  )
-                  .map((cashbox) => (
-                    <option key={cashbox.id} value={cashbox.id}>
-                      {cashbox.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className='field'>
-              <span>{t('accounting.cashboxes.comment')}</span>
-              <input
-                value={transactionForm.note}
-                onChange={(event) =>
-                  onTransactionFormChange((current) => ({
-                    ...current,
-                    note: event.target.value,
-                  }))
-                }
-              />
-            </label>
+                <input
+                  type='checkbox'
+                  checked={createEnabledCurrencies[currencyCode] === true}
+                  onChange={() =>
+                    setCreateEnabledCurrencies((current) => {
+                      const next = {
+                        ...current,
+                        [currencyCode]: current[currencyCode] !== true,
+                      };
+                      if (!Object.values(next).some(Boolean)) return current;
+                      return next;
+                    })
+                  }
+                />
+                <span>{currencyCode}</span>
+              </label>
+            ))}
           </div>
           <button
             type='button'
             className='primary-button'
-            onClick={onCreateTransaction}
-            disabled={
-              isSaving ||
-              !transactionForm.amount ||
-              allowedTransactionCurrencies.length === 0 ||
-              (transactionForm.type === 'transfer' &&
-                !canPerformTransferBetweenCashboxes(
-                  transactionForm.fromCashboxId,
-                  transactionForm.toCashboxId,
-                ))
-            }
+            disabled={isSaving || createName.trim().length < 2}
+            onClick={() => {
+              const enabledCurrencies = {
+                ...Object.fromEntries(
+                  allCurrencyCodes.map((code) => [code, false]),
+                ),
+                ...createEnabledCurrencies,
+              };
+              void Promise.resolve(
+                onCreateCashbox(createName.trim(), enabledCurrencies),
+              ).then((result) => {
+                if (result === undefined) return;
+                setCreateName('');
+                setCreateEnabledCurrencies({ UAH: true });
+                setIsCreateOpen(false);
+              });
+            }}
           >
             {isSaving
               ? t('accounting.cashboxes.saving')
-              : t('accounting.cashboxes.saveOperation')}
+              : t('common.create')}
           </button>
-        </section>
+        </Modal>
+      ) : null}
+
+      {isOperationOpen && permittedTransactionTypes.length > 0 ? (
+        <Modal
+          isOpen
+          title={transactionTypeLabel(transactionForm.type)}
+          subtitle={t('accounting.cashboxes.operation')}
+          onClose={closeOperation}
+          closeLabel={t('common.close')}
+          className='finance-operation-modal'
+          closeOnBackdrop={!isSaving}
+          closeOnEscape={!isSaving}
+        >
+          <AccountingOperationForm
+            allowedTransactionCurrencies={allowedTransactionCurrencies}
+            availableBalance={availableBalance}
+            awaitingLargeConfirm={awaitingLargeConfirm}
+            canCreateDeposit={canCreateDeposit}
+            canCreateTransfer={canCreateTransfer}
+            canCreateWithdraw={canCreateWithdraw}
+            cashboxes={cashboxes}
+            isSaving={isSaving}
+            saveDisabled={
+              isSaving ||
+              !transactionForm.amount ||
+              allowedTransactionCurrencies.length === 0
+            }
+            transactionForm={transactionForm}
+            onAwaitingLargeConfirmChange={setAwaitingLargeConfirm}
+            onCreateTransaction={handleSave}
+            onTransactionFormChange={onTransactionFormChange}
+            onTransactionTypeChange={onTransactionTypeChange}
+          />
+        </Modal>
       ) : null}
     </>
   );
