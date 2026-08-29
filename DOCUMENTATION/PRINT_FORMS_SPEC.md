@@ -319,6 +319,7 @@ Regression tests:
   - editing layout fields updates in-memory preview immediately;
   - `localStorage` is not updated until **Save settings** is clicked;
   - after Save, stored overrides survive reload for the same employee.
+- Settings **Print forms** tab: `PageHeader` + template select in the toolbar; Add / Duplicate in header actions. Workspace chrome: [SETTINGS_SPEC.md](./SETTINGS_SPEC.md).
 - Manual QA with the target printer:
   - print built-in Barcode form for order `r000050`;
   - compare standalone preview, Chrome print preview, and physical label;

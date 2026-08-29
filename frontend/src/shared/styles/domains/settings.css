@@ -1,3 +1,105 @@
+/* Settings workspace */
+
+.settings-page .page-header {
+  margin: 0;
+}
+
+.settings-group {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--color-line-panel);
+  border-radius: var(--radius-panel);
+  background: var(--bg-card);
+  padding: 16px;
+}
+
+.settings-group-header {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-group-header h3 {
+  margin: 0;
+  color: var(--color-text-heading);
+  font-size: 1.05rem;
+}
+
+.settings-group .form-grid,
+.settings-group .settings-toggle-grid {
+  margin-bottom: 0;
+}
+
+.settings-field-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-token {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 4px;
+  background: var(--bg-soft-primary);
+  color: var(--color-primary-strong);
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.3;
+  padding: 1px 6px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-surface-subtle);
+  color: var(--color-text-body);
+  font-weight: 700;
+}
+
+.settings-toggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.settings-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.settings-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.success-message {
+  margin: 0;
+  color: var(--color-success-strong);
+  font-weight: 700;
+}
+
+.backup-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-collections-table.table-card-stack {
+  min-width: 0;
+}
+
 .settings-page {
   display: grid;
   gap: 22px;
@@ -39,18 +141,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .settings-print-section {
@@ -766,7 +856,7 @@
 
 .settings-print-preview-page .invoice-items-table th,
 .settings-print-preview-page .invoice-items-table td {
-  border: 1px solid #777;
+  border: 1px solid var(--color-muted);
   padding: 5px 6px;
   vertical-align: top;
 }
@@ -830,7 +920,7 @@
 }
 
 .settings-print-preview-page .invoice-signature span {
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-text-heading);
   height: 18px;
 }
 
@@ -1033,7 +1123,7 @@
 }
 
 .db-health-card-ok {
-  border-color: #b7e0c7;
+  border-color: var(--color-success);
 }
 
 .db-health-card-degraded {
@@ -1142,7 +1232,7 @@
   margin-top: 14px;
   border: 1px solid var(--color-warning);
   border-radius: 8px;
-  background: var(--bg-soft-warning, #fff8e8);
+  background: var(--bg-soft-warning, var(--bg-soft-warning));
   padding: 12px 14px;
 }
 
@@ -1189,7 +1279,7 @@
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: var(--bg-soft-muted, #f5f8fb);
+  background: var(--bg-soft-muted, var(--bg-soft-muted));
 }
 
 .db-collections-table tbody tr:last-child td {
@@ -1208,7 +1298,7 @@
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--bg-soft-muted, #e8eef5);
+  background: var(--bg-soft-muted, var(--bg-soft-muted));
 }
 
 .db-share-bar span {
@@ -1219,3 +1309,101 @@
 }
 
 
+
+@media (max-width: 1260px) {
+  .settings-print-builder,
+  .print-builder-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-print-preview {
+    position: static;
+  }
+}
+
+@media (max-width: 1180px) {
+  .backup-card-main {
+    grid-template-columns: minmax(220px, 1fr) auto minmax(150px, auto);
+  }
+
+  .backup-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1024px) {
+  .settings-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .settings-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .settings-print-options-row,
+  .print-builder-field-row,
+  .print-builder-custom-row,
+  .settings-variable-grid,
+  .settings-variable-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-actions,
+  .settings-page .page-header-actions {
+    width: 100%;
+  }
+
+  .settings-actions .primary-button,
+  .settings-actions .success-button,
+  .settings-page .page-header-actions .primary-button {
+    flex: 1 1 160px;
+  }
+
+  .backup-card-main,
+  .backup-card-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .backup-card-badges,
+  .backup-actions {
+    justify-content: flex-start;
+  }
+
+  .backup-actions .ghost-button,
+  .backup-actions .warning-button,
+  .backup-actions .danger-button {
+    flex: 1 1 150px;
+  }
+
+  .settings-print-grid,
+  .settings-print-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-print-preview {
+    position: static;
+  }
+
+  .db-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-tab {
+    min-height: 44px;
+  }
+
+  .db-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-group {
+    padding: 12px;
+  }
+}

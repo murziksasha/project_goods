@@ -141,7 +141,9 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `.offline-banner` | Persistent offline strip in page shell |
 | `.page-header` | Module header row (F2) |
 | `.mobile-bottom-nav` | Phone bottom tabs ≤720px |
-| `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company) |
+| `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company → Appearance) |
+| `.settings-group` | Card group on Settings tabs (appearance / identity / widget blocks) |
+| `.settings-token` | Print-form placeholder chip (`{{company}}`) next to Company fields |
 | `html[data-theme=light\|dark]` | Color theme (`project-goods.ui-theme` in localStorage; topbar ThemeSwitcher) |
 
 ## CSS file map
@@ -158,6 +160,8 @@ shared/styles/
     orders.css
     warehouse.css
     accounting.css
+    employees.css
+    settings.css         # Settings tabs, groups, print builder chrome, backups, db report
     adaptive-tables.css  # card-stack tables, kanban snap, create menu
 ```
 

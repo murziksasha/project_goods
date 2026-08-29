@@ -150,6 +150,12 @@
       "database": "Database"
     },
     "dashboard": {
+      "subtitle": "Defaults for the home-page market, rates and weather widget.",
+      "groups": {
+        "widgets": "Widget visibility",
+        "rates": "Exchange rates",
+        "weather": "Weather"
+      },
       "marketWeatherEnabled": "Show market & weather widget",
       "exchangeRatesEnabled": "Show exchange rates",
       "weatherEnabled": "Show weather forecast",
@@ -183,28 +189,32 @@
       "loading": "Loading settings..."
     },
     "company": {
+      "appearanceTitle": "Appearance",
+      "identityTitle": "Company identity",
+      "identitySubtitle": "These values fill print-form tokens on documents.",
       "serviceNameInHeader": "Service name in header",
       "serviceNamePlaceholder": "Service CRM",
-      "companyName": "Company name ({{company}})",
+      "companyName": "Company name",
       "companyNamePlaceholder": "Company name",
       "companyNameMinLength": "Company name must be at least 2 characters.",
-      "companyId": "Company ID ({{company_id}})",
+      "companyId": "Company ID",
       "companyIdPlaceholder": "Company registration ID",
       "companyIdFormat": "Company ID must be 8-12 characters (letters, digits, dash).",
-      "companyAddress": "Company address ({{company_address}})",
+      "companyAddress": "Company address",
       "companyAddressPlaceholder": "Company address",
       "companyAddressMinLength": "Company address must be at least 5 characters.",
-      "companyIban": "Company IBAN ({{company_iban}})",
+      "companyIban": "Company IBAN",
       "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
       "companyIbanFormat": "IBAN must match UA + 27 digits (spaces are allowed).",
-      "companyEmail": "Company e-mail ({{company_email}})",
+      "companyEmail": "Company e-mail",
       "companyEmailPlaceholder": "service@example.com",
-      "companySite": "Company site ({{company_site}})",
+      "companySite": "Company site",
       "companySitePlaceholder": "https://example.com"
     },
     "print": {
       "sectionLabel": "Print forms",
       "title": "Order documents",
+      "subtitle": "Templates used in order, sale and warehouse print menus.",
       "documentTemplate": "Document template",
       "add": "Add",
       "duplicate": "Duplicate",

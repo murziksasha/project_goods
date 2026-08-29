@@ -150,6 +150,12 @@
       "database": "База даних"
     },
     "dashboard": {
+      "subtitle": "Типові параметри віджета курсу та погоди на головній.",
+      "groups": {
+        "widgets": "Видимість віджета",
+        "rates": "Курси валют",
+        "weather": "Погода"
+      },
       "marketWeatherEnabled": "Показувати блок курсу та погоди",
       "exchangeRatesEnabled": "Показувати курси валют",
       "weatherEnabled": "Показувати прогноз погоди",
@@ -183,28 +189,32 @@
       "loading": "Завантаження налаштувань..."
     },
     "company": {
+      "appearanceTitle": "Вигляд",
+      "identityTitle": "Реквізити компанії",
+      "identitySubtitle": "Ці значення підставляються в змінні друкованих форм.",
       "serviceNameInHeader": "Назва сервісу в шапці",
       "serviceNamePlaceholder": "Service CRM",
-      "companyName": "Назва компанії ({{company}})",
+      "companyName": "Назва компанії",
       "companyNamePlaceholder": "Назва компанії",
       "companyNameMinLength": "Назва компанії має містити щонайменше 2 символи.",
-      "companyId": "ЄДРПОУ / ID компанії ({{company_id}})",
+      "companyId": "ЄДРПОУ / ID компанії",
       "companyIdPlaceholder": "Реєстраційний номер компанії",
       "companyIdFormat": "ID компанії має містити 8–12 символів (літери, цифри, дефіс).",
-      "companyAddress": "Адреса компанії ({{company_address}})",
+      "companyAddress": "Адреса компанії",
       "companyAddressPlaceholder": "Адреса компанії",
       "companyAddressMinLength": "Адреса компанії має містити щонайменше 5 символів.",
-      "companyIban": "IBAN компанії ({{company_iban}})",
+      "companyIban": "IBAN компанії",
       "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
       "companyIbanFormat": "IBAN має відповідати формату UA + 27 цифр (пробіли дозволені).",
-      "companyEmail": "E-mail компанії ({{company_email}})",
+      "companyEmail": "E-mail компанії",
       "companyEmailPlaceholder": "service@example.com",
-      "companySite": "Сайт компанії ({{company_site}})",
+      "companySite": "Сайт компанії",
       "companySitePlaceholder": "https://example.com"
     },
     "print": {
       "sectionLabel": "Друковані форми",
       "title": "Документи замовлень",
+      "subtitle": "Шаблони для меню друку замовлень, продажів і складу.",
       "documentTemplate": "Шаблон документа",
       "add": "Додати",
       "duplicate": "Дублювати",
