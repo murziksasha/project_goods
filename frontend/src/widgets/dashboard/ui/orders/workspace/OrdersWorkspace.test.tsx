@@ -1409,12 +1409,120 @@ describe('OrdersWorkspace', () => {
               warrantyPeriod: 0,
             },
           ],
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Mouse',
+            serialNumber: '',
+          },
         },
       ],
     });
 
-    expect(screen.getByText('Rapid sale')).toBeInTheDocument();
+    expect(
+      document.querySelector('.orders-client-rapid-sale'),
+    ).toHaveTextContent('Rapid sale');
     expect(screen.queryByRole('button', { name: 'Rapid sale' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Product' })).toBeInTheDocument();
+    expect(screen.getByText('Mouse')).toBeInTheDocument();
+  });
+
+  it('shows product, manager and unpaid paid amount on the sales tab', () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          recordNumber: 'r000726',
+          salePrice: 1300,
+          paidAmount: 0,
+          manager: {
+            id: 'manager-1',
+            name: 'Olexandr',
+            role: 'manager',
+          },
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Phone case',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Phone case',
+              price: 1300,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+            {
+              id: 'li-2',
+              kind: 'service',
+              name: 'Setup',
+              price: 0,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByRole('columnheader', { name: 'Product' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Manager' })).toBeInTheDocument();
+    expect(screen.getByText('Phone case')).toBeInTheDocument();
+    expect(screen.getByText('Olexandr')).toBeInTheDocument();
+    expect(screen.getByText('+1')).toBeInTheDocument();
+    expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
+  });
+
+  it('filters rapid sales from the sales filter panel', () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-rapid',
+          kind: 'sale',
+          recordNumber: 'r000717',
+          isRapidSale: true,
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Cable',
+            serialNumber: '',
+          },
+        },
+        {
+          ...sale,
+          id: 'sale-regular',
+          kind: 'sale',
+          recordNumber: 'r000726',
+          isRapidSale: false,
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Case',
+            serialNumber: '',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    expect(screen.getByText('Sale type')).toBeInTheDocument();
+    expect(screen.queryByText('Repair type')).not.toBeInTheDocument();
+
+    const saleTypeSelect = screen.getByText('Sale type')
+      .parentElement
+      ?.querySelector('select') as HTMLSelectElement;
+    fireEvent.change(saleTypeSelect, { target: { value: 'rapid' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByRole('link', { name: /r000717/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /r000726/i })).not.toBeInTheDocument();
   });
 
   it('opens payment modal when pendingPaymentSale is provided', async () => {

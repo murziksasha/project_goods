@@ -179,6 +179,7 @@ export type OrderLineItem = {
   serialNumbers?: string[];
 };
 export type RepairTypeFilter = 'all' | 'paid' | 'warranty';
+export type SaleTypeFilter = 'all' | 'rapid' | 'regular';
 export type OrdersFilters = {
   statuses: OrderStatus[];
   orderNumber: string;
@@ -186,6 +187,7 @@ export type OrdersFilters = {
   assigneeId: string;
   warehouse: string;
   repairType: RepairTypeFilter;
+  saleType: SaleTypeFilter;
   paymentMethod: '' | PaymentMethod;
   dateFrom: string;
   dateTo: string;
@@ -446,9 +448,11 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
   sales: [
     'orderNumber',
     'client',
+    'primaryItem',
     'status',
     'price',
     'paid',
+    'manager',
     'createdAt',
   ],
   supplierOrders: allOrdersColumnKeys,
@@ -457,7 +461,7 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
 export const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   orders: allOrdersColumnKeys,
   kanban: allOrdersColumnKeys,
-  sales: defaultVisibleColumns.sales,
+  sales: [...defaultVisibleColumns.sales, 'received'],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
 };
@@ -535,6 +539,7 @@ export const emptyOrdersFilters: OrdersFilters = {
   assigneeId: '',
   warehouse: '',
   repairType: 'all',
+  saleType: 'all',
   paymentMethod: '',
   dateFrom: '',
   dateTo: '',
@@ -558,12 +563,17 @@ export const readActiveOrderFilters = () => {
     ): OrdersFilters => {
       if (!value) return emptyOrdersFilters;
       const normalizedLegacyDate = value.date ?? '';
+      const saleType =
+        value.saleType === 'rapid' || value.saleType === 'regular'
+          ? value.saleType
+          : 'all';
       return {
         ...emptyOrdersFilters,
         ...value,
         dateFrom: value.dateFrom ?? normalizedLegacyDate,
         dateTo: value.dateTo ?? normalizedLegacyDate,
         favoritesOnly: value.favoritesOnly === true,
+        saleType,
         statuses: Array.isArray(value.statuses) ? value.statuses : [],
       };
     };
@@ -1808,10 +1818,26 @@ export const isLegacyFullOrdersColumnSet = (
   columns.length === allOrdersColumnKeys.length &&
   allOrdersColumnKeys.every((key) => columns.includes(key));
 
+export const legacySalesDefaultColumnKeys: OrdersColumnKey[] = [
+  'orderNumber',
+  'client',
+  'status',
+  'price',
+  'paid',
+  'createdAt',
+];
+
+export const isLegacySalesColumnSet = (
+  columns: OrdersColumnKey[] | undefined,
+) =>
+  Array.isArray(columns) &&
+  columns.length === legacySalesDefaultColumnKeys.length &&
+  legacySalesDefaultColumnKeys.every((key) => columns.includes(key));
+
 export const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
   isRepairOrdersTab(activeTab)
     ? i18n.t('orders.columns.device')
-    : i18n.t('orders.columns.serviceCenter');
+    : i18n.t('orders.columns.product');
 
 export const getDeviceLineItem = (sale: Sale) =>
   (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
@@ -1834,9 +1860,14 @@ export const getPrimaryItemCellContent = (
   sale: Sale,
   activeTab: OrdersTab,
 ) =>
-  activeTab === 'orders'
+  isRepairOrdersTab(activeTab)
     ? getPrimaryDeviceName(sale)
-    : i18n.t('orders.columns.serviceCenter');
+    : getSaleProductName(sale);
+
+export const getPrimaryItemExtraLineCount = (sale: Sale) => {
+  const count = (sale.lineItems ?? []).length;
+  return count > 1 ? count - 1 : 0;
+};
 
 export const isUrgentRepairOrder = (sale: Sale) => {
   if (!isRepairOrder(sale)) return false;
@@ -1895,6 +1926,9 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
     ) => {
       if (isLegacyFullOrdersColumnSet(columns)) {
         return defaultVisibleColumns[tab];
+      }
+      if (tab === 'sales' && isLegacySalesColumnSet(columns)) {
+        return defaultVisibleColumns.sales;
       }
 
       const safeColumns =

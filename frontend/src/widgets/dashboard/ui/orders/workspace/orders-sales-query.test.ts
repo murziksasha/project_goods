@@ -52,4 +52,35 @@ describe('buildOrdersSalesListParams', () => {
     expect(params.statuses).toEqual([...kanbanVisibleRepairStatuses]);
     expect(params.masterId).toBe('master-1');
   });
+
+  it('maps sales tab sale type to isRapidSale and skips repair type', () => {
+    expect(
+      buildOrdersSalesListParams({
+        tab: 'sales',
+        filters: {
+          ...emptyOrdersFilters,
+          saleType: 'rapid',
+          repairType: 'warranty',
+        },
+        searchValue: 'mouse',
+        page: 1,
+        pageSize: 30,
+      }),
+    ).toMatchObject({
+      kind: 'sale',
+      isRapidSale: true,
+      repairType: undefined,
+      q: 'mouse',
+    });
+
+    expect(
+      buildOrdersSalesListParams({
+        tab: 'sales',
+        filters: { ...emptyOrdersFilters, saleType: 'regular' },
+        searchValue: '',
+        page: 1,
+        pageSize: 30,
+      }).isRapidSale,
+    ).toBe(false);
+  });
 });

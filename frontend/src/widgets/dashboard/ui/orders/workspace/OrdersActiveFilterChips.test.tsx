@@ -28,6 +28,9 @@ describe('buildOrdersFilterChips', () => {
         repairType: 'Repair type',
         repairPaid: 'Paid',
         repairWarranty: 'Warranty',
+        saleType: 'Sale type',
+        saleTypeRapid: 'Rapid sale',
+        saleTypeRegular: 'Regular',
         payment: 'Payment',
         paymentCash: 'Cash',
         paymentNonCash: 'Non-cash',
@@ -53,6 +56,40 @@ describe('buildOrdersFilterChips', () => {
     expect(cleared.client).toBe('');
     expect(cleared.favoritesOnly).toBe(false);
     expect(cleared.statuses).toEqual([]);
+  });
+
+  it('builds a chip for rapid sale type', () => {
+    const chips = buildOrdersFilterChips(
+      { ...emptyOrdersFilters, saleType: 'rapid' },
+      {
+        status: (status) => status,
+        assignee: (id) => id,
+        orderNumber: 'Order number',
+        client: 'Client',
+        assigneeField: 'Assignee',
+        warehouse: 'Warehouse',
+        repairType: 'Repair type',
+        repairPaid: 'Paid',
+        repairWarranty: 'Warranty',
+        saleType: 'Sale type',
+        saleTypeRapid: 'Rapid sale',
+        saleTypeRegular: 'Regular',
+        payment: 'Payment',
+        paymentCash: 'Cash',
+        paymentNonCash: 'Non-cash',
+        dateFrom: 'From',
+        dateTo: 'To',
+        product: 'Product',
+        service: 'Service',
+        favorites: 'Favorites only',
+      },
+    );
+
+    expect(chips.map((chip) => chip.id)).toEqual(['saleType']);
+    expect(chips[0]?.label).toBe('Sale type: Rapid sale');
+    expect(chips[0]?.clear({ ...emptyOrdersFilters, saleType: 'rapid' }).saleType).toBe(
+      'all',
+    );
   });
 });
 

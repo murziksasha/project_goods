@@ -9,8 +9,12 @@ import {
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
   computeOrderStatusMenuPosition,
+  availableColumnsByTab,
   defaultVisibleColumns,
   formatReadyDate,
+  getPrimaryItemCellContent,
+  getPrimaryItemColumnLabel,
+  getPrimaryItemExtraLineCount,
   getLineItemsQuantity,
   getLineItemsTotal,
   getOrdersColumnClassName,
@@ -20,6 +24,8 @@ import {
   getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
   isLegacyFullOrdersColumnSet,
+  isLegacySalesColumnSet,
+  legacySalesDefaultColumnKeys,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
   normalizeOrderStatus,
@@ -873,6 +879,53 @@ describe('orders list dates and columns', () => {
       JSON.stringify({ orders: allOrdersColumnKeys }),
     );
     expect(readVisibleColumns().orders).toEqual(defaultVisibleColumns.orders);
+  });
+
+  it('uses product columns on the sales tab and migrates the old lean set', () => {
+    expect(defaultVisibleColumns.sales).toEqual([
+      'orderNumber',
+      'client',
+      'primaryItem',
+      'status',
+      'price',
+      'paid',
+      'manager',
+      'createdAt',
+    ]);
+    expect(availableColumnsByTab.sales).toEqual([
+      ...defaultVisibleColumns.sales,
+      'received',
+    ]);
+    expect(isLegacySalesColumnSet(legacySalesDefaultColumnKeys)).toBe(true);
+    window.localStorage.setItem(
+      ordersColumnsStorageKey,
+      JSON.stringify({ sales: legacySalesDefaultColumnKeys }),
+    );
+    expect(readVisibleColumns().sales).toEqual(defaultVisibleColumns.sales);
+  });
+
+  it('labels primary item as Device on orders and Product on sales', () => {
+    expect(getPrimaryItemColumnLabel('orders')).toBe('Device');
+    expect(getPrimaryItemColumnLabel('sales')).toBe('Product');
+  });
+
+  it('shows the sold product name in the sales primary item cell', () => {
+    const saleRow = repairSale({
+      kind: 'sale',
+      product: {
+        id: 'product-1',
+        article: 'ART-1',
+        name: 'Wireless mouse M22',
+        serialNumber: 'S000003',
+      },
+    });
+    expect(getPrimaryItemCellContent(saleRow, 'sales')).toBe(
+      'Wireless mouse M22',
+    );
+    expect(getPrimaryItemCellContent(saleRow, 'orders')).toBe(
+      'Wireless mouse M22',
+    );
+    expect(getPrimaryItemExtraLineCount(saleRow)).toBe(1);
   });
 });
 

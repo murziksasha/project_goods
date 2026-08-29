@@ -533,6 +533,7 @@
       "master": "Майстер",
       "status": "Статус",
       "device": "Пристрій",
+      "product": "Товар",
       "serviceCenter": "Сервісний центр",
       "price": "Ціна",
       "paid": "Оплачено",
@@ -703,7 +704,7 @@
       "unstarOrder": "Прибрати зірку з {{orderNumber}}",
       "searchPlaceholder": {
         "orders": "Замовлення, клієнт, телефон або пристрій",
-        "sales": "Замовлення, клієнт, телефон або менеджер"
+        "sales": "Замовлення, клієнт, телефон, товар або менеджер"
       },
       "loading": "Завантаження замовлень...",
       "empty": {
@@ -715,6 +716,7 @@
         "nonUrgent": "Не терміново"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",
@@ -738,8 +740,12 @@
       "clientPlaceholder": "Імʼя або телефон клієнта",
       "assignee": "Майстер / менеджер",
       "master": "Майстер",
+      "manager": "Менеджер",
       "warehouse": "Склад",
       "repairType": "Тип ремонту",
+      "saleType": "Тип продажу",
+      "saleTypeRapid": "Швидкий продаж",
+      "saleTypeRegular": "Звичайний",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Дата від",

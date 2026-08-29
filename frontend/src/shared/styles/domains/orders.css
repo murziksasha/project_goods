@@ -1345,6 +1345,11 @@
   font-weight: 700;
 }
 
+.orders-money-unpaid {
+  color: #c47a12;
+  font-weight: 700;
+}
+
 .order-print-icon-button {
   display: inline-grid;
   place-items: center;

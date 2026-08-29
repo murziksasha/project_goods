@@ -533,6 +533,7 @@
       "master": "Master",
       "status": "Status",
       "device": "Device",
+      "product": "Product",
       "serviceCenter": "Service center",
       "price": "Price",
       "paid": "Paid",
@@ -703,7 +704,7 @@
       "unstarOrder": "Remove star from {{orderNumber}}",
       "searchPlaceholder": {
         "orders": "Order, client, phone or device",
-        "sales": "Order, client, phone or manager"
+        "sales": "Order, client, phone, product or manager"
       },
       "loading": "Loading orders...",
       "empty": {
@@ -715,6 +716,7 @@
         "nonUrgent": "Non-urgent"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",
@@ -738,8 +740,12 @@
       "clientPlaceholder": "Client name or phone",
       "assignee": "Master / manager",
       "master": "Master",
+      "manager": "Manager",
       "warehouse": "Warehouse",
       "repairType": "Repair type",
+      "saleType": "Sale type",
+      "saleTypeRapid": "Rapid sale",
+      "saleTypeRegular": "Regular",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Date from",
