@@ -35,7 +35,7 @@ describe('CatalogCopyableName', () => {
 
     render(<CatalogCopyableName name="БЖ Asus 19V" onOpen={onOpen} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'catalog.tables.copyName' }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy name|catalog\.tables\.copyName/ }));
 
     await waitFor(() => {
       expect(copyTextToClipboard).toHaveBeenCalledWith('БЖ Asus 19V');
@@ -46,7 +46,7 @@ describe('CatalogCopyableName', () => {
   it('hides copy control when name is empty', () => {
     render(<CatalogCopyableName name="   " onOpen={vi.fn()} />);
     expect(
-      screen.queryByRole('button', { name: 'catalog.tables.copyName' }),
+      screen.queryByRole('button', { name: /Copy name|catalog\.tables\.copyName/ }),
     ).toBeNull();
   });
 });

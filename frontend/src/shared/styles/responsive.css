@@ -905,16 +905,6 @@
     justify-content: flex-start;
   }
 
-  .catalog-table-services td[data-label='Select'] {
-    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .catalog-table-services td[data-label='Select'] input {
-    justify-self: start;
-    margin: 0;
-  }
-
   .finance-transactions-table .finance-day-separator-row {
     border: 0;
     border-radius: 0;

@@ -2474,7 +2474,7 @@
   },
   "catalog": {
     "tabs": {
-      "products": "Clients Device",
+      "products": "Client devices",
       "catalogProducts": "Products",
       "services": "Services",
       "suppliers": "Suppliers"
@@ -2511,8 +2511,11 @@
       "clearFilter": "Clear filter"
     },
     "tables": {
+      "loadingDevices": "Loading devices...",
       "loadingProducts": "Loading products...",
       "loadingServices": "Loading services...",
+      "noDevicesFound": "No devices found.",
+      "noDevicesYet": "No devices yet.",
       "noProductsFound": "No products found.",
       "noProductsYet": "No products yet.",
       "noServicesFound": "No services found.",
@@ -2527,6 +2530,8 @@
         "created": "Created",
         "activity": "Activity",
         "date": "Date",
+        "lastSeen": "Last seen",
+        "usage": "Usage",
         "price": "Price",
         "note": "Note",
         "updated": "Updated",
@@ -2555,6 +2560,8 @@
       "active": "Active",
       "inactive": "Inactive",
       "addNew": "Add new",
+      "addNewHint": "Create another supplier. Phone must be unique.",
+      "addNewPhoneHint": "Enter a unique phone number, then create.",
       "saving": "Saving...",
       "save": "Save",
       "create": "Create",

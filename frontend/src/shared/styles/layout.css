@@ -100,23 +100,35 @@
 
 .catalog-tabs {
   display: flex;
+  gap: 0;
   border-bottom: 1px solid var(--color-line);
-  background: var(--bg-panel-muted);
+  background: var(--bg-workspace);
+  padding: 0 12px;
+  overflow-x: auto;
 }
 
 .catalog-tab {
   border: 0;
-  border-right: 1px solid var(--color-line);
   background: transparent;
   color: var(--color-text-body-strong);
-  padding: 16px 22px;
   font: inherit;
+  font-size: 1.03rem;
+  padding: 14px 16px;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.catalog-tab:hover {
+  color: var(--color-primary);
 }
 
 .catalog-tab-active {
   background: var(--bg-card);
+  border: 1px solid var(--color-line-panel);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
   font-weight: 800;
+  color: var(--color-text-heading);
 }
 
 .catalog-toolbar {
@@ -151,6 +163,13 @@
   scrollbar-gutter: stable;
 }
 
+.catalog-table-panel .catalog-card-table-wrap {
+  margin: 0;
+  border: 1px solid var(--color-line-panel);
+  border-radius: var(--radius-panel);
+  background: var(--bg-card);
+}
+
 .catalog-table {
   width: 100%;
   min-width: 1120px;
@@ -158,12 +177,52 @@
   background: var(--bg-card);
 }
 
-.catalog-table-compact {
-  min-width: 720px;
+.catalog-table-compact,
+.catalog-table-services {
+  min-width: 0;
+  table-layout: fixed;
 }
 
-.catalog-table-services {
-  min-width: 860px;
+.catalog-col-id {
+  width: 64px;
+}
+
+.catalog-col-status {
+  width: 120px;
+}
+
+.catalog-col-date {
+  width: 128px;
+}
+
+.catalog-col-usage {
+  width: 88px;
+}
+
+.catalog-col-price {
+  width: 120px;
+}
+
+.catalog-col-phone {
+  width: 160px;
+}
+
+.catalog-table-row {
+  cursor: pointer;
+}
+
+.catalog-table tbody tr.catalog-table-row:hover {
+  background: var(--bg-soft-primary);
+}
+
+.catalog-note-cell {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-body);
+  font-weight: 400;
 }
 
 .catalog-table th,
@@ -173,6 +232,13 @@
   color: var(--color-text-body-strong);
   text-align: left;
   vertical-align: middle;
+}
+
+.catalog-table-compact th,
+.catalog-table-compact td,
+.catalog-table-services th,
+.catalog-table-services td {
+  overflow: hidden;
 }
 
 .catalog-table th {
