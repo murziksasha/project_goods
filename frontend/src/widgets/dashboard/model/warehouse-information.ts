@@ -78,6 +78,50 @@ export type WarehouseInformationReport = {
   warehouseMetaByProductId: Record<string, StockWarehouseMeta>;
 };
 
+export type WarehouseInformationChartSourceRow = {
+  id: string;
+  name: string;
+  units: number;
+  value: number;
+};
+
+export type WarehouseInformationChartRow = WarehouseInformationChartSourceRow & {
+  metric: number;
+  sharePercent: number;
+};
+
+export const getWarehouseInformationChartMetric = (
+  sort: WarehouseInformationSortKey,
+  row: Pick<WarehouseInformationChartSourceRow, 'units' | 'value'>,
+) => (sort === 'quantity' ? row.units : row.value);
+
+export const buildWarehouseInformationChartRows = (
+  rows: WarehouseInformationChartSourceRow[],
+  sort: WarehouseInformationSortKey,
+  limit: number,
+): WarehouseInformationChartRow[] => {
+  const total = rows.reduce(
+    (sum, row) => sum + getWarehouseInformationChartMetric(sort, row),
+    0,
+  );
+  const cappedLimit = Math.max(0, limit);
+  return [...rows]
+    .sort(
+      (first, second) =>
+        getWarehouseInformationChartMetric(sort, second) -
+        getWarehouseInformationChartMetric(sort, first),
+    )
+    .slice(0, cappedLimit)
+    .map((row) => {
+      const metric = getWarehouseInformationChartMetric(sort, row);
+      return {
+        ...row,
+        metric,
+        sharePercent: total > 0 ? (metric / total) * 100 : 0,
+      };
+    });
+};
+
 const normalizeText = (value: string | null | undefined) =>
   String(value ?? '').trim().toLowerCase();
 

@@ -3,6 +3,7 @@ import type { Product } from '../../../entities/product/model/types';
 import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import {
   buildLocationUsageByWarehouse,
+  buildWarehouseInformationChartRows,
   buildWarehouseInformationReport,
   type WarehouseInformationFilters,
 } from './warehouse-information';
@@ -317,5 +318,27 @@ describe('warehouse information', () => {
         supplierName: 'Cable Supplier',
       }),
     ]);
+  });
+
+  it('builds chart rows from total share, caps the limit, and uses value for latest', () => {
+    const rows = [
+      { id: 'a', name: 'Alpha', units: 10, value: 100 },
+      { id: 'b', name: 'Beta', units: 30, value: 50 },
+      { id: 'c', name: 'Gamma', units: 0, value: 250 },
+    ];
+
+    const byQuantity = buildWarehouseInformationChartRows(rows, 'quantity', 2);
+    expect(byQuantity.map((row) => row.name)).toEqual(['Beta', 'Alpha']);
+    expect(byQuantity[0]?.metric).toBe(30);
+    expect(byQuantity[0]?.sharePercent).toBe(75);
+    expect(byQuantity[1]?.sharePercent).toBe(25);
+
+    const byLatest = buildWarehouseInformationChartRows(rows, 'latest', 8);
+    expect(byLatest.map((row) => row.name)).toEqual(['Gamma', 'Alpha', 'Beta']);
+    expect(byLatest[0]?.metric).toBe(250);
+    expect(byLatest[0]?.sharePercent).toBe(62.5);
+
+    expect(buildWarehouseInformationChartRows([], 'value', 3)).toEqual([]);
+    expect(buildWarehouseInformationChartRows(rows, 'value', 0)).toEqual([]);
   });
 });

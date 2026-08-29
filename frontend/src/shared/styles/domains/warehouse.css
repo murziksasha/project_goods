@@ -667,6 +667,26 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.warehouse-information-header .finance-information-status {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.warehouse-information-signals {
+  margin-top: 0;
+}
+
+.warehouse-information-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.warehouse-information-charts > * {
+  min-width: 0;
+}
+
 .warehouse-information-controls {
   display: flex;
   align-items: center;
@@ -675,17 +695,99 @@
   flex-wrap: wrap;
 }
 
-.warehouse-information-toolbar {
-  display: flex;
-  align-items: center;
+.warehouse-information-tools {
+  display: grid;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .warehouse-information-filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+}
+
+.warehouse-information-sort {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 220px));
+  gap: 10px;
+  justify-content: start;
+}
+
+.warehouse-info-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.warehouse-info-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 999px;
+  background: var(--bg-surface-subtle);
+  color: var(--color-text-body-strong);
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-info-chip-more {
+  color: var(--color-text-label);
+  font-weight: 800;
+}
+
+.warehouse-info-empty {
+  color: var(--text-soft);
+}
+
+.warehouse-info-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-info-metric {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.warehouse-info-share-track {
+  display: block;
+  width: min(120px, 100%);
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-line-strong);
+  overflow: hidden;
+}
+
+.warehouse-info-share-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+}
+
+@media (max-width: 1024px) {
+  .table-card-stack td.warehouse-info-num {
+    text-align: left;
+  }
+
+  .table-card-stack .warehouse-info-metric {
+    justify-items: start;
+    width: 100%;
+  }
+
+  .warehouse-information-charts .bar-chart-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .warehouse-information-table {

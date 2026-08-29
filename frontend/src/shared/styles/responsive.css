@@ -389,7 +389,8 @@
   }
 
   .warehouse-information-summary,
-  .warehouse-information-filters {
+  .warehouse-information-filters,
+  .warehouse-information-sort {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -581,6 +582,7 @@
   .finance-orders-summary-grid,
   .finance-report-grid-wide,
   .finance-information-grid,
+  .warehouse-information-charts,
   .finance-operation-grid,
   .finance-report-grid,
   .form-grid,
@@ -1291,6 +1293,7 @@
 
   .warehouse-information-summary,
   .warehouse-information-filters,
+  .warehouse-information-sort,
   .warehouse-settings-location-row {
     grid-template-columns: 1fr;
   }
