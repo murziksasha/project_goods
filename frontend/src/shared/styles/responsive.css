@@ -672,8 +672,10 @@
   }
 
   .orders-search-group {
-    grid-template-columns: minmax(0, 1fr) 92px;
     width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .warehouse-search-group {
@@ -1993,7 +1995,10 @@
   }
 
   .orders-search-group {
-    grid-template-columns: minmax(0, 1fr) 48px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .orders-search-group button {

@@ -1753,6 +1753,7 @@ export const OrderDetailLineItemsPanel = ({
             return header ? [header, ...rows] : rows;
           })
         )}
+        {isReadOnly ? null : (
         <div className='order-detail-table-entry-row'>
           <div
             className='order-line-item-name-entry order-detail-table-entry-cell'
@@ -1864,6 +1865,7 @@ export const OrderDetailLineItemsPanel = ({
             </button>
           </div>
         </div>
+        )}
       </div>
       <div className='order-line-items-form'>
         {kind === 'product' &&

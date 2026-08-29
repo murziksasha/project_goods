@@ -399,6 +399,34 @@ describe('OrdersWorkspace', () => {
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
+  it('labels created date Created and hides Non-urgent term text', () => {
+    renderWorkspace({ sales: [sale] });
+
+    expect(screen.getByRole('columnheader', { name: 'Created' })).toBeInTheDocument();
+    expect(screen.queryByText('Non-urgent')).not.toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('shows Urgent in the term column for urgent repairs', () => {
+    renderWorkspace({
+      sales: [{ ...sale, note: 'urgent repair' }],
+    });
+
+    expect(screen.getByText('Urgent')).toBeInTheDocument();
+  });
+
+  it('opens the order card when clicking the table row', async () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+
+    renderWorkspace({ sales: [sale] });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }).closest('tr')!);
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+  });
+
   it('scrolls to the top again when clicking the already open order number', async () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
@@ -478,8 +506,8 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Products/i }));
     expect(
-      screen.getByRole('button', { name: 'Add product' }),
-    ).toBeDisabled();
+      screen.queryByRole('button', { name: 'Add product' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows an error when order status update fails', async () => {
@@ -1064,6 +1092,51 @@ describe('OrdersWorkspace', () => {
     });
     expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
+  });
+
+  it('opens Accept payment when card Save changes sets issued with remaining due', async () => {
+    getCashboxesMock.mockResolvedValue([cashbox]);
+
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          status: 'ready',
+          paidAmount: 350,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 2500,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/repair status/i), {
+      target: { value: 'issued' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Accept payment' }),
+    ).toBeInTheDocument();
+    expect(updateSaleWorkspaceMock).not.toHaveBeenCalled();
   });
 
   it('matches top search by normalized client phone digits', () => {

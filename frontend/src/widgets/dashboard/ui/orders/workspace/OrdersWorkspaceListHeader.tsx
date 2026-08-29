@@ -36,6 +36,7 @@ type OrdersWorkspaceListHeaderProps = {
   onToggleFilterPanel: () => void;
   onToggleColumnsMenu: () => void;
   onToggleColumnVisibility: (columnKey: OrdersColumnKey) => void;
+  onResetColumns: () => void;
   onToggleFavoritesOnly: () => void;
   onOpenSingleMatch?: () => void;
 };
@@ -64,6 +65,7 @@ export const OrdersWorkspaceListHeader = ({
   onToggleFilterPanel,
   onToggleColumnsMenu,
   onToggleColumnVisibility,
+  onResetColumns,
   onToggleFavoritesOnly,
   onOpenSingleMatch,
 }: OrdersWorkspaceListHeaderProps) => {
@@ -161,6 +163,13 @@ export const OrdersWorkspaceListHeader = ({
                       <span>{getColumnLabel(columnKey, activeTab)}</span>
                     </label>
                   ))}
+                  <button
+                    type="button"
+                    className="toolbar-settings-reset"
+                    onClick={onResetColumns}
+                  >
+                    {t('orders.toolbar.resetColumns')}
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -193,7 +202,14 @@ export const OrdersWorkspaceListHeader = ({
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={getOrdersSearchPlaceholder(activeTab)}
+              title={getOrdersSearchPlaceholder(activeTab)}
               aria-label={t('orders.toolbar.searchOrders')}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                if (!canOpenSingleMatch) return;
+                event.preventDefault();
+                onOpenSingleMatch?.();
+              }}
             />
             {searchValue ? (
               <span

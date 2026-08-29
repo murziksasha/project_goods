@@ -20,7 +20,7 @@
     "client": "Client",
     "term": "Term",
     "warehouse": "Warehouse",
-    "createdAt": "Add",
+    "createdAt": "Created",
     "readyDate": "Ready date"
   },
   "warranty": {
@@ -39,6 +39,7 @@
     "searchOrders": "Search orders",
     "clearSearch": "Clear search text",
     "toggleColumns": "Toggle table columns",
+    "resetColumns": "Reset columns",
     "orderCategories": "Order categories",
     "showAllOrders": "Show all orders",
     "showAllSales": "Show all sales",
@@ -47,8 +48,8 @@
     "starOrder": "Star {{orderNumber}}",
     "unstarOrder": "Remove star from {{orderNumber}}",
     "searchPlaceholder": {
-      "orders": "Search by order, client or device",
-      "sales": "Search by order, client or manager"
+      "orders": "Order, client, phone or device",
+      "sales": "Order, client, phone or manager"
     },
     "loading": "Loading orders...",
     "empty": {
@@ -186,6 +187,7 @@
       "cannotReturnUnpaid": "Cannot return a sale without received payment. Use another status for unpaid cancellation.",
       "refundBeforeRemoveLine": "Refund the line item amount before removing it from the order.",
       "statusBlocksRemoval": "This order status does not allow line item removal.",
+      "statusBlocksEdit": "This order status does not allow changing line items or discount.",
       "oneSerialPerLine": "Serialized products are sold one serial per line. Add another serial instead.",
       "paymentExceedsBalance": "Payment amount cannot exceed the remaining balance.",
       "issuedRequiresPayment": "Issued status requires payment to cashbox. Use payment action or keep unpaid status.",
