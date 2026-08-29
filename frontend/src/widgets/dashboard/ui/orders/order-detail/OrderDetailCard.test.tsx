@@ -25,6 +25,7 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseSettings } from '../../../../../entities/warehouse-settings/model/types';
+import { formatCurrency } from '../../../../../shared/lib/format';
 import {
   OrderDetailCard,
   type OrderDetailCardProps,
@@ -40,6 +41,10 @@ const {
   getProductsMock,
   getClientDevicesMock,
   getWarehouseSettingsMock,
+  getOccupiedSerialNumbersMock,
+  getCashboxesMock,
+  paySupplierOrderMock,
+  issueSupplierOrderWithoutPaymentMock,
 } = vi.hoisted(() => ({
   getProductsMock: vi.fn(
     async (_query = ''): Promise<Product[]> => [],
@@ -48,6 +53,23 @@ const {
     async (_query = ''): Promise<ClientDevice[]> => [],
   ),
   getWarehouseSettingsMock: vi.fn(),
+  getOccupiedSerialNumbersMock: vi.fn(
+    async () => ({ occupied: [] as string[] }),
+  ),
+  getCashboxesMock: vi.fn(async () => [
+    {
+      id: 'cashbox-1',
+      name: 'Main',
+      balances: { UAH: 5000 },
+      enabledCurrencies: { UAH: true },
+      isDefault: true,
+      isArchived: false,
+      createdAt: '2026-06-09T09:00:00.000Z',
+      updatedAt: '2026-06-09T09:00:00.000Z',
+    },
+  ]),
+  paySupplierOrderMock: vi.fn(async () => undefined),
+  issueSupplierOrderWithoutPaymentMock: vi.fn(async () => undefined),
 }));
 
 vi.mock(
@@ -60,6 +82,20 @@ vi.mock(
     return {
       ...actual,
       getProducts: getProductsMock,
+    };
+  },
+);
+
+vi.mock(
+  '../../../../../entities/sale/api/saleApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/sale/api/saleApi')
+      >();
+    return {
+      ...actual,
+      getOccupiedSerialNumbers: getOccupiedSerialNumbersMock,
     };
   },
 );
@@ -107,6 +143,12 @@ vi.mock(
 vi.mock('../../../../../entities/supplier/api/supplierApi', () => ({
   createSupplier: vi.fn(),
   getSuppliers: vi.fn(async () => []),
+}));
+
+vi.mock('../../../../../entities/finance/api/financeApi', () => ({
+  getCashboxes: getCashboxesMock,
+  paySupplierOrder: paySupplierOrderMock,
+  issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
 }));
 
 const now = '2026-06-09T09:00:00.000Z';
@@ -256,13 +298,19 @@ const buildCardElement = ({
   isReadOnly = false,
   canCreateOrders = true,
   canManageSupplierOrders = true,
+  canPaySupplierOrders = false,
+  canIssueSupplierOrdersWithoutPayment = false,
   onCreateOrder = vi.fn(),
+  onSupplierOrderCreated = vi.fn(async () => undefined),
+  onSuccess = vi.fn(),
   comments = [],
   saleOverride,
   salesOverride,
   onOpenRelatedSale = vi.fn(),
   status,
+  statusOptions,
   lineItems = [],
+  paidAmount = 0,
   supplierOrders = [],
   employees = [],
 }: {
@@ -306,7 +354,11 @@ const buildCardElement = ({
   isReadOnly?: boolean;
   canCreateOrders?: boolean;
   canManageSupplierOrders?: boolean;
+  canPaySupplierOrders?: boolean;
+  canIssueSupplierOrdersWithoutPayment?: boolean;
   onCreateOrder?: () => void;
+  onSupplierOrderCreated?: () => Promise<void>;
+  onSuccess?: (message: string) => void;
   comments?: Array<{
     id: string;
     kind?: 'manual' | 'system';
@@ -318,7 +370,9 @@ const buildCardElement = ({
   salesOverride?: Sale[];
   onOpenRelatedSale?: (sale: Sale) => void;
   status?: OrderStatus;
+  statusOptions?: Array<{ key: OrderStatus; labelKey: string }>;
   lineItems?: OrderLineItem[];
+  paidAmount?: number;
   supplierOrders?: SupplierOrder[];
   employees?: OrderDetailCardProps['employees'];
 } = {}) => {
@@ -331,22 +385,28 @@ const buildCardElement = ({
       supplierOrders={supplierOrders}
       employees={employees}
       status={cardStatus}
-      statusOptions={[
-        { key: cardStatus, labelKey: 'orders.status.repair.new' },
-      ]}
+      statusOptions={
+        statusOptions ?? [
+          { key: cardStatus, labelKey: 'orders.status.repair.new' },
+        ]
+      }
       comments={comments}
       lineItems={lineItems}
       products={products}
       printForms={defaultPrintForms}
       clientDevices={clientDevices}
       catalogProducts={catalogProducts}
-      paidAmount={0}
+      paidAmount={paidAmount}
       isReadOnly={isReadOnly}
       canAddComment={canAddComment}
       canAcceptPayment={true}
       canRefundPayment={true}
       canCreateOrders={canCreateOrders}
       canManageSupplierOrders={canManageSupplierOrders}
+      canPaySupplierOrders={canPaySupplierOrders}
+      canIssueSupplierOrdersWithoutPayment={
+        canIssueSupplierOrdersWithoutPayment
+      }
       onCreateOrder={onCreateOrder}
       createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
       onClose={vi.fn()}
@@ -362,13 +422,13 @@ const buildCardElement = ({
       onRefundPayment={vi.fn()}
       onDiscountChange={onDiscountChange}
       onOpenClientCard={vi.fn()}
-      onSupplierOrderCreated={vi.fn(async () => undefined)}
+      onSupplierOrderCreated={onSupplierOrderCreated}
       onCreateClientDevice={onCreateClientDevice}
       onUpdateClientDevice={onUpdateClientDevice}
       onDeleteClientDevice={onDeleteClientDevice}
       onUpdateProductModel={vi.fn(async () => true)}
       onError={onError}
-      onSuccess={vi.fn()}
+      onSuccess={onSuccess}
       onSaveMainInfo={onSaveMainInfo}
       onSaveUserNote={onSaveUserNote}
     />
@@ -431,6 +491,9 @@ const warehouseSettingsFixture: WarehouseSettings = {
 const restoreApiMocks = () => {
   getClientDevicesMock.mockImplementation(async () => []);
   getProductsMock.mockImplementation(async () => []);
+  getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+    occupied: [],
+  }));
   getWarehouseSettingsMock.mockImplementation(
     async () => warehouseSettingsFixture,
   );
@@ -465,9 +528,12 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   getProductsMock.mockClear();
+  getOccupiedSerialNumbersMock.mockClear();
   getClientDevicesMock.mockClear();
   getWarehouseSettingsMock.mockClear();
-  getWarehouseSettingsMock.mockClear();
+  getCashboxesMock.mockClear();
+  paySupplierOrderMock.mockClear();
+  issueSupplierOrderWithoutPaymentMock.mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
   document.body.style.overflow = '';
@@ -1297,6 +1363,175 @@ describe('OrderDetailCard product entry', () => {
     });
   });
 
+  it('hides serials bound to other orders from the bind modal and auto-select', async () => {
+    const stockProducts = [
+      product({
+        id: 'product-bound',
+        serialNumber: 'S000031',
+        purchaseDate: '2026-01-01T00:00:00.000Z',
+      }),
+      product({
+        id: 'product-free',
+        serialNumber: 'S000040',
+        purchaseDate: '2026-02-01T00:00:00.000Z',
+      }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: ['S000031'],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      salesOverride: [
+        sale({
+          id: 'sale-1',
+          lineItems: [],
+        }),
+      ],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000040/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(modal).queryByRole('button', { name: /S000031/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(modal).getByRole('button', { name: 'Auto-select oldest' }),
+    );
+
+    expect(
+      within(modal).getByText('S000040', {
+        selector: '.serial-bind-selected-item strong',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(modal).queryByText('S000031', {
+        selector: '.serial-bind-selected-item strong',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides serials already bound on other lines of the opened card', async () => {
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000031' }),
+      product({ id: 'product-2', serialNumber: 'S000040' }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: [],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      lineItems: [
+        {
+          id: 'line-bound',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 6,
+          serialNumbers: ['S000031'],
+        },
+        {
+          id: 'line-open',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 2,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (3)',
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/2/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[ \] S000040/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(modal).queryByRole('button', { name: /S000031/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the current line serial visible in the bind modal', async () => {
+    const stockProducts = [
+      product({ id: 'product-1', serialNumber: 'S000031' }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+    getOccupiedSerialNumbersMock.mockImplementation(async () => ({
+      occupied: [],
+    }));
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 6,
+          serialNumbers: ['S000031'],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*1\/1/i }),
+    );
+
+    const modal = await waitForSerialBindModal();
+
+    await waitFor(() => {
+      expect(
+        within(modal).getByRole('button', { name: /\[x\] S000031/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it('binds selected serials without showing the manual serial textarea', async () => {
     const onReplaceLineItem = vi.fn();
     const stockProducts = [
@@ -1515,29 +1750,46 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.change(priceInput, { target: { value: '1.3' } });
     fireEvent.change(priceInput, { target: { value: '1,3' } });
 
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      1,
-      'line-item-1',
-      undefined,
-      {
-        price: 0,
-      },
-    );
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      2,
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    fireEvent.blur(priceInput);
+    expect(onUpdateLineItem).toHaveBeenCalledTimes(1);
+    expect(onUpdateLineItem).toHaveBeenCalledWith(
       'line-item-1',
       undefined,
       {
         price: 1.3,
       },
     );
-    expect(onUpdateLineItem).toHaveBeenNthCalledWith(
-      3,
+  });
+
+  it('commits an existing line-item price after idle debounce', () => {
+    vi.useFakeTimers();
+    const onUpdateLineItem = vi.fn();
+    renderCard({
+      onUpdateLineItem,
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'service',
+          name: 'Postage',
+          price: 2000,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+      ],
+    });
+
+    const priceInput = screen.getByDisplayValue('2000');
+    fireEvent.change(priceInput, { target: { value: '200000' } });
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(399);
+    expect(onUpdateLineItem).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onUpdateLineItem).toHaveBeenCalledTimes(1);
+    expect(onUpdateLineItem).toHaveBeenCalledWith(
       'line-item-1',
       undefined,
-      {
-        price: 1.3,
-      },
+      { price: 200000 },
     );
   });
 
@@ -1574,6 +1826,222 @@ describe('OrderDetailCard product entry', () => {
         .closest('.order-line-item-price-cell'),
     ).not.toBeNull();
     expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
+  });
+
+  it('collapses identical sale-card products and shows grouped quantity', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000001'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000002'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle TerraE 30E INR18650 2900mAh group (2)',
+    });
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /88,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
+    expect(screen.queryByText('S000001')).not.toBeInTheDocument();
+    expect(screen.queryByText('S000002')).not.toBeInTheDocument();
+
+    fireEvent.click(groupToggle);
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toBeNull();
+    expect(screen.getByText('S000001')).toBeInTheDocument();
+    expect(screen.getByText('S000002')).toBeInTheDocument();
+  });
+
+  it('collapses identical repair-card products and shows grouped quantity', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'clientApproved' },
+      status: 'clientApproved',
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R1'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R2'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle Existing part group (2)',
+    });
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(groupToggle).toHaveTextContent('\u00d72');
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /10,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
+    expect(screen.queryByText('R1')).not.toBeInTheDocument();
+
+    fireEvent.click(groupToggle);
+    expect(screen.getByText('R1')).toBeInTheDocument();
+    expect(screen.getByText('R2')).toBeInTheDocument();
+  });
+
+  it('does not group distinct product lines', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Cable',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Case',
+          price: 20,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(
+      screen.queryByRole('button', { name: /group \(2\)/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Cable' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Case' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows mixed-price group amount on the collapsed price cell', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Existing part',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R1'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          name: 'Existing part',
+          price: 25,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['R2'],
+        },
+      ],
+    });
+
+    const groupToggle = screen.getByRole('button', {
+      name: 'Toggle Existing part group (2)',
+    });
+    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
+      /35,00/,
+    );
+    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
+      '2',
+    );
+  });
+
+  it('expands a product group when a new matching line is added', () => {
+    const groupedItems: OrderLineItem[] = [
+      {
+        id: 'line-item-1',
+        kind: 'product',
+        catalogProductId: 'catalog-1',
+        name: 'TerraE 30E INR18650 2900mAh',
+        price: 88,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'line-item-2',
+        kind: 'product',
+        catalogProductId: 'catalog-1',
+        name: 'TerraE 30E INR18650 2900mAh',
+        price: 88,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+    ];
+    const { rerender } = renderCard({ lineItems: groupedItems });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (2)',
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    rerender(
+      buildCardElement({
+        lineItems: [
+          ...groupedItems,
+          {
+            id: 'line-item-3',
+            kind: 'product',
+            catalogProductId: 'catalog-1',
+            name: 'TerraE 30E INR18650 2900mAh',
+            price: 88,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S000003'],
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Toggle TerraE 30E INR18650 2900mAh group (3)',
+      }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('S000003')).toBeInTheDocument();
   });
 
   it('opens the product model modal in serial mode when clicking a matching bound serial', async () => {
@@ -1705,15 +2173,10 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.change(discountInput!, { target: { value: '1.3' } });
     fireEvent.change(discountInput!, { target: { value: '1,3' } });
 
-    expect(onDiscountChange).toHaveBeenNthCalledWith(1, {
-      mode: 'percent',
-      value: 1,
-    });
-    expect(onDiscountChange).toHaveBeenNthCalledWith(2, {
-      mode: 'percent',
-      value: 1.3,
-    });
-    expect(onDiscountChange).toHaveBeenNthCalledWith(3, {
+    expect(onDiscountChange).not.toHaveBeenCalled();
+    fireEvent.blur(discountInput!);
+    expect(onDiscountChange).toHaveBeenCalledTimes(1);
+    expect(onDiscountChange).toHaveBeenCalledWith({
       mode: 'percent',
       value: 1.3,
     });
@@ -1745,6 +2208,40 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: 'Add product' }),
     ).not.toBeDisabled();
+  });
+
+  it('locks repair products when the card is read-only even in an editable status', async () => {
+    const onAddLineItem = vi.fn();
+    const onSuccess = vi.fn();
+    renderCard({
+      isReadOnly: true,
+      onAddLineItem,
+      onSuccess,
+      catalogProducts: [],
+      saleOverride: { kind: 'repair', status: 'ready' },
+      status: 'ready',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
+
+    const productSearch = screen.getByPlaceholderText(
+      PRODUCT_SEARCH_PLACEHOLDER,
+    );
+    expect(productSearch).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Add product' }),
+    ).toBeDisabled();
+
+    fireEvent.change(productSearch, { target: { value: 'S000003' } });
+    await waitFor(() => {
+      expect(
+        screen.getByText('TerraE 30E INR18650 2900mAh'),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
+
+    expect(onAddLineItem).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it('exposes keyboard focus path for repair status select', () => {
@@ -1858,6 +2355,76 @@ describe('OrderDetailCard product entry', () => {
     expect(
       screen.getByRole('button', { name: /Services/i }),
     ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows qty and pre-discount totals on products and services headers', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000001'],
+        },
+        {
+          id: 'line-item-2',
+          kind: 'product',
+          catalogProductId: 'catalog-1',
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000002'],
+        },
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const productsHeader = screen.getByRole('button', { name: /Products/i });
+    expect(
+      within(productsHeader).getByText('\u00d72'),
+    ).toBeInTheDocument();
+    expect(
+      within(productsHeader).getByText(/176,00/),
+    ).toBeInTheDocument();
+
+    const servicesHeader = screen.getByRole('button', { name: /Services/i });
+    expect(
+      within(servicesHeader).getByText('\u00d71'),
+    ).toBeInTheDocument();
+    expect(
+      within(servicesHeader).getByText(/50,00/),
+    ).toBeInTheDocument();
+  });
+
+  it('hides section header totals when the section is empty', () => {
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          name: 'Phone',
+          price: 10,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const servicesHeader = screen.getByRole('button', { name: /Services/i });
+    expect(servicesHeader.querySelector('.order-detail-section-summary')).toBeNull();
+    expect(servicesHeader).not.toHaveTextContent(formatCurrency(0));
   });
 
   it('opens sale card services when service lines exist', () => {
@@ -2371,6 +2938,329 @@ describe('OrderDetailCard product entry', () => {
     ).toBeNull();
   });
 
+  it('shows a pay icon after payable supplier-order statuses', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    'request',
+    'ordered',
+    'cancelled',
+  ] as const)('hides the pay icon for %s supplier orders', (status) => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status,
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('hides the pay icon without finance.supplierOrders.pay', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: false,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('shows a green paid check instead of the pay icon when the supplier order is paid', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'paid',
+          total: 1550,
+        }),
+      ],
+      canPaySupplierOrders: false,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.getByRole('img', {
+        name: 'Supplier order SO000010 is paid',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+  });
+
+  it('hides pay and paid icons for zero-total and without-payment orders', () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+
+    const { unmount } = renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000011',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'pending',
+          total: 0,
+        }),
+      ],
+      canPaySupplierOrders: true,
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /is paid/i }),
+    ).toBeNull();
+    unmount();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000012',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'approved',
+          paymentStatus: 'without_payment',
+          total: 1550,
+        }),
+      ],
+      canPaySupplierOrders: true,
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Pay supplier order/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /is paid/i }),
+    ).toBeNull();
+  });
+
+  it('opens the pay modal and pays the supplier order', async () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const linkedOrder = supplierOrder({
+      id: 'supplier-order-pay',
+      number: 'SO000010',
+      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+      status: 'approved',
+      paymentStatus: 'pending',
+      total: 1550,
+    });
+    const onSupplierOrderCreated = vi.fn(async () => undefined);
+    const onSuccess = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [linkedOrder],
+      canPaySupplierOrders: true,
+      onSupplierOrderCreated,
+      onSuccess,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+
+    await waitFor(() =>
+      expect(paySupplierOrderMock).toHaveBeenCalledWith(
+        'supplier-order-pay',
+        {
+          cashboxId: 'cashbox-1',
+          note: 'Payment for order SO000010',
+        },
+      ),
+    );
+    expect(onSupplierOrderCreated).toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledWith('Order has been paid.');
+  });
+
+  it('keeps the pay modal open when payment fails', async () => {
+    paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const onError = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'stocked',
+          paymentStatus: 'pending',
+          total: 200,
+        }),
+      ],
+      canPaySupplierOrders: true,
+      onError,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
+    expect(
+      screen.getByRole('heading', { name: 'Pay supplier order' }),
+    ).toBeInTheDocument();
+  });
+
+  it('issues a supplier order without payment from the card pay modal', async () => {
+    const currentSale = sale({
+      id: 'sale-current',
+      recordNumber: 'S000001',
+      kind: 'sale',
+    });
+    const onSuccess = vi.fn();
+
+    renderCard({
+      saleOverride: currentSale,
+      supplierOrders: [
+        supplierOrder({
+          id: 'supplier-order-issue',
+          number: 'SO000010',
+          note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+          status: 'overdue',
+          paymentStatus: 'pending',
+          total: 200,
+        }),
+      ],
+      canPaySupplierOrders: true,
+      canIssueSupplierOrdersWithoutPayment: true,
+      onSuccess,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Supplier Order' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Issue without payment' }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() =>
+      expect(issueSupplierOrderWithoutPaymentMock).toHaveBeenCalledWith(
+        'supplier-order-issue',
+      ),
+    );
+    expect(onSuccess).toHaveBeenCalledWith(
+      'Order issued without payment.',
+    );
+  });
+
   it('renders related orders and sales as browser links while preserving plain left click handling', () => {
     const currentSale = sale({
       id: 'repair-1',
@@ -2565,5 +3455,156 @@ describe('OrderDetailCard notes section', () => {
     expect(
       document.querySelector('.order-detail-note-toggle'),
     ).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('OrderDetailCard unbound serial issue warning', () => {
+  const saleStatusOptions = [
+    { key: 'new' as const, labelKey: 'orders.status.sale.new' },
+    { key: 'issued' as const, labelKey: 'orders.status.sale.issued' },
+  ];
+  const repairStatusOptions = [
+    { key: 'ready' as const, labelKey: 'orders.status.repair.ready' },
+    { key: 'issued' as const, labelKey: 'orders.status.repair.issued' },
+  ];
+  const unboundProduct: OrderLineItem = {
+    id: 'line-unbound',
+    kind: 'product',
+    productId: 'product-unbound',
+    name: 'Splash cover',
+    price: 100,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [],
+  };
+
+  const selectIssuedAndSave = () => {
+    fireEvent.change(screen.getByLabelText('Repair status'), {
+      target: { value: 'issued' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  };
+
+  it('asks to continue before saving issued when a product has no serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [unboundProduct],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    const alert = await screen.findByRole('alertdialog', {
+      name: 'Serial numbers are not bound',
+    });
+    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+
+    selectIssuedAndSave();
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Serial numbers are not bound',
+        }),
+      ).getByRole('button', { name: 'Continue' }),
+    );
+
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'issued' }),
+      );
+    });
+  });
+
+  it('saves issued without the warning when every product has a serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [
+        {
+          ...unboundProduct,
+          serialNumbers: ['S000010'],
+        },
+      ],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'issued' }),
+      );
+    });
+  });
+
+  it('skips the warning for service-only cards', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'sale', status: 'new' },
+      status: 'new',
+      statusOptions: saleStatusOptions,
+      lineItems: [
+        {
+          id: 'svc-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalled();
+    });
+  });
+
+  it('asks before saving a paid repair as issued when a product has no serial', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'ready' },
+      status: 'ready',
+      statusOptions: repairStatusOptions,
+      lineItems: [unboundProduct],
+      paidAmount: 100,
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).toBeInTheDocument();
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
   });
 });

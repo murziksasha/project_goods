@@ -7,8 +7,11 @@ import {
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
   computeOrderStatusMenuPosition,
+  getLineItemsQuantity,
+  getLineItemsTotal,
   getPrintTemplateData,
   getReopenedSaleStatusForLineItems,
+  getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
@@ -149,6 +152,78 @@ describe('repair stock status guards', () => {
         500,
       ),
     ).toBe(true);
+  });
+});
+
+describe('getProductLinesMissingWarehouseSerials', () => {
+  const unboundProduct = (
+    patch: Partial<OrderLineItem> = {},
+  ): OrderLineItem => ({
+    id: 'line-unbound',
+    kind: 'product',
+    productId: 'product-unbound',
+    name: 'Splash cover',
+    price: 100,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [],
+    ...patch,
+  });
+
+  it('returns product rows without warehouse serials', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct(),
+        {
+          id: 'svc-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        ...repairProductLineItems,
+      ]).map((item) => item.name),
+    ).toEqual(['Splash cover']);
+  });
+
+  it('treats whitespace-only serials as unbound', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct({ serialNumbers: ['  ', ''] }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it('ignores qty 0 rows and bound serials', () => {
+    expect(
+      getProductLinesMissingWarehouseSerials(repairSale(), [
+        unboundProduct({ quantity: 0 }),
+        unboundProduct({
+          id: 'line-bound',
+          serialNumbers: ['S000010'],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('ignores repair device placeholder rows', () => {
+    const placeholder: OrderLineItem = {
+      id: 'line-device',
+      kind: 'product',
+      name: 'Repair device',
+      price: 0,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: [],
+    };
+
+    expect(
+      getProductLinesMissingWarehouseSerials(
+        repairSale({ salePrice: 0, quantity: 1 }),
+        [placeholder],
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -313,6 +388,131 @@ describe('order print labels', () => {
     expect(data.labelCode).toBe('SN-SALE-001');
     expect(data.labelTitle).toBe('Fujitsu 19V 4.74A power adapter');
     expect(data.labelContact).toBe('');
+  });
+
+  it('groups identical print products with the same price into one qty row', () => {
+    const productItems: OrderLineItem[] = [
+      {
+        id: 'p1',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'p2',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+      {
+        id: 'p3',
+        kind: 'product',
+        catalogProductId: 'cat-terrae',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000003'],
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: productItems }),
+      productItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
+      'TerraE 30E INR18650 3000mAh',
+    ]);
+    expect(data.products_table).toContain('>3<');
+    expect(
+      data.invoice_items_table
+        ?.match(/<tbody>([\s\S]*)<\/tbody>/)?.[1]
+        ?.match(/<tr>/g),
+    ).toHaveLength(1);
+    expect(data.invoice_items_table).toContain(
+      'Serial No.: S000001, S000002, S000003',
+    );
+  });
+
+  it('keeps same-name print products on separate rows when prices differ', () => {
+    const productItems: OrderLineItem[] = [
+      {
+        id: 'p1',
+        kind: 'product',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 70,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000001'],
+      },
+      {
+        id: 'p2',
+        kind: 'product',
+        name: 'TerraE 30E INR18650 3000mAh',
+        price: 90,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: ['S000002'],
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: productItems }),
+      productItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
+      'TerraE 30E INR18650 3000mAh',
+      'TerraE 30E INR18650 3000mAh',
+    ]);
+    expect(data.invoice_items_table).toContain('Serial No.: S000001');
+    expect(data.invoice_items_table).toContain('Serial No.: S000002');
+    expect(data.invoice_items_table).not.toContain(
+      'Serial No.: S000001, S000002',
+    );
+  });
+
+  it('does not group matching service rows in print tables', () => {
+    const serviceItems: OrderLineItem[] = [
+      {
+        id: 's1',
+        kind: 'service',
+        name: 'Repair',
+        price: 1000,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+      {
+        id: 's2',
+        kind: 'service',
+        name: 'Repair',
+        price: 1000,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+    const data = getPrintTemplateData(
+      repairSale({ lineItems: serviceItems }),
+      serviceItems,
+      0,
+      'r000647',
+      printCompanySettings,
+    );
+
+    expect(data.services_table?.match(/Repair/g)).toEqual(['Repair', 'Repair']);
   });
 
   it('prints label pages in the selected orientation', () => {
@@ -602,5 +802,31 @@ describe('order status menu position', () => {
 
     expect(position.left).toBeLessThan(1200);
     expect(position.left + 230).toBeLessThanOrEqual(1280 - 8);
+  });
+});
+
+describe('line item totals', () => {
+  it('sums quantity and price * quantity', () => {
+    const items: OrderLineItem[] = [
+      {
+        id: 'a',
+        kind: 'product',
+        name: 'Part',
+        price: 88,
+        quantity: 2,
+        warrantyPeriod: 0,
+      },
+      {
+        id: 'b',
+        kind: 'service',
+        name: 'Setup',
+        price: 50,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+
+    expect(getLineItemsQuantity(items)).toBe(3);
+    expect(getLineItemsTotal(items)).toBe(226);
   });
 });

@@ -1,5 +1,7 @@
 # Repair Kanban Spec
 
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [index](./README.md)
+
 Live Kanban board for **repair orders only** (`sale.kind = repair`). There is no separate Kanban persistence model: cards are the existing repair sales.
 
 ## Navigation
@@ -46,10 +48,16 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 ## Interactions
 
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog). Cards are column drop targets, not a sortable list: overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder, and the card lands in the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
-- **Click** card (outside master control) opens the existing Order Detail panel/modal while staying on the Kanban tab.
+- **Desktop (fine pointer):** whole-card drag, `distance: 6`. Empty columns can collapse to a 72px rail (header toggle); a column auto-expands if a card lands in it. Collapse set persists in `localStorage` (`project-goods.kanban-collapsed-columns`).
+- **Touch / coarse pointer:** drag **only** from the 44px handle (`touch-action: none` on the handle, not the card). The card body pans the board/column and tap still opens the order. Activation: delay 120ms / tolerance 12px.
+- **≤1024 navigator:** sticky status chips with counts. Tap jumps the board to that column. While dragging, chips are droppables (`rail:{status}`) and win collision over a peeking column body. `scroll-snap` is disabled for the duration of the drag (`data-dragging`). Horizontal auto-scroll is limited to `.repair-kanban-board`.
+- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 8 visible statuses and calls the same `onStatusChange` path as a drop.
+- **Layout:** phone ≤720 one full-width column (no 86vw peek); tablet 721–1024 two 50% columns; desktop ~260px columns. Column height uses `--kanban-chrome-offset` so the last card clears the mobile bottom nav.
+- **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
 - **Total** (`formatCurrency(getSaleTotal(sale))`) is shown on the card only when `sale.lineItems.length > 0` (includes discount). Empty line items → no amount.
 - **Master select** on the card uses the same employee options as Order Detail (`master` role or `repairs.execute`); change persists via the same main-info workspace save and stays in sync with the open order card.
+- Column/card left accent uses status color tokens (aligned with the Home repair funnel).
 
 ## Status `notPickedUp`
 
@@ -65,6 +73,8 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 ## Implementation anchors
 
 - Board UI: `frontend/src/widgets/dashboard/ui/kanban/RepairKanbanBoard.tsx`
+- Navigator / move sheet: `RepairKanbanNavigator.tsx`, `RepairKanbanMoveSheet.tsx`
+- Drop ids: `column:{status}` and `rail:{status}` in `repair-kanban.ts` (`kanbanCollisionDetection` prefers rail hits)
 - Status sets: `frontend/src/widgets/dashboard/ui/orders/workspace/orders-workspace-shared.ts`
 - Nav: `OrdersTab` in `frontend/src/pages/dashboard/model/types.ts`; `parseDashboardLocation` remaps `page=kanban`
 
@@ -79,3 +89,4 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - 2026-08-20: Toolbar `Orders: N` counts currently visible board cards (filters + visible columns), not all repair orders.
 - 2026-08-20: Kanban Master filter lists master-capable employees and matches `sale.master` only.
 - 2026-08-20: Kanban is tab-only (no sidebar/mobile/command-palette page). Device name is blue; total shows when line items exist. Search with exactly one match makes `Orders: 1` open that order.
+- 2026-08-28: Touch/tablet board: no 86vw peek, drag handle, sticky navigator + rail droppables, Move sheet, auto-scroll, empty-column collapse on desktop, status accent colors.

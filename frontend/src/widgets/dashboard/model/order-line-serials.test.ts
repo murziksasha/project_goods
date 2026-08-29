@@ -4,6 +4,7 @@ import type { Sale } from '../../../entities/sale/model/types';
 import {
   buildInMemorySerialUsageSale,
   buildSerializedProductLineItem,
+  filterBindableSerialProducts,
   getProductSerialAvailability,
   getSaleSerialUsage,
 } from './order-line-serials';
@@ -65,6 +66,22 @@ describe('order line serial helpers', () => {
         expect.objectContaining({ serialNumbers: ['S000021'] }),
       ],
     });
+  });
+
+  it('hides serials occupied by other orders and keeps the current line', () => {
+    const occupied = new Set(['S000031', 'S000032']);
+    const keep = new Set(['S000032']);
+    const boundElsewhere = { ...product, id: 'p-bound', serialNumber: 'S000031' };
+    const currentLine = { ...product, id: 'p-current', serialNumber: 'S000032' };
+    const free = { ...product, id: 'p-free', serialNumber: 'S000040' };
+
+    expect(
+      filterBindableSerialProducts(
+        [boundElsewhere, currentLine, free, { ...product, id: 'p-blank', serialNumber: '  ' }],
+        occupied,
+        keep,
+      ),
+    ).toEqual([currentLine, free]);
   });
 
   it('builds atomic serialized product line items', () => {

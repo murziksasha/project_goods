@@ -5,7 +5,10 @@ import {
   buildSupplierOrderAnalytics,
   buildSupplierOrderItemNumber,
   filterActiveSuppliers,
+  getPreviousDeliveryDateRange,
   getSupplierSuggestions,
+  isSupplierOrderPayable,
+  isSupplierOrderPaid,
   mergeSupplierOrderItemUpdate,
 } from './supplier-order-utils';
 
@@ -48,6 +51,65 @@ const makeOrder = (): SupplierOrder => ({
 });
 
 describe('supplier-order-utils', () => {
+  it('marks queue-eligible supplier orders as payable', () => {
+    const payable = {
+      status: 'approved' as const,
+      paymentStatus: 'pending' as const,
+      total: 100,
+    };
+
+    expect(isSupplierOrderPayable(payable)).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'overdue' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'partially_stocked' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'partially_completed' }),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'stocked' }),
+    ).toBe(true);
+  });
+
+  it('hides payment when status, payment, or total is not queue-eligible', () => {
+    const payable = {
+      status: 'approved' as const,
+      paymentStatus: 'pending' as const,
+      total: 100,
+    };
+
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'request' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'ordered' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, status: 'cancelled' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({ ...payable, paymentStatus: 'paid' }),
+    ).toBe(false);
+    expect(
+      isSupplierOrderPayable({
+        ...payable,
+        paymentStatus: 'without_payment',
+      }),
+    ).toBe(false);
+    expect(isSupplierOrderPayable({ ...payable, total: 0 })).toBe(false);
+  });
+
+  it('treats only paymentStatus paid as paid', () => {
+    expect(isSupplierOrderPaid({ paymentStatus: 'paid' })).toBe(true);
+    expect(isSupplierOrderPaid({ paymentStatus: 'pending' })).toBe(false);
+    expect(
+      isSupplierOrderPaid({ paymentStatus: 'without_payment' }),
+    ).toBe(false);
+    expect(isSupplierOrderPaid({ paymentStatus: 'cancelled' })).toBe(false);
+  });
+
   it('builds supplier order number with item postfix', () => {
     const order = makeOrder();
     expect(buildSupplierOrderItemNumber(order, 0)).toBe(
@@ -313,6 +375,12 @@ describe('supplier-order-utils', () => {
     expect(analytics.overdueCount).toBe(1);
     expect(analytics.lateRiskCount).toBe(1);
     expect(analytics.stockedRate).toBe(33.33);
+    expect(analytics.openPipelineCount).toBe(2);
+    expect(analytics.averageLeadDays).toBe(0);
+    expect(
+      analytics.statusBreakdown.find((item) => item.status === 'stocked')
+        ?.count,
+    ).toBe(1);
   });
 
   it('returns empty analytics for no supplier orders', () => {
@@ -334,5 +402,81 @@ describe('supplier-order-utils', () => {
     expect(analytics.topProductsByQuantity).toEqual([]);
     expect(analytics.lowestPricePosition).toBeNull();
     expect(analytics.highestPricePosition).toBeNull();
+    expect(analytics.spendSeries).toEqual([]);
+    expect(analytics.previousWindow).toBeNull();
+    expect(analytics.openPipelineCount).toBe(0);
+    expect(analytics.averageLeadDays).toBeNull();
+  });
+
+  it('shifts a delivery date range to the previous equal window', () => {
+    expect(
+      getPreviousDeliveryDateRange(
+        '2026-05-11',
+        '2026-05-20',
+        new Date('2026-05-20T12:00:00'),
+      ),
+    ).toEqual({ dateFrom: '2026-05-01', dateTo: '2026-05-10' });
+    expect(
+      getPreviousDeliveryDateRange('', '', new Date('2026-05-20T12:00:00')),
+    ).toBeNull();
+  });
+
+  it('builds spend series, pipeline, concentration, and previous-window deltas', () => {
+    const current = {
+      ...makeOrder(),
+      id: 'so-now',
+      total: 1000,
+      paid: 400,
+      createdAt: '2026-05-20T10:00:00.000Z',
+      updatedAt: '2026-05-20T10:00:00.000Z',
+    };
+    const previous = {
+      ...makeOrder(),
+      id: 'so-prev',
+      total: 500,
+      paid: 500,
+      createdAt: '2026-05-01T10:00:00.000Z',
+      updatedAt: '2026-05-04T10:00:00.000Z',
+      status: 'stocked' as const,
+      receiptStatus: 'received' as const,
+    };
+    const analytics = buildSupplierOrderAnalytics(
+      [current],
+      new Date('2026-05-20T00:00:00.000Z'),
+      { previousOrders: [previous] },
+    );
+
+    expect(analytics.openPipelineCount).toBe(1);
+    expect(analytics.openPipelineValue).toBe(1000);
+    expect(analytics.supplierConcentrationPercent).toBe(100);
+    expect(analytics.spendSeries.some((point) => point.value > 0)).toBe(true);
+    expect(analytics.previousWindow).toMatchObject({
+      orderCount: 1,
+      totalValue: 500,
+      paidAmount: 500,
+    });
+    expect(analytics.previousWindow?.deltas.totalValuePct).toBe(100);
+    expect(
+      analytics.paymentBreakdown.find((item) => item.status === 'pending')
+        ?.count,
+    ).toBe(1);
+  });
+
+  it('measures lead time from createdAt to updatedAt for stocked orders', () => {
+    const analytics = buildSupplierOrderAnalytics(
+      [
+        {
+          ...makeOrder(),
+          status: 'stocked',
+          receiptStatus: 'received',
+          createdAt: '2026-05-10T00:00:00.000Z',
+          updatedAt: '2026-05-14T00:00:00.000Z',
+        },
+      ],
+      new Date('2026-05-20T00:00:00.000Z'),
+    );
+
+    expect(analytics.averageLeadDays).toBe(4);
+    expect(analytics.openPipelineCount).toBe(0);
   });
 });

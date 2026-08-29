@@ -1,11 +1,21 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
+import type { DashboardAnalyticsResponse } from '../../../entities/analytics/api/analyticsApi';
 import i18n from '../../../shared/i18n/config';
 import {
   formatAnalyticsDateRangeLabel,
   isSaleInAnalyticsDateRange,
   type AnalyticsDateRange,
 } from './analytics-date-range';
+import {
+  formatDeltaPct,
+  getCashSplit,
+  getConsecutivePreviousBounds,
+  getDeltaPct,
+  getRepairFunnel,
+  getTopLineItems,
+  isDateInBounds,
+} from './analytics-aggregates';
 import type { StatsPeriod } from './stats-period';
 
 export type { StatsPeriod } from './stats-period';
@@ -30,7 +40,13 @@ type PeriodConfig = {
 };
 
 const comparisonColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
-const finalStatuses = new Set(['issued', 'issuedWithoutRepair', 'paid', 'returned', 'clientRejected']);
+const finalRepairStatuses = new Set([
+  'issued',
+  'issuedWithoutRepair',
+  'clientRejected',
+  'notPickedUp',
+]);
+const finalSaleStatuses = new Set(['issued', 'paid', 'returned']);
 
 const getDateLocale = () => (i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US');
 
@@ -70,7 +86,12 @@ export const getSaleTotal = (sale: Sale) => {
 
 const getPaidAmount = (sale: Sale) => Math.max(Number(sale.paidAmount ?? 0), 0);
 
-const isFinalRecord = (sale: Sale) => finalStatuses.has(String(sale.status ?? ''));
+const isFinalRecord = (sale: { kind?: string; status?: string }) => {
+  const status = String(sale.status ?? '');
+  return sale.kind === 'sale'
+    ? finalSaleStatuses.has(status)
+    : finalRepairStatuses.has(status);
+};
 
 const getDateKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
@@ -121,11 +142,20 @@ const buildWholePeriodAnalytics = (
 ): DashboardAnalytics => {
   const years = getWholePeriodYears([...productSales, ...repairOrders], currentDate);
   const axisLabels = years.map(String);
-  const revenueSnapshots = [
+  const productRevenueSnapshots = [
     buildYearlySnapshot(
       productSales,
       years,
       comparisonColors[0],
+      i18n.t('analytics.customRange.current'),
+      getSaleTotal,
+    ),
+  ];
+  const repairRevenueSnapshots = [
+    buildYearlySnapshot(
+      repairOrders,
+      years,
+      comparisonColors[1],
       i18n.t('analytics.customRange.current'),
       getSaleTotal,
     ),
@@ -154,7 +184,11 @@ const buildWholePeriodAnalytics = (
     repairOrders,
     selectedSales: productSales,
     selectedOrders: repairOrders,
-    revenueSnapshots,
+    previousSales: [],
+    previousOrders: [],
+    revenueSnapshots: addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
     products,
@@ -313,6 +347,94 @@ export const formatCurrencyMetric = (value: number) =>
     value: currencyFormatter.format(Math.round(value)),
   });
 
+export { formatDeltaPct };
+
+type ChartPadding = { top: number; right: number; bottom: number; left: number };
+
+export const isSparseValues = (values: number[]) => {
+  if (values.length <= 2) return false;
+  const zeros = values.filter((value) => value <= 0).length;
+  return zeros / values.length >= 0.5;
+};
+
+export const buildAreaPath = (
+  values: number[],
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: ChartPadding,
+) => {
+  const line = buildLinePath(values, maxValue, width, height, padding);
+  if (!line || values.length === 0) return '';
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+  const firstX =
+    padding.left + (values.length === 1 ? innerWidth / 2 : 0);
+  const lastX =
+    padding.left + (values.length === 1 ? innerWidth / 2 : innerWidth);
+  const baseY = padding.top + innerHeight;
+  return `${line} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
+};
+
+export type StackedBarRect = {
+  index: number;
+  x: number;
+  width: number;
+  product: { y: number; height: number; value: number };
+  repair: { y: number; height: number; value: number };
+};
+
+export const buildStackedBarRects = (
+  productValues: number[],
+  repairValues: number[],
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: ChartPadding,
+): StackedBarRect[] => {
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+  const count = Math.max(productValues.length, repairValues.length, 1);
+  const slot = innerWidth / count;
+  const barWidth = Math.max(2, Math.min(22, slot * 0.64));
+  const scale = innerHeight / Math.max(maxValue, 1);
+  return Array.from({ length: count }, (_, index) => {
+    const product = productValues[index] ?? 0;
+    const repair = repairValues[index] ?? 0;
+    const productHeight = product * scale;
+    const repairHeight = repair * scale;
+    const x = padding.left + slot * index + (slot - barWidth) / 2;
+    const base = padding.top + innerHeight;
+    return {
+      index,
+      x,
+      width: barWidth,
+      product: { y: base - productHeight, height: productHeight, value: product },
+      repair: {
+        y: base - productHeight - repairHeight,
+        height: repairHeight,
+        value: repair,
+      },
+    };
+  });
+};
+
+const addSnapshots = (left: ChartSnapshot[], right: ChartSnapshot[]): ChartSnapshot[] =>
+  left.map((snapshot, index) => {
+    const other = right[index];
+    const values = snapshot.values.map(
+      (value, bucket) => value + (other?.values[bucket] ?? 0),
+    );
+    return {
+      ...snapshot,
+      values,
+      total: values.reduce((sum, value) => sum + value, 0),
+    };
+  });
+
+const previousRecords = (records: Sale[], bounds: ReturnType<typeof getConsecutivePreviousBounds>) =>
+  bounds ? records.filter((record) => isDateInBounds(new Date(record.saleDate), bounds)) : [];
+
 type CustomRangeConfig = {
   unit: 'hour' | 'day' | 'month';
   detailLabel: string;
@@ -463,19 +585,24 @@ const buildCustomRangeAnalytics = (
   products: Product[],
   currentDate: Date,
 ): DashboardAnalytics => {
+  const previousBounds = getConsecutivePreviousBounds(
+    'today',
+    currentDate,
+    customRange.dateFrom,
+    customRange.dateTo,
+  );
+  const previousSales = previousRecords(productSales, previousBounds);
+  const previousOrders = previousRecords(repairOrders, previousBounds);
   const config = getCustomRangeConfig(customRange, currentDate);
   if (!config) {
     const todayConfig = getPeriodConfig('today', currentDate);
-    const revenueSnapshots = comparisonColors.map((color, index) =>
-      buildSnapshot(productSales, todayConfig, index, color, getSaleTotal),
-    );
-    const orderSnapshots = comparisonColors.map((color, index) =>
-      buildSnapshot(repairOrders, todayConfig, index, color, () => 1),
-    );
-    const salesCountSnapshots = comparisonColors.map((color, index) =>
-      buildSnapshot(productSales, todayConfig, index, color, () => 1),
-    );
-    const currentRevenue = revenueSnapshots[0];
+    const productRevenueSnapshots = [
+      buildSnapshot(productSales, todayConfig, 0, comparisonColors[0], getSaleTotal),
+    ];
+    const repairRevenueSnapshots = [
+      buildSnapshot(repairOrders, todayConfig, 0, comparisonColors[1], getSaleTotal),
+    ];
+    const currentRevenue = productRevenueSnapshots[0];
     const selectedSales = productSales.filter((sale) =>
       matchesPeriod(new Date(sale.saleDate), todayConfig, currentRevenue.year),
     );
@@ -487,9 +614,13 @@ const buildCustomRangeAnalytics = (
       repairOrders,
       selectedSales,
       selectedOrders,
-      revenueSnapshots,
-      orderSnapshots,
-      salesCountSnapshots,
+      previousSales,
+      previousOrders,
+      revenueSnapshots: addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+      productRevenueSnapshots,
+      repairRevenueSnapshots,
+      orderSnapshots: [buildSnapshot(repairOrders, todayConfig, 0, comparisonColors[0], () => 1)],
+      salesCountSnapshots: [buildSnapshot(productSales, todayConfig, 0, comparisonColors[0], () => 1)],
       products,
       currentDate,
       detailLabel: todayConfig.detailLabel,
@@ -503,8 +634,11 @@ const buildCustomRangeAnalytics = (
   const filteredOrders = repairOrders.filter((sale) =>
     isSaleInAnalyticsDateRange(sale.saleDate, customRange),
   );
-  const revenueSnapshots = [
+  const productRevenueSnapshots = [
     buildCustomSnapshot(filteredSales, config, comparisonColors[0], i18n.t('analytics.customRange.current'), getSaleTotal),
+  ];
+  const repairRevenueSnapshots = [
+    buildCustomSnapshot(filteredOrders, config, comparisonColors[1], i18n.t('analytics.customRange.current'), getSaleTotal),
   ];
   const orderSnapshots = [
     buildCustomSnapshot(filteredOrders, config, comparisonColors[0], i18n.t('analytics.customRange.current'), () => 1),
@@ -518,7 +652,11 @@ const buildCustomRangeAnalytics = (
     repairOrders,
     selectedSales: filteredSales,
     selectedOrders: filteredOrders,
-    revenueSnapshots,
+    previousSales,
+    previousOrders,
+    revenueSnapshots: addSnapshots(productRevenueSnapshots, repairRevenueSnapshots),
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
     products,
@@ -533,7 +671,11 @@ type AnalyticsResultInput = {
   repairOrders: Sale[];
   selectedSales: Sale[];
   selectedOrders: Sale[];
+  previousSales: Sale[];
+  previousOrders: Sale[];
   revenueSnapshots: ChartSnapshot[];
+  productRevenueSnapshots: ChartSnapshot[];
+  repairRevenueSnapshots: ChartSnapshot[];
   orderSnapshots: ChartSnapshot[];
   salesCountSnapshots: ChartSnapshot[];
   products: Product[];
@@ -547,7 +689,11 @@ const buildAnalyticsResult = ({
   repairOrders,
   selectedSales,
   selectedOrders,
+  previousSales,
+  previousOrders,
   revenueSnapshots,
+  productRevenueSnapshots,
+  repairRevenueSnapshots,
   orderSnapshots,
   salesCountSnapshots,
   products,
@@ -559,17 +705,38 @@ const buildAnalyticsResult = ({
   const currentOrders = orderSnapshots[0];
   const currentSalesCount = salesCountSnapshots[0];
   const selectedRecords = [...selectedSales, ...selectedOrders];
-  const revenue = currentRevenue.total;
+  const productRevenue = productRevenueSnapshots[0]?.total ?? 0;
+  const repairRevenue = repairRevenueSnapshots[0]?.total ?? 0;
+  const billed = productRevenue + repairRevenue;
   const salesCount = currentSalesCount.total;
   const ordersCount = currentOrders.total;
-  const averageTicket = salesCount > 0 ? revenue / salesCount : 0;
+  const documentCount = salesCount + ordersCount;
+  const productAverageTicket = salesCount > 0 ? productRevenue / salesCount : 0;
+  const repairAverageTicket = ordersCount > 0 ? repairRevenue / ordersCount : 0;
+  const averageTicket = documentCount > 0 ? billed / documentCount : 0;
   const paidAmount = selectedRecords.reduce((sum, sale) => sum + getPaidAmount(sale), 0);
-  const totalAmount = selectedRecords.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
-  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
-  const paymentCoverage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
-  const openOrders = selectedRecords.filter((sale) => !isFinalRecord(sale)).length;
-  const closedOrders = selectedRecords.length - openOrders;
+  const remainingAmount = Math.max(billed - paidAmount, 0);
+  const paymentCoverage = billed > 0 ? (paidAmount / billed) * 100 : 0;
+  const openRepairs = repairOrders.filter((sale) => !isFinalRecord(sale));
+  const openOrders = openRepairs.length;
+  const closedOrders = selectedOrders.filter((sale) => isFinalRecord(sale)).length;
+  const readyCount = openRepairs.filter((sale) => sale.status === 'ready').length;
+  const waitingPartsCount = openRepairs.filter((sale) => sale.status === 'waitingParts').length;
+  const inProgressCount = Math.max(openOrders - readyCount - waitingPartsCount, 0);
   const unpaidOrders = selectedRecords.filter((sale) => getSaleTotal(sale) > getPaidAmount(sale)).length;
+  const unpaidAmount = selectedRecords.reduce(
+    (sum, sale) => sum + Math.max(getSaleTotal(sale) - getPaidAmount(sale), 0),
+    0,
+  );
+  const cashSplit = getCashSplit(selectedRecords);
+  const previousBilled =
+    previousSales.reduce((sum, sale) => sum + getSaleTotal(sale), 0) +
+    previousOrders.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
+  const previousCollected = [...previousSales, ...previousOrders].reduce(
+    (sum, sale) => sum + getPaidAmount(sale),
+    0,
+  );
+  const hasPrevious = previousSales.length + previousOrders.length > 0 || previousBilled > 0;
   const totalStock = products.reduce((sum, product) => sum + Math.max(product.quantity ?? 0, 0), 0);
   const freeStock = products.reduce((sum, product) => sum + Math.max(product.freeQuantity ?? 0, 0), 0);
   const reservedStock = products.reduce(
@@ -587,75 +754,103 @@ const buildAnalyticsResult = ({
   const todayKey = getDateKey(currentDate);
   const todaySales = productSales.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
   const todayOrders = repairOrders.filter((sale) => getDateKey(new Date(sale.saleDate)) === todayKey);
+  const todayRevenue =
+    todaySales.reduce((sum, sale) => sum + getSaleTotal(sale), 0) +
+    todayOrders.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
+  const mixProductPct = billed > 0 ? (productRevenue / billed) * 100 : 0;
+  const mixRepairPct = billed > 0 ? (repairRevenue / billed) * 100 : 0;
+  const rapidSaleCount = selectedSales.filter((sale) => Boolean(sale.isRapidSale)).length;
+  const returnedCount = selectedRecords.filter((sale) => sale.status === 'returned').length;
 
   return {
     detailLabel,
     axisLabels,
     revenueSnapshots,
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
-    revenueChartMax: Math.max(1, ...revenueSnapshots.flatMap((snapshot) => snapshot.values)),
-    ordersChartMax: Math.max(1, ...orderSnapshots.flatMap((snapshot) => snapshot.values)),
-    hasRevenueData: revenueSnapshots.some((snapshot) => snapshot.total > 0),
+    revenueChartMax: Math.max(
+      1,
+      ...revenueSnapshots.flatMap((snapshot) => snapshot.values),
+      ...productRevenueSnapshots.flatMap((snapshot) => snapshot.values),
+      ...repairRevenueSnapshots.flatMap((snapshot) => snapshot.values),
+    ),
+    ordersChartMax: Math.max(
+      1,
+      ...orderSnapshots.flatMap((snapshot) => snapshot.values),
+      ...salesCountSnapshots.flatMap((snapshot) => snapshot.values),
+    ),
+    hasRevenueData: billed > 0 || revenueSnapshots.some((snapshot) => snapshot.total > 0),
     hasOrdersData: orderSnapshots.some((snapshot) => snapshot.total > 0),
     currentYearLabel: currentRevenue.label,
-    comparisonLabel: revenueSnapshots.map((snapshot) => snapshot.label).join(', '),
-    summaryCards: [
-      {
-        labelKey: 'analytics.summary.sales',
-        value: formatMetric(salesCount),
-        accent: comparisonColors[0],
-      },
-      {
-        labelKey: 'analytics.summary.repairOrders',
-        value: formatMetric(ordersCount),
-        accent: '#14b8a6',
-      },
-      {
-        labelKey: 'analytics.summary.revenue',
-        value: formatCurrencyMetric(revenue),
-        accent: '#f97316',
-      },
-      {
-        labelKey: 'analytics.summary.averageTicket',
-        value: formatCurrencyMetric(averageTicket),
-        accent: '#64748b',
-      },
-      {
-        labelKey: 'analytics.summary.paid',
-        value: formatCurrencyMetric(paidAmount),
-        accent: '#0ea47d',
-      },
-      {
-        labelKey: 'analytics.summary.receivables',
-        value: formatCurrencyMetric(remainingAmount),
-        accent: '#dc2626',
-      },
-    ],
-    conversionCards: [
-      {
-        label: i18n.t('analytics.conversion.repairOrdersPerSales'),
-        value: salesCount > 0 ? `${formatMetric((ordersCount / salesCount) * 100)}%` : '0%',
-      },
-      {
-        label: i18n.t('analytics.conversion.salesPerRepairOrders'),
-        value: ordersCount > 0 ? `${formatMetric((salesCount / ordersCount) * 100)}%` : '0%',
-      },
-      {
-        label: i18n.t('analytics.conversion.paymentCoverage'),
-        value: `${formatMetric(paymentCoverage)}%`,
-      },
-    ],
+    comparisonLabel: revenueSnapshots
+      .filter((snapshot, index) => index === 0 || snapshot.total > 0)
+      .map((snapshot) => snapshot.label)
+      .join(', '),
+    metrics: {
+      salesCount,
+      ordersCount,
+      revenue: billed,
+      billed,
+      productRevenue,
+      repairRevenue,
+      averageTicket,
+      productAverageTicket,
+      repairAverageTicket,
+      paidAmount,
+      remainingAmount,
+      paymentCoverage,
+      openOrders,
+      closedOrders,
+      unpaidOrders,
+      unpaidAmount,
+      readyCount,
+      waitingPartsCount,
+      inProgressCount,
+      rapidSaleCount,
+      returnedCount,
+      mixProductPct,
+      mixRepairPct,
+      cashCollected: cashSplit.cashCollected,
+      nonCashCollected: cashSplit.nonCashCollected,
+      unspecifiedCollected: cashSplit.unspecifiedCollected,
+      previous: hasPrevious
+        ? {
+            billed: previousBilled,
+            collected: previousCollected,
+            salesCount: previousSales.length,
+            ordersCount: previousOrders.length,
+          }
+        : null,
+      deltas: hasPrevious
+        ? {
+            billedPct: getDeltaPct(billed, previousBilled),
+            collectedPct: getDeltaPct(paidAmount, previousCollected),
+            salesPct: getDeltaPct(salesCount, previousSales.length),
+            ordersPct: getDeltaPct(ordersCount, previousOrders.length),
+          }
+        : null,
+      todaySales: todaySales.length,
+      todayOrders: todayOrders.length,
+      todayRevenue,
+    },
+    funnel: getRepairFunnel(repairOrders, isFinalRecord),
+    topLineItems: getTopLineItems(selectedRecords),
     operations: {
       openOrders,
       closedOrders,
       unpaidOrders,
+      unpaidAmount,
+      readyCount,
+      waitingPartsCount,
+      inProgressCount,
       paidAmount,
       remainingAmount,
       paymentCoverage,
       todaySales: todaySales.length,
       todayOrders: todayOrders.length,
-      todayRevenue: todaySales.reduce((sum, sale) => sum + getSaleTotal(sale), 0),
+      todayRevenue,
     },
     stock: {
       productCount: products.length,
@@ -718,10 +913,17 @@ export const buildDashboardAnalytics = (
     );
   }
 
+  const previousBounds = getConsecutivePreviousBounds(statsPeriod, currentDate);
+  const previousSales = previousRecords(productSales, previousBounds);
+  const previousOrders = previousRecords(repairOrders, previousBounds);
   const config = getPeriodConfig(statsPeriod, currentDate);
-  const revenueSnapshots = comparisonColors.map((color, index) =>
+  const productRevenueSnapshots = comparisonColors.map((color, index) =>
     buildSnapshot(productSales, config, index, color, getSaleTotal),
   );
+  const repairRevenueSnapshots = comparisonColors.map((color, index) =>
+    buildSnapshot(repairOrders, config, index, color, getSaleTotal),
+  );
+  const revenueSnapshots = addSnapshots(productRevenueSnapshots, repairRevenueSnapshots);
   const orderSnapshots = comparisonColors.map((color, index) =>
     buildSnapshot(repairOrders, config, index, color, () => 1),
   );
@@ -740,7 +942,11 @@ export const buildDashboardAnalytics = (
     repairOrders,
     selectedSales,
     selectedOrders,
+    previousSales,
+    previousOrders,
     revenueSnapshots,
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
     orderSnapshots,
     salesCountSnapshots,
     products,
@@ -748,4 +954,89 @@ export const buildDashboardAnalytics = (
     detailLabel: config.detailLabel,
     axisLabels: config.axisLabels,
   });
+};
+
+export type DashboardAnalyticsView = ReturnType<typeof buildDashboardAnalytics>;
+
+export const adaptDashboardAnalyticsResponse = (payload: DashboardAnalyticsResponse): DashboardAnalyticsView => {
+  const metrics = payload.metrics;
+  const stock = payload.stock;
+  const productRevenueSnapshots = payload.productRevenueSnapshots?.length
+    ? payload.productRevenueSnapshots
+    : payload.revenueSnapshots;
+  const repairRevenueSnapshots = payload.repairRevenueSnapshots ?? [];
+  const revenueSnapshots = payload.revenueSnapshots;
+  const detailLabel =
+    payload.detailLabel === 'whole' ? i18n.t('analytics.periods.whole') : payload.detailLabel;
+
+  return {
+    detailLabel,
+    axisLabels: payload.axisLabels,
+    revenueSnapshots,
+    productRevenueSnapshots,
+    repairRevenueSnapshots,
+    orderSnapshots: payload.orderSnapshots,
+    salesCountSnapshots: payload.salesCountSnapshots,
+    revenueChartMax: payload.revenueChartMax,
+    ordersChartMax: payload.ordersChartMax,
+    hasRevenueData: payload.hasRevenueData,
+    hasOrdersData: payload.hasOrdersData,
+    currentYearLabel: payload.revenueSnapshots[0]?.label ?? '',
+    comparisonLabel: payload.revenueSnapshots
+      .filter((snapshot, index) => index === 0 || snapshot.total > 0)
+      .map((snapshot) => snapshot.label)
+      .join(', '),
+    metrics,
+    funnel: (payload.funnel ?? []) as DashboardAnalyticsView['funnel'],
+    topLineItems: payload.topLineItems ?? { products: [], services: [] },
+    operations: {
+      openOrders: metrics.openOrders,
+      closedOrders: metrics.closedOrders,
+      unpaidOrders: metrics.unpaidOrders,
+      unpaidAmount: metrics.unpaidAmount ?? 0,
+      readyCount: metrics.readyCount ?? 0,
+      waitingPartsCount: metrics.waitingPartsCount ?? 0,
+      inProgressCount: metrics.inProgressCount ?? 0,
+      paidAmount: metrics.paidAmount,
+      remainingAmount: metrics.remainingAmount,
+      paymentCoverage: metrics.paymentCoverage,
+      todaySales: metrics.todaySales,
+      todayOrders: metrics.todayOrders,
+      todayRevenue: metrics.todayRevenue,
+    },
+    stock: {
+      productCount: stock.productCount,
+      totalStock: stock.totalStock,
+      freeStock: stock.freeStock,
+      reservedStock: stock.reservedStock,
+      stockValue: stock.stockValue,
+      outOfStockProducts: stock.outOfStockProducts,
+      lowStockProducts: stock.lowStockProducts,
+    },
+    signals: [
+      {
+        labelKey: 'analytics.signalsLabels.unpaidOrders',
+        value: formatMetric(metrics.unpaidOrders),
+        tone: metrics.unpaidOrders > 0 ? 'risk' : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.openWorkflow',
+        value: formatMetric(metrics.openOrders),
+        tone: metrics.openOrders > 0 ? 'watch' : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.lowStockItems',
+        value: formatMetric(stock.lowStockProducts + stock.outOfStockProducts),
+        tone:
+          stock.lowStockProducts + stock.outOfStockProducts > 0
+            ? 'risk'
+            : ('good' as const),
+      },
+      {
+        labelKey: 'analytics.signalsLabels.todayActivity',
+        value: formatMetric(metrics.todaySales + metrics.todayOrders),
+        tone: metrics.todaySales + metrics.todayOrders > 0 ? 'good' : ('muted' as const),
+      },
+    ],
+  };
 };

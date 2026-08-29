@@ -3,6 +3,8 @@ import i18n from '../../../shared/i18n/config';
 import type {
   SupplierOrder,
   SupplierOrderItem,
+  SupplierOrderStatus,
+  SupplierPaymentStatus,
   SupplierReceiptStatus,
 } from '../../../entities/supplier-order/model/types';
 
@@ -66,6 +68,25 @@ export const resolveSupplierOrderModalLocks = (
   return { isContentLocked, isTakeOnChargeLocked, isCancelLocked };
 };
 
+export const SUPPLIER_ORDER_PAYABLE_STATUSES: readonly SupplierOrderStatus[] = [
+  'approved',
+  'overdue',
+  'partially_stocked',
+  'partially_completed',
+  'stocked',
+];
+
+export const isSupplierOrderPayable = (
+  order: Pick<SupplierOrder, 'status' | 'paymentStatus' | 'total'>,
+) =>
+  order.paymentStatus === 'pending' &&
+  order.total > 0 &&
+  SUPPLIER_ORDER_PAYABLE_STATUSES.includes(order.status);
+
+export const isSupplierOrderPaid = (
+  order: Pick<SupplierOrder, 'paymentStatus'>,
+) => order.paymentStatus === 'paid';
+
 const supplierOrderBackendErrorMap: Record<string, string> = {
   'Оплачений заказ не можна редагувати.':
     'orders.supplier.messages.errors.paidNotEditable',
@@ -87,6 +108,15 @@ const supplierOrderBackendErrorMap: Record<string, string> = {
     'orders.supplier.messages.errors.itemReceivedNotCancellable',
   'Supplier order item is already cancelled.':
     'orders.supplier.messages.errors.itemAlreadyCancelled',
+  'Замовлення вже сплачено.': 'orders.supplier.messages.errors.alreadyPaid',
+  'Замовлення вже видано без оплати.':
+    'orders.supplier.messages.errors.alreadyIssuedWithoutPayment',
+  'Оплата доступна тільки для замовлень зі статусом approved або stocked.':
+    'orders.supplier.messages.errors.payStatusNotAllowed',
+  'Видача без оплати доступна тільки для замовлень зі статусом approved або stocked.':
+    'orders.supplier.messages.errors.issueWithoutPaymentStatusNotAllowed',
+  'Cashbox balance is not enough for this operation.':
+    'orders.supplier.messages.errors.cashboxBalanceNotEnough',
 };
 
 export const resolveSupplierOrderErrorMessage = (
@@ -140,6 +170,36 @@ export type SupplierOrderPricePosition = {
   total: number;
 } | null;
 
+export type SupplierOrderStatusBreakdown = {
+  status: SupplierOrderStatus;
+  count: number;
+  value: number;
+};
+
+export type SupplierOrderPaymentBreakdown = {
+  status: SupplierPaymentStatus;
+  count: number;
+  amount: number;
+};
+
+export type SupplierOrderSpendPoint = {
+  key: string;
+  label: string;
+  value: number;
+  orderCount: number;
+};
+
+export type SupplierOrderPreviousWindow = {
+  totalValue: number;
+  paidAmount: number;
+  orderCount: number;
+  deltas: {
+    totalValuePct: number | null;
+    paidAmountPct: number | null;
+    orderCountPct: number | null;
+  };
+};
+
 export type SupplierOrderAnalytics = {
   orderCount: number;
   totalValue: number;
@@ -152,6 +212,15 @@ export type SupplierOrderAnalytics = {
   stockedRate: number;
   overdueCount: number;
   lateRiskCount: number;
+  overdueOutstanding: number;
+  openPipelineValue: number;
+  openPipelineCount: number;
+  averageLeadDays: number | null;
+  supplierConcentrationPercent: number;
+  statusBreakdown: SupplierOrderStatusBreakdown[];
+  paymentBreakdown: SupplierOrderPaymentBreakdown[];
+  spendSeries: SupplierOrderSpendPoint[];
+  previousWindow: SupplierOrderPreviousWindow | null;
   topProductsByQuantity: SupplierOrderProductStat[];
   topProductsByValue: SupplierOrderProductStat[];
   topProductsByFrequency: SupplierOrderProductStat[];
@@ -160,6 +229,77 @@ export type SupplierOrderAnalytics = {
   topSuppliersByPending: SupplierOrderSupplierStat[];
   lowestPricePosition: SupplierOrderPricePosition;
   highestPricePosition: SupplierOrderPricePosition;
+};
+
+export const supplierOrderAnalyticsStatuses: SupplierOrderStatus[] = [
+  'request',
+  'ordered',
+  'approved',
+  'partially_stocked',
+  'partially_completed',
+  'stocked',
+  'overdue',
+  'cancelled',
+  'unavailable',
+];
+
+export const supplierOrderAnalyticsPayments: SupplierPaymentStatus[] = [
+  'pending',
+  'paid',
+  'without_payment',
+  'cancelled',
+];
+
+export type SupplierOrderAnalyticsOptions = {
+  previousOrders?: SupplierOrder[];
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toIsoDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const getPreviousDeliveryDateRange = (
+  dateFrom: string,
+  dateTo: string,
+  currentDate: Date = new Date(),
+): { dateFrom: string; dateTo: string } | null => {
+  const today = toIsoDateKey(
+    new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate(),
+    ),
+  );
+  const from = dateFrom.trim();
+  const to = dateTo.trim() || (from ? today : '');
+  const start = from || to;
+  const end = to || from;
+  if (!start || !end) return null;
+
+  const startDate = new Date(`${start}T12:00:00`);
+  const endDate = new Date(`${end}T12:00:00`);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return null;
+  }
+  const first = startDate <= endDate ? startDate : endDate;
+  const last = startDate <= endDate ? endDate : startDate;
+  const spanDays = Math.max(
+    1,
+    Math.floor((last.getTime() - first.getTime()) / MS_PER_DAY) + 1,
+  );
+  const prevEnd = new Date(first);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - spanDays + 1);
+  return {
+    dateFrom: toIsoDateKey(prevStart),
+    dateTo: toIsoDateKey(prevEnd),
+  };
 };
 
 const supplierMatchesSearch = (supplier: Supplier, normalized: string) =>
@@ -229,6 +369,9 @@ export const mergeSupplierOrderItemUpdate = ({
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
+const percentDelta = (current: number, previous: number) =>
+  previous > 0 ? roundMoney(((current - previous) / previous) * 100) : null;
+
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -253,15 +396,154 @@ const toDateOnlyTime = (value: string) => {
   ).getTime();
 };
 
+const isPipelineClosed = (order: SupplierOrder) =>
+  order.status === 'stocked' ||
+  order.status === 'partially_completed' ||
+  order.status === 'cancelled' ||
+  order.status === 'unavailable' ||
+  order.receiptStatus === 'received';
+
+const isLeadTimeCompleted = (order: SupplierOrder) =>
+  order.status === 'stocked' ||
+  order.status === 'partially_completed' ||
+  order.receiptStatus === 'received';
+
+const summarizeOrdersMoney = (orders: SupplierOrder[]) => {
+  let totalValue = 0;
+  let paidAmount = 0;
+  orders.forEach((order) => {
+    const orderTotal = getOrderTotal(order);
+    totalValue += orderTotal;
+    paidAmount += Math.min(Math.max(order.paid, 0), orderTotal);
+  });
+  return {
+    orderCount: orders.length,
+    totalValue: roundMoney(totalValue),
+    paidAmount: roundMoney(paidAmount),
+  };
+};
+
+const buildSpendSeries = (
+  orders: SupplierOrder[],
+): SupplierOrderSpendPoint[] => {
+  if (orders.length === 0) return [];
+
+  const times = orders
+    .map((order) => {
+      const parsed = new Date(order.createdAt);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    })
+    .filter((date): date is Date => date !== null);
+  if (times.length === 0) return [];
+
+  const minTime = Math.min(...times.map((date) => date.getTime()));
+  const maxTime = Math.max(...times.map((date) => date.getTime()));
+  const start = new Date(minTime);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(maxTime);
+  end.setHours(0, 0, 0, 0);
+  const daySpan =
+    Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
+  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
+
+  type Bucket = { key: string; label: string };
+  const buckets: Bucket[] = [];
+  if (daySpan <= 1) {
+    const dayKey = toIsoDateKey(start);
+    for (let hour = 0; hour < 24; hour += 1) {
+      buckets.push({
+        key: `${dayKey}T${String(hour).padStart(2, '0')}`,
+        label: `${String(hour).padStart(2, '0')}:00`,
+      });
+    }
+  } else if (daySpan <= 62) {
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      buckets.push({
+        key: toIsoDateKey(cursor),
+        label: cursor.toLocaleDateString(locale, {
+          day: 'numeric',
+          month: 'short',
+        }),
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else {
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (cursor <= endMonth) {
+      buckets.push({
+        key: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
+        label: cursor.toLocaleDateString(locale, {
+          month: 'short',
+          year: '2-digit',
+        }),
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
+
+  const values = new Map(
+    buckets.map((bucket) => [
+      bucket.key,
+      { value: 0, orderCount: 0, label: bucket.label },
+    ]),
+  );
+
+  orders.forEach((order) => {
+    const date = new Date(order.createdAt);
+    if (Number.isNaN(date.getTime())) return;
+    let key: string;
+    if (daySpan <= 1) {
+      key = `${toIsoDateKey(date)}T${String(date.getHours()).padStart(2, '0')}`;
+    } else if (daySpan <= 62) {
+      key = toIsoDateKey(
+        new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+      );
+    } else {
+      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+    const bucket = values.get(key);
+    if (!bucket) return;
+    bucket.value += getOrderTotal(order);
+    bucket.orderCount += 1;
+  });
+
+  return buckets.map((bucket) => {
+    const entry = values.get(bucket.key);
+    return {
+      key: bucket.key,
+      label: bucket.label,
+      value: roundMoney(entry?.value ?? 0),
+      orderCount: entry?.orderCount ?? 0,
+    };
+  });
+};
+
 export const buildSupplierOrderAnalytics = (
   orders: SupplierOrder[],
   currentDate: Date = new Date(),
+  options?: SupplierOrderAnalyticsOptions,
 ): SupplierOrderAnalytics => {
   const productStats = new Map<
     string,
     SupplierOrderProductStat & { orderIds: Set<string> }
   >();
   const supplierStats = new Map<string, SupplierOrderSupplierStat>();
+  const statusTotals = new Map<
+    SupplierOrderStatus,
+    { count: number; value: number }
+  >();
+  const paymentTotals = new Map<
+    SupplierPaymentStatus,
+    { count: number; amount: number }
+  >();
+  supplierOrderAnalyticsStatuses.forEach((status) => {
+    statusTotals.set(status, { count: 0, value: 0 });
+  });
+  supplierOrderAnalyticsPayments.forEach((status) => {
+    paymentTotals.set(status, { count: 0, amount: 0 });
+  });
   let paidAmount = 0;
   let totalValue = 0;
   let totalQuantity = 0;
@@ -269,6 +551,11 @@ export const buildSupplierOrderAnalytics = (
   let stockedCount = 0;
   let overdueCount = 0;
   let lateRiskCount = 0;
+  let overdueOutstanding = 0;
+  let openPipelineValue = 0;
+  let openPipelineCount = 0;
+  let leadDaysSum = 0;
+  let leadSamples = 0;
   let lowestPricePosition: SupplierOrderPricePosition = null;
   let highestPricePosition: SupplierOrderPricePosition = null;
   const currentDateTime = new Date(
@@ -276,11 +563,12 @@ export const buildSupplierOrderAnalytics = (
     currentDate.getMonth(),
     currentDate.getDate(),
   ).getTime();
-  const lateRiskWindowMs = 3 * 24 * 60 * 60 * 1000;
+  const lateRiskWindowMs = 3 * MS_PER_DAY;
 
   orders.forEach((order) => {
     const orderTotal = getOrderTotal(order);
     const orderPaid = Math.min(Math.max(order.paid, 0), orderTotal);
+    const outstanding = Math.max(orderTotal - orderPaid, 0);
     const supplierKey = order.supplierId || order.supplierName;
     const supplierEntry =
       supplierStats.get(supplierKey) ?? {
@@ -298,8 +586,24 @@ export const buildSupplierOrderAnalytics = (
     supplierEntry.orderCount += 1;
     supplierEntry.total += orderTotal;
     supplierEntry.paid += orderPaid;
-    supplierEntry.outstanding += Math.max(orderTotal - orderPaid, 0);
+    supplierEntry.outstanding += outstanding;
     supplierStats.set(supplierKey, supplierEntry);
+
+    const statusEntry = statusTotals.get(order.status) ?? {
+      count: 0,
+      value: 0,
+    };
+    statusEntry.count += 1;
+    statusEntry.value += orderTotal;
+    statusTotals.set(order.status, statusEntry);
+
+    const paymentEntry = paymentTotals.get(order.paymentStatus) ?? {
+      count: 0,
+      amount: 0,
+    };
+    paymentEntry.count += 1;
+    paymentEntry.amount += orderTotal;
+    paymentTotals.set(order.paymentStatus, paymentEntry);
 
     if (order.status === 'cancelled' || order.status === 'unavailable') {
       cancelledUnavailableCount += 1;
@@ -314,6 +618,20 @@ export const buildSupplierOrderAnalytics = (
       stockedCount += 1;
     }
 
+    if (!isPipelineClosed(order)) {
+      openPipelineCount += 1;
+      openPipelineValue += orderTotal;
+    }
+
+    if (isLeadTimeCompleted(order)) {
+      const created = toDateOnlyTime(order.createdAt);
+      const updated = toDateOnlyTime(order.updatedAt);
+      if (created !== null && updated !== null) {
+        leadDaysSum += Math.max(0, (updated - created) / MS_PER_DAY);
+        leadSamples += 1;
+      }
+    }
+
     const deliveryTime = toDateOnlyTime(order.deliveryDate);
     const isOpenOrder =
       order.status !== 'stocked' &&
@@ -322,6 +640,11 @@ export const buildSupplierOrderAnalytics = (
       order.status !== 'unavailable' &&
       order.status !== 'overdue' &&
       order.receiptStatus !== 'received';
+    const isOverdueByDate =
+      isOpenOrder && deliveryTime !== null && deliveryTime < currentDateTime;
+    if (order.status === 'overdue' || isOverdueByDate) {
+      overdueOutstanding += outstanding;
+    }
     if (deliveryTime !== null && isOpenOrder) {
       if (deliveryTime < currentDateTime) {
         overdueCount += 1;
@@ -415,11 +738,20 @@ export const buildSupplierOrderAnalytics = (
       b.lineCount - a.lineCount ||
       b.total - a.total,
   );
+  const topSuppliersBySpend = [...suppliers].sort(
+    (a, b) => b.total - a.total,
+  );
+  const roundedTotalValue = roundMoney(totalValue);
+  const roundedPaidAmount = roundMoney(paidAmount);
+  const previousSummary =
+    options?.previousOrders !== undefined
+      ? summarizeOrdersMoney(options.previousOrders)
+      : null;
 
   return {
     orderCount: orders.length,
-    totalValue: roundMoney(totalValue),
-    paidAmount: roundMoney(paidAmount),
+    totalValue: roundedTotalValue,
+    paidAmount: roundedPaidAmount,
     outstandingAmount: roundMoney(Math.max(totalValue - paidAmount, 0)),
     totalQuantity,
     averageOrderValue:
@@ -434,6 +766,51 @@ export const buildSupplierOrderAnalytics = (
       orders.length > 0 ? roundMoney((stockedCount / orders.length) * 100) : 0,
     overdueCount,
     lateRiskCount,
+    overdueOutstanding: roundMoney(overdueOutstanding),
+    openPipelineValue: roundMoney(openPipelineValue),
+    openPipelineCount,
+    averageLeadDays:
+      leadSamples > 0 ? roundMoney(leadDaysSum / leadSamples) : null,
+    supplierConcentrationPercent:
+      roundedTotalValue > 0 && topSuppliersBySpend[0]
+        ? roundMoney((topSuppliersBySpend[0].total / roundedTotalValue) * 100)
+        : 0,
+    statusBreakdown: supplierOrderAnalyticsStatuses.map((status) => {
+      const entry = statusTotals.get(status);
+      return {
+        status,
+        count: entry?.count ?? 0,
+        value: roundMoney(entry?.value ?? 0),
+      };
+    }),
+    paymentBreakdown: supplierOrderAnalyticsPayments.map((status) => {
+      const entry = paymentTotals.get(status);
+      return {
+        status,
+        count: entry?.count ?? 0,
+        amount: roundMoney(entry?.amount ?? 0),
+      };
+    }),
+    spendSeries: buildSpendSeries(orders),
+    previousWindow: previousSummary
+      ? {
+          ...previousSummary,
+          deltas: {
+            totalValuePct: percentDelta(
+              roundedTotalValue,
+              previousSummary.totalValue,
+            ),
+            paidAmountPct: percentDelta(
+              roundedPaidAmount,
+              previousSummary.paidAmount,
+            ),
+            orderCountPct: percentDelta(
+              orders.length,
+              previousSummary.orderCount,
+            ),
+          },
+        }
+      : null,
     topProductsByQuantity: sortByQuantity.slice(0, 5),
     topProductsByValue: sortByValue.slice(0, 5),
     topProductsByFrequency: sortByFrequency.slice(0, 5),
@@ -441,9 +818,7 @@ export const buildSupplierOrderAnalytics = (
       .filter((item) => item.minPrice !== item.maxPrice)
       .sort((a, b) => b.maxPrice - b.minPrice - (a.maxPrice - a.minPrice))
       .slice(0, 5),
-    topSuppliersBySpend: [...suppliers]
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5),
+    topSuppliersBySpend: topSuppliersBySpend.slice(0, 5),
     topSuppliersByPending: [...suppliers]
       .sort((a, b) => b.outstanding - a.outstanding)
       .slice(0, 5),

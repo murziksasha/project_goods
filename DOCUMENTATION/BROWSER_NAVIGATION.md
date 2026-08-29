@@ -1,5 +1,7 @@
 # Browser Navigation (SPA History)
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [index](./README.md)
+
 ## Purpose
 
 This document describes how the React SPA handles browser **Back**, **Forward**, and **Refresh** without leaving the application. Navigation stays client-side via the native **History API** (`pushState` / `popstate`). React Router is not used.

@@ -1,5 +1,7 @@
 # API Overview
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [SECURITY.md](./SECURITY.md) · [Permission_Flow.md](./Permission_Flow.md) · [index](./README.md)
+
 ## Authentication
 
 All `/api/*` routes require `Authorization: Bearer <token>` except:
@@ -126,6 +128,13 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - См. политику размера БД: [DATA_RETENTION.md](./DATA_RETENTION.md)
 - `GET /sales/:saleId` — повний документ продажу/замовлення (`timeline`, `paymentHistory`, line items)
   - Permission: ті самі read-права, що й `GET /sales`
+- `GET /sales/occupied-serials` — subset of requested serials already bound on other sales
+  - Register **before** `GET /sales/:saleId` so the path is not parsed as an ObjectId
+  - Permission: same read set as `GET /sales`
+  - Query: `serials` (CSV or repeated), optional `excludeSaleId` (valid ObjectId of the opened sale; invalid/empty is ignored)
+  - Empty `serials` → `{ occupied: [] }` (no DB scan)
+  - Response: `{ occupied: string[] }` — normalized uppercase, only the requested subset
+  - Used by order/sale card `SerialBindModal`. Binding does not drop `freeQuantity` until issue/paid; occupancy is sale-domain. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards)
 - `GET /events/stream` — SSE (`text/event-stream`) для LAN live-invalidation. Auth: Bearer. Події `resource.changed` після успішних POST/PUT/PATCH/DELETE.
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.
@@ -330,6 +339,7 @@ Client status localization rule: keep client status values in original English (
   - Supports `userNote` (string, trimmed, max 500). Updates only `userNote`; does not change system `note`.
   - Manual `Live feed` comment-only saves require `orders.chat`.
   - System-generated timeline entries attached to other workspace actions are still authorized by those actions, not by `orders.chat`.
+  - Serial numbers already bound to another sale/order are rejected (`assertSerialNumbersNotBoundToOtherSales` / `findOccupiedSerialNumbers`). Bind-modal listing uses `GET /sales/occupied-serials` so occupied units never appear as pickable. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards)
   - Serialized stock product line items are validated as atomic units.
   - If a product line item has `serialNumbers.length > 0`:
     - `quantity` must be `1`

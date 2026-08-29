@@ -76,8 +76,16 @@ vi.mock('../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace',
 vi.mock('../../../shared/ui/GlobalHorizontalScrollbar', () => ({
   GlobalHorizontalScrollbar: () => null,
 }));
+vi.mock('../../../shared/ui/ScrollToTopButton', () => ({
+  ScrollToTopButton: () => null,
+}));
 
 const hardReloadAppMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../shared/api/liveEvents', () => ({
+  startLiveEvents: vi.fn(() => () => undefined),
+  invalidateQueriesForLivePath: vi.fn(),
+}));
 
 vi.mock('../../../shared/lib/hardReload', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../shared/lib/hardReload')>();
@@ -156,7 +164,7 @@ describe('DashboardPage sync control', () => {
 });
 
 describe('DashboardPage auth recovery', () => {
-  it('keeps the workspace open when session check returns 401 and a snapshot exists', async () => {
+  it('signs the user out when session check returns 401 even if a snapshot exists', async () => {
     getCurrentEmployeeMock.mockRejectedValue(
       new ApiRequestError('Session not found.', {
         hasResponse: true,
@@ -172,14 +180,64 @@ describe('DashboardPage auth recovery', () => {
     renderDashboardPage();
 
     await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /Login/i })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Dashboard home')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(authTokenStorageKey)).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText(/Session expired/i)).toBeInTheDocument();
+    });
+  });
+
+  it('keeps the workspace open when session check fails due to a network error and a snapshot exists', async () => {
+    getCurrentEmployeeMock.mockRejectedValue(
+      new ApiRequestError('timeout', {
+        code: 'ECONNABORTED',
+        hasResponse: false,
+      }),
+    );
+    window.localStorage.setItem(authTokenStorageKey, 'keep-me-token');
+    window.localStorage.setItem(
+      'project-goods.employee-snapshot',
+      JSON.stringify(employee),
+    );
+
+    renderDashboardPage();
+
+    await waitFor(() => {
       expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('Sign in')).not.toBeInTheDocument();
-    expect(screen.queryByText('Session not found.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Login/i })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(authTokenStorageKey)).toBe('keep-me-token');
+  });
+
+  it('returns to login when another tab clears the auth token', async () => {
+    getCurrentEmployeeMock.mockResolvedValue(employee);
+    window.localStorage.setItem(authTokenStorageKey, 'valid-token');
+
+    renderDashboardPage();
+
     await waitFor(() => {
-      expect(screen.getByText(/Session check failed/i)).toBeInTheDocument();
+      expect(screen.getByText('Dashboard home')).toBeInTheDocument();
     });
+
+    window.localStorage.removeItem(authTokenStorageKey);
+    await act(async () => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: authTokenStorageKey,
+          newValue: null,
+          oldValue: 'valid-token',
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /Login/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Dashboard home')).not.toBeInTheDocument();
   });
 });
 

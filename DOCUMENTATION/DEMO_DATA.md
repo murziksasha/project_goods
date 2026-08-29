@@ -1,5 +1,7 @@
 # Demo Data Erase Rules
 
+Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
+
 ## Purpose
 This document defines what must be removed when `Erase all data` is triggered from dashboard main tab.
 

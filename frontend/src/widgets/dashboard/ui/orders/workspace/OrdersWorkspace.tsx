@@ -16,6 +16,7 @@ import {
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
 import { formatCurrency } from '../../../../../shared/lib/format';
+import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
 import {
   getSaleClientPhones,
@@ -71,6 +72,11 @@ import {
   patchLineItemsById,
   removeLineItemsById,
 } from '../../../model/line-item-ops';
+import {
+  createSaleWorkspaceUpdateQueue,
+  type SaleWorkspaceQueuePayload,
+  type SaleWorkspaceUpdater,
+} from '../../../model/sale-workspace-update-queue';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import { getClientStatsMap } from '../../../model/clients-workspace';
 import {
@@ -150,7 +156,6 @@ import {
   type OrdersTab,
   type OrdersWorkspaceProps,
   type PaymentAction,
-  type PaymentEntry,
   type PaymentMethod,
   type PaymentTargetStatus,
   type RepairStatus,
@@ -240,7 +245,6 @@ export const OrdersWorkspace = ({
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     null,
   );
-  const orderDetailAnchorRef = useRef<HTMLDivElement>(null);
   const [printRequest, setPrintRequest] =
     useState<OrderPrintRequest | null>(null);
   const [openStatusSaleId, setOpenStatusSaleId] = useState<
@@ -600,7 +604,7 @@ export const OrdersWorkspace = ({
       }
       return true;
     });
-  }, [activeTab, appliedFilters, searchValue, tabSales]);
+  }, [activeTab, appliedFilters, searchValue, t, tabSales]);
 
   const canManageOrderFavorite = (sale: Sale) =>
     sale.kind === 'sale'
@@ -670,6 +674,24 @@ export const OrdersWorkspace = ({
 
   const saleDetailQuery = useSaleDetail(selectedSaleId);
   const selectedSale = saleDetailQuery.data ?? null;
+  const latestSalesRef = useRef(new Map<string, Sale>());
+  const rememberObservedSale = (sale: Sale) => {
+    const current = latestSalesRef.current.get(sale.id);
+    if (
+      !current ||
+      new Date(sale.updatedAt).getTime() >=
+        new Date(current.updatedAt).getTime()
+    ) {
+      latestSalesRef.current.set(sale.id, sale);
+    }
+  };
+  const rememberPersistedSale = (sale: Sale) => {
+    latestSalesRef.current.set(sale.id, sale);
+  };
+
+  useEffect(() => {
+    if (selectedSale) rememberObservedSale(selectedSale);
+  }, [selectedSale]);
   const shouldLoadSupplierOrders =
     canViewSupplierOrders && Boolean(selectedSale);
   const supplierOrdersQuery = useSupplierOrdersQuery(shouldLoadSupplierOrders);
@@ -1298,59 +1320,86 @@ export const OrdersWorkspace = ({
     createdAt: new Date().toISOString(),
   });
 
+  const persistSaleWorkspaceRaw = useCallback(
+    async (sale: Sale, payload: SaleWorkspaceQueuePayload) => {
+      const updatedSale = await updateSaleWorkspace(sale.id, {
+        kind: sale.kind,
+        status: payload.status ?? normalizeOrderStatus(sale.status),
+        paidAmount: payload.paidAmount,
+        masterId: payload.masterId,
+        issuedById: payload.issuedById,
+        deviceName: payload.deviceName,
+        serialNumber: payload.serialNumber,
+        discount: payload.discount,
+        timeline: payload.timeline,
+        paymentHistory: payload.paymentHistory,
+        lineItems: payload.lineItems,
+        userNote: payload.userNote,
+        expectedUpdatedAt: sale.updatedAt,
+      });
+      if (!isSaleResponse(updatedSale)) {
+        throw new Error('Unexpected sale workspace update response from API.');
+      }
+      rememberPersistedSale(updatedSale);
+      onSaleUpdate(updatedSale);
+      return updatedSale;
+    },
+    [onSaleUpdate],
+  );
+
+  const persistSaleWorkspaceRawRef = useRef(persistSaleWorkspaceRaw);
+
+  const handleWorkspaceUpdateError = useCallback(
+    (
+      error: unknown,
+      fallback = t('orders.messages.errors.failedUpdateStatus'),
+    ) => {
+      onError(
+        error instanceof Error && error.message ? error.message : fallback,
+      );
+    },
+    [onError, t],
+  );
+
+  const handleWorkspaceUpdateErrorRef = useRef(handleWorkspaceUpdateError);
+
+  useEffect(() => {
+    persistSaleWorkspaceRawRef.current = persistSaleWorkspaceRaw;
+    handleWorkspaceUpdateErrorRef.current = handleWorkspaceUpdateError;
+  }, [persistSaleWorkspaceRaw, handleWorkspaceUpdateError]);
+
+  // Queue callbacks only read refs when async work runs, never during render.
+  /* eslint-disable react-hooks/refs */
+  const workspaceQueue = useMemo(
+    () =>
+      createSaleWorkspaceUpdateQueue({
+        persist: (sale, payload) =>
+          persistSaleWorkspaceRawRef.current(sale, payload),
+        getLatestSale: (saleId) => latestSalesRef.current.get(saleId),
+        onError: (error, fallback) =>
+          handleWorkspaceUpdateErrorRef.current(error, fallback),
+      }),
+    [],
+  );
+  /* eslint-enable react-hooks/refs */
+
   const persistSaleWorkspace = async (
     sale: Sale,
-    payload: {
-      status?: OrderStatus;
-      paidAmount?: number;
-      masterId?: string;
-      issuedById?: string;
-      deviceName?: string;
-      serialNumber?: string;
-      discount?: Sale['discount'];
-      timeline?: TimelineEntry[];
-      paymentHistory?: PaymentEntry[];
-      lineItems?: OrderLineItem[];
-      userNote?: string;
-    },
+    payload: SaleWorkspaceQueuePayload,
   ) => {
-    const updatedSale = await updateSaleWorkspace(sale.id, {
-      kind: sale.kind,
-      status: payload.status ?? normalizeOrderStatus(sale.status),
-      paidAmount: payload.paidAmount ?? sale.paidAmount,
-      masterId: payload.masterId,
-      issuedById: payload.issuedById,
-      deviceName: payload.deviceName,
-      serialNumber: payload.serialNumber,
-      discount: payload.discount ?? sale.discount,
-      timeline: payload.timeline ?? sale.timeline,
-      paymentHistory: payload.paymentHistory ?? sale.paymentHistory,
-      lineItems: payload.lineItems ?? getLineItems(sale),
-      userNote: payload.userNote,
-      expectedUpdatedAt: sale.updatedAt,
-    });
-    if (!isSaleResponse(updatedSale)) {
-      throw new Error('Unexpected sale workspace update response from API.');
-    }
-    onSaleUpdate(updatedSale);
-    return updatedSale;
-  };
-
-  const handleWorkspaceUpdateError = (
-    error: unknown,
-    fallback = t('orders.messages.errors.failedUpdateStatus'),
-  ) => {
-    onError(error instanceof Error && error.message ? error.message : fallback);
+    rememberObservedSale(sale);
+    return workspaceQueue.runExclusive(sale.id, (latest) =>
+      persistSaleWorkspaceRawRef.current(latest, payload),
+    );
   };
 
   const queueSaleWorkspaceUpdate = (
     sale: Sale,
-    payload: Parameters<typeof persistSaleWorkspace>[1],
+    updater: SaleWorkspaceUpdater,
     fallback?: string,
   ) => {
-    void persistSaleWorkspace(sale, payload).catch((error) =>
-      handleWorkspaceUpdateError(error, fallback),
-    );
+    rememberObservedSale(sale);
+    workspaceQueue.enqueue(sale.id, updater, fallback);
   };
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
@@ -1469,6 +1518,9 @@ export const OrdersWorkspace = ({
     setSelectedSaleId(sale.id);
     onSelectedSaleIdChange?.(sale.id);
     setOpenStatusSaleId(null);
+    window.requestAnimationFrame(() => {
+      scrollDashboardMainToTop();
+    });
   };
 
   const closeSelectedSaleCard = useCallback(() => {
@@ -1485,22 +1537,14 @@ export const OrdersWorkspace = ({
     onSelectedSaleIdChange?.(externalSelectedSaleId);
     setOpenStatusSaleId(null);
     onExternalSaleOpenHandled?.();
+    window.requestAnimationFrame(() => {
+      scrollDashboardMainToTop();
+    });
   }, [
     externalSelectedSaleId,
     onExternalSaleOpenHandled,
     onSelectedSaleIdChange,
   ]);
-
-  useEffect(() => {
-    if (!selectedSaleId) return;
-
-    window.requestAnimationFrame(() => {
-      orderDetailAnchorRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    });
-  }, [selectedSaleId]);
 
   const syncReceivedBy = async (sale: Sale, status: OrderStatus) => {
     if (
@@ -1759,12 +1803,12 @@ export const OrdersWorkspace = ({
   const addComment = (sale: Sale, comment: string) => {
     const normalizedComment = comment.trim();
     if (!normalizedComment) return;
-    queueSaleWorkspaceUpdate(sale, {
+    queueSaleWorkspaceUpdate(sale, (latest) => ({
       timeline: [
         appendTimelineEntry(normalizedComment, currentEmployeeName, 'manual'),
-        ...sale.timeline,
+        ...latest.timeline,
       ],
-    });
+    }));
   };
 
   const updateDiscount = (
@@ -1796,35 +1840,44 @@ export const OrdersWorkspace = ({
         : current,
     );
 
-    const lineItems = getLineItems(sale);
     const nextDiscount = {
       mode: discount.mode,
       value: normalizedValue,
     } as const;
-    const discountedTotal = Math.max(
-      getOrderTotal(
-        {
-          ...sale,
-          discount: nextDiscount,
-        },
+    queueSaleWorkspaceUpdate(sale, (latest) => {
+      const latestDiscount = getDiscount(latest);
+      if (
+        latestDiscount.mode === nextDiscount.mode &&
+        latestDiscount.value === nextDiscount.value
+      ) {
+        return null;
+      }
+      const lineItems = getLineItems(latest);
+      const discountedTotal = Math.max(
+        getOrderTotal(
+          {
+            ...latest,
+            discount: nextDiscount,
+          },
+          lineItems,
+        ),
+        0,
+      );
+      const nextPaidAmount = Math.min(
+        getPaidAmount(latest),
+        discountedTotal,
+      );
+      const reopenedStatus = getReopenedSaleStatusForLineItems(
+        latest,
         lineItems,
-      ),
-      0,
-    );
-    const nextPaidAmount = Math.min(
-      getPaidAmount(sale),
-      discountedTotal,
-    );
-    const reopenedStatus = getReopenedSaleStatusForLineItems(
-      sale,
-      lineItems,
-      nextPaidAmount,
-      nextDiscount,
-    );
-    queueSaleWorkspaceUpdate(sale, {
-      ...(reopenedStatus ? { status: reopenedStatus } : {}),
-      paidAmount: nextPaidAmount,
-      discount: nextDiscount,
+        nextPaidAmount,
+        nextDiscount,
+      );
+      return {
+        ...(reopenedStatus ? { status: reopenedStatus } : {}),
+        paidAmount: nextPaidAmount,
+        discount: nextDiscount,
+      };
     });
   };
 
@@ -2068,20 +2121,26 @@ export const OrdersWorkspace = ({
           : item.quantity,
       id: createRuntimeId(),
     };
-    const nextLineItems = [...getLineItems(sale), nextItem];
-    const reopenedStatus = getReopenedSaleStatusForLineItems(
-      sale,
-      nextLineItems,
-    );
-    queueSaleWorkspaceUpdate(sale, {
-      ...(reopenedStatus ? { status: reopenedStatus } : {}),
-      lineItems: nextLineItems,
-      timeline: [
-        appendTimelineEntry(
-          buildAddedItemTimelineMessage(currentEmployeeName, item.kind, item.name),
-        ),
-        ...sale.timeline,
-      ],
+    queueSaleWorkspaceUpdate(sale, (latest) => {
+      const nextLineItems = [...getLineItems(latest), nextItem];
+      const reopenedStatus = getReopenedSaleStatusForLineItems(
+        latest,
+        nextLineItems,
+      );
+      return {
+        ...(reopenedStatus ? { status: reopenedStatus } : {}),
+        lineItems: nextLineItems,
+        timeline: [
+          appendTimelineEntry(
+            buildAddedItemTimelineMessage(
+              currentEmployeeName,
+              item.kind,
+              item.name,
+            ),
+          ),
+          ...latest.timeline,
+        ],
+      };
     });
   };
 
@@ -2116,29 +2175,42 @@ export const OrdersWorkspace = ({
       onError(t('orders.messages.errors.statusBlocksRemoval'));
       return;
     }
-    const nextItems = removeLineItemsById(
-      currentItems,
-      itemId,
-      itemIndex,
-    );
-    if (nextItems.length === 0) {
-      queueSaleWorkspaceUpdate(sale, {
-        lineItems: [],
-        paidAmount,
-      });
-      return;
-    }
-    queueSaleWorkspaceUpdate(sale, {
-      lineItems: nextItems,
-      paidAmount,
-      timeline: [
-        appendTimelineEntry(
-          removedItem.kind === 'product'
-            ? buildRemovedProductTimelineMessage(currentEmployeeName, removedItem.name)
-            : buildRemovedServiceTimelineMessage(currentEmployeeName, removedItem.name),
-        ),
-        ...sale.timeline,
-      ],
+    queueSaleWorkspaceUpdate(sale, (latest) => {
+      const latestItems = getLineItems(latest);
+      const latestRemovedItem =
+        latestItems.find((item) => item.id === itemId) ??
+        (itemIndex !== undefined ? latestItems[itemIndex] : undefined);
+      if (!latestRemovedItem) return null;
+      const latestPaidAmount = getPaidAmount(latest);
+      const nextItems = removeLineItemsById(
+        latestItems,
+        itemId,
+        itemIndex,
+      );
+      if (nextItems.length === 0) {
+        return {
+          lineItems: [],
+          paidAmount: latestPaidAmount,
+        };
+      }
+      return {
+        lineItems: nextItems,
+        paidAmount: latestPaidAmount,
+        timeline: [
+          appendTimelineEntry(
+            latestRemovedItem.kind === 'product'
+              ? buildRemovedProductTimelineMessage(
+                  currentEmployeeName,
+                  latestRemovedItem.name,
+                )
+              : buildRemovedServiceTimelineMessage(
+                  currentEmployeeName,
+                  latestRemovedItem.name,
+                ),
+          ),
+          ...latest.timeline,
+        ],
+      };
     });
   };
 
@@ -2154,32 +2226,44 @@ export const OrdersWorkspace = ({
       (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
     if (!replacedItem || items.length === 0) return;
 
-    const hasMatchingId = currentItems.some(
-      (item) => item.id === itemId,
-    );
-    const nextItems = currentItems.flatMap((item, index) => {
-      const shouldReplace =
-        item.id === itemId ||
-        (!hasMatchingId &&
-          itemIndex !== undefined &&
-          itemIndex === index);
-      if (!shouldReplace) return [item];
-      return items.map((nextItem) => ({
-        ...nextItem,
-        id: createRuntimeId(),
-      }));
-    });
-
-    const reopenedStatus = getReopenedSaleStatusForLineItems(sale, nextItems);
-    queueSaleWorkspaceUpdate(sale, {
-      ...(reopenedStatus ? { status: reopenedStatus } : {}),
-      lineItems: nextItems,
-      timeline: [
-        appendTimelineEntry(
-          buildBoundSerialsTimelineMessage(currentEmployeeName, replacedItem.name),
-        ),
-        ...sale.timeline,
-      ],
+    queueSaleWorkspaceUpdate(sale, (latest) => {
+      const latestItems = getLineItems(latest);
+      const latestReplacedItem =
+        latestItems.find((item) => item.id === itemId) ??
+        (itemIndex !== undefined ? latestItems[itemIndex] : undefined);
+      if (!latestReplacedItem || items.length === 0) return null;
+      const latestHasMatchingId = latestItems.some(
+        (item) => item.id === itemId,
+      );
+      const latestNextItems = latestItems.flatMap((item, index) => {
+        const shouldReplace =
+          item.id === itemId ||
+          (!latestHasMatchingId &&
+            itemIndex !== undefined &&
+            itemIndex === index);
+        if (!shouldReplace) return [item];
+        return items.map((nextItem) => ({
+          ...nextItem,
+          id: createRuntimeId(),
+        }));
+      });
+      const reopenedStatus = getReopenedSaleStatusForLineItems(
+        latest,
+        latestNextItems,
+      );
+      return {
+        ...(reopenedStatus ? { status: reopenedStatus } : {}),
+        lineItems: latestNextItems,
+        timeline: [
+          appendTimelineEntry(
+            buildBoundSerialsTimelineMessage(
+              currentEmployeeName,
+              latestReplacedItem.name,
+            ),
+          ),
+          ...latest.timeline,
+        ],
+      };
     });
   };
 
@@ -2216,17 +2300,34 @@ export const OrdersWorkspace = ({
       );
       return;
     }
-    const nextItems = patchLineItemsById(
-      getLineItems(sale),
-      itemId,
-      itemIndex,
-      patch,
-    );
-    const reopenedStatus = getReopenedSaleStatusForLineItems(sale, nextItems);
-
-    queueSaleWorkspaceUpdate(sale, {
-      ...(reopenedStatus ? { status: reopenedStatus } : {}),
-      lineItems: nextItems,
+    queueSaleWorkspaceUpdate(sale, (latest) => {
+      const currentItems = getLineItems(latest);
+      const latestItem =
+        currentItems.find((item) => item.id === itemId) ??
+        (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
+      if (
+        latestItem?.kind === 'product' &&
+        (latestItem.serialNumbers ?? []).length > 0 &&
+        patch.quantity !== undefined &&
+        patch.quantity !== 1
+      ) {
+        onError(t('orders.messages.errors.oneSerialPerLine'));
+        return null;
+      }
+      const nextItems = patchLineItemsById(
+        currentItems,
+        itemId,
+        itemIndex,
+        patch,
+      );
+      const reopenedStatus = getReopenedSaleStatusForLineItems(
+        latest,
+        nextItems,
+      );
+      return {
+        ...(reopenedStatus ? { status: reopenedStatus } : {}),
+        lineItems: nextItems,
+      };
     });
   };
 
@@ -2652,7 +2753,7 @@ export const OrdersWorkspace = ({
   return (
     <section className='orders-page'>
       {selectedSaleId && !selectedSale ? (
-        <div ref={orderDetailAnchorRef}>
+        <div>
           {saleDetailQuery.isError ? (
             <p className="inline-error" role="alert">
               {t('errors.failedLoadSales')}
@@ -2663,7 +2764,7 @@ export const OrdersWorkspace = ({
         </div>
       ) : null}
       {selectedSale ? (
-        <div ref={orderDetailAnchorRef}>
+        <div>
           <OrderDetailCard
             sale={selectedSale}
             sales={sales}
@@ -2693,6 +2794,14 @@ export const OrdersWorkspace = ({
             canManageSupplierOrders={hasEmployeePermission(
               currentEmployee,
               'supplierOrders.manage',
+            )}
+            canPaySupplierOrders={hasEmployeePermission(
+              currentEmployee,
+              'finance.supplierOrders.pay',
+            )}
+            canIssueSupplierOrdersWithoutPayment={hasEmployeePermission(
+              currentEmployee,
+              'finance.supplierOrders.issueWithoutPayment',
             )}
             onCreateOrder={() =>
               onCreateOrder(
@@ -2851,14 +2960,21 @@ export const OrdersWorkspace = ({
           canUpdateStatus={canUpdateKanbanBoard}
           canUpdateMaster={canUpdateKanbanBoard}
           onStatusChange={updateStatus}
-          onMasterChange={(sale, masterId) =>
-            saveOrderMainInfo(sale, {
-              deviceName: getPrimaryDeviceName(sale),
-              serialNumber: getPrimaryDeviceSerial(sale),
-              masterId,
-              status: normalizeOrderStatus(sale.status),
-            })
-          }
+          onMasterChange={async (sale, masterId) => {
+            try {
+              await persistSaleWorkspace(sale, {
+                masterId,
+                timeline: [
+                  appendTimelineEntry(
+                    buildUpdatedMainInfoTimelineMessage(currentEmployeeName),
+                  ),
+                  ...sale.timeline,
+                ],
+              });
+            } catch (error) {
+              handleWorkspaceUpdateError(error);
+            }
+          }}
           onOpenSale={openSaleCard}
         />
       ) : (

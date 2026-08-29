@@ -155,17 +155,6 @@
 }
 
 @media (max-width: 1024px) {
-  .repair-kanban-board {
-    scroll-snap-type: x mandatory;
-    padding-bottom: 20px;
-  }
-
-  .repair-kanban-column {
-    flex: 0 0 min(86vw, 320px);
-    scroll-snap-align: start;
-    max-height: calc(100dvh - 220px);
-  }
-
   .repair-kanban-card-master-select,
   .order-detail-status-select,
   .order-status {
@@ -200,7 +189,9 @@
   .analytics-executive-header,
   .hero-controls,
   .analytics-date-filter,
-  .analytics-summary-grid {
+  .analytics-summary-grid,
+  .analytics-kpi-board,
+  .analytics-today-strip {
     order: 1;
   }
 

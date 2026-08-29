@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
@@ -24,7 +24,16 @@ import {
   unbindClientDevice,
 } from '../../../../../entities/client-device/lib/unbind-client-device';
 import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
+import { MONEY_FIELD_COMMIT_MS } from '../../../../../shared/lib/price-stepper';
+import {
+  getCashboxes,
+  issueSupplierOrderWithoutPayment,
+  paySupplierOrder,
+} from '../../../../../entities/finance/api/financeApi';
+import type { Cashbox } from '../../../../../entities/finance/model/types';
+import { AccountingIcon, CheckIcon } from '../../../../../shared/ui/NavIcons';
 import { SupplierOrderModal } from '../modals/SupplierOrderModal';
+import { SupplierOrderPayModal } from '../modals/SupplierOrderPayModal';
 import {
   filterActiveDevicesByQuery,
   getOrderLink,
@@ -37,7 +46,11 @@ import {
 } from '../../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderItemNumber,
+  getSupplierOrderDisplayNumber,
+  isSupplierOrderPayable,
+  isSupplierOrderPaid,
   mergeSupplierOrderItemUpdate,
+  resolveSupplierOrderErrorMessage,
 } from '../../../model/supplier-order-utils';
 import {
   computeSupplierOrderStatusMenuPosition,
@@ -51,10 +64,13 @@ import {
   getDiscount,
   formatReadyDate,
   getCreatedTime,
+  getLineItemsQuantity,
+  getLineItemsTotal,
   getOrderBaseTotal,
   getOrderTotal,
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
+  getProductLinesMissingWarehouseSerials,
   getRemainingPayment,
   getStoredOrderDetailRelatedTab,
   getSupplierOrderStatusLabel,
@@ -75,6 +91,7 @@ import {
   isPlainLeftClick,
 } from '../workspace/orders-workspace-shared';
 import { PrinterIcon } from '../modals/PrinterIcon';
+import { UnboundSerialIssueModal } from '../modals/UnboundSerialIssueModal';
 import { OrderDetailDeviceModal } from './OrderDetailDeviceModal';
 import { OrderDetailLineItemsPanel } from './OrderDetailLineItemsPanel';
 import { OrderDetailNoteSection } from './OrderDetailNoteSection';
@@ -118,6 +135,8 @@ export const OrderDetailCard = ({
   canRefundPayment: canRefundPaymentPermission,
   canCreateOrders,
   canManageSupplierOrders = false,
+  canPaySupplierOrders = false,
+  canIssueSupplierOrdersWithoutPayment = false,
   onCreateOrder,
   createOrderHref,
   onClose,
@@ -163,6 +182,8 @@ export const OrderDetailCard = ({
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [masterIdInput, setMasterIdInput] = useState('');
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
+  const [isUnboundSerialIssueOpen, setIsUnboundSerialIssueOpen] =
+    useState(false);
   const [mainInfoSaveError, setMainInfoSaveError] = useState<string | null>(
     null,
   );
@@ -211,9 +232,66 @@ export const OrderDetailCard = ({
       locations: Array<{ id: string; name: string }>;
     }>
   >([]);
+  const [payingRelatedSupplierOrder, setPayingRelatedSupplierOrder] =
+    useState<SupplierOrder | null>(null);
+  const [payCashboxes, setPayCashboxes] = useState<Cashbox[]>([]);
+  const [isPayCashboxesLoading, setIsPayCashboxesLoading] = useState(false);
+  const [isPayingRelatedSupplierOrder, setIsPayingRelatedSupplierOrder] =
+    useState(false);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
   const [discountInput, setDiscountInput] = useState(String(discount.value));
+  const discountRef = useRef(discount);
+  const discountInputRef = useRef(discountInput);
+  const onDiscountChangeRef = useRef(onDiscountChange);
+  useEffect(() => {
+    discountRef.current = discount;
+    discountInputRef.current = discountInput;
+    onDiscountChangeRef.current = onDiscountChange;
+  }, [discount, discountInput, onDiscountChange]);
+  const discountCommitTimerRef = useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
+  const persistDiscountValue = (input: string) => {
+    const currentDiscount = discountRef.current;
+    if (input === '') {
+      if (currentDiscount.value !== 0) {
+        onDiscountChangeRef.current({
+          mode: currentDiscount.mode,
+          value: 0,
+        });
+      }
+      return;
+    }
+    const nextValue = parseDecimal(input);
+    if (!Number.isFinite(nextValue)) return;
+    const rounded =
+      nextValue > 0 ? Math.round(nextValue * 100) / 100 : 0;
+    if (rounded === currentDiscount.value) return;
+    onDiscountChangeRef.current({
+      mode: currentDiscount.mode,
+      value: rounded,
+    });
+  };
+  const cancelDiscountCommit = () => {
+    if (discountCommitTimerRef.current) {
+      clearTimeout(discountCommitTimerRef.current);
+      discountCommitTimerRef.current = undefined;
+    }
+  };
+  const flushDiscountCommit = (input = discountInputRef.current) => {
+    cancelDiscountCommit();
+    persistDiscountValue(input);
+  };
+  useEffect(
+    () => () => {
+      if (discountCommitTimerRef.current) {
+        clearTimeout(discountCommitTimerRef.current);
+        persistDiscountValue(discountInputRef.current);
+      }
+    },
+    [],
+  );
   const remainingPayment = getRemainingPayment(
     sale,
     paidAmount,
@@ -227,10 +305,13 @@ export const OrderDetailCard = ({
   const serviceItems = lineItems.filter(
     (item) => item.kind === 'service',
   );
+  const productQuantity = getLineItemsQuantity(productItems);
+  const productTotal = getLineItemsTotal(productItems);
+  const serviceQuantity = getLineItemsQuantity(serviceItems);
+  const serviceTotal = getLineItemsTotal(serviceItems);
   const isProductBlockReadOnly =
-    isSaleCard
-      ? isReadOnly
-      : !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+    isReadOnly ||
+    !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   useEffect(() => {
     const storedState = readOrderDetailSectionsState()[sale.id];
     const hasProductLines = lineItems.some((item) => item.kind === 'product');
@@ -325,6 +406,7 @@ export const OrderDetailCard = ({
   const toggleDiscountMode = () => {
     if (isReadOnly) return;
 
+    cancelDiscountCommit();
     const nextValue = parseDecimal(discountInput);
     onDiscountChange({
       mode: discount.mode === 'percent' ? 'amount' : 'percent',
@@ -547,6 +629,34 @@ export const OrderDetailCard = ({
     isStatusDraftLockedByStock ||
     isRepairIssuedDraftBlockedByPayment ||
     isSaleReturnStatusDraftBlocked;
+  const missingWarehouseSerialLines = useMemo(
+    () => getProductLinesMissingWarehouseSerials(sale, lineItems),
+    [lineItems, sale],
+  );
+  const shouldConfirmUnboundSerialIssue =
+    statusDraft === 'issued' &&
+    status !== 'issued' &&
+    missingWarehouseSerialLines.length > 0;
+  const persistMainInfo = async () => {
+    setIsSavingMainInfo(true);
+    setMainInfoSaveError(null);
+    try {
+      await onSaveMainInfo({
+        deviceName: deviceNameInput.trim(),
+        serialNumber: serialNumberInput.trim().toUpperCase(),
+        masterId: masterIdInput,
+        status: statusDraft,
+      });
+    } catch (error) {
+      setMainInfoSaveError(
+        error instanceof Error
+          ? error.message
+          : t('orders.detail.saveFailedInline'),
+      );
+    } finally {
+      setIsSavingMainInfo(false);
+    }
+  };
   const getStatusOptionBlockedReason = (statusOption: OrderStatus) => {
     if (
       isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
@@ -885,6 +995,90 @@ export const OrderDetailCard = ({
     setRelatedStatusMenuPosition(null);
   };
 
+  const openRelatedSupplierOrderPay = async (order: SupplierOrder) => {
+    if (!canPaySupplierOrders || !isSupplierOrderPayable(order)) return;
+    setPayingRelatedSupplierOrder(order);
+    setPayCashboxes([]);
+    setIsPayCashboxesLoading(true);
+    try {
+      const cashboxData = await getCashboxes();
+      setPayCashboxes(cashboxData);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.messages.errors.failedLoadCashboxes'),
+      );
+      setPayingRelatedSupplierOrder(null);
+    } finally {
+      setIsPayCashboxesLoading(false);
+    }
+  };
+
+  const closeRelatedSupplierOrderPay = () => {
+    if (isPayingRelatedSupplierOrder) return;
+    setPayingRelatedSupplierOrder(null);
+    setPayCashboxes([]);
+  };
+
+  const payRelatedSupplierOrder = async (cashboxId: string) => {
+    if (
+      !payingRelatedSupplierOrder ||
+      !cashboxId ||
+      isPayingRelatedSupplierOrder
+    ) {
+      return;
+    }
+    const orderNumber = getSupplierOrderDisplayNumber(
+      payingRelatedSupplierOrder,
+    );
+    setIsPayingRelatedSupplierOrder(true);
+    try {
+      await paySupplierOrder(payingRelatedSupplierOrder.id, {
+        cashboxId,
+        note: t('accounting.orders.paymentNote', { orderNumber }),
+      });
+      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      await onSupplierOrderCreated();
+      onSuccess(t('accounting.messages.success.orderPaid'));
+      setPayingRelatedSupplierOrder(null);
+      setPayCashboxes([]);
+    } catch (error) {
+      onError(
+        resolveSupplierOrderErrorMessage(
+          error,
+          (key) => t(key),
+          'accounting.messages.errors.failedPayOrder',
+        ),
+      );
+    } finally {
+      setIsPayingRelatedSupplierOrder(false);
+    }
+  };
+
+  const issueRelatedSupplierOrderWithoutPayment = async () => {
+    if (!payingRelatedSupplierOrder || isPayingRelatedSupplierOrder) return;
+    setIsPayingRelatedSupplierOrder(true);
+    try {
+      await issueSupplierOrderWithoutPayment(payingRelatedSupplierOrder.id);
+      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      await onSupplierOrderCreated();
+      onSuccess(t('accounting.messages.success.orderIssuedWithoutPayment'));
+      setPayingRelatedSupplierOrder(null);
+      setPayCashboxes([]);
+    } catch (error) {
+      onError(
+        resolveSupplierOrderErrorMessage(
+          error,
+          (key) => t(key),
+          'accounting.messages.errors.failedIssueWithoutPayment',
+        ),
+      );
+    } finally {
+      setIsPayingRelatedSupplierOrder(false);
+    }
+  };
+
   useEffect(() => {
     if (!openRelatedStatusOrder) return;
 
@@ -1175,25 +1369,12 @@ export const OrderDetailCard = ({
                           ? getStatusDraftBlockedReason()
                           : undefined
                       }
-                      onClick={async () => {
-                        setIsSavingMainInfo(true);
-                        setMainInfoSaveError(null);
-                        try {
-                          await onSaveMainInfo({
-                            deviceName: deviceNameInput.trim(),
-                            serialNumber: serialNumberInput.trim().toUpperCase(),
-                            masterId: masterIdInput,
-                            status: statusDraft,
-                          });
-                        } catch (error) {
-                          setMainInfoSaveError(
-                            error instanceof Error
-                              ? error.message
-                              : t('orders.detail.saveFailedInline'),
-                          );
-                        } finally {
-                          setIsSavingMainInfo(false);
+                      onClick={() => {
+                        if (shouldConfirmUnboundSerialIssue) {
+                          setIsUnboundSerialIssueOpen(true);
+                          return;
                         }
+                        void persistMainInfo();
                       }}
                     >
                       {isSavingMainInfo
@@ -1293,8 +1474,20 @@ export const OrderDetailCard = ({
             aria-expanded={isProductsOpen}
           >
             <span>{t('orders.detail.products')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span className='order-detail-collapse-meta'>
+              {productQuantity > 0 ? (
+                <span className='order-detail-section-summary'>
+                  <span>
+                    {t('orders.detail.lineItems.groupedCount', {
+                      quantity: productQuantity,
+                    })}
+                  </span>
+                  <span>{formatCurrency(productTotal)}</span>
+                </span>
+              ) : null}
+              <span className='order-detail-collapse-icon' aria-hidden='true'>
+                {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              </span>
             </span>
           </button>
           {isProductsOpen ? (
@@ -1334,8 +1527,20 @@ export const OrderDetailCard = ({
             aria-expanded={isServicesOpen}
           >
             <span>{t('orders.detail.services')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span className='order-detail-collapse-meta'>
+              {serviceQuantity > 0 ? (
+                <span className='order-detail-section-summary'>
+                  <span>
+                    {t('orders.detail.lineItems.groupedCount', {
+                      quantity: serviceQuantity,
+                    })}
+                  </span>
+                  <span>{formatCurrency(serviceTotal)}</span>
+                </span>
+              ) : null}
+              <span className='order-detail-collapse-icon' aria-hidden='true'>
+                {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              </span>
             </span>
           </button>
           {isServicesOpen ? (
@@ -1397,25 +1602,18 @@ export const OrderDetailCard = ({
                     value={discountInput}
                     onChange={(event) => {
                       const nextInput = normalizeDecimalInput(event.target.value);
-                      const nextValue = parseDecimal(nextInput);
                       setDiscountInput(nextInput);
-
-                      if (nextInput === '') {
-                        onDiscountChange({
-                          mode: discount.mode,
-                          value: 0,
-                        });
-                        return;
-                      }
-                      if (!Number.isFinite(nextValue)) return;
-
-                      onDiscountChange({
-                        mode: discount.mode,
-                        value: nextValue > 0
-                          ? Math.round(nextValue * 100) / 100
-                          : 0,
-                      });
+                      cancelDiscountCommit();
+                      discountCommitTimerRef.current = setTimeout(() => {
+                        discountCommitTimerRef.current = undefined;
+                        persistDiscountValue(nextInput);
+                      }, MONEY_FIELD_COMMIT_MS);
                     }}
+                    onBlur={(event) =>
+                      flushDiscountCommit(
+                        normalizeDecimalInput(event.currentTarget.value),
+                      )
+                    }
                     disabled={isReadOnly}
                   />
                   <button
@@ -1548,28 +1746,76 @@ export const OrderDetailCard = ({
                         </span>
                         <span>{formatReadyDate(order.createdAt)}</span>
                       </button>
-                      <div className='supplier-order-status-picker order-related-supplier-status'>
-                        <button
-                          type='button'
-                          className={getSupplierOrderStatusClass(order.status)}
-                          data-related-supplier-order-status-trigger={rowKey}
-                          disabled={statusDisabled}
-                          aria-expanded={
-                            openRelatedStatusOrder?.key === rowKey
-                          }
-                          aria-haspopup='listbox'
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void openRelatedSupplierOrderStatusMenu(
-                              rowKey,
-                              order,
-                              item.itemIndex,
-                              event.currentTarget.getBoundingClientRect(),
-                            );
-                          }}
-                        >
-                          {getSupplierOrderStatusLabel(order.status)}
-                        </button>
+                      <div className='order-related-supplier-actions'>
+                        <div className='supplier-order-status-picker order-related-supplier-status'>
+                          <button
+                            type='button'
+                            className={getSupplierOrderStatusClass(order.status)}
+                            data-related-supplier-order-status-trigger={rowKey}
+                            disabled={statusDisabled}
+                            aria-expanded={
+                              openRelatedStatusOrder?.key === rowKey
+                            }
+                            aria-haspopup='listbox'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openRelatedSupplierOrderStatusMenu(
+                                rowKey,
+                                order,
+                                item.itemIndex,
+                                event.currentTarget.getBoundingClientRect(),
+                              );
+                            }}
+                          >
+                            {getSupplierOrderStatusLabel(order.status)}
+                          </button>
+                        </div>
+                        {isSupplierOrderPaid(order) ? (
+                          <span
+                            className='order-related-supplier-paid-icon'
+                            role='img'
+                            data-related-supplier-order-paid={rowKey}
+                            aria-label={t(
+                              'orders.supplier.pay.paidAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(order),
+                              },
+                            )}
+                            title={t('orders.supplier.pay.paidAriaLabel', {
+                              number: getSupplierOrderDisplayNumber(order),
+                            })}
+                          >
+                            <CheckIcon />
+                          </span>
+                        ) : canPaySupplierOrders &&
+                          isSupplierOrderPayable(order) ? (
+                          <button
+                            type='button'
+                            className='toolbar-square-button order-print-icon-button order-related-supplier-pay-button'
+                            data-related-supplier-order-pay={rowKey}
+                            aria-label={t(
+                              'orders.supplier.pay.openAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(order),
+                              },
+                            )}
+                            title={t('orders.supplier.pay.openAriaLabel', {
+                              number: getSupplierOrderDisplayNumber(order),
+                            })}
+                            disabled={
+                              isPayingRelatedSupplierOrder ||
+                              isPayCashboxesLoading
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openRelatedSupplierOrderPay(order);
+                            }}
+                          >
+                            <AccountingIcon />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -1665,6 +1911,22 @@ export const OrderDetailCard = ({
           onApplyDeviceName={applyDeviceName}
           onUnbindDevice={handleUnbindDevice}
           onCreateAndApply={() => void createAndApplyDevice()}
+        />
+      ) : null}
+      {payingRelatedSupplierOrder ? (
+        <SupplierOrderPayModal
+          order={payingRelatedSupplierOrder}
+          cashboxes={payCashboxes}
+          isLoading={isPayCashboxesLoading}
+          isSaving={isPayingRelatedSupplierOrder}
+          canIssueWithoutPayment={canIssueSupplierOrdersWithoutPayment}
+          onClose={closeRelatedSupplierOrderPay}
+          onPay={(cashboxId) => {
+            void payRelatedSupplierOrder(cashboxId);
+          }}
+          onIssueWithoutPayment={() => {
+            void issueRelatedSupplierOrderWithoutPayment();
+          }}
         />
       ) : null}
       <SupplierOrderStatusMenuPortal
@@ -1825,6 +2087,16 @@ export const OrderDetailCard = ({
           await onSupplierOrderCreated();
         }}
       />
+      {isUnboundSerialIssueOpen ? (
+        <UnboundSerialIssueModal
+          productNames={missingWarehouseSerialLines.map((item) => item.name)}
+          onCancel={() => setIsUnboundSerialIssueOpen(false)}
+          onContinue={() => {
+            setIsUnboundSerialIssueOpen(false);
+            void persistMainInfo();
+          }}
+        />
+      ) : null}
     </article>
   );
 };

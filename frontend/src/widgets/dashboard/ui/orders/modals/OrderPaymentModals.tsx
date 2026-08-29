@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
@@ -12,6 +13,8 @@ import {
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
+import { getProductLinesMissingWarehouseSerials } from '../workspace/orders-workspace-shared';
+import { UnboundSerialIssueModal } from './UnboundSerialIssueModal';
 import {
   defaultPrintForms,
   normalizePrintFormsForView,
@@ -112,6 +115,12 @@ export const PaymentModal = ({
   onSubmit,
 }: PaymentModalProps) => {
   const { t } = useTranslation();
+  const [isUnboundSerialIssueOpen, setIsUnboundSerialIssueOpen] =
+    useState(false);
+  const missingWarehouseSerialLines = getProductLinesMissingWarehouseSerials(
+    sale,
+    sale.lineItems ?? [],
+  );
   const numericAmount = parseDecimal(amount);
   const nextPaymentRemaining = Math.max(
     currentPaymentRemaining -
@@ -138,8 +147,20 @@ export const PaymentModal = ({
     numericAmount > currentPaymentRemaining;
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
+  const requestPaymentAction = (action: PaymentAction) => {
+    if (
+      action === 'depositAndIssue' &&
+      paymentTargetStatus === 'issued' &&
+      missingWarehouseSerialLines.length > 0
+    ) {
+      setIsUnboundSerialIssueOpen(true);
+      return;
+    }
+    onSubmit(action);
+  };
 
   return (
+    <>
     <Modal
       isOpen
       title={t('orders.payment.acceptPayment')}
@@ -147,8 +168,8 @@ export const PaymentModal = ({
       closeLabel={t('orders.payment.closePayment')}
       shellClassName="payment-modal modal-dialog"
       bodyClassName="payment-modal-body"
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
+      closeOnBackdrop={!isSaving && !isUnboundSerialIssueOpen}
+      closeOnEscape={!isSaving && !isUnboundSerialIssueOpen}
       footer={
         <footer className="payment-modal-footer">
           <button
@@ -170,7 +191,7 @@ export const PaymentModal = ({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onSubmit('deposit');
+                requestPaymentAction('deposit');
               }}
               disabled={isSubmitDisabled}
             >
@@ -184,7 +205,7 @@ export const PaymentModal = ({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onSubmit('depositAndIssue');
+                requestPaymentAction('depositAndIssue');
               }}
               disabled={
                 isSubmitDisabled || isRepairTargetStatusBlockedByStock
@@ -203,7 +224,7 @@ export const PaymentModal = ({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onSubmit('issueWithoutPayment');
+                requestPaymentAction('issueWithoutPayment');
               }}
               disabled={isIssueDisabled}
               title={
@@ -305,6 +326,17 @@ export const PaymentModal = ({
         </label>
       </div>
     </Modal>
+    {isUnboundSerialIssueOpen ? (
+      <UnboundSerialIssueModal
+        productNames={missingWarehouseSerialLines.map((item) => item.name)}
+        onCancel={() => setIsUnboundSerialIssueOpen(false)}
+        onContinue={() => {
+          setIsUnboundSerialIssueOpen(false);
+          onSubmit('depositAndIssue');
+        }}
+      />
+    ) : null}
+    </>
   );
 };
 

@@ -6,6 +6,8 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 
 - [ORDER_FLOW.md](./ORDER_FLOW.md) — repair/sales orders, serial linking to supplier orders
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — receipt / stock after take-on-charge
+- [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — serials assigned on take-on-charge
+- [index](./README.md)
 - [ACCOUNTING.md](./ACCOUNTING.md) — supplier-order payment queue
 - [Permission_Flow.md](./Permission_Flow.md) — `supplierOrders.view` / `supplierOrders.manage`
 
@@ -39,6 +41,8 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page).
 - Content locked after receipt/final status or paid/`without_payment` (take-on-charge remains when allowed).
 - Paid orders cannot be cancelled (`POST .../cancel` rejected).
+- Linked sale/order card `Supplier Order` tab shows a dollar pay icon after the status badge when Accounting queue rules allow payment (`finance.supplierOrders.pay`). Click opens a pay modal (`POST /finance/supplier-orders/:id/pay`); optional issue-without-payment uses `finance.supplierOrders.issueWithoutPayment`.
+- After payment (`paymentStatus = paid`) the same slot shows a green check (not clickable). `without_payment` has no marker. The check is visible to anyone who can see the tab.
 
 ## Backdated delivery
 
@@ -48,9 +52,16 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 
 ## Information tab
 
-- Same filtered working set as Supplier Order tab.
-- Analytics: summary cards, popular goods, price/supplier analysis, overdue/late-risk signals.
-- Gear hidden (no configurable columns).
+- Same filtered working set as Supplier Order tab (`filterSupplierOrders`).
+- Gear hidden (no configurable columns). Custom SVG only (no chart library), tokenized surfaces.
+- Builder: `buildSupplierOrderAnalytics(filteredOrders, now, { previousOrders })` in `frontend/src/widgets/dashboard/model/supplier-order-utils.ts`. UI: `SupplierInformationDashboard.tsx`.
+- **Date Δ:** when Data `dateFrom`/`dateTo` is set, previous window is the equal-length range immediately before (`getPreviousDeliveryDateRange`). No date filter → no Δ (same as Home `whole`). Hide a Δ chip when previous is 0.
+- **KPI row:** spend (sparkline of `spendSeries`), paid + coverage bar, outstanding (risk tone when overdue outstanding > 0), open pipeline (not stocked / partially_completed / cancelled / unavailable / received). Compact row: order count + pcs, stocked rate.
+- **Charts:** spend-over-time (hourly ≤1 day of `createdAt` span, daily ≤62 days, else monthly); status mix bar; payment mix bar (`pending` / `paid` / `without_payment` / `cancelled`).
+- **Ranked bars:** top goods tabs Quantity | Value | Frequency; top suppliers tabs Spend | Outstanding; price min/max plus spread track (min–max, avg tick).
+- **Signals:** overdue count + overdue outstanding ₴; late-risk 3 days; cancelled/unavailable %; avg lead time; top-1 supplier concentration (warning if ≥50%). Coverage is not repeated here (Paid KPI only).
+- **Lead time:** average whole days from date-only `createdAt` to `updatedAt` for `stocked` / `partially_completed` / `receiptStatus=received`. Approximation — there is no dedicated `stockedAt`.
+- **Open pipeline value:** sum of totals for orders that are not closed (`stocked`, `partially_completed`, `cancelled`, `unavailable`, or received).
 
 ## API touchpoints
 

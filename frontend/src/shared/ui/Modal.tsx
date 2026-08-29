@@ -34,6 +34,7 @@ export type ModalProps = {
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
   initialFocusSelector?: string;
+  role?: 'dialog' | 'alertdialog';
 };
 
 const FOCUSABLE_SELECTOR = [
@@ -87,6 +88,7 @@ export const Modal = ({
   closeOnBackdrop = true,
   closeOnEscape = true,
   initialFocusSelector,
+  role = 'dialog',
 }: ModalProps) => {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -195,7 +197,7 @@ export const Modal = ({
       <div
         ref={dialogRef}
         className={`${shellClassName} ${className}`.trim()}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}

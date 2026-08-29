@@ -61,6 +61,12 @@ export const AccountingIcon = (props: IconProps) => (
   </IconShell>
 );
 
+export const CheckIcon = (props: IconProps) => (
+  <IconShell {...props}>
+    <path d="M20 6 9 17l-5-5" />
+  </IconShell>
+);
+
 export const CatalogIcon = (props: IconProps) => (
   <IconShell {...props}>
     <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" />

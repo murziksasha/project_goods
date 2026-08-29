@@ -55,6 +55,7 @@ const buildEmployeeDocument = (record: MockEmployeeRecord) => {
 
 const mockFindChain = <T>(rows: T[]) => ({
   sort: vi.fn().mockReturnThis(),
+  select: vi.fn().mockReturnThis(),
   lean: vi.fn().mockResolvedValue(rows),
 });
 
@@ -306,6 +307,15 @@ describe('API smoke reads', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([]);
+  });
+
+  it('lists occupied serials without treating the path as a sale id', async () => {
+    const response = await request(app)
+      .get('/api/sales/occupied-serials')
+      .set(authHeader());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ occupied: [] });
   });
 
   it('returns settings for authenticated employees', async () => {

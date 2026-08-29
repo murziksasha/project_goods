@@ -18,10 +18,17 @@ export type KanbanPendingMove = {
 const visibleStatusSet = new Set<RepairStatus>(kanbanVisibleRepairStatuses);
 
 export const columnDropId = (status: RepairStatus) => `column:${status}`;
+export const railDropId = (status: RepairStatus) => `rail:${status}`;
 
 export const parseColumnDropId = (id: string): RepairStatus | null => {
   if (!id.startsWith('column:')) return null;
   const status = id.slice('column:'.length) as RepairStatus;
+  return visibleStatusSet.has(status) ? status : null;
+};
+
+export const parseRailDropId = (id: string): RepairStatus | null => {
+  if (!id.startsWith('rail:')) return null;
+  const status = id.slice('rail:'.length) as RepairStatus;
   return visibleStatusSet.has(status) ? status : null;
 };
 
@@ -31,6 +38,9 @@ export const resolveKanbanDropStatus = (
   pending?: KanbanPendingMove | null,
 ): RepairStatus | null => {
   if (!overId) return null;
+
+  const fromRail = parseRailDropId(overId);
+  if (fromRail) return fromRail;
 
   const fromColumn = parseColumnDropId(overId);
   if (fromColumn) return fromColumn;
@@ -91,6 +101,29 @@ export const shouldKeepKanbanPendingMove = (
 
 export const kanbanCollisionDetection: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
+  const railHits = pointerHits.filter((hit) =>
+    String(hit.id).startsWith('rail:'),
+  );
+  if (railHits.length > 0) return railHits;
   if (pointerHits.length > 0) return pointerHits;
   return closestCenter(args);
+};
+
+export const kanbanCollapsedStorageKey =
+  'project-goods.kanban-collapsed-columns';
+
+export const parseCollapsedKanbanColumns = (
+  value: string | null,
+): RepairStatus[] => {
+  try {
+    const parsed = JSON.parse(value ?? '[]') as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is RepairStatus =>
+        typeof item === 'string' &&
+        visibleStatusSet.has(item as RepairStatus),
+    );
+  } catch {
+    return [];
+  }
 };

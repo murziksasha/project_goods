@@ -48,6 +48,7 @@
     "edit": "Edit",
     "create": "Create",
     "close": "Close",
+    "scrollToTop": "Back to top",
     "ok": "OK",
     "supplier": "Supplier",
     "update": "Update",
@@ -105,7 +106,7 @@
   "errors": {
     "noInternet": "No internet connection. Read-only mode is active until connection is restored.",
     "requestTimeout": "Request timed out. Check your connection and try again.",
-    "sessionCheckFailed": "Session check failed. Workspace stayed open; please retry the action.",
+    "sessionCheckFailed": "Could not verify the session. Please sign in again.",
     "sessionExpired": "Session expired. Please sign in again.",
     "noInternetShort": "No internet connection. Sign in requires network access.",
     "loginFailed": "Failed to login.",
@@ -664,7 +665,15 @@
       "shortcutsLabel": "Keyboard shortcuts"
     },
     "kanban": {
-      "ordersCount": "Orders: {{count}}"
+      "ordersCount": "Orders: {{count}}",
+      "dragHandle": "Drag to another column",
+      "move": "Move",
+      "moveTo": "Move to column",
+      "moveOrder": "Move order {{number}}",
+      "closeMove": "Close",
+      "collapseColumn": "Collapse empty column",
+      "expandColumn": "Expand column",
+      "navigator": "Kanban columns"
     },
     "toolbar": {
       "filter": "Filter",
@@ -796,6 +805,12 @@
       "warningTitle": "Payment warning",
       "acceptPaymentButton": "Accept payment",
       "toggleDiscountMode": "Toggle discount mode"
+    },
+    "serialIssueWarning": {
+      "title": "Serial numbers are not bound",
+      "description": "These products have no warehouse serial. Continue to issue anyway, or cancel and bind serials first.",
+      "continue": "Continue",
+      "closeAria": "Close serial warning"
     },
     "print": {
       "title": "Print order",
@@ -999,6 +1014,8 @@
         "action": "Action",
         "noProductsAdded": "No products added.",
         "noServicesAdded": "No services added.",
+        "groupedCount": "\u00d7{{quantity}}",
+        "toggleGroup": "Toggle {{name}} group ({{quantity}})",
         "return": "Return",
         "remove": "Remove",
         "serials": "Serials ",
@@ -1115,7 +1132,29 @@
         "overdueOrders": "Overdue orders",
         "lateRiskIn3Days": "Late risk in 3 days",
         "cancelledUnavailable": "Cancelled / unavailable",
-        "paymentCoverage": "Payment coverage"
+        "paymentCoverage": "Payment coverage",
+        "openPipeline": "Open pipeline",
+        "openPipelineHint": "{{count}} orders not yet stocked",
+        "ordersAndPcs": "Orders / pcs",
+        "spendTrend": "Spend over time",
+        "spendTrendHint": "By order date",
+        "statusMix": "Order status mix",
+        "paymentMix": "Payment mix",
+        "topGoods": "Top goods",
+        "topSuppliers": "Top suppliers",
+        "tabQuantity": "Quantity",
+        "tabValue": "Value",
+        "tabFrequency": "Frequency",
+        "tabSpend": "Spend",
+        "tabOutstanding": "Outstanding",
+        "avgLeadTime": "Avg lead time",
+        "leadTimeHint": "Created to stocked (days)",
+        "leadTimeDays": "{{count}} days",
+        "leadTimeEmpty": "No stocked orders in range",
+        "supplierConcentration": "Top supplier share",
+        "overdueOutstanding": "Overdue outstanding",
+        "chartOrders": "{{count}} orders",
+        "vsPrevious": "vs previous window"
       },
       "editModal": {
         "supplier": "Supplier",
@@ -1171,6 +1210,12 @@
         "supplyLocal": "Local",
         "supplyForeign": "Foreign"
       },
+      "pay": {
+        "openAriaLabel": "Pay supplier order {{number}}",
+        "paidAriaLabel": "Supplier order {{number}} is paid",
+        "modalTitle": "Pay supplier order",
+        "closeAriaLabel": "Close supplier order payment"
+      },
       "messages": {
         "errors": {
           "failedLoad": "Failed to load supplier orders.",
@@ -1197,7 +1242,14 @@
           "itemCancelledNotReceivable": "Cancelled items cannot be taken on charge.",
           "itemReceivedNotCancellable": "Received items cannot be cancelled.",
           "itemAlreadyCancelled": "This item is already cancelled.",
-          "failedCancelItem": "Failed to cancel supplier order item."
+          "failedCancelItem": "Failed to cancel supplier order item.",
+          "alreadyPaid": "Supplier order is already paid.",
+          "alreadyIssuedWithoutPayment": "Supplier order is already issued without payment.",
+          "payStatusNotAllowed": "Payment is available only for approved, overdue, stocked, or partially received supplier orders.",
+          "issueWithoutPaymentStatusNotAllowed": "Issue without payment is available only for approved, overdue, stocked, or partially received supplier orders.",
+          "cashboxBalanceNotEnough": "Cashbox balance is not enough for this operation.",
+          "failedPay": "Failed to pay supplier order.",
+          "failedIssueWithoutPayment": "Failed to issue supplier order without payment."
         },
         "success": {
           "statusUpdated": "Supplier order status updated.",
@@ -1839,8 +1891,17 @@
     },
     "information": {
       "sectionLabel": "Warehouse analytics",
-      "title": "Information",
+      "title": "Stock overview",
       "unitsStatus": "{{count}} units",
+      "positionsStatus": "{{count}} positions",
+      "warehousesStatus": "{{count}} active warehouses",
+      "moreChips": "+{{count}}",
+      "charts": {
+        "distribution": "Share",
+        "topShare": "Value distribution",
+        "comparison": "Comparison",
+        "topThree": "Top 3"
+      },
       "summary": {
         "stockUnits": "Stock units",
         "positions": "Positions",
@@ -2798,17 +2859,25 @@
   "analytics": {
     "executiveDashboard": "Executive dashboard",
     "businessPerformance": "Business performance",
-    "heroNote": "Sales, repair workload, payments and stock health for {{period}}.",
+    "heroNote": "Billed volume, repairs, payments and stock health for {{period}}.",
+    "currentSnapshot": "Current snapshot",
     "statisticsPeriod": "Statistics period",
     "loading": "Loading...",
     "loadingAnalytics": "Loading analytics...",
     "eraseAllData": "Erase all data",
     "workflow": "Workflow",
     "operationalPulse": "Operational pulse",
-    "open": "Open",
-    "closed": "Closed",
+    "open": "Open now",
+    "closed": "Closed in period",
+    "openNow": "Open now",
+    "closedInPeriod": "Closed in period",
+    "inProgress": "In progress",
+    "ready": "Ready",
+    "waitingParts": "Waiting parts",
     "todaySales": "Today sales",
     "todayRepairs": "Today repairs",
+    "todayBilled": "Today billed",
+    "todayStrip": "Today",
     "stock": "Stock",
     "inventoryHealth": "Inventory health",
     "products": "Products",
@@ -2819,7 +2888,7 @@
     "signals": "Signals",
     "attentionQueue": "Attention queue",
     "comparativeAnalysis": "Comparative analysis",
-    "comparisonNote": "Current period is blue; previous comparable years are orange and green.",
+    "comparisonNote": "Current billed is stacked (product + repair). Previous years appear only when they have data.",
     "revenue": "Revenue",
     "productSales": "Product sales",
     "noSalesForPeriod": "No sales found for the selected period.",
@@ -2837,11 +2906,56 @@
     "summary": {
       "sales": "Sales",
       "repairOrders": "Repair orders",
-      "revenue": "Revenue",
+      "revenue": "Billed",
+      "billed": "Billed",
+      "collected": "Collected",
       "averageTicket": "Average ticket",
-      "paid": "Paid",
-      "receivables": "Receivables"
+      "productTicket": "Product ticket",
+      "repairTicket": "Repair ticket",
+      "paid": "Collected",
+      "receivables": "Receivables",
+      "productBilled": "Product",
+      "repairBilled": "Repair",
+      "coverage": "Coverage",
+      "rapidSales": "Rapid sales",
+      "returns": "Returns"
     },
+    "delta": {
+      "vs": "vs {{label}}",
+      "yesterday": "yesterday",
+      "previousPeriod": "previous period"
+    },
+    "chartTabs": {
+      "billed": "Billed",
+      "mix": "Mix",
+      "volume": "Volume"
+    },
+    "mix": {
+      "product": "Product billed",
+      "repair": "Repair billed"
+    },
+    "funnel": {
+      "label": "Pipeline",
+      "title": "Repair funnel",
+      "other": "Other"
+    },
+    "payments": {
+      "label": "Payments",
+      "title": "Cash vs non-cash",
+      "cash": "Cash",
+      "nonCash": "Non-cash",
+      "unspecified": "Unspecified"
+    },
+    "topItems": {
+      "label": "Bestsellers",
+      "title": "Top products and services",
+      "products": "Top products",
+      "services": "Top services",
+      "empty": "No line items in this period.",
+      "toggle": "Show top items"
+    },
+    "skeleton": "Loading performance metrics...",
+    "unpaidAmount": "Unpaid amount",
     "conversion": {
       "repairOrdersPerSales": "Repair orders / sales",
       "salesPerRepairOrders": "Sales / repair orders",

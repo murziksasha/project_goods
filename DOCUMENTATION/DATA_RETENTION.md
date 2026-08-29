@@ -1,5 +1,7 @@
 # Data retention & database size (ops)
 
+Related: [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · [ACCOUNTING.md](./ACCOUNTING.md) · [index](./README.md)
+
 Policy for multi-year LAN use. **Live purge stays off by default** until ops enables it after a restore drill.
 
 ## Product decisions (locked)

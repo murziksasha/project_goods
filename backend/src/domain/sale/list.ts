@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { formatSale } from '../../shared/lib/formatters';
 import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
@@ -7,6 +8,32 @@ import {
   parseListSalesQuery,
   SALES_LIST_COMPACT_EXCLUDE,
 } from './list-sales-query';
+import { findOccupiedSerialNumbers } from './validators';
+
+const parseOccupiedSerialsQuery = (value: unknown): string[] => {
+  const raw = Array.isArray(value)
+    ? value.flatMap((item) => String(item ?? '').split(','))
+    : String(value ?? '').split(',');
+  return raw.map((item) => item.trim()).filter(Boolean);
+};
+
+export const listOccupiedSerialNumbers = async (
+  query: Record<string, unknown> = {},
+) => {
+  const serials = parseOccupiedSerialsQuery(query.serials);
+  if (serials.length === 0) {
+    return { occupied: [] as string[] };
+  }
+
+  const excludeSaleId = String(query.excludeSaleId ?? '').trim();
+  const occupied = await findOccupiedSerialNumbers({
+    excludeSaleId: mongoose.isValidObjectId(excludeSaleId)
+      ? excludeSaleId
+      : undefined,
+    serials,
+  });
+  return { occupied };
+};
 
 export const getSaleById = async (saleId: string) => {
   isValidObjectIdOrThrow(saleId, 'saleId');

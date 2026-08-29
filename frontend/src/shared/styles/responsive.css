@@ -77,6 +77,14 @@
     padding-bottom: 72px;
   }
 
+  .supplier-information-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .supplier-information-charts {
+    grid-template-columns: 1fr;
+  }
+
   .auth-screen {
     display: flex;
     flex-direction: column;
@@ -308,6 +316,10 @@
     grid-template-columns: 1fr;
   }
 
+  .analytics-executive-grid {
+    grid-template-areas: 'charts' 'side';
+  }
+
   .create-order-grid {
     grid-template-columns: 1fr;
   }
@@ -377,7 +389,8 @@
   }
 
   .warehouse-information-summary,
-  .warehouse-information-filters {
+  .warehouse-information-filters,
+  .warehouse-information-sort {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -436,6 +449,21 @@
 
   .catalog-toolbar-actions {
     margin-left: 0;
+  }
+
+  .order-related-item-supplier {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .order-related-supplier-open {
+    grid-template-columns: 88px minmax(0, 1fr) minmax(72px, auto) minmax(72px, auto);
+    gap: 8px;
+  }
+
+  .order-related-supplier-actions {
+    gap: 6px;
+    min-width: 0;
   }
 }
 
@@ -543,14 +571,18 @@
   }
 
   .hero-inline-metrics,
+  .analytics-kpi-money,
   .analytics-summary-grid,
   .analytics-summary-grid-wide,
   .supplier-information-summary,
+  .supplier-information-summary-compact,
+  .supplier-information-charts,
   .supplier-information-grid,
   .supplier-information-price-grid,
   .finance-orders-summary-grid,
   .finance-report-grid-wide,
   .finance-information-grid,
+  .warehouse-information-charts,
   .finance-operation-grid,
   .finance-report-grid,
   .form-grid,
@@ -559,6 +591,30 @@
   .history-stats,
   .employee-permissions {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-kpi-volume,
+  .analytics-top-items-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-top-toggle {
+    display: inline-flex;
+  }
+
+  .analytics-top-items.is-collapsed .analytics-top-items-body {
+    display: none;
+  }
+
+  .analytics-chart-tooltip {
+    position: static;
+    justify-self: start;
+  }
+
+  .period-toggle {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
   }
 
   .bar-chart {
@@ -1059,10 +1115,14 @@
   .ghost-button,
   .danger-button,
   .warning-button,
-  .orders-create-button,
   .toolbar-filter-button {
     min-width: 0;
     white-space: normal;
+  }
+
+  .orders-create-button {
+    min-width: 0;
+    white-space: nowrap;
   }
 
   .modal-backdrop {
@@ -1233,6 +1293,7 @@
 
   .warehouse-information-summary,
   .warehouse-information-filters,
+  .warehouse-information-sort,
   .warehouse-settings-location-row {
     grid-template-columns: 1fr;
   }
@@ -1408,6 +1469,32 @@
     align-items: start;
   }
 
+  .order-related-supplier-open {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+
+  .order-related-supplier-open strong {
+    grid-column: 1 / -1;
+  }
+
+  .order-related-supplier-actions {
+    justify-self: start;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .order-related-supplier-pay-button,
+  .order-related-supplier-paid-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    flex-basis: 36px;
+  }
+
   .order-detail-table-wide,
   .order-detail-table-wide-product,
   .order-detail-table-wide-service {
@@ -1433,6 +1520,30 @@
     background: var(--bg-card);
     box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
     overflow: hidden;
+  }
+
+  .order-line-item-group-header {
+    border: 1px solid var(--color-line-panel);
+    border-radius: 8px;
+    background: var(--bg-card);
+    box-shadow: 0 8px 20px rgba(31, 52, 77, 0.06);
+  }
+
+  .order-line-item-group-header-collapsed {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .order-line-item-group-header-collapsed > span {
+    padding: 0;
+  }
+
+  .order-line-item-group-serial,
+  .order-line-item-group-warranty {
+    display: none;
   }
 
   .order-detail-table-row > div,
@@ -1861,6 +1972,14 @@
 }
 
 @media (max-width: 480px) {
+  .analytics-kpi-volume {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-chart {
+    min-height: 200px;
+  }
+
   .auth-screen .auth-panel {
     width: 100%;
     max-width: 100%;
